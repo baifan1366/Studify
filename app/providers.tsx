@@ -1,6 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NextIntlClientProvider } from "next-intl";
 import { ReactNode, useState } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -8,6 +9,8 @@ export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <NextIntlClientProvider>{children}</NextIntlClientProvider>
+    </QueryClientProvider>
   );
 }

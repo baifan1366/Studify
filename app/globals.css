@@ -1,6 +1,43 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Sidebar layout utilities */
+:root {
+  --sidebar-width: 80px;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.sidebar-content-push {
+  margin-left: var(--sidebar-width);
+  width: calc(100vw - var(--sidebar-width));
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

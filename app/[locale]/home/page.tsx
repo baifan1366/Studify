@@ -1,6 +1,19 @@
-import { useTranslations } from "next-intl";
+import React from 'react';
+import { Metadata } from 'next';
+import HomeContent from '@/components/home-content';
 
-export default function Page() {
-  const t = useTranslations("HomePage");
-  return <h1>{t("title")}</h1>;
+export const metadata: Metadata = {
+  title: 'Home - Studify',
+  description: 'Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features',
+  keywords: ['learning', 'education', 'AI tutoring', 'progress tracking', 'study dashboard'],
+  openGraph: {
+    title: 'Home - Studify',
+    description: 'Personalized Learning, Powered by AI and Real-time Tutoring',
+    type: 'website',
+  },
+};
+
+export default function HomePage() {
+  return <HomeContent />;
 }
+

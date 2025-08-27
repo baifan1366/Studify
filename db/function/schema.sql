@@ -1,3 +1,21 @@
+-- Auto-create profile when user signs up
+create or replace function core.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into core.profiles (user_id, display_name, role)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+    coalesce(new.raw_user_meta_data->>'role', 'student')
+  );
+  return new;
+end;$$;
+
+-- Trigger to create profile after user signs up
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure core.handle_new_user();
+
 -- 自动更新学生进度：提交作业后触发
 CREATE OR REPLACE FUNCTION trg_update_progress()
 RETURNS TRIGGER AS $$

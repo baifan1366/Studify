@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { createSupabaseClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function SignIn() {
   const [isLogin, setIsLogin] = useState(true);
@@ -22,6 +24,9 @@ export default function SignIn() {
       [e.target.name]: e.target.value,
     });
   };
+
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +50,33 @@ export default function SignIn() {
 
     setLoading(true);
     try {
-      // TODO: Add authentication logic here
-      console.log("Form submitted:", formData);
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+      if (isLogin) {
+        // Handle Sign In
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) throw error;
+
+        router.refresh();
+        router.push("/home");
+      } else {
+        // Handle Sign Up
+        const { error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.fullName,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        setFormError("Please check your email for verification link");
+      }
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : "An unexpected error occurred"
@@ -61,11 +90,18 @@ export default function SignIn() {
     setFormError("");
     setLoading(true);
     try {
-      // TODO: Add Google sign-in logic here
-      console.log("Google sign in clicked");
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
     } catch (error) {
-      setFormError("Google sign-in failed");
+      setFormError(
+        error instanceof Error ? error.message : "Google sign-in failed"
+      );
     } finally {
       setLoading(false);
     }

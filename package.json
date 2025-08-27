@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@langchain/core": "^0.3.72",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.2",
     "@serwist/next": "^9.1.1",
@@ -18,6 +19,7 @@
     "@updatedev/js": "^0.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "langchain": "^0.3.31",
     "lucide-react": "^0.541.0",
     "next": "^15.5.0",
     "next-intl": "^4.3.5",

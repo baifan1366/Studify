@@ -1,38 +1,42 @@
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { stripe } from "@/lib/stripe";
+import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 
-export async function POST() {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-07-30.basil',
+});
+
+export async function POST(req: NextRequest) {
   try {
-    const headersList = await headers();
-    const origin = headersList.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL;
+    const { items, locale } = await req.json();
 
-    // Create Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      line_items: [
-        {
-          // Replace with your real Price ID from Stripe Dashboard
-          price: process.env.STRIPE_PRICE_ID ?? "{{PRICE_ID}}",
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?canceled=true`,
-    });
-
-    if (!session.url) {
-      return NextResponse.json(
-        { error: "Failed to create Stripe Checkout session." },
-        { status: 500 }
-      );
+    if (!items || !Array.isArray(items)) {
+      return NextResponse.json({ error: 'Invalid items' }, { status: 400 });
     }
 
-    return NextResponse.redirect(session.url, 303);
+    const line_items = items.map((item: any) => ({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: item.name,
+          images: item.image ? [item.image] : [],
+        },
+        unit_amount: item.price,
+      },
+      quantity: item.quantity,
+    }));
+
+    const origin = req.headers.get('origin');
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items,
+      success_url: `${origin}/${locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/${locale}/cancel`,
+    });
+
+    return NextResponse.json({ url: session.url });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message },
-      { status: err.statusCode || 500 }
-    );
+    console.error(err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

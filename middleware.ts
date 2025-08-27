@@ -1,17 +1,20 @@
-import { NextResponse, NextRequest } from "next/server";
+import {NextResponse, NextRequest} from 'next/server';
+import createMiddleware from 'next-intl/middleware';
+import {routing} from './i18n/routing';
+
+const intlMiddleware = createMiddleware(routing);
 
 export default function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const {pathname} = request.nextUrl;
 
-  // Redirect root → /home
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/home", request.url));
+  if (pathname === '/') {
+    const url = new URL(`/${routing.defaultLocale}/home`, request.url);
+    return NextResponse.redirect(url);
   }
 
-  // Otherwise just continue
-  return NextResponse.next();
+  return intlMiddleware(request);
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|.*\\..*).*)"], // ignore api, _next, and static files
+  matcher: ['/', '/(en|zh)/:path*']
 };

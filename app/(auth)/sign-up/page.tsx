@@ -5,30 +5,46 @@ import { supabase } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Sign In",
+  title: "Sign Up",
 };
 
-export default function SignInPage() {
-  // ✅ 这是一个 Server Action
-  async function handleSignIn(formData: FormData) {
+export default function SignUpPage() {
+  // ✅ Server Action
+  async function handleSignUp(formData: FormData) {
     "use server";
 
+    const fullName = formData.get("fullName") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+
+    if (!fullName || !email || !password) {
+      redirect(`/sign-up?error=${encodeURIComponent("Missing fields")}`);
+    }
+
+    if (password !== confirmPassword) {
+      redirect(
+        `/sign-up?error=${encodeURIComponent("Passwords do not match")}`
+      );
+    }
 
     const supabaseClient = await supabase();
-    const { error } = await supabaseClient.auth.signInWithPassword({
+    const { error } = await supabaseClient.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
     });
 
     if (error) {
-      // 失败时，返回同一页面并带 query string（提示错误）
-      redirect(`/sign-in?error=${encodeURIComponent(error.message)}`);
+      redirect(`/sign-up?error=${encodeURIComponent(error.message)}`);
     }
 
-    // ✅ 登录成功时，直接跳转 /home
-    redirect("/home");
+    // ✅ 提示用户去邮箱验证，而不是直接登录
+    redirect("/check-email");
   }
 
   return (
@@ -39,15 +55,32 @@ export default function SignInPage() {
             <span className="text-white text-2xl font-bold">ST</span>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Welcome back
+            Create account
           </h2>
           <p className="text-gray-600 text-sm">
-            Sign in to your Studify account
+            Start your learning journey today
           </p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-lg p-8 mt-6">
-          <form action={handleSignIn} className="space-y-5">
+          <form action={handleSignUp} className="space-y-5">
+            <div>
+              <Label
+                htmlFor="fullName"
+                className="block text-sm mb-2 text-gray-700"
+              >
+                Full Name
+              </Label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                required
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#7C3AED] focus:border-[#7C3AED]"
+                placeholder="Enter your full name"
+              />
+            </div>
+
             <div>
               <Label
                 htmlFor="email"
@@ -66,20 +99,12 @@ export default function SignInPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label
-                  htmlFor="password"
-                  className="block text-sm text-gray-700"
-                >
-                  Password
-                </Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-[#7C3AED] hover:text-[#6025DD]"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <Label
+                htmlFor="password"
+                className="block text-sm mb-2 text-gray-700"
+              >
+                Password
+              </Label>
               <Input
                 id="password"
                 name="password"
@@ -90,21 +115,38 @@ export default function SignInPage() {
               />
             </div>
 
+            <div>
+              <Label
+                htmlFor="confirmPassword"
+                className="block text-sm mb-2 text-gray-700"
+              >
+                Confirm Password
+              </Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#7C3AED] focus:border-[#7C3AED]"
+                placeholder="Confirm your password"
+              />
+            </div>
+
             <button
               type="submit"
               className="w-full bg-black text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors"
             >
-              Sign in
+              Create account
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <span className="text-gray-600">Don't have an account? </span>
+            <span className="text-gray-600">Already have an account? </span>
             <Link
-              href="/sign-up"
+              href="/sign-in"
               className="text-[#7C3AED] hover:text-[#6025DD] font-medium"
             >
-              Sign up
+              Sign in
             </Link>
           </div>
         </div>

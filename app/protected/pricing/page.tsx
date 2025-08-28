@@ -1,5 +1,17 @@
+import { Metadata } from "next";
 import { createUpdateClient } from "@/utils/update/server";
 import PricingContent from "@/components/pricing-content";
+
+export const metadata: Metadata = {
+  title: "Pricing - Studify",
+  description: "Manage and access premium paid content and subscriptions",
+  keywords: ["pricing", "subscriptions", "premium", "education"],
+  openGraph: {
+    title: "Pricing - Studify",
+    description: "Manage and access premium paid content and subscriptions",
+    type: "website",
+  },
+};
 
 export default async function PricingPage() {
   const client = await createUpdateClient();

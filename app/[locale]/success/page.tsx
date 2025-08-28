@@ -1,15 +1,22 @@
-'use client';
+import { Metadata } from "next";
 
-import { useSearchParams } from 'next/navigation';
+export const metadata: Metadata = {
+  title: "Success - Studify",
+  description: "Order completed successfully",
+  keywords: ["order success", "payment", "checkout", "education"],
+  openGraph: {
+    title: "Success - Studify",
+    description: "Order completed successfully",
+    type: "website",
+  },
+};
 
 export default function SuccessPage() {
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
-
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h1>
-      <p>Session ID: {sessionId}</p>
+      <h1 className="text-2xl font-bold text-green-600 mb-2">
+        Payment Successful!
+      </h1>
     </div>
   );
 }

@@ -1,5 +1,17 @@
+import { Metadata } from "next";
 import { createSupabaseClient } from "@/utils/supabase/server";
 import AuthPageSignOutButton from "@/components/auth-sign-out-button";
+
+export const metadata: Metadata = {
+  title: "Protected - Studify",
+  description: "protected page for authenticated users only",
+  keywords: ["protected", "authentication", "user account", "education"],
+  openGraph: {
+    title: "Protected - Studify",
+    description: "No access without authentication",
+    type: "website",
+  },
+};
 
 export default async function ProtectedPage() {
   const client = await createSupabaseClient();
@@ -62,7 +74,7 @@ export default async function ProtectedPage() {
               <div className="text-muted-foreground">Providers</div>
               <div>
                 {user.identities
-                  ?.map(identity => identity.provider)
+                  ?.map((identity) => identity.provider)
                   .join(", ") || "Email"}
               </div>
             </div>

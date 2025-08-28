@@ -1,4 +1,16 @@
-import CheckoutButton from '@/components/checkout-button';
+import { Metadata } from "next";
+import CheckoutButton from "@/components/checkout-button";
+
+export const metadata: Metadata = {
+  title: "Order Preview - Studify",
+  description: "Preview your order details before proceeding to checkout",
+  keywords: ["order preview"],
+  openGraph: {
+    title: "Order Preview - Studify",
+    description: "checkout and order preview",
+    type: "website",
+  },
+};
 
 interface PageProps {
   params: { locale: string };
@@ -8,10 +20,10 @@ export default async function OrderPreviewPage({ params }: PageProps) {
   const { locale } = await params;
 
   const dummyItem = {
-    name: 'T-shirt',
+    name: "T-shirt",
     price: 2000,
     quantity: 1,
-    image: 'https://via.placeholder.com/150',
+    image: "https://via.placeholder.com/150",
   };
 
   return (

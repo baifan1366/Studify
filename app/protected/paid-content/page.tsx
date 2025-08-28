@@ -1,7 +1,21 @@
+import { Metadata } from "next";
 import { createUpdateClient } from "@/utils/update/server";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PaidContentCard from "@/components/paid-content-card";
+
+export const metadata: Metadata = {
+  title: "Paid Content - Studify",
+  description:
+    "manage and access premium paid content and subscriptions",
+  keywords: ["paid content", "subscriptions", "premium", "education"],
+  openGraph: {
+    title: "Paid Content - Studify",
+    description:
+      "Manage and access premium paid content and subscriptions",
+    type: "website",
+  },
+};
 
 export default async function PaidContent() {
   const client = await createUpdateClient();

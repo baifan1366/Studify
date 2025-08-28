@@ -1,7 +1,19 @@
+import { Metadata } from "next";
 import SubscriptionActions from "@/components/subcription-actions";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/utils/styles";
 import { createUpdateClient } from "@/utils/update/server";
+
+export const metadata: Metadata = {
+  title: "Subscription - Studify",
+  description: "Access and manage your subscription plans",
+  keywords: ["subscription", "plans", "manage", "education"],
+  openGraph: {
+    title: "Subscription - Studify",
+    description: "Access and manage your subscription plans",
+    type: "website",
+  },
+};
 
 export default async function Page() {
   const client = await createUpdateClient();

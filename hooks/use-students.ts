@@ -27,7 +27,7 @@ export function useStudents() {
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
 }
 
@@ -48,7 +48,7 @@ export function useStudent(studentId: number) {
     },
     enabled: !!studentId,
     staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // formerly cacheTime
   });
 }
 
@@ -69,6 +69,6 @@ export function useStudentsSearch(searchQuery: string) {
     },
     enabled: searchQuery.length > 0,
     staleTime: 2 * 60 * 1000, // 2 minutes for search results
-    cacheTime: 5 * 60 * 1000,
+    gcTime: 5 * 60 * 1000, // formerly cacheTime
   });
 }

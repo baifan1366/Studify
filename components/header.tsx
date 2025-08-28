@@ -26,7 +26,7 @@ export default function ClassroomHeader({
     <motion.header
       className="fixed top-0 left-0 right-0 h-16 z-30 backdrop-blur-md"
       style={{
-        backgroundColor: 'rgba(44, 66, 95, 0.4)', // More transparent for better sphere visibility
+        backgroundColor: 'rgba(29,87,72, 0.4)',
         backdropFilter: 'blur(16px) saturate(190%)',
         WebkitBackdropFilter: 'blur(16px) saturate(190%)',
       }}
@@ -41,7 +41,10 @@ export default function ClassroomHeader({
           <motion.button
             onClick={onMenuToggle}
             className="p-2 rounded-lg backdrop-blur-sm transition-colors"
-            style={{ backgroundColor: 'rgba(44, 66, 95, 0.7)' }}
+            style={{ backgroundColor: 'rgba(29,87,72, 0.4)' ,
+                      backdropFilter: 'blur(16px) saturate(190%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(190%)',
+            }}
             whileHover={{
               scale: 1.1,
             }}

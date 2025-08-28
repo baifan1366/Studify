@@ -192,7 +192,7 @@ export default function AnimatedSidebar({
         animate={isExpanded ? 'expanded' : 'collapsed'}
         className="fixed left-0 top-16 h-[calc(100vh-4rem)] text-white shadow-2xl z-20 flex flex-col backdrop-blur-md "
         style={{
-          backgroundColor: 'rgba(44, 66, 95, 0.4)', // More transparent for better sphere visibility
+          backgroundColor: 'rgba(29,87,72, 0.4)', 
           backdropFilter: 'blur(16px) saturate(190%)',
           WebkitBackdropFilter: 'blur(16px) saturate(190%)',
         }}

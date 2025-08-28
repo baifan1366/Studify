@@ -15,7 +15,7 @@ export function Providers({ children }: { children: ReactNode }) {
   // Dynamically detect locale & load messages
   useEffect(() => {
     const segments = pathname.split("/");
-    const currentLocale = segments[1] || "en"; /
+    const currentLocale = segments[1] || "en"; 
 
     setLocale(currentLocale);
 

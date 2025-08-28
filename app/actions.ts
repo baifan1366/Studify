@@ -1,13 +1,13 @@
 "use server";
 
-import { createSupabaseClient } from "@/utils/supabase/server";
+import { supabase } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { encodedRedirect } from "@/utils/redirect";
 
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const client = await createSupabaseClient();
+  const client = await supabase();
 
   const { error } = await client.auth.signInWithPassword({
     email,
@@ -24,7 +24,7 @@ export const signInAction = async (formData: FormData) => {
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const client = await createSupabaseClient();
+  const client = await supabase();
 
   const url = process.env.VERCEL_URL
     ? `${process.env.VERCEL_URL}/protected`
@@ -46,7 +46,7 @@ export const signUpAction = async (formData: FormData) => {
 };
 
 export const signOutAction = async () => {
-  const client = await createSupabaseClient();
+  const client = await supabase();
   await client.auth.signOut();
   return redirect("/sign-in");
 };

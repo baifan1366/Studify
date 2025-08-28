@@ -3,6 +3,11 @@
  * Centralized definition of all API routes used throughout the application
  */
 
+import { supabase } from '@/utils/supabase/client';
+
+// Export supabase client for direct access
+export { supabase };
+
 // Students API endpoints
 export const studentsApi = {
   list: "/api/students",

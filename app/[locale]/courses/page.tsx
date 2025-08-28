@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import CoursesContent from '@/components/courses-content';
+import CoursesContent from '@/components/course/courses-content';
 
 export const metadata: Metadata = {
   title: 'Courses - Studify',

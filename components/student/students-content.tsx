@@ -8,15 +8,15 @@ import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function StudentsContent() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [activeMenuItem, setActiveMenuItem] = useState('students');
   const [user, setUser] = useState<User | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   
-  const { data: students, isLoading, error } = useStudents();
+  const { isLoading } = useStudents();
   const { toast } = useToast();
 
   // Fetch user authentication data
@@ -47,15 +47,7 @@ export default function StudentsContent() {
     fetchUser();
   }, [toast]);
 
-  // Mouse tracking for animated background
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const handleMenuItemClick = (itemId: string) => {
     setActiveMenuItem(itemId);
@@ -96,7 +88,7 @@ export default function StudentsContent() {
   ];
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-gray-900">
+    <AnimatedBackground>
       {/* Header */}
       <ClassroomHeader
         title="Students"
@@ -114,26 +106,6 @@ export default function StudentsContent() {
         isPermanentlyExpanded={isPermanentlyExpanded}
       />
 
-      {/* Animated Orange Gradient Sphere - Behind frosted glass */}
-      <motion.div
-        className="absolute w-96 h-96 rounded-full opacity-60 blur-3xl"
-        style={{
-          background: 'radial-gradient(circle, rgba(255,165,0,0.8) 0%, rgba(255,69,0,0.6) 50%, rgba(255,140,0,0.4) 100%)',
-          left: mousePosition.x - 192,
-          top: mousePosition.y - 192,
-          pointerEvents: 'none',
-        }}
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.6, 0.8, 0.6],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-
       {/* Main Content Area */}
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
@@ -143,18 +115,6 @@ export default function StudentsContent() {
           width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
         }}
       >
-        {/* Frosted Glass Overlay */}
-        <motion.div
-          className="absolute inset-0 rounded-2xl border border-white/20 pointer-events-none"
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(16px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(150%)',
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
-        />
 
         {/* Students Content */}
         <motion.div
@@ -252,6 +212,6 @@ export default function StudentsContent() {
           </div>
         </motion.div>
       </motion.div>
-    </div>
+    </AnimatedBackground>
   );
 }

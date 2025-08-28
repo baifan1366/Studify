@@ -16,7 +16,7 @@ import {
   Calendar,
   Brain
 } from 'lucide-react';
-import CourseCard, { Course } from './course-card';
+import CourseCard, { Course } from '../course/course-card';
 
 interface RecommendationPanelsProps {
   user: any;

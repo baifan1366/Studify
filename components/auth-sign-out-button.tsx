@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { createSupabaseClient } from "@/utils/supabase/client";
+import { supabase } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -12,8 +12,7 @@ export default function AuthPageSignOutButton() {
 
   async function signOut() {
     setIsSigningOut(true);
-    const client = createSupabaseClient();
-    await client.auth.signOut();
+    await supabase.auth.signOut();
     router.push("/sign-in");
     router.refresh();
   }

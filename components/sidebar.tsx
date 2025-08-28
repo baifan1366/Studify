@@ -14,14 +14,20 @@ import {
   BookOpen,
   Users,
   GraduationCap,
-  Bell
+  Bell,
+  ChevronDown,
+  UserCheck,
+  ClipboardList,
+  Video,
+  Route
 } from 'lucide-react';
 
 interface MenuItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
-  path: string; // 添加路径属性
+  path?: string; // Optional for parent items with sub-items
+  subItems?: MenuItem[]; // Sub-navigation items
 }
 
 interface AnimatedSidebarProps {
@@ -51,7 +57,18 @@ const defaultMenuSections: MenuSection[] = [
     title: 'Dashboard',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
-      { id: 'classroom', label: 'Classroom', icon: BookOpen, path: '/classroom' },
+      {
+        id: 'classroom',
+        label: 'Classroom',
+        icon: BookOpen,
+        path: '/classroom',
+        subItems: [
+          { id: 'enrolled', label: 'Enrolled', icon: UserCheck, path: '/classroom/enrolled' },
+          { id: 'assignment', label: 'Assignment', icon: ClipboardList, path: '/classroom/assignment' },
+          { id: 'meeting', label: 'Meeting', icon: Video, path: '/classroom/meeting' },
+          { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/classroom/learning-path' },
+        ]
+      },
       { id: 'students', label: 'Students', icon: Users, path: '/students' },
       { id: 'courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
       { id: 'documents', label: 'Documents', icon: FileText, path: '/documents' },
@@ -71,11 +88,24 @@ export default function AnimatedSidebar({
   const router = useRouter();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   // Automatically determine active item based on current route
   useEffect(() => {
     if (pathname?.includes('/home')) {
       setCurrentActiveItem('home');
+    } else if (pathname?.includes('/classroom/enrolled')) {
+      setCurrentActiveItem('enrolled');
+      setExpandedSections(prev => ({ ...prev, classroom: true }));
+    } else if (pathname?.includes('/classroom/assignment')) {
+      setCurrentActiveItem('assignment');
+      setExpandedSections(prev => ({ ...prev, classroom: true }));
+    } else if (pathname?.includes('/classroom/meeting')) {
+      setCurrentActiveItem('meeting');
+      setExpandedSections(prev => ({ ...prev, classroom: true }));
+    } else if (pathname?.includes('/classroom/learning-path')) {
+      setCurrentActiveItem('learning-path');
+      setExpandedSections(prev => ({ ...prev, classroom: true }));
     } else if (pathname?.includes('/classroom')) {
       setCurrentActiveItem('classroom');
     } else if (pathname?.includes('/students')) {
@@ -96,6 +126,17 @@ export default function AnimatedSidebar({
       setCurrentActiveItem(activeItem);
     }
   }, [pathname, activeItem]);
+
+  // Auto-close expanded sections when sidebar is collapsed
+  useEffect(() => {
+    if (!isPermanentlyExpanded && hoveredItem === null) {
+      // Add a small delay to prevent immediate closing when moving mouse
+      const timer = setTimeout(() => {
+        setExpandedSections({});
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isPermanentlyExpanded, hoveredItem]);
 
   // Determine if sidebar should be expanded (permanently or temporarily via hover)
   const isExpanded = isPermanentlyExpanded || hoveredItem !== null;
@@ -162,11 +203,22 @@ export default function AnimatedSidebar({
     }
   };
 
+  const toggleSectionExpansion = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
   const handleItemClick = (itemId: string) => {
     setCurrentActiveItem(itemId);
 
-    // Find the menu item to get its path
-    const allItems = menuSections.flatMap(section => section.items);
+    // Find the menu item to get its path (including sub-items)
+    const allItems = menuSections.flatMap(section =>
+      section.items.flatMap(item =>
+        item.subItems ? [item, ...item.subItems] : [item]
+      )
+    );
     const clickedItem = allItems.find(item => item.id === itemId);
 
     if (clickedItem?.path) {
@@ -199,33 +251,165 @@ export default function AnimatedSidebar({
       >
         {/* Navigation */}
         <nav
-          className="flex-1 p-4 overflow-y-auto"
+          className="flex-1 p-4 overflow-y-auto scrollbar-hide"
           onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+          style={{
+            scrollbarWidth: 'none', /* Firefox */
+            msOverflowStyle: 'none', /* Internet Explorer 10+ */
+          }}
         >
           <div className="space-y-6">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title}>
-                {/* Section Title */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.h3
-                      variants={textVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="hidden"
-                      className="text-xs font-semibold text-white/80 uppercase tracking-wider mb-3 px-3 bg-white/15 rounded-lg py-1 backdrop-blur-sm border border-white/10"
-                    >
-                      {section.title}
-                    </motion.h3>
-                  )}
-                </AnimatePresence>
 
                 {/* Section Items */}
                 <ul className="space-y-2">
                   {section.items.map((item) => {
                     const IconComponent = item.icon;
                     const isActive = currentActiveItem === item.id;
+                    const hasSubItems = item.subItems && item.subItems.length > 0;
+                    const isDropdownExpanded = expandedSections[item.id] || false;
 
+                    if (hasSubItems) {
+                      return (
+                        <li key={item.id}>
+                          <div>
+                            <motion.button
+                              variants={itemVariants}
+                              animate={isExpanded ? 'expanded' : 'collapsed'}
+                              onClick={() => {
+                                if (!isExpanded) {
+                                  // If sidebar is collapsed, navigate to the main page
+                                  handleItemClick(item.id);
+                                } else {
+                                  // If sidebar is expanded, toggle dropdown
+                                  toggleSectionExpansion(item.id);
+                                }
+                              }}
+                              onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
+                              onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                              className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
+                                isActive
+                                  ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
+                                  : 'text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm'
+                              }`}
+                              whileHover={{
+                                scale: 1.02,
+                                backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                              }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                                <motion.div
+                                  variants={iconVariants}
+                                  animate={isExpanded ? 'expanded' : 'collapsed'}
+                                  className="flex-shrink-0"
+                                >
+                                  <IconComponent size={24} />
+                                </motion.div>
+
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.span
+                                    variants={textVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    exit="hidden"
+                                    className="ml-4 font-medium whitespace-nowrap "
+                                  >
+                                    {item.label}
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
+
+                              {/* Dropdown indicator */}
+                              {isExpanded && (
+                                <motion.div
+                                  animate={{ rotate: isDropdownExpanded ? 180 : 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="ml-auto"
+                                >
+                                  <ChevronDown size={16} className="text-white/60" />
+                                </motion.div>
+                              )}
+
+                              {/* Active indicator */}
+                              {isActive && !isExpanded && (
+                                <motion.div
+                                  layoutId="activeIndicator"
+                                  className="ml-auto w-2 h-2 bg-white rounded-full"
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                />
+                              )}
+                              {isActive && isExpanded && !isDropdownExpanded && (
+                                <motion.div
+                                  layoutId="activeIndicator"
+                                  className="ml-2 w-2 h-2 bg-white rounded-full"
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                />
+                              )}
+                            </motion.button>
+
+                            {/* Sub-items dropdown */}
+                            <AnimatePresence>
+                              {isDropdownExpanded && isExpanded && (
+                                <motion.div
+                                  className="ml-6 mt-2 space-y-1"
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
+                                  onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                                >
+                                  {item.subItems?.map((subItem) => {
+                                    const SubIconComponent = subItem.icon;
+                                    const isSubActive = currentActiveItem === subItem.id;
+
+                                    return (
+                                      <motion.button
+                                        key={subItem.id}
+                                        onClick={() => handleItemClick(subItem.id)}
+                                        onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
+                                        onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                                        className={`w-full flex items-center p-2 rounded-lg transition-all duration-200 text-sm ${
+                                          isSubActive
+                                            ? 'bg-white/30 text-white shadow-md'
+                                            : 'text-white/80 hover:bg-white/20 hover:text-white'
+                                        }`}
+                                        whileHover={{ scale: 1.02, x: 4 }}
+                                        whileTap={{ scale: 0.98 }}
+                                      >
+                                        <div className="flex-shrink-0">
+                                          <SubIconComponent size={18} />
+                                        </div>
+                                        <span className="ml-3 font-medium whitespace-nowrap">
+                                          {subItem.label}
+                                        </span>
+                                        {isSubActive && (
+                                          <motion.div
+                                            layoutId="subActiveIndicator"
+                                            className="ml-auto w-1.5 h-1.5 bg-white rounded-full"
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                          />
+                                        )}
+                                      </motion.button>
+                                    );
+                                  })}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </li>
+                      );
+                    }
+
+                    // Regular menu item without sub-items
                     return (
                       <li key={item.id}>
                         <motion.button

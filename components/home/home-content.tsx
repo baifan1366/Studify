@@ -3,19 +3,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
-import { createSupabaseClient } from '@/utils/supabase/client';
+import { supabase } from '@/utils/supabase/client';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
-import HeroSection from '@/components/hero-section';
+import HeroSection from '@/components/home/hero-section';
 import AIAssistantPreview from '@/components/ai-assistant-preview';
 import LearningPath from '@/components/learning-path';
 import CommunityHighlights from '@/components/community-highlights';
 import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
+import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function HomeContent() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [activeMenuItem, setActiveMenuItem] = useState('home');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +28,6 @@ export default function HomeContent() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const supabase = createSupabaseClient();
         const { data: { user }, error } = await supabase.auth.getUser();
 
         if (error) {
@@ -51,7 +50,6 @@ export default function HomeContent() {
     fetchUser();
 
     // Listen for auth state changes
-    const supabase = createSupabaseClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
@@ -62,21 +60,7 @@ export default function HomeContent() {
     return () => subscription.unsubscribe();
   }, [toast]);
 
-  // Mouse position tracking
-  useEffect(() => {
-    const updateMousePosition = (e: MouseEvent) => {
-      setMousePosition({
-        x: e.clientX,
-        y: e.clientY
-      });
-    };
 
-    window.addEventListener('mousemove', updateMousePosition);
-
-    return () => {
-      window.removeEventListener('mousemove', updateMousePosition);
-    };
-  }, []);
 
   const handleMenuItemClick = (itemId: string) => {
     setActiveMenuItem(itemId);
@@ -149,7 +133,7 @@ export default function HomeContent() {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-gray-900">
+    <AnimatedBackground>
       {/* Header */}
       <ClassroomHeader
         title="Home"
@@ -165,55 +149,6 @@ export default function HomeContent() {
         onItemClick={handleMenuItemClick}
         onExpansionChange={setSidebarExpanded}
         isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      {/* Animated Orange Gradient Sphere - Behind frosted glass */}
-      <motion.div
-        className="absolute w-96 h-96 rounded-full opacity-60 blur-3xl"
-        style={{
-          background: 'radial-gradient(circle, #f78b4a 0%, #d9653a 70%, transparent 100%)',
-          filter: 'blur(60px)',
-        }}
-        animate={{
-          x: mousePosition.x - 192, // Half of sphere width (384px / 2)
-          y: mousePosition.y - 192, // Half of sphere height
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 50,
-          damping: 20,
-          mass: 0.8
-        }}
-      />
-
-      {/* Additional smaller sphere for more depth */}
-      <motion.div
-        className="absolute w-64 h-64 rounded-full opacity-40 blur-2xl"
-        style={{
-          background: 'radial-gradient(circle, #f78b4a 0%, #d9653a 50%, transparent 100%)',
-          filter: 'blur(40px)',
-        }}
-        animate={{
-          x: mousePosition.x - 128 + 50, // Offset slightly for layered effect
-          y: mousePosition.y - 128 + 50,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 60,
-          damping: 25,
-          mass: 0.6
-        }}
-      />
-
-      {/* Frosted Glass Overlay */}
-      <div
-        className="absolute inset-0 backdrop-blur-md border border-white/20"
-        style={{
-          backgroundColor: '#1d2939',
-          opacity: 0.85,
-          backdropFilter: 'blur(16px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-        }}
       />
 
       {/* Main Content Area - Recommendation Panels */}
@@ -257,6 +192,6 @@ export default function HomeContent() {
           onDailyCheckin={handleDailyCheckin}
         />
       </motion.div>
-    </div>
+    </AnimatedBackground>
   );
 }

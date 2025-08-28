@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import HomeContent from '@/components/home-content';
+import HomeContent from '@/components/home/home-content';
 
 export const metadata: Metadata = {
   title: 'Home - Studify',

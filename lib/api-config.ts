@@ -129,32 +129,62 @@ export const API_ERROR_CODES = {
 } as const;
 
 /**
- * Supabase Table Names
+ * Supabase Table Names 
  */
 export const TABLES = {
-  PROFILES: 'profiles',
-  COURSES: 'courses',
-  ENROLLMENTS: 'enrollments',
-  ASSIGNMENTS: 'assignments',
-  SUBMISSIONS: 'submissions',
-  LESSONS: 'lessons',
-  PROGRESS: 'progress',
-  NOTIFICATIONS: 'notifications',
-  MESSAGES: 'messages',
-  POSTS: 'posts',
-  COMMENTS: 'comments',
-  LIKES: 'likes',
-  STUDY_GROUPS: 'study_groups',
-  GROUP_MEMBERS: 'group_members',
-  BADGES: 'badges',
-  USER_BADGES: 'user_badges',
-  ACHIEVEMENTS: 'achievements',
-  USER_ACHIEVEMENTS: 'user_achievements',
-  LEADERBOARD: 'leaderboard',
-  CALENDAR_EVENTS: 'calendar_events',
-  DOCUMENTS: 'documents',
-  USER_ROLES: 'user_roles',
-  SETTINGS: 'settings',
+  // Core schema
+  PROFILES: 'core.profiles',
+  NOTIFICATIONS: 'core.notifications',
+  PARENT_STUDENT: 'core.parent_student',
+
+  // Courses schema
+  COURSES: 'courses.course',
+  MODULES: 'courses.module',
+  LESSONS: 'courses.lesson',
+  ENROLLMENTS: 'courses.enrollment',
+
+  // Assessment schema
+  QUIZZES: 'assessment.quiz',
+  QUESTIONS: 'assessment.question',
+  QUESTION_BANKS: 'assessment.question_bank',
+  QUIZ_QUESTIONS: 'assessment.quiz_question',
+  ATTEMPTS: 'assessment.attempt',
+  ANSWERS: 'assessment.answer',
+  ASSIGNMENTS: 'assessment.assignment',
+  SUBMISSIONS: 'assessment.submission',
+
+  // Community schema
+  POSTS: 'community.post',
+  COMMENTS: 'community.comment',
+  LIKES: 'community.like',
+  STUDY_GROUPS: 'community.study_group',
+  GROUP_MEMBERS: 'community.group_member',
+
+  // Gamification schema
+  BADGES: 'gamification.badge',
+  USER_BADGES: 'gamification.user_badge',
+  ACHIEVEMENTS: 'gamification.achievement',
+  USER_ACHIEVEMENTS: 'gamification.user_achievement',
+  LEADERBOARD: 'gamification.leaderboard',
+  CHALLENGE_RESULTS: 'gamification.challenge_results',
+
+  // Classroom schema
+  LIVE_SESSIONS: 'classroom.live_session',
+  SESSION_PARTICIPANTS: 'classroom.session_participant',
+  CLASSROOM_LOGS: 'classroom.classroom_log',
+
+  // Resources schema
+  FILES: 'resources.file',
+  NOTES: 'resources.note',
+
+  // Analytics schema
+  USER_ACTIONS: 'analytics.user_action',
+  LEARNING_ANALYTICS: 'analytics.learning_analytics',
+
+  // Tutoring schema
+  TUTOR_PROFILES: 'tutoring.tutor_profile',
+  TUTORING_SESSIONS: 'tutoring.tutoring_session',
+  SESSION_FEEDBACK: 'tutoring.session_feedback',
 } as const;
 
 /**

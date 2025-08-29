@@ -1,13 +1,18 @@
 create schema if not exists classroom;
 
 create table if not exists classroom.live_session (
-  id uuid primary key default uuid_generate_v1(),
-  course_id uuid references courses.course(id) on delete set null,
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  course_id bigint references courses.course(id) on delete set null,
   title text,
-  host_id uuid not null references core.profiles(user_id) on delete restrict,
+  host_id bigint not null references core.profiles(id) on delete restrict,
   starts_at timestamptz not null,
   ends_at timestamptz,
-  status text not null check (status in ('scheduled','live','ended','cancelled')) default 'scheduled'
+  status text not null check (status in ('scheduled','live','ended','cancelled')) default 'scheduled',
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 create index if not exists idx_live_time on classroom.live_session(starts_at);
 
@@ -16,40 +21,84 @@ alter table courses.lesson
   foreign key (live_session_id) references classroom.live_session(id) on delete set null;
 
 create table if not exists classroom.attendance (
-  session_id uuid not null references classroom.live_session(id) on delete cascade,
-  user_id uuid not null references core.profiles(user_id) on delete cascade,
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  session_id bigint not null references classroom.live_session(id) on delete cascade,
+  user_id bigint not null references core.profiles(id) on delete cascade,
   join_at timestamptz,
   leave_at timestamptz,
   attention_score numeric(5,2), -- computed from events
-  primary key (session_id, user_id)
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (session_id, user_id)
 );
 
 create table if not exists classroom.chat_message (
-  id uuid primary key default uuid_generate_v1(),
-  session_id uuid not null references classroom.live_session(id) on delete cascade,
-  sender_id uuid not null references core.profiles(user_id) on delete cascade,
-  message text not null
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  session_id bigint not null references classroom.live_session(id) on delete cascade,
+  sender_id bigint not null references core.profiles(id) on delete cascade,
+  message text not null,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists classroom.whiteboard_session (
-  id uuid primary key default uuid_generate_v1(),
-  session_id uuid references classroom.live_session(id) on delete cascade,
-  title text
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  session_id bigint references classroom.live_session(id) on delete cascade,
+  title text,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists classroom.whiteboard_event (
-  id uuid primary key default uuid_generate_v1(),
-  wb_id uuid not null references classroom.whiteboard_session(id) on delete cascade,
-  actor_id uuid references core.profiles(user_id),
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  wb_id bigint not null references classroom.whiteboard_session(id) on delete cascade,
+  actor_id bigint references core.profiles(id),
   kind text not null,
-  payload jsonb not null
+  payload jsonb not null,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists classroom.recording (
-  id uuid primary key default uuid_generate_v1(),
-  session_id uuid not null references classroom.live_session(id) on delete cascade,
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  session_id bigint not null references classroom.live_session(id) on delete cascade,
   url text not null,
-  duration_sec int
+  duration_sec int,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create index if not exists idx_live_host_time on classroom.live_session(host_id, starts_at);
+
+-- Create triggers for updated_at
+create or replace trigger t_upd_live_session
+before update on classroom.live_session
+for each row execute procedure core.set_updated_at();
+
+create or replace trigger t_upd_attendance
+before update on classroom.attendance
+for each row execute procedure core.set_updated_at();
+
+create or replace trigger t_upd_chat_message
+before update on classroom.chat_message
+for each row execute procedure core.set_updated_at();
+
+create or replace trigger t_upd_whiteboard_session
+before update on classroom.whiteboard_session
+for each row execute procedure core.set_updated_at();
+
+create or replace trigger t_upd_recording
+before update on classroom.recording
+for each row execute procedure core.set_updated_at();

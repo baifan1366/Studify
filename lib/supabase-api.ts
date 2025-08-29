@@ -6,60 +6,93 @@
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
 
-// Types for better type safety
+// Types based on actual database schema
 export interface Profile {
-  id: string;
-  email: string;
-  full_name?: string;
+  user_id: string;
+  display_name?: string;
+  role: 'admin' | 'student' | 'tutor' | 'parent';
   avatar_url?: string;
+  bio?: string;
+  timezone: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface Course {
-  id: number;
+  id: string;
+  owner_id: string;
   title: string;
-  description: string;
-  instructor_id: string;
-  created_at: string;
+  description?: string;
+  visibility: 'public' | 'private' | 'unlisted';
+  price_cents: number;
+  currency: string;
+  tags: string[];
   updated_at: string;
-  published: boolean;
-  thumbnail_url?: string;
-  duration?: number;
-  difficulty_level?: 'beginner' | 'intermediate' | 'advanced';
+}
+
+export interface Module {
+  id: string;
+  course_id: string;
+  title: string;
+  position: number;
+  updated_at: string;
+}
+
+export interface Lesson {
+  id: string;
+  course_id: string;
+  module_id?: string;
+  title: string;
+  kind: 'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard';
+  content_url?: string;
+  duration_sec?: number;
+  live_session_id?: string;
+  updated_at: string;
 }
 
 export interface Enrollment {
-  id: number;
+  course_id: string;
   user_id: string;
-  course_id: number;
   enrolled_at: string;
-  progress: number;
-  completed: boolean;
-  last_accessed?: string;
+  progress_pct: number;
+  completed_at?: string;
 }
 
-export interface Assignment {
-  id: number;
-  course_id: number;
+export interface Quiz {
+  id: string;
+  course_id?: string;
   title: string;
-  description: string;
-  due_date: string;
-  created_at: string;
-  updated_at: string;
-  max_points: number;
-  assignment_type: 'homework' | 'quiz' | 'project' | 'exam';
+  settings: {
+    shuffle?: boolean;
+    time_limit?: number;
+  };
 }
 
-export interface Submission {
-  id: number;
-  assignment_id: number;
+export interface Question {
+  id: string;
+  bank_id?: string;
+  stem: string;
+  kind: 'mcq' | 'true_false' | 'short' | 'essay' | 'code';
+  choices?: any;
+  answer?: any;
+  difficulty?: number;
+}
+
+export interface Attempt {
+  id: string;
+  quiz_id: string;
   user_id: string;
-  content: string;
-  submitted_at: string;
-  grade?: number;
-  feedback?: string;
-  status: 'submitted' | 'graded' | 'late' | 'missing';
+  started_at: string;
+  submitted_at?: string;
+  score: number;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  kind: string;
+  payload: any;
+  is_read: boolean;
 }
 
 /**
@@ -109,31 +142,31 @@ export const profileService = {
   // Get user profile
   getProfile: async (userId: string): Promise<Profile | null> => {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('core.profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
-    
+
     if (error) {
       console.error('Error fetching profile:', error);
       return null;
     }
-    
+
     return data;
   },
 
   // Update user profile
   updateProfile: async (userId: string, updates: Partial<Profile>) => {
     return await supabase
-      .from('profiles')
+      .from('core.profiles')
       .update(updates)
-      .eq('id', userId);
+      .eq('user_id', userId);
   },
 
   // Create user profile
   createProfile: async (profile: Omit<Profile, 'created_at' | 'updated_at'>) => {
     return await supabase
-      .from('profiles')
+      .from('core.profiles')
       .insert([profile]);
   }
 };
@@ -142,57 +175,57 @@ export const profileService = {
  * Course Services
  */
 export const courseService = {
-  // Get all courses
+  // Get all public courses
   getAllCourses: async (): Promise<Course[]> => {
     const { data, error } = await supabase
-      .from('courses')
+      .from('courses.course')
       .select('*')
-      .eq('published', true)
-      .order('created_at', { ascending: false });
-    
+      .eq('visibility', 'public')
+      .order('updated_at', { ascending: false });
+
     if (error) {
       console.error('Error fetching courses:', error);
       return [];
     }
-    
+
     return data || [];
   },
 
   // Get course by ID
-  getCourseById: async (courseId: number): Promise<Course | null> => {
+  getCourseById: async (courseId: string): Promise<Course | null> => {
     const { data, error } = await supabase
-      .from('courses')
+      .from('courses.course')
       .select('*')
       .eq('id', courseId)
       .single();
-    
+
     if (error) {
       console.error('Error fetching course:', error);
       return null;
     }
-    
+
     return data;
   },
 
   // Create new course
-  createCourse: async (course: Omit<Course, 'id' | 'created_at' | 'updated_at'>) => {
+  createCourse: async (course: Omit<Course, 'id' | 'updated_at'>) => {
     return await supabase
-      .from('courses')
+      .from('courses.course')
       .insert([course]);
   },
 
   // Update course
-  updateCourse: async (courseId: number, updates: Partial<Course>) => {
+  updateCourse: async (courseId: string, updates: Partial<Course>) => {
     return await supabase
-      .from('courses')
+      .from('courses.course')
       .update(updates)
       .eq('id', courseId);
   },
 
   // Delete course
-  deleteCourse: async (courseId: number) => {
+  deleteCourse: async (courseId: string) => {
     return await supabase
-      .from('courses')
+      .from('courses.course')
       .delete()
       .eq('id', courseId);
   }
@@ -205,56 +238,51 @@ export const enrollmentService = {
   // Get user enrollments
   getUserEnrollments: async (userId: string): Promise<Enrollment[]> => {
     const { data, error } = await supabase
-      .from('enrollments')
-      .select(`
-        *,
-        courses (
-          id,
-          title,
-          description,
-          thumbnail_url,
-          difficulty_level
-        )
-      `)
+      .from('courses.enrollment')
+      .select('*')
       .eq('user_id', userId)
       .order('enrolled_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching enrollments:', error);
       return [];
     }
-    
+
     return data || [];
   },
 
   // Enroll user in course
-  enrollInCourse: async (userId: string, courseId: number) => {
+  enrollInCourse: async (userId: string, courseId: string) => {
     return await supabase
-      .from('enrollments')
+      .from('courses.enrollment')
       .insert([{
         user_id: userId,
         course_id: courseId,
-        progress: 0,
-        completed: false
+        progress_pct: 0
       }]);
   },
 
   // Update enrollment progress
-  updateProgress: async (enrollmentId: number, progress: number) => {
+  updateProgress: async (userId: string, courseId: string, progress: number) => {
+    const updates: any = {
+      progress_pct: progress
+    };
+
+    if (progress >= 100) {
+      updates.completed_at = new Date().toISOString();
+    }
+
     return await supabase
-      .from('enrollments')
-      .update({ 
-        progress,
-        completed: progress >= 100,
-        last_accessed: new Date().toISOString()
-      })
-      .eq('id', enrollmentId);
+      .from('courses.enrollment')
+      .update(updates)
+      .eq('user_id', userId)
+      .eq('course_id', courseId);
   },
 
   // Unenroll from course
-  unenrollFromCourse: async (userId: string, courseId: number) => {
+  unenrollFromCourse: async (userId: string, courseId: string) => {
     return await supabase
-      .from('enrollments')
+      .from('courses.enrollment')
       .delete()
       .eq('user_id', userId)
       .eq('course_id', courseId);
@@ -262,121 +290,266 @@ export const enrollmentService = {
 };
 
 /**
- * Assignment Services
+ * Quiz Services 
  */
-export const assignmentService = {
-  // Get assignments for a course
-  getCourseAssignments: async (courseId: number): Promise<Assignment[]> => {
+export const quizService = {
+  // Get quizzes for a course
+  getCourseQuizzes: async (courseId: string): Promise<Quiz[]> => {
     const { data, error } = await supabase
-      .from('assignments')
+      .from('assessment.quiz')
       .select('*')
-      .eq('course_id', courseId)
-      .order('due_date', { ascending: true });
-    
+      .eq('course_id', courseId);
+
     if (error) {
-      console.error('Error fetching assignments:', error);
+      console.error('Error fetching quizzes:', error);
       return [];
     }
-    
+
     return data || [];
   },
 
-  // Get user assignments (across all enrolled courses)
-  getUserAssignments: async (userId: string): Promise<Assignment[]> => {
+  // Get quiz by ID
+  getQuizById: async (quizId: string): Promise<Quiz | null> => {
     const { data, error } = await supabase
-      .from('assignments')
-      .select(`
-        *,
-        courses!inner (
-          enrollments!inner (
-            user_id
-          )
-        )
-      `)
-      .eq('courses.enrollments.user_id', userId)
-      .order('due_date', { ascending: true });
-    
+      .from('assessment.quiz')
+      .select('*')
+      .eq('id', quizId)
+      .single();
+
     if (error) {
-      console.error('Error fetching user assignments:', error);
-      return [];
+      console.error('Error fetching quiz:', error);
+      return null;
     }
-    
-    return data || [];
+
+    return data;
   },
 
-  // Create assignment
-  createAssignment: async (assignment: Omit<Assignment, 'id' | 'created_at' | 'updated_at'>) => {
+  // Create quiz
+  createQuiz: async (quiz: Omit<Quiz, 'id'>) => {
     return await supabase
-      .from('assignments')
-      .insert([assignment]);
+      .from('assessment.quiz')
+      .insert([quiz]);
   },
 
-  // Update assignment
-  updateAssignment: async (assignmentId: number, updates: Partial<Assignment>) => {
+  // Update quiz
+  updateQuiz: async (quizId: string, updates: Partial<Quiz>) => {
     return await supabase
-      .from('assignments')
+      .from('assessment.quiz')
       .update(updates)
-      .eq('id', assignmentId);
+      .eq('id', quizId);
   },
 
-  // Delete assignment
-  deleteAssignment: async (assignmentId: number) => {
+  // Delete quiz
+  deleteQuiz: async (quizId: string) => {
     return await supabase
-      .from('assignments')
+      .from('assessment.quiz')
       .delete()
-      .eq('id', assignmentId);
+      .eq('id', quizId);
   }
 };
 
 /**
- * Submission Services
+ * Module Services
  */
-export const submissionService = {
-  // Get user submissions
-  getUserSubmissions: async (userId: string): Promise<Submission[]> => {
+export const moduleService = {
+  // Get modules for a course
+  getCourseModules: async (courseId: string): Promise<Module[]> => {
     const { data, error } = await supabase
-      .from('submissions')
-      .select(`
-        *,
-        assignments (
-          id,
-          title,
-          due_date,
-          max_points
-        )
-      `)
-      .eq('user_id', userId)
-      .order('submitted_at', { ascending: false });
-    
+      .from('courses.module')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('position', { ascending: true });
+
     if (error) {
-      console.error('Error fetching submissions:', error);
+      console.error('Error fetching modules:', error);
       return [];
     }
-    
+
     return data || [];
   },
 
-  // Submit assignment
-  submitAssignment: async (submission: Omit<Submission, 'id' | 'submitted_at'>) => {
+  // Create module
+  createModule: async (module: Omit<Module, 'id' | 'updated_at'>) => {
     return await supabase
-      .from('submissions')
+      .from('courses.module')
+      .insert([module]);
+  },
+
+  // Update module
+  updateModule: async (moduleId: string, updates: Partial<Module>) => {
+    return await supabase
+      .from('courses.module')
+      .update(updates)
+      .eq('id', moduleId);
+  },
+
+  // Delete module
+  deleteModule: async (moduleId: string) => {
+    return await supabase
+      .from('courses.module')
+      .delete()
+      .eq('id', moduleId);
+  }
+};
+
+/**
+ * Lesson Services
+ */
+export const lessonService = {
+  // Get lessons for a course
+  getCourseLessons: async (courseId: string): Promise<Lesson[]> => {
+    const { data, error } = await supabase
+      .from('courses.lesson')
+      .select('*')
+      .eq('course_id', courseId);
+
+    if (error) {
+      console.error('Error fetching lessons:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Get lessons for a module
+  getModuleLessons: async (moduleId: string): Promise<Lesson[]> => {
+    const { data, error } = await supabase
+      .from('courses.lesson')
+      .select('*')
+      .eq('module_id', moduleId);
+
+    if (error) {
+      console.error('Error fetching module lessons:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Create lesson
+  createLesson: async (lesson: Omit<Lesson, 'id' | 'updated_at'>) => {
+    return await supabase
+      .from('courses.lesson')
+      .insert([lesson]);
+  },
+
+  // Update lesson
+  updateLesson: async (lessonId: string, updates: Partial<Lesson>) => {
+    return await supabase
+      .from('courses.lesson')
+      .update(updates)
+      .eq('id', lessonId);
+  },
+
+  // Delete lesson
+  deleteLesson: async (lessonId: string) => {
+    return await supabase
+      .from('courses.lesson')
+      .delete()
+      .eq('id', lessonId);
+  }
+};
+
+/**
+ * Notification Services
+ */
+export const notificationService = {
+  // Get user notifications
+  getUserNotifications: async (userId: string): Promise<Notification[]> => {
+    const { data, error } = await supabase
+      .from('core.notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching notifications:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Mark notification as read
+  markAsRead: async (notificationId: string) => {
+    return await supabase
+      .from('core.notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId);
+  },
+
+  // Create notification
+  createNotification: async (notification: Omit<Notification, 'id'>) => {
+    return await supabase
+      .from('core.notifications')
+      .insert([notification]);
+  },
+
+  // Delete notification
+  deleteNotification: async (notificationId: string) => {
+    return await supabase
+      .from('core.notifications')
+      .delete()
+      .eq('id', notificationId);
+  }
+};
+
+/**
+ * Attempt Services (replacing Submission Services)
+ */
+export const attemptService = {
+  // Get user attempts
+  getUserAttempts: async (userId: string): Promise<Attempt[]> => {
+    const { data, error } = await supabase
+      .from('assessment.attempt')
+      .select('*')
+      .eq('user_id', userId)
+      .order('started_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching attempts:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Start quiz attempt
+  startAttempt: async (quizId: string, userId: string) => {
+    return await supabase
+      .from('assessment.attempt')
       .insert([{
-        ...submission,
-        submitted_at: new Date().toISOString(),
-        status: 'submitted'
+        quiz_id: quizId,
+        user_id: userId,
+        score: 0
       }]);
   },
 
-  // Grade submission
-  gradeSubmission: async (submissionId: number, grade: number, feedback?: string) => {
+  // Submit quiz attempt
+  submitAttempt: async (attemptId: string, score: number) => {
     return await supabase
-      .from('submissions')
+      .from('assessment.attempt')
       .update({
-        grade,
-        feedback,
-        status: 'graded'
+        submitted_at: new Date().toISOString(),
+        score
       })
-      .eq('id', submissionId);
+      .eq('id', attemptId);
+  },
+
+  // Get attempt by ID
+  getAttemptById: async (attemptId: string): Promise<Attempt | null> => {
+    const { data, error } = await supabase
+      .from('assessment.attempt')
+      .select('*')
+      .eq('id', attemptId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching attempt:', error);
+      return null;
+    }
+
+    return data;
   }
 };
 
@@ -426,8 +599,11 @@ export default {
   auth: authService,
   profile: profileService,
   course: courseService,
+  module: moduleService,
+  lesson: lessonService,
   enrollment: enrollmentService,
-  assignment: assignmentService,
-  submission: submissionService,
+  quiz: quizService,
+  attempt: attemptService,
+  notification: notificationService,
   utils: supabaseUtils
 };

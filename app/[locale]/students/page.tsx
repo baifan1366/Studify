@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import StudentsContent from '@/components/studentstudents-content';
+import StudentsContent from '@/components/student/students-content';
 
 export const metadata: Metadata = {
   title: "Students - Studify",

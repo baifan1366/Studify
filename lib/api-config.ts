@@ -61,58 +61,66 @@ export const API_ERROR_CODES = {
  */
 export const TABLES = {
   // Core schema
-  PROFILES: 'core.profiles',
-  NOTIFICATIONS: 'core.notifications',
-  PARENT_STUDENT: 'core.parent_student',
+  PROFILES: 'profiles',
+  NOTIFICATIONS: 'notifications',
+  AUDIT_LOGS: 'audit_logs',
+  CHECKINS: 'checkins',
+  REPORT: 'report',
+  ACTION: 'action',
+  BAN: 'ban',
 
   // Courses schema
-  COURSES: 'courses.course',
-  MODULES: 'courses.module',
-  LESSONS: 'courses.lesson',
-  ENROLLMENTS: 'courses.enrollment',
-
-  // Assessment schema
-  QUIZZES: 'assessment.quiz',
-  QUESTIONS: 'assessment.question',
-  QUESTION_BANKS: 'assessment.question_bank',
-  QUIZ_QUESTIONS: 'assessment.quiz_question',
-  ATTEMPTS: 'assessment.attempt',
-  ANSWERS: 'assessment.answer',
-  ASSIGNMENTS: 'assessment.assignment',
-  SUBMISSIONS: 'assessment.submission',
+  COURSE: 'courses.course',
+  MODULE: 'courses.module',
+  LESSON: 'courses.lesson',
+  ENROLLMENT: 'courses.enrollment',
+  PROGRESS: 'courses.progress',
+  REVIEWS: 'courses.reviews',
+  PRODUCT: 'courses.product',
+  ORDER: 'courses.order',
+  ORDER_ITEM: 'courses.order_item',
+  PAYMENT: 'courses.payment',
 
   // Community schema
-  POSTS: 'community.post',
-  COMMENTS: 'community.comment',
-  LIKES: 'community.like',
-  STUDY_GROUPS: 'community.study_group',
-  GROUP_MEMBERS: 'community.group_member',
-
-  // Gamification schema
-  BADGES: 'gamification.badge',
-  USER_BADGES: 'gamification.user_badge',
-  ACHIEVEMENTS: 'gamification.achievement',
-  USER_ACHIEVEMENTS: 'gamification.user_achievement',
-  LEADERBOARD: 'gamification.leaderboard',
-  CHALLENGE_RESULTS: 'gamification.challenge_results',
+  GROUP: 'community.group',
+  POST: 'community.post',
+  COMMENT: 'community.comment',
+  REACTION: 'community.reaction',
+  POINTS_LEDGER: 'community.points_ledger',
+  ACHIEVEMENT: 'community.achievement',
+  CHALLENGES: 'community.challenges',
+  CHALLENGE_RESULTS: 'community.challenge_results',
+  GROUP_MEMBER: 'community.group_member',
 
   // Classroom schema
   LIVE_SESSIONS: 'classroom.live_session',
-  SESSION_PARTICIPANTS: 'classroom.session_participant',
-  CLASSROOM_LOGS: 'classroom.classroom_log',
-
-  // Resources schema
-  FILES: 'resources.file',
-  NOTES: 'resources.note',
-
-  // Analytics schema
-  USER_ACTIONS: 'analytics.user_action',
-  LEARNING_ANALYTICS: 'analytics.learning_analytics',
+  ATTENDANCE: 'classroom.attendance',
+  CHAT_MESSAGE: 'classroom.chat_message',
+  WHITEBOARD_SESSION: 'classroom.whiteboard_session',
+  WHITEBOARD_EVENT: 'classroom.whiteboard_event',
+  RECORDING: 'classroom.recording',
+  QUESTION_BANK: 'classroom.question_bank',
+  QUESTION: 'classroom.question',
+  QUIZ: 'classroom.quiz',
+  QUIZ_QUESTION: 'classroom.quiz_question',
+  ATTEMPT: 'classroom.attempt',
+  ANSWER: 'classroom.answer',
+  ASSIGNMENT: 'classroom.assignment',
+  SUBMISSION: 'classroom.submission',
+  GRADE: 'classroom.grade',
 
   // Tutoring schema
-  TUTOR_PROFILES: 'tutoring.tutor_profile',
-  TUTORING_SESSIONS: 'tutoring.tutoring_session',
-  SESSION_FEEDBACK: 'tutoring.session_feedback',
+  TUTORS: 'tutoring.tutors',
+  STUDENTS: 'tutoring.students',
+  AVAILABILITY: 'tutoring.availability',
+  APPOINTMENTS: 'tutoring.appointments',
+  FILE: 'tutoring.file',
+  NOTE: 'tutoring.note',
+  SHARE: 'tutoring.share',
+
+  // AI schema
+  AGENT: 'ai.agent',
+  RUN: 'ai.run',
 } as const;
 
 /**
@@ -135,7 +143,6 @@ export const CHANNELS = {
   ASSIGNMENTS: 'assignments-channel',
   MESSAGES: 'messages-channel',
   NOTIFICATIONS: 'notifications-channel',
-  STUDY_GROUPS: 'study-groups-channel',
   LEADERBOARD: 'leaderboard-channel',
 } as const;
 

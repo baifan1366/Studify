@@ -3,7 +3,7 @@ create schema if not exists tutoring;
 create table if not exists tutoring.tutors (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4() unique,
-  user_id bigint not null references core.profiles(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
   headline text,
   subjects text[] not null default '{}',
   hourly_rate numeric(10,2),
@@ -15,14 +15,11 @@ create table if not exists tutoring.tutors (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-create or replace trigger t_upd_tutors
-before update on tutoring.tutors
-for each row execute procedure core.set_updated_at();
 
 create table if not exists tutoring.students (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4() unique,
-  user_id bigint not null references core.profiles(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
   school text,
   grade text,
   is_deleted boolean not null default false,
@@ -30,11 +27,7 @@ create table if not exists tutoring.students (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-create or replace trigger t_upd_students
-before update on tutoring.students
-for each row execute procedure core.set_updated_at();
 
--- Tutor availability and bookings
 create table if not exists tutoring.availability (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4() unique,
@@ -47,12 +40,6 @@ create table if not exists tutoring.availability (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-create index if not exists idx_avail_tutor_time on tutoring.availability(tutor_id, start_at, end_at);
-
--- Create triggers for updated_at
-create or replace trigger t_upd_availability
-before update on tutoring.availability
-for each row execute procedure core.set_updated_at();
 
 create table if not exists tutoring.appointments (
   id bigserial primary key,
@@ -63,14 +50,47 @@ create table if not exists tutoring.appointments (
   duration_min int not null check (duration_min > 0),
   status text not null check (status in ('requested','confirmed','completed','cancelled')) default 'requested',
   notes text,
-  created_by bigint references core.profiles(id),
+  created_by bigint references profiles(id),
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-create index if not exists idx_appointments_lookup on tutoring.appointments(tutor_id, student_id, scheduled_at);
 
-create or replace trigger t_upd_appt
-before update on tutoring.appointments
-for each row execute procedure core.set_updated_at();
+create table if not exists tutoring.file (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  owner_id bigint not null references profiles(id) on delete cascade,
+  path text not null, -- Supabase storage path
+  mime_type text,
+  size_bytes bigint,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists tutoring.note (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  owner_id bigint not null references profiles(id) on delete cascade,
+  title text,
+  body text,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists tutoring.share (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4() unique,
+  resource_kind text not null check (resource_kind in ('file','note')),
+  resource_id bigint not null,
+  shared_with bigint references profiles(id),
+  access text not null check (access in ('view','edit','comment')),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);

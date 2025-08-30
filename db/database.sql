@@ -16,7 +16,7 @@ set search_path = public;
 -- =========================
 create table if not exists profiles (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id uuid not null references auth.users(id) on delete cascade,
   display_name text,
   role text not null check (role in ('admin','student','tutor')),
@@ -36,7 +36,7 @@ create table if not exists profiles (
 
 create table if not exists notifications (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   kind text not null,
   payload jsonb not null default '{}',
@@ -49,7 +49,7 @@ create table if not exists notifications (
 
 create table if not exists audit_log (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   actor_id bigint references profiles(id),
   action text not null,
   subject_type text,
@@ -60,7 +60,7 @@ create table if not exists audit_log (
 
 create table if not exists checkins (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   checkin_at timestamptz not null default now(),
   is_deleted boolean not null default false,
@@ -71,7 +71,7 @@ create table if not exists checkins (
 
 create table if not exists report (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   reporter_id bigint references profiles(id),
   subject_type text not null,
   subject_id text not null,
@@ -85,7 +85,7 @@ create table if not exists report (
 
 create table if not exists action (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   report_id bigint references report(id) on delete set null,
   actor_id bigint references profiles(id),
   action text not null, -- hide, delete, warn, ban
@@ -98,7 +98,7 @@ create table if not exists action (
 
 create table if not exists ban (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id bigint references profiles(id) on delete cascade,
   reason text,
   expires_at timestamptz,
@@ -113,7 +113,7 @@ create table if not exists ban (
 -- =========================
 create table if not exists ai_agent (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   name text not null,
   owner_id bigint references profiles(id),
   purpose text,
@@ -126,7 +126,7 @@ create table if not exists ai_agent (
 
 create table if not exists ai_run (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   agent_id bigint not null references ai_agent(id) on delete cascade,
   requester_id bigint references profiles(id),
   input jsonb not null,
@@ -140,350 +140,13 @@ create table if not exists ai_run (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-
--- =========================
--- Classroom (from db/classroom/schema.sql)
--- =========================
-create table if not exists classroom_live_session (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  course_id bigint references course(id) on delete set null,
-  title text,
-  host_id bigint not null references profiles(id) on delete restrict,
-  starts_at timestamptz not null,
-  ends_at timestamptz,
-  status text not null check (status in ('scheduled','live','ended','cancelled')) default 'scheduled',
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_attendance (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  session_id bigint not null references classroom_live_session(id) on delete cascade,
-  user_id bigint not null references profiles(id) on delete cascade,
-  join_at timestamptz,
-  leave_at timestamptz,
-  attention_score numeric(5,2),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique (session_id, user_id)
-);
-
-create table if not exists classroom_chat_message (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  session_id bigint not null references classroom_live_session(id) on delete cascade,
-  sender_id bigint not null references profiles(id) on delete cascade,
-  message text not null,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_whiteboard_session (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  session_id bigint references classroom_live_session(id) on delete cascade,
-  title text,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_whiteboard_event (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  wb_id bigint not null references classroom_whiteboard_session(id) on delete cascade,
-  actor_id bigint references profiles(id),
-  kind text not null,
-  payload jsonb not null,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists classroom_recording (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  session_id bigint not null references classroom_live_session(id) on delete cascade,
-  url text not null,
-  duration_sec int,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_question_bank (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  owner_id bigint not null references profiles(id) on delete cascade,
-  title text not null,
-  topic_tags text[] default '{}',
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_question (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  bank_id bigint references classroom_question_bank(id) on delete cascade,
-  stem text not null,
-  kind text not null check (kind in ('mcq','true_false','short','essay','code')),
-  choices jsonb,
-  answer jsonb,
-  difficulty int check (difficulty between 1 and 5),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_quiz (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  course_id bigint references course(id) on delete set null,
-  title text not null,
-  settings jsonb not null default '{"shuffle":true,"time_limit":null}',
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_quiz_question (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  quiz_id bigint not null references classroom_quiz(id) on delete cascade,
-  question_id bigint not null references classroom_question(id) on delete restrict,
-  points numeric(6,2) not null default 1,
-  position int not null default 1,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique (quiz_id, question_id)
-);
-
-create table if not exists classroom_attempt (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  quiz_id bigint not null references classroom_quiz(id) on delete cascade,
-  user_id bigint not null references profiles(id) on delete cascade,
-  started_at timestamptz not null default now(),
-  submitted_at timestamptz,
-  score numeric(8,2) not null default 0,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_answer (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  attempt_id bigint not null references classroom_attempt(id) on delete cascade,
-  question_id bigint not null references classroom_question(id) on delete cascade,
-  response jsonb,
-  is_correct boolean,
-  points_awarded numeric(6,2) not null default 0,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique (attempt_id, question_id)
-);
-
-create table if not exists classroom_assignment (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  course_id bigint not null references course(id) on delete cascade,
-  title text not null,
-  description text,
-  due_at timestamptz,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_submission (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  assignment_id bigint not null references classroom_assignment(id) on delete cascade,
-  user_id bigint not null references profiles(id) on delete cascade,
-  content_url text,
-  text_content text,
-  plagiarism_score numeric(5,2),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_grade (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  assignment_id bigint not null references classroom_assignment(id) on delete cascade,
-  user_id bigint not null references profiles(id) on delete cascade,
-  grader_id bigint references profiles(id),
-  score numeric(8,2) not null,
-  feedback text,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique (assignment_id, user_id)
-);
-
--- =========================
--- Community (from db/community/schema.sql)
--- =========================
-create table if not exists community_group (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  name text not null,
-  description text,
-  visibility text check (visibility in ('public','private')) default 'public',
-  owner_id bigint not null references profiles(id) on delete cascade,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_group_member (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  group_id bigint not null references community_group(id) on delete cascade,
-  user_id bigint not null references profiles(id) on delete cascade,
-  role text check (role in ('owner','admin','member')) default 'member',
-  joined_at timestamptz not null default now(),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique (group_id, user_id)
-);
-
-create table if not exists community_post (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  group_id bigint references community_group(id) on delete set null,
-  author_id bigint not null references profiles(id) on delete cascade,
-  title text,
-  body text,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_comment (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  post_id bigint not null references community_post(id) on delete cascade,
-  author_id bigint not null references profiles(id) on delete cascade,
-  body text not null,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_reaction (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  post_id bigint not null references community_post(id) on delete cascade,
-  user_id bigint not null references profiles(id) on delete cascade,
-  emoji text not null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (post_id, user_id, emoji)
-);
-
-create table if not exists community_points_ledger (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  user_id bigint not null references profiles(id) on delete cascade,
-  points int not null,
-  reason text,
-  ref jsonb,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_achievement (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  code text unique not null,
-  name text not null,
-  description text,
-  rule jsonb,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_user_achievement (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  user_id bigint not null references profiles(id) on delete cascade,
-  achievement_id bigint not null references community_achievement(id) on delete cascade,
-  unlocked_at timestamptz not null default now(),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_challenges (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  title text not null,
-  description text,
-  max_score int not null,
-  passing_score int not null,
-  metadata jsonb,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_challenge_results (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
-  user_id bigint not null references profiles(id) on delete cascade,
-  challenge_id bigint not null references community_challenges(id) on delete cascade,
-  score int not null,
-  max_score int not null,
-  passed boolean not null,
-  attempted_at timestamptz not null default now(),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique(user_id, challenge_id)
-);
-
 -- =========================
 -- Courses (from db/courses/schema.sql)
 -- Note: renamed some tables to avoid reserved identifiers when moved to public
 -- =========================
 create table if not exists course (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   owner_id bigint not null references profiles(id) on delete restrict,
   title text not null,
   description text,
@@ -497,9 +160,24 @@ create table if not exists course (
   deleted_at timestamptz
 );
 
+create table if not exists classroom_live_session (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  course_id bigint references course(id) on delete set null,
+  title text,
+  host_id bigint not null references profiles(id) on delete restrict,
+  starts_at timestamptz not null,
+  ends_at timestamptz,
+  status text not null check (status in ('scheduled','live','ended','cancelled')) default 'scheduled',
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
 create table if not exists course_module (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   course_id bigint not null references course(id) on delete cascade,
   title text not null,
   position int not null default 1,
@@ -511,7 +189,7 @@ create table if not exists course_module (
 
 create table if not exists course_lesson (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   course_id bigint not null references course(id) on delete cascade,
   module_id bigint references course_module(id) on delete set null,
   title text not null,
@@ -527,7 +205,7 @@ create table if not exists course_lesson (
 
 create table if not exists course_enrollment (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   course_id bigint not null references course(id) on delete cascade,
   user_id bigint not null references profiles(id) on delete cascade,
   role text not null check (role in ('student','tutor','owner','assistant')) default 'student',
@@ -541,7 +219,7 @@ create table if not exists course_enrollment (
 
 create table if not exists course_progress (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   lesson_id bigint not null references course_lesson(id) on delete cascade,
   state text not null check (state in ('not_started','in_progress','completed')) default 'not_started',
@@ -554,7 +232,7 @@ create table if not exists course_progress (
 
 create table if not exists course_reviews (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   course_id bigint not null references course(id) on delete cascade,
   user_id bigint not null references profiles(id) on delete cascade,
   rating int not null check (rating between 1 and 5),
@@ -568,7 +246,7 @@ create table if not exists course_reviews (
 
 create table if not exists course_product (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   kind text not null check (kind in ('course','plugin','resource')),
   ref_id bigint,
   title text not null,
@@ -583,7 +261,7 @@ create table if not exists course_product (
 
 create table if not exists course_order (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   buyer_id bigint not null references profiles(id) on delete restrict,
   status text not null check (status in ('pending','paid','failed','refunded')) default 'pending',
   total_cents int not null default 0,
@@ -597,7 +275,7 @@ create table if not exists course_order (
 
 create table if not exists course_order_item (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   order_id bigint not null references course_order(id) on delete cascade,
   product_id bigint not null references course_product(id) on delete restrict,
   quantity int not null default 1,
@@ -611,7 +289,7 @@ create table if not exists course_order_item (
 
 create table if not exists course_payment (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   order_id bigint not null references course_order(id) on delete cascade,
   provider text not null,
   provider_ref text,
@@ -638,13 +316,335 @@ alter table if exists course_product
 
 create index if not exists idx_course_visibility_not_deleted on course (visibility) where is_deleted = false;
 create index if not exists idx_course_public_id on course (public_id);
+-- =========================
+-- Classroom (from db/classroom/schema.sql)
+-- =========================
+
+
+create table if not exists classroom_attendance (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  session_id bigint not null references classroom_live_session(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  join_at timestamptz,
+  leave_at timestamptz,
+  attention_score numeric(5,2),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (session_id, user_id)
+);
+
+create table if not exists classroom_chat_message (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  session_id bigint not null references classroom_live_session(id) on delete cascade,
+  sender_id bigint not null references profiles(id) on delete cascade,
+  message text not null,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_whiteboard_session (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  session_id bigint references classroom_live_session(id) on delete cascade,
+  title text,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_whiteboard_event (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  wb_id bigint not null references classroom_whiteboard_session(id) on delete cascade,
+  actor_id bigint references profiles(id),
+  kind text not null,
+  payload jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists classroom_recording (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  session_id bigint not null references classroom_live_session(id) on delete cascade,
+  url text not null,
+  duration_sec int,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_question_bank (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  owner_id bigint not null references profiles(id) on delete cascade,
+  title text not null,
+  topic_tags text[] default '{}',
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_question (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  bank_id bigint references classroom_question_bank(id) on delete cascade,
+  stem text not null,
+  kind text not null check (kind in ('mcq','true_false','short','essay','code')),
+  choices jsonb,
+  answer jsonb,
+  difficulty int check (difficulty between 1 and 5),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_quiz (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  course_id bigint references course(id) on delete set null,
+  title text not null,
+  settings jsonb not null default '{"shuffle":true,"time_limit":null}',
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_quiz_question (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  quiz_id bigint not null references classroom_quiz(id) on delete cascade,
+  question_id bigint not null references classroom_question(id) on delete restrict,
+  points numeric(6,2) not null default 1,
+  position int not null default 1,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (quiz_id, question_id)
+);
+
+create table if not exists classroom_attempt (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  quiz_id bigint not null references classroom_quiz(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  started_at timestamptz not null default now(),
+  submitted_at timestamptz,
+  score numeric(8,2) not null default 0,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_answer (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  attempt_id bigint not null references classroom_attempt(id) on delete cascade,
+  question_id bigint not null references classroom_question(id) on delete cascade,
+  response jsonb,
+  is_correct boolean,
+  points_awarded numeric(6,2) not null default 0,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (attempt_id, question_id)
+);
+
+create table if not exists classroom_assignment (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  course_id bigint not null references course(id) on delete cascade,
+  title text not null,
+  description text,
+  due_at timestamptz,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_submission (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  assignment_id bigint not null references classroom_assignment(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  content_url text,
+  text_content text,
+  plagiarism_score numeric(5,2),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_grade (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  assignment_id bigint not null references classroom_assignment(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  grader_id bigint references profiles(id),
+  score numeric(8,2) not null,
+  feedback text,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (assignment_id, user_id)
+);
+
+-- =========================
+-- Community (from db/community/schema.sql)
+-- =========================
+create table if not exists community_group (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  name text not null,
+  description text,
+  visibility text check (visibility in ('public','private')) default 'public',
+  owner_id bigint not null references profiles(id) on delete cascade,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_group_member (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  group_id bigint not null references community_group(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  role text check (role in ('owner','admin','member')) default 'member',
+  joined_at timestamptz not null default now(),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (group_id, user_id)
+);
+
+create table if not exists community_post (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  group_id bigint references community_group(id) on delete set null,
+  author_id bigint not null references profiles(id) on delete cascade,
+  title text,
+  body text,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_comment (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  post_id bigint not null references community_post(id) on delete cascade,
+  author_id bigint not null references profiles(id) on delete cascade,
+  body text not null,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_reaction (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  post_id bigint not null references community_post(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (post_id, user_id, emoji)
+);
+
+create table if not exists community_points_ledger (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  points int not null,
+  reason text,
+  ref jsonb,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_achievement (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  code text unique not null,
+  name text not null,
+  description text,
+  rule jsonb,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_user_achievement (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  achievement_id bigint not null references community_achievement(id) on delete cascade,
+  unlocked_at timestamptz not null default now(),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_challenges (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  title text not null,
+  description text,
+  max_score int not null,
+  passing_score int not null,
+  metadata jsonb,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists community_challenge_results (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  challenge_id bigint not null references community_challenges(id) on delete cascade,
+  score int not null,
+  max_score int not null,
+  passed boolean not null,
+  attempted_at timestamptz not null default now(),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique(user_id, challenge_id)
+);
 
 -- =========================
 -- Tutoring (from db/tutoring/schema.sql)
 -- =========================
 create table if not exists tutoring_tutors (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   headline text,
   subjects text[] not null default '{}',
@@ -660,7 +660,7 @@ create table if not exists tutoring_tutors (
 
 create table if not exists tutoring_students (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   school text,
   grade text,
@@ -672,7 +672,7 @@ create table if not exists tutoring_students (
 
 create table if not exists tutoring_availability (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   tutor_id bigint not null references tutoring_tutors(id) on delete cascade,
   start_at timestamptz not null,
   end_at timestamptz not null,
@@ -685,7 +685,7 @@ create table if not exists tutoring_availability (
 
 create table if not exists tutoring_appointments (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   tutor_id bigint not null references tutoring_tutors(id) on delete restrict,
   student_id bigint not null references tutoring_students(id) on delete restrict,
   scheduled_at timestamptz not null,
@@ -701,7 +701,7 @@ create table if not exists tutoring_appointments (
 
 create table if not exists tutoring_file (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   owner_id bigint not null references profiles(id) on delete cascade,
   path text not null,
   mime_type text,
@@ -714,7 +714,7 @@ create table if not exists tutoring_file (
 
 create table if not exists tutoring_note (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   owner_id bigint not null references profiles(id) on delete cascade,
   title text,
   body text,
@@ -726,7 +726,7 @@ create table if not exists tutoring_note (
 
 create table if not exists tutoring_share (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4() unique,
+  public_id uuid not null default uuid_generate_v4(),
   resource_kind text not null check (resource_kind in ('file','note')),
   resource_id bigint not null,
   shared_with bigint references profiles(id),
@@ -736,147 +736,3 @@ create table if not exists tutoring_share (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-
--- =========================
--- Row Level Security enabler (adapted from db/rls/schema.sql)
--- Only affects public schema
--- =========================
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN
-        SELECT table_schema, table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-          AND table_type = 'BASE TABLE'
-    LOOP
-        EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY;', r.table_schema, r.table_name);
-    END LOOP;
-END $$;
-
--- =========================
--- Full-text search: tsvector + triggers + indexes (adapted from db/tsvector.sql)
--- Scope: only public schema tables
--- =========================
-DO $$
-DECLARE
-    tbl record;
-    col record;
-    tsv_cols text;
-    trig_name text;
-    idx_name text;
-BEGIN
-    FOR tbl IN
-        SELECT table_schema, table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-          AND table_type = 'BASE TABLE'
-    LOOP
-        tsv_cols := '';
-
-        -- Collect text columns for full-text search
-        FOR col IN
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = tbl.table_schema
-              AND table_name = tbl.table_name
-              AND data_type IN ('text', 'character varying')
-        LOOP
-            IF tsv_cols = '' THEN
-                tsv_cols := format('coalesce(new.%I, '''')', col.column_name);
-            ELSE
-                tsv_cols := tsv_cols || ' || '' '' || ' || format('coalesce(new.%I, '''')', col.column_name);
-            END IF;
-        END LOOP;
-
-        -- If table has no text columns, skip full-text search
-        IF tsv_cols = '' THEN
-            RAISE NOTICE '⏩ Skipping full-text search for %.% (no text columns)', tbl.table_schema, tbl.table_name;
-        ELSE
-            -- Add search_vector column
-            EXECUTE format('
-                alter table %I.%I
-                add column if not exists search_vector tsvector;
-            ', tbl.table_schema, tbl.table_name);
-
-            -- Populate search_vector column
-            EXECUTE format('
-                update %I.%I
-                set search_vector = to_tsvector(''english'', %s);
-            ', tbl.table_schema, tbl.table_name, replace(tsv_cols, 'new.', ''));
-
-            -- Create or replace trigger
-            trig_name := tbl.table_name || '_search_vector_trigger';
-            EXECUTE format('drop trigger if exists %I on %I.%I;', trig_name, tbl.table_schema, tbl.table_name);
-
-            EXECUTE format($sql$
-                create or replace function %I.%I()
-                returns trigger as $func$
-                begin
-                    new.search_vector := to_tsvector(''english'', %s);
-                    return new;
-                end;
-                $func$ language plpgsql;
-            $sql$, tbl.table_schema, trig_name, tsv_cols);
-
-            EXECUTE format('
-                create trigger %I
-                before insert or update
-                on %I.%I
-                for each row
-                execute function %I.%I();
-            ', trig_name, tbl.table_schema, tbl.table_name, tbl.table_schema, trig_name);
-
-            -- GIN index for full-text search
-            idx_name := tbl.table_schema || '_' || tbl.table_name || '_search_vector_idx';
-            EXECUTE format('
-                create index if not exists %I
-                on %I.%I
-                using gin(search_vector);
-            ', idx_name, tbl.table_schema, tbl.table_name);
-
-            RAISE NOTICE '✅ Added GIN index for full-text search: %.%', tbl.table_schema, tbl.table_name;
-        END IF;
-
-        -- Add indexes for individual columns
-        FOR col IN
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_schema = tbl.table_schema
-              AND table_name = tbl.table_name
-        LOOP
-            -- Skip search_vector column
-            IF col.column_name = 'search_vector' THEN
-                CONTINUE;
-            END IF;
-
-            -- Generate index name based on schema, table, column
-            idx_name := tbl.table_schema || '_' || tbl.table_name || '_' || col.column_name || '_idx';
-
-            -- If column is numeric, UUID, boolean, date/time → B-tree index
-            IF col.data_type IN ('integer', 'bigint', 'uuid', 'boolean', 'date', 'timestamp without time zone', 'timestamp with time zone') THEN
-                EXECUTE format('
-                    create index if not exists %I
-                    on %I.%I(%I);
-                ', idx_name, tbl.table_schema, tbl.table_name, col.column_name);
-            END IF;
-
-            -- If column is text/varchar → B-tree and trigram index
-            IF col.data_type IN ('text', 'character varying') THEN
-                EXECUTE format('
-                    create index if not exists %I
-                    on %I.%I(%I);
-                ', idx_name, tbl.table_schema, tbl.table_name, col.column_name);
-
-                EXECUTE format('
-                    create index if not exists %I_trgm
-                    on %I.%I
-                    using gin(%I gin_trgm_ops);
-                ', idx_name, tbl.table_schema, tbl.table_name, col.column_name);
-            END IF;
-        END LOOP;
-
-        RAISE NOTICE '✅ Added B-tree & trigram indexes for table: %.%', tbl.table_schema, tbl.table_name;
-    END LOOP;
-END $$;

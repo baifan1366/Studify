@@ -42,4 +42,4 @@ next-env.d.ts
 .vscode/settings.json
 
 # gemini
-.GEMINI.md
+GEMINI.md

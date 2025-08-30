@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { BookOpen, Clock, Users, Star } from 'lucide-react';
-// import { useCourses } from '@/hooks/use-courses';
+import { useCourses } from '@/hooks/useCourses';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,73 +17,29 @@ export default function CoursesContent() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   
-  // const { data: courses, isLoading, error } = useCourses();
-  const isLoading = false; // Temporary for demo
+  const { data: courses, isLoading } = useCourses();
   const { toast } = useToast();
-
-  // Mock course data - should come from API
-  const mockCourses = [
-    {
-      id: 1,
-      title: "Advanced Mathematics",
-      instructor: "Dr. Sarah Johnson",
-      duration: "12 weeks",
-      students: 156,
-      rating: 4.8,
-      progress: 75,
-      color: "from-blue-500 to-cyan-500"
-    },
-    {
-      id: 2,
-      title: "Physics Fundamentals",
-      instructor: "Prof. Michael Chen",
-      duration: "10 weeks",
-      students: 89,
-      rating: 4.6,
-      progress: 45,
-      color: "from-purple-500 to-pink-500"
-    },
-    {
-      id: 3,
-      title: "Chemistry Lab",
-      instructor: "Dr. Emily Davis",
-      duration: "8 weeks",
-      students: 67,
-      rating: 4.9,
-      progress: 90,
-      color: "from-green-500 to-teal-500"
-    },
-    {
-      id: 4,
-      title: "Biology Essentials",
-      instructor: "Dr. Robert Wilson",
-      duration: "14 weeks",
-      students: 134,
-      rating: 4.7,
-      progress: 30,
-      color: "from-orange-500 to-red-500"
-    },
-    {
-      id: 5,
-      title: "English Literature",
-      instructor: "Ms. Amanda Brown",
-      duration: "16 weeks",
-      students: 98,
-      rating: 4.5,
-      progress: 60,
-      color: "from-indigo-500 to-purple-500"
-    },
-    {
-      id: 6,
-      title: "Computer Science",
-      instructor: "Mr. David Lee",
-      duration: "20 weeks",
-      students: 203,
-      rating: 4.9,
-      progress: 25,
-      color: "from-cyan-500 to-blue-500"
-    }
-  ];
+  
+  // derive courses for UI with defaults
+  const uiCourses = useMemo(() => {
+    return (courses ?? []).map((c, idx) => ({
+      id: c.public_id,
+      title: c.title,
+      instructor: `Owner #${c.owner_id}`,
+      duration: c.total_duration_minutes ? `${c.total_duration_minutes} mins` : '—',
+      students: c.total_students ?? 0,
+      rating: c.average_rating ?? 0,
+      progress: 0,
+      color: [
+        'from-blue-500 to-cyan-500',
+        'from-purple-500 to-pink-500',
+        'from-green-500 to-teal-500',
+        'from-orange-500 to-red-500',
+        'from-indigo-500 to-purple-500',
+        'from-cyan-500 to-blue-500',
+      ][idx % 6],
+    }));
+  }, [courses]);
 
   // Fetch user authentication data
   useEffect(() => {
@@ -129,14 +85,14 @@ export default function CoursesContent() {
     setSidebarExpanded(!isPermanentlyExpanded);
   };
 
-  const handleContinueCourse = (courseId: number) => {
+  const handleContinueCourse = (courseId: string | number) => {
     toast({
       title: "Continue Course",
       description: `Continuing course ${courseId}...`,
     });
   };
 
-  const handleCourseDetails = (courseId: number) => {
+  const handleCourseDetails = (courseId: string | number) => {
     toast({
       title: "Course Details",
       description: `Opening details for course ${courseId}...`,
@@ -217,9 +173,9 @@ export default function CoursesContent() {
                 </div>
               ))
             ) : (
-              mockCourses.map((course, index) => (
+              uiCourses.map((course, index) => (
                 <motion.div
-                  key={course.id}
+                  key={String(course.id)}
                   className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}

@@ -1,13 +1,12 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/components/auth-provider";
+import { ReactQueryProvider } from "@/components/providers/react-query-provider";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
   const pathname = usePathname();
   const [locale, setLocale] = useState<string>("en");
   const [messages, setMessages] = useState<Record<string, string> | null>(null);
@@ -15,7 +14,7 @@ export function Providers({ children }: { children: ReactNode }) {
   // Dynamically detect locale & load messages
   useEffect(() => {
     const segments = pathname.split("/");
-    const currentLocale = segments[1] || "en"; 
+    const currentLocale = segments[1] || "en";
 
     setLocale(currentLocale);
 
@@ -30,10 +29,10 @@ export function Providers({ children }: { children: ReactNode }) {
   if (!messages) return null;
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <ReactQueryProvider>
       <NextIntlClientProvider locale={locale} messages={messages}>
         <AuthProvider>{children}</AuthProvider>
       </NextIntlClientProvider>
-    </QueryClientProvider>
+    </ReactQueryProvider>
   );
 }

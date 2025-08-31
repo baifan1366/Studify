@@ -24,6 +24,8 @@ export const signInAction = async (formData: FormData) => {
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const fullName = formData.get("fullName") as string;
+  const role = formData.get("role") as string;
   const client = await supabase();
 
   const url = process.env.VERCEL_URL
@@ -35,11 +37,16 @@ export const signUpAction = async (formData: FormData) => {
     password,
     options: {
       emailRedirectTo: url,
+      data: {
+        full_name: fullName,
+        role: role,
+      },
     },
   });
 
   if (error) {
-    return encodedRedirect("error", "/sign-up", error.message);
+    const redirectUrl = role === 'tutor' ? '/sign-up-tutor' : '/sign-up';
+    return encodedRedirect("error", redirectUrl, error.message);
   }
 
   return redirect("/protected");

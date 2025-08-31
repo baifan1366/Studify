@@ -17,7 +17,7 @@ set search_path = public;
 create table if not exists profiles (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null unique references auth.users(id) on delete cascade,
   display_name text,
   role text not null check (role in ('admin','student','tutor')),
   avatar_url text,

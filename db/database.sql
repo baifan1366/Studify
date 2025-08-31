@@ -27,6 +27,7 @@ create table if not exists profiles (
   banned_reason text null,
   banned_at timestamptz,
   points int not null default 0,
+  onboarded boolean not null default false,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

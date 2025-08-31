@@ -3,6 +3,8 @@ import createMiddleware from "next-intl/middleware";
 import { createSupabaseServerClient } from "./utils/supabase/middleware";
 import { routing } from "./i18n/routing";
 
+const intlMiddleware = createMiddleware(routing);
+
 const PROTECTED_ROUTES = [
   "/classroom",
   "/community",
@@ -15,48 +17,62 @@ const PROTECTED_ROUTES = [
   "/tutoring",
   "/protected",
 ];
-const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Create Supabase client + response
+  // Create Supabase server client + initial response
   const { supabase, supabaseResponse } = createSupabaseServerClient(request);
 
-  // Get user session
+  // Refresh session if expired - required for Server Components
+  await supabase.auth.getSession();
+
+  const { pathname } = request.nextUrl;
+
+  // API routes: only return supabaseResponse (skip i18n)
+  if (pathname.startsWith("/api")) {
+    return supabaseResponse;
+  }
+
+  // Apply i18n middleware
+  const intlResponse = intlMiddleware(request);
+
+  // Check session
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // Handle protected routes
   const protectedPathnameRegex = new RegExp(
     `^/(${routing.locales.join("|")})(${PROTECTED_ROUTES.join("|")})($|/.*)`
   );
+
   if (protectedPathnameRegex.test(pathname)) {
     if (!session) {
       const locale = pathname.split("/")[1] || routing.defaultLocale;
-      return NextResponse.redirect(new URL(`/${locale}/sign-in`, request.url));
+      const redirectUrl = new URL(`/${locale}/sign-in`, request.url);
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
-  // Redirect root to default locale home
+  // Root path → redirect to /defaultLocale/home
   if (pathname === "/") {
     return NextResponse.redirect(
       new URL(`/${routing.defaultLocale}/home`, request.url)
     );
   }
 
-  // Run next-intl middleware
-  const intlResponse = intlMiddleware(request);
-
-  // Sync Supabase cookies with next-intl response
-  supabaseResponse.cookies
-    .getAll()
-    .forEach((cookie) => intlResponse.cookies.set(cookie.name, cookie.value));
+  // Copy Supabase cookies into i18n response
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    intlResponse.cookies.set(cookie.name, cookie.value, {
+      ...cookie,
+      path: "/",
+    });
+  });
 
   return intlResponse;
 }
 
 export const config = {
-  matcher: ["/", "/(en|zh|my)/:path*", "/((?!api|_next|.*\\..*).*)"],
+  matcher: [
+    // Match all paths except for static files and images
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

@@ -3,6 +3,7 @@
 import { supabase } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { encodedRedirect } from "@/utils/redirect";
+import { cookies } from "next/headers";
 
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
@@ -18,7 +19,9 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/protected");
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("next-intl-locale")?.value || "en";
+  return redirect(`/${locale}/home`);
 };
 
 export const signUpAction = async (formData: FormData) => {
@@ -28,9 +31,11 @@ export const signUpAction = async (formData: FormData) => {
   const role = formData.get("role") as string;
   const client = await supabase();
 
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("next-intl-locale")?.value || "en";
   const url = process.env.VERCEL_URL
-    ? `${process.env.VERCEL_URL}/protected`
-    : "http://localhost:3000/protected";
+    ? `${process.env.VERCEL_URL}/${locale}/home`
+    : `http://localhost:3000/${locale}/home`;
 
   const { error } = await client.auth.signUp({
     email,
@@ -45,15 +50,19 @@ export const signUpAction = async (formData: FormData) => {
   });
 
   if (error) {
-    const redirectUrl = role === 'tutor' ? '/sign-up-tutor' : '/sign-up';
+    const redirectUrl =
+      role === "tutor" ? `/${locale}/sign-up-tutor` : `/${locale}/sign-up`;
     return encodedRedirect("error", redirectUrl, error.message);
   }
 
-  return redirect("/protected");
+  return redirect(`/${locale}/home`);
 };
 
 export const signOutAction = async () => {
   const client = await supabase();
   await client.auth.signOut();
-  return redirect("/sign-in");
+
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("next-intl-locale")?.value || "en";
+  return redirect(`/${locale}/sign-in`);
 };

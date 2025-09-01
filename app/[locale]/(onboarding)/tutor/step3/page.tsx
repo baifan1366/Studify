@@ -1,43 +1,12 @@
-1import OnboardingStep from '@/components/onboarding/OnboardingStep';
+import OnboardingStep from '@/components/onboarding/OnboardingStep';
 import { saveTutorOnboardingStep } from '@/app/onboarding-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getTranslations } from 'next-intl/server';
 
 export default async function Step3Page({ params: { locale } }: { params: { locale: string } }) {
-
-  const handleFinish = saveTutorOnboardingStep.bind(null, 3, locale);
-
-  return (
-    <OnboardingStep
-      title="Set Your Availability"
-      description="Let students know when you're available to teach."
-      action={handleFinish}
-      prevHref={`/${locale}/onboarding/tutor/step2`}
-      isLastStep
-    >
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="hourlyRate">Hourly Rate (USD)</Label>
-          <Input id="hourlyRate" name="hourlyRate" type="number" placeholder="e.g., 50" />
-        </div>
-        <div>
-          <Label>Availability</Label>
-          <div className="space-y-2 mt-2">
-            <div className="flex items-center space-x-2">
-                <Checkbox id="weekdays" name="availability" value="weekdays" />
-                <Label htmlFor="weekdays">Weekdays</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-                import OnboardingStep from '@/components/onboarding/OnboardingStep';
-import { saveTutorOnboardingStep } from '@/app/onboarding-actions';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { getTranslator } from 'next-intl/server';
-
-export default async function Step3Page({ params: { locale } }: { params: { locale: string } }) {
-  const t = await getTranslator(locale, 'OnboardingTutorStep3Page');
+  const t = await getTranslations('OnboardingTutorStep3Page');
   const handleFinish = saveTutorOnboardingStep.bind(null, 3, locale);
 
   return (
@@ -67,16 +36,6 @@ export default async function Step3Page({ params: { locale } }: { params: { loca
             <div className="flex items-center space-x-2">
                 <Checkbox id="evenings" name="availability" value="evenings" />
                 <Label htmlFor="evenings">{t('evenings_label')}</Label>
-            </div>
-          </div>
-        </div>
-      </div>
-    </OnboardingStep>
-  );
-}
-            <div className="flex items-center space-x-2">
-                <Checkbox id="evenings" name="availability" value="evenings" />
-                <Label htmlFor="evenings">Evenings</Label>
             </div>
           </div>
         </div>

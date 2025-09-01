@@ -1,6 +1,6 @@
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthInput } from "@/components/auth/auth-input";
-import { signUpAction } from "@/app/actions";
+import { signUpTutor } from "@/app/actions";
 
 export const metadata = {
   title: "Tutor Sign Up",
@@ -9,7 +9,7 @@ export const metadata = {
 export default function SignUpTutorPage({ params: { locale } }: { params: { locale: string } }) {
   return (
     <AuthForm
-      action={signUpAction}
+      action={signUpTutor}
       title="Tutor Sign Up"
       subtitle="Start your teaching journey today"
       buttonText="Create account"
@@ -18,7 +18,6 @@ export default function SignUpTutorPage({ params: { locale } }: { params: { loca
       footerLinkHref="/sign-in"
       locale={locale}
     >
-      <input type="hidden" name="role" value="tutor" />
       <AuthInput
         name="fullName"
         label="Full Name"

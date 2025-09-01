@@ -24,11 +24,13 @@ export const signInAction = async (formData: FormData) => {
   return redirect(redirectUrl);
 };
 
-export const signUpAction = async (formData: FormData) => {
+export const signUpStudent = signUp.bind(null, 'student');
+export const signUpTutor = signUp.bind(null, 'tutor');
+
+async function signUp(role: 'student' | 'tutor', formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("fullName") as string;
-  const role = formData.get("role") as string;
   const locale = formData.get("locale") as string;
 
   const client = await supabase();
@@ -43,11 +45,11 @@ export const signUpAction = async (formData: FormData) => {
   if (error) {
     const redirectUrl =
       role === "tutor"
-        ? `/${locale}/sign-up-tutor`
-        : `/${locale}/sign-up`;
+        ? `/${locale}/tutor/sign-up`
+        : `/${locale}/student/sign-up`;
     return encodedRedirect("error", redirectUrl, error.message);
   }
 
   const redirectUrl = getRedirectUrlFromPath(locale, role);
   return redirect(redirectUrl);
-};
+}

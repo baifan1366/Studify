@@ -172,6 +172,7 @@ export const TABLES = {
   LIVE_SESSIONS: 'classroom.live_session',
   SESSION_PARTICIPANTS: 'classroom.session_participant',
   CLASSROOM_LOGS: 'classroom.classroom_log',
+  MISTAKE_BOOK: 'classroom.mistake_book',
 
   // Resources schema
   FILES: 'resources.file',

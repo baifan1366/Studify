@@ -18,6 +18,7 @@ export default function StudentsContent() {
   
   const { isLoading } = useStudents();
   const { toast } = useToast();
+  const [sidebarWidth, setSidebarWidth] = useState(80);
 
   // Fetch user authentication data
   useEffect(() => {
@@ -59,8 +60,10 @@ export default function StudentsContent() {
   };
 
   const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
+    const newExpanded = !isPermanentlyExpanded;
+    setIsPermanentlyExpanded(newExpanded);
+    setSidebarExpanded(newExpanded);
+    setSidebarWidth(newExpanded ? 280 : 80);
   };
 
   const handleViewProfile = (studentId: number) => {
@@ -88,7 +91,7 @@ export default function StudentsContent() {
   ];
 
   return (
-    <AnimatedBackground>
+    <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
         title="Students"
@@ -110,9 +113,9 @@ export default function StudentsContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
+          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
+          width: `calc(100vw - ${sidebarWidth}px)`
         }}
       >
 

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { createSupabaseClient } from "@/utils/supabase/server";
+import { createSupabaseClient } from "@/utils/update/server";
 import AuthPageSignOutButton from "@/components/auth-sign-out-button";
 
 export const metadata: Metadata = {
@@ -74,7 +74,7 @@ export default async function ProtectedPage() {
               <div className="text-muted-foreground">Providers</div>
               <div>
                 {user.identities
-                  ?.map((identity) => identity.provider)
+                  ?.map((identity: { provider: string }) => identity.provider)
                   .join(", ") || "Email"}
               </div>
             </div>

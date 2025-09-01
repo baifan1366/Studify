@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { Route, CheckCircle, Circle, Lock, Star, Trophy, Target } from 'lucide-react';
-import { supabase } from '@/utils/supabase/client';
+import { useUser } from '@/hooks/use-user';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,10 +13,11 @@ import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function LearningPathContent() {
   const [activeMenuItem, setActiveMenuItem] = useState('learning-path');
-  const [user, setUser] = useState<User | null>(null);
+  const { data, isLoading, error } = useUser();
+  const user = data?.user;
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
   
   const { toast } = useToast();
 
@@ -120,41 +121,17 @@ export default function LearningPathContent() {
     ]
   };
 
-  // Fetch user authentication data
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-
-        if (error) {
-          console.error('Error fetching user:', error);
-        } else {
-          setUser(user);
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load user data",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [toast]);
+  // Show error toast if user data fetch fails
+  React.useEffect(() => {
+    if (error) {
+      console.error('Error fetching user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load user data",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
 
 
@@ -167,8 +144,10 @@ export default function LearningPathContent() {
   };
 
   const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
+    const newExpanded = !isPermanentlyExpanded;
+    setIsPermanentlyExpanded(newExpanded);
+    setSidebarExpanded(newExpanded);
+    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width for synchronization
   };
 
   const handleStartMilestone = (milestoneId: number) => {
@@ -207,7 +186,7 @@ export default function LearningPathContent() {
   const overallProgress = Math.round((learningPath.completedMilestones / learningPath.totalMilestones) * 100);
 
   return (
-    <AnimatedBackground>
+    <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
         title="Learning Path"
@@ -229,9 +208,9 @@ export default function LearningPathContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
+          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
+          width: `calc(100vw - ${sidebarWidth}px)`
         }}
       >
 

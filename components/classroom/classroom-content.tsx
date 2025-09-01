@@ -1,59 +1,37 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '@/utils/supabase/client';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import RecommendationPanels from '@/components/home/recommendation-panels';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { useUser } from '@/hooks/use-user';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ClassroomContent() {
   const [activeMenuItem, setActiveMenuItem] = useState('classroom');
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading, error } = useUser();
+  const user = data?.user;
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
   
   const { toast } = useToast();
 
-  // Fetch user authentication data
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-
-        if (error) {
-          console.error('Error fetching user:', error);
-        } else {
-          setUser(user);
-        }
-      } catch (error) {
-        console.error('Error in fetchUser:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load user data",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [toast]);
+  // Show error toast if user data fetch fails
+  React.useEffect(() => {
+    if (error) {
+      console.error('Error fetching user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load user data",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
 
 
@@ -67,12 +45,14 @@ export default function ClassroomContent() {
   };
 
   const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
+    const newExpanded = !isPermanentlyExpanded;
+    setIsPermanentlyExpanded(newExpanded);
+    setSidebarExpanded(newExpanded);
+    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width for synchronization
   };
 
   return (
-    <AnimatedBackground>
+    <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
         title="Classroom"
@@ -94,9 +74,9 @@ export default function ClassroomContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
+          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
+          width: `calc(100vw - ${sidebarWidth}px)`
         }}
       >
         {/* Welcome Header */}

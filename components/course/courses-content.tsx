@@ -16,6 +16,7 @@ export default function CoursesContent() {
   const [user, setUser] = useState<User | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
   
   // const { data: courses, isLoading, error } = useCourses();
   const isLoading = false; // Temporary for demo
@@ -125,8 +126,10 @@ export default function CoursesContent() {
   };
 
   const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
+    const newExpanded = !isPermanentlyExpanded;
+    setIsPermanentlyExpanded(newExpanded);
+    setSidebarExpanded(newExpanded);
+    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width for synchronization
   };
 
   const handleContinueCourse = (courseId: number) => {
@@ -144,7 +147,7 @@ export default function CoursesContent() {
   };
 
   return (
-    <AnimatedBackground>
+    <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
         title="Courses"
@@ -166,9 +169,9 @@ export default function CoursesContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
+          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
+          width: `calc(100vw - ${sidebarWidth}px)`
         }}
       >
 

@@ -26,8 +26,8 @@ export default async function TutorLayout({
 }) {
   const sb = await supabase();
   const { data: { user } } = await sb.auth.getUser();
-  
-  const pathname = headers().get("next-url");
+  const header = await headers();
+  const pathname = header.get("next-url");
   const title = generateTitle(pathname);
   const userName = user?.user_metadata?.full_name || user?.email || "Tutor";
 

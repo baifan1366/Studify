@@ -69,7 +69,7 @@ const defaultMenuSections: MenuSection[] = [
           { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/classroom/learning-path' },
         ]
       },
-      { id: 'students', label: 'Students', icon: Users, path: '/students' },
+      { id: 'community', label: 'Community', icon: Users, path: '/community' },
       { id: 'courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
       { id: 'my-courses', label: 'My Courses', icon: BookOpen, path: '/my/courses' },
       { id: 'documents', label: 'Documents', icon: FileText, path: '/documents' },
@@ -109,8 +109,8 @@ export default function AnimatedSidebar({
       setExpandedSections(prev => ({ ...prev, classroom: true }));
     } else if (pathname?.includes('/classroom')) {
       setCurrentActiveItem('classroom');
-    } else if (pathname?.includes('/students')) {
-      setCurrentActiveItem('students');
+    } else if (pathname?.includes('/community')) {
+      setCurrentActiveItem('community');
     } else if (pathname?.includes('/courses')) {
       setCurrentActiveItem('courses');
     } else if (pathname?.includes('/my/courses')) {

@@ -8,15 +8,16 @@ import { cookies } from "next/headers";
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const client = await supabase();
+  const locale = formData.get("locale") as string;
 
-  const { error } = await client.auth.signInWithPassword({
+  const client = await supabase();
+  const { data, error } = await client.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
-    return encodedRedirect("error", "/sign-in", error.message);
+    return encodedRedirect("error", `/${locale}/sign-in`, error.message);
   }
 
   const cookieStore = await cookies();
@@ -24,11 +25,15 @@ export const signInAction = async (formData: FormData) => {
   return redirect(`/${locale}/home`);
 };
 
-export const signUpAction = async (formData: FormData) => {
+export const signUpStudent = signUp.bind(null, "student");
+export const signUpTutor = signUp.bind(null, "tutor");
+
+async function signUp(role: "student" | "tutor", formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("fullName") as string;
-  const role = formData.get("role") as string;
+  const locale = formData.get("locale") as string;
+
   const client = await supabase();
 
   const cookieStore = await cookies();
@@ -41,11 +46,7 @@ export const signUpAction = async (formData: FormData) => {
     email,
     password,
     options: {
-      emailRedirectTo: url,
-      data: {
-        full_name: fullName,
-        role: role,
-      },
+      data: { full_name: fullName, role },
     },
   });
 
@@ -56,7 +57,7 @@ export const signUpAction = async (formData: FormData) => {
   }
 
   return redirect(`/${locale}/home`);
-};
+}
 
 export const signOutAction = async () => {
   const client = await supabase();

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Home,
   Settings,
@@ -69,8 +70,9 @@ const defaultMenuSections: MenuSection[] = [
           { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/classroom/learning-path' },
         ]
       },
-      { id: 'students', label: 'Students', icon: Users, path: '/students' },
+      { id: 'community', label: 'Community', icon: Users, path: '/community' },
       { id: 'courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
+      { id: 'my-courses', label: 'My Courses', icon: BookOpen, path: '/my/courses' },
       { id: 'documents', label: 'Documents', icon: FileText, path: '/documents' },
       { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ]
@@ -84,11 +86,49 @@ export default function AnimatedSidebar({
   onExpansionChange,
   isPermanentlyExpanded = false
 }: AnimatedSidebarProps) {
+  const t = useTranslations('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const getLabelForItem = (id: string) => {
+    switch (id) {
+      case 'home':
+        return t('home_label');
+      case 'notifications':
+        return t('notifications_label');
+      case 'messages':
+        return t('messages_label');
+      case 'calendar':
+        return t('calendar_label');
+      case 'dashboard':
+        return t('dashboard_label');
+      case 'classroom':
+        return t('classroom_label');
+      case 'enrolled':
+        return t('enrolled_label');
+      case 'assignment':
+        return t('assignment_label');
+      case 'meeting':
+        return t('meeting_label');
+      case 'learning-path':
+        return t('learning_path_label');
+      case 'community':
+        return t('community_label');
+      case 'courses':
+        return t('courses_label');
+      case 'my-courses':
+        return t('my_courses_label');
+      case 'documents':
+        return t('documents_label');
+      case 'settings':
+        return t('settings_label');
+      default:
+        return '';
+    }
+  };
 
   // Automatically determine active item based on current route
   useEffect(() => {
@@ -108,10 +148,12 @@ export default function AnimatedSidebar({
       setExpandedSections(prev => ({ ...prev, classroom: true }));
     } else if (pathname?.includes('/classroom')) {
       setCurrentActiveItem('classroom');
-    } else if (pathname?.includes('/students')) {
-      setCurrentActiveItem('students');
+    } else if (pathname?.includes('/community')) {
+      setCurrentActiveItem('community');
     } else if (pathname?.includes('/courses')) {
       setCurrentActiveItem('courses');
+    } else if (pathname?.includes('/my/courses')) {
+      setCurrentActiveItem('my-courses');
     } else if (pathname?.includes('/documents')) {
       setCurrentActiveItem('documents');
     } else if (pathname?.includes('/settings')) {
@@ -129,17 +171,17 @@ export default function AnimatedSidebar({
 
   // Auto-close expanded sections when sidebar is collapsed
   useEffect(() => {
-    if (!isPermanentlyExpanded && hoveredItem === null) {
+    if (!isPermanentlyExpanded && !isHovered) {
       // Add a small delay to prevent immediate closing when moving mouse
       const timer = setTimeout(() => {
         setExpandedSections({});
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isPermanentlyExpanded, hoveredItem]);
+  }, [isPermanentlyExpanded, isHovered]);
 
   // Determine if sidebar should be expanded (permanently or temporarily via hover)
-  const isExpanded = isPermanentlyExpanded || hoveredItem !== null;
+  const isExpanded = isPermanentlyExpanded || isHovered;
 
   // Notify parent of expansion state changes and set CSS variable for content positioning
   useEffect(() => {
@@ -252,7 +294,8 @@ export default function AnimatedSidebar({
         {/* Navigation */}
         <nav
           className="flex-1 p-4 overflow-y-auto scrollbar-hide"
-          onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+          onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
+          onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
           style={{
             scrollbarWidth: 'none', /* Firefox */
             msOverflowStyle: 'none', /* Internet Explorer 10+ */
@@ -286,8 +329,7 @@ export default function AnimatedSidebar({
                                   toggleSectionExpansion(item.id);
                                 }
                               }}
-                              onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
-                              onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                              
                               className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                                 isActive
                                   ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
@@ -316,7 +358,7 @@ export default function AnimatedSidebar({
                                     exit="hidden"
                                     className="ml-4 font-medium whitespace-nowrap "
                                   >
-                                    {item.label}
+                                    {getLabelForItem(item.id)}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -362,8 +404,7 @@ export default function AnimatedSidebar({
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
                                   transition={{ duration: 0.2 }}
-                                  onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
-                                  onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                                  
                                 >
                                   {item.subItems?.map((subItem) => {
                                     const SubIconComponent = subItem.icon;
@@ -373,8 +414,7 @@ export default function AnimatedSidebar({
                                       <motion.button
                                         key={subItem.id}
                                         onClick={() => handleItemClick(subItem.id)}
-                                        onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
-                                        onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                                        
                                         className={`w-full flex items-center p-2 rounded-lg transition-all duration-200 text-sm ${
                                           isSubActive
                                             ? 'bg-white/30 text-white shadow-md'
@@ -387,7 +427,7 @@ export default function AnimatedSidebar({
                                           <SubIconComponent size={18} />
                                         </div>
                                         <span className="ml-3 font-medium whitespace-nowrap">
-                                          {subItem.label}
+                                          {getLabelForItem(subItem.id)}
                                         </span>
                                         {isSubActive && (
                                           <motion.div
@@ -416,8 +456,7 @@ export default function AnimatedSidebar({
                           variants={itemVariants}
                           animate={isExpanded ? 'expanded' : 'collapsed'}
                           onClick={() => handleItemClick(item.id)}
-                          onMouseEnter={() => !isPermanentlyExpanded && setHoveredItem(item.id)}
-                          onMouseLeave={() => !isPermanentlyExpanded && setHoveredItem(null)}
+                          
                           className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                             isActive
                               ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
@@ -446,7 +485,7 @@ export default function AnimatedSidebar({
                                 exit="hidden"
                                 className="ml-4 font-medium whitespace-nowrap"
                               >
-                                {item.label}
+                                {getLabelForItem(item.id)}
                               </motion.span>
                             )}
                           </AnimatePresence>
@@ -502,7 +541,7 @@ export default function AnimatedSidebar({
                   exit="hidden"
                   className="ml-4 font-medium whitespace-nowrap"
                 >
-                  Logout
+                  {t('logout_button')}
                 </motion.span>
               )}
             </AnimatePresence>

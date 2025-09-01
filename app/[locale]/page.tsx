@@ -1,23 +1,21 @@
 import { Metadata } from "next";
 import { useTranslations } from "next-intl";
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: "Studify",
-  description:
-    "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
-  keywords: [
-    "learning",
-    "education",
-    "AI tutoring",
-    "progress tracking",
-    "study dashboard",
-  ],
-  openGraph: {
-    title: "Studify",
-    description: "Personalized Learning, Powered by AI and Real-time Tutoring",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('RootPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function Page() {
   const t = useTranslations("HomePage");

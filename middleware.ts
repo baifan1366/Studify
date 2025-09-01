@@ -12,7 +12,16 @@ type Cookie = {
 
 const intlMiddleware = createMiddleware(routing);
 
-const PROTECTED_ROUTES = [
+// Define a simple type for the cookie object to avoid implicit any
+type Cookie = {
+  name: string;
+  value: string;
+  [key: string]: any;
+};
+
+const intlMiddleware = createMiddleware(routing);
+
+const STUDENT_ONLY_ROUTES = [
   "/classroom",
   "/community",
   "/courses",
@@ -27,8 +36,24 @@ const PROTECTED_ROUTES = [
   "/tutor",
 ];
 
+const TUTOR_ONLY_ROUTES = ["/dashboard"];
+
+// All routes that require authentication
+const PROTECTED_ROUTES = [...STUDENT_ONLY_ROUTES, ...TUTOR_ONLY_ROUTES];
+
+
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Create Supabase client
   const { supabase, supabaseResponse } = createSupabaseServerClient(request);
+
+  // Get current user
+  const { 
+    data: { user }, 
+  } = await supabase.auth.getUser();
+
+  const locale = pathname.split("/")[1] || routing.defaultLocale;
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -42,11 +67,40 @@ export async function middleware(request: NextRequest) {
 
   const intlResponse = intlMiddleware(request);
 
+  // Check if the path is a protected route
   const protectedPathnameRegex = new RegExp(
     `^/(${routing.locales.join("|")})(${PROTECTED_ROUTES.join("|")})($|/.*)`
   );
 
+
   if (protectedPathnameRegex.test(pathname)) {
+    // 1. If no user, redirect to sign-in for any protected route
+    if (!user) {
+      return NextResponse.redirect(new URL(`/${locale}/sign-in`, request.url));
+    }
+
+    // 2. If user exists, perform stricter role-based checks
+    const role = user.user_metadata?.role;
+    const pathWithoutLocale = pathname.replace(`/${locale}`, "");
+
+    // If a tutor tries to access a student-only route
+    if (
+      role === "tutor" &&
+      STUDENT_ONLY_ROUTES.some((route) => pathWithoutLocale.startsWith(route))
+    ) {
+      return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+    }
+
+    // If a non-tutor tries to access a tutor-only route
+    if (
+      role !== "tutor" &&
+      TUTOR_ONLY_ROUTES.some((route) => pathWithoutLocale.startsWith(route))
+    ) {
+      return NextResponse.redirect(new URL(`/${locale}/home`, request.url));
+    }
+  }
+
+  // Handle root path
     if (!session) {
       const redirectUrl = new URL(`/${locale}/sign-in`, request.url);
       return NextResponse.redirect(redirectUrl);

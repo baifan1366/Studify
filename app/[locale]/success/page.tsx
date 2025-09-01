@@ -1,21 +1,28 @@
 import { Metadata } from "next";
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: "Success - Studify",
-  description: "Order completed successfully",
-  keywords: ["order success", "payment", "checkout", "education"],
-  openGraph: {
-    title: "Success - Studify",
-    description: "Order completed successfully",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('SuccessPage');
 
-export default function SuccessPage() {
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
+
+export default async function SuccessPage({ params: { locale } }: { params: { locale: string } }) {
+  const t = await getTranslations('SuccessPage');
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-green-600 mb-2">
-        Payment Successful!
+        {t('payment_successful_heading')}
       </h1>
     </div>
   );

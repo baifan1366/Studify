@@ -28,6 +28,13 @@ export function useCourses() {
   });
 }
 
+export function useMyCourses() {
+  return useQuery<Course[]>({ // Assumes Course[] is the expected return type
+    queryKey: ['my-courses'],
+    queryFn: () => apiGet<Course[]>('/api/my-courses'),
+  });
+}
+
 export function useCourse(id?: string) {
   return useQuery<Course>({
     queryKey: ['course', id],

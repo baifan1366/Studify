@@ -1,25 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { ClipboardList, Calendar, Clock, CheckCircle, AlertTriangle, FileText, Upload } from 'lucide-react';
-import { supabase } from '@/utils/supabase/client';
+import { useUser } from '@/hooks/use-user';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { useTranslations } from 'next-intl';
 
 export default function AssignmentContent() {
   const [activeMenuItem, setActiveMenuItem] = useState('assignment');
-  const [user, setUser] = useState<User | null>(null);
+  const { data, isLoading, error } = useUser();
+  const user = data?.user;
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('pending');
+  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
   
   const { toast } = useToast();
+
+  const t = useTranslations('AssignmentContent');
 
   // Mock assignments data
   const assignments = [
@@ -82,41 +86,19 @@ export default function AssignmentContent() {
     }
   ];
 
-  // Fetch user authentication data
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+  
 
-        if (error) {
-          console.error('Error fetching user:', error);
-        } else {
-          setUser(user);
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load user data",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [toast]);
+  // Show error toast if user data fetch fails
+  React.useEffect(() => {
+    if (error) {
+      console.error('Error fetching user:', error);
+      toast({
+        title: t('error_title'),
+        description: t('error_fetch_user'),
+        variant: "destructive",
+      });
+    }
+  }, [error, toast, t]);
 
 
 
@@ -129,11 +111,13 @@ export default function AssignmentContent() {
   };
 
   const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
+    const newExpanded = !isPermanentlyExpanded;
+    setIsPermanentlyExpanded(newExpanded);
+    setSidebarExpanded(newExpanded);
+    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width for synchronization
   };
 
-  const handleSubmitAssignment = (assignmentId: number) => {
+  const handleSubmitAssignment = (assignmentId: string) => {
     toast({
       title: "Submit Assignment",
       description: `Opening submission form for assignment ${assignmentId}...`,
@@ -156,13 +140,13 @@ export default function AssignmentContent() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'Pending';
+        return t('status.pending');
       case 'submitted':
-        return 'Submitted';
+        return t('status.submitted');
       case 'overdue':
-        return 'Overdue';
+        return t('status.overdue');
       default:
-        return 'Unknown';
+        return t('status.unknown');
     }
   };
 
@@ -186,11 +170,11 @@ export default function AssignmentContent() {
   });
 
   return (
-    <AnimatedBackground>
+    <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
-        title="Assignments"
-        userName={user?.email?.split('@')[0] || 'Student'}
+        title={t('header_title')}
+        userName={user?.email?.split('@')[0] || t('default_user_name')}
         onProfileClick={() => handleHeaderAction('profile')}
         sidebarExpanded={isPermanentlyExpanded}
         onMenuToggle={handleMenuToggle}
@@ -208,9 +192,9 @@ export default function AssignmentContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
+          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
+          width: `calc(100vw - ${sidebarWidth}px)`
         }}
       >
 
@@ -223,10 +207,10 @@ export default function AssignmentContent() {
         >
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
-              My Assignments
+              {t('page_title')}
             </h1>
             <p className="text-lg text-white/70 mb-8 dark:text-white/70">
-              Track and submit your assignments on time
+              {t('page_subtitle')}
             </p>
           </div>
 
@@ -240,7 +224,7 @@ export default function AssignmentContent() {
             >
               <div className="text-center">
                 <div className="text-3xl font-bold text-white mb-2">{assignments.length}</div>
-                <div className="text-white/70 text-sm">Total Assignments</div>
+                <div className="text-white/70 text-sm">{t('stats.total_assignments')}</div>
               </div>
             </motion.div>
 
@@ -254,7 +238,7 @@ export default function AssignmentContent() {
                 <div className="text-3xl font-bold text-yellow-400 mb-2">
                   {assignments.filter(a => a.status === 'pending').length}
                 </div>
-                <div className="text-white/70 text-sm">Pending</div>
+                <div className="text-white/70 text-sm">{t('status.pending')}</div>
               </div>
             </motion.div>
 
@@ -268,7 +252,7 @@ export default function AssignmentContent() {
                 <div className="text-3xl font-bold text-green-400 mb-2">
                   {assignments.filter(a => a.status === 'submitted').length}
                 </div>
-                <div className="text-white/70 text-sm">Submitted</div>
+                <div className="text-white/70 text-sm">{t('status.submitted')}</div>
               </div>
             </motion.div>
 
@@ -282,7 +266,7 @@ export default function AssignmentContent() {
                 <div className="text-3xl font-bold text-red-400 mb-2">
                   {assignments.filter(a => a.status === 'overdue').length}
                 </div>
-                <div className="text-white/70 text-sm">Overdue</div>
+                <div className="text-white/70 text-sm">{t('status.overdue')}</div>
               </div>
             </motion.div>
           </div>
@@ -299,7 +283,7 @@ export default function AssignmentContent() {
                     : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {t(`tabs.${tab}` as any)}
               </button>
             ))}
           </div>
@@ -358,7 +342,7 @@ export default function AssignmentContent() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-white/70">
                         <Calendar size={16} />
-                        <span className="text-sm">Due: {assignment.dueDate} at {assignment.dueTime}</span>
+                        <span className="text-sm">{t('labels.due_at', { date: assignment.dueDate, time: assignment.dueTime })}</span>
                       </div>
                       <div className="flex items-center gap-2 text-white/70">
                         <Clock size={16} />
@@ -371,16 +355,16 @@ export default function AssignmentContent() {
                     </div>
                     <div className="space-y-2">
                       <div className="text-white/70 text-sm">
-                        <span className="font-medium">Points:</span> {assignment.maxPoints}
+                        <span className="font-medium">{t('labels.points')}</span> {assignment.maxPoints}
                       </div>
                       {assignment.status === 'submitted' && assignment.grade && (
                         <div className="text-white/70 text-sm">
-                          <span className="font-medium">Grade:</span> {assignment.grade}/{assignment.maxPoints}
+                          <span className="font-medium">{t('labels.grade')}</span> {assignment.grade}/{assignment.maxPoints}
                         </div>
                       )}
                       {assignment.submittedDate && (
                         <div className="text-white/70 text-sm">
-                          <span className="font-medium">Submitted:</span> {assignment.submittedDate}
+                          <span className="font-medium">{t('labels.submitted_on')}</span> {assignment.submittedDate}
                         </div>
                       )}
                     </div>
@@ -396,23 +380,23 @@ export default function AssignmentContent() {
                     {assignment.status === 'pending' || assignment.status === 'overdue' ? (
                       <>
                         <button 
-                          onClick={() => handleSubmitAssignment(assignment.id)}
+                          onClick={() => handleSubmitAssignment(assignment.id.toString())}
                           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           <Upload size={16} />
-                          Submit Assignment
+                          {t('buttons.submit_assignment')}
                         </button>
                         <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          View Details
+                          {t('buttons.view_details')}
                         </button>
                       </>
                     ) : (
                       <>
                         <button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          View Submission
+                          {t('buttons.view_submission')}
                         </button>
                         <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          Feedback
+                          {t('buttons.feedback')}
                         </button>
                       </>
                     )}

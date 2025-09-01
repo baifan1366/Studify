@@ -1,50 +1,55 @@
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthInput } from "@/components/auth/auth-input";
-import { signUpAction } from "@/app/actions";
+import { signUpStudent } from "@/app/actions";
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: "Sign Up",
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+  const t = await getTranslations('AuthStudentSignUpPage');
+  return {
+    title: t('metadata_title'),
+  };
+}
 
-export default function SignUpPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SignUpPage({ params: { locale } }: { params: { locale: string } }) {
+  const t = await getTranslations('AuthStudentSignUpPage');
+
   return (
     <AuthForm
-      action={signUpAction}
-        title="Student Sign Up"
-      subtitle="Start your learning journey today"
-      buttonText="Create account"
-      footerText="Already have an account?"
-      footerLinkText="Sign in"
+      action={signUpStudent}
+      title={t('student_sign_up_title')}
+      subtitle={t('student_sign_up_subtitle')}
+      buttonText={t('create_account_button')}
+      footerText={t('already_have_account_question')}
+      footerLinkText={t('sign_in_link')}
       footerLinkHref="/sign-in"
       locale={locale}
     >
-      <input type="hidden" name="role" value="student" />
       <AuthInput
         name="fullName"
-        label="Full Name"
+        label={t('full_name_label')}
         type="text"
-        placeholder="Enter your full name"
+        placeholder={t('full_name_placeholder')}
         required
       />
       <AuthInput
         name="email"
-        label="Email address"
+        label={t('email_label')}
         type="email"
-        placeholder="Enter your email"
+        placeholder={t('email_placeholder')}
         required
       />
       <AuthInput
         name="password"
-        label="Password"
+        label={t('password_label')}
         type="password"
-        placeholder="Enter your password"
+        placeholder={t('password_placeholder')}
         required
       />
       <AuthInput
         name="confirmPassword"
-        label="Confirm Password"
+        label={t('confirm_password_label')}
         type="password"
-        placeholder="Confirm your password"
+        placeholder={t('confirm_password_placeholder')}
         required
       />
     </AuthForm>

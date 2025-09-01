@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -16,12 +17,15 @@ interface ClassroomHeaderProps {
 }
 
 export default function ClassroomHeader({
-  title = "Classroom",
-  userName = "Student",
+  title,
+  userName,
   onProfileClick,
   sidebarExpanded = false,
   onMenuToggle
 }: ClassroomHeaderProps) {
+  const t = useTranslations('Header');
+  const resolvedTitle = title ?? t('default_title');
+  const resolvedUserName = userName ?? t('default_user_name');
   return (
     <motion.header
       className="fixed top-0 left-0 right-0 h-16 z-30 backdrop-blur-md"
@@ -65,7 +69,7 @@ export default function ClassroomHeader({
             transition={{ delay: 0.2, duration: 0.3 }}
           >
             <h1 className="text-xl font-bold text-white">
-              {title}
+              {resolvedTitle}
             </h1>
           </motion.div>
         </div>
@@ -89,7 +93,7 @@ export default function ClassroomHeader({
               <User size={16} className="text-white" />
             </div>
             <span className="text-sm font-medium text-white hidden sm:block">
-              {userName}
+              {resolvedUserName}
             </span>
           </motion.button>
         </motion.div>

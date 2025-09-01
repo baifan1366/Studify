@@ -108,6 +108,17 @@ export const TABLES = {
   ASSIGNMENT: 'classroom.assignment',
   SUBMISSION: 'classroom.submission',
   GRADE: 'classroom.grade',
+  SESSION_PARTICIPANTS: 'classroom.session_participant',
+  CLASSROOM_LOGS: 'classroom.classroom_log',
+  MISTAKE_BOOK: 'classroom.mistake_book',
+
+  // Resources schema
+  FILES: 'resources.file',
+  NOTES: 'resources.note',
+
+  // Analytics schema
+  USER_ACTIONS: 'analytics.user_action',
+  LEARNING_ANALYTICS: 'analytics.learning_analytics',
 
   // Tutoring schema
   TUTORS: 'tutoring.tutors',

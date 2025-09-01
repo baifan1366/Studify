@@ -33,6 +33,16 @@ export const coursesApi = {
   unenroll: (courseId: number) => `/api/courses/${courseId}/unenroll`,
 } as const;
 
+// Classroom API endpoints
+export const classroomApi = {
+  enrolledCourses: "/api/classroom/enrolled-courses",
+  assignments: "/api/classroom/assignments",
+  assignmentDetail: (id: string) => `/api/classroom/assignments/${id}`,
+  submitAssignment: (id: string) => `/api/classroom/assignments/${id}/submit`,
+  autograde: (id: string) => `/api/classroom/assignments/${id}/autograde`,
+  mistakes: "/api/classroom/assignments/mistakes",
+} as const;
+
 // Documents API endpoints
 export const documentsApi = {
   list: "/api/documents",

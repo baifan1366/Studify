@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, BookOpen, Zap, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface HeroSectionProps {
   onStartLearning?: () => void;
@@ -10,6 +11,7 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ onStartLearning, onExploreCourses }: HeroSectionProps) {
+  const t = useTranslations('HeroSection');
   return (
     <motion.section
       className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-8 mb-8"
@@ -57,11 +59,11 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
             transition={{ delay: 0.2, duration: 0.8 }}
           >
             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400 bg-clip-text text-transparent">
-              Personalized Learning,
+              {t('main_title_line1')}
             </span>
             <br />
             <span className="text-white/90 dark:text-white/90">
-              Powered by AI and Real-time Tutoring
+              {t('main_title_line2')}
             </span>
           </motion.h1>
 
@@ -72,8 +74,9 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
-            Transform your learning journey with AI-powered recommendations, 
-            live tutoring sessions, and personalized study paths tailored just for you.
+            {t('subtitle_line1')}
+            <br />
+            {t('subtitle_line2')}
           </motion.p>
 
           {/* CTA Buttons */}
@@ -92,7 +95,7 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
             >
               <div className="flex items-center gap-3">
                 <Play size={24} fill="currentColor" />
-                Start Learning Now
+                {t('primary_cta')}
                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </div>
             </motion.button>
@@ -106,7 +109,7 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
             >
               <div className="flex items-center gap-3">
                 <BookOpen size={24} />
-                Explore Courses
+                {t('secondary_cta')}
                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </div>
             </motion.button>
@@ -121,15 +124,15 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
           >
             <div className="flex items-center gap-2">
               <Zap size={16} className="text-yellow-400" />
-              AI-Powered Recommendations
+              {t('feature_recommendations')}
             </div>
             <div className="flex items-center gap-2">
               <BookOpen size={16} className="text-blue-400" />
-              Live Tutoring Sessions
+              {t('feature_live_tutoring')}
             </div>
             <div className="flex items-center gap-2">
               <Play size={16} className="text-purple-400" />
-              Interactive Learning
+              {t('feature_interactive')}
             </div>
           </motion.div>
         </div>

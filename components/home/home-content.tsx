@@ -14,8 +14,10 @@ import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { useTranslations } from 'next-intl';
 
 export default function HomeContent() {
+  const t = useTranslations('HomeContent');
   const [activeMenuItem, setActiveMenuItem] = useState('home');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,8 +40,8 @@ export default function HomeContent() {
       } catch (error) {
         console.error('Error in fetchUser:', error);
         toast({
-          title: "Error",
-          description: "Failed to load user data",
+          title: t('error_title'),
+          description: t('error_fetch_user'),
           variant: "destructive",
         });
       } finally {
@@ -78,57 +80,57 @@ export default function HomeContent() {
 
   const handleStartLearning = () => {
     toast({
-      title: "Starting Learning Journey",
-      description: "Redirecting to your personalized learning path...",
+      title: t('start_learning_title'),
+      description: t('start_learning_desc'),
     });
   };
 
   const handleExploreCourses = () => {
     toast({
-      title: "Exploring Courses",
-      description: "Opening course catalog...",
+      title: t('explore_courses_title'),
+      description: t('explore_courses_desc'),
     });
   };
 
   const handleExperienceAI = () => {
     toast({
-      title: "AI Tutoring",
-      description: "Launching AI assistant...",
+      title: t('ai_tutoring_title'),
+      description: t('ai_tutoring_desc'),
     });
   };
 
   const handleGenerateStudyPlan = () => {
     toast({
-      title: "Study Plan",
-      description: "Generating personalized study plan...",
+      title: t('study_plan_title'),
+      description: t('study_plan_desc'),
     });
   };
 
   const handleCreatePost = () => {
     toast({
-      title: "Create Post",
-      description: "Opening post editor...",
+      title: t('create_post_title'),
+      description: t('create_post_desc'),
     });
   };
 
   const handleJoinGroup = () => {
     toast({
-      title: "Join Group",
-      description: "Joining study group...",
+      title: t('join_group_title'),
+      description: t('join_group_desc'),
     });
   };
 
   const handleViewProgress = () => {
     toast({
-      title: "Progress Report",
-      description: "Opening detailed progress analytics...",
+      title: t('progress_report_title'),
+      description: t('progress_report_desc'),
     });
   };
 
   const handleDailyCheckin = () => {
     toast({
-      title: "Daily Check-in",
-      description: "Streak updated! Keep up the great work!",
+      title: t('daily_checkin_title'),
+      description: t('daily_checkin_desc'),
     });
   };
 
@@ -136,8 +138,8 @@ export default function HomeContent() {
     <AnimatedBackground>
       {/* Header */}
       <ClassroomHeader
-        title="Home"
-        userName={user?.email?.split('@')[0] || 'Student'}
+        title={t('header_title')}
+        userName={user?.email?.split('@')[0] || t('default_user_name')}
         onProfileClick={() => handleHeaderAction('profile')}
         sidebarExpanded={isPermanentlyExpanded}
         onMenuToggle={handleMenuToggle}

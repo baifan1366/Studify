@@ -11,8 +11,11 @@ import PostCard from '@/components/community/post-card';
 import { NewPostForm } from '@/components/community/new-post-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { useTranslations } from 'next-intl';
 
 export default function CommunityContent() {
+  const t = useTranslations('CommunityContent');
+  const th = useTranslations('Header');
   const [user, setUser] = useState<User | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
@@ -44,8 +47,8 @@ export default function CommunityContent() {
   return (
     <AnimatedBackground>
       <ClassroomHeader
-        title="Community"
-        userName={user?.email?.split('@')[0] || 'User'}
+        title={t('community_header_title')}
+        userName={user?.email?.split('@')[0] || th('default_user_name')}
         sidebarExpanded={isPermanentlyExpanded}
         onMenuToggle={handleMenuToggle}
       />
@@ -65,7 +68,7 @@ export default function CommunityContent() {
         }}
       >
         <div className="max-w-4xl mx-auto">
-            <h1 className="text-4xl font-bold text-white mb-8">Community Feed</h1>
+            <h1 className="text-4xl font-bold text-white mb-8">{t('community_feed_title')}</h1>
             
             <div className="mb-8">
                 <NewPostForm onSubmit={handleCreatePost} isLoading={isAddingPost} />
@@ -79,7 +82,7 @@ export default function CommunityContent() {
                 </div>
             )}
 
-            {isError && <p className="text-white">Error loading posts. Please try again later.</p>}
+            {isError && <p className="text-white">{t('error_loading_posts')}</p>}
 
             {!isLoading && !isError && (
                 <div className="space-y-4">

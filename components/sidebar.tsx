@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Home,
   Settings,
@@ -85,11 +86,49 @@ export default function AnimatedSidebar({
   onExpansionChange,
   isPermanentlyExpanded = false
 }: AnimatedSidebarProps) {
+  const t = useTranslations('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const getLabelForItem = (id: string) => {
+    switch (id) {
+      case 'home':
+        return t('home_label');
+      case 'notifications':
+        return t('notifications_label');
+      case 'messages':
+        return t('messages_label');
+      case 'calendar':
+        return t('calendar_label');
+      case 'dashboard':
+        return t('dashboard_label');
+      case 'classroom':
+        return t('classroom_label');
+      case 'enrolled':
+        return t('enrolled_label');
+      case 'assignment':
+        return t('assignment_label');
+      case 'meeting':
+        return t('meeting_label');
+      case 'learning-path':
+        return t('learning_path_label');
+      case 'community':
+        return t('community_label');
+      case 'courses':
+        return t('courses_label');
+      case 'my-courses':
+        return t('my_courses_label');
+      case 'documents':
+        return t('documents_label');
+      case 'settings':
+        return t('settings_label');
+      default:
+        return '';
+    }
+  };
 
   // Automatically determine active item based on current route
   useEffect(() => {
@@ -319,7 +358,7 @@ export default function AnimatedSidebar({
                                     exit="hidden"
                                     className="ml-4 font-medium whitespace-nowrap "
                                   >
-                                    {item.label}
+                                    {getLabelForItem(item.id)}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -388,7 +427,7 @@ export default function AnimatedSidebar({
                                           <SubIconComponent size={18} />
                                         </div>
                                         <span className="ml-3 font-medium whitespace-nowrap">
-                                          {subItem.label}
+                                          {getLabelForItem(subItem.id)}
                                         </span>
                                         {isSubActive && (
                                           <motion.div
@@ -446,7 +485,7 @@ export default function AnimatedSidebar({
                                 exit="hidden"
                                 className="ml-4 font-medium whitespace-nowrap"
                               >
-                                {item.label}
+                                {getLabelForItem(item.id)}
                               </motion.span>
                             )}
                           </AnimatePresence>
@@ -502,7 +541,7 @@ export default function AnimatedSidebar({
                   exit="hidden"
                   className="ml-4 font-medium whitespace-nowrap"
                 >
-                  Logout
+                  {t('logout_button')}
                 </motion.span>
               )}
             </AnimatePresence>

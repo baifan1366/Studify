@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ProductWithPrices } from "@updatedev/js";
 import { createUpdateClient } from "@/utils/update/client";
 import { useState } from "react";
+import { useTranslations } from 'next-intl';
 
 interface PricingCardProps {
   product: ProductWithPrices;
@@ -17,6 +18,7 @@ export default function PricingCard({
   interval,
 }: PricingCardProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const t = useTranslations('PricingCard');
 
   function getCurrencySymbol(currency_id: string) {
     // This is just an example, and doesn't cover all currencies
@@ -71,7 +73,7 @@ export default function PricingCard({
   const symbol = getCurrencySymbol(currency);
   const priceString = productPrice.unit_amount
     ? `${symbol}${(productPrice.unit_amount / 100).toFixed(2)}`
-    : "Custom";
+    : t('custom_price');
 
   return (
     <div className={`border rounded-lg p-6 space-y-4`}>
@@ -80,7 +82,7 @@ export default function PricingCard({
         <div className="flex items-baseline gap-1">
           <span className="text-3xl font-bold">{priceString}</span>
           {productPrice?.unit_amount && (
-            <span className="text-muted-foreground">/month</span>
+            <span className="text-muted-foreground">{t('per_month_suffix')}</span>
           )}
         </div>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -93,7 +95,7 @@ export default function PricingCard({
           disabled={isLoading || isCurrentPlan}
           variant={isCurrentPlan ? "secondary" : "default"}
         >
-          {isCurrentPlan ? "Current Plan" : "Select Plan"}
+          {isCurrentPlan ? t('current_plan') : t('select_plan')}
         </Button>
       </div>
     </div>

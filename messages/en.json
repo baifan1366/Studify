@@ -199,6 +199,147 @@
     "community_feed_title": "Community Feed",
     "error_loading_posts": "Error loading posts. Please try again later."
   },
+  "CommunityHighlights": {
+    "title": "Learning Community",
+    "subtitle": "Connect, share, and learn together",
+    "create_post_button": "Create Post",
+    "latest_posts_heading": "Latest Posts",
+    "recommended_groups_heading": "Recommended Study Groups",
+    "members_suffix": "members",
+    "join_button": "Join",
+    "new_posts_today_suffix": "new posts today",
+    "explore_groups_button": "Explore All Groups"
+  },
+  "RecommendationPanels": {
+    "loading_recommendations": "Loading recommendations...",
+    "personalized_title": "Personalized for You",
+    "powered_by_ai": "Powered by AI",
+    "tab_continue": "Continue Learning",
+    "tab_mistakes": "Practice from Mistakes",
+    "tab_peers": "Popular Among Peers",
+    "learning_paths_title": "Learning Paths",
+    "label_courses": "Courses:",
+    "label_exercises": "Exercises:",
+    "label_est_time": "Est. Time:",
+    "start_path_button": "Start Path",
+    "live_activity_title": "Live Activity",
+    "currently_studying_title": "Currently Studying",
+    "students_online_now": "Students online now",
+    "new_this_week_title": "New This Week",
+    "fresh_courses_added": "Fresh courses added",
+    "from_your_teacher_title": "From Your Teacher",
+    "recommendations_waiting": "Recommendations waiting",
+    "community_progress_title": "Community & Progress",
+    "recommended_groups_title": "Recommended Study Groups",
+    "join_button": "Join",
+    "weekly_leaderboard_title": "Weekly Leaderboard",
+    "points_suffix": "pts"
+  },
+  "GamificationSection": {
+    "title": "Achievements & Leaderboard",
+    "subtitle": "Compete, achieve, and celebrate your progress",
+    "daily_checkin_title": "Daily Check-in",
+    "daily_checkin_desc_prefix": "Keep your streak alive!",
+    "current_streak": "Current streak: {count} days",
+    "check_in_today_button": "Check In Today",
+    "checked_in_with_xp": "Checked In! +{xp} XP",
+    "this_weeks_progress": "This week's progress",
+    "weekly_leaderboard_title": "Weekly Leaderboard",
+    "points_suffix": "points",
+    "badge_collection_title": "Badge Collection",
+    "progress_label": "Progress",
+    "earned_label": "Earned!",
+    "rarity": {
+      "Common": "Common",
+      "Rare": "Rare",
+      "Epic": "Epic",
+      "Legendary": "Legendary"
+    }
+  },
+  "HomeContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "start_learning_title": "Starting Learning Journey",
+    "start_learning_desc": "Redirecting to your personalized learning path...",
+    "explore_courses_title": "Exploring Courses",
+    "explore_courses_desc": "Opening course catalog...",
+    "ai_tutoring_title": "AI Tutoring",
+    "ai_tutoring_desc": "Launching AI assistant...",
+    "study_plan_title": "Study Plan",
+    "study_plan_desc": "Generating personalized study plan...",
+    "create_post_title": "Create Post",
+    "create_post_desc": "Opening post editor...",
+    "join_group_title": "Join Group",
+    "join_group_desc": "Joining study group...",
+    "progress_report_title": "Progress Report",
+    "progress_report_desc": "Opening detailed progress analytics...",
+    "daily_checkin_title": "Daily Check-in",
+    "daily_checkin_desc": "Streak updated! Keep up the great work!",
+    "header_title": "Home",
+    "default_user_name": "Student"
+  },
+  "AIAssistantPreview": {
+    "title": "AI Learning Assistant",
+    "subtitle": "Your personal AI copilot for learning",
+    "feature_upload_title": "Upload & Solve",
+    "feature_upload_desc": "Upload a problem → Get instant step-by-step solution",
+    "feature_upload_preview": "📸 Take a photo of your math problem and get detailed explanations instantly",
+    "feature_mindmap_title": "Mind Map Generator",
+    "feature_mindmap_desc": "Generate a sample learning mind map",
+    "feature_mindmap_preview": "🧠 Create visual learning maps for any topic to enhance understanding",
+    "feature_chat_title": "AI Tutor Chat",
+    "feature_chat_desc": "Ask questions and get personalized explanations",
+    "feature_chat_preview": "💬 Chat with AI tutor for real-time help and clarifications",
+    "drop_image_here": "Drop your problem image here",
+    "subjects": {
+      "Math": "Math",
+      "Physics": "Physics",
+      "Chemistry": "Chemistry",
+      "Biology": "Biology"
+    },
+    "ai_tutor_online": "AI Tutor is online",
+    "ai_tutor_prompt": "\"How can I help you with your studies today?\"",
+    "cta_experience_ai": "Experience AI Tutoring"
+  },
+  "LearningPath": {
+    "title": "Your Customized Learning Journey",
+    "subtitle": "Track your progress and unlock achievements",
+    "overall_progress_title": "Overall Progress",
+    "badge_unlock_hint": "🎉 You're {remaining}% away from unlocking the \"{badge}\" badge!",
+    "milestones_title": "Learning Milestones",
+    "achievements_title": "Achievements",
+    "next_milestone_title": "Next Milestone",
+    "next_milestone_desc": "Complete {count} more lessons to unlock \"{badge}\" badge",
+    "progress_completed_short": "{done}/{total} completed",
+    "cta_generate_study_plan": "Generate My Study Plan"
+  },
+  "LearningReport": {
+    "title": "Smart Learning Report",
+    "subtitle": "AI-powered insights into your learning progress",
+    "weekly_learning_duration_title": "Weekly Learning Duration",
+    "trend_vs_last_week": "+{value}% vs last week",
+    "days": {
+      "Mon": "Mon",
+      "Tue": "Tue",
+      "Wed": "Wed",
+      "Thu": "Thu",
+      "Fri": "Fri",
+      "Sat": "Sat",
+      "Sun": "Sun"
+    },
+    "hours_suffix": "h",
+    "total_this_week": "Total This Week",
+    "daily_average": "Daily Average",
+    "subject_mastery_levels_title": "Subject Mastery Levels",
+    "top_performer_label": "Top Performer",
+    "ai_insight_label": "AI Insight",
+    "ai_insight_text": "Your Biology performance is exceptional! Consider helping peers in study groups. Focus on Chemistry concepts to reach the next mastery level.",
+    "lessons_completed": "Lessons Completed",
+    "streak_days": "Streak Days",
+    "accuracy_rate": "Accuracy Rate",
+    "points_earned": "Points Earned",
+    "cta_view_complete_progress": "View My Complete Progress"
+  },
   "Sidebar": {
     "section_home": "Home",
     "home_label": "Home",
@@ -218,5 +359,38 @@
     "documents_label": "Documents",
     "settings_label": "Settings",
     "logout_button": "Logout"
+  },
+  "PricingContent": {
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "one_time": "One-Time"
+  },
+  "PricingCard": {
+    "custom_price": "Custom",
+    "per_month_suffix": "/month",
+    "current_plan": "Current Plan",
+    "select_plan": "Select Plan"
+  },
+  "PaidContentCard": {
+    "title": "Subscription based, unlimited cat photos",
+    "description": "Create unlimited cat photos.",
+    "generating": "Generating...",
+    "generate_button": "Generate Cat Photo",
+    "img_alt": "meme"
+  },
+  "HeroSection": {
+    "main_title_line1": "Personalized Learning,",
+    "main_title_line2": "Powered by AI and Real-time Tutoring",
+    "subtitle_line1": "Transform your learning journey with AI-powered recommendations,",
+    "subtitle_line2": "live tutoring sessions, and personalized study paths tailored just for you.",
+    "primary_cta": "Start Learning Now",
+    "secondary_cta": "Explore Courses",
+    "feature_recommendations": "AI-Powered Recommendations",
+    "feature_live_tutoring": "Live Tutoring Sessions",
+    "feature_interactive": "Interactive Learning"
+  },
+  "Header": {
+    "default_title": "Classroom",
+    "default_user_name": "Student"
   }
 }

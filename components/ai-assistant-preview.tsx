@@ -10,32 +10,34 @@ import {
   Camera,
   MessageSquare
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface AIAssistantPreviewProps {
   onExperienceAI?: () => void;
 }
 
 export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPreviewProps) {
+  const t = useTranslations('AIAssistantPreview');
   const [activeDemo, setActiveDemo] = useState(0);
 
   const demoFeatures = [
     {
       icon: Upload,
-      title: "Upload & Solve",
-      description: "Upload a problem → Get instant step-by-step solution",
-      preview: "📸 Take a photo of your math problem and get detailed explanations instantly"
+      title: t('feature_upload_title'),
+      description: t('feature_upload_desc'),
+      preview: t('feature_upload_preview')
     },
     {
       icon: Brain,
-      title: "Mind Map Generator",
-      description: "Generate a sample learning mind map",
-      preview: "🧠 Create visual learning maps for any topic to enhance understanding"
+      title: t('feature_mindmap_title'),
+      description: t('feature_mindmap_desc'),
+      preview: t('feature_mindmap_preview')
     },
     {
       icon: MessageSquare,
-      title: "AI Tutor Chat",
-      description: "Ask questions and get personalized explanations",
-      preview: "💬 Chat with AI tutor for real-time help and clarifications"
+      title: t('feature_chat_title'),
+      description: t('feature_chat_desc'),
+      preview: t('feature_chat_preview')
     }
   ];
 
@@ -52,8 +54,8 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
           <Brain className="text-white" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white dark:text-white">AI Learning Assistant</h2>
-          <p className="text-white/70 dark:text-white/70">Your personal AI copilot for learning</p>
+          <h2 className="text-2xl font-bold text-white dark:text-white">{t('title')}</h2>
+          <p className="text-white/70 dark:text-white/70">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -133,7 +135,7 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
                       whileHover={{ borderColor: 'rgba(255,255,255,0.5)' }}
                     >
                       <Camera size={24} className="text-white/60 mx-auto mb-2" />
-                      <p className="text-sm text-white/70">Drop your problem image here</p>
+                      <p className="text-sm text-white/70">{t('drop_image_here')}</p>
                     </motion.div>
                   )}
                   
@@ -147,7 +149,7 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: i * 0.1 }}
                         >
-                          {subject}
+                          {t(`subjects.${subject}`)}
                         </motion.div>
                       ))}
                     </div>
@@ -161,10 +163,10 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
                     >
                       <div className="flex items-center gap-2 text-sm text-white/70 mb-2">
                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        AI Tutor is online
+                        {t('ai_tutor_online')}
                       </div>
                       <p className="text-sm text-white/80">
-                        "How can I help you with your studies today?"
+                        {t('ai_tutor_prompt')}
                       </p>
                     </motion.div>
                   )}
@@ -190,7 +192,7 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
         >
           <div className="flex items-center gap-2">
             <Zap size={20} />
-            Experience AI Tutoring
+            {t('cta_experience_ai')}
             <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </div>
         </motion.button>

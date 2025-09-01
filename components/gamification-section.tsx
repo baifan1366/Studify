@@ -14,12 +14,14 @@ import {
   Zap,
   Target
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface GamificationSectionProps {
   onDailyCheckin?: () => void;
 }
 
 export default function GamificationSection({ onDailyCheckin }: GamificationSectionProps) {
+  const t = useTranslations('GamificationSection');
   const [checkedIn, setCheckedIn] = useState(false);
 
   const leaderboard = [
@@ -85,8 +87,8 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
           <Trophy className="text-white" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Achievements & Leaderboard</h2>
-          <p className="text-white/70">Compete, achieve, and celebrate your progress</p>
+          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+          <p className="text-white/70">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -97,10 +99,10 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
             <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar size={32} className="text-white" />
             </div>
-            
-            <h3 className="text-lg font-semibold text-white mb-2">Daily Check-in</h3>
+              
+            <h3 className="text-lg font-semibold text-white mb-2">{t('daily_checkin_title')}</h3>
             <p className="text-sm text-white/70 mb-4">
-              Keep your streak alive! Current streak: <span className="text-orange-400 font-bold">12 days</span>
+              {t('daily_checkin_desc_prefix')} {t('current_streak', { count: 12 })}
             </p>
 
             <AnimatePresence mode="wait">
@@ -117,7 +119,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                 >
                   <div className="flex items-center justify-center gap-2">
                     <CheckCircle size={20} />
-                    Check In Today
+                    {t('check_in_today_button')}
                   </div>
                 </motion.button>
               ) : (
@@ -130,7 +132,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                 >
                   <div className="flex items-center justify-center gap-2">
                     <CheckCircle size={20} />
-                    Checked In! +50 XP
+                    {t('checked_in_with_xp', { xp: 50 })}
                   </div>
                 </motion.div>
               )}
@@ -150,7 +152,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                 />
               ))}
             </div>
-            <p className="text-xs text-white/50 mt-2">This week's progress</p>
+            <p className="text-xs text-white/50 mt-2">{t('this_weeks_progress')}</p>
           </div>
         </div>
 
@@ -158,7 +160,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
         <div className="bg-white/5 rounded-xl p-6 border border-white/10">
           <div className="flex items-center gap-2 mb-4">
             <Crown size={20} className="text-yellow-400" />
-            <h3 className="text-lg font-semibold text-white">Weekly Leaderboard</h3>
+            <h3 className="text-lg font-semibold text-white">{t('weekly_leaderboard_title')}</h3>
           </div>
 
           <div className="space-y-3">
@@ -200,7 +202,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                     </span>
                     {user.badge && <span className="text-sm">{user.badge}</span>}
                   </div>
-                  <span className="text-xs text-white/60">{user.points} points</span>
+                  <span className="text-xs text-white/60">{user.points} {t('points_suffix')}</span>
                 </div>
               </motion.div>
             ))}
@@ -211,7 +213,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
         <div className="bg-white/5 rounded-xl p-6 border border-white/10">
           <div className="flex items-center gap-2 mb-4">
             <Award size={20} className="text-purple-400" />
-            <h3 className="text-lg font-semibold text-white">Badge Collection</h3>
+            <h3 className="text-lg font-semibold text-white">{t('badge_collection_title')}</h3>
           </div>
 
           <div className="space-y-3">
@@ -250,7 +252,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                           badge.rarity === 'Rare' ? 'bg-blue-500/20 text-blue-300' :
                           'bg-gray-500/20 text-gray-300'
                         }`}>
-                          {badge.rarity}
+                          {t(`rarity.${badge.rarity}`)}
                         </span>
                       </div>
                       
@@ -259,7 +261,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                       {!badge.earned && badge.progress && (
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs">
-                            <span className="text-white/50">Progress</span>
+                            <span className="text-white/50">{t('progress_label')}</span>
                             <span className="text-white/70">{badge.progress}%</span>
                           </div>
                           <div className="w-full bg-white/10 rounded-full h-1.5">
@@ -276,7 +278,7 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                       {badge.earned && (
                         <div className="flex items-center gap-1 text-xs text-green-400">
                           <Star size={12} fill="currentColor" />
-                          Earned!
+                          {t('earned_label')}
                         </div>
                       )}
                     </div>

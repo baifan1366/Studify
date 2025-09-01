@@ -1,24 +1,22 @@
 import React from 'react';
 import { Metadata } from 'next';
 import HomeContent from '@/components/home/home-content';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: "Home - Studify",
-  description:
-    "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
-  keywords: [
-    "learning",
-    "education",
-    "AI tutoring",
-    "progress tracking",
-    "study dashboard",
-  ],
-  openGraph: {
-    title: "Home - Studify",
-    description: "Personalized Learning, Powered by AI and Real-time Tutoring",
-    type: "website",
-  },
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations('HomePage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function HomePage() {
   return <HomeContent />;

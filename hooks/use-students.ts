@@ -1,16 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { studentsApi } from '@/lib/api';
-
-export interface Student {
-  id: number;
-  name: string;
-  email: string;
-  grade: string;
-  progress: number;
-  enrolledCourses: number;
-  lastActive: string;
-  avatar?: string;
-}
+import { Profile } from '@/interface';
 
 /**
  * Hook for fetching students data
@@ -19,7 +9,7 @@ export interface Student {
 export function useStudents() {
   return useQuery({
     queryKey: ['students'],
-    queryFn: async (): Promise<Student[]> => {
+    queryFn: async (): Promise<Profile[]> => {
       const response = await fetch(studentsApi.list);
       if (!response.ok) {
         throw new Error('Failed to fetch students');
@@ -39,7 +29,7 @@ export function useStudents() {
 export function useStudent(studentId: number) {
   return useQuery({
     queryKey: ['student', studentId],
-    queryFn: async (): Promise<Student> => {
+    queryFn: async (): Promise<Profile> => {
       const response = await fetch(studentsApi.getById(studentId));
       if (!response.ok) {
         throw new Error(`Failed to fetch student ${studentId}`);
@@ -60,7 +50,7 @@ export function useStudent(studentId: number) {
 export function useStudentsSearch(searchQuery: string) {
   return useQuery({
     queryKey: ['students', 'search', searchQuery],
-    queryFn: async (): Promise<Student[]> => {
+    queryFn: async (): Promise<Profile[]> => {
       const response = await fetch(studentsApi.search(searchQuery));
       if (!response.ok) {
         throw new Error('Failed to search students');

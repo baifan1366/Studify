@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User } from '@supabase/supabase-js';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import RecommendationPanels from '@/components/home/recommendation-panels';
@@ -17,7 +16,7 @@ export default function ClassroomContent() {
   const user = data?.user;
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
+  const [sidebarWidth, setSidebarWidth] = useState(80); 
   
   const { toast } = useToast();
 
@@ -48,7 +47,7 @@ export default function ClassroomContent() {
     const newExpanded = !isPermanentlyExpanded;
     setIsPermanentlyExpanded(newExpanded);
     setSidebarExpanded(newExpanded);
-    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width for synchronization
+    setSidebarWidth(newExpanded ? 280 : 80);
   };
 
   return (

@@ -1,17 +1,22 @@
 import React from 'react';
 import { Metadata } from 'next';
 import LearningPathContent from '@/components/classroom/learning-path-content';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Learning Path - Studify',
-  description: 'Follow your personalized learning path with structured courses and milestones',
-  keywords: ['learning path', 'curriculum', 'milestones', 'personalized learning', 'education'],
-  openGraph: {
-    title: 'Learning Path - Studify',
-    description: 'Follow your personalized learning journey with structured milestones',
-    type: 'website',
-  },
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations('ClassroomLearningPathPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function LearningPathPage() {
   return <LearningPathContent />;

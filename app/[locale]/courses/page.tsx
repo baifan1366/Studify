@@ -1,17 +1,22 @@
 import React from 'react';
 import { Metadata } from 'next';
 import CoursesContent from '@/components/course/courses-content';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Courses - Studify',
-  description: 'Explore our comprehensive course catalog with expert instructors and interactive learning materials',
-  keywords: ['courses', 'education', 'learning', 'online courses', 'curriculum'],
-  openGraph: {
-    title: 'Courses - Studify',
-    description: 'Comprehensive course catalog with expert instructors',
-    type: 'website',
-  },
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations('CoursesPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function CoursesPage() {
   return <CoursesContent />;

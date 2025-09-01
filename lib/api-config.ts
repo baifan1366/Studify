@@ -9,78 +9,6 @@ import { supabase } from '@/utils/supabase/client';
 export { supabase };
 
 /**
- * API Configuration Constants
- */
-export const API_CONFIG = {
-  // Base URLs
-  BASE_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
-  
-  // Supabase Configuration
-  SUPABASE: {
-    URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  },
-  
-  // Request timeouts (in milliseconds)
-  TIMEOUTS: {
-    DEFAULT: 10000, // 10 seconds
-    UPLOAD: 30000,  // 30 seconds
-    DOWNLOAD: 60000, // 60 seconds
-  },
-  
-  // Pagination defaults
-  PAGINATION: {
-    DEFAULT_PAGE_SIZE: 20,
-    MAX_PAGE_SIZE: 100,
-  },
-  
-  // File upload limits
-  UPLOAD_LIMITS: {
-    MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-    ALLOWED_TYPES: [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'application/pdf',
-      'text/plain',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ],
-  },
-  
-  // Cache settings
-  CACHE: {
-    DEFAULT_TTL: 5 * 60 * 1000, // 5 minutes
-    USER_PROFILE_TTL: 15 * 60 * 1000, // 15 minutes
-    COURSES_TTL: 10 * 60 * 1000, // 10 minutes
-  }
-} as const;
-
-/**
- * API Response Types
- */
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  meta?: {
-    page?: number;
-    pageSize?: number;
-    total?: number;
-    totalPages?: number;
-  };
-}
-
-export interface ApiError {
-  code: string;
-  message: string;
-  details?: any;
-}
-
-/**
  * HTTP Status Codes
  */
 export const HTTP_STATUS = {
@@ -133,43 +61,40 @@ export const API_ERROR_CODES = {
  */
 export const TABLES = {
   // Core schema
-  PROFILES: 'core.profiles',
-  NOTIFICATIONS: 'core.notifications',
-  PARENT_STUDENT: 'core.parent_student',
+  PROFILES: 'profiles',
+  NOTIFICATIONS: 'notifications',
+  AUDIT_LOGS: 'audit_logs',
+  CHECKINS: 'checkins',
+  REPORT: 'report',
+  ACTION: 'action',
+  BAN: 'ban',
 
   // Courses schema
-  COURSES: 'courses.course',
-  MODULES: 'courses.module',
-  LESSONS: 'courses.lesson',
-  ENROLLMENTS: 'courses.enrollment',
-
-  // Assessment schema
-  QUIZZES: 'assessment.quiz',
-  QUESTIONS: 'assessment.question',
-  QUESTION_BANKS: 'assessment.question_bank',
-  QUIZ_QUESTIONS: 'assessment.quiz_question',
-  ATTEMPTS: 'assessment.attempt',
-  ANSWERS: 'assessment.answer',
-  ASSIGNMENTS: 'assessment.assignment',
-  SUBMISSIONS: 'assessment.submission',
+  COURSE: 'courses.course',
+  MODULE: 'courses.module',
+  LESSON: 'courses.lesson',
+  ENROLLMENT: 'courses.enrollment',
+  PROGRESS: 'courses.progress',
+  REVIEWS: 'courses.reviews',
+  PRODUCT: 'courses.product',
+  ORDER: 'courses.order',
+  ORDER_ITEM: 'courses.order_item',
+  PAYMENT: 'courses.payment',
 
   // Community schema
-  POSTS: 'community.post',
-  COMMENTS: 'community.comment',
-  LIKES: 'community.like',
-  STUDY_GROUPS: 'community.study_group',
-  GROUP_MEMBERS: 'community.group_member',
-
-  // Gamification schema
-  BADGES: 'gamification.badge',
-  USER_BADGES: 'gamification.user_badge',
-  ACHIEVEMENTS: 'gamification.achievement',
-  USER_ACHIEVEMENTS: 'gamification.user_achievement',
-  LEADERBOARD: 'gamification.leaderboard',
-  CHALLENGE_RESULTS: 'gamification.challenge_results',
+  GROUP: 'community.group',
+  POST: 'community.post',
+  COMMENT: 'community.comment',
+  REACTION: 'community.reaction',
+  POINTS_LEDGER: 'community.points_ledger',
+  ACHIEVEMENT: 'community.achievement',
+  CHALLENGES: 'community.challenges',
+  CHALLENGE_RESULTS: 'community.challenge_results',
+  GROUP_MEMBER: 'community.group_member',
 
   // Classroom schema
   LIVE_SESSIONS: 'classroom.live_session',
+<<<<<<< HEAD
   SESSION_PARTICIPANTS: 'classroom.session_participant',
   CLASSROOM_LOGS: 'classroom.classroom_log',
   MISTAKE_BOOK: 'classroom.mistake_book',
@@ -181,11 +106,35 @@ export const TABLES = {
   // Analytics schema
   USER_ACTIONS: 'analytics.user_action',
   LEARNING_ANALYTICS: 'analytics.learning_analytics',
+=======
+  ATTENDANCE: 'classroom.attendance',
+  CHAT_MESSAGE: 'classroom.chat_message',
+  WHITEBOARD_SESSION: 'classroom.whiteboard_session',
+  WHITEBOARD_EVENT: 'classroom.whiteboard_event',
+  RECORDING: 'classroom.recording',
+  QUESTION_BANK: 'classroom.question_bank',
+  QUESTION: 'classroom.question',
+  QUIZ: 'classroom.quiz',
+  QUIZ_QUESTION: 'classroom.quiz_question',
+  ATTEMPT: 'classroom.attempt',
+  ANSWER: 'classroom.answer',
+  ASSIGNMENT: 'classroom.assignment',
+  SUBMISSION: 'classroom.submission',
+  GRADE: 'classroom.grade',
+>>>>>>> ca86d4afaa9fefb7d0bac3d9efc1cac1c0eb2e8e
 
   // Tutoring schema
-  TUTOR_PROFILES: 'tutoring.tutor_profile',
-  TUTORING_SESSIONS: 'tutoring.tutoring_session',
-  SESSION_FEEDBACK: 'tutoring.session_feedback',
+  TUTORS: 'tutoring.tutors',
+  STUDENTS: 'tutoring.students',
+  AVAILABILITY: 'tutoring.availability',
+  APPOINTMENTS: 'tutoring.appointments',
+  FILE: 'tutoring.file',
+  NOTE: 'tutoring.note',
+  SHARE: 'tutoring.share',
+
+  // AI schema
+  AGENT: 'ai.agent',
+  RUN: 'ai.run',
 } as const;
 
 /**
@@ -208,151 +157,12 @@ export const CHANNELS = {
   ASSIGNMENTS: 'assignments-channel',
   MESSAGES: 'messages-channel',
   NOTIFICATIONS: 'notifications-channel',
-  STUDY_GROUPS: 'study-groups-channel',
   LEADERBOARD: 'leaderboard-channel',
 } as const;
 
-/**
- * API Helper Functions
- */
-export const apiHelpers = {
-  // Create standardized API response
-  createResponse: <T>(
-    success: boolean, 
-    data?: T, 
-    error?: string, 
-    meta?: ApiResponse['meta']
-  ): ApiResponse<T> => ({
-    success,
-    data,
-    error,
-    meta,
-  }),
-
-  // Create error response
-  createErrorResponse: (error: string, code?: string): ApiResponse => ({
-    success: false,
-    error,
-    ...(code && { code }),
-  }),
-
-  // Validate file upload
-  validateFileUpload: (file: File): { valid: boolean; error?: string } => {
-    if (file.size > API_CONFIG.UPLOAD_LIMITS.MAX_FILE_SIZE) {
-      return {
-        valid: false,
-        error: `File size exceeds ${API_CONFIG.UPLOAD_LIMITS.MAX_FILE_SIZE / 1024 / 1024}MB limit`,
-      };
-    }
-
-    if (!API_CONFIG.UPLOAD_LIMITS.ALLOWED_TYPES.includes(file.type as any)) {
-      return {
-        valid: false,
-        error: 'File type not allowed',
-      };
-    }
-
-    return { valid: true };
-  },
-
-  // Format pagination metadata
-  formatPaginationMeta: (
-    page: number,
-    pageSize: number,
-    total: number
-  ): ApiResponse['meta'] => ({
-    page,
-    pageSize,
-    total,
-    totalPages: Math.ceil(total / pageSize),
-  }),
-
-  // Get storage URL for file
-  getStorageUrl: (bucket: string, path: string): string => {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  },
-
-  // Upload file to storage
-  uploadFile: async (
-    bucket: string,
-    path: string,
-    file: File
-  ): Promise<{ success: boolean; url?: string; error?: string }> => {
-    try {
-      const validation = apiHelpers.validateFileUpload(file);
-      if (!validation.valid) {
-        return { success: false, error: validation.error };
-      }
-
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(path, file);
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      const url = apiHelpers.getStorageUrl(bucket, data.path);
-      return { success: true, url };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Upload failed' 
-      };
-    }
-  },
-
-  // Delete file from storage
-  deleteFile: async (
-    bucket: string,
-    path: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([path]);
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Delete failed' 
-      };
-    }
-  },
-};
-
-/**
- * Environment validation
- */
-export const validateEnvironment = (): { valid: boolean; errors: string[] } => {
-  const errors: string[] = [];
-
-  if (!API_CONFIG.SUPABASE.URL) {
-    errors.push('NEXT_PUBLIC_SUPABASE_URL is not set');
-  }
-
-  if (!API_CONFIG.SUPABASE.ANON_KEY) {
-    errors.push('NEXT_PUBLIC_SUPABASE_ANON_KEY is not set');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-};
-
 // Export default configuration
 export default {
-  config: API_CONFIG,
   tables: TABLES,
   buckets: STORAGE_BUCKETS,
   channels: CHANNELS,
-  helpers: apiHelpers,
-  validateEnvironment,
 };

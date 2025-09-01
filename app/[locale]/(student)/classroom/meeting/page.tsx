@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 import MeetingContent from '@/components/classroom/meeting-content';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('ClassroomMeetingPage');
 
   return {

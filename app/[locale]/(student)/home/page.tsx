@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 import HomeContent from '@/components/home/home-content';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('HomePage');
 
   return {

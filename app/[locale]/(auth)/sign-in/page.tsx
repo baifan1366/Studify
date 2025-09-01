@@ -3,16 +3,16 @@ import { AuthInput } from "@/components/auth/auth-input";
 import { signInAction } from "@/app/actions";
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata() {
   const t = await getTranslations('AuthSignInPage');
   return {
     title: t('metadata_title'),
   };
 }
 
-export default async function SignInPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SignInPage({ params }: { params: { locale: string } }) {
   const t = await getTranslations('AuthSignInPage');
-
+  const locale = await params.locale;
   return (
     <AuthForm
       action={signInAction}

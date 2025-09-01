@@ -133,7 +133,7 @@ export default function AnimatedSidebar({
     setCurrentActiveItem(activeRoute?.id || activeItem);
 
     if (activeRoute && typeof activeRoute.expands === 'string') {
-      setExpandedSections(prev => ({ ...prev, [activeRoute.expands]: true }));
+      setExpandedSections(prev => ({ ...prev, [activeRoute.expands as string]: true }));
     }
   }, [pathname, activeItem, routeConfig]);
 

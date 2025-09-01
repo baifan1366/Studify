@@ -427,6 +427,40 @@
     "welcome": "Welcome to your Classroom, {name}!",
     "subtitle": "Explore courses, track progress, and enhance your learning experience"
   },
+  "AssignmentContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "header_title": "Assignments",
+    "default_user_name": "Student",
+    "page_title": "My Assignments",
+    "page_subtitle": "Track deadlines, submit work, and review feedback",
+    "stats": {
+      "total_assignments": "Total Assignments"
+    },
+    "tabs": {
+      "pending": "Pending",
+      "submitted": "Submitted",
+      "all": "All"
+    },
+    "status": {
+      "pending": "Pending",
+      "submitted": "Submitted",
+      "overdue": "Overdue",
+      "unknown": "Unknown"
+    },
+    "labels": {
+      "due_at": "Due: {date} at {time}",
+      "points": "Points:",
+      "grade": "Grade:",
+      "submitted_on": "Submitted on:"
+    },
+    "buttons": {
+      "submit_assignment": "Submit Assignment",
+      "view_details": "View Details",
+      "view_submission": "View Submission",
+      "feedback": "Feedback"
+    }
+  },
   "EnrolledContent": {
     "error_title": "Error",
     "error_fetch_courses": "Failed to load your courses. Please try again later.",

@@ -98,7 +98,7 @@ export default function AssignmentContent() {
         variant: "destructive",
       });
     }
-  }, [error, toast]);
+  }, [error, toast, t]);
 
 
 

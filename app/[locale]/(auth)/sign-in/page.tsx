@@ -1,35 +1,41 @@
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthInput } from "@/components/auth/auth-input";
 import { signInAction } from "@/app/actions";
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: "Sign In",
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+  const t = await getTranslations('AuthSignInPage');
+  return {
+    title: t('metadata_title'),
+  };
+}
 
-export default function SignInPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SignInPage({ params: { locale } }: { params: { locale: string } }) {
+  const t = await getTranslations('AuthSignInPage');
+
   return (
     <AuthForm
       action={signInAction}
-      title="Welcome back"
-      subtitle="Sign in to your Studify account"
-      buttonText="Sign in"
-      footerText="Don't have an account?"
-      footerLinkText="Sign up"
+      title={t('welcome_back')}
+      subtitle={t('sign_in_subtitle')}
+      buttonText={t('sign_in_button')}
+      footerText={t('no_account_question')}
+      footerLinkText={t('sign_up_link')}
       footerLinkHref="/sign-up"
       locale={locale}
     >
       <AuthInput
         name="email"
-        label="Email address"
+        label={t('email_label')}
         type="email"
-        placeholder="Enter your email"
+        placeholder={t('email_placeholder')}
         required
       />
       <AuthInput
         name="password"
-        label="Password"
+        label={t('password_label')}
         type="password"
-        placeholder="Enter your password"
+        placeholder={t('password_placeholder')}
         required
         forgotPasswordLink
       />

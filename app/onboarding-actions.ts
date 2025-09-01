@@ -8,9 +8,8 @@ export async function saveStudentOnboardingStep(
   locale: string, // 👈 added locale param
   formData: FormData
 ) {
-  const {
-    data: { user },
-  } = await supabase().auth.getUser(); // fix this or find solution
+  const client = await supabase();
+  const { data: { user }} = await client.auth.getUser(); // fix this or find solution
 
   if (!user) {
     throw new Error("User not found");
@@ -25,7 +24,7 @@ export async function saveStudentOnboardingStep(
     onboardingData.learningGoals = formData.getAll("learningGoals");
   }
 
-  const { error } = await supabase().auth.updateUser({
+  const { error } = await client.auth.updateUser({
     data: { onboarding: onboardingData },
   });
 
@@ -40,10 +39,11 @@ export async function saveTutorOnboardingStep(
   step: number,
   locale: string, // 👈 added locale param
   formData: FormData
-) {
+) {  
+  const client = await supabase();
   const {
     data: { user },
-  } = await supabase().auth.getUser();
+  } = await client.auth.getUser();
 
   if (!user) {
     throw new Error("User not found");
@@ -62,7 +62,7 @@ export async function saveTutorOnboardingStep(
     onboardingData.availability = formData.getAll("availability");
   }
 
-  const { error } = await supabase().auth.updateUser({
+  const { error } = await client.auth.updateUser({
     data: { onboarding: onboardingData },
   });
 

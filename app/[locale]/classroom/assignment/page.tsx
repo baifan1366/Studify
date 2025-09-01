@@ -1,17 +1,22 @@
 import React from 'react';
 import { Metadata } from 'next';
 import AssignmentContent from '@/components/classroom/assignment-content';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Assignments - Studify',
-  description: 'View, submit, and track your assignments with due dates and progress tracking',
-  keywords: ['assignments', 'homework', 'submissions', 'due dates', 'education'],
-  openGraph: {
-    title: 'Assignments - Studify',
-    description: 'Manage your assignments and track submission progress',
-    type: 'website',
-  },
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations('ClassroomAssignmentPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','), // Assuming keywords are comma-separated in translation
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function AssignmentPage() {
   return <AssignmentContent />;

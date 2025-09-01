@@ -80,8 +80,9 @@ export default function CoursesContent() {
   };
 
   const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
+    const newExpanded = !isPermanentlyExpanded;
+    setIsPermanentlyExpanded(newExpanded);
+    setSidebarExpanded(newExpanded);
   };
 
   const handleAddToCart = (courseId: string | number) => {
@@ -118,7 +119,7 @@ export default function CoursesContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
+          marginLeft: sidebarExpanded ? '280px' : '80px',// Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
         }}

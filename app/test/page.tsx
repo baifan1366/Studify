@@ -3,6 +3,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
 export default function TestPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["todos"],
@@ -19,7 +25,7 @@ export default function TestPage() {
     <div className="p-6">
       <h1 className="text-xl font-bold mb-4">Todos (React Query Test)</h1>
       <ul className="space-y-2">
-        {data.map((todo: any) => (
+        {data.map((todo: Todo) => (
           <li key={todo.id} className="rounded-md border p-2">
             <span className={todo.completed ? "line-through" : ""}>
               {todo.title}

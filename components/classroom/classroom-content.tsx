@@ -7,6 +7,7 @@ import { supabase } from '@/utils/supabase/client';
  
 import RecommendationPanels from '@/components/home/recommendation-panels';
 import { useToast } from '@/hooks/use-toast';
+import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function ClassroomContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -55,24 +56,27 @@ export default function ClassroomContent() {
   };
 
   return (
-    <div>
-      {/* Welcome Header */}
-      <motion.div
-        className="mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.6 }}
-      >
-        <h1 className="text-4xl font-bold text-white/90 mb-2 dark:text-white/90">
-          {isLoading ? 'Loading...' : `Welcome to your Classroom, ${user?.email?.split('@')[0] || 'Student'}!`}
-        </h1>
-        <p className="text-lg text-white/70 dark:text-white/70">
-          Explore courses, track progress, and enhance your learning experience
-        </p>
-      </motion.div>
+    <AnimatedBackground>
+      {/* Main Content */}
+      <div>
+        {/* Welcome Header */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+        >
+          <h1 className="text-4xl font-bold text-white/90 mb-2 dark:text-white/90">
+            {isLoading ? 'Loading...' : `Welcome to your Classroom, ${user?.email?.split('@')[0] || 'Student'}!`}
+          </h1>
+          <p className="text-lg text-white/70 dark:text-white/70">
+            Explore courses, track progress, and enhance your learning experience
+          </p>
+        </motion.div>
 
-      {/* Recommendation Panels */}
-      <RecommendationPanels user={user} isLoading={isLoading} />
-    </div>
+        {/* Recommendation Panels */}
+        <RecommendationPanels user={user} isLoading={isLoading} />
+      </div>
+    </AnimatedBackground>
   );
 }

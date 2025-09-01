@@ -10,15 +10,19 @@ interface AnimatedBackgroundProps {
   glassOpacity?: number;
   sphereSize?: number;
   enableMouseTracking?: boolean;
+  sidebarWidth?: number; // Shared state approach
+  useGlobalCSSVariable?: boolean; // Global CSS variable approach
 }
 
 export default function AnimatedBackground({
   children,
   className = "",
-  sphereColor = "radial-gradient(circle, rgba(255,165,0,0.8) 0%, rgba(255,69,0,0.6) 50%, rgba(255,140,0,0.4) 100%)",
+  sphereColor = "radial-gradient(circle, rgba(255,165,0,0.6) 0%, rgba(255,69,0,0.4) 50%, rgba(255,140,0,0.2) 100%)",
   glassOpacity = 0.05,
   sphereSize = 384, // 96 * 4 (w-96 = 384px)
-  enableMouseTracking = true
+  enableMouseTracking = true,
+  sidebarWidth = 80, // Default collapsed width
+  useGlobalCSSVariable = false // Default to shared state approach
 }: AnimatedBackgroundProps) {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
@@ -36,33 +40,38 @@ export default function AnimatedBackground({
 
   return (
     <div className={`relative w-full h-screen overflow-hidden bg-gray-900 ${className}`}>
-      {/* Animated Orange Gradient Sphere */}
+      {/* Animated Orange Gradient Sphere - GPU optimized */}
       {enableMouseTracking && (
         <motion.div
-          className="absolute rounded-full opacity-60 blur-3xl pointer-events-none"
+          className="absolute rounded-full pointer-events-none"
           style={{
             width: sphereSize,
             height: sphereSize,
             background: sphereColor,
-            left: mousePosition.x - sphereSize / 2,
-            top: mousePosition.y - sphereSize / 2,
+            left: -sphereSize / 2,
+            top: -sphereSize / 2,
+            filter: 'blur(64px)', // Reduced blur for better performance
+            willChange: 'transform', // GPU optimization hint
           }}
           animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.6, 0.8, 0.6],
+            x: mousePosition.x,
+            y: mousePosition.y,
+            scale: [1, 1.1, 1], // Reduced scale variation
+            opacity: [0.6, 0.8, 0.6], // Reduced opacity variation
           }}
           transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut"
+            x: { type: "spring", stiffness: 50, damping: 20 },
+            y: { type: "spring", stiffness: 50, damping: 20 },
+            scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }, // Slower animation
+            opacity: { duration: 3, repeat: Infinity, ease: "easeInOut" }
           }}
         />
       )}
 
-      {/* Static gradient sphere when mouse tracking is disabled */}
+      {/* Static gradient sphere when mouse tracking is disabled - GPU optimized */}
       {!enableMouseTracking && (
         <motion.div
-          className="absolute rounded-full opacity-60 blur-3xl pointer-events-none"
+          className="absolute rounded-full pointer-events-none"
           style={{
             width: sphereSize,
             height: sphereSize,
@@ -70,28 +79,32 @@ export default function AnimatedBackground({
             left: '50%',
             top: '50%',
             transform: 'translate(-50%, -50%)',
+            filter: 'blur(64px)', // Reduced blur for better performance
+            willChange: 'transform', // GPU optimization hint
           }}
           animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.6, 0.8, 0.6],
+            scale: [1, 1.1, 1], // Reduced scale variation
+            opacity: [0.6, 0.8, 0.6], // Reduced opacity variation
           }}
           transition={{
-            duration: 4,
+            duration: 3, // Slower animation
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
       )}
 
+      
+
       {/* Content with Frosted Glass Overlay */}
       <div className="relative z-10 w-full h-full">
         {/* Frosted Glass Overlay */}
         <motion.div
-          className="absolute inset-0 rounded-2xl border border-white/20 pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{
             background: `rgba(255, 255, 255, ${glassOpacity})`,
-            backdropFilter: 'blur(16px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+            backdropFilter: 'blur(8px)', // Reduced blur for better performance
+            WebkitBackdropFilter: 'blur(8px)',
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -111,31 +124,31 @@ export default function AnimatedBackground({
 export const BackgroundPresets = {
   // Orange gradient (default)
   orange: {
-    sphereColor: "radial-gradient(circle, rgba(255,165,0,0.8) 0%, rgba(255,69,0,0.6) 50%, rgba(255,140,0,0.4) 100%)",
-    glassOpacity: 0.05
+    sphereColor: "radial-gradient(circle, rgba(255,165,0,0.7) 0%, rgba(255,69,0,0.5) 50%, rgba(255,140,0,0.3) 180%)",
+    glassOpacity: 0.5
   },
-  
+
   // Blue gradient for classroom/learning themes
   blue: {
-    sphereColor: "radial-gradient(circle, rgba(59,130,246,0.8) 0%, rgba(37,99,235,0.6) 50%, rgba(29,78,216,0.4) 100%)",
+    sphereColor: "radial-gradient(circle, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.7) 50%, rgba(29,78,216,0.5) 100%)",
     glassOpacity: 0.05
   },
-  
+
   // Purple gradient for creative/design themes
   purple: {
-    sphereColor: "radial-gradient(circle, rgba(147,51,234,0.8) 0%, rgba(126,34,206,0.6) 50%, rgba(107,33,168,0.4) 100%)",
+    sphereColor: "radial-gradient(circle, rgba(147,51,234,0.9) 0%, rgba(126,34,206,0.7) 50%, rgba(107,33,168,0.5) 100%)",
     glassOpacity: 0.05
   },
-  
+
   // Green gradient for success/nature themes
   green: {
-    sphereColor: "radial-gradient(circle, rgba(34,197,94,0.8) 0%, rgba(22,163,74,0.6) 50%, rgba(21,128,61,0.4) 100%)",
+    sphereColor: "radial-gradient(circle, rgba(34,197,94,0.9) 0%, rgba(22,163,74,0.7) 50%, rgba(21,128,61,0.5) 100%)",
     glassOpacity: 0.05
   },
-  
+
   // Red gradient for urgent/important themes
   red: {
-    sphereColor: "radial-gradient(circle, rgba(239,68,68,0.8) 0%, rgba(220,38,38,0.6) 50%, rgba(185,28,28,0.4) 100%)",
+    sphereColor: "radial-gradient(circle, rgba(239,68,68,0.9) 0%, rgba(220,38,38,0.7) 50%, rgba(185,28,28,0.5) 100%)",
     glassOpacity: 0.05
   },
   
@@ -153,44 +166,72 @@ export const BackgroundPresets = {
 };
 
 // Convenience components for common use cases
-export function ClassroomBackground({ children, className }: { children: React.ReactNode; className?: string }) {
+export function ClassroomBackground({ children, className, sidebarWidth, useGlobalCSSVariable }: { 
+  children: React.ReactNode; 
+  className?: string; 
+  sidebarWidth?: number;
+  useGlobalCSSVariable?: boolean;
+}) {
   return (
     <AnimatedBackground 
       {...BackgroundPresets.blue} 
       className={className}
+      sidebarWidth={sidebarWidth}
+      useGlobalCSSVariable={useGlobalCSSVariable}
     >
       {children}
     </AnimatedBackground>
   );
 }
 
-export function HomeBackground({ children, className }: { children: React.ReactNode; className?: string }) {
+export function HomeBackground({ children, className, sidebarWidth, useGlobalCSSVariable }: { 
+  children: React.ReactNode; 
+  className?: string; 
+  sidebarWidth?: number;
+  useGlobalCSSVariable?: boolean;
+}) {
   return (
     <AnimatedBackground 
       {...BackgroundPresets.orange} 
       className={className}
+      sidebarWidth={sidebarWidth}
+      useGlobalCSSVariable={useGlobalCSSVariable}
     >
       {children}
     </AnimatedBackground>
   );
 }
 
-export function SuccessBackground({ children, className }: { children: React.ReactNode; className?: string }) {
+export function SuccessBackground({ children, className, sidebarWidth, useGlobalCSSVariable }: { 
+  children: React.ReactNode; 
+  className?: string; 
+  sidebarWidth?: number;
+  useGlobalCSSVariable?: boolean;
+}) {
   return (
     <AnimatedBackground 
       {...BackgroundPresets.green} 
       className={className}
+      sidebarWidth={sidebarWidth}
+      useGlobalCSSVariable={useGlobalCSSVariable}
     >
       {children}
     </AnimatedBackground>
   );
 }
 
-export function CreativeBackground({ children, className }: { children: React.ReactNode; className?: string }) {
+export function CreativeBackground({ children, className, sidebarWidth, useGlobalCSSVariable }: { 
+  children: React.ReactNode; 
+  className?: string; 
+  sidebarWidth?: number;
+  useGlobalCSSVariable?: boolean;
+}) {
   return (
     <AnimatedBackground 
       {...BackgroundPresets.purple} 
       className={className}
+      sidebarWidth={sidebarWidth}
+      useGlobalCSSVariable={useGlobalCSSVariable}
     >
       {children}
     </AnimatedBackground>

@@ -12,6 +12,7 @@ import CommunityHighlights from '@/components/community-highlights';
 import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
+import AnimatedBackground from '@/components/ui/animated-background';
 import { useTranslations } from 'next-intl';
 
 export default function HomeContent() {
@@ -120,8 +121,9 @@ export default function HomeContent() {
   };
 
   return (
-    // Main Content
-    <div>
+    <AnimatedBackground>
+      {/* Main Content */}
+      <div>
         {/* Hero Section */}
         <HeroSection
           onStartLearning={handleStartLearning}
@@ -153,6 +155,7 @@ export default function HomeContent() {
         <GamificationSection
           onDailyCheckin={handleDailyCheckin}
         />
-    </div>
+      </div>
+    </AnimatedBackground>
   );
 }

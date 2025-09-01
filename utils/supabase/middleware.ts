@@ -1,12 +1,22 @@
+/**
+ * Supabase Middleware Client
+ * Used for authentication in middleware
+ */
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Creates a Supabase client for use in middleware
+ * @param request - The Next.js request object
+ * @param response - Optional Next.js response object
+ * @returns Supabase client and response object
+ */
 export function createSupabaseServerClient(request: NextRequest, response?: NextResponse) {
   let supabaseResponse = response || NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {

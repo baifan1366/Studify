@@ -1,10 +1,10 @@
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 import { createClient } from "@updatedev/js";
 
 export async function createSupabaseClient() {
-  return createClient(process.env.NEXT_PUBLIC_UPDATE_PUBLISHABLE_KEY!, {
+  return createClient(process.env.UPDATE_PUBLISHABLE_KEY!, {
     getSessionToken: async () => {
-      const supabaseClient = await supabase();
+      const supabaseClient = createServerClient();
       const { data } = await supabaseClient.auth.getSession();
       if (data.session == null) return;
       return data.session.access_token;

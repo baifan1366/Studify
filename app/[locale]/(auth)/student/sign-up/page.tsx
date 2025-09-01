@@ -1,6 +1,6 @@
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthInput } from "@/components/auth/auth-input";
-import { signUpAction } from "@/app/actions";
+import { signUpStudent } from "@/app/actions";
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
@@ -15,7 +15,7 @@ export default async function SignUpPage({ params: { locale } }: { params: { loc
 
   return (
     <AuthForm
-      action={signUpAction}
+      action={signUpStudent}
       title={t('student_sign_up_title')}
       subtitle={t('student_sign_up_subtitle')}
       buttonText={t('create_account_button')}
@@ -24,7 +24,6 @@ export default async function SignUpPage({ params: { locale } }: { params: { loc
       footerLinkHref="/sign-in"
       locale={locale}
     >
-      <input type="hidden" name="role" value="student" />
       <AuthInput
         name="fullName"
         label={t('full_name_label')}

@@ -7,6 +7,32 @@
     "og_title": "Home - Studify",
     "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
   },
+  "JoinCourseDialog": {
+    "title": "Join a Course",
+    "description": "Enter a course ID or invitation code to join a course",
+    "tabs": {
+      "course_id": "Course ID",
+      "invite_code": "Invite Code"
+    },
+    "labels": {
+      "course_id": "Course ID",
+      "invite_code": "Invitation Code"
+    },
+    "placeholders": {
+      "course_id": "Enter course ID",
+      "invite_code": "Enter invitation code"
+    },
+    "helpers": {
+      "course_id": "You can find the course ID in the course URL or ask your instructor",
+      "invite_code": "Enter the invitation code provided by your instructor"
+    },
+    "buttons": {
+      "cancel": "Cancel",
+      "join": "Join Course",
+      "joining": "Joining..."
+    }
+  },
+  
   "AuthSignInPage": {
     "metadata_title": "Sign In",
     "welcome_back": "Welcome back",
@@ -392,5 +418,139 @@
   "Header": {
     "default_title": "Classroom",
     "default_user_name": "Student"
+  },
+  "ClassroomContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "default_user_name": "Student",
+    "loading": "Loading...",
+    "welcome": "Welcome to your Classroom, {name}!",
+    "subtitle": "Explore courses, track progress, and enhance your learning experience"
+  },
+  "EnrolledContent": {
+    "error_title": "Error",
+    "error_fetch_courses": "Failed to load your courses. Please try again later.",
+    "header_title": "Enrolled Courses",
+    "default_user_name": "Student",
+    "page_title": "My Classroom",
+    "page_subtitle": "Continue your learning journey and track your progress",
+    "actions": {
+      "join_course": "Join Course"
+    },
+    "tabs": {
+      "enrolled": "Enrolled Courses",
+      "recommended": "Recommended"
+    },
+    "search_placeholder": "Search courses by title or instructor...",
+    "empty": {
+      "title": "No Enrolled Courses",
+      "desc": "You haven't enrolled in any courses yet. Join a course to start learning or check out our recommendations.",
+      "browse_recommended": "Browse Recommended Courses"
+    },
+    "labels": {
+      "progress": "Progress",
+      "lessons_count": "{completed}/{total} lessons",
+      "last_accessed": "Last accessed: {date}",
+      "next_lesson": "Next Lesson:",
+      "due": "Due: {date}"
+    },
+    "buttons": {
+      "continue_learning": "Continue Learning",
+      "view_details": "View Details"
+    },
+    "recommended": {
+      "because": "Recommended because:"
+    },
+    "status": {
+      "on_track": "On Track",
+      "near_completion": "Near Completion",
+      "behind": "Behind Schedule",
+      "unknown": "Unknown"
+    }
+  },
+  "MeetingContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "header_title": "Meetings",
+    "default_user_name": "Student",
+    "page_title": "My Meetings",
+    "page_subtitle": "Join live sessions and access recorded meetings",
+    "stats": {
+      "total_meetings": "Total Meetings",
+      "upcoming": "Upcoming",
+      "live_now": "Live Now",
+      "completed": "Completed"
+    },
+    "tabs": {
+      "upcoming": "Upcoming",
+      "live": "Live",
+      "completed": "Completed",
+      "all": "All"
+    },
+    "labels": {
+      "live_badge": "LIVE",
+      "participants": "{current}/{max} participants",
+      "type": "Type:",
+      "instructor": "Instructor:"
+    },
+    "buttons": {
+      "join_live": "Join Live Meeting",
+      "join": "Join Meeting",
+      "add_to_calendar": "Add to Calendar",
+      "watch_recording": "Watch Recording",
+      "download": "Download"
+    },
+    "status": {
+      "upcoming": "Upcoming",
+      "live_now": "Live Now",
+      "completed": "Completed",
+      "unknown": "Unknown"
+    },
+    "toasts": {
+      "join": {
+        "title": "Join Meeting",
+        "desc": "Joining meeting {id}..."
+      },
+      "watch": {
+        "title": "Watch Recording",
+        "desc": "Opening recording for meeting {id}..."
+      }
+    }
+  },
+  "LearningPathContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "header_title": "Learning Path",
+    "default_user_name": "Student",
+    "stats": {
+      "overall_progress": "Overall Progress",
+      "completed_milestones": "Completed Milestones",
+      "estimated_duration": "Estimated Duration",
+      "difficulty_level": "Difficulty Level"
+    },
+    "labels": {
+      "learning_path_progress": "Learning Path Progress",
+      "progress": "Progress",
+      "courses": "Courses:",
+      "skills_to_learn": "Skills to Learn:"
+    },
+    "status": {
+      "completed": "Completed",
+      "in_progress": "In Progress",
+      "locked": "Locked",
+      "unknown": "Unknown"
+    },
+    "buttons": {
+      "completed": "Completed",
+      "review": "Review",
+      "continue_learning": "Continue Learning",
+      "view_progress": "View Progress",
+      "locked": "Locked",
+      "preview": "Preview"
+    },
+    "toasts": {
+      "start_milestone_title": "Start Milestone",
+      "start_milestone_desc": "Starting milestone {id}..."
+    }
   }
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
+import { useTranslations } from 'next-intl';
  
 import RecommendationPanels from '@/components/home/recommendation-panels';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +15,7 @@ export default function ClassroomContent() {
   const [isLoading, setIsLoading] = useState(true);
   
   const { toast } = useToast();
+  const t = useTranslations('ClassroomContent');
 
   // Fetch user authentication data
   useEffect(() => {
@@ -29,8 +31,8 @@ export default function ClassroomContent() {
       } catch (error) {
         console.error('Error in fetchUser:', error);
         toast({
-          title: "Error",
-          description: "Failed to load user data",
+          title: t('error_title'),
+          description: t('error_fetch_user'),
           variant: "destructive",
         });
       } finally {
@@ -55,6 +57,8 @@ export default function ClassroomContent() {
     console.log('Header action:', action);
   };
 
+  const displayName = user?.email?.split('@')[0] || t('default_user_name');
+
   return (
     <AnimatedBackground>
       {/* Main Content */}
@@ -67,10 +71,10 @@ export default function ClassroomContent() {
           transition={{ delay: 0.3, duration: 0.6 }}
         >
           <h1 className="text-4xl font-bold text-white/90 mb-2 dark:text-white/90">
-            {isLoading ? 'Loading...' : `Welcome to your Classroom, ${user?.email?.split('@')[0] || 'Student'}!`}
+            {isLoading ? t('loading') : t('welcome', { name: displayName })}
           </h1>
           <p className="text-lg text-white/70 dark:text-white/70">
-            Explore courses, track progress, and enhance your learning experience
+            {t('subtitle')}
           </p>
         </motion.div>
 

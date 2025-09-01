@@ -10,6 +10,7 @@ import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { useTranslations } from 'next-intl';
 
 export default function MeetingContent() {
   const [activeMenuItem, setActiveMenuItem] = useState('meeting');
@@ -21,6 +22,7 @@ export default function MeetingContent() {
   const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
   
   const { toast } = useToast();
+  const t = useTranslations('MeetingContent');
 
   // Mock meetings data
   const meetings = [
@@ -95,12 +97,12 @@ export default function MeetingContent() {
     if (error) {
       console.error('Error fetching user:', error);
       toast({
-        title: "Error",
-        description: "Failed to load user data",
+        title: t('error_title'),
+        description: t('error_fetch_user'),
         variant: "destructive",
       });
     }
-  }, [error, toast]);
+  }, [error, toast, t]);
 
 
 
@@ -121,15 +123,15 @@ export default function MeetingContent() {
 
   const handleJoinMeeting = (meetingId: string) => {
     toast({
-      title: "Join Meeting",
-      description: `Joining meeting ${meetingId}...`,
+      title: t('toasts.join.title'),
+      description: t('toasts.join.desc', { id: meetingId }),
     });
   };
 
   const handleWatchRecording = (meetingId: string) => {
     toast({
-      title: "Watch Recording",
-      description: `Opening recording for meeting ${meetingId}...`,
+      title: t('toasts.watch.title'),
+      description: t('toasts.watch.desc', { id: meetingId }),
     });
   };
 
@@ -149,13 +151,13 @@ export default function MeetingContent() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'upcoming':
-        return 'Upcoming';
+        return t('status.upcoming');
       case 'live':
-        return 'Live Now';
+        return t('status.live_now');
       case 'completed':
-        return 'Completed';
+        return t('status.completed');
       default:
-        return 'Unknown';
+        return t('status.unknown');
     }
   };
 
@@ -185,8 +187,8 @@ export default function MeetingContent() {
     <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
-        title="Meetings"
-        userName={user?.email?.split('@')[0] || 'Student'}
+        title={t('header_title')}
+        userName={user?.email?.split('@')[0] || t('default_user_name')}
         onProfileClick={() => handleHeaderAction('profile')}
         sidebarExpanded={isPermanentlyExpanded}
         onMenuToggle={handleMenuToggle}
@@ -218,10 +220,10 @@ export default function MeetingContent() {
         >
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
-              My Meetings
+              {t('page_title')}
             </h1>
             <p className="text-lg text-white/70 mb-8 dark:text-white/70">
-              Join live sessions and access recorded meetings
+              {t('page_subtitle')}
             </p>
           </div>
 
@@ -235,7 +237,7 @@ export default function MeetingContent() {
             >
               <div className="text-center">
                 <div className="text-3xl font-bold text-white mb-2">{meetings.length}</div>
-                <div className="text-white/70 text-sm">Total Meetings</div>
+                <div className="text-white/70 text-sm">{t('stats.total_meetings')}</div>
               </div>
             </motion.div>
 
@@ -249,7 +251,7 @@ export default function MeetingContent() {
                 <div className="text-3xl font-bold text-blue-400 mb-2">
                   {meetings.filter(m => m.status === 'upcoming').length}
                 </div>
-                <div className="text-white/70 text-sm">Upcoming</div>
+                <div className="text-white/70 text-sm">{t('stats.upcoming')}</div>
               </div>
             </motion.div>
 
@@ -263,7 +265,7 @@ export default function MeetingContent() {
                 <div className="text-3xl font-bold text-red-400 mb-2">
                   {meetings.filter(m => m.status === 'live').length}
                 </div>
-                <div className="text-white/70 text-sm">Live Now</div>
+                <div className="text-white/70 text-sm">{t('stats.live_now')}</div>
               </div>
             </motion.div>
 
@@ -277,7 +279,7 @@ export default function MeetingContent() {
                 <div className="text-3xl font-bold text-gray-400 mb-2">
                   {meetings.filter(m => m.status === 'completed').length}
                 </div>
-                <div className="text-white/70 text-sm">Completed</div>
+                <div className="text-white/70 text-sm">{t('stats.completed')}</div>
               </div>
             </motion.div>
           </div>
@@ -294,7 +296,7 @@ export default function MeetingContent() {
                     : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {t(`tabs.${tab}`)}
               </button>
             ))}
           </div>
@@ -345,7 +347,7 @@ export default function MeetingContent() {
                     </div>
                     {meeting.status === 'live' && (
                       <div className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-pulse">
-                        LIVE
+                        {t('labels.live_badge')}
                       </div>
                     )}
                   </div>
@@ -363,15 +365,15 @@ export default function MeetingContent() {
                       </div>
                       <div className="flex items-center gap-2 text-white/70">
                         <Users size={16} />
-                        <span className="text-sm">{meeting.participants}/{meeting.maxParticipants} participants</span>
+                        <span className="text-sm">{t('labels.participants', { current: meeting.participants, max: meeting.maxParticipants })}</span>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-white/70 text-sm">
-                        <span className="font-medium">Type:</span> {meeting.type.replace('_', ' ').toUpperCase()}
+                        <span className="font-medium">{t('labels.type')}</span> {meeting.type.replace('_', ' ').toUpperCase()}
                       </div>
                       <div className="text-white/70 text-sm">
-                        <span className="font-medium">Instructor:</span> {meeting.instructor}
+                        <span className="font-medium">{t('labels.instructor')}</span> {meeting.instructor}
                       </div>
                     </div>
                   </div>
@@ -394,10 +396,10 @@ export default function MeetingContent() {
                           } text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2`}
                         >
                           <Video size={16} />
-                          {meeting.status === 'live' ? 'Join Live Meeting' : 'Join Meeting'}
+                          {meeting.status === 'live' ? t('buttons.join_live') : t('buttons.join')}
                         </button>
                         <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          Add to Calendar
+                          {t('buttons.add_to_calendar')}
                         </button>
                       </>
                     ) : (
@@ -407,10 +409,10 @@ export default function MeetingContent() {
                           className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           <Play size={16} />
-                          Watch Recording
+                          {t('buttons.watch_recording')}
                         </button>
                         <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          Download
+                          {t('buttons.download')}
                         </button>
                       </>
                     )}

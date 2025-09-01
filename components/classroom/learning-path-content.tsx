@@ -10,8 +10,10 @@ import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { useTranslations } from 'next-intl';
 
 export default function LearningPathContent() {
+  const t = useTranslations('LearningPathContent');
   const [activeMenuItem, setActiveMenuItem] = useState('learning-path');
   const { data, isLoading, error } = useUser();
   const user = data?.user;
@@ -126,12 +128,12 @@ export default function LearningPathContent() {
     if (error) {
       console.error('Error fetching user:', error);
       toast({
-        title: "Error",
-        description: "Failed to load user data",
+        title: t('error_title'),
+        description: t('error_fetch_user'),
         variant: "destructive",
       });
     }
-  }, [error, toast]);
+  }, [error, toast, t]);
 
 
 
@@ -152,8 +154,8 @@ export default function LearningPathContent() {
 
   const handleStartMilestone = (milestoneId: number) => {
     toast({
-      title: "Start Milestone",
-      description: `Starting milestone ${milestoneId}...`,
+      title: t('toasts.start_milestone_title'),
+      description: t('toasts.start_milestone_desc', { id: milestoneId }),
     });
   };
 
@@ -173,13 +175,13 @@ export default function LearningPathContent() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'Completed';
+        return t('status.completed');
       case 'in_progress':
-        return 'In Progress';
+        return t('status.in_progress');
       case 'locked':
-        return 'Locked';
+        return t('status.locked');
       default:
-        return 'Unknown';
+        return t('status.unknown');
     }
   };
 
@@ -189,8 +191,8 @@ export default function LearningPathContent() {
     <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
       <ClassroomHeader
-        title="Learning Path"
-        userName={user?.email?.split('@')[0] || 'Student'}
+        title={t('header_title')}
+        userName={user?.email?.split('@')[0] || t('default_user_name')}
         onProfileClick={() => handleHeaderAction('profile')}
         sidebarExpanded={isPermanentlyExpanded}
         onMenuToggle={handleMenuToggle}
@@ -241,26 +243,26 @@ export default function LearningPathContent() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="text-3xl font-bold text-white mb-2">{overallProgress}%</div>
-                <div className="text-white/70 text-sm">Overall Progress</div>
+                <div className="text-white/70 text-sm">{t('stats.overall_progress')}</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-400 mb-2">{learningPath.completedMilestones}</div>
-                <div className="text-white/70 text-sm">Completed Milestones</div>
+                <div className="text-white/70 text-sm">{t('stats.completed_milestones')}</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-400 mb-2">{learningPath.estimatedDuration}</div>
-                <div className="text-white/70 text-sm">Estimated Duration</div>
+                <div className="text-white/70 text-sm">{t('stats.estimated_duration')}</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-400 mb-2">{learningPath.difficulty}</div>
-                <div className="text-white/70 text-sm">Difficulty Level</div>
+                <div className="text-white/70 text-sm">{t('stats.difficulty_level')}</div>
               </div>
             </div>
 
             {/* Overall Progress Bar */}
             <div className="mt-6">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-white/70">Learning Path Progress</span>
+                <span className="text-white/70">{t('labels.learning_path_progress')}</span>
                 <span className="text-white">{overallProgress}%</span>
               </div>
               <div className="w-full bg-white/20 rounded-full h-3">
@@ -333,7 +335,7 @@ export default function LearningPathContent() {
                   {milestone.status === 'in_progress' && (
                     <div className="mb-4">
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-white/70">Progress</span>
+                        <span className="text-white/70">{t('labels.progress')}</span>
                         <span className="text-white">{milestone.progress}%</span>
                       </div>
                       <div className="w-full bg-white/20 rounded-full h-2">
@@ -350,7 +352,7 @@ export default function LearningPathContent() {
                   {/* Milestone Details */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <div className="text-white/70 text-sm mb-2">Courses:</div>
+                      <div className="text-white/70 text-sm mb-2">{t('labels.courses')}</div>
                       <div className="space-y-1">
                         {milestone.courses.map((course, courseIndex) => (
                           <div key={courseIndex} className="text-white/80 text-sm">• {course}</div>
@@ -358,7 +360,7 @@ export default function LearningPathContent() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-white/70 text-sm mb-2">Skills to Learn:</div>
+                      <div className="text-white/70 text-sm mb-2">{t('labels.skills_to_learn')}</div>
                       <div className="flex flex-wrap gap-2">
                         {milestone.skills.map((skill, skillIndex) => (
                           <span
@@ -378,10 +380,10 @@ export default function LearningPathContent() {
                       <>
                         <button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                           <Trophy size={16} />
-                          Completed
+                          {t('buttons.completed')}
                         </button>
                         <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          Review
+                          {t('buttons.review')}
                         </button>
                       </>
                     ) : milestone.status === 'in_progress' ? (
@@ -391,10 +393,10 @@ export default function LearningPathContent() {
                           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           <Target size={16} />
-                          Continue Learning
+                          {t('buttons.continue_learning')}
                         </button>
                         <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                          View Progress
+                          {t('buttons.view_progress')}
                         </button>
                       </>
                     ) : (
@@ -404,13 +406,13 @@ export default function LearningPathContent() {
                           className="flex-1 bg-gray-600 text-white/50 py-2 px-4 rounded-lg text-sm font-medium cursor-not-allowed flex items-center justify-center gap-2"
                         >
                           <Lock size={16} />
-                          Locked
+                          {t('buttons.locked')}
                         </button>
                         <button 
                           disabled
                           className="bg-white/10 text-white/50 py-2 px-4 rounded-lg text-sm font-medium cursor-not-allowed"
                         >
-                          Preview
+                          {t('buttons.preview')}
                         </button>
                       </>
                     )}

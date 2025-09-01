@@ -28,6 +28,7 @@ create table if not exists profiles (
   banned_at timestamptz,
   points int not null default 0,
   onboarded boolean not null default false,
+  onboarded_step int default 0 check (onboarded_step >= 0 and onboarded_step <= 3),
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

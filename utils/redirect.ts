@@ -13,3 +13,14 @@ export function encodedRedirect(
 ) {
   return redirect(`${path}?${type}=${encodeURIComponent(message)}`);
 }
+
+export function getRedirectUrlFromPath(locale?: string, role?: string) {
+  const base = locale ? `/${locale}` : "";
+
+  if (role === "tutor") {
+    return `${base}/dashboard`;
+  }
+
+  // Default: student dashboard
+  return `${base}/home`;
+}

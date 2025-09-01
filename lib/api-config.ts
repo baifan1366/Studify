@@ -94,19 +94,6 @@ export const TABLES = {
 
   // Classroom schema
   LIVE_SESSIONS: 'classroom.live_session',
-<<<<<<< HEAD
-  SESSION_PARTICIPANTS: 'classroom.session_participant',
-  CLASSROOM_LOGS: 'classroom.classroom_log',
-  MISTAKE_BOOK: 'classroom.mistake_book',
-
-  // Resources schema
-  FILES: 'resources.file',
-  NOTES: 'resources.note',
-
-  // Analytics schema
-  USER_ACTIONS: 'analytics.user_action',
-  LEARNING_ANALYTICS: 'analytics.learning_analytics',
-=======
   ATTENDANCE: 'classroom.attendance',
   CHAT_MESSAGE: 'classroom.chat_message',
   WHITEBOARD_SESSION: 'classroom.whiteboard_session',
@@ -121,7 +108,18 @@ export const TABLES = {
   ASSIGNMENT: 'classroom.assignment',
   SUBMISSION: 'classroom.submission',
   GRADE: 'classroom.grade',
->>>>>>> ca86d4afaa9fefb7d0bac3d9efc1cac1c0eb2e8e
+  SESSION_PARTICIPANTS: 'classroom.session_participant',
+  CLASSROOM_LOGS: 'classroom.classroom_log',
+  MISTAKE_BOOK: 'classroom.mistake_book',
+
+  // Resources schema
+  FILES: 'resources.file',
+  NOTES: 'resources.note',
+
+  // Analytics schema
+  USER_ACTIONS: 'analytics.user_action',
+  LEARNING_ANALYTICS: 'analytics.learning_analytics',
+>>>>>>>>> Temporary merge branch 2
 
   // Tutoring schema
   TUTORS: 'tutoring.tutors',

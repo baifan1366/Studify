@@ -1,10 +1,10 @@
 import React from 'react';
 import { Metadata } from 'next';
-import HomeContent from '@/components/home/home-content';
+import StudentsContent from '@/components/student/students-content';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations('HomePage');
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('StudentsPage');
 
   return {
     title: t('metadata_title'),
@@ -18,6 +18,6 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   };
 }
 
-export default function HomePage() {
-  return <HomeContent />;
+export default function StudentsPage() {
+  return <StudentsContent />;
 }

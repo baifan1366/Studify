@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/utils/styles";
+import { useTranslations } from 'next-intl';
 
 type Data = {
   url: string;
 };
 
 export default function PaidContentCard({ className }: { className?: string }) {
+  const t = useTranslations('PaidContentCard');
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<Data | null>(null);
 
@@ -29,17 +31,17 @@ export default function PaidContentCard({ className }: { className?: string }) {
 
   return (
     <Card className={cn("overflow-hidden", className)}>
-      <h2 className="font-medium">Subscription based, unlimited cat photos</h2>
-      <p className="text-muted-foreground">Create unlimited cat photos.</p>
+      <h2 className="font-medium">{t('title')}</h2>
+      <p className="text-muted-foreground">{t('description')}</p>
       <Button className="mt-4" onClick={handleRegenerate} disabled={isLoading}>
         <Spinner variant="primary" isLoading={isLoading} />
-        {isLoading ? "Generating..." : "Generate Cat Photo"}
+        {isLoading ? t('generating') : t('generate_button')}
       </Button>
       {data && (
         <picture>
           <img
             src={data.url}
-            alt="meme"
+            alt={t('img_alt')}
             className="mt-8 w-full object-contain h-[500px]"
           />
         </picture>

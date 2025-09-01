@@ -1,9 +1,10 @@
-import { Metadata } from "next";
-import { useTranslations } from "next-intl";
+import React from 'react';
+import { Metadata } from 'next';
+import LearningPathContent from '@/components/classroom/learning-path-content';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('RootPage');
+  const t = await getTranslations('ClassroomLearningPathPage');
 
   return {
     title: t('metadata_title'),
@@ -17,7 +18,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function Page() {
-  const t = useTranslations("HomePage");
-  return <h1>{t("title")}</h1>;
+export default function LearningPathPage() {
+  return <LearningPathContent />;
 }

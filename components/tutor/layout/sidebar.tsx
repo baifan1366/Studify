@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -43,11 +43,17 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+interface RouteConfigItem {
+  pathFragment: string;
+  id: string;
+  expands: string | undefined;
+}
+
 const defaultMenuSections: MenuSection[] = [
   {
     title: 'Home',
     items: [
-      { id: 'home', label: 'Home', icon: Home, path: '/home' },
+      { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
       { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
       { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
       { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/calendar' },
@@ -56,23 +62,21 @@ const defaultMenuSections: MenuSection[] = [
   {
     title: 'Dashboard',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
       {
-        id: 'classroom',
-        label: 'Classroom',
+        id: 'teaching',
+        label: 'Teaching',
         icon: BookOpen,
-        path: '/classroom',
+        path: '/teaching',
         subItems: [
-          { id: 'enrolled', label: 'Enrolled', icon: UserCheck, path: '/classroom/enrolled' },
-          { id: 'assignment', label: 'Assignment', icon: ClipboardList, path: '/classroom/assignment' },
-          { id: 'meeting', label: 'Meeting', icon: Video, path: '/classroom/meeting' },
-          { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/classroom/learning-path' },
+          { id: 'schedule', label: 'Schedule', icon: UserCheck, path: '/teaching/schedule' },
+          { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/teaching/assignments-exams' },
+          { id: 'course-content', label: 'Course Content', icon: Video, path: '/teaching/course-content' },
         ]
       },
-      { id: 'community', label: 'Community', icon: Users, path: '/community' },
-      { id: 'courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
-      { id: 'my-courses', label: 'My Courses', icon: BookOpen, path: '/my/courses' },
-      { id: 'documents', label: 'Documents', icon: FileText, path: '/documents' },
+      { id: 'classroom', label: 'Classroom', icon: Users, path: '/classroom' },
+      { id: 'students', label: 'Students', icon: GraduationCap, path: '/student' },
+      { id: 'ai-assistant', label: 'AI Assistant', icon: BookOpen, path: '/ai-assistant' },
+      { id: 'insights', label: 'Insights', icon: FileText, path: '/insights' },
       { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ]
   }
@@ -81,7 +85,7 @@ const defaultMenuSections: MenuSection[] = [
 export default function AnimatedSidebar({
   menuSections = defaultMenuSections,
   onItemClick,
-  activeItem = 'home',
+  activeItem = 'dashboard',
   onExpansionChange,
   isPermanentlyExpanded = false
 }: AnimatedSidebarProps) {
@@ -91,44 +95,47 @@ export default function AnimatedSidebar({
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
+  const routeConfig = useMemo((): RouteConfigItem[] => {
+    const config = menuSections.flatMap(section =>
+      section.items.flatMap(item => {
+        const items: {
+            pathFragment: string | undefined;
+            id: string;
+            expands: string | undefined;
+        }[] = [];
+        // Add parent item itself, if it's a link
+        if (item.path) {
+          items.push({ pathFragment: item.path, id: item.id, expands: undefined });
+        }
+        // Add any sub-items
+        if (item.subItems) {
+          items.push(...item.subItems.map(subItem => ({
+            pathFragment: subItem.path,
+            id: subItem.id,
+            expands: item.id
+          })));
+        }
+        return items;
+      })
+    );
+    
+    const validConfig = config.filter((i): i is RouteConfigItem => !!i.pathFragment);
+
+    // Sort by path length descending to match specific paths first
+    return validConfig.sort((a, b) => b.pathFragment.length - a.pathFragment.length);
+  }, [menuSections]);
+
   // Automatically determine active item based on current route
   useEffect(() => {
-    if (pathname?.includes('/home')) {
-      setCurrentActiveItem('home');
-    } else if (pathname?.includes('/classroom/enrolled')) {
-      setCurrentActiveItem('enrolled');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/assignment')) {
-      setCurrentActiveItem('assignment');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/meeting')) {
-      setCurrentActiveItem('meeting');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/learning-path')) {
-      setCurrentActiveItem('learning-path');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom')) {
-      setCurrentActiveItem('classroom');
-    } else if (pathname?.includes('/community')) {
-      setCurrentActiveItem('community');
-    } else if (pathname?.includes('/courses')) {
-      setCurrentActiveItem('courses');
-    } else if (pathname?.includes('/my/courses')) {
-      setCurrentActiveItem('my-courses');
-    } else if (pathname?.includes('/documents')) {
-      setCurrentActiveItem('documents');
-    } else if (pathname?.includes('/settings')) {
-      setCurrentActiveItem('settings');
-    } else if (pathname?.includes('/notifications')) {
-      setCurrentActiveItem('notifications');
-    } else if (pathname?.includes('/messages')) {
-      setCurrentActiveItem('messages');
-    } else if (pathname?.includes('/calendar')) {
-      setCurrentActiveItem('calendar');
-    } else {
-      setCurrentActiveItem(activeItem);
+    const currentPath = pathname || '';
+    const activeRoute = routeConfig.find(route => route.pathFragment && currentPath.includes(route.pathFragment));
+
+    setCurrentActiveItem(activeRoute?.id || activeItem);
+
+    if (activeRoute && typeof activeRoute.expands === 'string') {
+      setExpandedSections(prev => ({ ...prev, [activeRoute.expands as string]: true }));
     }
-  }, [pathname, activeItem]);
+  }, [pathname, activeItem, routeConfig]);
 
   // Auto-close expanded sections when sidebar is collapsed
   useEffect(() => {

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
-import AnimatedSidebar from '@/components/sidebar';
-import ClassroomHeader from '@/components/header';
+import { supabase } from '@/utils/supabase/client';
+ 
 import HeroSection from '@/components/home/hero-section';
 import AIAssistantPreview from '@/components/ai-assistant-preview';
 import LearningPath from '@/components/learning-path';
@@ -13,133 +13,117 @@ import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
-import { useUser } from '@/hooks/use-user';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslations } from 'next-intl';
 
 export default function HomeContent() {
-  const [activeMenuItem, setActiveMenuItem] = useState('home');
-  const { data, isLoading, error } = useUser();
-  const user = data?.user;
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
+  const t = useTranslations('HomeContent');
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   const { toast } = useToast();
 
-  // Show error toast if user data fetch fails
-  React.useEffect(() => {
-    if (error) {
-      console.error('Error fetching user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load user data",
-        variant: "destructive",
-      });
-    }
-  }, [error, toast]);
+  // Fetch user authentication data
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+
+        if (error) {
+          console.error('Error fetching user:', error);
+        } else {
+          setUser(user);
+        }
+      } catch (error) {
+        console.error('Error in fetchUser:', error);
+        toast({
+          title: t('error_title'),
+          description: t('error_fetch_user'),
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [toast]);
 
 
-
-  const handleMenuItemClick = (itemId: string) => {
-    setActiveMenuItem(itemId);
-    console.log('Menu item clicked:', itemId);
-  };
 
   const handleHeaderAction = (action: string) => {
     console.log('Header action:', action);
   };
 
-  const handleMenuToggle = () => {
-    const newExpanded = !isPermanentlyExpanded;
-    setIsPermanentlyExpanded(newExpanded);
-    setSidebarExpanded(newExpanded);
-    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width state for synchronization
-  };
-
   const handleStartLearning = () => {
     toast({
-      title: "Starting Learning Journey",
-      description: "Redirecting to your personalized learning path...",
+      title: t('start_learning_title'),
+      description: t('start_learning_desc'),
     });
   };
 
   const handleExploreCourses = () => {
     toast({
-      title: "Exploring Courses",
-      description: "Opening course catalog...",
+      title: t('explore_courses_title'),
+      description: t('explore_courses_desc'),
     });
   };
 
   const handleExperienceAI = () => {
     toast({
-      title: "AI Tutoring",
-      description: "Launching AI assistant...",
+      title: t('ai_tutoring_title'),
+      description: t('ai_tutoring_desc'),
     });
   };
 
   const handleGenerateStudyPlan = () => {
     toast({
-      title: "Study Plan",
-      description: "Generating personalized study plan...",
+      title: t('study_plan_title'),
+      description: t('study_plan_desc'),
     });
   };
 
   const handleCreatePost = () => {
     toast({
-      title: "Create Post",
-      description: "Opening post editor...",
+      title: t('create_post_title'),
+      description: t('create_post_desc'),
     });
   };
 
   const handleJoinGroup = () => {
     toast({
-      title: "Join Group",
-      description: "Joining study group...",
+      title: t('join_group_title'),
+      description: t('join_group_desc'),
     });
   };
 
   const handleViewProgress = () => {
     toast({
-      title: "Progress Report",
-      description: "Opening detailed progress analytics...",
+      title: t('progress_report_title'),
+      description: t('progress_report_desc'),
     });
   };
 
   const handleDailyCheckin = () => {
     toast({
-      title: "Daily Check-in",
-      description: "Streak updated! Keep up the great work!",
+      title: t('daily_checkin_title'),
+      description: t('daily_checkin_desc'),
     });
   };
 
   return (
-    <AnimatedBackground sidebarWidth={sidebarWidth}>
-      {/* Header */}
-      <ClassroomHeader
-        title="Home"
-        userName={user?.email?.split('@')[0] || 'Student'}
-        onProfileClick={() => handleHeaderAction('profile')}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      {/* Sidebar */}
-      <AnimatedSidebar
-        activeItem={activeMenuItem}
-        onItemClick={handleMenuItemClick}
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      {/* Main Content Area - Recommendation Panels */}
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarWidth}px)`
-        }}
-      >
+    <AnimatedBackground>
+      {/* Main Content */}
+      <div>
         {/* Hero Section */}
         <HeroSection
           onStartLearning={handleStartLearning}
@@ -171,7 +155,7 @@ export default function HomeContent() {
         <GamificationSection
           onDailyCheckin={handleDailyCheckin}
         />
-      </motion.div>
+      </div>
     </AnimatedBackground>
   );
 }

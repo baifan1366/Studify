@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations('MyPage');
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('TutoringPage');
 
   return {
     title: t('metadata_title'),
@@ -16,8 +16,8 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   };
 }
 
-export default async function MyPage({ params: { locale } }: { params: { locale: string } }) {
-  const t = await getTranslations('MyPage');
+export default async function TutoringPage({ params: { locale } }: { params: { locale: string } }) {
+  const t = await getTranslations('TutoringPage');
 
   return (
     <div>

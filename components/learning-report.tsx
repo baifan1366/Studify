@@ -12,12 +12,14 @@ import {
   Award,
   Zap
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface LearningReportProps {
   onViewProgress?: () => void;
 }
 
 export default function LearningReport({ onViewProgress }: LearningReportProps) {
+  const t = useTranslations('LearningReport');
   // Mock data for charts
   const weeklyData = [
     { day: 'Mon', hours: 2.5 },
@@ -52,8 +54,8 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           <BarChart3 className="text-white" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Smart Learning Report</h2>
-          <p className="text-white/70">AI-powered insights into your learning progress</p>
+          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+          <p className="text-white/70">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -61,10 +63,10 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
         {/* Learning Duration Chart */}
         <div className="bg-white/5 rounded-xl p-6 border border-white/10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Weekly Learning Duration</h3>
+            <h3 className="text-lg font-semibold text-white">{t('weekly_learning_duration_title')}</h3>
             <div className="flex items-center gap-1 text-sm text-green-400">
               <TrendingUp size={16} />
-              +12% vs last week
+              {t('trend_vs_last_week', { value: 12 })}
             </div>
           </div>
 
@@ -78,7 +80,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <span className="text-sm text-white/70 w-8">{data.day}</span>
+                <span className="text-sm text-white/70 w-8">{t(`days.${data.day}`)}</span>
                 <div className="flex-1 bg-white/10 rounded-full h-6 relative overflow-hidden">
                   <motion.div
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 h-6 rounded-full flex items-center justify-end pr-2"
@@ -87,7 +89,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
                     transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
                   >
                     <span className="text-xs text-white font-medium">
-                      {data.hours}h
+                      {data.hours}{t('hours_suffix')}
                     </span>
                   </motion.div>
                 </div>
@@ -102,14 +104,14 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
                 <Clock size={16} />
                 <span className="text-lg font-bold">20.5h</span>
               </div>
-              <span className="text-xs text-white/60">Total This Week</span>
+              <span className="text-xs text-white/60">{t('total_this_week')}</span>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
                 <Target size={16} />
                 <span className="text-lg font-bold">2.9h</span>
               </div>
-              <span className="text-xs text-white/60">Daily Average</span>
+              <span className="text-xs text-white/60">{t('daily_average')}</span>
             </div>
           </div>
         </div>
@@ -117,10 +119,10 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
         {/* Mastery Level Radar */}
         <div className="bg-white/5 rounded-xl p-6 border border-white/10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Subject Mastery Levels</h3>
+            <h3 className="text-lg font-semibold text-white">{t('subject_mastery_levels_title')}</h3>
             <div className="flex items-center gap-1 text-sm text-orange-400">
               <Award size={16} />
-              Top Performer
+              {t('top_performer_label')}
             </div>
           </div>
 
@@ -176,11 +178,10 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           <div className="mt-6 p-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg border border-purple-400/30">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} className="text-yellow-400" />
-              <span className="text-sm font-semibold text-white">AI Insight</span>
+              <span className="text-sm font-semibold text-white">{t('ai_insight_label')}</span>
             </div>
             <p className="text-sm text-white/80">
-              Your Biology performance is exceptional! Consider helping peers in study groups. 
-              Focus on Chemistry concepts to reach the next mastery level.
+              {t('ai_insight_text')}
             </p>
           </div>
         </div>
@@ -193,7 +194,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           whileHover={{ scale: 1.05 }}
         >
           <div className="text-2xl font-bold text-blue-400 mb-1">47</div>
-          <div className="text-xs text-white/60">Lessons Completed</div>
+          <div className="text-xs text-white/60">{t('lessons_completed')}</div>
         </motion.div>
         
         <motion.div
@@ -201,7 +202,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           whileHover={{ scale: 1.05 }}
         >
           <div className="text-2xl font-bold text-green-400 mb-1">12</div>
-          <div className="text-xs text-white/60">Streak Days</div>
+          <div className="text-xs text-white/60">{t('streak_days')}</div>
         </motion.div>
         
         <motion.div
@@ -209,7 +210,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           whileHover={{ scale: 1.05 }}
         >
           <div className="text-2xl font-bold text-purple-400 mb-1">89%</div>
-          <div className="text-xs text-white/60">Accuracy Rate</div>
+          <div className="text-xs text-white/60">{t('accuracy_rate')}</div>
         </motion.div>
         
         <motion.div
@@ -217,7 +218,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           whileHover={{ scale: 1.05 }}
         >
           <div className="text-2xl font-bold text-orange-400 mb-1">156</div>
-          <div className="text-xs text-white/60">Points Earned</div>
+          <div className="text-xs text-white/60">{t('points_earned')}</div>
         </motion.div>
       </div>
 
@@ -236,7 +237,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
         >
           <div className="flex items-center gap-2">
             <BarChart3 size={20} />
-            View My Complete Progress
+            {t('cta_view_complete_progress')}
             <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </div>
         </motion.button>

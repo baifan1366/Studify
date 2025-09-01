@@ -16,15 +16,12 @@ export default function CoursesContent() {
   const [user, setUser] = useState<User | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-<<<<<<< HEAD
-  const [sidebarWidth, setSidebarWidth] = useState(80); // Add sidebar width state
+
+  const { data: courses, isLoading } = useCourses();
+  const [sidebarWidth, setSidebarWidth] = useState(80); 
   
   // const { data: courses, isLoading, error } = useCourses();
   const isLoading = false; // Temporary for demo
-=======
-
-  const { data: courses, isLoading } = useCourses();
->>>>>>> ca86d4afaa9fefb7d0bac3d9efc1cac1c0eb2e8e
   const { toast } = useToast();
 
   const uiCourses = useMemo(() => {
@@ -90,7 +87,6 @@ export default function CoursesContent() {
     const newExpanded = !isPermanentlyExpanded;
     setIsPermanentlyExpanded(newExpanded);
     setSidebarExpanded(newExpanded);
-    setSidebarWidth(newExpanded ? 280 : 80); // Update sidebar width for synchronization
   };
 
   const handleAddToCart = (courseId: string | number) => {
@@ -108,12 +104,12 @@ export default function CoursesContent() {
   };
 
   return (
-<<<<<<< HEAD
+<<<<<<<<< Temporary merge branch 1
+    <AnimatedBackground>
+=========
     <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
-=======
-    <AnimatedBackground>
->>>>>>> ca86d4afaa9fefb7d0bac3d9efc1cac1c0eb2e8e
+>>>>>>>>> Temporary merge branch 2
       <ClassroomHeader
         title="Courses"
         userName={user?.email?.split('@')[0] || 'Student'}
@@ -132,13 +128,13 @@ export default function CoursesContent() {
       <motion.div
         className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
         style={{
-          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
+          marginLeft: sidebarExpanded ? '280px' : '80px',// Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-<<<<<<< HEAD
-          width: `calc(100vw - ${sidebarWidth}px)`
-=======
+<<<<<<<<< Temporary merge branch 1
           width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
->>>>>>> ca86d4afaa9fefb7d0bac3d9efc1cac1c0eb2e8e
+=========
+          width: `calc(100vw - ${sidebarWidth}px)`
+>>>>>>>>> Temporary merge branch 2
         }}
       >
         <motion.div

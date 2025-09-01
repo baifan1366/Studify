@@ -5,6 +5,7 @@ import { ProductWithPrices } from "@updatedev/js";
 import { Button } from "@/components/ui/button";
 import PricingCard from "@/components/pricing-card";
 import { cn } from "@/utils/styles";
+import { useTranslations } from 'next-intl';
 
 export default function PricingContent({
   products,
@@ -13,6 +14,7 @@ export default function PricingContent({
   products: ProductWithPrices[];
   currentProductId: string | null;
 }) {
+  const t = useTranslations('PricingContent');
   const [interval, setInterval] = useState<"month" | "year" | "one-time">(
     "month"
   );
@@ -28,7 +30,7 @@ export default function PricingContent({
           )}
           onClick={() => setInterval("month")}
         >
-          Monthly
+          {t('monthly')}
         </Button>
         <Button
           className={cn(
@@ -38,7 +40,7 @@ export default function PricingContent({
           )}
           onClick={() => setInterval("year")}
         >
-          Yearly
+          {t('yearly')}
         </Button>
         <Button
           className={cn(
@@ -48,7 +50,7 @@ export default function PricingContent({
           )}
           onClick={() => setInterval("one-time")}
         >
-          One-Time
+          {t('one_time')}
         </Button>
       </div>
       <div className="grid md:grid-cols-2 gap-6 mt-8">

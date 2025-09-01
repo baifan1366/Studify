@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import JoinCourseDialog from './join-course-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useTranslations } from 'next-intl';
 
 export default function EnrolledContent() {
   const [activeMenuItem, setActiveMenuItem] = useState('enrolled');
@@ -29,6 +30,7 @@ export default function EnrolledContent() {
   const { toast } = useToast();
   const { data: enrolledCourses, isLoading, error } = useEnrolledCourses();
   const { data: recommendedCourses, isLoading: isLoadingRecommended } = useRecommendedCourses();
+  const t = useTranslations('EnrolledContent');
 
   // Filter courses based on search query
   const filteredCourses = enrolledCourses?.filter(course =>
@@ -43,8 +45,8 @@ export default function EnrolledContent() {
     if (error) {
       console.error('Error fetching enrolled courses:', error);
       toast({
-        title: "Error",
-        description: "Failed to load your courses. Please try again later.",
+        title: t('error_title'),
+        description: t('error_fetch_courses'),
         variant: "destructive",
       });
     }
@@ -88,21 +90,21 @@ export default function EnrolledContent() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'active':
-        return 'On Track';
+        return t('status.on_track');
       case 'near_completion':
-        return 'Near Completion';
+        return t('status.near_completion');
       case 'behind':
-        return 'Behind Schedule';
+        return t('status.behind');
       default:
-        return 'Unknown';
+        return t('status.unknown');
     }
   };
 
   return (
     <AnimatedBackground sidebarWidth={sidebarWidth}>
       <ClassroomHeader
-        title="Enrolled Courses"
-        userName={user?.email?.split('@')[0] || 'Student'}
+        title={t('header_title')}
+        userName={user?.email?.split('@')[0] || t('default_user_name')}
         onProfileClick={() => handleHeaderAction('profile')}
         sidebarExpanded={isPermanentlyExpanded}
         onMenuToggle={handleMenuToggle}
@@ -130,10 +132,10 @@ export default function EnrolledContent() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl font-bold text-white/90 dark:text-white/90">
-                My Classroom
+                {t('page_title')}
               </h1>
               <p className="text-lg text-white/70 dark:text-white/70 mt-2">
-                Continue your learning journey and track your progress
+                {t('page_subtitle')}
               </p>
             </div>
             <Button 
@@ -141,17 +143,17 @@ export default function EnrolledContent() {
               className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
             >
               <Plus size={16} />
-              Join Course
+              {t('actions.join_course')}
             </Button>
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
             <TabsList className="bg-white/10 border-white/20">
               <TabsTrigger value="enrolled" className="data-[state=active]:bg-white/20">
-                Enrolled Courses
+                {t('tabs.enrolled')}
               </TabsTrigger>
               <TabsTrigger value="recommended" className="data-[state=active]:bg-white/20">
-                Recommended
+                {t('tabs.recommended')}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -162,7 +164,7 @@ export default function EnrolledContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" size={20} />
               <Input
                 type="text"
-                placeholder="Search courses by title or instructor..."
+                placeholder={t('search_placeholder')}
                 className="w-full bg-white/10 backdrop-blur-sm border-white/20 rounded-lg py-2 pl-10 pr-4 text-white placeholder:text-white/50 focus:ring-2 focus:ring-blue-500"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -184,13 +186,13 @@ export default function EnrolledContent() {
             {!hasEnrolledCourses && !isLoading ? (
               <div className="text-center py-16 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
                 <BookOpen size={48} className="mx-auto text-white/40 mb-4" />
-                <h3 className="text-xl font-medium text-white mb-2">No Enrolled Courses</h3>
-                <p className="text-white/60 mb-6 max-w-md mx-auto">You haven't enrolled in any courses yet. Join a course to start learning or check out our recommendations.</p>
+                <h3 className="text-xl font-medium text-white mb-2">{t('empty.title')}</h3>
+                <p className="text-white/60 mb-6 max-w-md mx-auto">{t('empty.desc')}</p>
                 <Button 
                   onClick={() => setActiveTab("recommended")}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Browse Recommended Courses
+                  {t('empty.browse_recommended')}
                 </Button>
               </div>
             ) : (
@@ -237,7 +239,7 @@ export default function EnrolledContent() {
                   </div>
                   <div className="mb-4">
                     <div className="flex justify-between text-sm mb-2">
-                      <span className="text-white/70 dark:text-white/70">Progress</span>
+                      <span className="text-white/70 dark:text-white/70">{t('labels.progress')}</span>
                       <span className="text-white dark:text-white">{course.progress}%</span>
                     </div>
                     <div className="w-full bg-white/20 rounded-full h-2 mb-2">
@@ -249,14 +251,14 @@ export default function EnrolledContent() {
                       />
                     </div>
                     <div className="flex justify-between text-xs text-white/60">
-                      <span>{course.completedLessons}/{course.totalLessons} lessons</span>
-                      <span>Last accessed: {course.lastAccessed}</span>
+                      <span>{t('labels.lessons_count', { completed: course.completedLessons, total: course.totalLessons })}</span>
+                      <span>{t('labels.last_accessed', { date: course.lastAccessed })}</span>
                     </div>
                   </div>
                   <div className="mb-4 p-3 bg-white/5 rounded-lg">
-                    <div className="text-sm text-white/70 mb-1">Next Lesson:</div>
+                    <div className="text-sm text-white/70 mb-1">{t('labels.next_lesson')}</div>
                     <div className="text-white font-medium">{course.nextLesson}</div>
-                    <div className="text-xs text-white/60 mt-1">Due: {course.dueDate}</div>
+                    <div className="text-xs text-white/60 mt-1">{t('labels.due', { date: course.dueDate })}</div>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -264,10 +266,10 @@ export default function EnrolledContent() {
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                     >
                       <Play size={16} />
-                      Continue Learning
+                      {t('buttons.continue_learning')}
                     </button>
                     <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                      View Details
+                      {t('buttons.view_details')}
                     </button>
                   </div>
                 </motion.div>
@@ -338,7 +340,7 @@ export default function EnrolledContent() {
                       </div>
                     </div>
                     <div className="mb-4 p-3 bg-white/5 rounded-lg">
-                      <div className="text-sm text-white/70 mb-1">Recommended because:</div>
+                      <div className="text-sm text-white/70 mb-1">{t('recommended.because')}</div>
                       <div className="text-white text-sm">{course.recommendReason}</div>
                     </div>
                     <div className="flex gap-2">
@@ -347,13 +349,13 @@ export default function EnrolledContent() {
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                       >
                         <Plus size={16} />
-                        Join Course
+                        {t('actions.join_course')}
                       </Button>
                       <Button 
                         variant="outline"
                         className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                       >
-                        View Details
+                        {t('buttons.view_details')}
                       </Button>
                     </div>
                   </motion.div>

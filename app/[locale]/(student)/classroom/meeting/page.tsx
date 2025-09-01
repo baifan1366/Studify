@@ -1,10 +1,10 @@
 import React from 'react';
 import { Metadata } from 'next';
-import CoursesContent from '@/components/course/courses-content';
+import MeetingContent from '@/components/classroom/meeting-content';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations('CoursesPage');
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('ClassroomMeetingPage');
 
   return {
     title: t('metadata_title'),
@@ -18,6 +18,6 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   };
 }
 
-export default function CoursesPage() {
-  return <CoursesContent />;
+export default function MeetingPage() {
+  return <MeetingContent />;
 }

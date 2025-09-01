@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslations } from 'next-intl';
 
 interface JoinCourseDialogProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function JoinCourseDialog({ isOpen, onClose }: JoinCourseDialogPr
   const [activeTab, setActiveTab] = useState('courseId');
   
   const joinCourseMutation = useJoinCourse();
+  const t = useTranslations('JoinCourseDialog');
 
   const handleJoinCourse = async () => {
     if (activeTab === 'courseId' && !courseId) {
@@ -54,51 +56,51 @@ export default function JoinCourseDialog({ isOpen, onClose }: JoinCourseDialogPr
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            Join a Course
+            {t('title')}
           </DialogTitle>
           <DialogDescription className="text-white/70">
-            Enter a course ID or invitation code to join a course
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
         
         <Tabs defaultValue="courseId" className="w-full" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 bg-white/5">
             <TabsTrigger value="courseId" className="data-[state=active]:bg-white/10">
-              Course ID
+              {t('tabs.course_id')}
             </TabsTrigger>
             <TabsTrigger value="inviteCode" className="data-[state=active]:bg-white/10">
-              Invite Code
+              {t('tabs.invite_code')}
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="courseId" className="mt-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="courseId" className="text-white/80">Course ID</Label>
+              <Label htmlFor="courseId" className="text-white/80">{t('labels.course_id')}</Label>
               <Input
                 id="courseId"
-                placeholder="Enter course ID"
+                placeholder={t('placeholders.course_id')}
                 value={courseId}
                 onChange={(e) => setCourseId(e.target.value)}
                 className="bg-white/5 border-white/20 text-white placeholder:text-white/40"
               />
               <p className="text-xs text-white/60">
-                You can find the course ID in the course URL or ask your instructor
+                {t('helpers.course_id')}
               </p>
             </div>
           </TabsContent>
           
           <TabsContent value="inviteCode" className="mt-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="inviteCode" className="text-white/80">Invitation Code</Label>
+              <Label htmlFor="inviteCode" className="text-white/80">{t('labels.invite_code')}</Label>
               <Input
                 id="inviteCode"
-                placeholder="Enter invitation code"
+                placeholder={t('placeholders.invite_code')}
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 className="bg-white/5 border-white/20 text-white placeholder:text-white/40"
               />
               <p className="text-xs text-white/60">
-                Enter the invitation code provided by your instructor
+                {t('helpers.invite_code')}
               </p>
             </div>
           </TabsContent>
@@ -110,7 +112,7 @@ export default function JoinCourseDialog({ isOpen, onClose }: JoinCourseDialogPr
             onClick={onClose}
             className="border-white/20 text-white hover:bg-white/10 hover:text-white"
           >
-            Cancel
+            {t('buttons.cancel')}
           </Button>
           <Button
             onClick={handleJoinCourse}
@@ -120,10 +122,10 @@ export default function JoinCourseDialog({ isOpen, onClose }: JoinCourseDialogPr
             {joinCourseMutation.isPending ? (
               <>
                 <Skeleton className="h-4 w-4 rounded-full mr-2" />
-                Joining...
+                {t('buttons.joining')}
               </>
             ) : (
-              'Join Course'
+              t('buttons.join')
             )}
           </Button>
         </div>

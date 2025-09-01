@@ -12,6 +12,7 @@ import {
   Clock,
   TrendingUp
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface CommunityHighlightsProps {
   onCreatePost?: () => void;
@@ -19,6 +20,7 @@ interface CommunityHighlightsProps {
 }
 
 export default function CommunityHighlights({ onCreatePost, onJoinGroup }: CommunityHighlightsProps) {
+  const t = useTranslations('CommunityHighlights');
   const latestPosts = [
     {
       id: 1,
@@ -93,8 +95,8 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
             <Users className="text-white" size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Learning Community</h2>
-            <p className="text-white/70">Connect, share, and learn together</p>
+            <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+            <p className="text-white/70">{t('subtitle')}</p>
           </div>
         </div>
         
@@ -107,7 +109,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
           >
             <div className="flex items-center gap-2">
               <Plus size={16} />
-              Create Post
+              {t('create_post_button')}
             </div>
           </motion.button>
         </div>
@@ -116,7 +118,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Latest Posts */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white mb-4">Latest Posts</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">{t('latest_posts_heading')}</h3>
           
           {latestPosts.map((post, index) => (
             <motion.div
@@ -170,7 +172,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
 
         {/* Study Groups */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white mb-4">Recommended Study Groups</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">{t('recommended_groups_heading')}</h3>
           
           {studyGroups.map((group, index) => (
             <motion.div
@@ -188,7 +190,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                   <div>
                     <h4 className="font-medium text-white text-sm">{group.name}</h4>
                     <div className="flex items-center gap-2 text-xs text-white/60">
-                      <span>{group.members} members</span>
+                      <span>{group.members} {t('members_suffix')}</span>
                       <span>•</span>
                       <div className="flex items-center gap-1">
                         <TrendingUp size={10} />
@@ -206,7 +208,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                 >
                   <div className="flex items-center gap-1">
                     <UserPlus size={12} />
-                    Join
+                    {t('join_button')}
                   </div>
                 </motion.button>
               </div>
@@ -216,7 +218,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                   {group.subject}
                 </span>
                 <span className="text-xs text-white/50">
-                  {Math.floor(Math.random() * 10) + 1} new posts today
+                  {Math.floor(Math.random() * 10) + 1} {t('new_posts_today_suffix')}
                 </span>
               </div>
             </motion.div>
@@ -231,7 +233,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
           >
             <div className="flex items-center justify-center gap-2">
               <Users size={20} />
-              Explore All Groups
+              {t('explore_groups_button')}
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </div>
           </motion.button>

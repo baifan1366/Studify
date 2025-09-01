@@ -10,7 +10,6 @@ import { useCommunity } from '@/hooks/use-community';
 import PostCard from '@/components/community/post-card';
 import { NewPostForm } from '@/components/community/new-post-form';
 import { Skeleton } from '@/components/ui/skeleton';
-import AnimatedBackground from '@/components/ui/animated-background';
 import { useTranslations } from 'next-intl';
 
 export default function CommunityContent() {
@@ -45,7 +44,7 @@ export default function CommunityContent() {
   };
 
   return (
-    <AnimatedBackground>
+    <>
       <ClassroomHeader
         title={t('community_header_title')}
         userName={user?.email?.split('@')[0] || th('default_user_name')}
@@ -93,6 +92,6 @@ export default function CommunityContent() {
             )}
         </div>
       </motion.div>
-    </AnimatedBackground>
+    </>
   );
 }

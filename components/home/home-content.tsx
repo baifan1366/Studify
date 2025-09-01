@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
-import AnimatedSidebar from '@/components/sidebar';
-import ClassroomHeader from '@/components/header';
+ 
 import HeroSection from '@/components/home/hero-section';
 import AIAssistantPreview from '@/components/ai-assistant-preview';
 import LearningPath from '@/components/learning-path';
@@ -13,16 +12,12 @@ import CommunityHighlights from '@/components/community-highlights';
 import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
 import { useTranslations } from 'next-intl';
 
 export default function HomeContent() {
   const t = useTranslations('HomeContent');
-  const [activeMenuItem, setActiveMenuItem] = useState('home');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   
   const { toast } = useToast();
 
@@ -64,18 +59,8 @@ export default function HomeContent() {
 
 
 
-  const handleMenuItemClick = (itemId: string) => {
-    setActiveMenuItem(itemId);
-    console.log('Menu item clicked:', itemId);
-  };
-
   const handleHeaderAction = (action: string) => {
     console.log('Header action:', action);
-  };
-
-  const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
   };
 
   const handleStartLearning = () => {
@@ -135,33 +120,8 @@ export default function HomeContent() {
   };
 
   return (
-    <AnimatedBackground>
-      {/* Header */}
-      <ClassroomHeader
-        title={t('header_title')}
-        userName={user?.email?.split('@')[0] || t('default_user_name')}
-        onProfileClick={() => handleHeaderAction('profile')}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      {/* Sidebar */}
-      <AnimatedSidebar
-        activeItem={activeMenuItem}
-        onItemClick={handleMenuItemClick}
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      {/* Main Content Area - Recommendation Panels */}
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
-        }}
-      >
+    // Main Content
+    <div>
         {/* Hero Section */}
         <HeroSection
           onStartLearning={handleStartLearning}
@@ -193,7 +153,6 @@ export default function HomeContent() {
         <GamificationSection
           onDailyCheckin={handleDailyCheckin}
         />
-      </motion.div>
-    </AnimatedBackground>
+    </div>
   );
 }

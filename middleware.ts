@@ -23,6 +23,8 @@ const PROTECTED_ROUTES = [
   "/success",
   "/tutoring",
   "/protected",
+  "/student",
+  "/tutor",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -52,14 +54,33 @@ export async function middleware(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("onboarded")
+      .select("onboarded, role")
       .eq("user_id", session.user.id)
       .single();
 
     if (profile && !profile.onboarded) {
-      const onboardingUrl = new URL(`/${locale}/onboarding`, request.url);
-      if (request.nextUrl.pathname !== `/${locale}/onboarding`) {
-        return NextResponse.redirect(onboardingUrl);
+      if (profile.role === "tutor") {
+        // 用户是 tutor，却访问 student 的 onboarding
+        if (pathname.startsWith(`/${locale}/student`)) {
+          return NextResponse.redirect(
+            new URL(`/${locale}/tutor/step1`, request.url)
+          );
+        }
+        const onboardingUrl = new URL(`/${locale}/tutor`, request.url);
+        if (request.nextUrl.pathname !== onboardingUrl.pathname) {
+          return NextResponse.redirect(onboardingUrl);
+        }
+      } else if (profile.role === "student") {
+        // 用户是 student，却访问 tutor 的 onboarding
+        if (pathname.startsWith(`/${locale}/tutor`)) {
+          return NextResponse.redirect(
+            new URL(`/${locale}/student/step1`, request.url)
+          );
+        }
+        const onboardingUrl = new URL(`/${locale}/student`, request.url);
+        if (request.nextUrl.pathname !== onboardingUrl.pathname) {
+          return NextResponse.redirect(onboardingUrl);
+        }
       }
     }
   }

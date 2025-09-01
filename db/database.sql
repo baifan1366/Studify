@@ -736,3 +736,22 @@ create table if not exists tutoring_share (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
+
+
+create table if not exists classroom.mistake_book (
+  id uuid primary key default uuid_generate_v1(),
+  user_id uuid not null references core.profiles(user_id) on delete cascade,
+  assignment_id uuid references assessment.assignment(id) on delete set null,
+  submission_id uuid references assessment.submission(id) on delete set null,
+  question_id uuid references assessment.question(id) on delete set null,
+  mistake_content text not null,
+  analysis text,
+  knowledge_points text[],
+  recommended_exercises jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  is_deleted boolean default false
+);
+
+create index if not exists idx_mistake_user on classroom.mistake_book(user_id);
+create index if not exists idx_mistake_assignment on classroom.mistake_book(assignment_id);

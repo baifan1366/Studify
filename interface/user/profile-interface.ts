@@ -11,6 +11,8 @@ export interface Profile {
   banned_reason: string | null;
   banned_at: string | null;
   points: number;
+  onboarded: boolean;
+  onboard_step: number;
   is_deleted: boolean;
   created_at: string;
   updated_at: string;

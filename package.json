@@ -11,6 +11,7 @@
     "@langchain/core": "^0.3.72",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-label": "^2.1.2",
+    "@radix-ui/react-radio-group": "^1.3.8",
     "@radix-ui/react-slot": "^1.1.2",
     "@serwist/next": "^9.1.1",
     "@stripe/stripe-js": "^7.9.0",

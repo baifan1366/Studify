@@ -3,7 +3,7 @@
  * Centralized definition of all API routes used throughout the application
  */
 
-import { supabase } from '@/utils/supabase/client';
+import { supabase } from "@/utils/supabase/client";
 
 // Export supabase client for direct access
 export { supabase };
@@ -15,7 +15,8 @@ export const studentsApi = {
   create: "/api/students",
   update: (id: number) => `/api/students/${id}`,
   delete: (id: number) => `/api/students/${id}`,
-  search: (query: string) => `/api/students/search?q=${encodeURIComponent(query)}`,
+  search: (query: string) =>
+    `/api/students/search?q=${encodeURIComponent(query)}`,
   progress: (id: number) => `/api/students/${id}/progress`,
 } as const;
 
@@ -26,7 +27,8 @@ export const coursesApi = {
   create: "/api/courses",
   update: (id: number) => `/api/courses/${id}`,
   delete: (id: number) => `/api/courses/${id}`,
-  search: (query: string) => `/api/courses/search?q=${encodeURIComponent(query)}`,
+  search: (query: string) =>
+    `/api/courses/search?q=${encodeURIComponent(query)}`,
   enroll: (courseId: number) => `/api/courses/${courseId}/enroll`,
   unenroll: (courseId: number) => `/api/courses/${courseId}/unenroll`,
 } as const;
@@ -38,7 +40,8 @@ export const documentsApi = {
   upload: "/api/documents/upload",
   delete: (id: number) => `/api/documents/${id}`,
   download: (id: number) => `/api/documents/${id}/download`,
-  search: (query: string) => `/api/documents/search?q=${encodeURIComponent(query)}`,
+  search: (query: string) =>
+    `/api/documents/search?q=${encodeURIComponent(query)}`,
 } as const;
 
 // Messages API endpoints
@@ -132,4 +135,10 @@ export const gamificationApi = {
   checkin: "/api/gamification/checkin",
   points: "/api/gamification/points",
   streak: "/api/gamification/streak",
+} as const;
+
+// Users API endpoints
+export const usersApi = {
+  updateProfile: "/api/users/profile",
+  getProfile: "/api/users/profile",
 } as const;

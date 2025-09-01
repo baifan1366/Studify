@@ -1,17 +1,22 @@
 import React from 'react';
 import { Metadata } from 'next';
 import MeetingContent from '@/components/classroom/meeting-content';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Meetings - Studify',
-  description: 'Join live meetings, view scheduled sessions, and access meeting recordings',
-  keywords: ['meetings', 'live sessions', 'video calls', 'recordings', 'education'],
-  openGraph: {
-    title: 'Meetings - Studify',
-    description: 'Join live meetings and access educational sessions',
-    type: 'website',
-  },
-};
+export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations('ClassroomMeetingPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function MeetingPage() {
   return <MeetingContent />;

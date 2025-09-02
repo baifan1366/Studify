@@ -587,107 +587,107 @@
       "start_milestone_desc": "Starting milestone {id}..."
     }
   },
-  "AiAssistantPage": {
-    "metadata_title": "AI Assistant - Studify",
+  "TutorAiAssistantPage": {
+    "metadata_title": "AI Assistant | Tutor | Studify",
     "metadata_description": "Get instant help with your studies using our AI-powered learning assistant.",
     "metadata_keywords": "AI assistant, study help, homework help, education",
-    "og_title": "AI Assistant - Studify",
+    "og_title": "AI Assistant | Tutor | Studify",
     "og_description": "Get instant help with your studies using our AI-powered learning assistant.",
     "page_title": "AI Learning Assistant"
   },
-  "CalendarPage": {
-    "metadata_title": "Calendar - Studify",
+  "TutorCalendarPage": {
+    "metadata_title": "Calendar | Tutor | Studify",
     "metadata_description": "Organize your classes, assignments, and events with Studify's smart academic calendar.",
     "metadata_keywords": "calendar, study planner, academic schedule, student organizer",
-    "og_title": "Calendar - Studify",
+    "og_title": "Calendar | Tutor | Studify",
     "og_description": "Stay on top of your studies with Studify's integrated academic calendar.",
     "page_title": "Study Calendar"
   },
-  "InsightsPage": {
-    "metadata_title": "Insights & Analytics - Studify",
+  "TutorInsightsPage": {
+    "metadata_title": "Insights | Tutor | Studify",
     "metadata_description": "Track your academic performance and gain insights into your learning progress with Studify's analytics tools.",
     "metadata_keywords": "insights, analytics, study progress, student performance, learning stats",
-    "og_title": "Insights & Analytics - Studify",
+    "og_title": "Insights & Analytics | Tutor | Studify",
     "og_description": "Understand your learning habits and boost your performance using Studify's analytics tools.",
     "page_title": "Insights & Analytics"
   },
-  "MessagesPage": {
-    "metadata_title": "Messages - Studify",
+  "TutorMessagesPage": {
+    "metadata_title": "Messages | Tutor | Studify",
     "metadata_description": "Communicate with your classmates, teachers, and study groups through Studify's messaging system.",
     "metadata_keywords": "messages, chat, student communication, group chat, direct messaging",
-    "og_title": "Messages - Studify",
+    "og_title": "Messages | Tutor | Studify",
     "og_description": "Stay connected with your classmates and teachers using Studify's instant messaging feature.",
     "page_title": "Messages"
   },
-  "NotificationsPage": {
-    "metadata_title": "Notifications - Studify",
+  "TutorNotificationsPage": {
+    "metadata_title": "Notifications | Tutor | Studify",
     "metadata_description": "Get real-time updates on assignments, class changes, announcements, and upcoming deadlines.",
     "metadata_keywords": "notifications, updates, alerts, student reminders, academic updates",
-    "og_title": "Notifications - Studify",
+    "og_title": "Notifications | Tutor | Studify",
     "og_description": "Stay informed with real-time notifications about your classes, assignments, and exams.",
     "page_title": "Notifications"
   },
-  "SettingsPage": {
-    "metadata_title": "Settings - Studify",
+  "TutorSettingsPage": {
+    "metadata_title": "Settings | Tutor | Studify",
     "metadata_description": "Manage your profile, privacy settings, and learning preferences on Studify.",
     "metadata_keywords": "settings, preferences, profile management, account privacy",
-    "og_title": "Settings - Studify",
+    "og_title": "Settings | Tutor | Studify",
     "og_description": "Customize your Studify experience by managing your account settings and preferences.",
     "page_title": "Settings"
   },
-  "StudentPage": {
-    "metadata_title": "Student Dashboard - Studify",
+  "TutorStudentPage": {
+    "metadata_title": "Student Management | Tutor | Studify",
     "metadata_description": "Access your personalized student dashboard to manage courses, assignments, and progress tracking.",
     "metadata_keywords": "student dashboard, academic management, study progress, courses",
-    "og_title": "Student Dashboard - Studify",
+    "og_title": "Student Dashboard | Tutor | Studify",
     "og_description": "Stay organized and improve your learning with Studify's all-in-one student dashboard.",
     "page_title": "Student Dashboard"
   },
-  "TeachingPage": {
-    "metadata_title": "Teaching Dashboard - Studify",
+  "TutorTeachingPage": {
+    "metadata_title": "Teaching Management | Tutor | Studify",
     "metadata_description": "Manage classes, students, and lesson plans effortlessly with Studify's teaching tools.",
     "metadata_keywords": "teaching dashboard, educator tools, class management, lesson planning",
-    "og_title": "Teaching Dashboard - Studify",
+    "og_title": "Teaching Dashboard | Tutor | Studify",
     "og_description": "Simplify teaching and classroom management with Studify's intuitive tools for educators.",
     "page_title": "Teaching Dashboard"
   },
-  "AssignmentsExamsPage": {
-    "metadata_title": "Assignments & Exams - Studify",
+  "TutorAssignmentsExamsPage": {
+    "metadata_title": "Assignments & Exams | Tutor | Studify",
     "metadata_description": "Track assignments, exams, deadlines, and submissions in one place with Studify.",
     "metadata_keywords": "assignments, exams, study tracker, deadlines, submissions",
-    "og_title": "Assignments & Exams - Studify",
+    "og_title": "Assignments & Exams | Tutor | Studify",
     "og_description": "Stay on top of your assignments and exams with Studify's easy-to-use academic tools.",
     "page_title": "Assignments & Exams"
   },
-  "CourseContentPage": {
-    "metadata_title": "Course Content - Studify",
+  "TutorCourseContentPage": {
+    "metadata_title": "Course Content | Tutor | Studify",
     "metadata_description": "Access study materials, lecture notes, and resources all in one place with Studify.",
     "metadata_keywords": "course content, study materials, lecture notes, learning resources",
-    "og_title": "Course Content - Studify",
+    "og_title": "Course Content | Tutor | Studify",
     "og_description": "Learn smarter with Studify by accessing all your study materials and course content in one place.",
     "page_title": "Course Content"
   },
-  "SchedulePage": {
-    "metadata_title": "Class Schedule - Studify",
+  "TutorSchedulePage": {
+    "metadata_title": "Class Schedule | Tutor | Studify",
     "metadata_description": "Plan your day efficiently with Studify's personalized class schedule and reminders.",
     "metadata_keywords": "class schedule, timetable, study plan, academic planning",
-    "og_title": "Class Schedule - Studify",
+    "og_title": "Class Schedule | Tutor | Studify",
     "og_description": "Stay on track with your academic life using Studify's customizable class schedule tools.",
     "page_title": "Class Schedule"
   },
-  "ClassroomManagementPage": {
-    "metadata_title": "Classroom Management - Studify",
+  "TutorClassroomPage": {
+    "metadata_title": "Classroom Management | Tutor | Studify",
     "metadata_description": "Manage students, attendance, and classroom activities easily with Studify.",
     "metadata_keywords": "classroom management, student tracking, attendance, educator tools",
-    "og_title": "Classroom Management - Studify",
+    "og_title": "Classroom Management | Tutor | Studify",
     "og_description": "Simplify classroom management with tools designed for teachers and administrators.",
     "page_title": "Classroom Management"
   },
-  "CoursesManagementPage": {
-    "metadata_title": "Courses Management - Studify",
+  "TutorCoursesPage": {
+    "metadata_title": "Courses Management | Tutor | Studify",
     "metadata_description": "Create, edit, and manage your courses, materials, and student enrollments with Studify.",
     "metadata_keywords": "courses management, course creation, student enrollment, education platform",
-    "og_title": "Courses Management - Studify",
+    "og_title": "Courses Management | Tutor | Studify",
     "og_description": "Easily manage your courses, materials, and student data with Studify's robust course management tools.",
     "page_title": "Courses Management"
   },
@@ -747,5 +747,13 @@
     "cancel_button": "Cancel",
     "submit_button": "Create Module",
     "course_selection_error": "Please select a course first."
+  },
+  "TutorDashboardPage": {
+    "metadata_title": "Dashboard | Tutor | Studify",
+    "metadata_description": "Get an overview of your teaching activities, student progress, and course management with Studify's tutor dashboard.",
+    "metadata_keywords": "dashboard, tutor, teaching overview, student progress, course management",
+    "og_title": "Dashboard | Tutor | Studify",
+    "og_description": "Get an overview of your teaching activities, student progress, and course management with Studify's tutor dashboard.",
+    "page_title": "Dashboard"
   }
 }

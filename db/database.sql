@@ -17,7 +17,7 @@ set search_path = public;
 create table if not exists profiles (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null unique references auth.users(id) on delete cascade,
   display_name text,
   role text not null check (role in ('admin','student','tutor')),
   avatar_url text,
@@ -27,6 +27,8 @@ create table if not exists profiles (
   banned_reason text null,
   banned_at timestamptz,
   points int not null default 0,
+  onboarded boolean not null default false,
+  onboarded_step int default 0 check (onboarded_step >= 0 and onboarded_step <= 3),
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

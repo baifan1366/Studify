@@ -157,6 +157,70 @@ export const CHANNELS = {
   LEADERBOARD: 'leaderboard-channel',
 } as const;
 
+/**
+ * Api helper
+ */
+export async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(path, { cache: 'no-store' });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error || 'Request failed');
+  return json.data as T;
+}
+
+export interface ApiSendOptions<T> {
+  url: string;
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  body?: T;
+  headers?: Record<string, string>;
+  role?: string; // ✅ New: Optional role
+}
+
+export async function apiSend<TResponse = unknown, TBody = any>(
+  options: ApiSendOptions<TBody>
+): Promise<TResponse> {
+  const { url, method, body, headers = {}, role } = options;
+
+  // ✅ Merge custom headers + role header
+  const finalHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...headers,
+  };
+
+  if (role) {
+    finalHeaders["X-User-Role"] = role; // ✅ Use custom header to send role
+  }
+
+  const res = await fetch(url, {
+    method,
+    headers: finalHeaders,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `API request failed: ${res.status}`);
+  }
+
+  return res.json() as Promise<TResponse>;
+}
+
+export async function apiUploadFile(url: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "File upload failed");
+  }
+
+  return res.json(); // { id, url }
+}
+
 // Export default configuration
 export default {
   tables: TABLES,

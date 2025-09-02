@@ -6,7 +6,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
-import { useCommunity } from '@/hooks/use-community';
+import { useCommunity } from '@/hooks/community/use-community';
 import PostCard from '@/components/community/post-card';
 import { NewPostForm } from '@/components/community/new-post-form';
 import { Skeleton } from '@/components/ui/skeleton';

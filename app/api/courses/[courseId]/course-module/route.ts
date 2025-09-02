@@ -1,38 +1,22 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
-// GET /api/courses/[id]/course-module 
-// - list all course module
-// - list course module with specific course id
+// GET /api/courses/[id]/course-module - list course module with specific course id
 export async function GET(req: Request) {
   try {
     
     const body = await req.json();
     const client = await createServerClient();
 
-    if(body.course_id) {
-        const { data, error } = await client
-            .from("course_module")
-            .select("*")
-            .eq("is_deleted", false)
-            .eq("course_id", body.course_id)
-            .order("created_at", { ascending: false });
-
-        if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-
-        return NextResponse.json({ data });
-    }
-
     const { data, error } = await client
-      .from("course_module")
-      .select("*")
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false });
+        .from("course_module")
+        .select("*")
+        .eq("is_deleted", false)
+        .eq("course_id", body.course_id)
+        .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ data });

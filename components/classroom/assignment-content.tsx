@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { ClipboardList, Calendar, Clock, CheckCircle, AlertTriangle, FileText, Upload } from 'lucide-react';
-import { useUser } from '@/hooks/use-user';
+import { useUser } from '@/hooks/profile/use-user';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';

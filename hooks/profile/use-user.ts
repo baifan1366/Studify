@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
+import { apiGet } from '@/lib/api-config';
 
 // Response type for the auth API
 interface AuthResponse {
@@ -14,21 +15,13 @@ interface AuthResponse {
 
 /**
  * Hook for accessing the current authenticated user
- * Uses React Query for caching and state management
+ * ✅ Uses apiGet to remove duplicate fetch logic
+ * ✅ Uses React Query v5 object-style API
  */
 export function useUser() {
   return useQuery<AuthResponse>({
     queryKey: ['user'],
-    queryFn: async () => {
-      const res = await fetch('/api/auth/me');
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to fetch user');
-      }
-      
-      return res.json();
-    },
+    queryFn: () => apiGet<AuthResponse>('/api/auth/me'),
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 1,
   });

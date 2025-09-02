@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useUser } from '@/hooks/use-user';
+import { useUser } from '@/hooks/profile/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -16,9 +16,9 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
 // 导入聊天相关hooks
-import { useChatHistory } from '@/hooks/use-chat-history';
-import { useSendMessage } from '@/hooks/use-send-message';
-import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
+import { useChatHistory } from '@/hooks/community/use-chat-history';
+import { useSendMessage } from '@/hooks/community/use-send-message';
+import { useRealtimeMessages } from '@/hooks/community/use-realtime-messages';
 
 // 消息接口
 interface Message {

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useUser } from '@/hooks/use-user';
+import { useUser } from '@/hooks/profile/use-user';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +19,7 @@ import { MembersTab } from './tabs/members-tab';
 import { DocsTab } from './tabs/docs-tab';
 
 // 导入课程详情hook（稍后实现）
-import { useClassroomDetail } from '@/hooks/use-classroom-detail';
+import { useClassroomDetail } from '@/hooks/classroom/use-classroom-detail';
 
 export function ClassroomDetailPage({ classroomId }: { classroomId: string }) {
   const { data: user } = useUser();

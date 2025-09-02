@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useUser } from '@/hooks/use-user';
-import { useChatHistory } from '@/hooks/use-chat-history';
-import { useSendMessage } from '@/hooks/use-send-message';
-import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
-import { Message } from '@/hooks/use-chat-history';
+import { useUser } from '@/hooks/profile/use-user';
+import { useChatHistory } from '@/hooks/community/use-chat-history';
+import { useSendMessage } from '@/hooks/community/use-send-message';
+import { useRealtimeMessages } from '@/hooks/community/use-realtime-messages';
+import { Message } from '@/hooks/community/use-chat-history';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar } from '@/components/ui/avatar';

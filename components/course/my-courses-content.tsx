@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { BookOpen, Clock, Users, Star } from 'lucide-react';
-import { useMyCourses } from '@/hooks/useCourses';
+import { useMyCourses } from '@/hooks/course/use-courses';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';

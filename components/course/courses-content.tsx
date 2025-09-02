@@ -104,12 +104,8 @@ export default function CoursesContent() {
   };
 
   return (
-<<<<<<<<< Temporary merge branch 1
-    <AnimatedBackground>
-=========
     <AnimatedBackground sidebarWidth={sidebarWidth}>
       {/* Header */}
->>>>>>>>> Temporary merge branch 2
       <ClassroomHeader
         title="Courses"
         userName={user?.email?.split('@')[0] || 'Student'}
@@ -130,11 +126,8 @@ export default function CoursesContent() {
         style={{
           marginLeft: sidebarExpanded ? '280px' : '80px',// Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-<<<<<<<<< Temporary merge branch 1
           width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
-=========
           width: `calc(100vw - ${sidebarWidth}px)`
->>>>>>>>> Temporary merge branch 2
         }}
       >
         <motion.div

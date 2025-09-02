@@ -119,7 +119,6 @@ export const TABLES = {
   // Analytics schema
   USER_ACTIONS: 'analytics.user_action',
   LEARNING_ANALYTICS: 'analytics.learning_analytics',
->>>>>>>>> Temporary merge branch 2
 
   // Tutoring schema
   TUTORS: 'tutoring.tutors',

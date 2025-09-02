@@ -8,6 +8,11 @@ import { supabase } from '@/utils/supabase/client';
 // Export supabase client for direct access
 export { supabase };
 
+// User API endpoints
+export const userApi = {
+  getUser: "/api/user",
+} as const;
+
 // Students API endpoints
 export const studentsApi = {
   list: "/api/students",
@@ -39,8 +44,61 @@ export const classroomApi = {
   submitAssignment: (id: string) => `/api/classroom/assignments/${id}/submit`,
   autograde: (id: string) => `/api/classroom/assignments/${id}/autograde`,
   mistakes: "/api/classroom/assignments/mistakes",
+  // 课程详情相关API
+  detail: (id: string) => `/api/classroom/${id}`,
+  posts: {
+    list: (id: string) => `/api/classroom/${id}/posts`,
+    create: (id: string) => `/api/classroom/${id}/posts`,
+    comment: (id: string, postId: string) => `/api/classroom/${id}/posts/${postId}/comment`,
+  },
+  chat: {
+    send: (id: string) => `/api/classroom/${id}/chat/message`,
+    history: (id: string) => `/api/classroom/${id}/chat/history`,
+  },
+  assignments: {
+    list: (id: string) => `/api/classroom/${id}/assignments`,
+    create: (id: string) => `/api/classroom/${id}/assignments`,
+    submit: (id: string, assignmentId: string) => `/api/classroom/${id}/assignments/${assignmentId}/submit`,
+    grade: (id: string, assignmentId: string) => `/api/classroom/${id}/assignments/${assignmentId}/grade`,
+  },
+  members: {
+    list: (id: string) => `/api/classroom/${id}/members`,
+    invite: (id: string) => `/api/classroom/${id}/members/invite`,
+  },
+  docs: {
+    list: (id: string) => `/api/classroom/${id}/docs`,
+    upload: (id: string) => `/api/classroom/${id}/docs/upload`,
+    delete: (id: string, docId: string) => `/api/classroom/${id}/docs/${docId}`,
+  },
 } as const;
 
+// Learning Path API endpoints
+export const learningPathApi = {
+  generate: "/api/classroom/learning-path/generate",
+  getByUserId: (userId: string) => `/api/classroom/learning-path/${userId}`,
+  updateProgress: (pathId: string) => `/api/classroom/learning-path/${pathId}/progress`,
+  unlock: (pathId: string) => `/api/classroom/learning-path/${pathId}/unlock`,
+  reward: (pathId: string) => `/api/classroom/learning-path/${pathId}/reward`,
+} as const;
+
+
+export const meetingApi = {
+  getMeeting: (id: string) => `/api/meeting/${id}`,
+  getToken: (id: string) => `/api/meeting/${id}/token`,
+  create: "/api/meeting/create",
+  end: (id: string) => `/api/meeting/${id}/end`,
+  chat: (id: string) => `/api/meeting/${id}/chat`,
+  whiteboard: {
+    init: (id: string) => `/api/meeting/${id}/whiteboard/init`,
+    state: (id: string) => `/api/meeting/${id}/whiteboard/state`,
+  },
+  copilot: {
+    summary: (id: string) => `/api/meeting/${id}/copilot/summary`,
+    chapters: (id: string) => `/api/meeting/${id}/copilot/auto-chapters`,
+    conceptExplain: (id: string) => `/api/meeting/${id}/copilot/concept-explain`,
+    transcribe: (id: string) => `/api/meeting/${id}/copilot/transcribe`,
+  },
+} as const;
 // Documents API endpoints
 export const documentsApi = {
   list: "/api/documents",

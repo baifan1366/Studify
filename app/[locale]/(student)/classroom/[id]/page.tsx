@@ -1,10 +1,10 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { LearningPathPage } from '@/components/classroom/learning-path/learning-path-page';
+import { ClassroomDetailPage } from '@/components/classroom/classroom-detail-page';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('ClassroomLearningPathPage');
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const t = await getTranslations('ClassroomDetailPage');
 
   return {
     title: t('metadata_title'),
@@ -18,6 +18,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function Page() {
-  return <LearningPathPage />;
+export default function Page({ params }: { params: { id: string } }) {
+  return <ClassroomDetailPage classroomId={params.id} />;
 }

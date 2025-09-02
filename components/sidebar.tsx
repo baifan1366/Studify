@@ -67,7 +67,7 @@ const defaultMenuSections: MenuSection[] = [
           { id: 'enrolled', label: 'Enrolled', icon: UserCheck, path: '/classroom/enrolled' },
           { id: 'assignment', label: 'Assignment', icon: ClipboardList, path: '/classroom/assignment' },
           { id: 'meeting', label: 'Meeting', icon: Video, path: '/classroom/meeting' },
-          { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/classroom/learning-path' },
+          { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/learning-path' },
         ]
       },
       { id: 'community', label: 'Community', icon: Users, path: '/community' },

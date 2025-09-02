@@ -1,7 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
-import MeetingContent from '@/components/classroom/meeting-content';
 import { getTranslations } from 'next-intl/server';
+import MeetingPageContent from '@/components/classroom/meeting/meeting-page-content';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('ClassroomMeetingPage');
@@ -18,6 +18,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function MeetingPage() {
-  return <MeetingContent />;
+export default function MeetingPage({ params }: { params: { id: string } }) {
+  return <MeetingPageContent meetingId={params.id} />
 }

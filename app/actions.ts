@@ -17,11 +17,14 @@ export const signInAction = async (formData: FormData) => {
   });
 
   if (error) {
+    console.log("[signInAction] sign-in failed:", { email, error });
     return encodedRedirect("error", `/${locale}/sign-in`, error.message);
   }
-
-  const cookieStore = await cookies();
-  const locale = cookieStore.get("next-intl-locale")?.value || "en";
+  console.log("[signInAction] sign-in success:", {
+    email,
+    userId: data.user?.id,
+    hasSession: Boolean(data.session),
+  });
   return redirect(`/${locale}/home`);
 };
 
@@ -36,8 +39,6 @@ async function signUp(role: "student" | "tutor", formData: FormData) {
 
   const client = await supabase();
 
-  const cookieStore = await cookies();
-  const locale = cookieStore.get("next-intl-locale")?.value || "en";
   const url = process.env.VERCEL_URL
     ? `${process.env.VERCEL_URL}/${locale}/home`
     : `http://localhost:3000/${locale}/home`;

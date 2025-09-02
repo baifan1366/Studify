@@ -1,21 +1,23 @@
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthInput } from "@/components/auth/auth-input";
-import { signUpTutor } from "@/app/actions";
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const t = await getTranslations('AuthTutorSignUpPage');
   return {
     title: t('metadata_title'),
   };
 }
 
-export default async function SignUpTutorPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SignUpTutorPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const t = await getTranslations('AuthTutorSignUpPage');
 
   return (
     <AuthForm
-      action={signUpTutor}
+      mode="sign-up"
+      role="tutor"
       title={t('tutor_sign_up_title')}
       subtitle={t('tutor_sign_up_subtitle')}
       buttonText={t('create_account_button')}

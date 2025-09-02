@@ -1,6 +1,5 @@
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthInput } from "@/components/auth/auth-input";
-import { signInAction } from "@/app/actions";
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata() {
@@ -10,12 +9,12 @@ export async function generateMetadata() {
   };
 }
 
-export default async function SignInPage({ params }: { params: { locale: string } }) {
+export default async function SignInPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const t = await getTranslations('AuthSignInPage');
-  const locale = await params.locale;
   return (
     <AuthForm
-      action={signInAction}
+      mode="sign-in"
       title={t('welcome_back')}
       subtitle={t('sign_in_subtitle')}
       buttonText={t('sign_in_button')}

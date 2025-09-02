@@ -77,6 +77,13 @@
     "confirm_password_label": "Confirm Password",
     "confirm_password_placeholder": "Confirm your password"
   },
+  "VerifyEmailPage": {
+    "metadata_title": "Verify Email",
+    "title": "Check your email",
+    "description": "We sent a confirmation link to your email. Please confirm your email to continue.",
+    "already_confirmed": "Already confirmed?",
+    "sign_in_link": "Sign in"
+  },
   "OnboardingStudentStep1Page": {
     "welcome_title": "Welcome to Studify!",
     "welcome_description": "Let's get your profile set up. What's your full name?",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/utils/supabase/server';
-import { getAuthUser } from '@/lib/auth';
+import { createServerClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 
 // 获取用户学习路径
 export async function GET(req: NextRequest, { params }: { params: { userId: string } }) {
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
     }
 
     // 初始化Supabase客户端
-    const supabase = createSupabaseServerClient();
+    const supabase = await createServerClient();
 
     // 获取用户最新的活跃学习路径
     const { data: pathData, error: pathError } = await supabase

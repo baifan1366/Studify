@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 
 export async function GET(req: Request) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = await createServerClient();
 
   // 获取当前用户
   const { data: { user }, error: userError } = await supabase.auth.getUser();

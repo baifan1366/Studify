@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/utils/supabase/server';
+import { createServerClient } from '@/utils/supabase/server';
 
 export async function GET() {
-  const supabaseClient = await supabase();
+  const supabaseClient = await createServerClient();
   const { data: posts, error } = await supabaseClient
     .from('community_post')
     .select(`
@@ -34,7 +34,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabaseClient = await supabase();
+  const supabaseClient = await createServerClient();
 
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) {

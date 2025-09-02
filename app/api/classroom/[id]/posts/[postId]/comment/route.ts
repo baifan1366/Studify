@@ -13,8 +13,7 @@ export async function POST(
 ) {
   try {
     // 创建服务端Supabase客户端
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
+const supabase = await createServerClient();
 
     // 获取当前用户
     const { data: { user }, error: userError } = await supabase.auth.getUser();

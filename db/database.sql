@@ -755,5 +755,75 @@ create table if not exists classroom.mistake_book (
   is_deleted boolean default false
 );
 
-create index if not exists idx_mistake_user on classroom.mistake_book(user_id);
-create index if not exists idx_mistake_assignment on classroom.mistake_book(assignment_id);
+-- 学习路径相关表结构
+
+-- 学习路径表
+create table if not exists classroom.learning_path (
+  id uuid primary key default uuid_generate_v1(),
+  user_id uuid not null references core.profiles(user_id) on delete cascade,
+  goal text not null,
+  duration integer not null, -- 以天为单位
+  progress numeric(5,2) default 0, -- 总体进度百分比
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  is_active boolean default true
+);
+
+-- 学习路径里程碑表
+create table if not exists classroom.milestone (
+  id uuid primary key default uuid_generate_v1(),
+  path_id uuid not null references classroom.learning_path(id) on delete cascade,
+  title text not null,
+  description text,
+  order_index integer not null, -- 里程碑顺序
+  status text not null check (status in ('locked','in-progress','completed')) default 'locked',
+  resource_type text, -- 资源类型：course, lesson, assignment, quiz, etc.
+  resource_id uuid, -- 关联的资源ID
+  prerequisites jsonb, -- 前置条件，如[{"milestone_id": "uuid", "required": true}]
+  reward jsonb, -- 奖励信息，如{"badge_id": "uuid", "points": 100, "message": "恭喜解锁中级任务"}
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- 课程聊天消息表
+CREATE TABLE IF NOT EXISTS messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 帖子表
+CREATE TABLE IF NOT EXISTS posts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  attachments JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 帖子评论表
+CREATE TABLE IF NOT EXISTS post_comments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 创建Supabase Realtime发布
+BEGIN;
+  -- 启用消息表的实时发布
+  ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+  
+  -- 启用帖子表的实时发布
+  ALTER PUBLICATION supabase_realtime ADD TABLE posts;
+  
+  -- 启用帖子评论表的实时发布
+  ALTER PUBLICATION supabase_realtime ADD TABLE post_comments;
+COMMIT;

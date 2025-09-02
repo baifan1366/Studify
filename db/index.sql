@@ -265,3 +265,26 @@ create index if not exists idx_tutoring_share_shared_with on tutoring_share (sha
 
 -- Helpful ILIKE support for names
 create index if not exists trgm_profiles_display_name on profiles using gin (display_name gin_trgm_ops);
+
+
+
+-- 为帖子评论表添加索引
+CREATE INDEX IF NOT EXISTS post_comments_post_id_idx ON post_comments(post_id);
+CREATE INDEX IF NOT EXISTS post_comments_user_id_idx ON post_comments(user_id);
+CREATE INDEX IF NOT EXISTS post_comments_created_at_idx ON post_comments(created_at);
+-- 为帖子表添加索引
+CREATE INDEX IF NOT EXISTS posts_classroom_id_idx ON posts(classroom_id);
+CREATE INDEX IF NOT EXISTS posts_user_id_idx ON posts(user_id);
+CREATE INDEX IF NOT EXISTS posts_created_at_idx ON posts(created_at);
+-- 为消息表添加索引
+CREATE INDEX IF NOT EXISTS messages_classroom_id_idx ON messages(classroom_id);
+CREATE INDEX IF NOT EXISTS messages_user_id_idx ON messages(user_id);
+CREATE INDEX IF NOT EXISTS messages_created_at_idx ON messages(created_at);
+
+create index if not exists idx_milestone_path on classroom.milestone(path_id);
+create index if not exists idx_milestone_order on classroom.milestone(path_id, order_index);
+
+create index if not exists idx_learning_path_user on classroom.learning_path(user_id);
+
+create index if not exists idx_mistake_user on classroom.mistake_book(user_id);
+create index if not exists idx_mistake_assignment on classroom.mistake_book(assignment_id);

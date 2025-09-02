@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
 
 /**
  * 获取作业列表
@@ -10,8 +9,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const state = searchParams.get('state') || 'upcoming';
   
-  const cookieStore = cookies();
-  const supabase = createServerClient(cookieStore);
+const supabase = await createServerClient();
   
   // 验证用户是否已登录
   const { data: { session } } = await supabase.auth.getSession();

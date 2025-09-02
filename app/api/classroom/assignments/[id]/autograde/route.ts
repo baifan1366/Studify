@@ -23,8 +23,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Submission ID is required' }, { status: 400 });
     }
     
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
+const supabase = await createServerClient();
     
     // 获取提交内容
     const { data: submission, error: submissionError } = await supabase

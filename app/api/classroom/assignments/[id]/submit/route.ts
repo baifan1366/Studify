@@ -10,8 +10,7 @@ import { cookies } from 'next/headers';
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const assignmentId = params.id;
   
-  const cookieStore = cookies();
-  const supabase = createServerClient(cookieStore);
+const supabase = await createServerClient();
   
   // 验证用户是否已登录
   const { data: { session } } = await supabase.auth.getSession();

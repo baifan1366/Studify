@@ -405,3 +405,97 @@ create policy classroom_quiz_manage_owner on public.classroom_quiz for all
 -- Final catch-all: Disable public access by default if no policy matches
 -- This is implicitly handled by enabling RLS, but can be made explicit if needed.
 -- e.g., CREATE POLICY deny_all ON some_table FOR ALL USING (false);
+
+-- 为实时功能添加RLS策略
+
+-- 消息表RLS
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- 只有课程成员可以查看消息
+CREATE POLICY "课程成员可以查看消息" ON messages
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM classroom_members
+      WHERE classroom_members.classroom_id = messages.classroom_id
+      AND classroom_members.user_id = auth.uid()
+    )
+  );
+
+-- 只有课程成员可以发送消息
+CREATE POLICY "课程成员可以发送消息" ON messages
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM classroom_members
+      WHERE classroom_members.classroom_id = messages.classroom_id
+      AND classroom_members.user_id = auth.uid()
+    )
+  );
+
+-- 只有消息作者可以更新自己的消息
+CREATE POLICY "消息作者可以更新自己的消息" ON messages
+  FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- 帖子表RLS
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+
+-- 只有课程成员可以查看帖子
+CREATE POLICY "课程成员可以查看帖子" ON posts
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM classroom_members
+      WHERE classroom_members.classroom_id = posts.classroom_id
+      AND classroom_members.user_id = auth.uid()
+    )
+  );
+
+-- 只有课程成员可以发布帖子
+CREATE POLICY "课程成员可以发布帖子" ON posts
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM classroom_members
+      WHERE classroom_members.classroom_id = posts.classroom_id
+      AND classroom_members.user_id = auth.uid()
+    )
+  );
+
+-- 只有帖子作者可以更新自己的帖子
+CREATE POLICY "帖子作者可以更新自己的帖子" ON posts
+  FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- 帖子评论表RLS
+ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
+
+-- 只有课程成员可以查看评论
+CREATE POLICY "课程成员可以查看评论" ON post_comments
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM posts
+      JOIN classroom_members ON classroom_members.classroom_id = posts.classroom_id
+      WHERE posts.id = post_comments.post_id
+      AND classroom_members.user_id = auth.uid()
+    )
+  );
+
+-- 只有课程成员可以发表评论
+CREATE POLICY "课程成员可以发表评论" ON post_comments
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM posts
+      JOIN classroom_members ON classroom_members.classroom_id = posts.classroom_id
+      WHERE posts.id = post_comments.post_id
+      AND classroom_members.user_id = auth.uid()
+    )
+  );
+
+-- 只有评论作者可以更新自己的评论
+CREATE POLICY "评论作者可以更新自己的评论" ON post_comments
+  FOR UPDATE
+  USING (user_id = auth.uid());

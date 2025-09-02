@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/utils/supabase/server';
-import { getAuthUser } from '@/lib/auth';
+import { createServerClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 
 // 结束会议API路由
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await getAuthUser();
+    const user = await authorize();
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { id } = params;
 
     // 初始化Supabase客户端
-    const supabase = createSupabaseServerClient();
+    const supabase = await createServerClient();
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase as createServerClient } from '@/utils/supabase/server'
+import { createServerClient } from '@/utils/supabase/server'
 import redis from '@/utils/redis/redis'
 import { signAppJwt, generateJti } from '@/utils/auth/jwt'
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/utils/supabase/server';
-import { getAuthUser } from '@/lib/auth';
+import { createServerClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 import { OpenAI } from 'openai';
 import { v1 as uuidv1 } from 'uuid';
 
@@ -46,7 +46,7 @@ async function generateLearningPathWithAI(goal: string, duration: number) {
 export async function POST(req: NextRequest) {
   try {
     // 验证用户身份
-    const user = await getAuthUser();
+    const user = await authorize();
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 初始化Supabase客户端
-    const supabase = createSupabaseServerClient();
+    const supabase = await createServerClient();
 
     // 调用AI生成学习路径
     const aiResponse = await generateLearningPathWithAI(goal, duration);

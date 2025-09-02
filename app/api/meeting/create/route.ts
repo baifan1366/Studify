@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/utils/supabase/server';
-import { getAuthUser } from '@/lib/auth';
+import { createServerClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 import { AccessToken } from 'livekit-server-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(req: NextRequest) {
   try {
     // 验证用户身份
-    const user = await getAuthUser();
+    const user = await authorize();
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 初始化Supabase客户端
-    const supabase = createSupabaseServerClient();
+    const supabase = await createServerClient();
 
     // 生成唯一的会议ID
     const meetingId = uuidv4();

@@ -29,6 +29,3 @@ export async function createServerClient(accessToken?: string) {
     }
   );
 }
-
-// Also export as createSupabaseClient for backward compatibility
-export const supabase = createServerClient;

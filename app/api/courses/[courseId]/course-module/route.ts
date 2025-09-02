@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 
 // GET /api/courses/[id]/course-module 
 // - list all course module
@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   try {
     
     const body = await req.json();
-    const client = await supabase();
+    const client = await createServerClient();
 
     if(body.course_id) {
         const { data, error } = await client
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const client = await supabase();
+    const client = await createServerClient();
 
     if (!body.course_id) {
       return NextResponse.json({ error: "course_id is required" }, { status: 422 });

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 
 // GET /api/courses - list public courses
 export async function GET() {
   try {
-    const client = await supabase();
+    const client = await createServerClient();
     const { data, error } = await client
       .from("course")
       .select("*")
@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const client = await supabase();
+    const client = await createServerClient();
 
     // Require owner_id explicitly until auth->profiles mapping is clarified
     if (!body.owner_id) {

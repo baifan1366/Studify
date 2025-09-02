@@ -20,7 +20,7 @@ export function useUser() {
   return useQuery<AuthResponse>({
     queryKey: ['user'],
     queryFn: async () => {
-      const res = await fetch('/api/auth');
+      const res = await fetch('/api/auth/me');
       
       if (!res.ok) {
         const errorData = await res.json();

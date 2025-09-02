@@ -1,5 +1,5 @@
 import LayoutWrapper from "@/components/tutor/layout/layout-wrapper";
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 
 function generateTitle(pathname: string | null): string {
@@ -24,8 +24,8 @@ export default async function TutorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const sb = await supabase();
-  const { data: { user } } = await sb.auth.getUser();
+  const client = await createServerClient();
+  const { data: { user } } = await client.auth.getUser();
   const header = await headers();
   const pathname = header.get("next-url");
   const title = generateTitle(pathname);

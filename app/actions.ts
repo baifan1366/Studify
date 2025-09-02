@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { encodedRedirect } from "@/utils/redirect";
 import { cookies } from "next/headers";
@@ -10,7 +10,7 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const locale = formData.get("locale") as string;
 
-  const client = await supabase();
+  const client = await createServerClient();
   const { data, error } = await client.auth.signInWithPassword({
     email,
     password,
@@ -37,7 +37,7 @@ async function signUp(role: "student" | "tutor", formData: FormData) {
   const fullName = formData.get("fullName") as string;
   const locale = formData.get("locale") as string;
 
-  const client = await supabase();
+  const client = await createServerClient();
 
   const url = process.env.VERCEL_URL
     ? `${process.env.VERCEL_URL}/${locale}/home`
@@ -61,7 +61,7 @@ async function signUp(role: "student" | "tutor", formData: FormData) {
 }
 
 export const signOutAction = async () => {
-  const client = await supabase();
+  const client = await createServerClient();
   await client.auth.signOut();
 
   const cookieStore = await cookies();

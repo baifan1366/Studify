@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 
 export default async function UnauthenticatedLayout({
   children,
@@ -7,7 +7,7 @@ export default async function UnauthenticatedLayout({
   children: React.ReactNode;
 }) {
   // Check if we have a session
-  const client = await supabase()
+  const client = await createServerClient()
   const {
     data: { session },
   } = await client.auth.getSession();

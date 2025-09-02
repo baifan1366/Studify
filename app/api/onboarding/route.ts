@@ -1,4 +1,4 @@
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
  * @returns {NextResponse} A response object with success or error message.
  */
 export async function POST(req: NextRequest) {
-  const client = await supabase();
+  const client = await createServerClient();
   const {
     data: { user },
   } = await client.auth.getUser();
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const newOnboardingData = { ...onboardingData, ...formData };
 
   const { error } = await (
-    await supabase()
+    await createServerClient()
   ).auth.updateUser({
     data: { onboarding: newOnboardingData },
   });

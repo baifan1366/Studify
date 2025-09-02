@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 
 // GET /api/users/profile - fetch user profile
 export async function GET(_: Request) {
   try {
-    const client = await supabase();
+    const client = await createServerClient();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {
@@ -33,7 +33,7 @@ export async function GET(_: Request) {
 // PUT /api/users/profile - update user profile
 export async function PUT(req: Request) {
   try {
-    const client = await supabase();
+    const client = await createServerClient();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {

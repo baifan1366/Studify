@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/utils/supabase/server";
+import { createServerClient } from "@/utils/supabase/server";
 
 // GET /api/courses/[id] - fetch single course by public_id
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
-    const client = await supabase();
+    const client = await createServerClient();
     const { data, error } = await client
       .from("course")
       .select("*")
@@ -23,7 +23,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const client = await supabase();
+    const client = await createServerClient();
 
     // Optional: authorize ownership
     // const { data: auth } = await client.auth.getUser();
@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 // DELETE /api/courses/[id] - soft delete
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
   try {
-    const client = await supabase();
+    const client = await createServerClient();
     const { error } = await client
       .from("course")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })

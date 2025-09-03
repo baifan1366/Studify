@@ -15,7 +15,6 @@ export default function MeetingParticipants({ meetingId }: MeetingParticipantsPr
   const participants = useParticipants();
   const [sessionParticipants, setSessionParticipants] = useState<any[]>([]);
 
-  // 从API获取会议参与者信息
   useEffect(() => {
     const fetchParticipants = async () => {
       try {
@@ -33,18 +32,15 @@ export default function MeetingParticipants({ meetingId }: MeetingParticipantsPr
     };
 
     fetchParticipants();
-    // 每60秒刷新一次参与者列表
     const interval = setInterval(fetchParticipants, 60000);
     return () => clearInterval(interval);
   }, [meetingId]);
 
-  // 获取参与者的角色信息
   const getParticipantRole = (identity: string) => {
     const participant = sessionParticipants.find(p => p.user_id === identity);
     return participant?.role || 'student';
   };
 
-  // 检查参与者的音视频状态
   const isAudioEnabled = (participant: Participant) => {
     return participant.audioTracks.size > 0 && 
            !participant.isMicrophoneMuted;

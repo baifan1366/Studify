@@ -547,6 +547,22 @@
       }
     }
   },
+  "ClassroomDetailPage": {
+    "metadata_title": "Classroom Details",
+    "metadata_description": "Explore the classroom details, posts, and resources.",
+    "metadata_keywords": "classroom,education,learning,resources,posts",
+    "og_title": "Classroom Details - Studify",
+    "og_description": "Discover classroom posts, resources, and more on Studify.",
+    "loading": "Loading...",
+    "default_user_name": "Student",
+    "tabs": {
+      "posts": "Posts",
+      "chat": "Chat",
+      "assignments": "Assignments",
+      "members": "Members",
+      "docs": "Docs"
+    }
+  },
   "JoinCourseDialog": {
     "title": "Join a Course",
     "description": "Enter a course ID or invitation code to join a course",

@@ -10,8 +10,46 @@ type Role = 'student' | 'tutor' | 'admin';
 /**
  * Authorizes a request for a specific role in an App Router API Route.
  * @param role The required role ('student', 'tutor', or 'admin').
- * @returns A promise that resolves to the user payload if authorized, 
- *          or a NextResponse object if unauthorized.
+ * @returns A promise that resolves to one of two possible return types:
+ * 
+ * **Success Case (Authorization Passed):**
+ * Returns `AppJwtPayload` object containing:
+ * ```typescript
+ * {
+ *   sub: string;        // User ID from JWT
+ *   role: 'student' | 'tutor' | 'admin';  // User role
+ *   jti: string;        // JWT ID for session tracking
+ *   name?: string;      // Optional user name
+ *   iat?: number;       // Issued at timestamp
+ *   exp?: number;       // Expiration timestamp
+ * }
+ * ```
+ * 
+ * **Error Cases (Authorization Failed):**
+ * Returns `NextResponse` with JSON error and appropriate HTTP status:
+ * 
+ * - **401 Unauthorized** - Token missing, invalid, or expired:
+ *   ```json
+ *   { "message": "Authentication token not found." }
+ *   { "message": "Invalid token." }
+ *   { "message": "Session not found or expired." }
+ *   { "message": "Invalid or expired token." }
+ *   ```
+ * 
+ * - **403 Forbidden** - Valid token but insufficient permissions:
+ *   ```json
+ *   { "message": "Forbidden: Insufficient permissions." }
+ *   ```
+ * 
+ * **Usage Example:**
+ * ```typescript
+ * const authResult = await authorize('student');
+ * if (authResult instanceof NextResponse) {
+ *   return authResult; // Return error response
+ * }
+ * // Use authResult.sub as user ID
+ * const userId = authResult.sub;
+ * ```
  */
 export async function authorize(role: Role): Promise<AppJwtPayload | NextResponse> {
   try {

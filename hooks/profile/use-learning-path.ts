@@ -93,7 +93,9 @@ export const useLearningPath = (userId: string) => {
     queryKey: ["learningPath", userId],
     queryFn: () => fetchLearningPath(userId),
     select: (data) => ({
-      path: data.path,
+      id: data.path.id,
+      goal: data.path.goal,
+      progress: data.path.progress,
       milestones: data.milestones,
     }),
   });

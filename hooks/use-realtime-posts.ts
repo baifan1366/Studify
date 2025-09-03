@@ -2,20 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase-realtime';
-import { Post } from './classroom/use-classroom-posts';
-import { apiGet, apiSend } from "@/lib/api-config";
+import type { ExtendedPost } from '@/components/classroom/tabs/posts-tab';
 
 /**
  * 使用Supabase Realtime获取实时帖子的hook
  * @param classroomId 课程ID
  * @param initialPosts 初始帖子列表
  */
-export function useRealtimePosts(classroomId: string, initialPosts: Post[]) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+export function useRealtimePosts(classroomId: string, initialPosts: ExtendedPost[]) {
+  const [posts, setPosts] = useState<ExtendedPost[]>(initialPosts);
   
   useEffect(() => {
-    setPosts(initialPosts);
-  }, [initialPosts]);
+    // Add a condition to prevent unnecessary updates
+    if (JSON.stringify(posts) !== JSON.stringify(initialPosts)) {
+      setPosts(initialPosts);
+    }
+  }, [initialPosts, posts]);
   
   useEffect(() => {
     if (!classroomId) return;
@@ -50,7 +52,7 @@ export function useRealtimePosts(classroomId: string, initialPosts: Post[]) {
             .single();
           
           if (postData) {
-            const newPost: Post = {
+            const newPost: ExtendedPost = {
               id: postData.id,
               content: postData.content,
               attachments: postData.attachments || [],

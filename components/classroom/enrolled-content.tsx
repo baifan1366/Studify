@@ -156,213 +156,215 @@ export default function EnrolledContent() {
                 {t('tabs.recommended')}
               </TabsTrigger>
             </TabsList>
-          </Tabs>
 
-          {/* Search and Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" size={20} />
-              <Input
-                type="text"
-                placeholder={t('search_placeholder')}
-                className="w-full bg-white/10 backdrop-blur-sm border-white/20 rounded-lg py-2 pl-10 pr-4 text-white placeholder:text-white/50 focus:ring-2 focus:ring-blue-500"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            {/* Search and Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" size={20} />
+                <Input
+                  type="text"
+                  placeholder={t('search_placeholder')}
+                  className="w-full bg-white/10 backdrop-blur-sm border-white/20 rounded-lg py-2 pl-10 pr-4 text-white placeholder:text-white/50 focus:ring-2 focus:ring-blue-500"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              {/* Course Statistics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {/* Stats Cards */}
+              </div>
             </div>
-            {/* Course Statistics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {/* Stats Cards */}
-            </div>
-          </div>
 
-          {/* Join Course Dialog */}
-          <JoinCourseDialog 
-            isOpen={isJoinDialogOpen} 
-            onClose={() => setIsJoinDialogOpen(false)} 
-          />
-          
-          <TabsContent value="enrolled" className="mt-0">
-            {!hasEnrolledCourses && !isLoading ? (
-              <div className="text-center py-16 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
-                <BookOpen size={48} className="mx-auto text-white/40 mb-4" />
-                <h3 className="text-xl font-medium text-white mb-2">{t('empty.title')}</h3>
-                <p className="text-white/60 mb-6 max-w-md mx-auto">{t('empty.desc')}</p>
-                <Button 
-                  onClick={() => setActiveTab("recommended")}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {t('empty.browse_recommended')}
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {isLoading ? (
-              [...Array(4)].map((_, index) => (
-                <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Skeleton className="w-12 h-12 rounded-lg" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-20 w-full mb-4" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-8 flex-1" />
-                    <Skeleton className="h-8 w-20" />
-                  </div>
-                </div>
-              ))
-                ) : (
-                  filteredCourses?.map((course, index) => (
-                <motion.div
-                  key={course.id}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.6 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${course.color} rounded-lg flex items-center justify-center`}>
-                      <BookOpen size={24} className="text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-white font-semibold text-lg dark:text-white">{course.title}</h3>
-                      <p className="text-white/60 text-sm dark:text-white/60">{course.instructor}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(course.status)}
-                      <span className="text-xs text-white/70">{getStatusText(course.status)}</span>
-                    </div>
-                  </div>
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-white/70 dark:text-white/70">{t('labels.progress')}</span>
-                      <span className="text-white dark:text-white">{course.progress}%</span>
-                    </div>
-                    <div className="w-full bg-white/20 rounded-full h-2 mb-2">
-                      <motion.div
-                        className={`bg-gradient-to-r ${course.color} h-2 rounded-full`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${course.progress}%` }}
-                        transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-white/60">
-                      <span>{t('labels.lessons_count', { completed: course.completedLessons, total: course.totalLessons })}</span>
-                      <span>{t('labels.last_accessed', { date: course.lastAccessed })}</span>
-                    </div>
-                  </div>
-                  <div className="mb-4 p-3 bg-white/5 rounded-lg">
-                    <div className="text-sm text-white/70 mb-1">{t('labels.next_lesson')}</div>
-                    <div className="text-white font-medium">{course.nextLesson}</div>
-                    <div className="text-xs text-white/60 mt-1">{t('labels.due', { date: course.dueDate })}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleContinueCourse(course.id)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Play size={16} />
-                      {t('buttons.continue_learning')}
-                    </button>
-                    <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                      {t('buttons.view_details')}
-                    </button>
-                  </div>
-                </motion.div>
-              ))
-                )}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="recommended" className="mt-0">
-            {isLoadingRecommended ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {[...Array(4)].map((_, index) => (
-                  <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Skeleton className="w-12 h-12 rounded-lg" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-20 w-full mb-4" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-8 flex-1" />
-                      <Skeleton className="h-8 w-20" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {recommendedCourses?.map((course, index) => (
-                  <motion.div
-                    key={course.id}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.6 }}
-                    whileHover={{ scale: 1.02, y: -5 }}
+            {/* Join Course Dialog */}
+            <JoinCourseDialog 
+              isOpen={isJoinDialogOpen} 
+              onClose={() => setIsJoinDialogOpen(false)} 
+            />
+
+            <TabsContent value="enrolled" className="mt-0">
+              {!hasEnrolledCourses && !isLoading ? (
+                <div className="text-center py-16 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                  <BookOpen size={48} className="mx-auto text-white/40 mb-4" />
+                  <h3 className="text-xl font-medium text-white mb-2">{t('empty.title')}</h3>
+                  <p className="text-white/60 mb-6 max-w-md mx-auto">{t('empty.desc')}</p>
+                  <Button 
+                    onClick={() => setActiveTab("recommended")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`w-12 h-12 bg-gradient-to-r ${course.color} rounded-lg flex items-center justify-center`}>
-                        <BookOpen size={24} className="text-white" />
+                    {t('empty.browse_recommended')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {isLoading ? (
+                    [...Array(4)].map((_, index) => (
+                      <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Skeleton className="w-12 h-12 rounded-lg" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                        <Skeleton className="h-20 w-full mb-4" />
+                        <div className="flex gap-2">
+                          <Skeleton className="h-8 flex-1" />
+                          <Skeleton className="h-8 w-20" />
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-white font-semibold text-lg dark:text-white">{course.title}</h3>
-                        <p className="text-white/60 text-sm dark:text-white/60">{course.instructor}</p>
+                    ))
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {filteredCourses?.map((course, index) => (
+                        <motion.div
+                          key={course.id}
+                          className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1, duration: 0.6 }}
+                          whileHover={{ scale: 1.02, y: -5 }}
+                        >
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className={`w-12 h-12 bg-gradient-to-r ${course.color} rounded-lg flex items-center justify-center`}>
+                              <BookOpen size={24} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-white font-semibold text-lg dark:text-white">{course.title}</h3>
+                              <p className="text-white/60 text-sm dark:text-white/60">{course.instructor}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(course.status)}
+                              <span className="text-xs text-white/70">{getStatusText(course.status)}</span>
+                            </div>
+                          </div>
+                          <div className="mb-4">
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="text-white/70 dark:text-white/70">{t('labels.progress')}</span>
+                              <span className="text-white dark:text-white">{course.progress}%</span>
+                            </div>
+                            <div className="w-full bg-white/20 rounded-full h-2 mb-2">
+                              <motion.div
+                                className={`bg-gradient-to-r ${course.color} h-2 rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${course.progress}%` }}
+                                transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
+                              />
+                            </div>
+                            <div className="flex justify-between text-xs text-white/60">
+                              <span>{t('labels.lessons_count', { completed: course.completedLessons, total: course.totalLessons })}</span>
+                              <span>{t('labels.last_accessed', { date: course.lastAccessed })}</span>
+                            </div>
+                          </div>
+                          <div className="mb-4 p-3 bg-white/5 rounded-lg">
+                            <div className="text-sm text-white/70 mb-1">{t('labels.next_lesson')}</div>
+                            <div className="text-white font-medium">{course.nextLesson}</div>
+                            <div className="text-xs text-white/60 mt-1">{t('labels.due', { date: course.dueDate })}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleContinueCourse(course.id)}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Play size={16} />
+                              {t('buttons.continue_learning')}
+                            </button>
+                            <button className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+                              {t('buttons.view_details')}
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="recommended" className="mt-0">
+              {isLoadingRecommended ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {[...Array(4)].map((_, index) => (
+                    <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Skeleton className="w-12 h-12 rounded-lg" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full text-white/70">
-                          {course.tags[0]}
-                        </span>
+                      <Skeleton className="h-20 w-full mb-4" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-8 flex-1" />
+                        <Skeleton className="h-8 w-20" />
                       </div>
                     </div>
-                    <div className="mb-4 text-white/80">
-                      <p className="line-clamp-2 text-sm">{course.description}</p>
-                    </div>
-                    <div className="mb-4 flex justify-between text-sm text-white/70">
-                      <div className="flex items-center gap-1">
-                        <BookOpen size={14} />
-                        <span>{course.totalLessons} lessons</span>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {recommendedCourses?.map((course, index) => (
+                    <motion.div
+                      key={course.id}
+                      className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1, duration: 0.6 }}
+                      whileHover={{ scale: 1.02, y: -5 }}
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={`w-12 h-12 bg-gradient-to-r ${course.color} rounded-lg flex items-center justify-center`}>
+                          <BookOpen size={24} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-white font-semibold text-lg dark:text-white">{course.title}</h3>
+                          <p className="text-white/60 text-sm dark:text-white/60">{course.instructor}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-white/20 px-2 py-1 rounded-full text-white/70">
+                            {course.tags[0]}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span>{course.studentCount} students</span>
+                      <div className="mb-4 text-white/80">
+                        <p className="line-clamp-2 text-sm">{course.description}</p>
                       </div>
-                      <div>
-                        <span>★ {course.rating.toFixed(1)}</span>
+                      <div className="mb-4 flex justify-between text-sm text-white/70">
+                        <div className="flex items-center gap-1">
+                          <BookOpen size={14} />
+                          <span>{course.totalLessons} lessons</span>
+                        </div>
+                        <div>
+                          <span>{course.studentCount} students</span>
+                        </div>
+                        <div>
+                          <span>★ {course.rating.toFixed(1)}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="mb-4 p-3 bg-white/5 rounded-lg">
-                      <div className="text-sm text-white/70 mb-1">{t('recommended.because')}</div>
-                      <div className="text-white text-sm">{course.recommendReason}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setIsJoinDialogOpen(true)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Plus size={16} />
-                        {t('actions.join_course')}
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {t('buttons.view_details')}
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+                      <div className="mb-4 p-3 bg-white/5 rounded-lg">
+                        <div className="text-sm text-white/70 mb-1">{t('recommended.because')}</div>
+                        <div className="text-white text-sm">{course.recommendReason}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setIsJoinDialogOpen(true)}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Plus size={16} />
+                          {t('actions.join_course')}
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          className="bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          {t('buttons.view_details')}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </motion.div>
       </motion.div>
     </AnimatedBackground>

@@ -2,10 +2,6 @@ import React from 'react';
 import { Metadata } from 'next';
 import EnrolledContent from '@/components/classroom/enrolled-content';
 
-export const metadata: Metadata = {
-  title: 'Enrolled Courses',
-  description: 'Browse and manage your enrolled courses.',
-};
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {

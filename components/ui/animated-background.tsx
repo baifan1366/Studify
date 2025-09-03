@@ -25,6 +25,20 @@ export default function AnimatedBackground({
   useGlobalCSSVariable = false // Default to shared state approach
 }: AnimatedBackgroundProps) {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Check for dark mode preference
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    
+    // Set initial value
+    setIsDarkMode(darkModeMediaQuery.matches);
+    
+    // Listen for changes
+    darkModeMediaQuery.addEventListener('change', handleChange);
+    return () => darkModeMediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   // Mouse tracking for animated background
   useEffect(() => {
@@ -39,7 +53,7 @@ export default function AnimatedBackground({
   }, [enableMouseTracking]);
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden bg-gray-900 ${className}`}>
+    <div className={`relative w-full h-screen overflow-hidden ${isDarkMode ? 'bg-[#0D1F1A]' : 'bg-[#FDF5E6]'} ${className}`}>
       {/* Animated Orange Gradient Sphere - GPU optimized */}
       {enableMouseTracking && (
         <motion.div
@@ -124,14 +138,26 @@ export default function AnimatedBackground({
 export const BackgroundPresets = {
   // Orange gradient (default)
   orange: {
-    sphereColor: "radial-gradient(circle, rgba(255,165,0,0.7) 0%, rgba(255,69,0,0.5) 50%, rgba(255,140,0,0.3) 180%)",
-    glassOpacity: 0.5
+    light: {
+      sphereColor: "radial-gradient(circle, rgba(255,165,0,0.4) 0%, rgba(255,140,0,0.3) 50%, rgba(255,100,0,0.2) 180%)",
+      glassOpacity: 0.03
+    },
+    dark: {
+      sphereColor: "radial-gradient(circle, rgba(255,165,0,0.7) 0%, rgba(255,69,0,0.5) 50%, rgba(255,100,0,0.3) 180%)",
+      glassOpacity: 0.05
+    }
   },
 
   // Blue gradient for classroom/learning themes
   blue: {
-    sphereColor: "radial-gradient(circle, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.7) 50%, rgba(29,78,216,0.5) 100%)",
-    glassOpacity: 0.05
+    light: {
+      sphereColor: "radial-gradient(circle, rgba(59,130,246,0.5) 0%, rgba(37,99,235,0.4) 50%, rgba(29,78,216,0.3) 100%)",
+      glassOpacity: 0.03
+    },
+    dark: {
+      sphereColor: "radial-gradient(circle, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.7) 50%, rgba(29,78,216,0.5) 100%)",
+      glassOpacity: 0.05
+    }
   },
 
   // Purple gradient for creative/design themes

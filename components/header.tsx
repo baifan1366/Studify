@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useUser } from '@/hooks/use-user';
+import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
 import UserProfilePopover from './user-profile-popover';
 

@@ -6,15 +6,20 @@ export async function GET(
   request: Request,
   { params }: { params: { slug: string; postSlug: string } }
 ) {
+  console.log(`[API] GET /api/community/groups/${params.slug}/posts/${params.postSlug}`);
+  
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
+    console.log('[API] Authorization failed.');
     return authResult;
   }
+  console.log('[API] Authorization successful for user:', authResult.sub);
 
   const supabaseClient = await createServerClient();
   const { slug, postSlug } = params;
 
-  // Get user profile
+  // 1. Get user profile
+  console.log('[API] Fetching profile for user_id:', authResult.sub);
   const { data: profile, error: profileError } = await supabaseClient
     .from('profiles')
     .select('id')
@@ -22,24 +27,30 @@ export async function GET(
     .single();
 
   if (profileError || !profile) {
+    console.error('[API] Profile not found or error:', profileError);
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
+  console.log('[API] Profile found:', profile);
 
-  // Get group and check access
-  const { data: group } = await supabaseClient
+  // 2. Get group and check access
+  console.log('[API] Fetching group with slug:', slug);
+  const { data: group, error: groupError } = await supabaseClient
     .from('community_group')
     .select('id, visibility')
     .eq('slug', slug)
     .eq('is_deleted', false)
     .single();
 
-  if (!group) {
+  if (groupError || !group) {
+    console.error('[API] Group not found or error:', groupError);
     return NextResponse.json({ error: 'Group not found' }, { status: 404 });
   }
+  console.log('[API] Group found:', group);
 
-  // Check access for private groups
+  // 3. Check access for private groups
   if (group.visibility === 'private') {
-    const { data: membership } = await supabaseClient
+    console.log('[API] Group is private. Checking membership...');
+    const { data: membership, error: membershipError } = await supabaseClient
       .from('community_group_member')
       .select('id')
       .eq('group_id', group.id)
@@ -47,20 +58,21 @@ export async function GET(
       .eq('is_deleted', false)
       .single();
 
-    if (!membership) {
+    if (membershipError || !membership) {
+      console.error('[API] Membership check failed or user is not a member:', membershipError);
       return NextResponse.json({ error: 'Access denied. Join the group to view this post.' }, { status: 403 });
     }
+    console.log('[API] Membership confirmed.');
   }
 
-  // Get post
-  const { data: post, error } = await supabaseClient
+  // 4. Get post
+  console.log(`[API] Fetching post with group_id: ${group.id} and slug: ${postSlug}`);
+  const { data: post, error: postError } = await supabaseClient
     .from('community_post')
-    .select(`
-      *,
+    .select(`*,
       author:profiles ( display_name, avatar_url ),
       group:community_group ( name, slug, visibility ),
-      comments:community_comment ( 
-        *,
+      comments:community_comment ( *,
         author:profiles ( display_name, avatar_url )
       ),
       reactions:community_reaction ( emoji, user_id )
@@ -70,9 +82,11 @@ export async function GET(
     .eq('is_deleted', false)
     .single();
 
-  if (error) {
+  if (postError || !post) {
+    console.error('[API] Post not found or error:', postError);
     return NextResponse.json({ error: 'Post not found' }, { status: 404 });
   }
+  console.log('[API] Post found successfully.');
 
   // Process reactions
   const reactions = post.reactions.reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
@@ -89,6 +103,7 @@ export async function GET(
   return NextResponse.json(processedPost);
 }
 
+// ... (PUT and DELETE functions remain the same)
 export async function PUT(
   request: Request,
   { params }: { params: { slug: string; postSlug: string } }

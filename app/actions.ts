@@ -4,6 +4,9 @@ import { createServerClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { encodedRedirect } from "@/utils/redirect";
 import { cookies } from "next/headers";
+import { authorize } from "@/utils/auth/server-guard";
+import { NextResponse } from "next/server";
+import { Post } from "@/interface/community/post-interface";
 
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
@@ -68,3 +71,84 @@ export const signOutAction = async () => {
   const locale = cookieStore.get("next-intl-locale")?.value || "en";
   return redirect(`/${locale}/sign-in`);
 };
+
+export async function getPostDetailsForPage(groupSlug: string, postSlug: string): Promise<Post | null> {
+  const authResult = await authorize('student');
+  if (authResult instanceof NextResponse) {
+    // Not authorized, return null or throw an error
+    return null;
+  }
+
+  const supabaseClient = await createServerClient();
+
+  // 1. Get user profile
+  const { data: profile } = await supabaseClient
+    .from('profiles')
+    .select('id')
+    .eq('user_id', authResult.sub)
+    .single();
+
+  if (!profile) {
+    return null;
+  }
+
+  // 2. Get group
+  const { data: group } = await supabaseClient
+    .from('community_group')
+    .select('id, visibility')
+    .eq('slug', groupSlug)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!group) {
+    return null;
+  }
+
+  // 3. Check access for private groups
+  if (group.visibility === 'private') {
+    const { data: membership } = await supabaseClient
+      .from('community_group_member')
+      .select('id')
+      .eq('group_id', group.id)
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false)
+      .single();
+
+    if (!membership) {
+      // Access denied for private group
+      return null;
+    }
+  }
+
+  // 4. Get post
+  const { data: post } = await supabaseClient
+    .from('community_post')
+    .select(`*,
+      author:profiles ( display_name, avatar_url ),
+      group:community_group ( name, slug, visibility ),
+      comments:community_comment ( *,
+        author:profiles ( display_name, avatar_url )
+      ),
+      reactions:community_reaction ( emoji, user_id )
+    `)
+    .eq('group_id', group.id)
+    .eq('slug', postSlug)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!post) {
+    return null;
+  }
+
+  // Process reactions and return
+  const reactions = post.reactions.reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
+    acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    ...post,
+    comments_count: post.comments.length,
+    reactions,
+  };
+}

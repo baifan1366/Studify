@@ -28,14 +28,23 @@ export const studentsApi = {
 // Courses API endpoints
 export const coursesApi = {
   list: "/api/courses",
-  getById: (id: number) => `/api/courses/${id}`,
   create: "/api/courses",
-  update: (id: number) => `/api/courses/${id}`,
-  delete: (id: number) => `/api/courses/${id}`,
-  search: (query: string) =>
-    `/api/courses/search?q=${encodeURIComponent(query)}`,
-  enroll: (courseId: number) => `/api/courses/${courseId}/enroll`,
-  unenroll: (courseId: number) => `/api/courses/${courseId}/unenroll`,
+  search: (query: string) => `/api/courses/search?q=${encodeURIComponent(query)}`,
+  getById: (courseId: string) => `/api/courses/${courseId}`,
+  update: (courseId: string) => `/api/courses/${courseId}`,
+  delete: (courseId: string) => `/api/courses/${courseId}`,
+  enroll: (courseId: string) => `/api/courses/${courseId}/enroll`,
+  unenroll: (courseId: string) => `/api/courses/${courseId}/unenroll`,
+  getModuleByCourseId: (courseId: string) => `/api/courses/${courseId}/course-module`,
+  createModuleByCourseId: (courseId: string) => `/api/courses/${courseId}/course-module`,
+  getModuleById: (courseId: string, moduleId: string) => `/api/courses/${courseId}/course-module/${moduleId}`,
+  updateModuleById: (courseId: string, moduleId: string) => `/api/courses/${courseId}/course-module/${moduleId}`,
+  deleteModuleById: (courseId: string, moduleId: string) => `/api/courses/${courseId}/course-module/${moduleId}`,
+  getLessonByCourseModuleId: (courseId: string, moduleId: string) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson`,
+  createLessonByCourseModuleId: (courseId: string, moduleId: string) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson`,
+  getLessonById: (courseId: string, moduleId: string, lessonId: string) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson/${lessonId}`,
+  updateLessonById: (courseId: string, moduleId: string, lessonId: string) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson/${lessonId}`,
+  deleteLessonById: (courseId: string, moduleId: string, lessonId: string) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson/${lessonId}`,
 } as const;
 
 // Classroom API endpoints

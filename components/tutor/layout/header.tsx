@@ -16,8 +16,8 @@ interface ClassroomHeaderProps {
 }
 
 export default function ClassroomHeader({
-  title = "Classroom",
-  userName = "Student",
+  title,
+  userName,
   onProfileClick,
   sidebarExpanded = false,
   onMenuToggle

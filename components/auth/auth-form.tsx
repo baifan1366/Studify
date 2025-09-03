@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSignIn, useSignUp } from "@/hooks/use-auth";
+import { useSignIn, useSignUp } from "@/hooks/profile/use-auth";
 
 interface AuthFormProps {
   mode: "sign-in" | "sign-up";

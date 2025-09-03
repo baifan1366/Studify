@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import MeetingContainer from '@/components/classroom/meeting/meeting-container';
-import { useMeeting, useMeetingToken } from '@/hooks/use-meeting';
+import { useMeeting, useMeetingToken } from '@/hooks/classroom/use-meeting';
 
 interface MeetingPageContentProps {
   meetingId: string;

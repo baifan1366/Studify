@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"; // Import useEffect
 import OnboardingStep from "@/components/onboarding/OnboardingStep";
 import QuestionComponent from "@/components/onboarding/Question";
-import { useUpdateOnboarding } from "@/hooks/use-users";
+import { useUpdateOnboarding } from "@/hooks/profile/use-profile";
 import { studentOnboardingQuestions } from "./questions";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
-import { useLearningPath } from '@/hooks/use-learning-path';
+import { useLearningPath } from '@/hooks/profile/use-learning-path';
 import { PathForm } from './path-form';
 import { SubwayPath } from './subway-path';
 import { Button } from '@/components/ui/button';

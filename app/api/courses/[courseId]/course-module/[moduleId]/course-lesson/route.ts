@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
 // GET /api/courses/[id]/course-module/[id]/course-lesson 
-// - list all course module
 // - list course module with specific course id
 export async function GET(req: Request) {
   try {
@@ -10,32 +9,17 @@ export async function GET(req: Request) {
     const body = await req.json();
     const client = await createServerClient();
 
-    if(body.course_id && body.module_id) {
-        const { data, error } = await client
-            .from("course_lesson")
-            .select("*")
-            .eq("is_deleted", false)
-            .eq("course_id", body.course_id)
-            .eq("module_id", body.module_id)
-            .order("created_at", { ascending: false });
-
-        if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-        
-        return NextResponse.json({ data });
-    }
-
     const { data, error } = await client
-      .from("course_lesson")
-      .select("*")
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false });
+        .from("course_lesson")
+        .select("*")
+        .eq("is_deleted", false)
+        .eq("course_id", body.course_id)
+        .eq("module_id", body.module_id)
+        .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: error.message }, { status: 400 });
     }
-
     return NextResponse.json({ data });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });

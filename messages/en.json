@@ -426,6 +426,13 @@
     "default_title": "Classroom",
     "default_user_name": "Student"
   },
+  "UserProfile": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "switch_account": "Switch Account",
+    "sign_out": "Sign Out",
+    "signing_out": "Signing out..."
+  },
   "ClassroomContent": {
     "error_title": "Error",
     "error_fetch_user": "Failed to load user data",

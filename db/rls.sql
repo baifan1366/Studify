@@ -499,3 +499,23 @@ CREATE POLICY "课程成员可以发表评论" ON post_comments
 CREATE POLICY "评论作者可以更新自己的评论" ON post_comments
   FOR UPDATE
   USING (user_id = auth.uid());
+
+-- Update RLS policies for profiles table to allow system access
+
+-- Drop existing select policy
+DROP POLICY IF EXISTS profiles_select_all ON public.profiles;
+
+-- New policy to allow system to query any profile
+CREATE POLICY profiles_select_all ON public.profiles 
+FOR SELECT 
+USING (
+  auth.role() = 'authenticated' OR 
+  auth.role() = 'service_role' OR
+  (SELECT current_setting('request.jwt.claims', true)::jsonb->>'role' IN ('service_role', 'anon'))
+);
+
+-- Add a comment to document the policy
+COMMENT ON POLICY profiles_select_all ON public.profiles IS 'Allow system and service roles to query any profile';
+
+-- Ensure the table has RLS enabled
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

@@ -288,3 +288,9 @@ create index if not exists idx_learning_path_user on classroom.learning_path(use
 
 create index if not exists idx_mistake_user on classroom.mistake_book(user_id);
 create index if not exists idx_mistake_assignment on classroom.mistake_book(assignment_id);
+
+-- Add an index on user_id for faster lookups
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(user_id);
+
+-- Add a comment to document the index
+COMMENT ON INDEX public.idx_profiles_user_id IS 'Index to speed up lookups by user_id';

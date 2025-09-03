@@ -172,28 +172,30 @@ export interface ApiSendOptions<T> {
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: T;
   headers?: Record<string, string>;
-  role?: string; // ✅ New: Optional role
+  role?: string; // optional role
+  credentials?: RequestCredentials; // 🔑 make this type-safe
 }
 
 export async function apiSend<TResponse = unknown, TBody = any>(
   options: ApiSendOptions<TBody>
 ): Promise<TResponse> {
-  const { url, method, body, headers = {}, role } = options;
+  const { url, method, body, headers = {}, role, credentials } = options;
 
-  // ✅ Merge custom headers + role header
+  // ✅ Merge custom headers
   const finalHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     ...headers,
   };
 
   if (role) {
-    finalHeaders["X-User-Role"] = role; // ✅ Use custom header to send role
+    finalHeaders["X-User-Role"] = role;
   }
 
   const res = await fetch(url, {
     method,
     headers: finalHeaders,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: credentials ?? "include", // 🔑 default include cookies
   });
 
   if (!res.ok) {

@@ -19,7 +19,12 @@ type AuthResponse = {
 // Sign In Hook
 export function useSignIn() {
   return useMutation<AuthResponse, Error, SignInArgs>({
-    mutationFn: (vars) => apiSend<AuthResponse>("/api/auth/sign-in", "POST", vars),
+    mutationFn: (vars) => apiSend<AuthResponse>({
+      url: "/api/auth/sign-in", 
+      method: "POST", 
+      body: vars,
+      credentials: 'include',
+    }),
   });
 }
 
@@ -27,10 +32,10 @@ export function useSignIn() {
 export function useSignUp() {
   return useMutation<AuthResponse, Error, SignUpArgs>({
     mutationFn: (vars) =>
-      apiSend<AuthResponse>(
-        `/api/auth/sign-up${vars.role ? `?role=${vars.role}` : ""}`,
-        "POST",
-        vars
-      ),
+      apiSend<AuthResponse>({
+        url: `/api/auth/sign-up${vars.role ? `?role=${vars.role}` : ""}`,
+        method: "POST",
+        body: vars
+    }),
   });
 }

@@ -17,7 +17,7 @@ export async function authorize(role: Role): Promise<AppJwtPayload | NextRespons
   try {
     // 1. 读取 Cookie 里的 App JWT
     const cookieStore = await cookies();
-    const token = cookieStore.get('app_jwt')?.value;
+    const token = cookieStore.get('app_session')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Authentication token not found.' }, { status: 401 });

@@ -43,7 +43,9 @@
     "email_label": "Email address",
     "email_placeholder": "Enter your email",
     "password_label": "Password",
-    "password_placeholder": "Enter your password"
+    "password_placeholder": "Enter your password",
+    "forgot_password_link": "Forgot password?",
+    "passwordRequirements": "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
   },
   "AuthStudentSignUpPage": {
     "metadata_title": "Sign Up",

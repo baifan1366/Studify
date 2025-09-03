@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -28,11 +29,10 @@ export default function ClassroomHeader({
   const resolvedUserName = userName ?? t('default_user_name');
   return (
     <motion.header
-      className="fixed top-0 left-0 right-0 h-16 z-30 backdrop-blur-md"
+      className="fixed top-0 left-0 right-0 h-16 z-30 backdrop-blur-md border-b border-border/40 dark:bg-[#0D1F1A]/80 bg-[#FDF5E6]/80 text-foreground"
       style={{
-        backgroundColor: 'rgba(29,87,72, 0.4)',
-        backdropFilter: 'blur(16px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(190%)',
+        backdropFilter: 'blur(16px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
       }}
       initial={{ y: -64 }}
       animate={{ y: 0 }}
@@ -44,10 +44,10 @@ export default function ClassroomHeader({
           {/* Menu Toggle Button */}
           <motion.button
             onClick={onMenuToggle}
-            className="p-2 rounded-lg backdrop-blur-sm transition-colors"
-            style={{ backgroundColor: 'rgba(29,87,72, 0.4)' ,
-                      backdropFilter: 'blur(16px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(190%)',
+            className="p-2 rounded-lg transition-colors hover:bg-accent/50"
+            style={{
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
             }}
             whileHover={{
               scale: 1.1,
@@ -58,7 +58,7 @@ export default function ClassroomHeader({
               animate={{ rotate: sidebarExpanded ? 180 : 0 }}
               transition={{ duration: 0.2 }}
             >
-              {sidebarExpanded ? <X size={20} className="text-white" /> : <Menu size={20} className="text-white" />}
+              {sidebarExpanded ? <X size={20} className="dark:text-white text-gray-800" /> : <Menu size={20} className="dark:text-white text-gray-800" />}
             </motion.div>
           </motion.button>
 
@@ -68,12 +68,19 @@ export default function ClassroomHeader({
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.3 }}
           >
-            <h1 className="text-xl font-bold text-white">
-              {resolvedTitle}
-            </h1>
+            <div className="flex items-center gap-3">
+              <img 
+                src="/favicon.png" 
+                alt="Studify Logo" 
+                className="w-8 h-8 rounded-md"
+              />
+              <h1 className="text-xl font-bold text-foreground">
+                {resolvedTitle}
+              </h1>
+            </div>
           </motion.div>
         </div>
-
+        <ThemeSwitcher />
         {/* Right side - Actions */}
         <motion.div
           className="flex items-center space-x-4"
@@ -85,14 +92,14 @@ export default function ClassroomHeader({
           {/* Profile Button */}
           <motion.button
             onClick={onProfileClick}
-            className="flex items-center space-x-2 p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-              <User size={16} className="text-white" />
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+              <User size={16} />
             </div>
-            <span className="text-sm font-medium text-white hidden sm:block">
+            <span className="text-sm font-medium text-foreground hidden sm:block">
               {resolvedUserName}
             </span>
           </motion.button>

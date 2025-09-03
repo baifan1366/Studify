@@ -10,3 +10,10 @@ export interface Post {
   updated_at: Date;
   deleted_at?: Date | null;
 }
+
+export interface Attachment {
+  id?: string;
+  name: string;
+  file?: File;
+  type: string;
+}

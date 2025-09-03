@@ -2,21 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend } from "@/lib/api-config";
-
-// 建议把 Post interface 移到: `@/interfaces/community/post-interface.ts`
-export interface Post {
-  id: number;
-  created_at: string;
-  title: string;
-  body: string;
-  author_id: number;
-  author: {
-    display_name: string;
-    avatar_url: string;
-  };
-  commentsCount: number;
-  reactions: Record<string, number>;
-}
+import type { Post } from '@/interface/community/post-interface';
 
 // API 路径常量
 const COMMUNITY_API = {

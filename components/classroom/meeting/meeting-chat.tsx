@@ -6,20 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Send } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/utils/supabase/client';
-
-interface Message {
-  id: string;
-  content: string;
-  message_type: string;
-  sent_at: string;
-  sender: {
-    id: string;
-    name: string;
-    avatar_url: string;
-  };
-}
+import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/utils/supabase/server';
+import { ChatMessage } from '@/interface/classroom/chat-message-interface';
 
 interface MeetingChatProps {
   meetingId: string;
@@ -31,10 +20,11 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const supabase = createClient();
 
-  // 获取聊天历史
-  const { data: messages, isLoading } = useQuery<Message[]>({
+  // Convert userId to a number
+  const userIdNumber = parseInt(userId, 10);
+
+  const { data: messages, isLoading } = useQuery<ChatMessage[]>({
     queryKey: ['chat-messages', meetingId],
     queryFn: async () => {
       const response = await fetch(`/api/meeting/${meetingId}/chat`);
@@ -44,10 +34,9 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
       const data = await response.json();
       return data.messages || [];
     },
-    refetchInterval: 5000, // 每5秒刷新一次
+    refetchInterval: 5000, 
   });
 
-  // 发送消息
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       const response = await fetch(`/api/meeting/${meetingId}/chat`, {
@@ -65,9 +54,7 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
       return response.json();
     },
     onSuccess: () => {
-      // 清空输入框
       setMessage('');
-      // 刷新消息列表
       queryClient.invalidateQueries({ queryKey: ['chat-messages', meetingId] });
     },
     onError: (error) => {
@@ -79,38 +66,37 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
     },
   });
 
-  // 设置Supabase实时订阅
   useEffect(() => {
-    // 订阅聊天消息频道
-    const channel = supabase
-      .channel(`chat-${meetingId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'classroom',
-          table: 'chat_message',
-          filter: `session_id=eq.${meetingId}`,
-        },
-        (payload: any) => {
-          // 收到新消息时刷新查询
-          queryClient.invalidateQueries({ queryKey: ['chat-messages', meetingId] });
-        }
-      )
-      .subscribe();
+    const initializeSupabase = async () => {
+      const client = await createClient();
+      const channel = client
+        .channel(`chat-${meetingId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'classroom',
+            table: 'chat_message',
+            filter: `session_id=eq.${meetingId}`,
+          },
+          (payload: any) => {
+            queryClient.invalidateQueries({ queryKey: ['chat-messages', meetingId] });
+          }
+        )
+        .subscribe();
 
-    return () => {
-      // 取消订阅
-      supabase.removeChannel(channel);
+      return () => {
+        client.removeChannel(channel);
+      };
     };
-  }, [meetingId, queryClient, supabase]);
 
-  // 滚动到最新消息
+    initializeSupabase();
+  }, [meetingId, queryClient]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 处理发送消息
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim()) {
@@ -118,7 +104,6 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
     }
   };
 
-  // 格式化时间
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -135,9 +120,9 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex items-start gap-2 ${msg.sender.id === userId ? 'justify-end' : ''}`}
+              className={`flex items-start gap-2 ${msg.sender.id === userIdNumber ? 'justify-end' : ''}`}
             >
-              {msg.sender.id !== userId && (
+              {msg.sender.id !== userIdNumber && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={msg.sender.avatar_url} />
                   <AvatarFallback>
@@ -146,20 +131,20 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
                 </Avatar>
               )}
               <div
-                className={`max-w-[80%] ${msg.sender.id === userId
+                className={`max-w-[80%] ${msg.sender.id === userIdNumber
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted'
                   } rounded-lg p-2 text-sm`}
               >
-                {msg.sender.id !== userId && (
+                {msg.sender.id !== userIdNumber && (
                   <div className="font-medium text-xs mb-1">{msg.sender.name}</div>
                 )}
                 <div>{msg.content}</div>
                 <div className="text-xs opacity-70 text-right mt-1">
-                  {formatTime(msg.sent_at)}
+                  {formatTime(msg.sent_at.toString())}
                 </div>
               </div>
-              {msg.sender.id === userId && (
+              {msg.sender.id === userIdNumber && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={msg.sender.avatar_url} />
                   <AvatarFallback>

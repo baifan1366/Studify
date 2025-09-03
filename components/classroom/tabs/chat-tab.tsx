@@ -19,48 +19,52 @@ import 'katex/dist/katex.min.css';
 import { useChatHistory } from '@/hooks/community/use-chat-history';
 import { useSendMessage } from '@/hooks/community/use-send-message';
 import { useRealtimeMessages } from '@/hooks/community/use-realtime-messages';
-
-// 消息接口
-interface Message {
-  id: string;
-  content: string;
-  authorId: string;
-  authorName: string;
-  authorRole: 'tutor' | 'student';
-  createdAt: string;
-}
+import type { ChatMessage } from '@/interface/classroom/chat-message-interface';
 
 export function ChatTab({ classroomId }: { classroomId: string }) {
   const { data: user } = useUser();
   const t = useTranslations('ClassroomDetailPage.chat');
   const { toast } = useToast();
   
-  // 消息输入
   const [messageContent, setMessageContent] = useState('');
   
-  // 消息列表容器引用
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // 获取聊天历史
   const { data: chatHistory, isLoading } = useChatHistory(classroomId);
-  
-  // 发送消息mutation
+
   const sendMessageMutation = useSendMessage();
   
-  // 实时消息
-  const { messages } = useRealtimeMessages(classroomId, chatHistory || []);
+  const mappedChatHistory = chatHistory?.map((message) => ({
+    id: parseInt(message.id, 10),
+    public_id: message.id, // Default value
+    session_id: 1, // Default value
+    sender_id: parseInt(message.authorId, 10),
+    sender: {
+      id: parseInt(message.authorId, 10),
+      avatar_url: '', // Default value
+      name: message.authorName,
+    },
+    message: message.content,
+    content: message.content,
+    sent_at: new Date(message.createdAt),
+    is_deleted: false, // Default value
+    created_at: new Date(message.createdAt),
+    updated_at: new Date(), // Default value
+    author_id: parseInt(message.authorId, 10),
+    author_name: message.authorName,
+    author_role: message.authorRole,
+  } as ChatMessage)) || [];
   
-  // 滚动到底部
+  const { messages } = useRealtimeMessages(classroomId, mappedChatHistory);
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
-  // 当消息列表更新时，滚动到底部
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
   
-  // 处理发送消息
   const handleSendMessage = async () => {
     if (!messageContent.trim()) {
       toast({
@@ -77,10 +81,8 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
         content: messageContent,
       });
       
-      // 清空输入框
       setMessageContent('');
       
-      // 滚动到底部
       scrollToBottom();
     } catch (error) {
       toast({
@@ -91,16 +93,13 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
     }
   };
   
-  // 处理按键事件
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 按下Ctrl+Enter发送消息
     if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
   
-  // 格式化日期
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('zh-CN', {
@@ -109,7 +108,6 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
     }).format(date);
   };
   
-  // 判断是否是同一天的消息
   const isSameDay = (date1: string, date2: string) => {
     const d1 = new Date(date1);
     const d2 = new Date(date2);
@@ -120,35 +118,33 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
     );
   };
   
-  // 格式化日期标题
-  const formatDateHeader = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDateHeader = (date: Date | string) => {
+    const parsedDate = typeof date === 'string' ? new Date(date) : date;
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     
-    if (isSameDay(dateString, today.toISOString())) {
+    if (isSameDay(parsedDate.toISOString(), today.toISOString())) {
       return t('today');
-    } else if (isSameDay(dateString, yesterday.toISOString())) {
+    } else if (isSameDay(parsedDate.toISOString(), yesterday.toISOString())) {
       return t('yesterday');
     } else {
       return new Intl.DateTimeFormat('zh-CN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-      }).format(date);
+      }).format(parsedDate);
     }
   };
   
-  // 分组消息按日期
-  const groupMessagesByDate = (messages: Message[]) => {
-    const groups: { date: string; messages: Message[] }[] = [];
+
+  const groupMessagesByDate = (messages: ChatMessage[]) => {
+    const groups: { date: string; messages: ChatMessage[] }[] = [];
     let currentDate = '';
-    let currentGroup: Message[] = [];
-    
+    let currentGroup: ChatMessage[] = [];
+
     messages.forEach((message) => {
-      const messageDate = new Date(message.createdAt).toDateString();
-      
+      const messageDate = new Date(message.created_at).toDateString(); // Parse created_at as Date
       if (messageDate !== currentDate) {
         if (currentGroup.length > 0) {
           groups.push({
@@ -162,18 +158,15 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
         currentGroup.push(message);
       }
     });
-    
     if (currentGroup.length > 0) {
       groups.push({
         date: currentDate,
         messages: currentGroup,
       });
     }
-    
     return groups;
   };
   
-  // 分组后的消息
   const messageGroups = groupMessagesByDate(messages);
   
   return (
@@ -203,13 +196,13 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
                   {/* 日期分隔线 */}
                   <div className="flex items-center justify-center">
                     <div className="bg-white/20 text-white/70 text-xs px-2 py-1 rounded-full">
-                      {formatDateHeader(group.messages[0].createdAt)}
+                      {formatDateHeader(group.messages[0].created_at)}
                     </div>
                   </div>
                   
                   {/* 消息组 */}
                   {group.messages.map((message, index) => {
-                    const isCurrentUser = message.authorId === user?.id;
+                    const isCurrentUser = message.author_id === parseInt(user?.user?.id || '', 10);
                     
                     return (
                       <motion.div
@@ -221,8 +214,8 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
                       >
                         {/* 头像 */}
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={`https://avatar.vercel.sh/${message.authorId}?size=32`} />
-                          <AvatarFallback>{message.authorName.charAt(0)}</AvatarFallback>
+                          <AvatarImage src={`https://avatar.vercel.sh/${message.author_id}?size=32`} />
+                          <AvatarFallback>{message.author_name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         
                         {/* 消息内容 */}
@@ -230,14 +223,14 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
                           {/* 作者名称和时间 */}
                           <div className={`flex items-center gap-2 mb-1 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
                             <span className="text-sm font-medium text-white/90">
-                              {message.authorName}
-                              {message.authorRole === 'tutor' && (
+                              {message.author_name}
+                              {message.author_role === 'tutor' && (
                                 <span className="ml-1 text-xs bg-blue-500/20 text-blue-300 px-1 rounded">
                                   {t('tutor_badge')}
                                 </span>
                               )}
                             </span>
-                            <span className="text-xs text-white/60">{formatDate(message.createdAt)}</span>
+                            <span className="text-xs text-white/60">{formatDate(message.created_at.toISOString())}</span>
                           </div>
                           
                           {/* 消息气泡 */}
@@ -249,7 +242,7 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
                           >
                             <ReactMarkdown
                               remarkPlugins={[remarkMath]}
-                              rehypePlugins={[rehypeKatex]}
+                              rehypePlugins={[rehypeKatex as any]}
                               className="prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2"
                             >
                               {message.content}
@@ -283,10 +276,10 @@ export function ChatTab({ classroomId }: { classroomId: string }) {
             />
             <Button 
               onClick={handleSendMessage}
-              disabled={sendMessageMutation.isLoading}
+              disabled={sendMessageMutation.status === 'pending'} // Replace `loading` with `pending`
               className="self-end"
             >
-              {sendMessageMutation.isLoading ? t('sending') : t('send')}
+              {sendMessageMutation.status === 'pending' ? t('sending') : t('send')}
             </Button>
           </div>
           <p className="text-xs text-white/50 mt-1">{t('send_tip')}</p>

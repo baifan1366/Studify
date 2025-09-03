@@ -18,11 +18,10 @@ export default function MeetingWhiteboard({ meetingId }: MeetingWhiteboardProps)
   const { toast } = useToast();
   const [roomId, setRoomId] = useState<string | null>(null);
 
-  // 初始化白板
   const { data, isLoading, error } = useQuery({
     queryKey: ['whiteboard', meetingId],
     queryFn: async () => {
-      // 初始化白板会话
+
       const response = await fetch(`/api/meeting/${meetingId}/whiteboard/init`, {
         method: 'POST',
       });
@@ -36,14 +35,12 @@ export default function MeetingWhiteboard({ meetingId }: MeetingWhiteboardProps)
     },
   });
 
-  // 设置房间ID
   useEffect(() => {
     if (data && data.roomId) {
       setRoomId(data.roomId);
     }
   }, [data]);
 
-  // 处理白板状态保存
   const handleSaveState = async (state: any) => {
     try {
       await fetch(`/api/meeting/${meetingId}/whiteboard/state`, {
@@ -58,7 +55,6 @@ export default function MeetingWhiteboard({ meetingId }: MeetingWhiteboardProps)
     }
   };
 
-  // 显示加载状态
   if (isLoading || !roomId) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
@@ -68,7 +64,6 @@ export default function MeetingWhiteboard({ meetingId }: MeetingWhiteboardProps)
     );
   }
 
-  // 显示错误状态
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
@@ -79,7 +74,7 @@ export default function MeetingWhiteboard({ meetingId }: MeetingWhiteboardProps)
             window.location.reload();
           }}
         >
-          重试
+          retry
         </Button>
       </div>
     );

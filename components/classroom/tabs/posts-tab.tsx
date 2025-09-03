@@ -12,21 +12,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 
-// 导入帖子相关hooks
 import { useClassroomPosts } from '@/hooks/classroom/use-classroom-posts';
 import { useCreatePost } from '@/hooks/community/use-create-post';
 import { useCreateComment } from '@/hooks/community/use-create-comment';
 import { useRealtimePosts } from '@/hooks/use-realtime-posts';
 import { useRealtimeComments } from '@/hooks/realtime/use-realtime-comments';
+import type { Comment } from '@/interface/community/comment-interface';
+import type { Post } from '@/interface/community/post-interface';
 
-// 帖子接口
-interface Post {
-  id: string;
-  content: string;
-  authorId: string;
+interface ExtendedPost extends Post {
   authorName: string;
   authorRole: 'tutor' | 'student';
-  createdAt: string;
   attachments?: Array<{
     id: string;
     name: string;
@@ -36,26 +32,9 @@ interface Post {
   comments?: Comment[];
 }
 
-// 评论接口
-interface Comment {
-  id: string;
-  content: string;
-  authorId: string;
-  authorName: string;
-  authorRole: 'tutor' | 'student';
-  createdAt: string;
-}
 
-// 实时评论组件
-interface RealtimeCommentsSectionProps {
-  post: Post;
-  t: any; // 国际化翻译函数
-  formatDate: (date: string) => string;
-}
-
-function RealtimeCommentsSection({ post, t, formatDate }: RealtimeCommentsSectionProps) {
-  // 使用实时评论hook
-  const { comments } = useRealtimeComments(post.id, post.comments || []);
+function RealtimeCommentsSection({ post, t, formatDate }: { post: ExtendedPost; t: any; formatDate: (date: string) => string }) {
+  const { comments } = useRealtimeComments(post.id.toString(), post.comments || []);
   
   return (
     <>
@@ -96,7 +75,7 @@ export function PostsTab({ classroomId }: { classroomId: string }) {
   const { data: initialPosts, isLoading, refetch } = useClassroomPosts(classroomId);
   
   // 使用实时帖子
-  const { posts } = useRealtimePosts(classroomId, initialPosts || []);
+  const { posts } = useRealtimePosts(classroomId, initialPosts || [] as ExtendedPost[]);
   
   // 创建帖子mutation
   const createPostMutation = useCreatePost();
@@ -377,3 +356,5 @@ export function PostsTab({ classroomId }: { classroomId: string }) {
     </div>
   );
 }
+
+export type { ExtendedPost };

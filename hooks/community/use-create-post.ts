@@ -3,13 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { classroomApi } from "@/lib/api";
 import { apiSend, apiUploadFile } from "@/lib/api-config";
-
-interface Attachment {
-  id?: string;
-  name: string;
-  file?: File;
-  type: string;
-}
+import type { Attachment } from '@/interface/community/post-interface';
 
 interface CreatePostParams {
   classroomId: string;

@@ -17,9 +17,12 @@ export function LearningPathPage() {
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState('path');
   
-  const { data: learningPath, isLoading, refetch } = useLearningPath(
-    userId ? { userId } : undefined
-  );
+  const { data: learningPath, isLoading, refetch } = useLearningPath(userId);
+
+  // Adjust references to learningPath properties
+  const pathId = learningPath?.id || "";
+  const progress = learningPath?.progress || 0;
+  const goal = learningPath?.goal;
 
   // 当成功创建学习路径后刷新数据并切换到路径视图
   const handlePathCreated = () => {
@@ -86,8 +89,8 @@ export function LearningPathPage() {
           ) : learningPath && learningPath.milestones.length > 0 ? (
             <SubwayPath 
               milestones={learningPath.milestones} 
-              pathId={learningPath.id} 
-              progress={learningPath.progress} 
+              pathId={pathId} 
+              progress={progress} 
             />
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">

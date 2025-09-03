@@ -5,7 +5,7 @@ import { Milestone } from '@/hooks/profile/use-learning-path';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, Lock, Circle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUpdateMilestoneProgress, useUnlockNextMilestone, useClaimReward } from '@/hooks/profile/use-learning-path';
@@ -25,6 +25,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
   const { mutate: updateProgress } = useUpdateMilestoneProgress();
   const { mutate: unlockMilestone } = useUnlockNextMilestone();
   const { mutate: claimReward } = useClaimReward();
+  const { toast } = useToast();
 
   // 找到当前进行中的里程碑
   useEffect(() => {

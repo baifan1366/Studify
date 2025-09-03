@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mic, Send, FileText, BookOpen, Clock } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface MeetingCopilotProps {
   meetingId: string;
@@ -20,7 +20,7 @@ export default function MeetingCopilot({ meetingId }: MeetingCopilotProps) {
   const [isRecording, setIsRecording] = useState(false);
   const { toast } = useToast();
 
-  // 获取会议摘要
+
   const { data: summaryData, isLoading: isSummaryLoading, refetch: refetchSummary } = useQuery({
     queryKey: ['meeting-summary', meetingId],
     queryFn: async () => {
@@ -34,10 +34,9 @@ export default function MeetingCopilot({ meetingId }: MeetingCopilotProps) {
 
       return response.json();
     },
-    enabled: false, // 不自动获取，需要手动触发
+    enabled: false,
   });
 
-  // 获取章节时间戳
   const { data: chaptersData, isLoading: isChaptersLoading, refetch: refetchChapters } = useQuery({
     queryKey: ['meeting-chapters', meetingId],
     queryFn: async () => {

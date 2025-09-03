@@ -252,16 +252,15 @@ export default function AnimatedSidebar({
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? 'expanded' : 'collapsed'}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] text-white shadow-2xl z-20 flex flex-col backdrop-blur-md "
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-2xl z-20 flex flex-col backdrop-blur-md"
         style={{
-          backgroundColor: 'rgba(29,87,72, 0.4)', 
-          backdropFilter: 'blur(16px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(16px) saturate(190%)',
+          backgroundColor: 'hsl(var(--sidebar))',
+          color: 'hsl(var(--sidebar-foreground))',
         }}
       >
         {/* Navigation */}
         <nav
-          className="flex-1 p-4 overflow-y-auto scrollbar-hide"
+          className="flex-1 p-4 overflow-y-auto scrollbar-hide bg-sidebar text-foreground dark:bg-slate-800 dark:text-slate-100"
           onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
           onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
           style={{
@@ -269,7 +268,7 @@ export default function AnimatedSidebar({
             msOverflowStyle: 'none', /* Internet Explorer 10+ */
           }}
         >
-          <div className="space-y-6">
+          <div className="space-y-6 dark:bg-slate-800 dark:text-slate-100">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title}>
 
@@ -300,8 +299,8 @@ export default function AnimatedSidebar({
                               
                               className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                                 isActive
-                                  ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
-                                  : 'text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'hover:bg-accent hover:text-accent-foreground'
                               }`}
                               whileHover={{
                                 scale: 1.02,
@@ -338,7 +337,7 @@ export default function AnimatedSidebar({
                                   transition={{ duration: 0.2 }}
                                   className="ml-auto"
                                 >
-                                  <ChevronDown size={16} className="text-white/60" />
+                                  <ChevronDown size={16} className="dark:text-white/60 text-gray-800" />
                                 </motion.div>
                               )}
 
@@ -346,7 +345,7 @@ export default function AnimatedSidebar({
                               {isActive && !isExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-auto w-2 h-2 bg-white rounded-full"
+                                  className="ml-auto w-2 h-2 bg-muted-foreground rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -355,7 +354,7 @@ export default function AnimatedSidebar({
                               {isActive && isExpanded && !isDropdownExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-2 w-2 h-2 bg-white rounded-full"
+                                  className="ml-2 w-2 h-2 bg-muted-foreground rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -383,11 +382,7 @@ export default function AnimatedSidebar({
                                         key={subItem.id}
                                         onClick={() => handleItemClick(subItem.id)}
                                         
-                                        className={`w-full flex items-center p-2 rounded-lg transition-all duration-200 text-sm ${
-                                          isSubActive
-                                            ? 'bg-white/30 text-white shadow-md'
-                                            : 'text-white/80 hover:bg-white/20 hover:text-white'
-                                        }`}
+                                        className="flex items-center py-1 px-2 rounded-md hover:bg-slate-700/50 cursor-pointer"
                                         whileHover={{ scale: 1.02, x: 4 }}
                                         whileTap={{ scale: 0.98 }}
                                       >
@@ -400,7 +395,7 @@ export default function AnimatedSidebar({
                                         {isSubActive && (
                                           <motion.div
                                             layoutId="subActiveIndicator"
-                                            className="ml-auto w-1.5 h-1.5 bg-white rounded-full"
+                                            className="ml-auto w-1.5 h-1.5 bg-muted-foreground rounded-full"
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
                                             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -427,8 +422,8 @@ export default function AnimatedSidebar({
                           
                           className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                             isActive
-                              ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
-                              : 'text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-accent hover:text-accent-foreground'
                           }`}
                           whileHover={{
                             scale: 1.02,
@@ -462,7 +457,7 @@ export default function AnimatedSidebar({
                           {isActive && (
                             <motion.div
                               layoutId="activeIndicator"
-                              className="ml-auto w-2 h-2 bg-white rounded-full"
+                              className="ml-auto w-2 h-2 bg-muted-foreground rounded-full"
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -488,7 +483,7 @@ export default function AnimatedSidebar({
           <motion.button
             variants={itemVariants}
             animate={isExpanded ? 'expanded' : 'collapsed'}
-            className="w-full flex items-center p-3 rounded-xl text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm transition-all duration-200"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-accent hover:text-accent-foreground transition-all duration-200"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

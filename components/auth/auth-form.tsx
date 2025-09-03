@@ -128,6 +128,7 @@ export function AuthForm({
                 height={64} 
                 className="object-contain"
                 priority
+                style={{width: "auto", height: "auto"}}
               />
             </div>
           </div>

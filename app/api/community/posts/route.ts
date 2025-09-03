@@ -1,36 +1,134 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabaseClient = await createServerClient();
-  const { data: posts, error } = await supabaseClient
-    .from('community_post')
-    .select(`
-      *,
-      author:profiles ( display_name, avatar_url ),
-      comments:community_comment ( count ),
-      reactions:community_reaction ( emoji, user_id )
-    `)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  
+  const authResult = await authorize('student');
+  if (authResult instanceof NextResponse) {
+    return authResult;
   }
 
-  // Process posts to aggregate reactions and comments count
-  const processedPosts = posts.map(post => {
-    const reactions = post.reactions.reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
-      acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
-      return acc;
-    }, {});
-    return {
-      ...post,
-      commentsCount: post.comments[0]?.count || 0,
-      reactions,
-    };
-  });
+  // Get user profile
+  const { data: profile, error: profileError } = await supabaseClient
+    .from('profiles')
+    .select('id')
+    .eq('user_id', authResult.sub)
+    .single();
 
-  return NextResponse.json(processedPosts);
+  if (profileError || !profile) {
+    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+  }
+
+  const url = new URL(request.url);
+  const sortBy = url.searchParams.get('sort');
+
+  try {
+    // First, get user's group memberships
+    const { data: memberships } = await supabaseClient
+      .from('community_group_member')
+      .select('group_id')
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false);
+
+    const memberGroupIds = memberships?.map(m => m.group_id) || [];
+
+    // Get all posts with basic info
+    const { data: posts, error } = await supabaseClient
+      .from('community_post')
+      .select(`
+        id,
+        public_id,
+        group_id,
+        author_id,
+        title,
+        body,
+        slug,
+        is_deleted,
+        created_at,
+        updated_at,
+        deleted_at,
+        author:profiles!community_post_author_id_fkey ( display_name, avatar_url ),
+        group:community_group ( name, slug, visibility )
+      `)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Filter posts based on group visibility and membership
+    const accessiblePosts = posts?.filter(post => {
+      // Posts without group (general posts) are always accessible
+      if (!post.group_id || !post.group) return true;
+      
+      // Handle case where group might be an array (shouldn't happen with single relation)
+      const group = Array.isArray(post.group) ? post.group[0] : post.group;
+      if (!group) return true;
+      
+      // Public group posts are accessible to everyone
+      if (group.visibility === 'public') return true;
+      
+      // Private group posts are only accessible to members
+      if (group.visibility === 'private') {
+        return memberGroupIds.includes(post.group_id);
+      }
+      
+      return false;
+    }) || [];
+
+    // Get reaction counts for accessible posts
+    const postIds = accessiblePosts.map(p => p.id);
+    const { data: reactions } = await supabaseClient
+      .from('community_reaction')
+      .select('post_id, emoji')
+      .in('post_id', postIds);
+
+    // Get comment counts for accessible posts
+    const { data: commentCounts } = await supabaseClient
+      .from('community_comment')
+      .select('post_id')
+      .in('post_id', postIds)
+      .eq('is_deleted', false);
+
+    // Process posts to add reaction and comment counts
+    const processedPosts = accessiblePosts.map(post => {
+      // Aggregate reactions
+      const postReactions = reactions?.filter(r => r.post_id === post.id) || [];
+      const reactionCounts = postReactions.reduce((acc: Record<string, number>, reaction) => {
+        acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Count comments
+      const commentsCount = commentCounts?.filter(c => c.post_id === post.id).length || 0;
+
+      return {
+        ...post,
+        reactions: reactionCounts,
+        comments_count: commentsCount,
+      };
+    });
+
+    // Sort posts if requested
+    let sortedPosts = processedPosts;
+    if (sortBy === 'popular') {
+      sortedPosts = processedPosts.sort((a, b) => {
+        const aScore = (a.comments_count || 0) + Object.values(a.reactions || {}).reduce((sum, count) => sum + count, 0);
+        const bScore = (b.comments_count || 0) + Object.values(b.reactions || {}).reduce((sum, count) => sum + count, 0);
+        return bScore - aScore;
+      });
+    }
+
+    return NextResponse.json(sortedPosts);
+
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

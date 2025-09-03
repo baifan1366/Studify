@@ -515,6 +515,7 @@ create table if not exists community_group (
   public_id uuid not null default uuid_generate_v4(),
   name text not null,
   description text,
+  slug text unique not null,
   visibility text check (visibility in ('public','private')) default 'public',
   owner_id bigint not null references profiles(id) on delete cascade,
   is_deleted boolean not null default false,
@@ -544,11 +545,16 @@ create table if not exists community_post (
   author_id bigint not null references profiles(id) on delete cascade,
   title text,
   body text,
+  slug text not null,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
+
+-- 推荐复合唯一约束，保证每个 group 内 slug 唯一
+alter table community_post
+add constraint post_slug_unique unique (group_id, slug);
 
 create table if not exists community_comment (
   id bigserial primary key,

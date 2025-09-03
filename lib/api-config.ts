@@ -164,7 +164,8 @@ export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(path, { cache: 'no-store' });
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error || 'Request failed');
-  return json.data as T;
+  // Handle both wrapped and unwrapped responses
+  return (json.data !== undefined ? json.data : json) as T;
 }
 
 export interface ApiSendOptions<T> {

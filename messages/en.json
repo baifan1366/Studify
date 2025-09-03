@@ -1,11 +1,550 @@
 {
-    "HomePage": {
-      "title": "Hello world!",
-      "metadata_title": "Home - Studify",
-      "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
-      "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
-      "og_title": "Home - Studify",
-      "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
+  "HomePage": {
+    "title": "Hello world!",
+    "metadata_title": "Home - Studify",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
+    "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
+    "og_title": "Home - Studify",
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
+  },
+  "labels": {
+    "course_id": "Course ID",
+    "invite_code": "Invitation Code"
+  },
+  "placeholders": {
+    "course_id": "Enter course ID",
+    "invite_code": "Enter invitation code"
+  },
+  "helpers": {
+    "course_id": "You can find the course ID in the course URL or ask your instructor",
+    "invite_code": "Enter the invitation code provided by your instructor"
+  },
+  "buttons": {
+    "cancel": "Cancel",
+    "join": "Join Course",
+    "joining": "Joining..."
+  },
+  "AuthSignInPage": {
+    "metadata_title": "Sign In",
+    "welcome_back": "Welcome back",
+    "sign_in_subtitle": "Sign in to your Studify account",
+    "sign_in_button": "Sign in",
+    "no_account_question": "Don't have an account?",
+    "sign_up_link": "Sign up",
+    "email_label": "Email address",
+    "email_placeholder": "Enter your email",
+    "password_label": "Password",
+    "password_placeholder": "Enter your password",
+    "forgot_password_link": "Forgot password?",
+    "passwordRequirements": "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+  },
+  "AuthStudentSignUpPage": {
+    "metadata_title": "Sign Up",
+    "student_sign_up_title": "Student Sign Up",
+    "student_sign_up_subtitle": "Start your learning journey today",
+    "create_account_button": "Create account",
+    "already_have_account_question": "Already have an account?",
+    "sign_in_link": "Sign in",
+    "full_name_label": "Full Name",
+    "full_name_placeholder": "Enter your full name",
+    "email_label": "Email address",
+    "email_placeholder": "Enter your email",
+    "password_label": "Password",
+    "password_placeholder": "Enter your password",
+    "confirm_password_label": "Confirm Password",
+    "confirm_password_placeholder": "Confirm your password"
+  },
+  "AuthTutorSignUpPage": {
+    "metadata_title": "Tutor Sign Up",
+    "tutor_sign_up_title": "Tutor Sign Up",
+    "tutor_sign_up_subtitle": "Start your teaching journey today",
+    "create_account_button": "Create account",
+    "already_have_account_question": "Already have an account?",
+    "sign_in_link": "Sign in",
+    "full_name_label": "Full Name",
+    "full_name_placeholder": "Enter your full name",
+    "email_label": "Email address",
+    "email_placeholder": "Enter your email",
+    "password_label": "Password",
+    "password_placeholder": "Enter your password",
+    "confirm_password_label": "Confirm Password",
+    "confirm_password_placeholder": "Confirm your password"
+  },
+  "VerifyEmailPage": {
+    "metadata_title": "Verify Email",
+    "title": "Check your email",
+    "description": "We sent a confirmation link to your email. Please confirm your email to continue.",
+    "already_confirmed": "Already confirmed?",
+    "sign_in_link": "Sign in"
+  },
+  "OnboardingStudentStep1Page": {
+    "welcome_title": "Welcome to Studify!",
+    "welcome_description": "Let's get your profile set up. What's your full name?",
+    "full_name_label": "Full Name",
+    "full_name_placeholder": "Enter your full name"
+  },
+  "OnboardingStudentStep2Page": {
+    "personalize_title": "Personalize Your Experience",
+    "learning_goals_description": "What are your main learning goals?",
+    "goal_ace_exams": "Ace my exams",
+    "goal_new_skill": "Learn a new skill",
+    "goal_homework_help": "Get help with homework",
+    "goal_curiosity": "Just curious!"
+  },
+  "OnboardingStudentStep3Page": {
+    "all_set_title": "You're All Set!",
+    "all_set_description": "Thanks for personalizing your experience. You can now start your learning journey.",
+    "preferences_note": "You can change your preferences at any time from your profile settings."
+  },
+  "OnboardingTutorStep1Page": {
+    "welcome_title": "Welcome, Tutor!",
+    "welcome_description": "Let's get your profile set up so you can start teaching.",
+    "full_name_label": "Full Name",
+    "full_name_placeholder": "Enter your full name"
+  },
+  "OnboardingTutorStep2Page": {
+    "expertise_title": "Your Expertise",
+    "expertise_description": "Tell us about your teaching experience and qualifications.",
+    "qualifications_label": "Qualifications",
+    "qualifications_placeholder": "e.g., PhD in Physics, Certified Teacher",
+    "experience_label": "Experience",
+    "experience_placeholder": "Describe your teaching experience."
+  },
+  "OnboardingTutorStep3Page": {
+    "availability_title": "Set Your Availability",
+    "availability_description": "Let students know when you're available to teach.",
+    "hourly_rate_label": "Hourly Rate (USD)",
+    "hourly_rate_placeholder": "e.g., 50",
+    "availability_label": "Availability",
+    "weekdays_label": "Weekdays",
+    "weekends_label": "Weekends",
+    "evenings_label": "Evenings"
+  },
+  "ClassroomAssignmentPage": {
+    "metadata_title": "Assignments - Studify",
+    "metadata_description": "View, submit, and track your assignments with due dates and progress tracking",
+    "metadata_keywords": "assignments,homework,submissions,due dates,education",
+    "og_title": "Assignments - Studify",
+    "og_description": "Manage your assignments and track submission progress"
+  },
+  "ClassroomEnrolledPage": {
+    "metadata_title": "Enrolled Courses - Studify",
+    "metadata_description": "View and manage your enrolled courses, track progress, and access course materials",
+    "metadata_keywords": "enrolled courses,course progress,learning materials,education",
+    "og_title": "Enrolled Courses - Studify",
+    "og_description": "Manage your enrolled courses and track learning progress"
+  },
+  "ClassroomLearningPathPage": {
+    "metadata_title": "Learning Path - Studify",
+    "metadata_description": "Follow your personalized learning path with structured courses and milestones",
+    "metadata_keywords": "learning path,curriculum,milestones,personalized learning,education",
+    "og_title": "Learning Path - Studify",
+    "og_description": "Follow your personalized learning journey with structured milestones"
+  },
+  "ClassroomMeetingPage": {
+    "metadata_title": "Meetings - Studify",
+    "metadata_description": "Join live meetings, view scheduled sessions, and access meeting recordings",
+    "metadata_keywords": "meetings,live sessions,video calls,recordings,education",
+    "og_title": "Meetings - Studify",
+    "og_description": "Join live meetings and access educational sessions"
+  },
+  "ClassroomPage": {
+    "metadata_title": "Classroom - Studify",
+    "metadata_description": "Access your virtual classroom with live sessions, course materials, and interactive learning tools",
+    "metadata_keywords": "classroom,virtual learning,live sessions,course materials,education",
+    "og_title": "Classroom - Studify",
+    "og_description": "Virtual classroom with live sessions and interactive learning"
+  },
+  "CoursesPage": {
+    "metadata_title": "Courses - Studify",
+    "metadata_description": "Explore our comprehensive course catalog with expert instructors and interactive learning materials",
+    "metadata_keywords": "courses,education,learning,online courses,curriculum",
+    "og_title": "Courses - Studify",
+    "og_description": "Comprehensive course catalog with expert instructors"
+  },
+  "MyPage": {
+    "metadata_title": "My - Studify",
+    "metadata_description": "Access your personal dashboard with enrolled courses, progress tracking, and account settings",
+    "metadata_keywords": "personal dashboard,enrolled courses,progress tracking,account settings,education",
+    "og_title": "My - Studify",
+    "og_description": "Course management and personal dashboard",
+    "page_title": "My Page"
+  },
+  "OrderPreviewPage": {
+    "metadata_title": "Order Preview - Studify",
+    "metadata_description": "Preview your order details before proceeding to checkout",
+    "metadata_keywords": "order preview",
+    "og_title": "Order Preview - Studify",
+    "og_description": "checkout and order preview",
+    "page_title": "Order Preview",
+    "item_label": "Item: ",
+    "price_label": "Price: $"
+  },
+  "RootPage": {
+    "metadata_title": "Studify",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
+    "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
+    "og_title": "Studify",
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
+  },
+  "StudentsPage": {
+    "metadata_title": "Students - Studify",
+    "metadata_description": "Manage student profiles, track progress, and monitor performance in your educational platform",
+    "metadata_keywords": "students,management,education,progress tracking",
+    "og_title": "Students Management - Studify",
+    "og_description": "Manage student profiles, track progress, and monitor performance"
+  },
+  "SuccessPage": {
+    "metadata_title": "Success - Studify",
+    "metadata_description": "Order completed successfully",
+    "metadata_keywords": "order success,payment,checkout,education",
+    "og_title": "Success - Studify",
+    "og_description": "Order completed successfully",
+    "payment_successful_heading": "Payment Successful!"
+  },
+  "TutoringPage": {
+    "metadata_title": "Tutoring - Studify",
+    "metadata_description": "match with expert tutors for personalized learning sessions",
+    "metadata_keywords": "tutoring,personalized learning,expert tutors,education",
+    "og_title": "Tutoring - Studify",
+    "og_description": "tutor matching and personalized learning",
+    "page_title": "Tutoring"
+  },
+  "CommunityPostCard": {
+    "by_prefix": "by ",
+    "view_post_button": "View Post"
+  },
+  "CommunityNewPostForm": {
+    "create_post_title": "Create a new post",
+    "title_placeholder": "Title",
+    "body_placeholder": "What's on your mind?",
+    "post_button": "Post"
+  },
+  "CommunityContent": {
+    "community_header_title": "Community",
+    "community_feed_title": "Community Feed",
+    "error_loading_posts": "Error loading posts. Please try again later."
+  },
+  "CommunityHighlights": {
+    "title": "Learning Community",
+    "subtitle": "Connect, share, and learn together",
+    "create_post_button": "Create Post",
+    "latest_posts_heading": "Latest Posts",
+    "recommended_groups_heading": "Recommended Study Groups",
+    "members_suffix": "members",
+    "join_button": "Join",
+    "new_posts_today_suffix": "new posts today",
+    "explore_groups_button": "Explore All Groups"
+  },
+  "RecommendationPanels": {
+    "loading_recommendations": "Loading recommendations...",
+    "personalized_title": "Personalized for You",
+    "powered_by_ai": "Powered by AI",
+    "tab_continue": "Continue Learning",
+    "tab_mistakes": "Practice from Mistakes",
+    "tab_peers": "Popular Among Peers",
+    "learning_paths_title": "Learning Paths",
+    "label_courses": "Courses:",
+    "label_exercises": "Exercises:",
+    "label_est_time": "Est. Time:",
+    "start_path_button": "Start Path",
+    "live_activity_title": "Live Activity",
+    "currently_studying_title": "Currently Studying",
+    "students_online_now": "Students online now",
+    "new_this_week_title": "New This Week",
+    "fresh_courses_added": "Fresh courses added",
+    "from_your_teacher_title": "From Your Teacher",
+    "recommendations_waiting": "Recommendations waiting",
+    "community_progress_title": "Community & Progress",
+    "recommended_groups_title": "Recommended Study Groups",
+    "join_button": "Join",
+    "weekly_leaderboard_title": "Weekly Leaderboard",
+    "points_suffix": "pts"
+  },
+  "GamificationSection": {
+    "title": "Achievements & Leaderboard",
+    "subtitle": "Compete, achieve, and celebrate your progress",
+    "daily_checkin_title": "Daily Check-in",
+    "daily_checkin_desc_prefix": "Keep your streak alive!",
+    "current_streak": "Current streak: {count} days",
+    "check_in_today_button": "Check In Today",
+    "checked_in_with_xp": "Checked In! +{xp} XP",
+    "this_weeks_progress": "This week's progress",
+    "weekly_leaderboard_title": "Weekly Leaderboard",
+    "points_suffix": "points",
+    "badge_collection_title": "Badge Collection",
+    "progress_label": "Progress",
+    "earned_label": "Earned!",
+    "rarity": {
+      "Common": "Common",
+      "Rare": "Rare",
+      "Epic": "Epic",
+      "Legendary": "Legendary"
+    }
+  },
+  "HomeContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "start_learning_title": "Starting Learning Journey",
+    "start_learning_desc": "Redirecting to your personalized learning path...",
+    "explore_courses_title": "Exploring Courses",
+    "explore_courses_desc": "Opening course catalog...",
+    "ai_tutoring_title": "AI Tutoring",
+    "ai_tutoring_desc": "Launching AI assistant...",
+    "study_plan_title": "Study Plan",
+    "study_plan_desc": "Generating personalized study plan...",
+    "create_post_title": "Create Post",
+    "create_post_desc": "Opening post editor...",
+    "join_group_title": "Join Group",
+    "join_group_desc": "Joining study group...",
+    "progress_report_title": "Progress Report",
+    "progress_report_desc": "Opening detailed progress analytics...",
+    "daily_checkin_title": "Daily Check-in",
+    "daily_checkin_desc": "Streak updated! Keep up the great work!",
+    "header_title": "Home",
+    "default_user_name": "Student"
+  },
+  "AIAssistantPreview": {
+    "title": "AI Learning Assistant",
+    "subtitle": "Your personal AI copilot for learning",
+    "feature_upload_title": "Upload & Solve",
+    "feature_upload_desc": "Upload a problem → Get instant step-by-step solution",
+    "feature_upload_preview": "📸 Take a photo of your math problem and get detailed explanations instantly",
+    "feature_mindmap_title": "Mind Map Generator",
+    "feature_mindmap_desc": "Generate a sample learning mind map",
+    "feature_mindmap_preview": "🧠 Create visual learning maps for any topic to enhance understanding",
+    "feature_chat_title": "AI Tutor Chat",
+    "feature_chat_desc": "Ask questions and get personalized explanations",
+    "feature_chat_preview": "💬 Chat with AI tutor for real-time help and clarifications",
+    "drop_image_here": "Drop your problem image here",
+    "subjects": {
+      "Math": "Math",
+      "Physics": "Physics",
+      "Chemistry": "Chemistry",
+      "Biology": "Biology"
+    },
+    "ai_tutor_online": "AI Tutor is online",
+    "ai_tutor_prompt": "\"How can I help you with your studies today?\"",
+    "cta_experience_ai": "Experience AI Tutoring"
+  },
+  "LearningPath": {
+    "title": "Your Customized Learning Journey",
+    "subtitle": "Track your progress and unlock achievements",
+    "overall_progress_title": "Overall Progress",
+    "badge_unlock_hint": "🎉 You're {remaining}% away from unlocking the \"{badge}\" badge!",
+    "milestones_title": "Learning Milestones",
+    "achievements_title": "Achievements",
+    "next_milestone_title": "Next Milestone",
+    "next_milestone_desc": "Complete {count} more lessons to unlock \"{badge}\" badge",
+    "progress_completed_short": "{done}/{total} completed",
+    "cta_generate_study_plan": "Generate My Study Plan"
+  },
+  "LearningReport": {
+    "title": "Smart Learning Report",
+    "subtitle": "AI-powered insights into your learning progress",
+    "weekly_learning_duration_title": "Weekly Learning Duration",
+    "trend_vs_last_week": "+{value}% vs last week",
+    "days": {
+      "Mon": "Mon",
+      "Tue": "Tue",
+      "Wed": "Wed",
+      "Thu": "Thu",
+      "Fri": "Fri",
+      "Sat": "Sat",
+      "Sun": "Sun"
+    },
+    "hours_suffix": "h",
+    "total_this_week": "Total This Week",
+    "daily_average": "Daily Average",
+    "subject_mastery_levels_title": "Subject Mastery Levels",
+    "top_performer_label": "Top Performer",
+    "ai_insight_label": "AI Insight",
+    "ai_insight_text": "Your Biology performance is exceptional! Consider helping peers in study groups. Focus on Chemistry concepts to reach the next mastery level.",
+    "lessons_completed": "Lessons Completed",
+    "streak_days": "Streak Days",
+    "accuracy_rate": "Accuracy Rate",
+    "points_earned": "Points Earned",
+    "cta_view_complete_progress": "View My Complete Progress"
+  },
+  "Sidebar": {
+    "section_home": "Home",
+    "home_label": "Home",
+    "notifications_label": "Notifications",
+    "messages_label": "Messages",
+    "calendar_label": "Calendar",
+    "section_dashboard": "Dashboard",
+    "dashboard_label": "Dashboard",
+    "classroom_label": "Classroom",
+    "enrolled_label": "Enrolled",
+    "assignment_label": "Assignment",
+    "meeting_label": "Meeting",
+    "learning_path_label": "Learning Path",
+    "community_label": "Community",
+    "courses_label": "Courses",
+    "my_courses_label": "My Courses",
+    "documents_label": "Documents",
+    "settings_label": "Settings",
+    "logout_button": "Logout"
+  },
+  "PricingContent": {
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "one_time": "One-Time"
+  },
+  "PricingCard": {
+    "custom_price": "Custom",
+    "per_month_suffix": "/month",
+    "current_plan": "Current Plan",
+    "select_plan": "Select Plan"
+  },
+  "PaidContentCard": {
+    "title": "Subscription based, unlimited cat photos",
+    "description": "Create unlimited cat photos.",
+    "generating": "Generating...",
+    "generate_button": "Generate Cat Photo",
+    "img_alt": "meme"
+  },
+  "HeroSection": {
+    "main_title_line1": "Personalized Learning,",
+    "main_title_line2": "Powered by AI and Real-time Tutoring",
+    "subtitle_line1": "Transform your learning journey with AI-powered recommendations,",
+    "subtitle_line2": "live tutoring sessions, and personalized study paths tailored just for you.",
+    "primary_cta": "Start Learning Now",
+    "secondary_cta": "Explore Courses",
+    "feature_recommendations": "AI-Powered Recommendations",
+    "feature_live_tutoring": "Live Tutoring Sessions",
+    "feature_interactive": "Interactive Learning"
+  },
+  "Header": {
+    "default_title": "Classroom",
+    "default_user_name": "Student"
+  },
+  "ClassroomContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "default_user_name": "Student",
+    "loading": "Loading...",
+    "welcome": "Welcome to your Classroom, {name}!",
+    "subtitle": "Explore courses, track progress, and enhance your learning experience"
+  },
+  "AssignmentContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "header_title": "Assignments",
+    "default_user_name": "Student",
+    "page_title": "My Assignments",
+    "page_subtitle": "Track deadlines, submit work, and review feedback",
+    "stats": {
+      "total_assignments": "Total Assignments"
+    },
+    "tabs": {
+      "pending": "Pending",
+      "submitted": "Submitted",
+      "all": "All"
+    },
+    "status": {
+      "pending": "Pending",
+      "submitted": "Submitted",
+      "overdue": "Overdue",
+      "unknown": "Unknown"
+    },
+    "labels": {
+      "due_at": "Due: {date} at {time}",
+      "points": "Points:",
+      "grade": "Grade:",
+      "submitted_on": "Submitted on:"
+    },
+    "buttons": {
+      "submit_assignment": "Submit Assignment",
+      "view_details": "View Details",
+      "view_submission": "View Submission",
+      "feedback": "Feedback"
+    }
+  },
+  "EnrolledContent": {
+    "error_title": "Error",
+    "error_fetch_courses": "Failed to load your courses. Please try again later.",
+    "header_title": "Enrolled Courses",
+    "default_user_name": "Student",
+    "page_title": "My Classroom",
+    "page_subtitle": "Continue your learning journey and track your progress",
+    "actions": {
+      "join_course": "Join Course"
+    },
+    "tabs": {
+      "enrolled": "Enrolled Courses",
+      "recommended": "Recommended"
+    },
+    "search_placeholder": "Search courses by title or instructor...",
+    "empty": {
+      "title": "No Enrolled Courses",
+      "desc": "You haven't enrolled in any courses yet. Join a course to start learning or check out our recommendations.",
+      "browse_recommended": "Browse Recommended Courses"
+    },
+    "labels": {
+      "progress": "Progress",
+      "lessons_count": "{completed}/{total} lessons",
+      "last_accessed": "Last accessed: {date}",
+      "next_lesson": "Next Lesson:",
+      "due": "Due: {date}"
+    },
+    "buttons": {
+      "continue_learning": "Continue Learning",
+      "view_details": "View Details"
+    },
+    "recommended": {
+      "because": "Recommended because:"
+    },
+    "status": {
+      "on_track": "On Track",
+      "near_completion": "Near Completion",
+      "behind": "Behind Schedule",
+      "unknown": "Unknown"
+    }
+  },
+  "MeetingContent": {
+    "error_title": "Error",
+    "error_fetch_user": "Failed to load user data",
+    "header_title": "Meetings",
+    "default_user_name": "Student",
+    "page_title": "My Meetings",
+    "page_subtitle": "Join live sessions and access recorded meetings",
+    "stats": {
+      "total_meetings": "Total Meetings",
+      "upcoming": "Upcoming",
+      "live_now": "Live Now",
+      "completed": "Completed"
+    },
+    "tabs": {
+      "upcoming": "Upcoming",
+      "live": "Live",
+      "completed": "Completed",
+      "all": "All"
+    },
+    "labels": {
+      "live_badge": "LIVE",
+      "participants": "{current}/{max} participants",
+      "type": "Type:",
+      "instructor": "Instructor:"
+    },
+    "buttons": {
+      "join_live": "Join Live Meeting",
+      "join": "Join Meeting",
+      "add_to_calendar": "Add to Calendar",
+      "watch_recording": "Watch Recording",
+      "download": "Download"
+    },
+    "status": {
+      "upcoming": "Upcoming",
+      "live_now": "Live Now",
+      "completed": "Completed",
+      "unknown": "Unknown"
+    },
+    "toasts": {
+      "join": {
+        "title": "Join Meeting",
+        "desc": "Joining meeting {id}..."
+      }
     },
     "JoinCourseDialog": {
       "title": "Join a Course",
@@ -786,3 +1325,4 @@
       }
     }
   }
+}

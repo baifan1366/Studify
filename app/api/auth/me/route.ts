@@ -20,6 +20,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    // Check if session exists in Redis
+    const sessionKey = `session:${jwtPayload.jti}`;
+    try {
+      const sessionExists = await redis.get(sessionKey);
+      if (!sessionExists) {
+        return NextResponse.json({ error: 'Session expired' }, { status: 401 });
+      }
+    } catch (error) {
+      console.error('Redis session check error:', error);
+      return NextResponse.json({ error: 'Session validation failed' }, { status: 500 });
+    }
+
     const userId = jwtPayload.sub;
     const cacheKey = `user:${userId}`;
 

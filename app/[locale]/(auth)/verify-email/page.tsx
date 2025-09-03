@@ -12,20 +12,24 @@ export default async function VerifyEmailPage() {
   const t = await getTranslations('VerifyEmailPage');
   
   return (
-    <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-lg p-8 text-center">
-        <div className="mx-auto h-16 w-16 bg-[#7C3AED] rounded-2xl flex items-center justify-center mb-4">
-          <span className="text-white text-2xl font-bold">ST</span>
+    <div className="h-screen w-screen flex items-center justify-center p-6 bg-[#FDF5E6] dark:bg-[#0D1F1A] transition-colors duration-200">
+      <div className="bg-white/80 dark:bg-[#0D1F1A] rounded-2xl shadow-xl dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] dark:border dark:border-gray-700/50 p-8 backdrop-blur-sm transition-colors duration-300 text-center">
+        <div className="mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
+          <img 
+            src="/favicon.png" 
+            alt="Studify Logo" 
+            className="h-full w-full object-contain"
+          />
         </div>
-        <h1 className="text-2xl font-bold mb-2">{t('title')}</h1>
-        <p className="text-gray-600 mb-6">
+        <h1 className="text-2xl font-bold mb-2 text-[#222] dark:text-[#F1F5F9]">{t('title')}</h1>
+        <p className="text-[#555] dark:text-[#E5E7EB] mb-6">
           {t('description')}
         </p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[#555] dark:text-[#E5E7EB]">
           {t('already_confirmed')}{' '}
           <Link 
             href="/sign-in" 
-            className="text-[#7C3AED] hover:text-[#6025DD] font-medium"
+            className="text-[#FF6B00] hover:text-[#E05E00] font-medium transition-colors"
           >
             {t('sign_in_link')}
           </Link>

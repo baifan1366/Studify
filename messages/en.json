@@ -1,37 +1,29 @@
 {
-    "HomePage": {
-      "title": "Hello world!",
-      "metadata_title": "Home - Studify",
-      "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
-      "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
-      "og_title": "Home - Studify",
-      "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
-    },
-    "JoinCourseDialog": {
-      "title": "Join a Course",
-      "description": "Enter a course ID or invitation code to join a course",
-      "tabs": {
-        "course_id": "Course ID",
-        "invite_code": "Invite Code"
-      }
-    },
-    "labels": {
-      "course_id": "Course ID",
-      "invite_code": "Invitation Code"
-    },
-    "placeholders": {
-      "course_id": "Enter course ID",
-      "invite_code": "Enter invitation code"
-    },
-    "helpers": {
-      "course_id": "You can find the course ID in the course URL or ask your instructor",
-      "invite_code": "Enter the invitation code provided by your instructor"
-    },
-    "buttons": {
-      "cancel": "Cancel",
-      "join": "Join Course",
-      "joining": "Joining..."
-    },
+  "HomePage": {
+    "title": "Hello world!",
+    "metadata_title": "Home - Studify",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
+    "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
+    "og_title": "Home - Studify",
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
+  },
+  "labels": {
+    "course_id": "Course ID",
+    "invite_code": "Invitation Code"
+  },
+  "placeholders": {
+    "course_id": "Enter course ID",
+    "invite_code": "Enter invitation code"
+  },
+  "helpers": {
+    "course_id": "You can find the course ID in the course URL or ask your instructor",
+    "invite_code": "Enter the invitation code provided by your instructor"
+  },
+  "buttons": {
+    "cancel": "Cancel",
+    "join": "Join Course",
+    "joining": "Joining..."
+  },
   "AuthSignInPage": {
     "metadata_title": "Sign In",
     "welcome_back": "Welcome back",
@@ -552,6 +544,14 @@
       "join": {
         "title": "Join Meeting",
         "desc": "Joining meeting {id}..."
+      }
+    },
+    "JoinCourseDialog": {
+      "title": "Join a Course",
+      "description": "Enter a course ID or invitation code to join a course",
+      "tabs": {
+        "course_id": "Course ID",
+        "invite_code": "Invite Code"
       },
       "labels": {
         "course_id": "Course ID",

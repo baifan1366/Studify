@@ -4,10 +4,10 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
 import UserProfilePopover from './user-profile-popover';
-import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -107,16 +107,26 @@ export default function ClassroomHeader({
 
           {/* Profile Button */}
           <motion.button
-            onClick={onProfileClick}
             className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
+            ref={profileButtonRef}
+            onClick={handleProfileClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-              <User size={16} />
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
+              {userAvatar ? (
+                <Image 
+                  src={userAvatar} 
+                  alt="Profile" 
+                  width={32} 
+                  height={32} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User size={16} className="text-white" />
+              )}
             </div>
             <span className="text-sm font-medium text-foreground hidden sm:block">
-              {resolvedUserName}
             </span>
           </motion.button>
 

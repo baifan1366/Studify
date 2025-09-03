@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { classroomApi } from '@/lib/api';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 // 已注册课程类型定义
 export interface EnrolledCourse {
@@ -46,17 +46,26 @@ export interface RecommendedCourse extends CourseSearchResult {
 
 // 获取已注册课程
 async function fetchEnrolledCourses(): Promise<EnrolledCourse[]> {
-  const response = await fetch(classroomApi.enrolled);
+  const response = await fetch(classroomApi.enrolledCourses);
+
+  // Check if the response is JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    console.error('Invalid response format:', await response.text());
+    throw new Error('Invalid response format: Expected JSON');
+  }
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch enrolled courses');
   }
+
   return response.json();
 }
 
 // 搜索课程
-async function searchCourses(query: string, category?: string): Promise<CourseSearchResult[]> {
-  const response = await fetch(classroomApi.search(query, category));
+async function searchCourses(query: string): Promise<CourseSearchResult[]> {
+  const response = await fetch(classroomApi.search(query));
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to search courses');
@@ -100,10 +109,10 @@ export function useEnrolledCourses() {
 }
 
 // 搜索课程Hook
-export function useSearchCourses(query: string, category?: string) {
+export function useSearchCourses(query: string) {
   return useQuery<CourseSearchResult[], Error>({
-    queryKey: ['searchCourses', query, category],
-    queryFn: () => searchCourses(query, category),
+    queryKey: ['searchCourses', query],
+    queryFn: () => searchCourses(query),
     enabled: !!query, // 只有当有查询字符串时才执行
   });
 }
@@ -119,7 +128,8 @@ export function useRecommendedCourses() {
 // 加入课程Hook
 export function useJoinCourse() {
   const queryClient = useQueryClient();
-  
+  const { toast } = useToast();
+
   return useMutation<any, Error, { courseId: string; inviteCode?: string }>({
     mutationFn: ({ courseId, inviteCode }) => joinCourse(courseId, inviteCode),
     onSuccess: (data) => {

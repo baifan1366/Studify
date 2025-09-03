@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
-import { useStudents } from '@/hooks/use-students';
+import { useStudents } from '@/hooks/profile/use-students';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';

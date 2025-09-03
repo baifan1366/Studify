@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, X } from 'lucide-react';
-import { useJoinCourse } from '@/hooks/use-enrolled-courses';
+import { useJoinCourse } from '@/hooks/course/use-enrolled-courses';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

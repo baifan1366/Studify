@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Milestone } from '@/hooks/use-learning-path';
+import { Milestone } from '@/hooks/profile/use-learning-path';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { CheckCircle, Lock, Circle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUpdateMilestoneProgress, useUnlockNextMilestone, useClaimReward } from '@/hooks/use-learning-path';
+import { useUpdateMilestoneProgress, useUnlockNextMilestone, useClaimReward } from '@/hooks/profile/use-learning-path';
 
 
 interface SubwayPathProps {

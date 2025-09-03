@@ -80,3 +80,38 @@ after update of status on classroom.milestone
 for each row
 when (old.status <> 'completed' and new.status = 'completed')
 execute function classroom.calculate_path_progress();
+
+-- add auth user check
+-- Create a function to safely check if a user exists in auth.users
+create or replace function public.get_auth_user(user_id uuid)
+returns jsonb as $$
+declare
+  result jsonb;
+begin
+  -- Query auth.users directly with the required fields
+  select to_jsonb(u) into result
+  from (
+    select id, email, created_at, last_sign_in_at, raw_user_meta_data, raw_app_meta_data
+    from auth.users
+    where id = user_id
+    limit 1
+  ) u;
+  
+  if result is null then
+    return jsonb_build_object('error', 'User not found');
+  end if;
+  
+  return result;
+exception when others then
+  return jsonb_build_object('error', SQLERRM);
+end;
+$$ language plpgsql security definer;
+
+-- Create a function to get user profile with proper UUID handling
+CREATE OR REPLACE FUNCTION public.get_user_profile(user_uuid text)
+RETURNS SETOF profiles
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT * FROM profiles WHERE user_id = user_uuid::uuid;
+$$;

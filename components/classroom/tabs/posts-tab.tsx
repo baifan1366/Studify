@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useUser } from '@/hooks/use-user';
+import { useUser } from '@/hooks/profile/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -13,11 +13,11 @@ import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 
 // 导入帖子相关hooks
-import { useClassroomPosts } from '@/hooks/use-classroom-posts';
-import { useCreatePost } from '@/hooks/use-create-post';
-import { useCreateComment } from '@/hooks/use-create-comment';
+import { useClassroomPosts } from '@/hooks/classroom/use-classroom-posts';
+import { useCreatePost } from '@/hooks/community/use-create-post';
+import { useCreateComment } from '@/hooks/community/use-create-comment';
 import { useRealtimePosts } from '@/hooks/use-realtime-posts';
-import { useRealtimeComments } from '@/hooks/use-realtime-comments';
+import { useRealtimeComments } from '@/hooks/realtime/use-realtime-comments';
 
 // 帖子接口
 interface Post {

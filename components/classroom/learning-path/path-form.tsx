@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useGenerateLearningPath } from '@/hooks/use-learning-path';
+import { useGenerateLearningPath } from '@/hooks/profile/use-learning-path';
 import { Loader2 } from 'lucide-react';
 
 interface PathFormProps {

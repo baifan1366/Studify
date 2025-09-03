@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Play, CheckCircle, AlertCircle, Search, Plus } from 'lucide-react';
-import { useUser } from '@/hooks/use-user';
-import { useEnrolledCourses, useRecommendedCourses } from '@/hooks/use-enrolled-courses';
+import { useUser } from '@/hooks/profile/use-user';
+import { useEnrolledCourses, useRecommendedCourses } from '@/hooks/course/use-enrolled-courses';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';

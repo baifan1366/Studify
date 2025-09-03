@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase-realtime';
-import { Post } from './use-classroom-posts';
+import { Post } from './classroom/use-classroom-posts';
+import { apiGet, apiSend } from "@/lib/api-config";
 
 /**
  * 使用Supabase Realtime获取实时帖子的hook

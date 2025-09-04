@@ -49,6 +49,26 @@ export const coursesApi = {
 
 // Classroom API endpoints
 export const classroomApi = {
+  // Core classroom management
+  list: "/api/classroom",
+  create: "/api/classroom",
+  join: "/api/classroom/join",
+  
+  // Member management
+  members: {
+    list: "/api/classroom/member",
+    update: "/api/classroom/member",
+    remove: "/api/classroom/member",
+  },
+  
+  // Live sessions
+  liveSessions: {
+    list: "/api/classroom/live-session",
+    create: "/api/classroom/live-session",
+    update: "/api/classroom/live-session",
+  },
+  
+  // Legacy endpoints (keeping for backward compatibility)
   enrolledCourses: "/api/classroom/enrolled-courses",
   assignments: "/api/classroom/assignments",
   assignmentDetail: (id: string) => `/api/classroom/assignments/${id}`,
@@ -66,13 +86,13 @@ export const classroomApi = {
     send: (id: string) => `/api/classroom/${id}/chat/message`,
     history: (id: string) => `/api/classroom/${id}/chat/history`,
   },
-  assignments: {
+  classroomAssignments: {
     list: (id: string) => `/api/classroom/${id}/assignments`,
     create: (id: string) => `/api/classroom/${id}/assignments`,
     submit: (id: string, assignmentId: string) => `/api/classroom/${id}/assignments/${assignmentId}/submit`,
     grade: (id: string, assignmentId: string) => `/api/classroom/${id}/assignments/${assignmentId}/grade`,
   },
-  members: {
+  classroomMembers: {
     list: (id: string) => `/api/classroom/${id}/members`,
     invite: (id: string) => `/api/classroom/${id}/members/invite`,
   },

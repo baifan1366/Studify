@@ -54,10 +54,10 @@ const defaultMenuSections: MenuSection[] = [
   {
     title: 'Home',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
-      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
-      { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
-      { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/calendar' },
+      { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/tutor/dashboard' },
+      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tutor/notifications' },
+      { id: 'messages', label: 'Messages', icon: Mail, path: '/tutor/messages' },
+      { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/tutor/calendar' },
     ]
   },
   {
@@ -67,18 +67,18 @@ const defaultMenuSections: MenuSection[] = [
         id: 'teaching',
         label: 'Teaching',
         icon: BookOpen,
-        path: '/teaching',
+        path: '/tutor/teaching',
         subItems: [
-          { id: 'schedule', label: 'Schedule', icon: UserCheck, path: '/teaching/schedule' },
-          { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/teaching/assignments-exams' },
-          { id: 'course-content', label: 'Course Content', icon: Video, path: '/teaching/course-content' },
+          { id: 'schedule', label: 'Schedule', icon: UserCheck, path: '/tutor/teaching/schedule' },
+          { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/tutor/teaching/assignments-exams' },
+          { id: 'course-content', label: 'Course Content', icon: Video, path: '/tutor/teaching/course-content' },
         ]
       },
-      { id: 'classroom', label: 'Classroom', icon: Users, path: '/classroom' },
-      { id: 'students', label: 'Students', icon: GraduationCap, path: '/student' },
-      { id: 'ai-assistant', label: 'AI Assistant', icon: BookOpen, path: '/ai-assistant' },
-      { id: 'insights', label: 'Insights', icon: FileText, path: '/insights' },
-      { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+      { id: 'classroom', label: 'Classroom', icon: Users, path: '/tutor/classroom' },
+      { id: 'students', label: 'Students', icon: GraduationCap, path: '/tutor/student' },
+      { id: 'ai-assistant', label: 'AI Assistant', icon: BookOpen, path: '/tutor/ai-assistant' },
+      { id: 'insights', label: 'Insights', icon: FileText, path: '/tutor/insights' },
+      { id: 'settings', label: 'Settings', icon: Settings, path: '/tutor/settings' },
     ]
   }
 ];

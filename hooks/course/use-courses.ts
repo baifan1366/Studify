@@ -9,10 +9,13 @@ import { apiGet, apiSend } from '@/lib/api-config';
 /**
  * 获取所有课程
  */
-export function useCourses() {
+export function useCourses(owner_id?: string) {
   return useQuery<Course[]>({
-    queryKey: ['courses'],
-    queryFn: () => apiGet<Course[]>('/api/courses'),
+    queryKey: ['courses', owner_id],
+    queryFn: () => {
+      const url = owner_id ? `/api/courses?owner_id=${owner_id}` : '/api/courses';
+      return apiGet<Course[]>(url);
+    },
   });
 }
 

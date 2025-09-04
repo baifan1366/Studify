@@ -819,5 +819,20 @@
     },
     "empty_comments": "No comments yet. Be the first to comment!",
     "member_only": "You must be a group member to comment."
+  },
+  "CourseTable": {
+    "no": "No.",
+    "title": "Title",
+    "visibility": "Visibility",
+    "tags": "Tags",
+    "actions": "Actions",
+    "success": "Success",
+    "courseDeleted": "Course deleted successfully",
+    "deleteError": "Failed to delete course",
+    "noCourses": "No courses found",
+    "error": "Error",
+    "preview": "Preview",
+    "edit": "Edit",
+    "delete": "Delete"
   }
 }

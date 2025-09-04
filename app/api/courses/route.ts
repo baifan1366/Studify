@@ -2,9 +2,26 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
 // GET /api/courses - list public courses
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const client = await createServerClient();
+    const { searchParams } = new URL(req.url);
+    const owner_id = searchParams.get('owner_id');
+
+    if(owner_id) {
+      const {data, error} = await client
+        .from("course")
+        .select("*")
+        .eq("is_deleted", false)
+        .eq("owner_id", owner_id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ data });
+    }
+
     const { data, error } = await client
       .from("course")
       .select("*")

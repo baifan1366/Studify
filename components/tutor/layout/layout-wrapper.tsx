@@ -44,8 +44,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         style={{ marginLeft: "var(--sidebar-width)" }}
         className="transition-all duration-300 ease-in-out h-full"
       >
-        <main className="pt-16 h-full">
-          <div className="p-8 h-full overflow-y-auto">{children}</div>
+        <main className="pt-16 h-full w-full">
+          <div className="h-full w-full overflow-y-auto">{children}</div>
         </main>
       </div>
     </HomeBackground>

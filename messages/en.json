@@ -813,5 +813,31 @@
     "metadata_keywords": "classroom dashboard,teaching tools,student management,live sessions",
     "og_title": "Classroom Dashboard - Studify",
     "og_description": "Comprehensive classroom management and teaching tools"
+  },
+  "CommunityPostDetail": {
+    "loading": "Loading post...",
+    "error_loading": "Error loading post. Please try again later.",
+    "post_not_found": "Post not found",
+    "unknown_author": "Unknown Author",
+    "comments_title": "Comments",
+    "empty_comments": "No comments yet. Be the first to comment!",
+    "comment_form": {
+      "placeholder": "Write a comment...",
+      "reply_placeholder": "Write a reply...",
+      "submit": "Comment",
+      "submitting": "Posting...",
+      "cancel": "Cancel"
+    },
+    "comment_actions": {
+      "reply": "Reply",
+      "delete": "Delete",
+      "confirm_delete": "Are you sure you want to delete this comment?",
+      "show_replies": "Show replies",
+      "hide_replies": "Hide replies"
+    },
+    "view_modes": {
+      "flat": "Flat View",
+      "tree": "Tree View"
+    }
   }
 }

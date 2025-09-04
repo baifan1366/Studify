@@ -59,8 +59,7 @@ export async function GET(
       *,
       author:profiles ( display_name, avatar_url ),
       group:community_group ( name, slug, visibility ),
-      comments:community_comment ( count ),
-      reactions:community_reaction ( emoji, user_id )
+      comments:community_comment ( count )
     `)
     .eq('group_id', group.id)
     .eq('is_deleted', false)
@@ -70,16 +69,29 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Get reactions for all posts separately
+  const postIds = posts.map(post => post.id);
+  const { data: allReactions } = await supabaseClient
+    .from('community_reaction')
+    .select('emoji, target_id')
+    .eq('target_type', 'post')
+    .in('target_id', postIds);
+
+  // Group reactions by post ID
+  const reactionsByPost = (allReactions || []).reduce((acc: Record<number, Record<string, number>>, reaction) => {
+    if (!acc[reaction.target_id]) {
+      acc[reaction.target_id] = {};
+    }
+    acc[reaction.target_id][reaction.emoji] = (acc[reaction.target_id][reaction.emoji] || 0) + 1;
+    return acc;
+  }, {});
+
   // Process posts to aggregate reactions and comments count
   const processedPosts = posts.map(post => {
-    const reactions = post.reactions.reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
-      acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
-      return acc;
-    }, {});
     return {
       ...post,
       comments_count: post.comments[0]?.count || 0,
-      reactions,
+      reactions: reactionsByPost[post.id] || {},
     };
   });
 

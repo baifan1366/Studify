@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { ClassroomMistakeBookPage } from '@/components/classroom/classroom-mistake-book-page';
+import ClassroomMistakeBookPage from '@/components/classroom/classroom-mistake-book-page';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {

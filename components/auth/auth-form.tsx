@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSignIn, useSignUp } from "@/hooks/profile/use-auth";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/utils/supabase/client";
 
 interface AuthFormProps {
   mode: "sign-in" | "sign-up";
@@ -41,8 +43,32 @@ export function AuthForm({
   const signUp = useSignUp();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/google`, 
+        },
+      });
+
+      if (error) {
+        toast({ title: "Google Login Failed", variant: "destructive" });
+      }
+      // data.url 是 Supabase OAuth 跳转链接
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      toast({ title: "Google Login Failed fuck you!"});
+    } finally {
+      setLoading(false);
+    }
+  };    async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setPending(true);
@@ -115,6 +141,7 @@ export function AuthForm({
     );
   }
 
+
   return (
     <div className="w-screen min-h-screen flex items-center justify-center p-4 bg-[#FDF5E6] dark:bg-[#0D1F1A] transition-colors duration-300">
       <div className="w-full max-w-md">
@@ -180,6 +207,13 @@ export function AuthForm({
               {footerLinkText}
             </Link>
           </div>
+          <button
+        onClick={handleGoogleLogin}
+        disabled={loading}
+        className="w-full rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
+      >
+        {loading ? "Loading..." : "Continue with Google"}
+      </button>
         </motion.div>
 
         <div className="mt-6 flex justify-center">

@@ -20,4 +20,29 @@ export interface Course {
   average_rating?: number;
   total_students?: number;
   is_free?: boolean;
+  // Course structure
+  modules?: CourseModule[];
+  requirements?: string[];
+  learning_objectives?: string[];
+  category?: string;
+}
+
+export interface CourseModule {
+  id: string;
+  public_id: string;
+  title: string;
+  description?: string;
+  position: number;
+  lessons?: CourseLesson[];
+}
+
+export interface CourseLesson {
+  id: string;
+  public_id: string;
+  title: string;
+  description?: string;
+  position: number;
+  duration_minutes?: number;
+  video_url?: string;
+  content?: string;
 }

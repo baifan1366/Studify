@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { BookOpen, Clock, Users, Star, ShoppingCart, Zap } from 'lucide-react';
 import { useCourses } from '@/hooks/course/use-courses';
+import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,10 +20,8 @@ export default function CoursesContent() {
 
   const { data: courses, isLoading } = useCourses();
   const [sidebarWidth, setSidebarWidth] = useState(80); 
-  
-  // const { data: courses, isLoading, error } = useCourses();
-  const isLoading = false; // Temporary for demo
   const { toast } = useToast();
+  const purchaseCourse = usePurchaseCourse();
 
   const uiCourses = useMemo(() => {
     return (courses ?? []).map((c, idx) => ({
@@ -96,11 +95,29 @@ export default function CoursesContent() {
     });
   };
 
-  const handleBuyNow = (courseId: string | number) => {
-    toast({
-      title: 'Processing Purchase',
-      description: `Proceeding to checkout for course ${courseId}...`,
-    });
+  const handleBuyNow = async (courseId: string | number) => {
+    try {
+      const result = await purchaseCourse.mutateAsync({
+        courseId: String(courseId)
+      });
+      
+      if (result.checkoutUrl) {
+        // Redirect to Stripe checkout
+        window.location.href = result.checkoutUrl;
+      } else {
+        // Free course - show success message
+        toast({
+          title: 'Enrollment Successful',
+          description: 'You have been enrolled in this free course!',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Purchase Failed',
+        description: 'There was an error processing your purchase. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -127,7 +144,6 @@ export default function CoursesContent() {
           marginLeft: sidebarExpanded ? '280px' : '80px',// Use shared state for synchronization
           transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
-          width: `calc(100vw - ${sidebarWidth}px)`
         }}
       >
         <motion.div

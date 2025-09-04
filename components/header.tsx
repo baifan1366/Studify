@@ -91,7 +91,7 @@ export default function ClassroomHeader({
                 className="w-8 h-8 rounded-md"
               />
               <h1 className="text-xl font-bold text-foreground">
-                {resolvedTitle}
+                {title}
               </h1>
             </div>
           </motion.div>
@@ -99,7 +99,7 @@ export default function ClassroomHeader({
         <ThemeSwitcher />
         {/* Right side - Actions */}
         <motion.div
-          className="flex items-center space-x-4 relative"
+          className="flex items-center space-x-4"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
@@ -107,35 +107,18 @@ export default function ClassroomHeader({
 
           {/* Profile Button */}
           <motion.button
+            onClick={onProfileClick}
             className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
-            ref={profileButtonRef}
-            onClick={handleProfileClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
-              {userAvatar ? (
-                <Image 
-                  src={userAvatar} 
-                  alt="Profile" 
-                  width={32} 
-                  height={32} 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User size={16} className="text-white" />
-              )}
+              <User size={16} className="text-white" />
             </div>
             <span className="text-sm font-medium text-foreground hidden sm:block">
+              {userName}
             </span>
           </motion.button>
-
-          {/* User Profile Popover */}
-          <UserProfilePopover
-            isOpen={isPopoverOpen}
-            onClose={() => setIsPopoverOpen(false)}
-            triggerRef={profileButtonRef}
-          />
         </motion.div>
       </div>
     </motion.header>

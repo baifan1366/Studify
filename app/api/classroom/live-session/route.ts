@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const currentUserId = authResult.sub;
+    const currentProfile = authResult.user.profile;
     const { classroom_id, title, starts_at, ends_at } = await request.json();
 
     // 验证必填字段
@@ -24,6 +25,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'classroom_id, title, and starts_at are required' },
         { status: 400 }
+      );
+    }
+
+    // 验证用户 profile 是否存在
+    if (!currentProfile) {
+      return NextResponse.json(
+        { error: 'Current user profile not found' },
+        { status: 404 }
       );
     }
 
@@ -55,20 +64,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createAdminClient();
-
-    // 获取当前用户的 profile ID
-    const { data: currentProfile, error: currentProfileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
-
-    if (currentProfileError || !currentProfile) {
-      return NextResponse.json(
-        { error: 'Current user profile not found' },
-        { status: 404 }
-      );
-    }
 
     // 检查当前用户在课堂中的权限
     const { data: currentMember, error: currentMemberError } = await supabase
@@ -140,21 +135,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取主持人信息
-    const { data: hostProfile, error: hostError } = await supabase
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', currentProfile.id)
-      .single();
-
     return NextResponse.json({
       success: true,
       message: 'Live session created successfully',
       session: {
         ...liveSession,
         classroom_name: classroom.name,
-        host_name: hostProfile?.full_name || hostProfile?.email?.split('@')[0] || 'Unknown',
-        host_email: hostProfile?.email,
+        host_name: currentProfile?.display_name || authResult.user.email?.split('@')[0] || 'Unknown',
+        host_email: authResult.user.email,
       },
     });
 
@@ -180,6 +168,7 @@ export async function GET(request: NextRequest) {
     }
 
     const currentUserId = authResult.sub;
+    const currentProfile = authResult.user.profile;
     const { searchParams } = new URL(request.url);
     const classroom_id = searchParams.get('classroom_id');
     const status = searchParams.get('status'); // 可选过滤条件
@@ -191,21 +180,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = await createAdminClient();
-
-    // 获取当前用户的 profile ID
-    const { data: currentProfile, error: currentProfileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
-
-    if (currentProfileError || !currentProfile) {
+    // 验证用户 profile 是否存在
+    if (!currentProfile) {
       return NextResponse.json(
         { error: 'Current user profile not found' },
         { status: 404 }
       );
     }
+
+    const supabase = await createAdminClient();
 
     // 检查当前用户是否是课堂成员
     const { data: currentMember, error: currentMemberError } = await supabase
@@ -235,12 +218,7 @@ export async function GET(request: NextRequest) {
         ends_at,
         status,
         created_at,
-        updated_at,
-        profiles:host_id(
-          id,
-          full_name,
-          email
-        )
+        updated_at
       `)
       .eq('classroom_id', classroom_id)
       .eq('is_deleted', false);
@@ -263,11 +241,12 @@ export async function GET(request: NextRequest) {
 
     // 格式化返回数据
     const formattedSessions = sessions.map(session => {
-      const hostProfile = Array.isArray(session.profiles) ? session.profiles[0] : session.profiles;
       return {
         ...session,
-        host_name: hostProfile?.full_name || hostProfile?.email?.split('@')[0] || 'Unknown',
-        host_email: hostProfile?.email,
+        host_name: session.host_id === currentProfile.id 
+          ? (currentProfile.display_name || authResult.user.email?.split('@')[0] || 'Unknown')
+          : 'Host', // For other hosts, we'd need to fetch their profile separately if needed
+        host_email: session.host_id === currentProfile.id ? authResult.user.email : undefined,
         is_host: session.host_id === currentProfile.id,
         can_manage: ['owner', 'tutor'].includes(currentMember.role),
       };
@@ -301,6 +280,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const currentUserId = authResult.sub;
+    const currentProfile = authResult.user.profile;
     const { session_id, status, title, starts_at, ends_at } = await request.json();
 
     // 验证必填字段
@@ -308,6 +288,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         { error: 'session_id is required' },
         { status: 400 }
+      );
+    }
+
+    // 验证用户 profile 是否存在
+    if (!currentProfile) {
+      return NextResponse.json(
+        { error: 'Current user profile not found' },
+        { status: 404 }
       );
     }
 
@@ -320,20 +308,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const supabase = await createAdminClient();
-
-    // 获取当前用户的 profile ID
-    const { data: currentProfile, error: currentProfileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
-
-    if (currentProfileError || !currentProfile) {
-      return NextResponse.json(
-        { error: 'Current user profile not found' },
-        { status: 404 }
-      );
-    }
 
     // 获取直播课程信息
     const { data: session, error: sessionError } = await supabase

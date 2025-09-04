@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -20,7 +20,27 @@ import {
   UserCheck,
   ClipboardList,
   Video,
-  Route
+  Route,
+  MessageSquare,
+  Trophy,
+  Target,
+  BookMarked,
+  PlusCircle,
+  UserPlus,
+  Calendar as CalendarIcon,
+  Presentation,
+  FileQuestion,
+  Award,
+  TrendingUp,
+  Library,
+  Search,
+  Heart,
+  Share2,
+  Edit3,
+  Folder,
+  Star,
+  Clock,
+  CheckSquare
 } from 'lucide-react';
 
 interface MenuItem {
@@ -44,36 +64,76 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+interface RouteConfigItem {
+  pathFragment: string;
+  id: string;
+  expands: string | undefined;
+}
+
 const defaultMenuSections: MenuSection[] = [
   {
-    title: 'Home',
+    title: 'Main',
     items: [
       { id: 'home', label: 'Home', icon: Home, path: '/home' },
+      { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
       { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
-      { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
-      { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/calendar' },
+      { id: 'calendar', label: 'Calendar', icon: CalendarIcon, path: '/calendar' },
     ]
   },
   {
-    title: 'Dashboard',
+    title: 'Learning',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
       {
         id: 'classroom',
         label: 'Classroom',
-        icon: BookOpen,
-        path: '/classroom',
+        icon: Presentation,
         subItems: [
-          { id: 'enrolled', label: 'Enrolled', icon: UserCheck, path: '/classroom/enrolled' },
-          { id: 'assignment', label: 'Assignment', icon: ClipboardList, path: '/classroom/assignment' },
-          { id: 'meeting', label: 'Meeting', icon: Video, path: '/classroom/meeting' },
-          { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/learning-path' },
+          { id: 'my-classrooms', label: 'My Classrooms', icon: BookOpen, path: '/classroom' },
+          { id: 'create-classroom', label: 'Create Classroom', icon: PlusCircle, path: '/classroom/create' },
+          { id: 'join-classroom', label: 'Join Classroom', icon: UserPlus, path: '/classroom/join' },
+          { id: 'assignments', label: 'Assignments', icon: ClipboardList, path: '/classroom/assignments' },
+          { id: 'live-sessions', label: 'Live Sessions', icon: Video, path: '/classroom/live-sessions' },
+          { id: 'mistake-book', label: 'Mistake Book', icon: FileQuestion, path: '/classroom/mistake-book' },
         ]
       },
-      { id: 'community', label: 'Community', icon: Users, path: '/community' },
-      { id: 'courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
-      { id: 'my-courses', label: 'My Courses', icon: BookOpen, path: '/my/courses' },
-      { id: 'documents', label: 'Documents', icon: FileText, path: '/documents' },
+      {
+        id: 'courses',
+        label: 'Courses',
+        icon: GraduationCap,
+        subItems: [
+          { id: 'all-courses', label: 'All Courses', icon: Library, path: '/courses' },
+          { id: 'my-courses', label: 'My Courses', icon: BookMarked, path: '/my/courses' },
+          { id: 'favorites', label: 'Favorites', icon: Heart, path: '/courses/favorites' },
+          { id: 'progress', label: 'Progress', icon: TrendingUp, path: '/courses/progress' },
+        ]
+      },
+      { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/learning-path' },
+    ]
+  },
+  {
+    title: 'Community',
+    items: [
+      {
+        id: 'community',
+        label: 'Community',
+        icon: Users,
+        subItems: [
+          { id: 'groups', label: 'Groups', icon: Users, path: '/community' },
+          { id: 'discussions', label: 'Discussions', icon: MessageSquare, path: '/community/discussions' },
+          { id: 'challenges', label: 'Challenges', icon: Trophy, path: '/community/challenges' },
+          { id: 'achievements', label: 'Achievements', icon: Award, path: '/community/achievements' },
+        ]
+      },
+      { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
+    ]
+  },
+  {
+    title: 'Tools',
+    items: [
+      { id: 'documents', label: 'Documents', icon: Folder, path: '/documents' },
+      { id: 'search', label: 'Search', icon: Search, path: '/search' },
+      { id: 'bookmarks', label: 'Bookmarks', icon: Star, path: '/bookmarks' },
+      { id: 'recent', label: 'Recent', icon: Clock, path: '/recent' },
       { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ]
   }
@@ -93,36 +153,92 @@ export default function AnimatedSidebar({
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
+  const routeConfig = useMemo((): RouteConfigItem[] => {
+    const config = menuSections.flatMap(section =>
+      section.items.flatMap(item => {
+        const items: {
+            pathFragment: string | undefined;
+            id: string;
+            expands: string | undefined;
+        }[] = [];
+        // Add parent item itself, if it's a link
+        if (item.path) {
+          items.push({ pathFragment: item.path, id: item.id, expands: undefined });
+        }
+        // Add any sub-items
+        if (item.subItems) {
+          items.push(...item.subItems.map(subItem => ({
+            pathFragment: subItem.path,
+            id: subItem.id,
+            expands: item.id
+          })));
+        }
+        return items;
+      })
+    );
+    
+    const validConfig = config.filter((i): i is RouteConfigItem => !!i.pathFragment);
+
+    // Sort by path length descending to match specific paths first
+    return validConfig.sort((a, b) => b.pathFragment.length - a.pathFragment.length);
+  }, [menuSections]);
+
   const getLabelForItem = (id: string) => {
     switch (id) {
       case 'home':
         return t('home_label');
-      case 'notifications':
-        return t('notifications_label');
-      case 'messages':
-        return t('messages_label');
-      case 'calendar':
-        return t('calendar_label');
       case 'dashboard':
         return t('dashboard_label');
+      case 'notifications':
+        return t('notifications_label');
+      case 'calendar':
+        return t('calendar_label');
       case 'classroom':
         return t('classroom_label');
-      case 'enrolled':
-        return t('enrolled_label');
-      case 'assignment':
-        return t('assignment_label');
-      case 'meeting':
-        return t('meeting_label');
+      case 'my-classrooms':
+        return t('my_classrooms_label');
+      case 'create-classroom':
+        return t('create_classroom_label');
+      case 'join-classroom':
+        return t('join_classroom_label');
+      case 'assignments':
+        return t('assignments_label');
+      case 'live-sessions':
+        return t('live_sessions_label');
+      case 'mistake-book':
+        return t('mistake_book_label');
+      case 'courses':
+        return t('courses_label');
+      case 'all-courses':
+        return t('all_courses_label');
+      case 'my-courses':
+        return t('my_courses_label');
+      case 'favorites':
+        return t('favorites_label');
+      case 'progress':
+        return t('progress_label');
       case 'learning-path':
         return t('learning_path_label');
       case 'community':
         return t('community_label');
-      case 'courses':
-        return t('courses_label');
-      case 'my-courses':
-        return t('my_courses_label');
+      case 'groups':
+        return t('groups_label');
+      case 'discussions':
+        return t('discussions_label');
+      case 'challenges':
+        return t('challenges_label');
+      case 'achievements':
+        return t('achievements_label');
+      case 'messages':
+        return t('messages_label');
       case 'documents':
         return t('documents_label');
+      case 'search':
+        return t('search_label');
+      case 'bookmarks':
+        return t('bookmarks_label');
+      case 'recent':
+        return t('recent_label');
       case 'settings':
         return t('settings_label');
       default:
@@ -132,42 +248,15 @@ export default function AnimatedSidebar({
 
   // Automatically determine active item based on current route
   useEffect(() => {
-    if (pathname?.includes('/home')) {
-      setCurrentActiveItem('home');
-    } else if (pathname?.includes('/classroom/enrolled')) {
-      setCurrentActiveItem('enrolled');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/assignment')) {
-      setCurrentActiveItem('assignment');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/meeting')) {
-      setCurrentActiveItem('meeting');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/learning-path')) {
-      setCurrentActiveItem('learning-path');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom')) {
-      setCurrentActiveItem('classroom');
-    } else if (pathname?.includes('/community')) {
-      setCurrentActiveItem('community');
-    } else if (pathname?.includes('/courses')) {
-      setCurrentActiveItem('courses');
-    } else if (pathname?.includes('/my/courses')) {
-      setCurrentActiveItem('my-courses');
-    } else if (pathname?.includes('/documents')) {
-      setCurrentActiveItem('documents');
-    } else if (pathname?.includes('/settings')) {
-      setCurrentActiveItem('settings');
-    } else if (pathname?.includes('/notifications')) {
-      setCurrentActiveItem('notifications');
-    } else if (pathname?.includes('/messages')) {
-      setCurrentActiveItem('messages');
-    } else if (pathname?.includes('/calendar')) {
-      setCurrentActiveItem('calendar');
-    } else {
-      setCurrentActiveItem(activeItem);
+    const currentPath = pathname || '';
+    const activeRoute = routeConfig.find(route => route.pathFragment && currentPath.includes(route.pathFragment));
+
+    setCurrentActiveItem(activeRoute?.id || activeItem);
+
+    if (activeRoute && typeof activeRoute.expands === 'string') {
+      setExpandedSections(prev => ({ ...prev, [activeRoute.expands as string]: true }));
     }
-  }, [pathname, activeItem]);
+  }, [pathname, activeItem, routeConfig]);
 
   // Auto-close expanded sections when sidebar is collapsed
   useEffect(() => {
@@ -284,14 +373,15 @@ export default function AnimatedSidebar({
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? 'expanded' : 'collapsed'}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-2xl z-20 flex flex-col backdrop-blur-md"
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md"
         style={{
-          backgroundColor: '(var(--sidebar))',
+          backgroundColor: 'hsl(var(--sidebar))',
+          color: 'hsl(var(--sidebar-foreground))',
         }}
       >
         {/* Navigation */}
         <nav
-          className="flex-1 p-4 overflow-y-auto scrollbar-hide bg-(var(--sidebar)) text-foreground"
+          className="flex-1 p-4 overflow-y-auto scrollbar-hide"
           onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
           onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
           style={{
@@ -299,7 +389,7 @@ export default function AnimatedSidebar({
             msOverflowStyle: 'none', /* Internet Explorer 10+ */
           }}
         >
-          <div className="space-y-6 bg-(var(--sidebar))">
+          <div className="space-y-6">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title}>
 
@@ -329,12 +419,11 @@ export default function AnimatedSidebar({
                               }}
                               className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                                 isActive
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'hover:bg-accent hover:text-accent-foreground'
+                                  ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
+                                  : 'hover:bg-transparent dark:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600'
                               }`}
                               whileHover={{
-                                scale: 1.02,
-                                backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                                scale: 1.02
                               }}
                               whileTap={{ scale: 0.98 }}
                             >
@@ -375,7 +464,7 @@ export default function AnimatedSidebar({
                               {isActive && !isExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-auto w-2 h-2 bg-muted-foreground rounded-full"
+                                  className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -384,7 +473,7 @@ export default function AnimatedSidebar({
                               {isActive && isExpanded && !isDropdownExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-2 w-2 h-2 bg-muted-foreground rounded-full"
+                                  className="ml-2 w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -401,32 +490,39 @@ export default function AnimatedSidebar({
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
                                   transition={{ duration: 0.2 }}
+                                  
                                 >
-                                  {item.subItems?.map((subItem) => (
-                                    <motion.div
-                                      key={subItem.id}
-                                      className="flex items-center py-1 px-2 rounded-md hover:bg-slate-700/50 cursor-pointer"
-                                      whileHover={{ scale: 1.02, x: 4 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      onClick={() => handleItemClick(subItem.id)}
-                                    >
-                                      <div className="flex-shrink-0">
-                                        <subItem.icon size={18} />
-                                      </div>
-                                      <span className="ml-3 font-medium whitespace-nowrap">
-                                        {getLabelForItem(subItem.id)}
-                                      </span>
-                                      {currentActiveItem === subItem.id && (
-                                        <motion.div
-                                          layoutId="subActiveIndicator"
-                                          className="ml-auto w-1.5 h-1.5 bg-muted-foreground rounded-full"
-                                          initial={{ scale: 0 }}
-                                          animate={{ scale: 1 }}
-                                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                        />
-                                      )}
-                                    </motion.div>
-                                  ))}
+                                  {item.subItems?.map((subItem) => {
+                                    const SubIconComponent = subItem.icon;
+                                    const isSubActive = currentActiveItem === subItem.id;
+
+                                    return (
+                                      <motion.button
+                                        key={subItem.id}
+                                        onClick={() => handleItemClick(subItem.id)}
+                                        
+                                        className="flex items-center py-1 px-2 rounded-md hover:bg-transparent text-foreground cursor-pointer transition-colors duration-200 border-l-2 border-transparent hover:border-orange-300 dark:hover:border-green-600"
+                                        whileHover={{ scale: 1.02, x: 4 }}
+                                        whileTap={{ scale: 0.98 }}
+                                      >
+                                        <div className="flex-shrink-0">
+                                          <SubIconComponent size={18} />
+                                        </div>
+                                        <span className="ml-3 font-medium whitespace-nowrap">
+                                          {getLabelForItem(subItem.id)}
+                                        </span>
+                                        {isSubActive && (
+                                          <motion.div
+                                            layoutId="subActiveIndicator"
+                                            className="ml-auto w-1.5 h-1.5 bg-orange-400 dark:bg-green-900 rounded-full"
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                          />
+                                        )}
+                                      </motion.button>
+                                    );
+                                  })}
                                 </motion.div>
                               )}
                             </AnimatePresence>
@@ -444,12 +540,11 @@ export default function AnimatedSidebar({
                           onClick={() => handleItemClick(item.id)}
                           className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                             isActive
-                              ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
-                              : 'text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm'
+                              ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
+                              : 'hover:bg-transparent dark:hover:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-300 dark:hover:border-green-600'
                           }`}
                           whileHover={{
-                            scale: 1.02,
-                            backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                            scale: 1.02
                           }}
                           whileTap={{ scale: 0.98 }}
                         >
@@ -479,7 +574,7 @@ export default function AnimatedSidebar({
                           {isActive && (
                             <motion.div
                               layoutId="activeIndicator"
-                              className="ml-auto w-2 h-2 bg-white rounded-full"
+                              className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -505,7 +600,7 @@ export default function AnimatedSidebar({
           <motion.button
             variants={itemVariants}
             animate={isExpanded ? 'expanded' : 'collapsed'}
-            className="w-full flex items-center p-3 rounded-xl text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm transition-all duration-200"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-200 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -524,7 +619,7 @@ export default function AnimatedSidebar({
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
-                  className="ml-4 font-medium whitespace-nowrap"
+                  className="ml-4 font-medium whitespace-nowrap hover:bg-transparent bg-transparent hover:border-orange-400 dark:hover:border-green-600"
                 >
                   {t('logout_button')}
                 </motion.span>

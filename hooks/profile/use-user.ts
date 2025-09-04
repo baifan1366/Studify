@@ -24,26 +24,18 @@ const fetcher = (url: string) => fetch(url).then(res => {
 });
 
 /**
- * Hook for accessing the current authenticated user's profile.
- * ✅ Uses a single data-fetching library (SWR) for consistency.
- * ✅ Fetches data from the correct backend endpoint.
- * ✅ Provides a clean, easy-to-use return signature.
+ * Hook for accessing the current authenticated user
+ * ✅ Uses apiGet to remove duplicate fetch logic
+ * ✅ Uses React Query v5 object-style API
  */
 export function useUser() {
-  // 4. Use SWR to fetch data from the API route we created earlier.
-  const { data, error, isLoading, mutate } = useSWR<AuthApiResponse>('/api/auth', fetcher, {
-    shouldRetryOnError: false, // Optional: prevent retries on auth errors (like 401)
-    revalidateOnFocus: true,   // Optional: refetch when the window gains focus
+  return useQuery<AuthResponse>({
+    queryKey: ['user'],
+    queryFn: () => apiGet<AuthResponse>('/api/auth/me'),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    retry: 1,
+    refetchOnMount: true,
   });
-
-  return {
-    // 5. Provide a clean and predictable return object for components to use.
-    user: data?.user || null, // The user profile object, or null if not logged in
-    isLoading, // True while the initial fetch is in progress
-    isError: !!error, // A simple boolean flag for error state
-    error, // The actual error object if one occurred
-    mutate, // Expose SWR's mutate function to allow for programmatic refetching
-  };
 }
 
 export default useUser;

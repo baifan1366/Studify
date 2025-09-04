@@ -20,12 +20,12 @@ export function ReactQueryProvider({ children }: { children: ReactNode }) {
               if (error?.response?.status === 404) return false;
               return failureCount < 3;
             },
-            // Don't refetch on window focus
-            refetchOnWindowFocus: false,
-            // Don't refetch on reconnect
-            refetchOnReconnect: false,
-            // Don't refetch on mount
-            refetchOnMount: false,
+            // ✅ Allow refetch on mount for fresh data
+            refetchOnMount: true,
+            // ✅ Allow refetch on window focus (but not too aggressive)
+            refetchOnWindowFocus: 'always',
+            // ✅ Allow refetch on reconnect
+            refetchOnReconnect: true,
           },
           mutations: {
             onError: (error: any) => {

@@ -27,31 +27,15 @@ function generateTitle(pathname: string | null): string {
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const { data: user } = useUser(); 
+  const { data: userData } = useUser(); 
   const pathname = usePathname();
   const title = generateTitle(pathname);
-  
-  // Safe userName extraction with multiple fallbacks
-  const getUserName = () => {
-    if (!user) return "Tutor";
-    
-    // Handle AuthResponse structure - user is nested inside
-    const userData = user.user;
-    if (!userData) return "Tutor";
-    
-    // Try different possible paths for the user name
-    const fullName = userData.user_metadata?.full_name || 
-                    userData.user_metadata?.name ||
-                    userData.email?.split('@')[0];
-    console.log(userData, fullName)
-    return fullName || "Tutor";
-  };
 
   return (
     <HomeBackground useGlobalCSSVariable={true}>
       <ClassroomHeader
         title={title}
-        userName={getUserName()} 
+        userName={userData?.user?.user_metadata?.full_name || userData?.user?.email || "Tutor"} 
         onMenuToggle={() => setSidebarExpanded(!sidebarExpanded)}
         sidebarExpanded={sidebarExpanded}
       />

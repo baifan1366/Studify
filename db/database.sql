@@ -19,6 +19,8 @@ create table if not exists profiles (
   public_id uuid not null default uuid_generate_v4(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
   display_name text,
+  full_name text,
+  email text,
   role text not null check (role in ('admin','student','tutor')),
   avatar_url text,
   bio text,
@@ -156,21 +158,6 @@ create table if not exists course (
   price_cents int default 0,
   currency text default 'MYR',
   tags text[] default '{}',
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists classroom_live_session (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
-  course_id bigint references course(id) on delete set null,
-  title text,
-  host_id bigint not null references profiles(id) on delete restrict,
-  starts_at timestamptz not null,
-  ends_at timestamptz,
-  status text not null check (status in ('scheduled','live','ended','cancelled')) default 'scheduled',
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -321,7 +308,72 @@ create index if not exists idx_course_public_id on course (public_id);
 -- =========================
 -- Classroom (from db/classroom/schema.sql)
 -- =========================
+create table if not exists classroom (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  slug text unique,
+  name text not null,
+  description text,
+  class_code text unique not null, -- 邀请码
+  visibility text check (visibility in ('public','private')) default 'public',
+  owner_id bigint not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
+create table if not exists classroom_member (
+  id bigserial primary key,
+  classroom_id bigint not null references classroom(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  role text check (role in ('owner','tutor','student')) default 'student',
+  permissions jsonb default '{}'::jsonb, -- 扩展权限，如 { "can_assign_asg": true }
+  joined_at timestamptz not null default now(),
+  unique (classroom_id, user_id)
+);
+
+create table if not exists classroom_live_session (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  classroom_id bigint not null references classroom(id) on delete cascade,
+  title text,
+  host_id bigint not null references profiles(id) on delete restrict,
+  starts_at timestamptz not null,
+  ends_at timestamptz,
+  status text not null check (status in ('scheduled','live','ended','cancelled')) default 'scheduled',
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_assignment (
+  id bigserial primary key,
+  classroom_id bigint not null references classroom(id) on delete cascade,
+  author_id bigint not null references profiles(id) on delete cascade,
+  title text not null,
+  description text,
+  due_date timestamptz,
+  created_at timestamptz default now()
+);
+
+create table if not exists classroom_submission (
+  id bigserial primary key,
+  assignment_id bigint not null references classroom_assignment(id) on delete cascade,
+  student_id bigint not null references profiles(id) on delete cascade,
+  content text,
+  submitted_at timestamptz default now(),
+  grade numeric,
+  feedback text,
+  unique (assignment_id, student_id)
+);
+
+create table if not exists plagiarism_report (
+  id bigserial primary key,
+  submission_id bigint not null references classroom_submission(id) on delete cascade,
+  similarity_score numeric, -- 0 ~ 100
+  report jsonb, -- AI 返回的详细结果
+  created_at timestamptz default now()
+);
 
 create table if not exists classroom_attendance (
   id bigserial primary key,
@@ -330,6 +382,8 @@ create table if not exists classroom_attendance (
   user_id bigint not null references profiles(id) on delete cascade,
   join_at timestamptz,
   leave_at timestamptz,
+  status text check (status in ('present','late','absent')) default 'present',
+  signed_at timestamptz, -- 主动签到时间
   attention_score numeric(5,2),
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
@@ -413,7 +467,7 @@ create table if not exists classroom_question (
 create table if not exists classroom_quiz (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
-  course_id bigint references course(id) on delete set null,
+  classroom_id bigint not null references classroom(id) on delete cascade,
   title text not null,
   settings jsonb not null default '{"shuffle":true,"time_limit":null}',
   is_deleted boolean not null default false,
@@ -444,6 +498,7 @@ create table if not exists classroom_attempt (
   started_at timestamptz not null default now(),
   submitted_at timestamptz,
   score numeric(8,2) not null default 0,
+  proctoring_data jsonb, -- 存人脸检测/屏幕活动/AI监控结果
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -463,19 +518,6 @@ create table if not exists classroom_answer (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   unique (attempt_id, question_id)
-);
-
-create table if not exists classroom_assignment (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
-  course_id bigint not null references course(id) on delete cascade,
-  title text not null,
-  description text,
-  due_at timestamptz,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
 );
 
 create table if not exists classroom_submission (
@@ -507,6 +549,115 @@ create table if not exists classroom_grade (
   unique (assignment_id, user_id)
 );
 
+create table if not exists mistake_book (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  assignment_id bigint references classroom_assignment(id) on delete set null,
+  submission_id bigint references classroom_submission(id) on delete set null,
+  question_id bigint references classroom_question(id) on delete set null,
+  mistake_content text not null,
+  analysis text,
+  source_type text check (source_type in ('quiz','assignment','manual')) default 'manual',
+  knowledge_points text[],
+  recommended_exercises jsonb,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- 学习路径相关表结构
+-- 学习路径表
+create table if not exists learning_path (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  goal text not null,
+  duration integer not null, -- 以天为单位
+  progress numeric(5,2) default 0, -- 总体进度百分比
+  is_active boolean not null default true,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- 学习路径里程碑表
+create table if not exists milestone (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  path_id bigint not null references learning_path(id) on delete cascade,
+  title text not null,
+  description text,
+  order_index integer not null, -- 里程碑顺序
+  status text not null check (status in ('locked','in-progress','completed')) default 'locked',
+  resource_type text, -- 资源类型：course, lesson, assignment, quiz, etc.
+  resource_id bigint, -- 关联的资源ID
+  prerequisites jsonb, -- 前置条件，如[{"milestone_id": "uuid", "required": true}]
+  reward jsonb, -- 奖励信息，如{"badge_id": "uuid", "points": 100, "message": "恭喜解锁中级任务"}
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- 课堂帖子表
+create table if not exists classroom_posts (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  session_id bigint not null references classroom_live_session(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  content text not null,
+  attachments jsonb default '[]'::jsonb,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- 课堂帖子评论表
+create table if not exists classroom_post_comments (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  post_id bigint not null references classroom_posts(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  content text not null,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists classroom_post_reactions (
+  id bigserial primary key,
+  post_id bigint not null references classroom_posts(id) on delete cascade,
+  user_id bigint not null references profiles(id) on delete cascade,
+  reaction_type text not null, -- like, heart, etc
+  created_at timestamptz default now(),
+  unique (post_id, user_id, reaction_type)
+);
+
+create table if not exists classroom_engagement_report (
+  id bigserial primary key,
+  user_id bigint not null references profiles(id),
+  course_id bigint not null references course(id),
+  participation_score numeric(5,2), -- 综合分数
+  report jsonb, -- 详细数据：出勤率/作业完成率/答题正确率等
+  generated_at timestamptz default now()
+);
+
+-- 创建Supabase Realtime发布
+BEGIN;
+  -- 启用课堂消息表的实时发布
+  ALTER PUBLICATION supabase_realtime ADD TABLE classroom_messages;
+  
+  -- 启用课堂帖子表的实时发布
+  ALTER PUBLICATION supabase_realtime ADD TABLE classroom_posts;
+  
+  -- 启用课堂帖子评论表的实时发布
+  ALTER PUBLICATION supabase_realtime ADD TABLE classroom_post_comments;
+COMMIT;
 -- =========================
 -- Community (from db/community/schema.sql)
 -- =========================
@@ -747,91 +898,3 @@ create table if not exists tutoring_share (
   deleted_at timestamptz
 );
 
-
-create table if not exists classroom.mistake_book (
-  id uuid primary key default uuid_generate_v1(),
-  user_id uuid not null references core.profiles(user_id) on delete cascade,
-  assignment_id uuid references assessment.assignment(id) on delete set null,
-  submission_id uuid references assessment.submission(id) on delete set null,
-  question_id uuid references assessment.question(id) on delete set null,
-  mistake_content text not null,
-  analysis text,
-  knowledge_points text[],
-  recommended_exercises jsonb,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  is_deleted boolean default false
-);
-
--- 学习路径相关表结构
-
--- 学习路径表
-create table if not exists classroom.learning_path (
-  id uuid primary key default uuid_generate_v1(),
-  user_id uuid not null references core.profiles(user_id) on delete cascade,
-  goal text not null,
-  duration integer not null, -- 以天为单位
-  progress numeric(5,2) default 0, -- 总体进度百分比
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  is_active boolean default true
-);
-
--- 学习路径里程碑表
-create table if not exists classroom.milestone (
-  id uuid primary key default uuid_generate_v1(),
-  path_id uuid not null references classroom.learning_path(id) on delete cascade,
-  title text not null,
-  description text,
-  order_index integer not null, -- 里程碑顺序
-  status text not null check (status in ('locked','in-progress','completed')) default 'locked',
-  resource_type text, -- 资源类型：course, lesson, assignment, quiz, etc.
-  resource_id uuid, -- 关联的资源ID
-  prerequisites jsonb, -- 前置条件，如[{"milestone_id": "uuid", "required": true}]
-  reward jsonb, -- 奖励信息，如{"badge_id": "uuid", "points": 100, "message": "恭喜解锁中级任务"}
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
--- 课程聊天消息表
-CREATE TABLE IF NOT EXISTS messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 帖子表
-CREATE TABLE IF NOT EXISTS posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  attachments JSONB DEFAULT '[]'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 帖子评论表
-CREATE TABLE IF NOT EXISTS post_comments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 创建Supabase Realtime发布
-BEGIN;
-  -- 启用消息表的实时发布
-  ALTER PUBLICATION supabase_realtime ADD TABLE messages;
-  
-  -- 启用帖子表的实时发布
-  ALTER PUBLICATION supabase_realtime ADD TABLE posts;
-  
-  -- 启用帖子评论表的实时发布
-  ALTER PUBLICATION supabase_realtime ADD TABLE post_comments;
-COMMIT;

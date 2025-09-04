@@ -4,24 +4,52 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyAppJwt, AppJwtPayload } from './jwt';
 import redis from '../redis/redis';
+import { createAdminClient } from '../supabase/server';
 
 type Role = 'student' | 'tutor' | 'admin';
 
+type UserInfo = {
+  id: string;
+  email?: string;
+  user_metadata?: any;
+  app_metadata?: any;
+  profile?: any;
+  [key: string]: any;
+};
+
+type AuthResult = {
+  payload: AppJwtPayload;
+  user: UserInfo;
+  // Backward compatibility - expose sub directly
+  sub: string;
+};
+
 /**
- * Authorizes a request for a specific role in an App Router API Route.
+ * Authorizes a request for a specific role in an App Router API Route and returns user information.
  * @param role The required role ('student', 'tutor', or 'admin').
  * @returns A promise that resolves to one of two possible return types:
  * 
  * **Success Case (Authorization Passed):**
- * Returns `AppJwtPayload` object containing:
+ * Returns `AuthResult` object containing:
  * ```typescript
  * {
+ *   payload: {
+ *     sub: string;        // User ID from JWT
+ *     role: 'student' | 'tutor' | 'admin';  // User role
+ *     jti: string;        // JWT ID for session tracking
+ *     name?: string;      // Optional user name
+ *     iat?: number;       // Issued at timestamp
+ *     exp?: number;       // Expiration timestamp
+ *   },
+ *   user: {
+ *     id: string;         // User ID
+ *     email?: string;     // User email
+ *     user_metadata?: any; // User metadata
+ *     app_metadata?: any;  // App metadata
+ *     profile?: any;      // User profile from profiles table
+ *     [key: string]: any; // Other user properties
+ *   },
  *   sub: string;        // User ID from JWT
- *   role: 'student' | 'tutor' | 'admin';  // User role
- *   jti: string;        // JWT ID for session tracking
- *   name?: string;      // Optional user name
- *   iat?: number;       // Issued at timestamp
- *   exp?: number;       // Expiration timestamp
  * }
  * ```
  * 
@@ -47,11 +75,12 @@ type Role = 'student' | 'tutor' | 'admin';
  * if (authResult instanceof NextResponse) {
  *   return authResult; // Return error response
  * }
- * // Use authResult.sub as user ID
- * const userId = authResult.sub;
+ * // Use authResult.payload.sub as user ID and authResult.user for user info
+ * const userId = authResult.payload.sub;
+ * const userEmail = authResult.user.email;
  * ```
  */
-export async function authorize(role: Role): Promise<AppJwtPayload | NextResponse> {
+export async function authorize(role: Role): Promise<AuthResult | NextResponse> {
   try {
     // 1. 读取 Cookie 里的 App JWT
     const cookieStore = await cookies();
@@ -78,8 +107,56 @@ export async function authorize(role: Role): Promise<AppJwtPayload | NextRespons
       return NextResponse.json({ message: 'Forbidden: Insufficient permissions.' }, { status: 403 });
     }
 
-    // 5. 验证通过，返回用户信息
-    return payload;
+    // 5. 获取用户详细信息
+    const userId = payload.sub;
+    const cacheKey = `user:${userId}`;
+
+    let userInfo: UserInfo;
+
+    // 先检查 Redis 缓存
+    try {
+      const cachedUser = await redis.get(cacheKey);
+      if (cachedUser) {
+        userInfo = typeof cachedUser === 'string' ? JSON.parse(cachedUser) : cachedUser;
+      } else {
+        // 从 Supabase 获取用户信息
+        const supabase = await createAdminClient();
+        
+        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
+        if (userError || !user) {
+          return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+        }
+
+        // 获取用户 profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        userInfo = {
+          ...user,
+          profile,
+        };
+
+        // 缓存用户信息 1 小时
+        try {
+          await redis.set(cacheKey, JSON.stringify(userInfo), { ex: 3600 });
+        } catch (error) {
+          console.error('Redis SET error:', error);
+        }
+      }
+    } catch (error) {
+      console.error('User info fetch error:', error);
+      return NextResponse.json({ message: 'Failed to fetch user information.' }, { status: 500 });
+    }
+
+    // 6. 验证通过，返回 JWT payload 和用户信息
+    return {
+      payload,
+      user: userInfo,
+      sub: payload.sub  // Backward compatibility
+    };
 
   } catch (error) {
     console.error('Authorization error:', error);

@@ -6,7 +6,7 @@ import { User, Settings, LogOut, ChevronRight, UserCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
-import { useLogout } from '@/hooks/use-logout';
+import { useLogout } from '@/hooks/profile/use-logout';
 import Image from 'next/image';
 
 interface UserProfilePopoverProps {

@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { useClassroomPosts } from '@/hooks/classroom/use-classroom-posts';
 import { useCreatePost } from '@/hooks/community/use-create-post';
 import { useCreateComment } from '@/hooks/community/use-create-comment';
-import { useRealtimePosts } from '@/hooks/use-realtime-posts';
+import { useRealtimePosts } from '@/hooks/realtime/use-realtime-posts';
 import { useRealtimeComments } from '@/hooks/realtime/use-realtime-comments';
 import type { Comment } from '@/interface/community/comment-interface';
 import type { Post } from '@/interface/community/post-interface';

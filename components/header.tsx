@@ -33,8 +33,8 @@ export default function ClassroomHeader({
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   
   const resolvedTitle = title ?? t('default_title');
-  const resolvedUserName = userName || userData?.user?.user_metadata?.full_name || userData?.user?.email || t('default_user_name');
-  const userAvatar = userData?.user?.user_metadata?.avatar_url || '';
+  const resolvedUserName = userName || userData?.profile?.display_name || userData?.profile?.email || t('default_user_name');
+  const userAvatar = userData?.profile?.avatar_url || '';
 
   const handleProfileClick = () => {
     if (onProfileClick) {
@@ -96,7 +96,9 @@ export default function ClassroomHeader({
             </div>
           </motion.div>
         </div>
-        <ThemeSwitcher />
+        <div className="flex items-center gap-4">
+          <ThemeSwitcher />
+        </div>
         {/* Right side - Actions */}
         <motion.div
           className="flex items-center space-x-4"
@@ -106,19 +108,38 @@ export default function ClassroomHeader({
         >
 
           {/* Profile Button */}
-          <motion.button
-            onClick={onProfileClick}
-            className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
-              <User size={16} className="text-white" />
-            </div>
-            <span className="text-sm font-medium text-foreground hidden sm:block">
-              {userName}
-            </span>
-          </motion.button>
+          <div className="relative">
+            <motion.button
+              ref={profileButtonRef}
+              onClick={handleProfileClick}
+              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
+                {userAvatar ? (
+                  <Image
+                    src={userAvatar}
+                    alt="Profile"
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <User size={16} className="text-white" />
+                )}
+              </div>
+              <span className="text-sm font-medium text-foreground hidden sm:block">
+                {resolvedUserName}
+              </span>
+            </motion.button>
+            
+            <UserProfilePopover
+              isOpen={isPopoverOpen}
+              onClose={() => setIsPopoverOpen(false)}
+              triggerRef={profileButtonRef}
+            />
+          </div>
         </motion.div>
       </div>
     </motion.header>

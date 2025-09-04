@@ -16,15 +16,11 @@ import { AlertCircle, BookOpen, Brain, Calendar, FileText, Filter, Plus, Search,
 import { MistakeBookWithDetails, CreateMistakeBookRequest } from '@/interface/classroom/mistake-book-interface';
 
 interface ClassroomMistakeBookPageProps {
-  classroomId: string;
-  userId: string;
-  userRole: 'owner' | 'tutor' | 'student';
+  classroomSlug: string;
 }
 
 export default function ClassroomMistakeBookPage({ 
-  classroomId, 
-  userId, 
-  userRole 
+  classroomSlug 
 }: ClassroomMistakeBookPageProps) {
   const [mistakes, setMistakes] = useState<MistakeBookWithDetails[]>([]);
   const [loading, setLoading] = useState(true);

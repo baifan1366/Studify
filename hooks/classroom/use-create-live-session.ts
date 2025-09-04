@@ -8,6 +8,7 @@ import { apiSend, apiGet } from '@/lib/api-config';
 interface CreateLiveSessionData {
   classroom_id: number;
   title: string;
+  description?: string;
   starts_at: string;
   ends_at?: string;
 }
@@ -16,6 +17,7 @@ interface UpdateLiveSessionData {
   session_id: number;
   status?: 'scheduled' | 'live' | 'ended' | 'cancelled';
   title?: string;
+  description?: string;
   starts_at?: string;
   ends_at?: string;
 }
@@ -25,6 +27,8 @@ interface LiveSession {
   public_id: string;
   classroom_id: number;
   title: string;
+  description?: string;
+  slug: string;
   host_id: number;
   starts_at: string;
   ends_at: string | null;

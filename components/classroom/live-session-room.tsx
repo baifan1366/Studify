@@ -134,7 +134,7 @@ export function LiveSessionRoom({ classroomSlug, sessionSlug }: LiveSessionRoomP
 
   useEffect(() => {
     if (sessionsData?.sessions) {
-      const foundSession = sessionsData.sessions.find(s => s.slug === sessionSlug);
+      const foundSession = sessionsData.sessions.find(s => s.public_id === sessionSlug);
       setSession(foundSession);
     }
   }, [sessionsData, sessionSlug]);

@@ -12,7 +12,7 @@ export async function GET(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug, postSlug } = params;
+  const { slug, postSlug } = await params;
 
   // Get user profile
   const { data: profile } = await supabaseClient
@@ -70,8 +70,7 @@ export async function GET(
     .from('community_comment')
     .select(`
       *,
-      author:profiles ( display_name, avatar_url ),
-      reactions:community_reaction ( emoji, user_id )
+      author:profiles ( display_name, avatar_url )
     `)
     .eq('post_id', post.id)
     .eq('is_deleted', false)
@@ -81,13 +80,27 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Get reactions for all comments separately
+  const commentIds = comments.map(comment => comment.id);
+  const { data: allReactions } = await supabaseClient
+    .from('community_reaction')
+    .select('emoji, target_id')
+    .eq('target_type', 'comment')
+    .in('target_id', commentIds);
+
+  // Group reactions by comment ID
+  const reactionsByComment = (allReactions || []).reduce((acc: Record<number, Record<string, number>>, reaction) => {
+    if (!acc[reaction.target_id]) {
+      acc[reaction.target_id] = {};
+    }
+    acc[reaction.target_id][reaction.emoji] = (acc[reaction.target_id][reaction.emoji] || 0) + 1;
+    return acc;
+  }, {});
+
   // Process reactions for each comment
   const processedComments = comments.map(comment => ({
     ...comment,
-    reactions: comment.reactions.reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
-      acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
-      return acc;
-    }, {})
+    reactions: reactionsByComment[comment.id] || {}
   }));
 
   return NextResponse.json(processedComments);

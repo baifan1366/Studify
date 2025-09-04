@@ -74,8 +74,7 @@ export async function GET(
       group:community_group ( name, slug, visibility ),
       comments:community_comment ( *,
         author:profiles ( display_name, avatar_url )
-      ),
-      reactions:community_reaction ( emoji, user_id )
+      )
     `)
     .eq('group_id', group.id)
     .eq('slug', postSlug)
@@ -88,8 +87,15 @@ export async function GET(
   }
   console.log('[API] Post found successfully.');
 
+  // 5. Get reactions separately using polymorphic relationship
+  const { data: postReactions } = await supabaseClient
+    .from('community_reaction')
+    .select('emoji, user_id')
+    .eq('target_type', 'post')
+    .eq('target_id', post.id);
+
   // Process reactions
-  const reactions = post.reactions.reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
+  const reactions = (postReactions || []).reduce((acc: Record<string, number>, reaction: { emoji: string }) => {
     acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
     return acc;
   }, {});

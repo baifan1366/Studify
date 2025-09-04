@@ -126,7 +126,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       title: session.title,
       description: session.description || '',
       starts_at: new Date(session.starts_at).toISOString().slice(0, 16),
-      ends_at: new Date(session.ends_at).toISOString().slice(0, 16)
+      ends_at: session.ends_at ? new Date(session.ends_at).toISOString().slice(0, 16) : ''
     });
     setIsEditDialogOpen(true);
   };
@@ -159,7 +159,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
     }
   };
 
-  const handleStatusChange = async (sessionId: string, newStatus: string) => {
+  const handleStatusChange = async (sessionId: number, newStatus: string) => {
     try {
       await updateSessionMutation.mutateAsync({
         session_id: sessionId,
@@ -380,7 +380,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {new Date(session.starts_at).toLocaleTimeString()} - {new Date(session.ends_at).toLocaleTimeString()}
+                          {new Date(session.starts_at).toLocaleTimeString()} - {session.ends_at ? new Date(session.ends_at).toLocaleTimeString() : 'No end time'}
                         </span>
                       </div>
                     </div>
@@ -457,7 +457,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {new Date(session.starts_at).toLocaleTimeString()} - {new Date(session.ends_at).toLocaleTimeString()}
+                          {new Date(session.starts_at).toLocaleTimeString()} - {session.ends_at ? new Date(session.ends_at).toLocaleTimeString() : 'No end time'}
                         </span>
                       </div>
                     </div>

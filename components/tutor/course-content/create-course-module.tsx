@@ -5,9 +5,12 @@ import { Dialog, DialogContent, DialogTrigger, DialogDescription, DialogHeader, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Course } from '@/interface';
+import { courseModuleSchema } from '@/lib/validations/course-module';
+import { z } from 'zod';
 
 // Mock course data. In a real application, you would fetch this from your API.
 const mockCourses: Pick<Course, 'public_id' | 'title'>[] = [
@@ -23,6 +26,7 @@ export default function CreateCourseModule() {
     const [selectedCourse, setSelectedCourse] = useState('');
     const [title, setTitle] = useState('');
     const [position, setPosition] = useState(1);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const t = useTranslations('CreateCourseModule');
 
@@ -34,27 +38,42 @@ export default function CreateCourseModule() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedCourse) {
-            alert(t('course_selection_error'));
-            return;
+        
+        try {
+            const formData = {
+                courseId: selectedCourse,
+                title,
+                position
+            };
+            
+            courseModuleSchema.parse(formData);
+            setErrors({});
+            
+            console.log(formData);
+            
+            // Reset form
+            setSelectedCourse('');
+            setTitle('');
+            setPosition(1);
+            setIsOpen(false);
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                const newErrors: Record<string, string> = {};
+                error.issues.forEach((err) => {
+                    if (err.path[0]) {
+                        newErrors[err.path[0].toString()] = err.message;
+                    }
+                });
+                setErrors(newErrors);
+            }
         }
-        console.log({
-            courseId: selectedCourse,
-            title,
-            position,
-        });
-        // Reset form
-        setSelectedCourse('');
-        setTitle('');
-        setPosition(1);
-        setIsOpen(false);
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline">
-                    <PlusCircle className="mr-2 h-4 w-4" />
+                    <Plus className="mr-2 h-4 w-4" />
                     {t('create_module_button')}
                 </Button>
             </DialogTrigger>
@@ -64,26 +83,48 @@ export default function CreateCourseModule() {
                         <DialogTitle>{t('dialog_title')}</DialogTitle>
                         <DialogDescription>{t('dialog_description')}</DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="course">{t('course_label')}</Label>
-                            <select
-                                id="course"
-                                value={selectedCourse}
-                                onChange={(e) => setSelectedCourse(e.target.value)}
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                required
-                            >
-                                <option value="" disabled>{t('select_course_placeholder')}</option>
-                                {courses.map((course) => (
-                                    <option key={course.public_id} value={course.public_id}>
-                                        {course.title}
-                                    </option>
-                                ))}
-                            </select>
+                    <div className="grid gap-2 py-4">
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <Label htmlFor="course">
+                                    {t('course_label')} <span className="text-red-500">*</span>
+                                </Label>
+                                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                                    <SelectTrigger className={errors.courseId ? 'border-red-500' : ''}>
+                                        <SelectValue placeholder={t('select_course_placeholder')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {courses.map((course) => (
+                                            <SelectItem key={course.public_id} value={course.public_id}>
+                                                {course.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {errors.courseId && <span className="text-xs text-red-500">{errors.courseId}</span>}
+                            </div>
+                            <div className="w-24">
+                                <Label htmlFor="position">
+                                    {t('position_label')} <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    type="number"
+                                    id="position"
+                                    placeholder={t('position_placeholder')}
+                                    value={position}
+                                    onChange={(e) => setPosition(Number(e.target.value))}
+                                    min="1"
+                                    max="100"
+                                    required
+                                    className={errors.position ? 'border-red-500' : ''}
+                                />
+                                {errors.position && <span className="text-xs text-red-500">{errors.position}</span>}
+                            </div>
                         </div>
-                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="title">{t('title_label')}</Label>
+                        <div className="grid w-full items-center gap-1.5">
+                            <Label htmlFor="title">
+                                {t('title_label')} <span className="text-red-500">*</span>
+                            </Label>
                             <Input
                                 type="text"
                                 id="title"
@@ -91,19 +132,12 @@ export default function CreateCourseModule() {
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 required
+                                className={errors.title ? 'border-red-500' : ''}
                             />
-                        </div>
-                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="position">{t('position_label')}</Label>
-                            <Input
-                                type="number"
-                                id="position"
-                                placeholder={t('position_placeholder')}
-                                value={position}
-                                onChange={(e) => setPosition(Number(e.target.value))}
-                                min="1"
-                                required
-                            />
+                            <div className="flex justify-between text-xs">
+                                <span className="text-red-500">{errors.title || ''}</span>
+                                <span className="text-muted-foreground">{title.length}/100 characters</span>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>

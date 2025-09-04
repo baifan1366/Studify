@@ -26,9 +26,7 @@ export async function GET() {
     .from('community_group')
     .select(`
       *,
-      owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url ),
-      members:community_group_member ( count ),
-      posts:community_post ( count )
+      owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url )
     `)
     .eq('is_deleted', false)
     .order('created_at', { ascending: false });
@@ -43,6 +41,32 @@ export async function GET() {
     .select('group_id, role, joined_at')
     .eq('user_id', profile.id)
     .eq('is_deleted', false);
+
+  // Get member counts for all groups
+  const { data: memberCounts } = await supabaseClient
+    .from('community_group_member')
+    .select('group_id')
+    .eq('is_deleted', false);
+
+  // Get post counts for all groups
+  const { data: postCounts } = await supabaseClient
+    .from('community_post')
+    .select('group_id')
+    .eq('is_deleted', false);
+
+  // Create count maps
+  const memberCountMap = new Map();
+  const postCountMap = new Map();
+  
+  memberCounts?.forEach(member => {
+    const count = memberCountMap.get(member.group_id) || 0;
+    memberCountMap.set(member.group_id, count + 1);
+  });
+  
+  postCounts?.forEach(post => {
+    const count = postCountMap.get(post.group_id) || 0;
+    postCountMap.set(post.group_id, count + 1);
+  });
 
   // Filter groups based on visibility and membership
   const groups = (allGroups || []).filter(group => {
@@ -60,8 +84,8 @@ export async function GET() {
   // Process groups to format data
   const processedGroups = groups.map(group => ({
     ...group,
-    member_count: group.members[0]?.count || 0,
-    post_count: group.posts[0]?.count || 0,
+    member_count: memberCountMap.get(group.id) || 0,
+    post_count: postCountMap.get(group.id) || 0,
     user_membership: group.user_membership[0] || null,
   }));
 

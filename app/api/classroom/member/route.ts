@@ -17,6 +17,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const currentUserId = authResult.sub;
+    const currentProfile = authResult.user.profile;
     const { classroom_id, user_id, role } = await request.json();
 
     // 验证必填字段
@@ -35,21 +36,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const supabase = await createAdminClient();
-
-    // 获取当前用户的 profile ID
-    const { data: currentProfile, error: currentProfileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
-
-    if (currentProfileError || !currentProfile) {
+    if (!currentProfile) {
       return NextResponse.json(
         { error: 'Current user profile not found' },
         { status: 404 }
       );
     }
+
+    const supabase = await createAdminClient();
 
     // 获取目标用户的 profile ID
     const { data: targetProfile, error: targetProfileError } = await supabase
@@ -149,29 +143,12 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Get updated profile info
-    const { data: updatedProfile, error: profileFetchError } = await supabase
-      .from('profiles')
-      .select('id, user_id, full_name, email')
-      .eq('id', targetProfile.id)
-      .single();
-
-    if (profileFetchError || !updatedProfile) {
-      console.error('Error fetching updated profile:', profileFetchError);
-      return NextResponse.json(
-        { error: 'Failed to fetch updated profile' },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json({
       success: true,
-      message: `Successfully updated ${updatedProfile.full_name || updatedProfile.email}'s role to ${role}`,
+      message: `Successfully updated member's role to ${role}`,
       member: {
-        user_id: updatedProfile.user_id,
-        profile_id: updatedProfile.id,
-        name: updatedProfile.full_name || updatedProfile.email.split('@')[0],
-        email: updatedProfile.email,
+        user_id: user_id,
+        profile_id: targetProfile.id,
         role: updatedMember.role,
       },
     });
@@ -198,6 +175,7 @@ export async function GET(request: NextRequest) {
     }
 
     const currentUserId = authResult.sub;
+    const currentProfile = authResult.user.profile;
     const { searchParams } = new URL(request.url);
     const classroom_id = searchParams.get('classroom_id');
 
@@ -208,21 +186,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = await createAdminClient();
-
-    // 获取当前用户的 profile ID
-    const { data: currentProfile, error: currentProfileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
-
-    if (currentProfileError || !currentProfile) {
+    if (!currentProfile) {
       return NextResponse.json(
         { error: 'Current user profile not found' },
         { status: 404 }
       );
     }
+
+    const supabase = await createAdminClient();
 
     // 检查当前用户是否是课堂成员
     const { data: currentMember, error: currentMemberError } = await supabase
@@ -245,13 +216,7 @@ export async function GET(request: NextRequest) {
       .select(`
         role,
         joined_at,
-        profiles!inner(
-          id,
-          user_id,
-          full_name,
-          email,
-          avatar_url
-        )
+        user_id
       `)
       .eq('classroom_id', classroom_id)
       .order('joined_at', { ascending: true });
@@ -266,16 +231,12 @@ export async function GET(request: NextRequest) {
 
     // 格式化成员数据
     const formattedMembers = members.map(member => {
-      const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
       return {
-        user_id: profile?.user_id,
-        profile_id: profile?.id,
-        name: profile?.full_name || profile?.email?.split('@')[0],
-        email: profile?.email,
-        avatar_url: profile?.avatar_url,
+        user_id: member.user_id,
+        profile_id: member.user_id, // Using user_id as profile_id reference
         role: member.role,
         joined_at: member.joined_at,
-        is_current_user: profile?.id === currentProfile.id,
+        is_current_user: member.user_id === currentProfile.id,
       };
     });
 
@@ -307,6 +268,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const currentUserId = authResult.sub;
+    const currentProfile = authResult.user.profile;
     const { classroom_id, user_id } = await request.json();
 
     // 验证必填字段
@@ -317,21 +279,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const supabase = await createAdminClient();
-
-    // 获取当前用户的 profile ID
-    const { data: currentProfile, error: currentProfileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .single();
-
-    if (currentProfileError || !currentProfile) {
+    if (!currentProfile) {
       return NextResponse.json(
         { error: 'Current user profile not found' },
         { status: 404 }
       );
     }
+
+    const supabase = await createAdminClient();
 
     // 获取目标用户的 profile ID
     const { data: targetProfile, error: targetProfileError } = await supabase

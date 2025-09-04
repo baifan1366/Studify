@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -42,6 +42,12 @@ interface AnimatedSidebarProps {
 interface MenuSection {
   title: string;
   items: MenuItem[];
+}
+
+interface RouteConfigItem {
+  pathFragment: string;
+  id: string;
+  expands: string | undefined;
 }
 
 const defaultMenuSections: MenuSection[] = [
@@ -93,6 +99,36 @@ export default function AnimatedSidebar({
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
+  const routeConfig = useMemo((): RouteConfigItem[] => {
+    const config = menuSections.flatMap(section =>
+      section.items.flatMap(item => {
+        const items: {
+            pathFragment: string | undefined;
+            id: string;
+            expands: string | undefined;
+        }[] = [];
+        // Add parent item itself, if it's a link
+        if (item.path) {
+          items.push({ pathFragment: item.path, id: item.id, expands: undefined });
+        }
+        // Add any sub-items
+        if (item.subItems) {
+          items.push(...item.subItems.map(subItem => ({
+            pathFragment: subItem.path,
+            id: subItem.id,
+            expands: item.id
+          })));
+        }
+        return items;
+      })
+    );
+    
+    const validConfig = config.filter((i): i is RouteConfigItem => !!i.pathFragment);
+
+    // Sort by path length descending to match specific paths first
+    return validConfig.sort((a, b) => b.pathFragment.length - a.pathFragment.length);
+  }, [menuSections]);
+
   const getLabelForItem = (id: string) => {
     switch (id) {
       case 'home':
@@ -132,42 +168,15 @@ export default function AnimatedSidebar({
 
   // Automatically determine active item based on current route
   useEffect(() => {
-    if (pathname?.includes('/home')) {
-      setCurrentActiveItem('home');
-    } else if (pathname?.includes('/classroom/enrolled')) {
-      setCurrentActiveItem('enrolled');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/assignment')) {
-      setCurrentActiveItem('assignment');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/meeting')) {
-      setCurrentActiveItem('meeting');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom/learning-path')) {
-      setCurrentActiveItem('learning-path');
-      setExpandedSections(prev => ({ ...prev, classroom: true }));
-    } else if (pathname?.includes('/classroom')) {
-      setCurrentActiveItem('classroom');
-    } else if (pathname?.includes('/community')) {
-      setCurrentActiveItem('community');
-    } else if (pathname?.includes('/courses')) {
-      setCurrentActiveItem('courses');
-    } else if (pathname?.includes('/my/courses')) {
-      setCurrentActiveItem('my-courses');
-    } else if (pathname?.includes('/documents')) {
-      setCurrentActiveItem('documents');
-    } else if (pathname?.includes('/settings')) {
-      setCurrentActiveItem('settings');
-    } else if (pathname?.includes('/notifications')) {
-      setCurrentActiveItem('notifications');
-    } else if (pathname?.includes('/messages')) {
-      setCurrentActiveItem('messages');
-    } else if (pathname?.includes('/calendar')) {
-      setCurrentActiveItem('calendar');
-    } else {
-      setCurrentActiveItem(activeItem);
+    const currentPath = pathname || '';
+    const activeRoute = routeConfig.find(route => route.pathFragment && currentPath.includes(route.pathFragment));
+
+    setCurrentActiveItem(activeRoute?.id || activeItem);
+
+    if (activeRoute && typeof activeRoute.expands === 'string') {
+      setExpandedSections(prev => ({ ...prev, [activeRoute.expands as string]: true }));
     }
-  }, [pathname, activeItem]);
+  }, [pathname, activeItem, routeConfig]);
 
   // Auto-close expanded sections when sidebar is collapsed
   useEffect(() => {
@@ -284,14 +293,15 @@ export default function AnimatedSidebar({
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? 'expanded' : 'collapsed'}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-2xl z-20 flex flex-col backdrop-blur-md"
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md"
         style={{
-          backgroundColor: '(var(--sidebar))',
+          backgroundColor: 'hsl(var(--sidebar))',
+          color: 'hsl(var(--sidebar-foreground))',
         }}
       >
         {/* Navigation */}
         <nav
-          className="flex-1 p-4 overflow-y-auto scrollbar-hide bg-(var(--sidebar)) text-foreground"
+          className="flex-1 p-4 overflow-y-auto scrollbar-hide"
           onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
           onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
           style={{
@@ -299,7 +309,7 @@ export default function AnimatedSidebar({
             msOverflowStyle: 'none', /* Internet Explorer 10+ */
           }}
         >
-          <div className="space-y-6 bg-(var(--sidebar))">
+          <div className="space-y-6">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title}>
 
@@ -329,12 +339,11 @@ export default function AnimatedSidebar({
                               }}
                               className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                                 isActive
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'hover:bg-accent hover:text-accent-foreground'
+                                  ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
+                                  : 'hover:bg-transparent dark:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600'
                               }`}
                               whileHover={{
-                                scale: 1.02,
-                                backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                                scale: 1.02
                               }}
                               whileTap={{ scale: 0.98 }}
                             >
@@ -375,7 +384,7 @@ export default function AnimatedSidebar({
                               {isActive && !isExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-auto w-2 h-2 bg-muted-foreground rounded-full"
+                                  className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -384,7 +393,7 @@ export default function AnimatedSidebar({
                               {isActive && isExpanded && !isDropdownExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-2 w-2 h-2 bg-muted-foreground rounded-full"
+                                  className="ml-2 w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -401,32 +410,39 @@ export default function AnimatedSidebar({
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
                                   transition={{ duration: 0.2 }}
+                                  
                                 >
-                                  {item.subItems?.map((subItem) => (
-                                    <motion.div
-                                      key={subItem.id}
-                                      className="flex items-center py-1 px-2 rounded-md hover:bg-slate-700/50 cursor-pointer"
-                                      whileHover={{ scale: 1.02, x: 4 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      onClick={() => handleItemClick(subItem.id)}
-                                    >
-                                      <div className="flex-shrink-0">
-                                        <subItem.icon size={18} />
-                                      </div>
-                                      <span className="ml-3 font-medium whitespace-nowrap">
-                                        {getLabelForItem(subItem.id)}
-                                      </span>
-                                      {currentActiveItem === subItem.id && (
-                                        <motion.div
-                                          layoutId="subActiveIndicator"
-                                          className="ml-auto w-1.5 h-1.5 bg-muted-foreground rounded-full"
-                                          initial={{ scale: 0 }}
-                                          animate={{ scale: 1 }}
-                                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                        />
-                                      )}
-                                    </motion.div>
-                                  ))}
+                                  {item.subItems?.map((subItem) => {
+                                    const SubIconComponent = subItem.icon;
+                                    const isSubActive = currentActiveItem === subItem.id;
+
+                                    return (
+                                      <motion.button
+                                        key={subItem.id}
+                                        onClick={() => handleItemClick(subItem.id)}
+                                        
+                                        className="flex items-center py-1 px-2 rounded-md hover:bg-transparent text-foreground cursor-pointer transition-colors duration-200 border-l-2 border-transparent hover:border-orange-300 dark:hover:border-green-600"
+                                        whileHover={{ scale: 1.02, x: 4 }}
+                                        whileTap={{ scale: 0.98 }}
+                                      >
+                                        <div className="flex-shrink-0">
+                                          <SubIconComponent size={18} />
+                                        </div>
+                                        <span className="ml-3 font-medium whitespace-nowrap">
+                                          {getLabelForItem(subItem.id)}
+                                        </span>
+                                        {isSubActive && (
+                                          <motion.div
+                                            layoutId="subActiveIndicator"
+                                            className="ml-auto w-1.5 h-1.5 bg-orange-400 dark:bg-green-900 rounded-full"
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                          />
+                                        )}
+                                      </motion.button>
+                                    );
+                                  })}
                                 </motion.div>
                               )}
                             </AnimatePresence>
@@ -444,12 +460,11 @@ export default function AnimatedSidebar({
                           onClick={() => handleItemClick(item.id)}
                           className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                             isActive
-                              ? 'bg-white/40 text-white shadow-lg backdrop-blur-sm border border-white/30'
-                              : 'text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm'
+                              ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
+                              : 'hover:bg-transparent dark:hover:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-300 dark:hover:border-green-600'
                           }`}
                           whileHover={{
-                            scale: 1.02,
-                            backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                            scale: 1.02
                           }}
                           whileTap={{ scale: 0.98 }}
                         >
@@ -479,7 +494,7 @@ export default function AnimatedSidebar({
                           {isActive && (
                             <motion.div
                               layoutId="activeIndicator"
-                              className="ml-auto w-2 h-2 bg-white rounded-full"
+                              className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -505,7 +520,7 @@ export default function AnimatedSidebar({
           <motion.button
             variants={itemVariants}
             animate={isExpanded ? 'expanded' : 'collapsed'}
-            className="w-full flex items-center p-3 rounded-xl text-white/90 hover:bg-white/25 hover:text-white hover:backdrop-blur-sm transition-all duration-200"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-200 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -524,7 +539,7 @@ export default function AnimatedSidebar({
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
-                  className="ml-4 font-medium whitespace-nowrap"
+                  className="ml-4 font-medium whitespace-nowrap hover:bg-transparent bg-transparent hover:border-orange-400 dark:hover:border-green-600"
                 >
                   {t('logout_button')}
                 </motion.span>

@@ -799,5 +799,37 @@
     "og_title": "Dashboard | Tutor | Studify",
     "og_description": "Get an overview of your teaching activities, student progress, and course management with Studify's tutor dashboard.",
     "page_title": "Dashboard"
+  },
+  "CommunityPostDetail": {
+    "loading": "Loading...",
+    "error_loading": "Failed to load post. Please try again later.",
+    "post_not_found": "Post not found or you don't have access permission",
+    "unknown_author": "Unknown Author",
+    "comments_title": "Comments",
+    "reactions": {
+      "like": "Like",
+      "love": "Love",
+      "comments": "Comments"
+    },
+    "comment_form": {
+      "placeholder": "Write a comment...",
+      "reply_placeholder": "Write a reply...",
+      "submit": "Post Comment",
+      "cancel": "Cancel",
+      "submitting": "Posting..."
+    },
+    "comment_actions": {
+      "reply": "Reply",
+      "delete": "Delete",
+      "confirm_delete": "Are you sure you want to delete this comment?",
+      "show_replies": "Show replies",
+      "hide_replies": "Hide replies"
+    },
+    "view_modes": {
+      "flat": "Flat View",
+      "tree": "Tree View"
+    },
+    "empty_comments": "No comments yet. Be the first to comment!",
+    "member_only": "You must be a group member to comment."
   }
 }

@@ -3,6 +3,7 @@ export interface Comment {
   public_id: string;
   post_id: number;
   author_id: number;
+  parent_id?: number | null;
   body: string;
   is_deleted: boolean;
   created_at: Date;

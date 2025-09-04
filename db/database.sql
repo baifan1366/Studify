@@ -561,6 +561,7 @@ create table if not exists community_comment (
   public_id uuid not null default uuid_generate_v4(),
   post_id bigint not null references community_post(id) on delete cascade,
   author_id bigint not null references profiles(id) on delete cascade,
+  parent_id bigint references community_comment(id) on delete cascade,
   body text not null,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
@@ -571,12 +572,13 @@ create table if not exists community_comment (
 create table if not exists community_reaction (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
-  post_id bigint not null references community_post(id) on delete cascade,
+  target_type text not null check (target_type in ('post', 'comment')),
+  target_id bigint not null,
   user_id bigint not null references profiles(id) on delete cascade,
   emoji text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (post_id, user_id, emoji)
+  unique (target_type, target_id, user_id, emoji)
 );
 
 create table if not exists community_points_ledger (

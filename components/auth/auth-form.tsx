@@ -52,19 +52,19 @@ export function AuthForm({
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/api/auth/google`, 
+          // 回调到专门的前端 callback 页面，不要回到 / 或被 middleware 重写的路径
+          redirectTo: `${window.location.origin}/auth/callback`
         },
       });
 
       if (error) {
         toast({ title: "Google Login Failed", variant: "destructive" });
+        console.error("OAuth error:", error);
       }
-      // data.url 是 Supabase OAuth 跳转链接
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      // supabase-js 会把浏览器重定向到 Google，然后回调到 /auth/callback
     } catch (err) {
-      toast({ title: "Google Login Failed fuck you!"});
+      toast({ title: "Google Login Failed", variant: "destructive" });
+      console.error("OAuth error:", err);
     } finally {
       setLoading(false);
     }

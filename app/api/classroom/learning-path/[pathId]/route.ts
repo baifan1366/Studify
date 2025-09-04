@@ -3,7 +3,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 获取用户学习路径
-export async function GET(req: NextRequest, { params }: { params: { userId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { pathId: string } }) {
   try {
     // 验证用户身份
     const currentUser = await getAuthUser();
@@ -11,10 +11,10 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
 
-    const { userId } = params;
+    const { pathId } = params;
     
     // 检查权限：只能查看自己的学习路径，除非是教师角色
-    if (userId !== currentUser.id && currentUser.role !== 'teacher') {
+    if (pathId !== currentUser.id && currentUser.role !== 'teacher') {
       return NextResponse.json({ error: '无权访问此用户的学习路径' }, { status: 403 });
     }
 
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
     const { data: pathData, error: pathError } = await supabase
       .from('classroom.learning_path')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', pathId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1)

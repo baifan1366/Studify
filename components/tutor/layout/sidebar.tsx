@@ -21,6 +21,7 @@ import {
   Video,
   Route
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface MenuItem {
   id: string;
@@ -89,6 +90,7 @@ export default function AnimatedSidebar({
   onExpansionChange,
   isPermanentlyExpanded = false
 }: AnimatedSidebarProps) {
+  const t = useTranslations('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -252,7 +254,7 @@ export default function AnimatedSidebar({
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? 'expanded' : 'collapsed'}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-2xl z-20 flex flex-col backdrop-blur-md"
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md"
         style={{
           backgroundColor: 'hsl(var(--sidebar))',
           color: 'hsl(var(--sidebar-foreground))',
@@ -260,7 +262,7 @@ export default function AnimatedSidebar({
       >
         {/* Navigation */}
         <nav
-          className="flex-1 p-4 overflow-y-auto scrollbar-hide bg-sidebar text-foreground dark:bg-slate-800 dark:text-slate-100"
+          className="flex-1 p-4 overflow-y-auto scrollbar-hide"
           onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
           onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
           style={{
@@ -268,7 +270,7 @@ export default function AnimatedSidebar({
             msOverflowStyle: 'none', /* Internet Explorer 10+ */
           }}
         >
-          <div className="space-y-6 dark:bg-slate-800 dark:text-slate-100">
+          <div className="space-y-6">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title}>
 
@@ -299,12 +301,11 @@ export default function AnimatedSidebar({
                               
                               className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                                 isActive
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'hover:bg-accent hover:text-accent-foreground'
+                                  ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
+                                  : 'hover:bg-transparent dark:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600'
                               }`}
                               whileHover={{
-                                scale: 1.02,
-                                backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                                scale: 1.02
                               }}
                               whileTap={{ scale: 0.98 }}
                             >
@@ -345,7 +346,7 @@ export default function AnimatedSidebar({
                               {isActive && !isExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-auto w-2 h-2 bg-muted-foreground rounded-full"
+                                  className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -354,7 +355,7 @@ export default function AnimatedSidebar({
                               {isActive && isExpanded && !isDropdownExpanded && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-2 w-2 h-2 bg-muted-foreground rounded-full"
+                                  className="ml-2 w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -382,7 +383,7 @@ export default function AnimatedSidebar({
                                         key={subItem.id}
                                         onClick={() => handleItemClick(subItem.id)}
                                         
-                                        className="flex items-center py-1 px-2 rounded-md hover:bg-slate-700/50 cursor-pointer"
+                                        className="flex items-center py-1 px-2 rounded-md hover:bg-transparent text-foreground cursor-pointer transition-colors duration-200 border-l-2 border-transparent hover:border-orange-300 dark:hover:border-green-600"
                                         whileHover={{ scale: 1.02, x: 4 }}
                                         whileTap={{ scale: 0.98 }}
                                       >
@@ -395,7 +396,7 @@ export default function AnimatedSidebar({
                                         {isSubActive && (
                                           <motion.div
                                             layoutId="subActiveIndicator"
-                                            className="ml-auto w-1.5 h-1.5 bg-muted-foreground rounded-full"
+                                            className="ml-auto w-1.5 h-1.5 bg-orange-400 dark:bg-green-900 rounded-full"
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
                                             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -422,12 +423,11 @@ export default function AnimatedSidebar({
                           
                           className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
                             isActive
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-accent hover:text-accent-foreground'
+                              ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
+                              : 'hover:bg-transparent dark:hover:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-300 dark:hover:border-green-600'
                           }`}
                           whileHover={{
-                            scale: 1.02,
-                            backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)'
+                            scale: 1.02
                           }}
                           whileTap={{ scale: 0.98 }}
                         >
@@ -457,7 +457,7 @@ export default function AnimatedSidebar({
                           {isActive && (
                             <motion.div
                               layoutId="activeIndicator"
-                              className="ml-auto w-2 h-2 bg-muted-foreground rounded-full"
+                              className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -483,7 +483,7 @@ export default function AnimatedSidebar({
           <motion.button
             variants={itemVariants}
             animate={isExpanded ? 'expanded' : 'collapsed'}
-            className="w-full flex items-center p-3 rounded-xl hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-200 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -502,9 +502,9 @@ export default function AnimatedSidebar({
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
-                  className="ml-4 font-medium whitespace-nowrap"
+                  className="ml-4 font-medium whitespace-nowrap hover:bg-transparent bg-transparent hover:border-orange-400 dark:hover:border-green-600"
                 >
-                  Logout
+                  {t('logout_button')}
                 </motion.span>
               )}
             </AnimatePresence>

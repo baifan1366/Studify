@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -75,7 +76,7 @@ export default function ClassroomHeader({
             </div>
           </motion.div>
         </div>
-
+        <ThemeSwitcher />
         {/* Right side - Actions */}
         <motion.div
           className="flex items-center space-x-4"

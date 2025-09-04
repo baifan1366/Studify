@@ -286,13 +286,12 @@ export default function AnimatedSidebar({
         animate={isExpanded ? 'expanded' : 'collapsed'}
         className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-2xl z-20 flex flex-col backdrop-blur-md"
         style={{
-          backgroundColor: 'hsl(var(--sidebar))',
-          color: 'hsl(var(--sidebar-foreground))',
+          backgroundColor: '(var(--sidebar))',
         }}
       >
         {/* Navigation */}
         <nav
-          className="flex-1 p-4 overflow-y-auto scrollbar-hide bg-sidebar text-foreground dark:bg-slate-800 dark:text-slate-100"
+          className="flex-1 p-4 overflow-y-auto scrollbar-hide bg-(var(--sidebar)) text-foreground"
           onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
           onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
           style={{
@@ -300,7 +299,7 @@ export default function AnimatedSidebar({
             msOverflowStyle: 'none', /* Internet Explorer 10+ */
           }}
         >
-          <div className="space-y-6 dark:bg-slate-800 dark:text-slate-100">
+          <div className="space-y-6 bg-(var(--sidebar))">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title}>
 

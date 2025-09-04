@@ -7,11 +7,22 @@ import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
 import { apiGet } from '@/lib/api-config';
 
-// Response type for the auth API
-interface AuthResponse {
-  user: User | null;
-  error?: string;
+// Extended User type with profile data
+interface ExtendedUser extends User {
+  profile?: {
+    id: string;
+    user_id: string;
+    display_name?: string;
+    email: string;
+    avatar_url?: string;
+    role?: string;
+    created_at: string;
+    updated_at: string;
+  };
 }
+
+// Response type for the auth API - the API returns the user data directly
+type AuthResponse = ExtendedUser | null;
 
 /**
  * Hook for accessing the current authenticated user

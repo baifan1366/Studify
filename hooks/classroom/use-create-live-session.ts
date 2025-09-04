@@ -106,11 +106,16 @@ export function useUpdateLiveSession() {
 /**
  * Hook for fetching live sessions for a classroom
  */
-export function useLiveSessions(classroomId: number, status?: string) {
-  const queryParams = new URLSearchParams({
-    classroom_id: classroomId.toString(),
-    ...(status && { status }),
-  });
+export function useLiveSessions(classroomId: number | undefined, status?: string) {
+  const queryParams = new URLSearchParams();
+  
+  if (classroomId) {
+    queryParams.set('classroom_id', classroomId.toString());
+  }
+  
+  if (status) {
+    queryParams.set('status', status);
+  }
 
   return useQuery<GetLiveSessionsResponse>({
     queryKey: ['live-sessions', classroomId, status],

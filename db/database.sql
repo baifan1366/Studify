@@ -19,6 +19,8 @@ create table if not exists profiles (
   public_id uuid not null default uuid_generate_v4(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
   display_name text,
+  full_name text,
+  email text,
   role text not null check (role in ('admin','student','tutor')),
   avatar_url text,
   bio text,
@@ -332,7 +334,7 @@ create table if not exists classroom_member (
 create table if not exists classroom_live_session (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
-  classroom_id bigint not null references classroom(id) on delete cascade;
+  classroom_id bigint not null references classroom(id) on delete cascade,
   title text,
   host_id bigint not null references profiles(id) on delete restrict,
   starts_at timestamptz not null,

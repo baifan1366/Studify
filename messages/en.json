@@ -369,20 +369,32 @@
   "Sidebar": {
     "section_home": "Home",
     "home_label": "Home",
-    "notifications_label": "Notifications",
-    "messages_label": "Messages",
-    "calendar_label": "Calendar",
-    "section_dashboard": "Dashboard",
     "dashboard_label": "Dashboard",
+    "notifications_label": "Notifications",
+    "calendar_label": "Calendar",
     "classroom_label": "Classroom",
-    "enrolled_label": "Enrolled",
-    "assignment_label": "Assignment",
-    "meeting_label": "Meeting",
+    "my_classrooms_label": "My Classrooms",
+    "create_classroom_label": "Create Classroom",
+    "join_classroom_label": "Join Classroom",
+    "assignments_label": "Assignments",
+    "live_sessions_label": "Live Sessions",
+    "mistake_book_label": "Mistake Book",
+    "courses_label": "Courses",
+    "all_courses_label": "All Courses",
+    "my_courses_label": "My Courses",
+    "favorites_label": "Favorites",
+    "progress_label": "Progress",
     "learning_path_label": "Learning Path",
     "community_label": "Community",
-    "courses_label": "Courses",
-    "my_courses_label": "My Courses",
+    "groups_label": "Groups",
+    "discussions_label": "Discussions",
+    "challenges_label": "Challenges",
+    "achievements_label": "Achievements",
+    "messages_label": "Messages",
     "documents_label": "Documents",
+    "search_label": "Search",
+    "bookmarks_label": "Bookmarks",
+    "recent_label": "Recent",
     "settings_label": "Settings",
     "logout_button": "Logout"
   },
@@ -788,36 +800,18 @@
     "og_description": "Get an overview of your teaching activities, student progress, and course management with Studify's tutor dashboard.",
     "page_title": "Dashboard"
   },
-  "CommunityPostDetail": {
-    "loading": "Loading...",
-    "error_loading": "Failed to load post. Please try again later.",
-    "post_not_found": "Post not found or you don't have access permission",
-    "unknown_author": "Unknown Author",
-    "comments_title": "Comments",
-    "reactions": {
-      "like": "Like",
-      "love": "Love",
-      "comments": "Comments"
-    },
-    "comment_form": {
-      "placeholder": "Write a comment...",
-      "reply_placeholder": "Write a reply...",
-      "submit": "Post Comment",
-      "cancel": "Cancel",
-      "submitting": "Posting..."
-    },
-    "comment_actions": {
-      "reply": "Reply",
-      "delete": "Delete",
-      "confirm_delete": "Are you sure you want to delete this comment?",
-      "show_replies": "Show replies",
-      "hide_replies": "Hide replies"
-    },
-    "view_modes": {
-      "flat": "Flat View",
-      "tree": "Tree View"
-    },
-    "empty_comments": "No comments yet. Be the first to comment!",
-    "member_only": "You must be a group member to comment."
+  "CreateClassroomPage": {
+    "metadata_title": "Create Classroom - Studify",
+    "metadata_description": "Create a new classroom to start teaching and managing students",
+    "metadata_keywords": "create classroom,teaching,education,classroom management",
+    "og_title": "Create Classroom - Studify",
+    "og_description": "Create and manage your own classroom with Studify's teaching tools"
+  },
+  "ClassroomDashboard": {
+    "metadata_title": "Classroom Dashboard - Studify",
+    "metadata_description": "Manage your classroom with live sessions, assignments, and member management",
+    "metadata_keywords": "classroom dashboard,teaching tools,student management,live sessions",
+    "og_title": "Classroom Dashboard - Studify",
+    "og_description": "Comprehensive classroom management and teaching tools"
   }
 }

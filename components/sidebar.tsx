@@ -20,7 +20,27 @@ import {
   UserCheck,
   ClipboardList,
   Video,
-  Route
+  Route,
+  MessageSquare,
+  Trophy,
+  Target,
+  BookMarked,
+  PlusCircle,
+  UserPlus,
+  Calendar as CalendarIcon,
+  Presentation,
+  FileQuestion,
+  Award,
+  TrendingUp,
+  Library,
+  Search,
+  Heart,
+  Share2,
+  Edit3,
+  Folder,
+  Star,
+  Clock,
+  CheckSquare
 } from 'lucide-react';
 
 interface MenuItem {
@@ -52,34 +72,68 @@ interface RouteConfigItem {
 
 const defaultMenuSections: MenuSection[] = [
   {
-    title: 'Home',
+    title: 'Main',
     items: [
       { id: 'home', label: 'Home', icon: Home, path: '/home' },
+      { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
       { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
-      { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
-      { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/calendar' },
+      { id: 'calendar', label: 'Calendar', icon: CalendarIcon, path: '/calendar' },
     ]
   },
   {
-    title: 'Dashboard',
+    title: 'Learning',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
       {
         id: 'classroom',
         label: 'Classroom',
-        icon: BookOpen,
-        path: '/classroom',
+        icon: Presentation,
         subItems: [
-          { id: 'enrolled', label: 'Enrolled', icon: UserCheck, path: '/classroom/enrolled' },
-          { id: 'assignment', label: 'Assignment', icon: ClipboardList, path: '/classroom/assignment' },
-          { id: 'meeting', label: 'Meeting', icon: Video, path: '/classroom/meeting' },
-          { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/learning-path' },
+          { id: 'my-classrooms', label: 'My Classrooms', icon: BookOpen, path: '/classroom' },
+          { id: 'create-classroom', label: 'Create Classroom', icon: PlusCircle, path: '/classroom/create' },
+          { id: 'join-classroom', label: 'Join Classroom', icon: UserPlus, path: '/classroom/join' },
+          { id: 'assignments', label: 'Assignments', icon: ClipboardList, path: '/classroom/assignments' },
+          { id: 'live-sessions', label: 'Live Sessions', icon: Video, path: '/classroom/live-sessions' },
+          { id: 'mistake-book', label: 'Mistake Book', icon: FileQuestion, path: '/classroom/mistake-book' },
         ]
       },
-      { id: 'community', label: 'Community', icon: Users, path: '/community' },
-      { id: 'courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
-      { id: 'my-courses', label: 'My Courses', icon: BookOpen, path: '/my/courses' },
-      { id: 'documents', label: 'Documents', icon: FileText, path: '/documents' },
+      {
+        id: 'courses',
+        label: 'Courses',
+        icon: GraduationCap,
+        subItems: [
+          { id: 'all-courses', label: 'All Courses', icon: Library, path: '/courses' },
+          { id: 'my-courses', label: 'My Courses', icon: BookMarked, path: '/my/courses' },
+          { id: 'favorites', label: 'Favorites', icon: Heart, path: '/courses/favorites' },
+          { id: 'progress', label: 'Progress', icon: TrendingUp, path: '/courses/progress' },
+        ]
+      },
+      { id: 'learning-path', label: 'Learning Path', icon: Route, path: '/learning-path' },
+    ]
+  },
+  {
+    title: 'Community',
+    items: [
+      {
+        id: 'community',
+        label: 'Community',
+        icon: Users,
+        subItems: [
+          { id: 'groups', label: 'Groups', icon: Users, path: '/community' },
+          { id: 'discussions', label: 'Discussions', icon: MessageSquare, path: '/community/discussions' },
+          { id: 'challenges', label: 'Challenges', icon: Trophy, path: '/community/challenges' },
+          { id: 'achievements', label: 'Achievements', icon: Award, path: '/community/achievements' },
+        ]
+      },
+      { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
+    ]
+  },
+  {
+    title: 'Tools',
+    items: [
+      { id: 'documents', label: 'Documents', icon: Folder, path: '/documents' },
+      { id: 'search', label: 'Search', icon: Search, path: '/search' },
+      { id: 'bookmarks', label: 'Bookmarks', icon: Star, path: '/bookmarks' },
+      { id: 'recent', label: 'Recent', icon: Clock, path: '/recent' },
       { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ]
   }
@@ -133,32 +187,58 @@ export default function AnimatedSidebar({
     switch (id) {
       case 'home':
         return t('home_label');
-      case 'notifications':
-        return t('notifications_label');
-      case 'messages':
-        return t('messages_label');
-      case 'calendar':
-        return t('calendar_label');
       case 'dashboard':
         return t('dashboard_label');
+      case 'notifications':
+        return t('notifications_label');
+      case 'calendar':
+        return t('calendar_label');
       case 'classroom':
         return t('classroom_label');
-      case 'enrolled':
-        return t('enrolled_label');
-      case 'assignment':
-        return t('assignment_label');
-      case 'meeting':
-        return t('meeting_label');
+      case 'my-classrooms':
+        return t('my_classrooms_label');
+      case 'create-classroom':
+        return t('create_classroom_label');
+      case 'join-classroom':
+        return t('join_classroom_label');
+      case 'assignments':
+        return t('assignments_label');
+      case 'live-sessions':
+        return t('live_sessions_label');
+      case 'mistake-book':
+        return t('mistake_book_label');
+      case 'courses':
+        return t('courses_label');
+      case 'all-courses':
+        return t('all_courses_label');
+      case 'my-courses':
+        return t('my_courses_label');
+      case 'favorites':
+        return t('favorites_label');
+      case 'progress':
+        return t('progress_label');
       case 'learning-path':
         return t('learning_path_label');
       case 'community':
         return t('community_label');
-      case 'courses':
-        return t('courses_label');
-      case 'my-courses':
-        return t('my_courses_label');
+      case 'groups':
+        return t('groups_label');
+      case 'discussions':
+        return t('discussions_label');
+      case 'challenges':
+        return t('challenges_label');
+      case 'achievements':
+        return t('achievements_label');
+      case 'messages':
+        return t('messages_label');
       case 'documents':
         return t('documents_label');
+      case 'search':
+        return t('search_label');
+      case 'bookmarks':
+        return t('bookmarks_label');
+      case 'recent':
+        return t('recent_label');
       case 'settings':
         return t('settings_label');
       default:

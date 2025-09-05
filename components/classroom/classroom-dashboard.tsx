@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { 
   Users, 
   Calendar, 
@@ -16,24 +17,79 @@ import {
 } from 'lucide-react';
 import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
+import { useAssignments } from '@/hooks/classroom/use-assignments';
+import { Assignment } from '@/interface/classroom/asg-interface';
+import { Quiz } from '@/interface/classroom/quiz-interface';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger as OriginalTabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { MembersTab } from './tabs/members-tab';
+import { LiveSessionTab } from './tabs/live-session-tab';
+import { AssignmentsTab } from './tabs/assignments-tab';
+import { QuizTab } from './tabs/quiz-tab';
+import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomDashboardProps {
   classroomSlug: string;
 }
 
+// Animated TabsTrigger component with moving border
+const AnimatedTabsTrigger = ({ children, value, className = "", isActive = false, ...props }: any) => {
+  return (
+    <OriginalTabsTrigger
+      value={value}
+      className={`relative overflow-hidden border-b-2 border-transparent transition-colors duration-200 ${className}`}
+      {...props}
+    >
+      <span className="relative z-10">{children}</span>
+      {isActive && (
+        <motion.div
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+          layoutId="activeTabBorder"
+          initial={false}
+          transition={{
+            type: "spring",
+            stiffness: 400,
+            damping: 30,
+            duration: 0.3
+          }}
+        />
+      )}
+    </OriginalTabsTrigger>
+  );
+};
+
+// Animated TabsContent component
+const AnimatedTabsContent = ({ children, value, className = "", ...props }: any) => {
+  return (
+    <TabsContent
+      value={value}
+      className={className}
+      {...props}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+      >
+        {children}
+      </motion.div>
+    </TabsContent>
+  );
+};
+
 export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [classroom, setClassroom] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const { data: classroomsData } = useClassrooms();
   const { data: membersData } = useClassroomMembers(classroom?.id);
   const { data: liveSessionsData } = useLiveSessions(classroom?.id);
+  const { data: assignmentsData } = useAssignments('upcoming');
 
   useEffect(() => {
     if (classroomsData?.classrooms) {
@@ -69,6 +125,13 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
   const isOwnerOrTutor = ['owner', 'tutor'].includes(classroom.user_role);
   const upcomingSessions = liveSessionsData?.sessions?.filter(s => s.status === 'scheduled') || [];
   const liveSessions = liveSessionsData?.sessions?.filter(s => s.status === 'live') || [];
+  
+  // Get classroom color styling
+  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
+    ? classroom.color as ClassroomColor 
+    : '#6aa84f';
+  
+  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
 
   return (
     <div className="container mx-auto py-8">
@@ -138,18 +201,64 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
         </Card>
       )}
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="recent">Recent Activity</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-6">
+        <div className="relative">
+          <TabsList className="relative border-b  bg-transparent p-0 h-auto w-full justify-start">
+            <AnimatedTabsTrigger 
+              value="overview" 
+              isActive={activeTab === 'overview'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Overview
+            </AnimatedTabsTrigger>
+            <AnimatedTabsTrigger 
+              value="recent" 
+              isActive={activeTab === 'recent'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Recent Activity
+            </AnimatedTabsTrigger>
+            <AnimatedTabsTrigger 
+              value="members" 
+              isActive={activeTab === 'members'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Members
+            </AnimatedTabsTrigger>
+            <AnimatedTabsTrigger 
+              value="live-sessions" 
+              isActive={activeTab === 'live-sessions'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Live Sessions
+            </AnimatedTabsTrigger>
+            <AnimatedTabsTrigger 
+              value="assignments" 
+              isActive={activeTab === 'assignments'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Assignments
+            </AnimatedTabsTrigger>
+            <AnimatedTabsTrigger 
+              value="quizzes" 
+              isActive={activeTab === 'quizzes'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Quizzes
+            </AnimatedTabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="overview" className="space-y-6">
+        <AnimatedTabsContent value="overview" className="space-y-6">
           {/* Quick Actions */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('members')}
+              style={{
+                backgroundColor: cardStyling.backgroundColor,
+                borderColor: cardStyling.borderColor
+              }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Members</CardTitle>
@@ -166,6 +275,10 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('live')}
+              style={{
+                backgroundColor: cardStyling.backgroundColor,
+                borderColor: cardStyling.borderColor
+              }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Live Sessions</CardTitle>
@@ -182,6 +295,10 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('assignment')}
+              style={{
+                backgroundColor: cardStyling.backgroundColor,
+                borderColor: cardStyling.borderColor
+              }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Assignments</CardTitle>
@@ -198,6 +315,10 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('quiz')}
+              style={{
+                backgroundColor: cardStyling.backgroundColor,
+                borderColor: cardStyling.borderColor
+              }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Quizzes</CardTitle>
@@ -211,11 +332,16 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
               </CardContent>
             </Card>
           </div>
-
+          <div className="py-4"></div>
           {/* Main Content Grid */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Upcoming Sessions */}
-            <Card>
+            <Card 
+              style={{
+                backgroundColor: cardStyling.backgroundColor,
+                borderColor: cardStyling.borderColor
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Upcoming Sessions</CardTitle>
@@ -252,31 +378,41 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
               </CardContent>
             </Card>
 
-            {/* Recent Members */}
-            <Card>
+            {/* Recent Assignments */}
+            <Card 
+              style={{
+                backgroundColor: cardStyling.backgroundColor,
+                borderColor: cardStyling.borderColor
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Recent Members</CardTitle>
-                  <CardDescription>Latest classroom members</CardDescription>
+                  <CardTitle>Recent Assignments</CardTitle>
+                  <CardDescription>Latest classroom assignments</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => navigateToSection('members')}>
-                  View All
-                </Button>
+                {isOwnerOrTutor && (
+                  <Button size="sm" onClick={() => navigateToSection('assignment')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
-                {!membersData?.members?.length ? (
+                {!assignmentsData?.length ? (
                   <p className="text-muted-foreground text-center py-4">
-                    No members yet
+                    No assignments yet
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {membersData.members.slice(0, 5).map(member => (
-                      <div key={member.profile_id} className="flex justify-between items-center">
+                    {assignmentsData.slice(0, 3).map((assignment: any) => (
+                      <div key={assignment.id} className="flex justify-between items-center p-3 border rounded-lg">
                         <div>
-                          <p className="font-medium">{member.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
+                          <p className="font-medium">{assignment.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Due: {new Date(assignment.due_date).toLocaleDateString()}
+                          </p>
                         </div>
-                        <Badge variant="outline">{member.role}</Badge>
+                        <Badge variant="outline">Active</Badge>
                       </div>
                     ))}
                   </div>
@@ -284,10 +420,55 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </AnimatedTabsContent>
 
-        <TabsContent value="recent">
-          <Card>
+        <AnimatedTabsContent value="members" className="space-y-6">
+          <MembersTab 
+            membersData={membersData}
+            isOwnerOrTutor={isOwnerOrTutor}
+            classroomSlug={classroomSlug}
+            navigateToSection={navigateToSection}
+            classroom={classroom}
+          />
+        </AnimatedTabsContent>
+
+        <AnimatedTabsContent value="live-sessions" className="space-y-6">
+          <LiveSessionTab 
+            liveSessionsData={liveSessionsData}
+            isOwnerOrTutor={isOwnerOrTutor}
+            classroomSlug={classroomSlug}
+            navigateToSection={navigateToSection}
+            router={router}
+            classroom={classroom}
+          />
+        </AnimatedTabsContent>
+
+        <AnimatedTabsContent value="assignments" className="space-y-6">
+          <AssignmentsTab 
+            assignmentsData={assignmentsData}
+            isOwnerOrTutor={isOwnerOrTutor}
+            classroomSlug={classroomSlug}
+            navigateToSection={navigateToSection}
+            classroom={classroom}
+          />
+        </AnimatedTabsContent>
+
+        <AnimatedTabsContent value="quizzes" className="space-y-6">
+          <QuizTab 
+            isOwnerOrTutor={isOwnerOrTutor}
+            classroomSlug={classroomSlug}
+            navigateToSection={navigateToSection}
+            classroom={classroom}
+          />
+        </AnimatedTabsContent>
+
+        <AnimatedTabsContent value="recent" className="space-y-6">
+          <Card 
+            style={{
+              backgroundColor: cardStyling.backgroundColor,
+              borderColor: cardStyling.borderColor
+            }}
+          >
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
               <CardDescription>Latest classroom activities and updates</CardDescription>
@@ -298,7 +479,7 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
               </p>
             </CardContent>
           </Card>
-        </TabsContent>
+        </AnimatedTabsContent>
       </Tabs>
     </div>
   );

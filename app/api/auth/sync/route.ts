@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import redis from "@/utils/redis/redis";
+import { signAppJwt, generateJti } from "@/utils/auth/jwt";
 
 export async function POST(req: Request) {
   try {
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (profileError || !profile) {
@@ -47,6 +48,26 @@ export async function POST(req: Request) {
     // Redis 缓存（按你上面用的 redis client）
     await redis.set(cacheKey, JSON.stringify(userProfile), { ex: 3600 });
 
+    // 创建 JWT session
+    const jti = generateJti();
+    const sessionKey = `session:${jti}`;
+    
+    // 在 Redis 中存储 session
+    await redis.set(sessionKey, JSON.stringify({
+      userId: user.id,
+      role: userProfile.role,
+      name: userProfile.name,
+      createdAt: new Date().toISOString()
+    }), { ex: 7 * 24 * 3600 }); // 7 days
+
+    // 生成 JWT token
+    const token = await signAppJwt({
+      sub: user.id,
+      role: userProfile.role as 'student' | 'tutor' | 'admin',
+      jti: jti,
+      name: userProfile.name
+    }, 7 * 24 * 3600); // 7 days
+
     // 更新 user_metadata 写入 redis_key（需要 admin 权限）
     await supabase.auth.admin.updateUserById(user.id, {
       user_metadata: { 
@@ -55,7 +76,19 @@ export async function POST(req: Request) {
       }
     });
 
-    return NextResponse.json({ ok: true, user: userProfile });
+    // 创建响应并设置 httpOnly cookie
+    const response = NextResponse.json({ ok: true, user: userProfile });
+    
+    // 设置 app_session cookie (middleware 需要的)
+    response.cookies.set('app_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 3600, // 7 days
+      path: '/'
+    });
+
+    return response;
   } catch (error) {
     console.error("Unexpected error in /api/auth/sync:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

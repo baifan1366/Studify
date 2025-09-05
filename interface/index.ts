@@ -5,6 +5,7 @@ export * from "./classroom/asg-interface";
 export * from "./classroom/attempt-interface";
 export * from "./classroom/attendance-interface";
 export * from "./classroom/chat-message-interface";
+export * from "./classroom/classroom-interface";
 export * from "./classroom/grade-interface";
 export * from "./classroom/live-session-interface";
 export * from "./classroom/ques-bank-interface";

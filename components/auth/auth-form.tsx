@@ -13,6 +13,23 @@ import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/utils/supabase/client";
 
+// PKCE 
+function generatePKCEVerifier() {
+  const array = new Uint8Array(32);
+  window.crypto.getRandomValues(array);
+  return Array.from(array, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+}
+
+async function generatePKCEChallenge(verifier: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
 interface AuthFormProps {
   mode: "sign-in" | "sign-up";
   role?: "student" | "tutor" | "admin";
@@ -49,11 +66,14 @@ export function AuthForm({
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      console.log('Starting OAuth flow with Google');
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // 回调到专门的前端 callback 页面，不要回到 / 或被 middleware 重写的路径
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/${locale}/auth/callback`,
+          queryParams: { access_type: "offline" },
+          skipBrowserRedirect: false,
         },
       });
 
@@ -61,7 +81,6 @@ export function AuthForm({
         toast({ title: "Google Login Failed", variant: "destructive" });
         console.error("OAuth error:", error);
       }
-      // supabase-js 会把浏览器重定向到 Google，然后回调到 /auth/callback
     } catch (err) {
       toast({ title: "Google Login Failed", variant: "destructive" });
       console.error("OAuth error:", err);

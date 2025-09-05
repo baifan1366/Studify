@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase-realtime';
-import type { ExtendedPost } from '@/components/classroom/tabs/posts-tab';
+import type { ExtendedPost } from '@/components/classroom/tabs/live-session-tab';
 
 /**
  * 使用Supabase Realtime获取实时帖子的hook

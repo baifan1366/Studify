@@ -247,12 +247,12 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
                       <Avatar>
                         <AvatarImage src={member.avatar_url} />
                         <AvatarFallback>
-                          {member.name.charAt(0).toUpperCase()}
+                          {member.name?.charAt(0)?.toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">{member.name}</p>
+                          <p className="font-medium">{member.name || 'Unknown User'}</p>
                           {member.is_current_user && (
                             <Badge variant="outline" className="text-xs">You</Badge>
                           )}
@@ -296,7 +296,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => handleRemoveMember(member.user_id, member.name)}
+                                onClick={() => handleRemoveMember(member.user_id, member.name || 'Unknown User')}
                                 className="text-red-600"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />

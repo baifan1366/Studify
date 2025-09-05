@@ -88,8 +88,9 @@ export default function CreateCourse() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Check if user is authenticated
-        if (!userData?.id) {
+        // Check if user is authenticated and has profile
+        if (!userData?.profile?.id) {
+            console.log('User is not authenticated or profile not found', userData);
             setErrors({ general: 'You must be logged in to create a course' });
             return;
         }

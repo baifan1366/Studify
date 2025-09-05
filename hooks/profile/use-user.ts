@@ -4,8 +4,9 @@
  */
 
 import useSWR from 'swr';
-// 1. Corrected the import to use the actual interface name: 'Profile'
-import type { Profile } from "@/interface/user/profile-interface"; 
+import { useQuery } from '@tanstack/react-query';
+import { Profile } from "@/interface"; 
+import { apiGet } from '@/lib/api-config';
 
 // 2. Define the expected response shape from our backend API (/api/auth)
 interface AuthApiResponse {
@@ -14,24 +15,15 @@ interface AuthApiResponse {
   error?: string;
 }
 
-// 3. The fetcher function is simplified. It uses apiGet as per your project rules.
-//    This relies on the browser's automatic handling of httpOnly cookies for auth.
-const fetcher = (url: string) => fetch(url).then(res => {
-  if (!res.ok) {
-    throw new Error('An error occurred while fetching the data.');
-  }
-  return res.json();
-});
-
 /**
  * Hook for accessing the current authenticated user
  * ✅ Uses apiGet to remove duplicate fetch logic
  * ✅ Uses React Query v5 object-style API
  */
 export function useUser() {
-  return useQuery<AuthResponse>({
+  return useQuery<AuthApiResponse>({
     queryKey: ['user'],
-    queryFn: () => apiGet<AuthResponse>('/api/auth/me'),
+    queryFn: () => apiGet<AuthApiResponse>('/api/auth/me'),
     staleTime: 1000 * 60 * 2, // 2 minutes
     retry: 1,
     refetchOnMount: true,

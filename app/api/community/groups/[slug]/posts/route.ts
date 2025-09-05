@@ -75,16 +75,28 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Get reactions for all posts separately
-  const postIds = posts.map((post) => post.id);
-  const { data: allReactions } = await supabaseClient
-    .from("community_reaction")
-    .select("emoji, target_id")
-    .eq("target_type", "post")
-    .in("target_id", postIds);
+  if (!posts || posts.length === 0) {
+    return NextResponse.json([]);
+  }
 
-  // Group reactions by post ID
-  const reactionsByPost = (allReactions || []).reduce(
+  // Batch fetch reactions and files
+  const postIds = posts.map((post) => post.id);
+  const postPublicIds = posts.map((post) => post.public_id);
+
+  const [reactionsResponse, filesResponse] = await Promise.all([
+    supabaseClient
+      .from("community_reaction")
+      .select("emoji, target_id")
+      .eq("target_type", "post")
+      .in("target_id", postIds),
+    supabaseClient
+      .from("community_post_files")
+      .select("*")
+      .in("post_id", postPublicIds),
+  ]);
+
+  // Group reactions and files by their respective post IDs
+  const reactionsByPost = (reactionsResponse.data || []).reduce(
     (acc: Record<number, Record<string, number>>, reaction) => {
       if (!acc[reaction.target_id]) {
         acc[reaction.target_id] = {};
@@ -96,12 +108,24 @@ export async function GET(
     {}
   );
 
-  // Process posts to aggregate reactions and comments count
+  const filesByPost = (filesResponse.data || []).reduce(
+    (acc: Record<string, any[]>, file) => {
+      if (!acc[file.post_id]) {
+        acc[file.post_id] = [];
+      }
+      acc[file.post_id].push(file);
+      return acc;
+    },
+    {}
+  );
+
+  // Process posts to aggregate reactions, comments count, and files
   const processedPosts = posts.map((post) => {
     return {
       ...post,
       comments_count: post.comments[0]?.count || 0,
       reactions: reactionsByPost[post.id] || {},
+      files: filesByPost[post.public_id] || [],
     };
   });
 

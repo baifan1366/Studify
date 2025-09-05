@@ -154,6 +154,15 @@ create table if not exists course (
   owner_id bigint not null references profiles(id) on delete restrict,
   title text not null,
   description text,
+  slug text unique,
+  video_intro_url text,
+  requirements text[],
+  learning_objectives text[],
+  category text,
+  language text default 'en',
+  certificate_template text,
+  auto_create_classroom boolean default true,
+  auto_create_community boolean default true,
   visibility text not null check (visibility in ('public','private','unlisted')) default 'private',
   price_cents int default 0,
   currency text default 'MYR',
@@ -182,6 +191,12 @@ create table if not exists course_lesson (
   course_id bigint not null references course(id) on delete cascade,
   module_id bigint references course_module(id) on delete set null,
   title text not null,
+  slug text,
+  position int default 1,
+  description text,
+  is_preview boolean default false,
+  transcript text,
+  attachments jsonb default '[]'::jsonb,
   kind text not null check (kind in ('video','live','document','quiz','assignment','whiteboard')),
   content_url text,
   duration_sec int,
@@ -213,10 +228,35 @@ create table if not exists course_progress (
   lesson_id bigint not null references course_lesson(id) on delete cascade,
   state text not null check (state in ('not_started','in_progress','completed')) default 'not_started',
   progress_pct numeric(5,2) not null default 0,
+  ai_recommendation jsonb default '{}'::jsonb,
+  time_spent_sec int default 0,
+  completion_date timestamptz,
   last_seen_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, lesson_id)
+);
+
+create table if not exists course_material (
+  id bigserial primary key,
+  course_id bigint not null references course(id) on delete cascade,
+  title text not null,
+  content_url text,
+  material_type text check (material_type in ('video','pdf','link')) not null,
+  order_index int not null default 1,
+  is_deleted boolean not null default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists course_chapter (
+  id bigserial primary key,
+  course_id bigint not null references course(id) on delete cascade,
+  title text not null,
+  description text,
+  start_time_sec int,
+  end_time_sec int,
+  order_index int not null default 1,
+  created_at timestamptz default now()
 );
 
 create table if not exists course_reviews (
@@ -303,6 +343,183 @@ alter table if exists course
 alter table if exists course_product
   add column if not exists metadata jsonb default '{}'::jsonb;
 
+-- Course Notes (enhanced from existing)
+create table if not exists course_notes (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  lesson_id bigint not null references course_lesson(id) on delete cascade,
+  timestamp_sec int, -- 视频内时间点
+  content text not null,
+  ai_summary text, -- AI生成的总结
+  tags text[] default '{}',
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Course Quiz Questions (enhanced)
+create table if not exists course_quiz_question (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  lesson_id bigint not null references course_lesson(id) on delete cascade,
+  question_text text not null,
+  question_type text not null check (question_type in ('multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_blank')),
+  options jsonb, -- For multiple choice: ["Option A", "Option B", "Option C", "Option D"]
+  correct_answer jsonb not null, -- For multiple choice: "A", for true/false: true/false, for text: "correct answer"
+  explanation text,
+  points int default 1,
+  difficulty int check (difficulty between 1 and 5) default 1,
+  position int default 1,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Course Quiz Submissions (enhanced)
+create table if not exists course_quiz_submission (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  question_id bigint not null references course_quiz_question(id) on delete cascade,
+  lesson_id bigint not null references course_lesson(id) on delete cascade,
+  user_answer jsonb not null,
+  is_correct boolean not null,
+  points_earned int default 0,
+  time_taken_sec int,
+  attempt_number int default 1,
+  submitted_at timestamptz not null default now(),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique(user_id, question_id, attempt_number)
+);
+
+-- Course Concepts for Knowledge Graph
+create table if not exists course_concept (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  course_id bigint not null references course(id) on delete cascade,
+  name text not null,
+  description text,
+  embedding vector(384), -- For AI similarity search
+  difficulty_level int check (difficulty_level between 1 and 5) default 1,
+  estimated_time_minutes int default 30,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Course Concept Links for Knowledge Graph
+create table if not exists course_concept_link (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  source_concept_id bigint not null references course_concept(id) on delete cascade,
+  target_concept_id bigint not null references course_concept(id) on delete cascade,
+  relation_type text not null check (relation_type in ('prerequisite', 'related', 'example_of', 'part_of', 'leads_to')),
+  strength numeric(3,2) default 1.0 check (strength between 0 and 1), -- Relationship strength
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique(source_concept_id, target_concept_id, relation_type)
+);
+
+-- Course Concept to Lesson Mapping
+create table if not exists course_concept_lesson (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  concept_id bigint not null references course_concept(id) on delete cascade,
+  lesson_id bigint not null references course_lesson(id) on delete cascade,
+  relevance_score numeric(3,2) default 1.0 check (relevance_score between 0 and 1),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique(concept_id, lesson_id)
+);
+
+-- Course Certificates
+create table if not exists course_certificate (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  course_id bigint not null references course(id) on delete cascade,
+  certificate_url text,
+  completion_percentage numeric(5,2) not null,
+  final_score numeric(5,2),
+  issued_at timestamptz not null default now(),
+  expires_at timestamptz,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique(user_id, course_id)
+);
+
+-- Course Learning Analytics
+create table if not exists course_analytics (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  user_id bigint not null references profiles(id) on delete cascade,
+  course_id bigint not null references course(id) on delete cascade,
+  lesson_id bigint references course_lesson(id) on delete cascade,
+  event_type text not null, -- 'lesson_start', 'lesson_complete', 'quiz_attempt', 'note_created', etc.
+  event_data jsonb default '{}'::jsonb,
+  session_id uuid,
+  timestamp timestamptz not null default now(),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Course Discussion Forums (separate from community groups)
+create table if not exists course_discussion (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  course_id bigint not null references course(id) on delete cascade,
+  lesson_id bigint references course_lesson(id) on delete set null,
+  author_id bigint not null references profiles(id) on delete cascade,
+  title text not null,
+  content text not null,
+  is_pinned boolean default false,
+  is_resolved boolean default false,
+  view_count int default 0,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Course Discussion Replies
+create table if not exists course_discussion_reply (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  discussion_id bigint not null references course_discussion(id) on delete cascade,
+  author_id bigint not null references profiles(id) on delete cascade,
+  parent_reply_id bigint references course_discussion_reply(id) on delete cascade,
+  content text not null,
+  is_solution boolean default false,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Create indexes for performance
+create index if not exists idx_course_slug on course (slug) where is_deleted = false;
+create index if not exists idx_course_lesson_position on course_lesson (course_id, position) where is_deleted = false;
+create index if not exists idx_course_progress_user_course on course_progress (user_id, lesson_id);
+create index if not exists idx_course_notes_user_lesson on course_notes (user_id, lesson_id) where is_deleted = false;
+create index if not exists idx_course_quiz_lesson on course_quiz_question (lesson_id) where is_deleted = false;
+create index if not exists idx_course_concept_course on course_concept (course_id) where is_deleted = false;
+create index if not exists idx_course_analytics_user_course on course_analytics (user_id, course_id, timestamp);
+create index if not exists idx_course_discussion_course on course_discussion (course_id) where is_deleted = false;
 create index if not exists idx_course_visibility_not_deleted on course (visibility) where is_deleted = false;
 create index if not exists idx_course_public_id on course (public_id);
 -- =========================
@@ -556,9 +773,12 @@ create table if not exists mistake_book (
   assignment_id bigint references classroom_assignment(id) on delete set null,
   submission_id bigint references classroom_submission(id) on delete set null,
   question_id bigint references classroom_question(id) on delete set null,
+  course_question_id bigint references course_quiz_question(id) on delete set null,
+  course_id bigint references course(id) on delete set null,
+  lesson_id bigint references course_lesson(id) on delete set null,
   mistake_content text not null,
   analysis text,
-  source_type text check (source_type in ('quiz','assignment','manual')) default 'manual',
+  source_type text check (source_type in ('quiz','assignment','manual','course_quiz')) default 'manual',
   knowledge_points text[],
   recommended_exercises jsonb,
   is_deleted boolean not null default false,
@@ -906,4 +1126,3 @@ create table if not exists tutoring_share (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-

@@ -46,8 +46,8 @@ export default function GroupDetailContent({ groupSlug }: GroupDetailContentProp
   const { posts, isLoading: postsLoading, isError: postsError, createPost, isCreatingPost, createPostError } = useGroupPosts(groupSlug);
   const { members, joinGroup, isJoining, leaveGroup, isLeaving } = useGroupMembers(groupSlug);
 
-  const handleCreatePost = ({ title, body }: { title: string; body: string }) => {
-    createPost({ title, body });
+  const handleCreatePost = ({ title, body, files }: { title: string; body: string; files: File[] }) => {
+    createPost({ title, body, files });
   };
 
   const handleJoinGroup = () => {

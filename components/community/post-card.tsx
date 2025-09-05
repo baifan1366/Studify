@@ -91,7 +91,7 @@ export default function PostCard({ post }: { post: Post }) {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-20 flex flex-col items-center justify-center p-2">
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
                       <Paperclip className="w-6 h-6 text-gray-400" />
                       <span className="text-xs text-gray-400 text-center truncate w-full mt-1 group-hover:text-blue-300">
                         {file.file_name}

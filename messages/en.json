@@ -215,6 +215,7 @@
     "view_post_button": "View Post"
   },
   "CommunityNewPostForm": {
+    "drop_here": "Drop files here",
     "create_post_title": "Create a new post",
     "title_placeholder": "Title",
     "body_placeholder": "What's on your mind?",

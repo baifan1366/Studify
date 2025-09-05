@@ -4,7 +4,6 @@ import { useState } from "react";
 import AnimatedSidebar from "./sidebar";
 import ClassroomHeader from "./header";
 import { HomeBackground } from "@/components/ui/animated-background";
-import { useUser } from "@/hooks/profile/use-user";
 import { usePathname } from "next/navigation";
 
 function generateTitle(pathname: string | null): string {
@@ -27,7 +26,6 @@ function generateTitle(pathname: string | null): string {
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const { data: userData } = useUser(); 
   const pathname = usePathname();
   const title = generateTitle(pathname);
 
@@ -35,7 +33,6 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     <HomeBackground useGlobalCSSVariable={true}>
       <ClassroomHeader
         title={title}
-        userName={userData?.user?.user_metadata?.full_name || userData?.user?.email || "Tutor"} 
         onMenuToggle={() => setSidebarExpanded(!sidebarExpanded)}
         sidebarExpanded={sidebarExpanded}
       />

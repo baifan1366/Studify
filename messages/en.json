@@ -856,5 +856,12 @@
     "preview": "Preview",
     "edit": "Edit",
     "delete": "Delete"
+  },
+  "CoursePage": {
+    "metadata_title": "Course - Studify",
+    "metadata_description": "Learn with interactive courses, track your progress, and master new skills",
+    "metadata_keywords": "course,learning,education,online course,skill development",
+    "og_title": "Course - Studify",
+    "og_description": "Interactive learning experience with progress tracking and skill development"
   }
 }

@@ -4,14 +4,15 @@ import CourseDetailContent from '@/components/course/course-detail-content';
 import { getTranslations } from 'next-intl/server';
 
 interface CourseDetailPageProps {
-  params: {
+  params: Promise<{
     slug: string;
     locale: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
-  const t = await getTranslations('CourseDetailPage');
+  const { locale } = await params;
+  const t = await getTranslations('CoursePage');
 
   return {
     title: t('metadata_title'),
@@ -25,6 +26,7 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
   };
 }
 
-export default function CourseDetailPage({ params }: CourseDetailPageProps) {
-  return <CourseDetailContent courseSlug={params.slug} />;
+export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
+  const { slug } = await params;
+  return <CourseDetailContent courseSlug={slug} />;
 }

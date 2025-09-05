@@ -167,6 +167,13 @@ create table if not exists course (
   price_cents int default 0,
   currency text default 'MYR',
   tags text[] default '{}',
+  thumbnail_url text,
+  level text check (level in ('beginner','intermediate','advanced')) default 'beginner',
+  total_lessons int default 0,
+  total_duration_minutes int default 0,
+  average_rating numeric(3,2) default 0,
+  total_students int default 0,
+  is_free boolean not null default false,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -281,6 +288,7 @@ create table if not exists course_product (
   title text not null,
   price_cents int not null,
   currency text not null default 'MYR',
+  metadata jsonb default '{}'::jsonb,
   is_active boolean not null default true,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
@@ -330,18 +338,6 @@ create table if not exists course_payment (
   deleted_at timestamptz
 );
 
--- Marketplace enrichments (from db/courses/migrations/20250830_add_marketplace_fields.sql)
-alter table if exists course
-  add column if not exists thumbnail_url text,
-  add column if not exists level text check (level in ('beginner','intermediate','advanced')) default 'beginner',
-  add column if not exists total_lessons int default 0,
-  add column if not exists total_duration_minutes int default 0,
-  add column if not exists average_rating numeric(3,2) default 0,
-  add column if not exists total_students int default 0,
-  add column if not exists is_free boolean not null default false;
-
-alter table if exists course_product
-  add column if not exists metadata jsonb default '{}'::jsonb;
 
 -- Course Notes (enhanced from existing)
 create table if not exists course_notes (
@@ -510,18 +506,6 @@ create table if not exists course_discussion_reply (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
-
--- Create indexes for performance
-create index if not exists idx_course_slug on course (slug) where is_deleted = false;
-create index if not exists idx_course_lesson_position on course_lesson (course_id, position) where is_deleted = false;
-create index if not exists idx_course_progress_user_course on course_progress (user_id, lesson_id);
-create index if not exists idx_course_notes_user_lesson on course_notes (user_id, lesson_id) where is_deleted = false;
-create index if not exists idx_course_quiz_lesson on course_quiz_question (lesson_id) where is_deleted = false;
-create index if not exists idx_course_concept_course on course_concept (course_id) where is_deleted = false;
-create index if not exists idx_course_analytics_user_course on course_analytics (user_id, course_id, timestamp);
-create index if not exists idx_course_discussion_course on course_discussion (course_id) where is_deleted = false;
-create index if not exists idx_course_visibility_not_deleted on course (visibility) where is_deleted = false;
-create index if not exists idx_course_public_id on course (public_id);
 -- =========================
 -- Classroom (from db/classroom/schema.sql)
 -- =========================

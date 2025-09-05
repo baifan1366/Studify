@@ -1,10 +1,9 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
-import CreateCourse from '@/components/tutor/course-content/create-course';
-import CourseTable from "@/components/tutor/course-content/course-table";
+import { CourseDetails } from '@/components/tutor/course-content/course-details';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('TutorCourseContentPage');
+  const t = await getTranslations('TutorCourseContentDetailsPage');
 
   return {
     title: t('metadata_title'),
@@ -18,17 +17,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function TutorCourseContentPage() {
-  const t = await getTranslations('TutorCourseContentPage');
+export default async function TutorCourseContentDetailsPage() {
+  const t = await getTranslations('TutorCourseContentDetailsPage');
 
   return (
     <div className="flex flex-col w-full h-full p-6 gap-6">
-      <div className="w-auto">
-        <CreateCourse />
-      </div>
-      <div className="flex-1 w-full">
-        <CourseTable />
-      </div>
+      <CourseDetails />
     </div>
   );
 }

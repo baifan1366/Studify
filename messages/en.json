@@ -801,6 +801,14 @@
     "og_description": "Get an overview of your teaching activities, student progress, and course management with Studify's tutor dashboard.",
     "page_title": "Dashboard"
   },
+  "TutorCourseContentDetailsPage": {
+    "metadata_title": "Course Details | Tutor | Studify",
+    "metadata_description": "Access course details, including modules, lessons, and student progress with Studify's tutor dashboard.",
+    "metadata_keywords": "course details, tutor, teaching, education, classroom management",
+    "og_title": "Course Details | Tutor | Studify",
+    "og_description": "Access course details, including modules, lessons, and student progress with Studify's tutor dashboard.",
+    "page_title": "Course Details"
+  },
   "CreateClassroomPage": {
     "metadata_title": "Create Classroom - Studify",
     "metadata_description": "Create a new classroom to start teaching and managing students",
@@ -853,8 +861,50 @@
     "deleteError": "Failed to delete course",
     "noCourses": "No courses found",
     "error": "Error",
-    "preview": "Preview",
+    "preview": "Preview", 
     "edit": "Edit",
     "delete": "Delete"
+  },
+  "CourseSchema": {
+    "title_min_length": "Title must have at least 1 character.",
+    "title_max_length": "Title must be less than 100 characters.",
+    "description_required": "Description is required.",
+    "description_max_length": "Description must be less than 500 characters.",
+    "slug_required": "Slug is required.",
+    "slug_max_length": "Slug must be less than 100 characters.",
+    "url_invalid": "Please enter a valid URL.",
+    "price_min": "Price must be at least $0.01.",
+    "price_max": "Price cannot exceed $10,000.",
+    "total_lessons_min": "Total lessons must be at least 1.",
+    "total_lessons_max": "Total lessons cannot exceed 1,000,000.",
+    "total_duration_min": "Total duration must be at least 1 minute.",
+    "total_duration_max": "Total duration cannot exceed 1,000,000 minutes."
+  },
+  "CourseModuleSchema": {
+    "course_id_required": "Course selection is required.",
+    "title_required": "Title is required.",
+    "title_max_length": "Title must be less than 100 characters.",
+    "description_required": "Description is required.",
+    "description_max_length": "Description must be less than 500 characters.",
+    "position_min": "Position must be at least 1.",
+    "position_max": "Position must be less than 100.",
+    "duration_min": "Duration must be at least 1 minute.",
+    "duration_max": "Duration cannot exceed 1440 minutes (24 hours)."
+  },
+  "CourseLessonSchema": {
+    "course_id_required": "Course selection is required.",
+    "module_id_required": "Module selection is required.",
+    "title_required": "Title is required.",
+    "title_max_length": "Title must be less than 100 characters.",
+    "slug_required": "Slug is required.",
+    "slug_max_length": "Slug must be less than 100 characters.",
+    "description_required": "Description is required.",
+    "description_max_length": "Description must be less than 500 characters.",
+    "position_min": "Position must be at least 1.",
+    "position_max": "Position must be less than 100.",
+    "kind_required": "Lesson type is required.",
+    "url_invalid": "Please enter a valid URL.",
+    "duration_min": "Duration must be 0 or greater.",
+    "duration_max": "Duration cannot exceed 86400 seconds (24 hours)."
   }
 }

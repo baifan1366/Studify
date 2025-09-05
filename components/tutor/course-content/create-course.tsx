@@ -29,9 +29,9 @@ export default function CreateCourse() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Check if user is authenticated
-        if (!userData?.user?.id) {
-            console.log('User is not authenticated', userData, userData?.user);
+        // Check if user is authenticated and has profile
+        if (!userData?.profile?.id) {
+            console.log('User is not authenticated or profile not found', userData);
             setErrors({ general: 'You must be logged in to create a course' });
             return;
         }
@@ -53,7 +53,7 @@ export default function CreateCourse() {
                 description,
                 visibility: isPublic ? 'public' as const : 'private' as const,
                 tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-                owner_id: parseInt(userData.user.id)
+                owner_id: parseInt(userData.profile.id)
             };
             
             // Use the mutation to create the course

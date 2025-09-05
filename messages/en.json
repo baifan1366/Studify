@@ -232,7 +232,8 @@
     "create_post_title": "Create a new post",
     "title_placeholder": "Title",
     "body_placeholder": "What's on your mind?",
-    "post_button": "Post"
+    "post_button": "Post",
+    "drag_drop_or_click": "Drag and drop or click to upload"
   },
   "CommunityContent": {
     "community_header_title": "Community",
@@ -790,7 +791,7 @@
     "duration_description": "Duration of the video or estimated reading time.",
     "cancel_button": "Cancel",
     "submit_button": "Create Lesson",
-    "selection_error": "Please select a course and module first."   
+    "selection_error": "Please select a course and module first."
   },
   "CreateCourseModule": {
     "create_module_button": "Create Module",
@@ -869,5 +870,12 @@
     "preview": "Preview",
     "edit": "Edit",
     "delete": "Delete"
+  },
+  "CoursePage": {
+    "metadata_title": "Course - Studify",
+    "metadata_description": "Learn with interactive courses, track your progress, and master new skills",
+    "metadata_keywords": "course,learning,education,online course,skill development",
+    "og_title": "Course - Studify",
+    "og_description": "Interactive learning experience with progress tracking and skill development"
   }
 }

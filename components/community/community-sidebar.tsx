@@ -1,20 +1,29 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Plus, Lock, Globe, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
-import { useUserGroups, useSuggestedGroups } from '@/hooks/community/use-community';
-import { Group } from '@/interface/community/group-interface';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Users, Plus, Lock, Globe, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import {
+  useUserGroups,
+  useSuggestedGroups,
+} from "@/hooks/community/use-community";
+import { Group } from "@/interface/community/group-interface";
 
-const GroupCard = ({ group, showJoinButton = false }: { group: Group; showJoinButton?: boolean }) => (
+const GroupCard = ({
+  group,
+  showJoinButton = false,
+}: {
+  group: Group;
+  showJoinButton?: boolean;
+}) => (
   <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
     <div className="flex items-center gap-3 flex-1 min-w-0">
       <div className="flex-shrink-0">
-        {group.visibility === 'private' ? (
+        {group.visibility === "private" ? (
           <Lock className="w-4 h-4 text-yellow-400" />
         ) : (
           <Globe className="w-4 h-4 text-green-400" />
@@ -33,7 +42,11 @@ const GroupCard = ({ group, showJoinButton = false }: { group: Group; showJoinBu
       </div>
     </div>
     {showJoinButton && (
-      <Button size="sm" variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2">
+      <Button
+        size="sm"
+        variant="outline"
+        className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2"
+      >
         Join
       </Button>
     )}
@@ -42,7 +55,8 @@ const GroupCard = ({ group, showJoinButton = false }: { group: Group; showJoinBu
 
 export default function CommunitySidebar() {
   const { groups: userGroups, isLoading: loadingUserGroups } = useUserGroups();
-  const { groups: suggestedGroups, isLoading: loadingSuggested } = useSuggestedGroups();
+  const { groups: suggestedGroups, isLoading: loadingSuggested } =
+    useSuggestedGroups();
 
   return (
     <div className="w-80 space-y-6">
@@ -52,7 +66,11 @@ export default function CommunitySidebar() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-white text-lg">My Groups</CardTitle>
             <Link href="/community/create">
-              <Button size="sm" variant="ghost" className="text-blue-400 hover:bg-blue-400/10">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-blue-400 hover:bg-blue-400/10"
+              >
                 <Plus className="w-4 h-4" />
               </Button>
             </Link>
@@ -69,7 +87,9 @@ export default function CommunitySidebar() {
             ))
           ) : (
             <div className="text-center py-6">
-              <p className="text-gray-400 text-sm mb-3">You haven't joined any groups yet</p>
+              <p className="text-gray-400 text-sm mb-3">
+                You haven't joined any groups yet
+              </p>
               <Link href="/community/create">
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="w-4 h-4 mr-1" />
@@ -80,7 +100,11 @@ export default function CommunitySidebar() {
           )}
           {userGroups && userGroups.length > 3 && (
             <Link href="/community/groups">
-              <Button variant="ghost" size="sm" className="w-full text-blue-400 hover:bg-blue-400/10">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-blue-400 hover:bg-blue-400/10"
+              >
                 View All Groups
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
@@ -120,13 +144,19 @@ export default function CommunitySidebar() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-300 text-sm">Total Groups</span>
-              <Badge variant="outline" className="border-blue-400 text-blue-400">
+              <Badge
+                variant="outline"
+                className="border-blue-400 text-blue-400"
+              >
                 {(userGroups?.length || 0) + (suggestedGroups?.length || 0)}
               </Badge>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-300 text-sm">Your Groups</span>
-              <Badge variant="outline" className="border-green-400 text-green-400">
+              <Badge
+                variant="outline"
+                className="border-green-400 text-green-400"
+              >
                 {userGroups?.length || 0}
               </Badge>
             </div>

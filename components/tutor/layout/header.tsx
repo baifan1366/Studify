@@ -10,7 +10,6 @@ import UserProfilePopover from '@/components/user-profile-popover';
 
 interface ClassroomHeaderProps {
   title?: string;
-  userName?: string;
   onSearchClick?: () => void;
   onNotificationClick?: () => void;
   onProfileClick?: () => void;
@@ -21,16 +20,16 @@ interface ClassroomHeaderProps {
 
 export default function ClassroomHeader({
   title,
-  userName,
   onProfileClick,
   sidebarExpanded = false,
   onMenuToggle
 }: ClassroomHeaderProps) {
-  const { data: userData, isLoading } = useUser();
+  const { data: userData, isLoading, error } = useUser();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   
-  const resolvedUserName = userName || userData?.profile?.display_name || userData?.profile?.email;
+  
+  const resolvedUserName = userData?.profile?.display_name || userData?.email || 'User';
   const userAvatar = userData?.profile?.avatar_url || '';
 
   const handleProfileClick = () => {

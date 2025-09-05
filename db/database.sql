@@ -691,7 +691,7 @@ create table if not exists community_group_member (
 
 create table if not exists community_post (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
+  public_id uuid unique not null default uuid_generate_v4() ,
   group_id bigint references community_group(id) on delete set null,
   author_id bigint not null references profiles(id) on delete cascade,
   title text,
@@ -702,6 +702,15 @@ create table if not exists community_post (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
+
+create table if not exists community_post_files (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  post_id UUID REFERENCES community_post(public_id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL
+);
+
 
 -- 推荐复合唯一约束，保证每个 group 内 slug 唯一
 alter table community_post

@@ -9,6 +9,7 @@ import { Loader2 as Spinner, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDropzone } from "react-dropzone";
 import { useDebounce } from "use-debounce";
+import { useHashtags } from "@/hooks/community/use-community";
 
 interface NewPostFormProps {
   onSubmit: (post: {
@@ -33,6 +34,7 @@ export function NewPostForm({
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [searchedTags, setSearchedTags] = useState<string[]>([]);
+  const { createHashtag } = useHashtags();
   const [debouncedTagInput] = useDebounce(tagInput, 300);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,13 +53,38 @@ export function NewPostForm({
     fetchTags();
   }, [debouncedTagInput, searchHashtags, hashtags]);
 
-  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleTagKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       const newTag = tagInput.trim();
-      if (newTag && !hashtags.includes(newTag)) {
-        setHashtags([...hashtags, newTag]);
+      if (!newTag) return;
+
+      // ✅ 检查标签是否已存在于已选中列表
+      if (hashtags.includes(newTag)) {
+        setTagInput("");
+        return;
       }
+
+      try {
+        // ✅ 查询数据库看是否已存在
+        const existingTags = await searchHashtags(newTag);
+        const exists = existingTags.some(
+          (t) => t.toLowerCase() === newTag.toLowerCase()
+        );
+
+        if (exists) {
+          // 已存在，直接加到已选标签
+          setHashtags((prev) => [...prev, newTag]);
+        } else {
+          // 不存在，先加到 UI
+          setHashtags((prev) => [...prev, newTag]);
+          // 再插入数据库
+          createHashtag(newTag);
+        }
+      } catch (err) {
+        console.error("Error handling tag:", err);
+      }
+
       setTagInput("");
     }
   };

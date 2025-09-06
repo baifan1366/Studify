@@ -33,4 +33,30 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(names);
 }
 
-//export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
+  const { tag } = await request.json();
+  if (!tag) {
+    return NextResponse.json(
+      { error: 'Body field "tag" is required' },
+      { status: 400 }
+    );
+  }
+
+  const supabaseClient = await createServerClient();
+
+  const { data: hashtag, error: hashtagError } = await supabaseClient
+    .from("hashtags")
+    .insert([{ name: tag }])
+    .select()
+    .single();
+
+  if (hashtagError) {
+    console.error("Error creating hashtag:", hashtagError);
+    return NextResponse.json(
+      { error: "Failed to create hashtag" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(hashtag);
+}

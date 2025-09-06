@@ -90,12 +90,14 @@ export default function GroupDetailContent({
     title,
     body,
     files,
+    hashtags,
   }: {
     title: string;
     body: string;
     files: File[];
+    hashtags: string[];
   }) => {
-    createPost({ title, body, files });
+    createPost({ title, body, files, hashtags });
   };
 
   const handleJoinGroup = () => {

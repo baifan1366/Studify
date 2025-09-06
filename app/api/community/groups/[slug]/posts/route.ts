@@ -190,6 +190,7 @@ export async function POST(
     const title = formData.get("title") as string;
     const body = formData.get("body") as string;
     const files = formData.getAll("files") as File[];
+    const hashtags = formData.getAll("hashtags") as string[];
 
     // Validation
     if (!title || title.length < 5 || title.length > 200) {
@@ -288,6 +289,41 @@ export async function POST(
 
     if (postError) {
       return NextResponse.json({ error: postError.message }, { status: 500 });
+    }
+
+    // === 处理 hashtags ===
+    if (hashtags.length > 0) {
+      for (const tag of hashtags) {
+        const cleanTag = tag.trim();
+        if (!cleanTag) continue;
+
+        // 查找是否已存在
+        const { data: existing } = await supabaseClient
+          .from("hashtags")
+          .select("id")
+          .ilike("name", cleanTag)
+          .single();
+
+        let hashtagId;
+        if (existing) {
+          hashtagId = existing.id;
+        } else {
+          // 不存在则创建
+          const { data: newHashtag } = await supabaseClient
+            .from("hashtags")
+            .insert([{ name: cleanTag }])
+            .select("id")
+            .single();
+          hashtagId = newHashtag?.id;
+        }
+
+        if (hashtagId) {
+          // 建立关联
+          await supabaseClient
+            .from("post_hashtags")
+            .insert([{ post_id: newPost.public_id, hashtag_id: hashtagId }]);
+        }
+      }
     }
 
     // Handle file uploads

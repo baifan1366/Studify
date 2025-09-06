@@ -218,13 +218,13 @@ export const useGroupPosts = (slug: string) => {
       title: string;
       body: string;
       files: File[];
+      hashtags: string[];
     }) => {
       const formData = new FormData();
       formData.append("title", newPost.title);
       formData.append("body", newPost.body);
-      newPost.files.forEach((file) => {
-        formData.append("files", file);
-      });
+      newPost.hashtags.forEach((tag) => formData.append("hashtags", tag));
+      newPost.files.forEach((file) => formData.append("files", file));
 
       const response = await fetch(COMMUNITY_API.groupPosts(slug), {
         method: "POST",
@@ -431,7 +431,12 @@ export const useCommunity = () => {
     isPending: isAddingPost,
     error: addPostError,
   } = useMutation({
-    mutationFn: (newPost: { title: string; body: string }) =>
+    mutationFn: (newPost: {
+      title: string;
+      body: string;
+      files: File[];
+      hashtags: string[];
+    }) =>
       apiSend<Post>({
         url: COMMUNITY_API.posts,
         method: "POST",

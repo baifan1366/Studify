@@ -5,86 +5,76 @@ import { Dialog, DialogContent, DialogTrigger, DialogDescription, DialogHeader, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Plus, Play, Clock, Eye, EyeOff, Link, FileText, Image } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Course, Module, Lesson } from '@/interface';
+import { Lesson } from '@/interface/courses/lesson-interface';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
+import { useCreateLesson } from '@/hooks/course/use-course-lesson';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
 
-// Mock data. In a real app, fetch this from your API.
-const mockCourses: Pick<Course, 'public_id' | 'title'>[] = [
-    { public_id: 'crs_1abc', title: 'Introduction to Next.js' },
-    { public_id: 'crs_2def', title: 'Advanced TypeScript' },
-];
-// The 'course_id' in mockModules should be the 'public_id' of the course
-const mockModules: (Pick<Module, 'public_id' | 'title'> & { course_public_id: string })[] = [
-    { public_id: 'mod_1', course_public_id: 'crs_1abc', title: 'Module 1: Getting Started' },
-    { public_id: 'mod_2', course_public_id: 'crs_1abc', title: 'Module 2: Pages and Routing' },
-    { public_id: 'mod_3', course_public_id: 'crs_2def', title: 'Module 1: Types and Interfaces' },
-    { public_id: 'mod_4', course_public_id: 'crs_2def', title: 'Module 2: Generics' },
-];
 const lessonKinds: Lesson['kind'][] = ['video', 'live', 'document', 'quiz', 'assignment', 'whiteboard'];
 
-export default function CreateCourseLesson() {
+interface CreateCourseLessonProps {
+  courseId?: number;
+  moduleId?: number;
+}
+
+export default function CreateCourseLesson({ courseId, moduleId }: CreateCourseLessonProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [title, setTitle] = useState('');
-    const [selectedCourse, setSelectedCourse] = useState('');
-    const [selectedModule, setSelectedModule] = useState('');
-    const [kind, setKind] = useState<Lesson['kind']>(lessonKinds[0]);
+    const [kind, setKind] = useState<Lesson['kind']>('video');
     const [contentUrl, setContentUrl] = useState('');
-    const [duration, setDuration] = useState(0);
+    const [durationSec, setDurationSec] = useState<number | undefined>();
     const [errors, setErrors] = useState<Record<string, string>>({});
-
-    const [courses, setCourses] = useState<Pick<Course, 'public_id' | 'title'>[]>([]);
-    const [modules, setModules] = useState<(Pick<Module, 'public_id' | 'title'> & { course_public_id: string })[]>([]);
-    const [filteredModules, setFilteredModules] = useState<(Pick<Module, 'public_id' | 'title'> & { course_public_id: string })[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const t = useTranslations('CreateCourseLesson');
-
-    useEffect(() => {
-        // Mock fetching data
-        setCourses(mockCourses);
-        setModules(mockModules);
-    }, []);
-
-    useEffect(() => {
-        if (selectedCourse) {
-            setFilteredModules(modules.filter(m => m.course_public_id === selectedCourse));
-            setSelectedModule(''); // Reset module selection when course changes
-        } else {
-            setFilteredModules([]);
-        }
-    }, [selectedCourse, modules]);
+    const lessonT = useTranslations('CourseLessonSchema');
+    const createLessonMutation = useCreateLesson();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        if (!courseId || !moduleId) {
+            setErrors({ 
+                courseId: !courseId ? t('course_id_required') : '',
+                moduleId: !moduleId ? t('module_id_required') : ''
+            });
+            return;
+        }
+        
+        setIsSubmitting(true);
+        
         try {
             const formData = {
-                courseId: selectedCourse,
-                moduleId: selectedModule,
+                courseId: courseId.toString(),
+                moduleId: moduleId.toString(),
                 title,
                 kind,
-                contentUrl,
-                duration
+                content_url: contentUrl || undefined,
+                duration_sec: durationSec
             };
             
-            courseLessonSchema.parse(formData);
+            const schema = courseLessonSchema(lessonT);
+            schema.parse(formData);
             setErrors({});
             
-            console.log({
-                ...formData,
-                duration_sec: duration,
+            await createLessonMutation.mutateAsync({
+                courseId: courseId.toString(),
+                moduleId: moduleId.toString(),
+                body: formData
             });
             
             // Reset form
             setTitle('');
-            setSelectedCourse('');
-            setSelectedModule('');
-            setKind(lessonKinds[0]);
+            setKind('video');
             setContentUrl('');
-            setDuration(0);
+            setDurationSec(undefined);
             setIsOpen(false);
         } catch (error) {
             if (error instanceof z.ZodError) {
@@ -96,6 +86,8 @@ export default function CreateCourseLesson() {
                 });
                 setErrors(newErrors);
             }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -103,102 +95,85 @@ export default function CreateCourseLesson() {
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="default">
-                    <Plus className="mr-2 h-4 w-4" />
+                    <Plus className="h-4 w-4 mr-2" />
                     {t('create_lesson_button')}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[800px] max-h-[90vh] border-0 shadow-2xl overflow-hidden">
                 <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>{t('dialog_title')}</DialogTitle>
-                        <DialogDescription>{t('dialog_description')}</DialogDescription>
+                    <DialogHeader className="px-6 pt-6 pb-2">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20">
+                                <Play className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-bold">{t('dialog_title')}</DialogTitle>
+                                <DialogDescription className="text-muted-foreground mt-1">
+                                    {t('dialog_description')}
+                                </DialogDescription>
+                            </div>
+                        </div>
                     </DialogHeader>
-                    <div className="grid gap-2 py-4">
-                        {/* Course and Module Selection */}
-                        <div className="flex w-full gap-2">
-                            <div className="w-full">
-                                <Label htmlFor="course">
-                                    {t('course_label')} <span className="text-red-500">*</span>
+                    
+                    <div className="px-6 py-4 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="title" className="text-sm font-medium">
+                                    {t('title_label')} <span className="text-destructive">*</span>
                                 </Label>
-                                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                                    <SelectTrigger className={errors.courseId ? 'border-red-500' : ''}>
-                                        <SelectValue placeholder={t('select_course_placeholder')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {courses.map((course) => (
-                                            <SelectItem key={course.public_id} value={course.public_id}>
-                                                {course.title}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.courseId && <span className="text-xs text-red-500">{errors.courseId}</span>}
+                                <Input
+                                    type="text"
+                                    id="title"
+                                    placeholder={t('title_placeholder')}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    required
+                                    className={cn(
+                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                        errors.title && "border-destructive focus:border-destructive"
+                                    )}
+                                />
+                                <div className="flex justify-between text-xs mt-1">
+                                    <span className="text-destructive">{errors.title || ''}</span>
+                                    <span className="text-muted-foreground">{title.length}/100</span>
+                                </div>
                             </div>
-                            <div className="w-full">
-                                <Label htmlFor="module">
-                                    {t('module_label')} <span className="text-red-500">*</span>
+                            <div>
+                                <Label htmlFor="duration" className="text-sm font-medium">
+                                    {t('duration_label')}
                                 </Label>
-                                <Select value={selectedModule} onValueChange={setSelectedModule} disabled={!selectedCourse}>
-                                    <SelectTrigger className={errors.moduleId ? 'border-red-500' : ''}>
-                                        <SelectValue placeholder={t('select_module_placeholder')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {filteredModules.map((module) => (
-                                            <SelectItem key={module.public_id} value={module.public_id}>
-                                                {module.title}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.moduleId && <span className="text-xs text-red-500">{errors.moduleId}</span>}
+                                <div className="relative mt-1.5">
+                                    <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="number"
+                                        id="duration"
+                                        placeholder={t('duration_placeholder')}
+                                        value={durationSec || ''}
+                                        onChange={(e) => setDurationSec(e.target.value ? Number(e.target.value) : undefined)}
+                                        min="0"
+                                        max="86400"
+                                        className={cn(
+                                            "pl-10 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                            errors.duration_sec && "border-destructive focus:border-destructive"
+                                        )}
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">{t('duration_description')}</p>
+                                {errors.duration_sec && <span className="text-xs text-destructive">{errors.duration_sec}</span>}
                             </div>
                         </div>
-
-                        {/* Title */}
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="title">
-                                {t('title_label')} <span className="text-red-500">*</span>
-                            </Label>
-                            <Input 
-                                type="text" 
-                                id="title" 
-                                placeholder={t('title_placeholder')} 
-                                value={title} 
-                                onChange={(e) => setTitle(e.target.value)} 
-                                required 
-                                className={errors.title ? 'border-red-500' : ''}
-                            />
-                            <div className="flex justify-between text-xs">
-                                <span className="text-red-500">{errors.title || ''}</span>
-                                <span className="text-muted-foreground">{title.length}/100 characters</span>
-                            </div>
-                        </div>
-
-                        {/* Content URL */}
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="contentUrl">
-                                {t('content_url_label')} <span className="text-red-500">*</span>
-                            </Label>
-                            <Input 
-                                type="url" 
-                                id="contentUrl" 
-                                placeholder={t('content_url_placeholder')} 
-                                value={contentUrl} 
-                                onChange={(e) => setContentUrl(e.target.value)} 
-                                required 
-                                className={errors.contentUrl ? 'border-red-500' : ''}
-                            />
-                            {errors.contentUrl && <span className="text-xs text-red-500">{errors.contentUrl}</span>}
-                        </div>
-
-                        {/* Kind and Duration Selection */}
-                        <div className="flex w-full gap-2">
-                            <div className="w-full">
-                                <Label htmlFor="kind">
-                                    {t('kind_label')} <span className="text-red-500">*</span>
+                            
+                        {/* Kind and Duration */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:grid-cols-1">
+                                <Label htmlFor="kind" className="text-sm font-medium">
+                                    {t('kind_label')} <span className="text-destructive">*</span>
                                 </Label>
                                 <Select value={kind} onValueChange={(value) => setKind(value as Lesson['kind'])}>
-                                    <SelectTrigger className={errors.kind ? 'border-red-500' : ''}>
+                                    <SelectTrigger className={cn(
+                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                        errors.kind && "border-destructive focus:border-destructive"
+                                    )}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -209,35 +184,48 @@ export default function CreateCourseLesson() {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {errors.kind && <span className="text-xs text-red-500">{errors.kind}</span>}
+                                {errors.kind && <span className="text-xs text-destructive mt-1">{errors.kind}</span>}
                             </div>
-                            <div className="w-full">
-                                <Label htmlFor="duration">
-                                    {t('duration_label')} <span className="text-red-500">*</span>
+                            <div className="md:grid-cols-3">
+                                <Label htmlFor="contentUrl" className="text-sm font-medium">
+                                    {t('content_url_label')}
                                 </Label>
-                                <Input 
-                                    type="number" 
-                                    id="duration" 
-                                    placeholder={t('duration_placeholder')} 
-                                    value={duration} 
-                                    onChange={(e) => setDuration(Number(e.target.value))} 
-                                    min="0" 
-                                    required 
-                                    className={errors.duration ? 'border-red-500' : ''}
-                                />
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">{t('duration_description')}</span>
-                                    <span className="text-red-500">{errors.duration || ''}</span>
+                                <div className="relative mt-1.5">
+                                    <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="url"
+                                        id="contentUrl"
+                                        placeholder={t('content_url_placeholder')}
+                                        value={contentUrl}
+                                        onChange={(e) => setContentUrl(e.target.value)}
+                                        className={cn(
+                                            "pl-10 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                            errors.content_url && "border-destructive focus:border-destructive"
+                                        )}
+                                    />
                                 </div>
+                                {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
                             </div>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>{t('cancel_button')}</Button>
-                        <Button type="submit">{t('submit_button')}</Button>
+                    
+                    <DialogFooter className="px-6 pb-6 pt-2">
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            onClick={() => setIsOpen(false)}
+                        >
+                            {t('cancel_button')}
+                        </Button>
+                        <Button 
+                            type="submit" 
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? t('creating_button') : t('submit_button')}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
-    );
+    )
 }

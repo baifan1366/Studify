@@ -7,24 +7,26 @@ import { useTranslations } from 'next-intl';
 import CourseModuleList from '@/components/tutor/course-content/course-module-list';
 import CourseLessonGrid from '@/components/tutor/course-content/course-lesson-grid';
 import CreateCourseLesson from '@/components/tutor/course-content/create-course-lesson';
+import { useSearchParams } from 'next/navigation';
+import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 
-interface CourseDetailsProps {
-  courseId?: string;
-}
-
-export default function CourseDetails({ courseId = '1' }: CourseDetailsProps) {
+export default function CourseDetails() {
   const t = useTranslations('CourseDetails');
-  const [selectedModuleId, setSelectedModuleId] = useState<string>('1');
-  const [selectedLessonId, setSelectedLessonId] = useState<string | undefined>();
+  const params = useSearchParams();
+  const id = params.get('id');
+  const courseId = id ? parseInt(id) : 0;
+  const { data: courseModule, isLoading, error } = useModuleByCourseId(courseId);
+  const [selectedModuleId, setSelectedModuleId] = useState<number>(1);
+  const [selectedLessonId, setSelectedLessonId] = useState<number | undefined>();
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(320); // Default width in pixels
 
-  const handleModuleSelect = (moduleId: string) => {
+  const handleModuleSelect = (moduleId: number) => {
     setSelectedModuleId(moduleId);
     setSelectedLessonId(undefined); // Reset lesson selection when module changes
   };
 
-  const handleLessonSelect = (lessonId: string) => {
+  const handleLessonSelect = (lessonId: number) => {
     setSelectedLessonId(lessonId);
   };
 
@@ -130,7 +132,7 @@ export default function CourseDetails({ courseId = '1' }: CourseDetailsProps) {
               </div>
              
             </div> 
-            <CreateCourseLesson />
+            <CreateCourseLesson courseId={courseId} moduleId={selectedModuleId} />
           </div>
         </div>
 
@@ -140,9 +142,9 @@ export default function CourseDetails({ courseId = '1' }: CourseDetailsProps) {
             {selectedModuleId ? (
               <CourseLessonGrid
                 moduleId={selectedModuleId}
+                courseId={courseId}
                 onLessonSelect={handleLessonSelect}
                 selectedLessonId={selectedLessonId}
-                isLoading={false}
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-64 text-center">

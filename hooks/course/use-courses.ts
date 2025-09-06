@@ -90,7 +90,7 @@ export function useDeleteCourse() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
+    mutationFn: (id: number) =>
       apiSend<void>({
         url: `/api/courses/${id}`,
         method: 'DELETE',

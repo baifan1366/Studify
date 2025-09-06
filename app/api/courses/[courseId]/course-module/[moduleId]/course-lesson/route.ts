@@ -1,56 +1,99 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
-// GET /api/courses/[id]/course-module/[id]/course-lesson 
-// - list course module with specific course id
-export async function GET(req: Request) {
+// GET /api/courses/[courseId]/course-module/[moduleId]/course-lesson
+// List course lessons with specific courseId and moduleId
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ courseId: string; moduleId: string }> } // 👈 Make params async
+) {
   try {
-    
-    const body = await req.json();
+    const { courseId, moduleId } = await context.params; // 👈 Await params
     const client = await createServerClient();
 
+    const courseIdNum = parseInt(courseId);
+    const moduleIdNum = parseInt(moduleId);
+
+    if (isNaN(courseIdNum)) {
+      return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
+    }
+
+    if (isNaN(moduleIdNum)) {
+      return NextResponse.json({ error: "Invalid module ID" }, { status: 400 });
+    }
+
     const { data, error } = await client
-        .from("course_lesson")
-        .select("*")
-        .eq("is_deleted", false)
-        .eq("course_id", body.course_id)
-        .eq("module_id", body.module_id)
-        .order("created_at", { ascending: false });
+      .from("course_lesson")
+      .select("*")
+      .eq("is_deleted", false)
+      .eq("course_id", courseIdNum)
+      .eq("module_id", moduleIdNum)
+      .order("position", { ascending: true });
 
     if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
     return NextResponse.json({ data });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Internal error" },
+      { status: 500 }
+    );
   }
 }
 
-// POST /api/courses/[id]/course-module/[id]/course-lesson - create a new course lesson
-export async function POST(req: Request) {
+// POST /api/courses/[courseId]/course-module/[moduleId]/course-lesson
+// Create a new course lesson
+export async function POST(
+  req: Request,
+  context: { params: Promise<{ courseId: string; moduleId: string }> } // 👈 Make params async
+) {
   try {
+    const { courseId, moduleId } = await context.params; // 👈 Await params
     const body = await req.json();
     const client = await createServerClient();
 
-    if (!body.course_id) {
-      return NextResponse.json({ error: "course_id is required" }, { status: 422 });
+    const courseIdNum = parseInt(courseId);
+    const moduleIdNum = parseInt(moduleId);
+
+    if (isNaN(courseIdNum)) {
+      return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
     }
 
-    if (!body.module_id) {
-      return NextResponse.json({ error: "module_id is required" }, { status: 422 });
+    if (isNaN(moduleIdNum)) {
+      return NextResponse.json({ error: "Invalid module ID" }, { status: 400 });
     }
 
     const payload = {
       title: body.title as string,
+      slug: body.slug as string,
+      position: body.position as number,
+      description: body.description as string || null,
+      is_preview: body.is_preview as boolean || false,
+      is_published: body.is_published as boolean || false,
+      transcript: body.transcript as string || null,
       kind: body.kind as string,
-      content_url: body.content_url as string,
-      duration_sec: body.duration_sec as number,
-      course_id: body.course_id,
-      module_id: body.module_id,
+      content_url: body.content_url as string || null,
+      duration_sec: body.duration_sec as number || null,
+      video_url: body.video_url as string || null,
+      thumbnail_url: body.thumbnail_url as string || null,
+      course_id: courseIdNum,
+      module_id: moduleIdNum,
     };
 
+    // Validate required fields
     if (!payload.title) {
       return NextResponse.json({ error: "title is required" }, { status: 422 });
+    }
+    if (!payload.slug) {
+      return NextResponse.json({ error: "slug is required" }, { status: 422 });
+    }
+    if (!payload.position) {
+      return NextResponse.json({ error: "position is required" }, { status: 422 });
+    }
+    if (!payload.kind) {
+      return NextResponse.json({ error: "kind is required" }, { status: 422 });
     }
 
     const { data, error } = await client
@@ -65,6 +108,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Internal error" },
+      { status: 500 }
+    );
   }
 }

@@ -47,6 +47,7 @@ export default function CreateCourse() {
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const t = useTranslations('CreateCourse');
+    const courseT = useTranslations('CourseSchema');
     const { data: userData } = useUser();
     const createCourseMutation = useCreateCourse();
     const { formatPrice } = useFormat();
@@ -119,33 +120,35 @@ export default function CreateCourse() {
                 total_duration_minutes: totalDurationMinutes
             };
             
-            const schema = await courseSchema();
+            const schema = courseSchema(courseT);
             schema.parse(formData);
             setErrors({});
             
             // Prepare the payload for the API
+            const ownerId: number = parseInt(userData.profile?.id) || (typeof userData.id === 'string' ? parseInt(userData.id) : userData.id || 0);
+            
             const coursePayload = {
                 title,
                 description,
                 slug,
-                video_intro_url: videoIntroUrl,
+                video_intro_url: videoIntroUrl || undefined,
                 requirements,
                 learning_objectives: learningObjectives,
                 category,
                 language,
-                certificate_template: certificateTemplate,
+                certificate_template: certificateTemplate || undefined,
                 auto_create_classroom: autoCreateClassroom,
                 auto_create_community: autoCreateCommunity,
                 visibility: visibility as 'public' | 'private' | 'unlisted',
-                price_cents: priceCents,
+                price_cents: isFree ? 0 : priceCents,
                 currency,
-                thumbnail_url: thumbnailUrl,
+                thumbnail_url: thumbnailUrl || undefined,
                 level,
                 is_free: isFree,
                 tags: tags,
                 total_lessons: totalLessons,
                 total_duration_minutes: totalDurationMinutes,
-                owner_id: parseInt(userData.id)
+                owner_id: ownerId
             };
             
             // Use the mutation to create the course
@@ -177,6 +180,7 @@ export default function CreateCourse() {
             setTagInput('');
             setIsOpen(false); // Close the dialog on submit
         } catch (error) {
+            console.error('Course creation error:', error);
             if (error instanceof z.ZodError) {
                 const newErrors: Record<string, string> = {};
                 error.issues.forEach((err) => {
@@ -187,7 +191,8 @@ export default function CreateCourse() {
                 setErrors(newErrors);
             } else {
                 // Handle API errors
-                setErrors({ general: 'Failed to create course. Please try again.' });
+                const errorMessage = error instanceof Error ? error.message : 'Failed to create course. Please try again.';
+                setErrors({ general: errorMessage });
             }
         }
     };
@@ -577,12 +582,12 @@ export default function CreateCourse() {
 
                     </div>
                     <DialogFooter>
-    <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} disabled={createCourseMutation.isPending}>
-        {t('cancel_button')}
-    </Button>
-    <Button type="submit" disabled={createCourseMutation.isPending}>
-        {createCourseMutation.isPending ? t('creating') : t('submit_button')}
-    </Button>
+                        <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} disabled={createCourseMutation.isPending}>
+                            {t('cancel_button')}
+                        </Button>
+                        <Button type="submit" disabled={createCourseMutation.isPending}>
+                            {createCourseMutation.isPending ? t('creating') : t('submit_button')}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

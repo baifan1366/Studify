@@ -4,28 +4,26 @@ import { useState, useMemo } from 'react';
 import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import CreateCourseLesson from './create-course-lesson';
+import { useLessonByCourseModuleId } from '@/hooks/course/use-course-lesson';
+import { Lesson } from '@/interface/courses/lesson-interface';
 
-interface CourseLesson {
-  id: string;
-  title: string;
-  description: string;
+// Extended interface for UI display
+interface CourseLesson extends Lesson {
+  description?: string;
   duration: string;
   type: 'video' | 'reading' | 'quiz' | 'assignment';
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   isCompleted: boolean;
   isLocked: boolean;
-  moduleId: string;
   order: number;
   rating?: number;
 }
 
 interface CourseLessonGridProps {
-  moduleId?: string;
-  lessons?: CourseLesson[];
-  onLessonSelect?: (lessonId: string) => void;
-  selectedLessonId?: string;
-  isLoading?: boolean;
+  moduleId?: number;
+  courseId?: number;
+  onLessonSelect?: (lessonId: number) => void;
+  selectedLessonId?: number;
 }
 
 type FilterType = 'all' | 'video' | 'reading' | 'quiz' | 'assignment';
@@ -33,10 +31,9 @@ type SortType = 'order' | 'duration' | 'difficulty' | 'completion';
 
 export default function CourseLessonGrid({ 
   moduleId, 
-  lessons = [], 
+  courseId,
   onLessonSelect,
-  selectedLessonId,
-  isLoading = false 
+  selectedLessonId
 }: CourseLessonGridProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
@@ -44,97 +41,43 @@ export default function CourseLessonGrid({
   const [showCompleted, setShowCompleted] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Fetch lessons using the hook - only fetch if both IDs are available
+  const { data: rawLessons = [], isLoading, error } = useLessonByCourseModuleId(
+    courseId?.toString() || '',
+    moduleId?.toString() || ''
+  );
+  
+  // Transform API data to UI format
+  const lessons: CourseLesson[] = useMemo(() => {
+    return (rawLessons as Lesson[]).map((lesson, index) => ({
+      ...lesson,
+      description: `Lesson ${index + 1} content`,
+      duration: lesson.duration_sec ? `${Math.ceil(lesson.duration_sec / 60)}m` : '15m',
+      type: lesson.kind === 'video' ? 'video' : 
+            lesson.kind === 'document' ? 'reading' : 
+            lesson.kind === 'quiz' ? 'quiz' : 
+            lesson.kind === 'assignment' ? 'assignment' : 'reading',
+      difficulty: 'intermediate' as const,
+      isCompleted: false,
+      isLocked: false,
+      order: index + 1,
+      rating: 4.5
+    }));
+  }, [rawLessons]);
 
-  // Mock data for demonstration
-  const mockLessons: CourseLesson[] = lessons.length > 0 ? lessons : [
-    {
-      id: '1',
-      title: 'Introduction to React Hooks',
-      description: 'Learn the fundamentals of React Hooks and how they revolutionize state management',
-      duration: '15m',
-      type: 'video',
-      difficulty: 'beginner',
-      isCompleted: true,
-      isLocked: false,
-      moduleId: moduleId || '1',
-      order: 1,
-      rating: 4.8
-    },
-    {
-      id: '2',
-      title: 'useState and useEffect Deep Dive',
-      description: 'Master the most commonly used hooks with practical examples',
-      duration: '25m',
-      type: 'video',
-      difficulty: 'intermediate',
-      isCompleted: true,
-      isLocked: false,
-      moduleId: moduleId || '1',
-      order: 2,
-      rating: 4.9
-    },
-    {
-      id: '3',
-      title: 'Custom Hooks Best Practices',
-      description: 'Learn how to create reusable custom hooks for your applications',
-      duration: '20m',
-      type: 'reading',
-      difficulty: 'intermediate',
-      isCompleted: false,
-      isLocked: false,
-      moduleId: moduleId || '1',
-      order: 3,
-      rating: 4.7
-    },
-    {
-      id: '4',
-      title: 'Hooks Quiz Challenge',
-      description: 'Test your understanding of React Hooks concepts',
-      duration: '10m',
-      type: 'quiz',
-      difficulty: 'intermediate',
-      isCompleted: false,
-      isLocked: false,
-      moduleId: moduleId || '1',
-      order: 4
-    },
-    {
-      id: '5',
-      title: 'Build a Todo App with Hooks',
-      description: 'Apply your knowledge by building a complete application',
-      duration: '45m',
-      type: 'assignment',
-      difficulty: 'advanced',
-      isCompleted: false,
-      isLocked: true,
-      moduleId: moduleId || '1',
-      order: 5
-    },
-    {
-      id: '6',
-      title: 'Advanced Hook Patterns',
-      description: 'Explore advanced patterns and optimization techniques',
-      duration: '30m',
-      type: 'video',
-      difficulty: 'advanced',
-      isCompleted: false,
-      isLocked: true,
-      moduleId: moduleId || '1',
-      order: 6
-    }
-  ];
 
   const filteredAndSortedLessons = useMemo(() => {
-    let filtered = mockLessons.filter(lesson => {
+    let filtered = lessons.filter((lesson: CourseLesson) => {
       const matchesSearch = lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          lesson.description.toLowerCase().includes(searchTerm.toLowerCase());
+                          (lesson.description || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === 'all' || lesson.type === filterType;
       const matchesCompletion = showCompleted || !lesson.isCompleted;
       
       return matchesSearch && matchesType && matchesCompletion;
     });
 
-    filtered.sort((a, b) => {
+    filtered.sort((a: CourseLesson, b: CourseLesson) => {
       switch (sortBy) {
         case 'order':
           return a.order - b.order;
@@ -151,7 +94,7 @@ export default function CourseLessonGrid({
     });
 
     return filtered;
-  }, [mockLessons, searchTerm, filterType, sortBy, showCompleted]);
+  }, [lessons, searchTerm, filterType, sortBy, showCompleted]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -310,7 +253,7 @@ export default function CourseLessonGrid({
           ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" 
           : "space-y-3"
       )}>
-        {filteredAndSortedLessons.map((lesson) => (
+        {filteredAndSortedLessons.map((lesson: CourseLesson) => (
           <div
             key={lesson.id}
             className={cn(
@@ -428,12 +371,12 @@ export default function CourseLessonGrid({
         ))}
       </div>
 
-      {filteredAndSortedLessons.length === 0 && (
+      {!isLoading && filteredAndSortedLessons.length === 0 && (
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-2">No lessons found</h3>
           <p className="text-muted-foreground">
-            Try adjusting your search or filter criteria
+            {lessons.length === 0 ? 'No lessons available for this module' : 'Try adjusting your search or filter criteria'}
           </p>
         </div>
       )}

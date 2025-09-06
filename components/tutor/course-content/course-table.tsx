@@ -80,7 +80,7 @@ export default function CourseTable() {
     const { data: courses, isLoading, error } = useCourses(owner_id);
     const deleteCourse = useDeleteCourse();
 
-    const handleDelete = async (courseId: string) => {
+    const handleDelete = async (courseId: number) => {
         try {
             await deleteCourse.mutateAsync(courseId);
             toast({
@@ -323,7 +323,15 @@ export default function CourseTable() {
                                     <TableCell className="min-w-[180px] sm:min-w-[220px] lg:min-w-[280px] text-left">
                                         <div className="space-y-1">
                                             <div className="font-medium text-sm sm:text-base truncate pr-2">
-                                                <Link href={`/tutor/teaching/course-content/${course.slug}`}>{course.title}</Link>
+                                                <Link 
+                                                    href={{
+                                                        pathname: `/tutor/teaching/course-content/${course.slug}`,
+                                                        query: { id: course.id },
+                                                    }}
+                                                    key={course.slug}
+                                                >
+                                                    {course.title}
+                                                </Link>
                                             </div>
                                             {course.description && !columnVisibility.description && (
                                                 <div className="text-xs sm:text-sm text-gray-500 truncate lg:hidden pr-2">
@@ -457,7 +465,7 @@ export default function CourseTable() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleDelete(course.public_id)}
+                                                onClick={() => handleDelete(course.id)}
                                                 title={t('delete')}
                                                 disabled={deleteCourse.isPending}
                                                 className="h-8 w-8 p-0"

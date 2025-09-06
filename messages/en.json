@@ -844,7 +844,25 @@
     "duration_description": "Duration of the video or estimated reading time.",
     "cancel_button": "Cancel",
     "submit_button": "Create Lesson",
-    "selection_error": "Please select a course and module first."
+    "selection_error": "Please select a course and module first.",
+    "description_label": "Description",
+    "video_url_label": "Video URL",
+    "thumbnail_url_label": "Thumbnail URL",
+    "transcript_label": "Transcript",
+    "transcript_description": "Transcript of the video.",
+    "video_url_placeholder": "e.g., https://example.com/video.mp4",
+    "thumbnail_url_placeholder": "e.g., https://example.com/thumbnail.jpg",
+    "transcript_placeholder": "e.g., https://example.com/transcript.txt",
+    "slug_label": "Slug",
+    "slug_placeholder": "e.g., lesson-slug",
+    "position_label": "Position",
+    "position_placeholder": "Enter the lesson's order",
+    "preview_label": "Preview",
+    "preview_description": "Preview the lesson before publishing.",
+    "publish_label": "Publish",
+    "publish_description_on": "Publish the lesson.",
+    "publish_description_off": "Unpublish the lesson.",
+    "creating_button": "Creating..."
   },
   "CreateCourseModule": {
     "create_module_button": "Create Module",
@@ -858,7 +876,8 @@
     "position_placeholder": "Enter the module's order",
     "cancel_button": "Cancel",
     "submit_button": "Create Module",
-    "course_selection_error": "Please select a course first."
+    "course_selection_error": "Please select a course first.",
+    "creating_button": "Creating"
   },
   "TutorDashboardPage": {
     "metadata_title": "Dashboard | Tutor | Studify",
@@ -1009,7 +1028,8 @@
     "status": "Status",
     "completed": "Completed",
     "inProgress": "In Progress",
-    "duration": "Duration"
+    "duration": "Duration",
+    "noModulesFound": "No modules found"
   },
   "CourseLessonGrid": {
     "courseLessons": "Course Lessons",

@@ -234,6 +234,13 @@ export const gamificationApi = {
   streak: "/api/gamification/streak",
 } as const;
 
+// Embedding API endpoints
+export const embeddingApi = {
+  search: "/api/embeddings/search",
+  queue: "/api/embeddings/queue",
+  processor: "/api/embeddings/processor",
+} as const;
+
 // Users API endpoints
 export const usersApi = {
   updateProfile: "/api/users/profile",

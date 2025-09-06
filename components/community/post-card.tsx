@@ -104,42 +104,58 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between pt-3">
-        <div className="flex space-x-4 text-gray-300">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="hover:bg-white/10 hover:text-white px-2"
-          >
-            <ThumbsUp className="mr-1 h-4 w-4" />
-            <span className="text-xs">{post.reactions?.["👍"] || 0}</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="hover:bg-white/10 hover:text-white px-2"
-          >
-            <Heart className="mr-1 h-4 w-4" />
-            <span className="text-xs">{post.reactions?.["❤️"] || 0}</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="hover:bg-white/10 hover:text-white px-2"
-          >
-            <MessageSquare className="mr-1 h-4 w-4" />
-            <span className="text-xs">{post.comments_count || 0}</span>
-          </Button>
+      <CardFooter className="flex flex-col gap-2 pt-3">
+        <div className="flex justify-between w-full text-gray-300">
+          <div className="flex space-x-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-white/10 hover:text-white px-2"
+            >
+              <ThumbsUp className="mr-1 h-4 w-4" />
+              <span className="text-xs">{post.reactions?.["👍"] || 0}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-white/10 hover:text-white px-2"
+            >
+              <Heart className="mr-1 h-4 w-4" />
+              <span className="text-xs">{post.reactions?.["❤️"] || 0}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-white/10 hover:text-white px-2"
+            >
+              <MessageSquare className="mr-1 h-4 w-4" />
+              <span className="text-xs">{post.comments_count || 0}</span>
+            </Button>
+          </div>
+          <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Read More
+            </Button>
+          </Link>
         </div>
-        <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-white/20 text-white hover:bg-white/10"
-          >
-            Read More
-          </Button>
-        </Link>
+
+        {post.hashtags && post.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-start w-full">
+            {post.hashtags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+              >
+                #{tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardFooter>
     </Card>
   );

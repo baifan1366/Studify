@@ -9,6 +9,11 @@ export interface PostFile {
   mime_type: string;
 }
 
+export interface Hashtag {
+  id: number;
+  name: string;
+}
+
 export interface Post {
   id: number;
   public_id: string;
@@ -47,6 +52,9 @@ export interface Post {
 
   // 附件（图片/文件等）
   files?: PostFile[];
+
+  // 标签
+  hashtags?: Hashtag[];
 }
 
 export interface Attachment {

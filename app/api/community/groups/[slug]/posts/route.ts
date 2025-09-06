@@ -64,7 +64,8 @@ export async function GET(
       *,
       author:profiles ( display_name, avatar_url ),
       group:community_group ( name, slug, visibility ),
-      comments:community_comment ( count )
+      comments:community_comment ( count ),
+      post_hashtags(hashtags(id, name))
     `
     )
     .eq("group_id", group.id)
@@ -120,12 +121,14 @@ export async function GET(
   );
 
   // Process posts to aggregate reactions, comments count, and files
-  const processedPosts = posts.map((post) => {
+  const processedPosts = posts.map((post: any) => {
+    const hashtags = post.post_hashtags.map((ph: any) => ph.hashtags).filter(Boolean);
     return {
       ...post,
       comments_count: post.comments[0]?.count || 0,
       reactions: reactionsByPost[post.id] || {},
       files: filesByPost[post.public_id] || [],
+      hashtags: hashtags,
     };
   });
 

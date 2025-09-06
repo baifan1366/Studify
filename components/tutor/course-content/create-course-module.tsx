@@ -72,8 +72,8 @@ export default function CreateCourseModule() {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
+                <Button variant="default" className="w-full">
+                    <Plus className="h-4 w-4" />
                     {t('create_module_button')}
                 </Button>
             </DialogTrigger>

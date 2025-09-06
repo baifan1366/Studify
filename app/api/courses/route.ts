@@ -13,7 +13,7 @@ export async function GET(req: Request) {
         .from("course")
         .select("*")
         .eq("is_deleted", false)
-        .eq("owner_id", owner_id)
+        .eq("owner_id", parseInt(owner_id))
         .order("created_at", { ascending: false });
 
       if (error) {

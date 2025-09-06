@@ -213,14 +213,14 @@ export default function CreateCourse() {
                     )}
                     <div className="grid gap-6 py-4">
                         {/* Basic Information */}
-                        <Card>
+                        <Card className="bg-transparent py-2">
                             <CardHeader>
-                                <CardTitle className="text-lg">Basic Information</CardTitle>
+                                <CardTitle className="text-lg">{t('basic_information')}</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid w-full items-center gap-1.5">
                                     <Label htmlFor="title">
-                                        Course Title <span className="text-red-500">*</span>
+                                        {t('course_title')} <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         type="text"
@@ -233,13 +233,13 @@ export default function CreateCourse() {
                                     />
                                     <div className="flex justify-between text-xs">
                                         <span className="text-red-500">{errors.title || ''}</span>
-                                        <span className="text-muted-foreground">{title.length}/100 characters</span>
+                                        <span className="text-muted-foreground">{title.length}/100</span>
                                     </div>
                                 </div>
 
                                 <div className="grid w-full gap-1.5">
                                     <Label htmlFor="description">
-                                        Description <span className="text-red-500">*</span>
+                                        {t('description')} <span className="text-red-500">*</span>
                                     </Label>
                                     <Textarea
                                         id="description"
@@ -252,13 +252,13 @@ export default function CreateCourse() {
                                     />
                                     <div className="flex justify-between text-xs">
                                         <span className="text-red-500">{errors.description || ''}</span>
-                                        <span className="text-muted-foreground">{description.length}/500 characters</span>
+                                        <span className="text-muted-foreground">{description.length}/500</span>
                                     </div>
                                 </div>
 
                                 <div className="grid w-full items-center gap-1.5">
                                     <Label htmlFor="slug">
-                                        Course Slug <span className="text-red-500">*</span>
+                                        {t('course_slug')} <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         type="text"
@@ -270,41 +270,41 @@ export default function CreateCourse() {
                                         className={errors.slug ? 'border-red-500' : ''}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        This will be used in the course URL. Only lowercase letters, numbers, and hyphens allowed.
+                                        {t('slug_description')} {/** This will be used in the course URL. Only lowercase letters, numbers, and hyphens allowed*/}
                                     </p>
                                     {errors.slug && <span className="text-xs text-red-500">{errors.slug}</span>}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="category">Category</Label>
+                                        <Label htmlFor="category">{t('category')}</Label>
                                         <Select value={category} onValueChange={setCategory}>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select category" />
+                                                <SelectValue placeholder={t('select_category')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="programming">Programming</SelectItem>
-                                                <SelectItem value="design">Design</SelectItem>
-                                                <SelectItem value="business">Business</SelectItem>
-                                                <SelectItem value="marketing">Marketing</SelectItem>
-                                                <SelectItem value="data-science">Data Science</SelectItem>
-                                                <SelectItem value="languages">Languages</SelectItem>
-                                                <SelectItem value="other">Other</SelectItem>
+                                                <SelectItem value="programming">{t('programming')}</SelectItem>
+                                                <SelectItem value="design">{t('design')}</SelectItem>
+                                                <SelectItem value="business">{t('business')}</SelectItem>
+                                                <SelectItem value="marketing">{t('marketing')}</SelectItem>
+                                                <SelectItem value="data-science">{t('data_science')}</SelectItem>
+                                                <SelectItem value="languages">{t('languages')}</SelectItem>
+                                                <SelectItem value="other">{t('other')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         {errors.category && <span className="text-xs text-red-500">{errors.category}</span>}
                                     </div>
 
                                     <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="level">Difficulty Level</Label>
+                                        <Label htmlFor="level">{t('difficulty_level')}</Label>
                                         <Select value={level} onValueChange={(value: 'beginner' | 'intermediate' | 'advanced') => setLevel(value)}>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select level" />
+                                                <SelectValue placeholder={t('select_level')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="beginner">Beginner</SelectItem>
-                                                <SelectItem value="intermediate">Intermediate</SelectItem>
-                                                <SelectItem value="advanced">Advanced</SelectItem>
+                                                <SelectItem value="beginner">{t('beginner')}</SelectItem>
+                                                <SelectItem value="intermediate">{t('intermediate')}</SelectItem>
+                                                <SelectItem value="advanced">{t('advanced')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         {errors.level && <span className="text-xs text-red-500">{errors.level}</span>}
@@ -313,34 +313,34 @@ export default function CreateCourse() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="language">Language</Label>
+                                        <Label htmlFor="language">{t('language')}</Label>
                                         <Select value={language} onValueChange={setLanguage}>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select language" />
+                                                <SelectValue placeholder={t('select_language')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="en">English</SelectItem>
-                                                <SelectItem value="es">Spanish</SelectItem>
-                                                <SelectItem value="fr">French</SelectItem>
-                                                <SelectItem value="de">German</SelectItem>
-                                                <SelectItem value="zh">Chinese</SelectItem>
-                                                <SelectItem value="ja">Japanese</SelectItem>
-                                                <SelectItem value="ms">Malay</SelectItem>
+                                                <SelectItem value="en">{t('english')}</SelectItem>
+                                                <SelectItem value="es">{t('spanish')}</SelectItem>
+                                                <SelectItem value="fr">{t('french')}</SelectItem>
+                                                <SelectItem value="de">{t('german')}</SelectItem>
+                                                <SelectItem value="zh">{t('chinese')}</SelectItem>
+                                                <SelectItem value="ja">{t('japanese')}</SelectItem>
+                                                <SelectItem value="ms">{t('malay')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         {errors.language && <span className="text-xs text-red-500">{errors.language}</span>}
                                     </div>
 
                                     <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="visibility">Visibility</Label>
+                                        <Label htmlFor="visibility">{t('visibility')}</Label>
                                         <Select value={visibility} onValueChange={setVisibility}>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select visibility" />
+                                                <SelectValue placeholder={t('select_visibility')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="public">Public</SelectItem>
-                                                <SelectItem value="private">Private</SelectItem>
-                                                <SelectItem value="unlisted">Unlisted</SelectItem>
+                                                <SelectItem value="public">{t('public')}</SelectItem>
+                                                <SelectItem value="private">{t('private')}</SelectItem>
+                                                <SelectItem value="unlisted">{t('unlisted')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         {errors.visibility && <span className="text-xs text-red-500">{errors.visibility}</span>}
@@ -350,17 +350,17 @@ export default function CreateCourse() {
                         </Card>
 
                         {/* Course Content */}
-                        <Card>
+                        <Card className="bg-transparent py-2">
                             <CardHeader>
-                                <CardTitle className="text-lg">Course Content</CardTitle>
+                                <CardTitle className="text-lg">{t('course_content')}</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid w-full items-center gap-1.5">
-                                    <Label htmlFor="video_intro_url">Introduction Video URL</Label>
+                                    <Label htmlFor="video_intro_url">{t('intro_video_url')}</Label>
                                     <Input
                                         type="url"
                                         id="video_intro_url"
-                                        placeholder="https://example.com/intro-video"
+                                        placeholder={t('intro_video_placeholder')}
                                         value={videoIntroUrl}
                                         onChange={(e) => setVideoIntroUrl(e.target.value)}
                                         className={errors.video_intro_url ? 'border-red-500' : ''}
@@ -369,11 +369,11 @@ export default function CreateCourse() {
                                 </div>
 
                                 <div className="grid w-full items-center gap-1.5">
-                                    <Label htmlFor="thumbnail_url">Thumbnail Image URL</Label>
+                                    <Label htmlFor="thumbnail_url">{t('thumbnail_url')}</Label>
                                     <Input
                                         type="url"
                                         id="thumbnail_url"
-                                        placeholder="https://example.com/thumbnail.jpg"
+                                        placeholder={t('thumbnail_placeholder')}
                                         value={thumbnailUrl}
                                         onChange={(e) => setThumbnailUrl(e.target.value)}
                                         className={errors.thumbnail_url ? 'border-red-500' : ''}
@@ -383,7 +383,7 @@ export default function CreateCourse() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="total_lessons">Total Lessons</Label>
+                                        <Label htmlFor="total_lessons">{t('total_lessons')}</Label>
                                         <Input
                                             type="number"
                                             id="total_lessons"
@@ -397,7 +397,7 @@ export default function CreateCourse() {
                                     </div>
 
                                     <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="total_duration_minutes">Total Duration (minutes)</Label>
+                                        <Label htmlFor="total_duration_minutes">{t('total_duration_minutes')}</Label>
                                         <Input
                                             type="number"
                                             id="total_duration_minutes"
@@ -413,10 +413,10 @@ export default function CreateCourse() {
 
                                 {/* Requirements */}
                                 <div className="grid w-full gap-1.5">
-                                    <Label>Course Requirements</Label>
+                                    <Label>{t('course_requirements')}</Label>
                                     <div className="flex gap-2">
                                         <Input
-                                            placeholder="Add a requirement"
+                                            placeholder={t('add_requirement')}
                                             value={requirementInput}
                                             onChange={(e) => setRequirementInput(e.target.value)}
                                             onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addRequirement())}
@@ -437,10 +437,10 @@ export default function CreateCourse() {
 
                                 {/* Learning Objectives */}
                                 <div className="grid w-full gap-1.5">
-                                    <Label>Learning Objectives</Label>
+                                    <Label>{t('learning_objectives')}</Label>
                                     <div className="flex gap-2">
                                         <Input
-                                            placeholder="Add a learning objective"
+                                            placeholder={t('add_learning_objective')}
                                             value={objectiveInput}
                                             onChange={(e) => setObjectiveInput(e.target.value)}
                                             onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addObjective())}
@@ -461,10 +461,10 @@ export default function CreateCourse() {
 
                                 {/* Tags */}
                                 <div className="grid w-full gap-1.5">
-                                    <Label>Tags</Label>
+                                    <Label>{t('tags')}</Label>
                                     <div className="flex gap-2">
                                         <Input
-                                            placeholder="Add a tag"
+                                            placeholder={t('add_tag')}
                                             value={tagInput}
                                             onChange={(e) => setTagInput(e.target.value)}
                                             onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
@@ -486,9 +486,9 @@ export default function CreateCourse() {
                         </Card>
 
                         {/* Pricing & Settings */}
-                        <Card>
+                        <Card className="bg-transparent py-2">
                             <CardHeader>
-                                <CardTitle className="text-lg">Pricing & Settings</CardTitle>
+                                <CardTitle className="text-lg">{t('pricing_settings')}</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex items-center space-x-2">
@@ -497,13 +497,13 @@ export default function CreateCourse() {
                                         checked={isFree}
                                         onChange={(e) => setIsFree(e.target.checked)}
                                     />
-                                    <Label htmlFor="is_free">This is a free course</Label>
+                                    <Label htmlFor="is_free">{t('free_course')}</Label>
                                 </div>
 
                                 {!isFree && (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="grid w-full items-center gap-1.5">
-                                            <Label htmlFor="price_cents">Price (cents)</Label>
+                                            <Label htmlFor="price_cents">{t('price_cents')}</Label>
                                             <Input
                                                 type="number"
                                                 id="price_cents"
@@ -514,16 +514,16 @@ export default function CreateCourse() {
                                                 className={errors.price_cents ? 'border-red-500' : ''}
                                             />
                                             <p className="text-xs text-muted-foreground">
-                                                Enter price in cents (e.g., 2999 for {formatPrice(2999, currency, false)})
+                                                {t('price_in_cents_example', { price: formatPrice(2999, currency, false) })}
                                             </p>
                                             {errors.price_cents && <span className="text-xs text-red-500">{errors.price_cents}</span>}
                                         </div>
 
                                         <div className="grid w-full items-center gap-1.5">
-                                            <Label htmlFor="currency">Currency</Label>
+                                            <Label htmlFor="currency">{t('currency')}</Label>
                                             <Select value={currency} onValueChange={setCurrency}>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select currency" />
+                                                    <SelectValue placeholder={t('select_currency')} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="USD">USD</SelectItem>
@@ -547,7 +547,7 @@ export default function CreateCourse() {
                                             checked={autoCreateClassroom}
                                             onChange={(e) => setAutoCreateClassroom(e.target.checked)}
                                         />
-                                        <Label htmlFor="auto_create_classroom">Auto-create classroom</Label>
+                                        <Label htmlFor="auto_create_classroom">{t('auto_create_classroom')}</Label>
                                     </div>
 
                                     <div className="flex items-center space-x-2">
@@ -556,16 +556,16 @@ export default function CreateCourse() {
                                             checked={autoCreateCommunity}
                                             onChange={(e) => setAutoCreateCommunity(e.target.checked)}
                                         />
-                                        <Label htmlFor="auto_create_community">Auto-create community</Label>
+                                        <Label htmlFor="auto_create_community">{t('auto_create_community')}</Label>
                                     </div>
                                 </div>
 
                                 <div className="grid w-full items-center gap-1.5">
-                                    <Label htmlFor="certificate_template">Certificate Template</Label>
+                                    <Label htmlFor="certificate_template">{t('certificate_template')}</Label>
                                     <Input
                                         type="text"
                                         id="certificate_template"
-                                        placeholder="Certificate template name or ID"
+                                        placeholder={t('certificate_placeholder')}
                                         value={certificateTemplate}
                                         onChange={(e) => setCertificateTemplate(e.target.value)}
                                         className={errors.certificate_template ? 'border-red-500' : ''}
@@ -574,14 +574,15 @@ export default function CreateCourse() {
                                 </div>
                             </CardContent>
                         </Card>
+
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} disabled={createCourseMutation.isPending}>
-                            {t('cancel_button')}
-                        </Button>
-                        <Button type="submit" disabled={createCourseMutation.isPending}>
-                            {createCourseMutation.isPending ? 'Creating...' : t('submit_button')}
-                        </Button>
+    <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} disabled={createCourseMutation.isPending}>
+        {t('cancel_button')}
+    </Button>
+    <Button type="submit" disabled={createCourseMutation.isPending}>
+        {createCourseMutation.isPending ? t('creating') : t('submit_button')}
+    </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
-import CreateCourse from '@/components/tutor/course-content/create-course';
 import CourseTable from "@/components/tutor/course-content/course-table";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,12 +22,7 @@ export default async function TutorCourseContentPage() {
 
   return (
     <div className="flex flex-col w-full h-full p-6 gap-6">
-      <div className="w-auto">
-        <CreateCourse />
-      </div>
-      <div className="flex-1 w-full">
-        <CourseTable />
-      </div>
+      <CourseTable />
     </div>
   );
 }

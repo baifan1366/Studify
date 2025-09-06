@@ -102,7 +102,7 @@ export default function CreateCourseLesson() {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="default">
                     <Plus className="mr-2 h-4 w-4" />
                     {t('create_lesson_button')}
                 </Button>

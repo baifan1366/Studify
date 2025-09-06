@@ -8,9 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 as Spinner, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDropzone } from "react-dropzone";
+import { Badge } from "@/components/ui/badge";
 
 interface NewPostFormProps {
-  onSubmit: (post: { title: string; body: string; files: File[] }) => void;
+  onSubmit: (post: {
+    title: string;
+    body: string;
+    files: File[];
+    hashtags: string[];
+  }) => void;
   isLoading: boolean;
 }
 
@@ -19,18 +25,36 @@ export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [hashtags, setHashtags] = useState<string[]>(["react", "shadcn"]); // Placeholder
+  const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const MAX_FILES = 5;
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const newTag = tagInput.trim();
+      if (newTag && !hashtags.includes(newTag)) {
+        setHashtags([...hashtags, newTag]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setHashtags(hashtags.filter((tag) => tag !== tagToRemove));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !body) return;
-    onSubmit({ title, body, files });
+    onSubmit({ title, body, files, hashtags });
     setTitle("");
     setBody("");
     setFiles([]);
+    setHashtags([]);
   };
 
   // dropzone config
@@ -164,10 +188,52 @@ export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
             </div>
           )}
 
+          {/* START: Hashtag Section */}
+          <div className="space-y-2 pt-2">
+            <label
+              htmlFor="hashtags"
+              className="text-sm font-medium text-gray-300"
+            >
+              {t("hashtags_label")}
+            </label>
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-dashed border-white/20 bg-black/30">
+              {hashtags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="bg-gray-700 hover:bg-gray-600 text-gray-200 p-2"
+                >
+                  #{tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="ml-1.5 text-gray-400 hover:text-white"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+
+              {/* Tag input */}
+              <Input
+                id="hashtags"
+                type="text"
+                placeholder={t("add_or_search_tags")}
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                className="flex-1 bg-transparent border-none focus:ring-0 p-2 h-auto placeholder:text-gray-500"
+                disabled={isLoading}
+              />
+            </div>
+            <p className="text-xs text-gray-400">{t("hashtags_hint")}</p>
+          </div>
+          {/* END: Hashtag Section */}
+
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-white/10 hover:bg-white/20 border border-white/20 w-full"
+            className="bg-white/10 hover:bg-white/20 border border-white/20 w-full !mt-6"
           >
             {isLoading && <Spinner className="mr-2 h-4 w-4 animate-spin" />}
             {t("post_button")}

@@ -220,7 +220,10 @@
     "title_placeholder": "Title",
     "body_placeholder": "What's on your mind?",
     "post_button": "Post",
-    "drag_drop_or_click": "Drag and drop or click to upload"
+    "drag_drop_or_click": "Drag and drop or click to upload",
+    "hashtags_label": "Hashtags",
+    "add_or_search_tags": "Add or search tags",
+    "hashtags_hint": "Press Enter to add a tag"
   },
   "CommunityContent": {
     "community_header_title": "Community",

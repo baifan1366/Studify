@@ -214,22 +214,26 @@ export const useGroupPosts = (slug: string) => {
     isPending: isCreatingPost,
     error: createPostError,
   } = useMutation({
-    mutationFn: async (newPost: { title: string; body: string; files: File[] }) => {
+    mutationFn: async (newPost: {
+      title: string;
+      body: string;
+      files: File[];
+    }) => {
       const formData = new FormData();
-      formData.append('title', newPost.title);
-      formData.append('body', newPost.body);
-      newPost.files.forEach(file => {
-          formData.append('files', file);
+      formData.append("title", newPost.title);
+      formData.append("body", newPost.body);
+      newPost.files.forEach((file) => {
+        formData.append("files", file);
       });
 
       const response = await fetch(COMMUNITY_API.groupPosts(slug), {
-          method: 'POST',
-          body: formData,
+        method: "POST",
+        body: formData,
       });
 
       if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || 'API request failed');
+        const errorText = await response.text();
+        throw new Error(errorText || "API request failed");
       }
 
       return response.json();
@@ -446,5 +450,67 @@ export const useCommunity = () => {
     addPost,
     isAddingPost,
     addPostError,
+  };
+};
+
+type Hashtag = { id: number; name: string };
+
+export const useHashtags = () => {
+  const queryClient = useQueryClient();
+
+  // 查询所有 hashtags
+  const {
+    data: hashtags,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Hashtag[], Error>({
+    queryKey: ["allHashtags"],
+    queryFn: () => apiGet<Hashtag[]>("/api/community/hashtags"),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // 搜索 hashtags
+  const searchHashtags = async (query: string): Promise<Hashtag[]> => {
+    if (!query) return [];
+    try {
+      const response = await fetch(
+        `/api/community/hashtags?q=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch hashtags");
+      return await response.json();
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  };
+
+  // 新建 hashtag mutation
+  const {
+    mutate: createHashtag,
+    isPending: isCreatingHashtag,
+    error: createHashtagError,
+  } = useMutation({
+    mutationFn: (tag: string) =>
+      apiSend<Hashtag>({
+        url: "/api/community/hashtags",
+        method: "POST",
+        body: { tag },
+      }),
+    onSuccess: () => {
+      // 新建成功后，刷新 hashtags 列表
+      queryClient.invalidateQueries({ queryKey: ["allHashtags"] });
+    },
+  });
+
+  return {
+    hashtags,
+    isLoading,
+    isError,
+    error,
+    searchHashtags,
+    createHashtag,
+    isCreatingHashtag,
+    createHashtagError,
   };
 };

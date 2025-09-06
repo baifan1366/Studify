@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 as Spinner, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDropzone } from "react-dropzone";
-import { Badge } from "@/components/ui/badge";
+import { useDebounce } from "use-debounce";
 
 interface NewPostFormProps {
   onSubmit: (post: {
@@ -18,19 +18,38 @@ interface NewPostFormProps {
     hashtags: string[];
   }) => void;
   isLoading: boolean;
+  searchHashtags: (query: string) => Promise<string[]>;
 }
 
-export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
+export function NewPostForm({
+  onSubmit,
+  isLoading,
+  searchHashtags,
+}: NewPostFormProps) {
   const t = useTranslations("CommunityNewPostForm");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [hashtags, setHashtags] = useState<string[]>(["react", "shadcn"]); // Placeholder
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [searchedTags, setSearchedTags] = useState<string[]>([]);
+  const [debouncedTagInput] = useDebounce(tagInput, 300);
   const [error, setError] = useState<string | null>(null);
 
   const MAX_FILES = 5;
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      if (!debouncedTagInput) {
+        setSearchedTags([]);
+        return;
+      }
+      const results = await searchHashtags(debouncedTagInput);
+      setSearchedTags(results.filter((t) => !hashtags.includes(t)));
+    };
+    fetchTags();
+  }, [debouncedTagInput, searchHashtags, hashtags]);
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -188,7 +207,7 @@ export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
             </div>
           )}
 
-          {/* START: Hashtag Section */}
+          {/* Hashtag Section */}
           <div className="space-y-2 pt-2">
             <label
               htmlFor="hashtags"
@@ -196,36 +215,78 @@ export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
             >
               {t("hashtags_label")}
             </label>
-            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-dashed border-white/20 bg-black/30">
+
+            <div className="relative">
+              <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-dashed border-white/20 bg-black/30">
+                <Input
+                  id="hashtags"
+                  type="text"
+                  placeholder={t("add_or_search_tags")}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onFocus={() => {}}
+                  className="flex-1 bg-transparent border-none focus:ring-0 p-2 h-auto placeholder:text-gray-500"
+                />
+              </div>
+
+              {/* 下拉弹窗：绝对定位在输入框下方，覆盖其它内容 */}
+              {searchedTags.length > 0 && (
+                <ul
+                  className="absolute left-0 right-0 mt-1 z-50 bg-gray-900/90 border border-white/10 rounded-md shadow-lg max-h-40 overflow-y-auto"
+                  role="listbox"
+                >
+                  {searchedTags.map((raw) => {
+                    // 如果每个 item 是对象 {id,name} 用 name，否则直接用字符串
+                    const tagName =
+                      typeof raw === "string" ? raw : (raw as any).name;
+                    const key =
+                      typeof raw === "string" ? tagName : (raw as any).id;
+
+                    return (
+                      <li
+                        key={key}
+                        // 使用 onMouseDown 而不是 onClick，确保在 input blur 前就选中
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // 阻止 blur 或表单提交副作用
+                          if (!hashtags.includes(tagName)) {
+                            setHashtags((prev) => [...prev, tagName]);
+                          }
+                          setTagInput("");
+                          setSearchedTags([]);
+                        }}
+                        className="px-3 py-2 cursor-pointer hover:bg-white/10 text-sm text-gray-100"
+                        role="option"
+                      >
+                        #{tagName}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* 下面继续渲染已选 badges（如果你想把 badges 放到这而不是上面可以移到这里） */}
+            <div className="flex flex-wrap gap-2 mt-2">
               {hashtags.map((tag) => (
-                <Badge
+                <span
                   key={tag}
-                  variant="secondary"
-                  className="bg-gray-700 hover:bg-gray-600 text-gray-200 p-2"
+                  className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded-md text-sm flex items-center gap-1"
                 >
                   #{tag}
                   <button
                     type="button"
-                    onClick={() => removeTag(tag)}
-                    className="ml-1.5 text-gray-400 hover:text-white"
+                    onClick={() =>
+                      setHashtags((prev) => prev.filter((t) => t !== tag))
+                    }
+                    className="text-red-400 hover:text-red-600 ml-2"
                   >
-                    <X className="h-3 w-3" />
+                    ×
                   </button>
-                </Badge>
+                </span>
               ))}
-
-              {/* Tag input */}
-              <Input
-                id="hashtags"
-                type="text"
-                placeholder={t("add_or_search_tags")}
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                className="flex-1 bg-transparent border-none focus:ring-0 p-2 h-auto placeholder:text-gray-500"
-                disabled={isLoading}
-              />
             </div>
+
             <p className="text-xs text-gray-400">{t("hashtags_hint")}</p>
           </div>
           {/* END: Hashtag Section */}

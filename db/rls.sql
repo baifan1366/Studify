@@ -10,3 +10,10 @@ create policy "Allow public read"
 on storage.objects
 for select
 using (bucket_id = 'post-attachments');
+
+-- 允许认证用户读取 hashtags 表
+CREATE POLICY "Allow authenticated users to read hashtags"
+ON public.hashtags
+FOR SELECT
+TO authenticated
+USING (true);

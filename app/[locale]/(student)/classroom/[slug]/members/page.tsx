@@ -3,7 +3,8 @@ import { Metadata } from 'next';
 import { ClassroomMembersPage } from '@/components/classroom/classroom-members-page';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
   const t = await getTranslations('ClassroomMembersPage');
 
   return {
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default function Page({ params }: { params: { slug: string } }) {
-  return <ClassroomMembersPage classroomSlug={params.slug} />;
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return <ClassroomMembersPage classroomSlug={slug} />;
 }

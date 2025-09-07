@@ -155,6 +155,20 @@
     "og_title": "Classroom - Studify",
     "og_description": "Virtual classroom with live sessions and interactive learning"
   },
+  "ClassroomListPage": {
+    "metadata_title": "My Classrooms - Studify",
+    "metadata_description": "View and manage all your classrooms, join new classes, and access course materials",
+    "metadata_keywords": "classrooms,course management,virtual learning,education",
+    "og_title": "My Classrooms - Studify",
+    "og_description": "Manage your classrooms and access course materials"
+  },
+  "ClassroomMembersPage": {
+    "metadata_title": "Classroom Members - Studify",
+    "metadata_description": "View and manage classroom members, roles, and permissions",
+    "metadata_keywords": "classroom members,student management,roles,permissions,education",
+    "og_title": "Classroom Members - Studify",
+    "og_description": "Manage classroom members and their roles"
+  },
   "CoursesPage": {
     "metadata_title": "Courses - Studify",
     "metadata_description": "Explore our comprehensive course catalog with expert instructors and interactive learning materials",

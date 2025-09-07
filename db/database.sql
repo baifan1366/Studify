@@ -514,6 +514,7 @@ create table if not exists classroom (
   public_id uuid not null default uuid_generate_v4(),
   slug text unique,
   name text not null,
+  color text not null,
   description text,
   class_code text unique not null, -- 邀请码
   visibility text check (visibility in ('public','private')) default 'public',

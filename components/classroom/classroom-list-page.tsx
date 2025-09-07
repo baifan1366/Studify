@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { getCardStyling, getNextClassroomColor, CLASSROOM_COLORS, type ClassroomColor } from '@/utils/classroom/color-generator';
+import { type Classroom } from '@/interface/classroom/classroom-interface';
 
 export function ClassroomListPage() {
   const router = useRouter();
@@ -77,7 +79,7 @@ export function ClassroomListPage() {
     );
   }
 
-  const classrooms = classroomsData?.classrooms || [];
+  const classrooms: Classroom[] = classroomsData?.classrooms || [];
 
   return (
     <div className="container mx-auto py-8">
@@ -151,12 +153,35 @@ export function ClassroomListPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {classrooms.map((classroom) => (
-            <Card 
-              key={classroom.id} 
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleClassroomClick(classroom)}
-            >
+          {classrooms.map((classroom) => {
+            // Get the classroom color, fallback to palette color based on ID
+            const classroomColor = (classroom.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
+              ? classroom.color as ClassroomColor 
+              : CLASSROOM_COLORS[classroom.id % CLASSROOM_COLORS.length];
+            
+            const cardStyling = getCardStyling(classroomColor, 'light');
+            const hoverStyling = getCardStyling(classroomColor, 'medium');
+            
+            return (
+              <Card 
+                key={classroom.id} 
+                className="cursor-pointer backdrop-blur-md transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
+                onClick={() => handleClassroomClick(classroom)}
+                style={{
+                  backgroundColor: cardStyling.backgroundColor,
+                  borderColor: cardStyling.borderColor,
+                  '--hover-bg': hoverStyling.backgroundColor
+                } as React.CSSProperties & { '--hover-bg': string }}
+                onMouseEnter={(e) => {
+                  const target = e.currentTarget;
+                  const hoverBg = (target.style as any)['--hover-bg'];
+                  target.style.backgroundColor = hoverBg;
+                }}
+                onMouseLeave={(e) => {
+                  const target = e.currentTarget;
+                  target.style.backgroundColor = cardStyling.backgroundColor;
+                }}
+              >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
@@ -170,27 +195,35 @@ export function ClassroomListPage() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <div className="flex items-center">
-                    <Users className="mr-1 h-4 w-4" />
-                    {classroom.member_count} members
+                <CardContent>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <div className="flex items-center">
+                      <Users className="mr-1 h-4 w-4" />
+                      {classroom.member_count} members
+                    </div>
+                    <div className="flex items-center">
+                      <Badge variant="outline" className="text-xs">
+                        {classroom.user_role}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <Badge variant="outline" className="text-xs">
-                      {classroom.user_role}
-                    </Badge>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center">
+                        <Calendar className="mr-1 h-3 w-3" />
+                        Joined {new Date(classroom.joined_at).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center">
+                        <Badge variant="secondary" className="text-xs font-mono">
+                          {classroom.class_code}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <div className="flex items-center">
-                    <Calendar className="mr-1 h-3 w-3" />
-                    Joined {new Date(classroom.joined_at).toLocaleDateString()}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -11,7 +11,10 @@ interface PurchaseCourseResponse {
   success: boolean;
   checkoutUrl?: string;
   enrolled?: boolean;
-  orderId: string;
+  alreadyEnrolled?: boolean;
+  courseSlug?: string;
+  message?: string;
+  orderId?: string;
 }
 
 export function usePurchaseCourse() {

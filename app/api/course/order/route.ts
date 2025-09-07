@@ -22,11 +22,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get course details
+    // Get course details - handle both UUID and slug
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
     const { data: course, error: courseError } = await supabase
       .from('course')
       .select('*')
-      .eq('public_id', courseId)
+      .eq('slug', courseId)
       .eq('is_deleted', false)
       .single();
 
@@ -37,26 +38,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get user profile ID (already available from server guard)
+    const profileId = user.profile?.id;
+    
+    if (!profileId) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 400 }
+      );
+    }
+
     // Check if user already enrolled
     const { data: existingEnrollment } = await supabase
       .from('course_enrollment')
       .select('id')
       .eq('course_id', course.id)
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
       .single();
 
     if (existingEnrollment) {
-      return NextResponse.json(
-        { error: 'Already enrolled in this course' },
-        { status: 409 }
-      );
+      return NextResponse.json({
+        success: true,
+        enrolled: true,
+        alreadyEnrolled: true,
+        courseSlug: course.slug,
+        message: 'You are already enrolled in this course'
+      });
     }
+
 
     // Create course order
     const { data: order, error: orderError } = await supabase
       .from('course_order')
       .insert({
-        buyer_id: user.profile?.id || user.id,
+        buyer_id: profileId,
         total_cents: course.price_cents || 0,
         currency: course.currency || 'MYR',
         status: 'pending'
@@ -122,12 +137,12 @@ export async function POST(request: NextRequest) {
 
     // Handle free courses
     if ((course.price_cents || 0) === 0 || course.is_free) {
-      // Directly enroll user for free courses
+      // Directly enroll user for free courses (profileId already obtained above)
       const { error: enrollmentError } = await supabase
         .from('course_enrollment')
         .insert({
           course_id: course.id,
-          user_id: user.profile?.id || user.id,
+          user_id: profileId,
           role: 'student',
           status: 'active'
         });
@@ -170,8 +185,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: successUrl || `${process.env.NEXT_PUBLIC_APP_URL}/course/${course.slug}?success=true`,
-      cancel_url: cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL}/course/${course.slug}`,
+      success_url: successUrl || `${process.env.SITE_URL}/course/${course.slug}?success=true`,
+      cancel_url: cancelUrl || `${process.env.SITE_URL}/course/${course.slug}`,
       metadata: {
         orderId: order.public_id,
         courseId: course.public_id,

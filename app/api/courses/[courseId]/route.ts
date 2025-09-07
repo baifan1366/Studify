@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
-// GET /api/courses/[id] - fetch single course by public_id
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+// GET /api/courses/[courseId] - fetch single course by public_id or slug
+export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
     const client = await createServerClient();
+    const { courseId } = await params;
+    
+    // Check if courseId is a UUID format
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+    
     const { data, error } = await client
       .from("course")
       .select("*")
-      .eq("public_id", params.id)
+      .eq(isUUID ? "public_id" : "slug", courseId)
       .eq("is_deleted", false)
       .single();
 
@@ -19,14 +24,18 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 }
 
-// PATCH /api/courses/[id] - update by public_id
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+// PATCH /api/courses/[courseId] - update by public_id or slug
+export async function PATCH(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
     const body = await req.json();
     const client = await createServerClient();
+    const { courseId } = await params;
 
     // Optional: authorize ownership
     // const { data: auth } = await client.auth.getUser();
+
+    // Check if courseId is a UUID format
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
 
     const updates = {
       title: body.title,
@@ -48,7 +57,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const { data, error } = await client
       .from("course")
       .update(updates)
-      .eq("public_id", params.id)
+      .eq(isUUID ? "public_id" : "slug", courseId)
       .eq("is_deleted", false)
       .select("*")
       .single();
@@ -60,14 +69,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-// DELETE /api/courses/[id] - soft delete
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+// DELETE /api/courses/[courseId] - soft delete
+export async function DELETE(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
     const client = await createServerClient();
+    const { courseId } = await params;
+    
+    // Check if courseId is a UUID format
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+    
     const { error } = await client
       .from("course")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("public_id", params.id);
+      .eq(isUUID ? "public_id" : "slug", courseId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ success: true });

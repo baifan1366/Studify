@@ -1,10 +1,13 @@
+// lib/ai/openrouter.ts
 import { ChatOpenAI } from "@langchain/openai";
 
-export const chatModel = new ChatOpenAI({
-  modelName: "openai/gpt-4o-mini",   // 这里可以换成 OpenRouter 支持的任意模型
-  apiKey: process.env.OPENROUTER_API_KEY,
-  configuration: {
-    baseURL: process.env.OPENROUTER_API_BASE,
-  },
-  temperature: 0.7,
-});
+export function getLLM(model = "gpt-4o-mini") {
+  return new ChatOpenAI({
+    model,
+    temperature: 0.3,
+    openAIApiKey: process.env.OPENROUTER_API_KEY!,
+    configuration: {
+      baseURL: "https://openrouter.ai/api/v1", // 👈 OpenRouter 关键
+    },
+  });
+}

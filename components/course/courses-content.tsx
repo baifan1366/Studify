@@ -1,25 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { User } from '@supabase/supabase-js';
 import { BookOpen, Clock, Users, Star, ShoppingCart, Zap } from 'lucide-react';
 import { useCourses } from '@/hooks/course/use-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
-import AnimatedSidebar from '@/components/sidebar';
-import ClassroomHeader from '@/components/header';
+import { useUser } from '@/hooks/profile/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function CoursesContent() {
-  const [activeMenuItem, setActiveMenuItem] = useState('courses');
-  const [user, setUser] = useState<User | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-
   const { data: courses, isLoading } = useCourses();
-  const [sidebarWidth, setSidebarWidth] = useState(80); 
+  const { data: user } = useUser();
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
 
@@ -27,7 +19,7 @@ export default function CoursesContent() {
     return (courses ?? []).map((c, idx) => ({
       id: c.public_id,
       title: c.title,
-      instructor: `Owner #${c.owner_id}`,
+      instructor: user?.profile?.display_name || user?.email?.split('@')[0] || `Owner #${c.owner_id}`,
       duration: c.total_duration_minutes
         ? `${c.total_duration_minutes} mins`
         : '—',
@@ -46,47 +38,7 @@ export default function CoursesContent() {
         'from-cyan-500 to-blue-500',
       ][idx % 6],
     }));
-  }, [courses]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setUser({
-          id: '1',
-          email: 'student@example.com',
-          created_at: new Date().toISOString(),
-          app_metadata: {},
-          user_metadata: {},
-          aud: 'authenticated',
-          confirmation_sent_at: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load user data',
-          variant: 'destructive',
-        });
-      }
-    };
-
-    fetchUser();
-  }, [toast]);
-
-  const handleMenuItemClick = (itemId: string) => {
-    setActiveMenuItem(itemId);
-  };
-
-  const handleHeaderAction = (action: string) => {
-    console.log('Header action:', action);
-  };
-
-  const handleMenuToggle = () => {
-    const newExpanded = !isPermanentlyExpanded;
-    setIsPermanentlyExpanded(newExpanded);
-    setSidebarExpanded(newExpanded);
-  };
+  }, [courses, user]);
 
   const handleAddToCart = (courseId: string | number) => {
     toast({
@@ -101,10 +53,23 @@ export default function CoursesContent() {
         courseId: String(courseId)
       });
       
-      if (result.checkoutUrl) {
+      if (result.alreadyEnrolled) {
+        // User is already enrolled - show option to go to course
+        toast({
+          title: 'Already Enrolled',
+          description: result.message || 'You are already enrolled in this course. Click here to go to the course.',
+        });
+        
+        // Optionally redirect to course after a short delay
+        if (result.courseSlug) {
+          setTimeout(() => {
+            window.location.href = `/courses/${result.courseSlug}`;
+          }, 0);
+        }
+      } else if (result.checkoutUrl) {
         // Redirect to Stripe checkout
         window.location.href = result.checkoutUrl;
-      } else {
+      } else if (result.enrolled) {
         // Free course - show success message
         toast({
           title: 'Enrollment Successful',
@@ -121,37 +86,12 @@ export default function CoursesContent() {
   };
 
   return (
-    <AnimatedBackground sidebarWidth={sidebarWidth}>
-      {/* Header */}
-      <ClassroomHeader
-        title="Courses"
-        userName={user?.email?.split('@')[0] || 'Student'}
-        onProfileClick={() => handleHeaderAction('profile')}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      <AnimatedSidebar
-        activeItem={activeMenuItem}
-        onItemClick={handleMenuItemClick}
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',// Use shared state for synchronization
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
-        }}
-      >
-        <motion.div
-          className="relative z-10 space-y-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3, duration: 0.6 }}
+    >
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
               Explore Courses
@@ -279,9 +219,7 @@ export default function CoursesContent() {
                     </div>
                   </motion.div>
                 ))}
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatedBackground>
+      </div>
+    </motion.div>
   );
 }

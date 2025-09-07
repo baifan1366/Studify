@@ -1,4 +1,4 @@
-import { getLLM } from '../openrouter';
+import { getLLM } from '../client';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StructuredOutputParser } from 'langchain/output_parsers';
 import { z } from 'zod';

@@ -4,11 +4,17 @@ import { routing } from "./i18n/routing";
 import { NextResponse } from "next/server";
 import { verifyAppJwt } from "@/utils/auth/jwt";
 import redis from "@/utils/redis/redis";
+import { smartWarmupMiddleware } from "@/lib/langChain/smart-warmup";
 
 const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Smart warmup - only for embedding-related requests (non-blocking)
+  smartWarmupMiddleware(request).catch((error: Error) => {
+    console.error('Smart warmup middleware error:', error);
+  });
 
   // Detect API paths, including locale-prefixed ones: /api/... or /{locale}/api/...
   const parts = pathname.split('/').filter(Boolean);

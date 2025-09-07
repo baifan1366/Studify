@@ -9,6 +9,7 @@ import CourseLessonGrid from '@/components/tutor/course-content/course-lesson-gr
 import CreateCourseLesson from '@/components/tutor/course-content/create-course-lesson';
 import { useSearchParams } from 'next/navigation';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
+import { useCourse } from '@/hooks/course/use-courses';
 
 export default function CourseDetails() {
   const t = useTranslations('CourseDetails');
@@ -16,6 +17,7 @@ export default function CourseDetails() {
   const id = params.get('id');
   const courseId = id ? parseInt(id) : 0;
   const { data: courseModule, isLoading, error } = useModuleByCourseId(courseId);
+  const { data: course } = useCourse(id || undefined);
   const [selectedModuleId, setSelectedModuleId] = useState<number>(1);
   const [selectedLessonId, setSelectedLessonId] = useState<number | undefined>();
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
@@ -76,6 +78,7 @@ export default function CourseDetails() {
                 courseId={courseId}
                 onModuleSelect={handleModuleSelect}
                 selectedModuleId={selectedModuleId}
+                courseStatus={course?.status}
               />
             </div>
           </div>
@@ -145,6 +148,7 @@ export default function CourseDetails() {
                 courseId={courseId}
                 onLessonSelect={handleLessonSelect}
                 selectedLessonId={selectedLessonId}
+                courseStatus={course?.status}
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-64 text-center">

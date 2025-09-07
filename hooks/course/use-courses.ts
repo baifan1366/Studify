@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Course } from '@/interface';
 import { apiGet, apiSend } from '@/lib/api-config';
+import { coursesApi } from '@/lib/api';
 
 // ----------------------
 // Queries
@@ -13,7 +14,7 @@ export function useCourses(owner_id?: string) {
   return useQuery<Course[]>({
     queryKey: ['courses', owner_id],
     queryFn: () => {
-      const url = owner_id ? `/api/courses?owner_id=${owner_id}` : '/api/courses';
+      const url = owner_id ? coursesApi.listByOwnerId(owner_id) : coursesApi.list;
       return apiGet<Course[]>(url);
     },
   });
@@ -25,7 +26,7 @@ export function useCourses(owner_id?: string) {
 export function useMyCourses() {
   return useQuery<Course[]>({
     queryKey: ['my-courses'],
-    queryFn: () => apiGet<Course[]>('/api/my-courses'),
+    queryFn: () => apiGet<Course[]>(coursesApi.list),
   });
 }
 
@@ -35,7 +36,12 @@ export function useMyCourses() {
 export function useCourse(id?: string) {
   return useQuery<Course>({
     queryKey: ['course', id],
-    queryFn: () => apiGet<Course>(`/api/courses/${id}`),
+    queryFn: () => {
+      if (!id) {
+        throw new Error('Course ID is required');
+      }
+      return apiGet<Course>(coursesApi.getById(id));
+    },
     enabled: Boolean(id),
   });
 }
@@ -53,7 +59,7 @@ export function useCreateCourse() {
   return useMutation({
     mutationFn: (payload: Partial<Course> & { owner_id: number }) =>
       apiSend<Course>({
-        url: '/api/courses',
+        url: coursesApi.create,
         method: 'POST',
         body: payload,
       }),
@@ -72,7 +78,7 @@ export function useUpdateCourse() {
   return useMutation({
     mutationFn: ({ id, ...updates }: { id: string } & Partial<Omit<Course, 'id'>>) =>
       apiSend<Course>({
-        url: `/api/courses/${id}`,
+        url: coursesApi.update(id),
         method: 'PATCH',
         body: updates,
       }),
@@ -92,7 +98,7 @@ export function useDeleteCourse() {
   return useMutation({
     mutationFn: (course: Course) =>
       apiSend<void>({
-        url: `/api/courses/${course.public_id}`,
+        url: coursesApi.delete(course.id),
         method: 'DELETE',
       }),
     onSuccess: () => {

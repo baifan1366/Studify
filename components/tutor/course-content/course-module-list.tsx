@@ -1,12 +1,46 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronRight, BookOpen, Clock, Users, Plus } from 'lucide-react';
+import { ChevronRight, BookOpen, Clock, Users, Plus, Edit, Trash2, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import CreateCourseModule from './create-course-module';
-import { useModuleByCourseId } from '@/hooks/course/use-course-module';
+import { useModuleByCourseId, useUpdateModule, useDeleteModule } from '@/hooks/course/use-course-module';
 import { Module } from '@/interface/courses/module-interface';
 
 // Extended interface for UI display
@@ -19,15 +53,29 @@ interface CourseModuleListProps {
   courseId: number;
   onModuleSelect?: (moduleId: number) => void;
   selectedModuleId?: number;
+  courseStatus?: 'active' | 'pending' | 'inactive';
 }
 
 export default function CourseModuleList({ 
   courseId, 
   onModuleSelect,
-  selectedModuleId
+  selectedModuleId,
+  courseStatus = 'inactive'
 }: CourseModuleListProps) {
   const t = useTranslations('CourseModuleList');
+  const { toast } = useToast();
   const { data: rawModules = [], isLoading, error } = useModuleByCourseId(courseId);
+  const updateModule = useUpdateModule();
+  const deleteModule = useDeleteModule();
+  
+  // State for edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingModule, setEditingModule] = useState<Module | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  
+  // State for delete confirmation
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingModule, setDeletingModule] = useState<Module | null>(null);
   
   // Transform API data to UI format
   const modules: CourseModule[] = useMemo(() => {
@@ -39,6 +87,75 @@ export default function CourseModuleList({
 
   const handleModuleClick = (moduleId: number) => {
     onModuleSelect?.(moduleId);
+  };
+
+  const isEditDeleteDisabled = courseStatus === 'pending';
+
+  const handleEdit = (module: Module, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isEditDeleteDisabled) return;
+    setEditingModule(module);
+    setEditTitle(module.title);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (module: Module, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isEditDeleteDisabled) return;
+    setDeletingModule(module);
+    setDeleteOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingModule || !editTitle.trim()) return;
+    
+    try {
+      await updateModule.mutateAsync({
+        courseId,
+        moduleId: editingModule.id,
+        body: { title: editTitle.trim() }
+      });
+      
+      toast({
+        title: t('success'),
+        description: t('moduleUpdated'),
+      });
+      
+      setEditOpen(false);
+      setEditingModule(null);
+      setEditTitle('');
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: t('updateError'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingModule) return;
+    
+    try {
+      await deleteModule.mutateAsync({
+        courseId,
+        moduleId: deletingModule.id
+      });
+      
+      toast({
+        title: t('success'),
+        description: t('moduleDeleted'),
+      });
+      
+      setDeleteOpen(false);
+      setDeletingModule(null);
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: t('deleteError'),
+        variant: 'destructive',
+      });
+    }
   };
 
 
@@ -109,6 +226,52 @@ export default function CourseModuleList({
                 </div>
               </div>
             </div>
+            
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                            disabled={isEditDeleteDisabled}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={(e) => handleEdit(module, e)}
+                            disabled={isEditDeleteDisabled}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {t('edit')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={(e) => handleDelete(module, e)}
+                            disabled={isEditDeleteDisabled}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t('delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TooltipTrigger>
+                  {isEditDeleteDisabled && (
+                    <TooltipContent>
+                      <p>{t('pendingCourseRestriction')}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </div>
       ))}
@@ -119,6 +282,70 @@ export default function CourseModuleList({
           <p className="text-sm text-muted-foreground">{t('noModulesFound')}</p>
         </div>
       )}
+      
+      {/* Edit Module Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t('editModule')}</DialogTitle>
+            <DialogDescription>
+              {t('editModuleDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">
+                {t('title')}
+              </Label>
+              <Input
+                id="title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="col-span-3"
+                placeholder={t('enterModuleTitle')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditOpen(false)}
+            >
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleEditSubmit}
+              disabled={!editTitle.trim() || updateModule.isPending}
+            >
+              {updateModule.isPending ? t('updating') : t('update')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteModule')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteModuleConfirmation', { title: deletingModule?.title || '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteModule.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteModule.isPending ? t('deleting') : t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

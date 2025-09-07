@@ -174,6 +174,7 @@ create table if not exists course (
   average_rating numeric(3,2) default 0,
   total_students int default 0,
   is_free boolean not null default false,
+  status text check(status in ('active', 'pending', 'inactive')) default 'inactive',
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

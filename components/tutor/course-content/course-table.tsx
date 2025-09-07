@@ -1,6 +1,7 @@
 'use client';
 
 import { useCourses, useDeleteCourse } from "@/hooks/course/use-courses";
+import { useUpdateCourseStatus } from "@/hooks/course/use-course-status";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/pagination";
 import { useState } from "react";
 import { Course } from "@/interface";
-import { Eye, Edit, Trash2, Settings2, ChevronDown } from "lucide-react";
+import { Eye, Edit, Trash2, Settings2, ChevronDown, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFormat } from "@/hooks/use-format";
@@ -38,6 +39,7 @@ interface ColumnVisibility {
     description: boolean;
     slug: boolean;
     visibility: boolean;
+    status: boolean;
     level: boolean;
     language: boolean;
     category: boolean;
@@ -64,6 +66,7 @@ export default function CourseTable() {
         description: false, // Hidden by default
         slug: false, // Hidden by default
         visibility: true,
+        status: true,
         level: true,
         language: false,
         category: false,
@@ -87,6 +90,7 @@ export default function CourseTable() {
     const owner_id = user?.profile?.id;
     const { data: courses, isLoading, error } = useCourses(owner_id);
     const deleteCourse = useDeleteCourse();
+    const updateCourseStatus = useUpdateCourseStatus();
 
     // 🔹 State for alert dialog
     const [open, setOpen] = useState(false);
@@ -138,6 +142,46 @@ export default function CourseTable() {
         setEditOpen(true);
     };
 
+
+    const handleSubmitForApproval = async (course: Course) => {
+        try {
+            await updateCourseStatus.mutateAsync({
+                courseId: course.id.toString(),
+                status: 'pending'
+            });
+        } catch (error) {
+            // Error handling is done in the hook
+        }
+    };
+
+    const getStatusBadgeVariant = (status: string) => {
+        switch (status) {
+            case 'active':
+                return 'default';
+            case 'pending':
+                return 'secondary';
+            case 'inactive':
+            default:
+                return 'outline';
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'active':
+                return 'text-green-600 dark:text-green-400';
+            case 'pending':
+                return 'text-yellow-600 dark:text-yellow-400';
+            case 'inactive':
+            default:
+                return 'text-gray-600 dark:text-gray-400';
+        }
+    };
+
+    const isEditDeleteDisabled = (course: Course) => {
+        return course.status === 'pending';
+    };
+
     if (isLoading) {
         return (
             <div className="w-full">
@@ -153,6 +197,7 @@ export default function CourseTable() {
                                 {columnVisibility.description && <TableHead className="min-w-[200px] sm:min-w-[250px] lg:min-w-[300px] text-left hidden lg:table-cell">{t('description')}</TableHead>}
                                 {columnVisibility.slug && <TableHead className="min-w-[120px] sm:min-w-[150px] text-center hidden md:table-cell">{t('slug')}</TableHead>}
                                 {columnVisibility.visibility && <TableHead className="w-20 sm:w-24 lg:w-28 text-center">{t('visibility')}</TableHead>}
+                                {columnVisibility.status && <TableHead className="w-20 sm:w-24 lg:w-28 text-center">{t('status')}</TableHead>}
                                 {columnVisibility.level && <TableHead className="w-16 sm:w-20 text-center hidden sm:table-cell">{t('level')}</TableHead>}
                                 {columnVisibility.language && <TableHead className="w-16 sm:w-20 text-center hidden md:table-cell">{t('language')}</TableHead>}
                                 {columnVisibility.category && <TableHead className="w-20 sm:w-24 text-center hidden lg:table-cell">{t('category')}</TableHead>}
@@ -173,6 +218,7 @@ export default function CourseTable() {
                                     {columnVisibility.description && <TableCell className="min-w-[200px] sm:min-w-[250px] lg:min-w-[300px] text-left hidden lg:table-cell"><Skeleton className="h-4 w-full max-w-32" /></TableCell>}
                                     {columnVisibility.slug && <TableCell className="min-w-[120px] sm:min-w-[150px] text-center hidden md:table-cell"><Skeleton className="h-4 w-20 mx-auto" /></TableCell>}
                                     {columnVisibility.visibility && <TableCell className="w-20 sm:w-24 lg:w-28 text-center"><Skeleton className="h-6 w-16 rounded-full mx-auto" /></TableCell>}
+                                    {columnVisibility.status && <TableCell className="w-20 sm:w-24 lg:w-28 text-center"><Skeleton className="h-6 w-16 rounded-full mx-auto" /></TableCell>}
                                     {columnVisibility.level && <TableCell className="w-16 sm:w-20 text-center hidden sm:table-cell"><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
                                     {columnVisibility.language && <TableCell className="w-16 sm:w-20 text-center hidden md:table-cell"><Skeleton className="h-4 w-8 mx-auto" /></TableCell>}
                                     {columnVisibility.category && <TableCell className="w-20 sm:w-24 text-center hidden lg:table-cell"><Skeleton className="h-4 w-16 mx-auto" /></TableCell>}
@@ -256,6 +302,13 @@ export default function CourseTable() {
                                     {t('visibility')} ({t('required')})
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
+                                    checked={columnVisibility.status}
+                                    onCheckedChange={() => toggleColumn('status')}
+                                    disabled={true}
+                                >
+                                    {t('status')} ({t('required')})
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
                                     checked={columnVisibility.level}
                                     onCheckedChange={() => toggleColumn('level')}
                                 >
@@ -331,6 +384,7 @@ export default function CourseTable() {
                             {columnVisibility.description && <TableHead className="min-w-[200px] sm:min-w-[250px] lg:min-w-[300px] text-left hidden lg:table-cell">{t('description')}</TableHead>}
                             {columnVisibility.slug && <TableHead className="min-w-[120px] sm:min-w-[150px] text-center hidden md:table-cell">{t('slug')}</TableHead>}
                             {columnVisibility.visibility && <TableHead className="w-20 sm:w-24 lg:w-28 text-center">{t('visibility')}</TableHead>}
+                            {columnVisibility.status && <TableHead className="w-20 sm:w-24 lg:w-28 text-center">{t('status')}</TableHead>}
                             {columnVisibility.level && <TableHead className="w-16 sm:w-20 text-center hidden sm:table-cell">{t('level')}</TableHead>}
                             {columnVisibility.language && <TableHead className="w-16 sm:w-20 text-center hidden md:table-cell">{t('language')}</TableHead>}
                             {columnVisibility.category && <TableHead className="w-20 sm:w-24 text-center hidden lg:table-cell">{t('category')}</TableHead>}
@@ -398,6 +452,16 @@ export default function CourseTable() {
                                             className="text-xs whitespace-nowrap"
                                         >
                                             {course.visibility}
+                                        </Badge>
+                                    </TableCell>
+                                )}
+                                {columnVisibility.status && (
+                                    <TableCell className="w-20 sm:w-24 lg:w-28 text-center">
+                                        <Badge 
+                                            variant={getStatusBadgeVariant(course.status || 'inactive')}
+                                            className={`text-xs whitespace-nowrap ${getStatusColor(course.status || 'inactive')}`}
+                                        >
+                                            {course.status || 'inactive'}
                                         </Badge>
                                     </TableCell>
                                 )}
@@ -476,11 +540,24 @@ export default function CourseTable() {
                                 {columnVisibility.actions && (
                                     <TableCell className="w-24 sm:w-28 lg:w-32 text-center">
                                         <div className="flex justify-center gap-1 sm:gap-2">
+                                            {course.status === 'inactive' && (
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    onClick={() => handleSubmitForApproval(course)}
+                                                    title={t('submitForApproval')}
+                                                    disabled={updateCourseStatus.isPending}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Send className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => handleEdit(course)}
                                                 title={t('edit')}
+                                                disabled={isEditDeleteDisabled(course)}
                                                 className="h-8 w-8 p-0"
                                             >
                                                 <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -490,7 +567,7 @@ export default function CourseTable() {
                                                 size="sm"
                                                 onClick={() => handleOpenDeleteDialog(course)}
                                                 title={t('delete')}
-                                                disabled={deleteCourse.isPending}
+                                                disabled={deleteCourse.isPending || isEditDeleteDisabled(course)}
                                                 className="h-8 w-8 p-0"
                                             >
                                                 <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />

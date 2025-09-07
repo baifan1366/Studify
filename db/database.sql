@@ -1111,3 +1111,14 @@ create table if not exists tutoring_share (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
+
+create table hashtags ( 
+  id bigserial primary key,
+  name text unique not null check (name <> '')
+);
+
+create table post_hashtags (
+  post_id uuid references community_post(public_id) on delete cascade,
+  hashtag_id bigint references hashtags(id) on delete cascade,
+  primary key (post_id, hashtag_id)
+);

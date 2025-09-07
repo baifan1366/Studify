@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,29 +8,99 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 as Spinner, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDropzone } from "react-dropzone";
+import { useDebounce } from "use-debounce";
+import { useHashtags } from "@/hooks/community/use-community";
 
 interface NewPostFormProps {
-  onSubmit: (post: { title: string; body: string; files: File[] }) => void;
+  onSubmit: (post: {
+    title: string;
+    body: string;
+    files: File[];
+    hashtags: string[];
+  }) => void;
   isLoading: boolean;
+  searchHashtags: (query: string) => Promise<string[]>;
 }
 
-export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
+export function NewPostForm({
+  onSubmit,
+  isLoading,
+  searchHashtags,
+}: NewPostFormProps) {
   const t = useTranslations("CommunityNewPostForm");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [searchedTags, setSearchedTags] = useState<string[]>([]);
+  const { createHashtag } = useHashtags();
+  const [debouncedTagInput] = useDebounce(tagInput, 300);
   const [error, setError] = useState<string | null>(null);
 
   const MAX_FILES = 5;
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+  useEffect(() => {
+    const fetchTags = async () => {
+      if (!debouncedTagInput) {
+        setSearchedTags([]);
+        return;
+      }
+      const results = await searchHashtags(debouncedTagInput);
+      setSearchedTags(results.filter((t) => !hashtags.includes(t)));
+    };
+    fetchTags();
+  }, [debouncedTagInput, searchHashtags, hashtags]);
+
+  const handleTagKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const newTag = tagInput.trim();
+      if (!newTag) return;
+
+      // ✅ 检查标签是否已存在于已选中列表
+      if (hashtags.includes(newTag)) {
+        setTagInput("");
+        return;
+      }
+
+      try {
+        // ✅ 查询数据库看是否已存在
+        const existingTags = await searchHashtags(newTag);
+        const exists = existingTags.some(
+          (t) => t.toLowerCase() === newTag.toLowerCase()
+        );
+
+        if (exists) {
+          // 已存在，直接加到已选标签
+          setHashtags((prev) => [...prev, newTag]);
+        } else {
+          // 不存在，先加到 UI
+          setHashtags((prev) => [...prev, newTag]);
+          // 再插入数据库
+          createHashtag(newTag);
+        }
+      } catch (err) {
+        console.error("Error handling tag:", err);
+      }
+
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setHashtags(hashtags.filter((tag) => tag !== tagToRemove));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !body) return;
-    onSubmit({ title, body, files });
+    onSubmit({ title, body, files, hashtags });
     setTitle("");
     setBody("");
     setFiles([]);
+    setHashtags([]);
   };
 
   // dropzone config
@@ -164,10 +234,94 @@ export function NewPostForm({ onSubmit, isLoading }: NewPostFormProps) {
             </div>
           )}
 
+          {/* Hashtag Section */}
+          <div className="space-y-2 pt-2">
+            <label
+              htmlFor="hashtags"
+              className="text-sm font-medium text-gray-300"
+            >
+              {t("hashtags_label")}
+            </label>
+
+            <div className="relative">
+              <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-dashed border-white/20 bg-black/30">
+                <Input
+                  id="hashtags"
+                  type="text"
+                  placeholder={t("add_or_search_tags")}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onFocus={() => {}}
+                  className="flex-1 bg-transparent border-none focus:ring-0 p-2 h-auto placeholder:text-gray-500"
+                />
+              </div>
+
+              {/* 下拉弹窗：绝对定位在输入框下方，覆盖其它内容 */}
+              {searchedTags.length > 0 && (
+                <ul
+                  className="absolute left-0 right-0 mt-1 z-50 bg-gray-900/90 border border-white/10 rounded-md shadow-lg max-h-40 overflow-y-auto"
+                  role="listbox"
+                >
+                  {searchedTags.map((raw) => {
+                    // 如果每个 item 是对象 {id,name} 用 name，否则直接用字符串
+                    const tagName =
+                      typeof raw === "string" ? raw : (raw as any).name;
+                    const key =
+                      typeof raw === "string" ? tagName : (raw as any).id;
+
+                    return (
+                      <li
+                        key={key}
+                        // 使用 onMouseDown 而不是 onClick，确保在 input blur 前就选中
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // 阻止 blur 或表单提交副作用
+                          if (!hashtags.includes(tagName)) {
+                            setHashtags((prev) => [...prev, tagName]);
+                          }
+                          setTagInput("");
+                          setSearchedTags([]);
+                        }}
+                        className="px-3 py-2 cursor-pointer hover:bg-white/10 text-sm text-gray-100"
+                        role="option"
+                      >
+                        #{tagName}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* 下面继续渲染已选 badges（如果你想把 badges 放到这而不是上面可以移到这里） */}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {hashtags.map((tag) => (
+                <span
+                  key={tag}
+                  className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded-md text-sm flex items-center gap-1"
+                >
+                  #{tag}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHashtags((prev) => prev.filter((t) => t !== tag))
+                    }
+                    className="text-red-400 hover:text-red-600 ml-2"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-400">{t("hashtags_hint")}</p>
+          </div>
+          {/* END: Hashtag Section */}
+
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-white/10 hover:bg-white/20 border border-white/20 w-full"
+            className="bg-white/10 hover:bg-white/20 border border-white/20 w-full !mt-6"
           >
             {isLoading && <Spinner className="mr-2 h-4 w-4 animate-spin" />}
             {t("post_button")}

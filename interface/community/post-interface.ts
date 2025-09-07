@@ -1,6 +1,19 @@
 // interface/community/post-interface.ts
 import { Comment } from "./comment-interface";
 
+export interface PostFile {
+  id: string; // UUID
+  post_id: string; // UUID
+  url: string;
+  file_name: string;
+  mime_type: string;
+}
+
+export interface Hashtag {
+  id: number;
+  name: string;
+}
+
 export interface Post {
   id: number;
   public_id: string;
@@ -38,7 +51,10 @@ export interface Post {
   reactions?: Record<string, number>;
 
   // 附件（图片/文件等）
-  attachments?: Attachment[];
+  files?: PostFile[];
+
+  // 标签
+  hashtags?: Hashtag[];
 }
 
 export interface Attachment {

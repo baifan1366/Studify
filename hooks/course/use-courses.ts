@@ -70,7 +70,7 @@ export function useUpdateCourse() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...updates }: { id: string } & Partial<Course>) =>
+    mutationFn: ({ id, ...updates }: { id: string } & Partial<Omit<Course, 'id'>>) =>
       apiSend<Course>({
         url: `/api/courses/${id}`,
         method: 'PATCH',
@@ -90,9 +90,9 @@ export function useDeleteCourse() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) =>
+    mutationFn: (course: Course) =>
       apiSend<void>({
-        url: `/api/courses/${id}`,
+        url: `/api/courses/${course.public_id}`,
         method: 'DELETE',
       }),
     onSuccess: () => {

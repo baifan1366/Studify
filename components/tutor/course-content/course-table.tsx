@@ -21,8 +21,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFormat } from "@/hooks/use-format";
 import CreateCourse from '@/components/tutor/course-content/create-course';
+import EditCourse from '@/components/tutor/course-content/edit-course';
 import { useUser } from "@/hooks/profile/use-user";
 import Link from "next/link";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader,
+    AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 
 interface ColumnVisibility {
     no: boolean;
@@ -80,9 +88,18 @@ export default function CourseTable() {
     const { data: courses, isLoading, error } = useCourses(owner_id);
     const deleteCourse = useDeleteCourse();
 
-    const handleDelete = async (courseId: number) => {
+    // 🔹 State for alert dialog
+    const [open, setOpen] = useState(false);
+    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [confirmInput, setConfirmInput] = useState("");
+
+    // 🔹 State for edit dialog
+    const [editOpen, setEditOpen] = useState(false);
+    const [editCourse, setEditCourse] = useState<Course | null>(null);
+
+    const handleDelete = async (course: Course) => {
         try {
-            await deleteCourse.mutateAsync(courseId);
+            await deleteCourse.mutateAsync(course);
             toast({
                 title: t('success'),
                 description: t('courseDeleted'),
@@ -96,14 +113,29 @@ export default function CourseTable() {
         }
     };
 
-    const handlePreview = (course: Course) => {
-        // Navigate to course preview
-        window.open(`/courses/${course.public_id}`, '_blank');
+    const handleOpenDeleteDialog = (course: Course) => {
+        setSelectedCourse(course);
+        setConfirmInput("");
+        setOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!selectedCourse) return;
+        if (confirmInput.trim() !== selectedCourse.title) {
+            toast({
+                title: t("error"),
+                description: t("titleMismatch"), // Add this key in translations
+                variant: "destructive",
+            });
+            return;
+        }
+        await handleDelete(selectedCourse);
+        setOpen(false);
     };
 
     const handleEdit = (course: Course) => {
-        // Navigate to course edit page
-        window.location.href = `/tutor/courses/${course.public_id}/edit`;
+        setEditCourse(course);
+        setEditOpen(true);
     };
 
     if (isLoading) {
@@ -447,15 +479,6 @@ export default function CourseTable() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handlePreview(course)}
-                                                title={t('preview')}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
                                                 onClick={() => handleEdit(course)}
                                                 title={t('edit')}
                                                 className="h-8 w-8 p-0"
@@ -465,7 +488,7 @@ export default function CourseTable() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleDelete(course.id)}
+                                                onClick={() => handleOpenDeleteDialog(course)}
                                                 title={t('delete')}
                                                 disabled={deleteCourse.isPending}
                                                 className="h-8 w-8 p-0"
@@ -526,6 +549,43 @@ export default function CourseTable() {
                         </PaginationItem>
                     </PaginationContent>
                 </Pagination>
+            )}
+            {/* 🔹 AlertDialog for delete confirmation */}
+            <AlertDialog open={open} onOpenChange={setOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("confirmDelete")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t("deleteWarning")} <b>{selectedCourse?.title}</b>.
+                            <br />
+                            {t("typeToConfirm")}:
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <Input
+                        value={confirmInput}
+                        onChange={(e) => setConfirmInput(e.target.value)}
+                        placeholder={selectedCourse?.title || ""}
+                        className="mt-2"
+                    />
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmDelete}
+                            disabled={deleteCourse.isPending || confirmInput.trim() !== selectedCourse?.title}
+                        >
+                            {deleteCourse.isPending ? t("deleting") : t("confirm")}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
+            {/* 🔹 EditCourse Dialog */}
+            {editCourse && (
+                <EditCourse 
+                    course={editCourse}
+                    isOpen={editOpen}
+                    onOpenChange={setEditOpen}
+                />
             )}
         </div>
     );

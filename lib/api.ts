@@ -31,7 +31,7 @@ export const coursesApi = {
   create: "/api/courses",
   search: (query: string) => `/api/courses/search?q=${encodeURIComponent(query)}`,
   getById: (courseId: number) => `/api/courses/${courseId}`,
-  update: (courseId: number) => `/api/courses/${courseId}`,
+  update: (courseId: string) => `/api/courses/${courseId}`,
   delete: (courseId: number) => `/api/courses/${courseId}`,
   enroll: (courseId: number) => `/api/courses/${courseId}/enroll`,
   unenroll: (courseId: number) => `/api/courses/${courseId}/unenroll`,

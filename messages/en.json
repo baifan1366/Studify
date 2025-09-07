@@ -1077,7 +1077,14 @@
       "beginner": "beginner",
       "intermediate": "intermediate",
       "advanced": "advanced"
-    }
+    },
+    "filters": "Filters",
+    "no_lessons_found": "No lessons found",
+    "type": "Type",
+    "video": "Video",
+    "quiz": "Quiz",
+    "assignment": "Assignment",
+    "sort_by": "Sort By"
   },
   "CoursePage": {
     "metadata_title": "Course - Studify",

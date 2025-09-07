@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLessonByCourseModuleId } from '@/hooks/course/use-course-lesson';
 import { Lesson } from '@/interface/courses/lesson-interface';
+import { useTranslations } from 'next-intl';
 
 // Extended interface for UI display
 interface CourseLesson extends Lesson {
@@ -35,6 +36,7 @@ export default function CourseLessonGrid({
   onLessonSelect,
   selectedLessonId
 }: CourseLessonGridProps) {
+  const t = useTranslations('CourseLessonGrid');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('order');
@@ -186,7 +188,7 @@ export default function CourseLessonGrid({
               className="flex items-center gap-2 h-10 px-4 border border-border rounded-lg bg-background text-foreground hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <Filter className="h-4 w-4" />
-              <span className="text-sm">Filters</span>
+              <span className="text-sm">{t('filters')}</span>
               <ChevronDown className={cn("h-4 w-4 transition-transform", showFilters && "rotate-180")} />
             </button>
 
@@ -194,31 +196,31 @@ export default function CourseLessonGrid({
             {showFilters && (
               <div className="absolute top-12 right-0 z-10 w-64 p-4 bg-background border border-border rounded-lg shadow-lg space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Type</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">{t('type')}</label>
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value as FilterType)}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    <option value="all">All Types</option>
-                    <option value="video">Video</option>
-                    <option value="reading">Reading</option>
-                    <option value="quiz">Quiz</option>
-                    <option value="assignment">Assignment</option>
+                    <option value="all">{t('allTypes')}</option>
+                    <option value="video">{t('video')}</option>
+                    <option value="reading">{t('reading')}</option>
+                    <option value="quiz">{t('quiz')}</option>
+                    <option value="assignment">{t('assignment')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Sort By</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">{t('sort_by')}</label>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortType)}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    <option value="order">Order</option>
-                    <option value="duration">Duration</option>
-                    <option value="difficulty">Difficulty</option>
-                    <option value="completion">Completion</option>
+                    <option value="order">{t('sortByOrder')}</option>
+                    <option value="duration">{t('sortByDuration')}</option>
+                    <option value="difficulty">{t('sortByDifficulty')}</option>
+                    <option value="completion">{t('sortByCompletion')}</option>
                   </select>
                 </div>
 
@@ -230,7 +232,7 @@ export default function CourseLessonGrid({
                       onChange={(e) => setShowCompleted(e.target.checked)}
                       className="rounded border-border text-primary focus:ring-primary"
                     />
-                    Show Completed Lessons
+                    {t('showCompleted')}
                   </label>
                 </div>
               </div>
@@ -242,7 +244,7 @@ export default function CourseLessonGrid({
             onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             className="flex items-center gap-2 h-10 px-4 border border-border rounded-lg bg-background text-foreground hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <span className="text-sm">{viewMode === 'grid' ? 'List' : 'Grid'}</span>
+            <span className="text-sm">{t(viewMode === 'grid' ? 'list' : 'grid')}</span>
           </button>
         </div>
       </div>
@@ -290,10 +292,6 @@ export default function CourseLessonGrid({
                   {lesson.title}
                 </h3>
 
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {lesson.description}
-                </p>
-
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Clock className="h-3 w-3 text-muted-foreground" />
@@ -340,9 +338,6 @@ export default function CourseLessonGrid({
                   <h3 className="font-medium text-foreground mb-1 truncate">
                     {lesson.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-1">
-                    {lesson.description}
-                  </p>
                 </div>
 
                 <div className="flex items-center gap-4 flex-shrink-0">
@@ -374,7 +369,7 @@ export default function CourseLessonGrid({
       {!isLoading && filteredAndSortedLessons.length === 0 && (
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No lessons found</h3>
+          <h3 className="text-lg font-medium text-foreground mb-2">{t('no_lessons_found')}</h3>
           <p className="text-muted-foreground">
             {lessons.length === 0 ? 'No lessons available for this module' : 'Try adjusting your search or filter criteria'}
           </p>

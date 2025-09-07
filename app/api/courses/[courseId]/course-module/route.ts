@@ -54,9 +54,6 @@ export async function POST(
       title: body.title as string,
       position: body.position as number,
       course_id: courseIdNum,
-      description: body.description as string || null,
-      is_published: body.is_published as boolean || false,
-      estimated_duration_minutes: body.estimated_duration_minutes as number || null,
     };
 
     if (!payload.title) {

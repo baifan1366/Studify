@@ -39,7 +39,6 @@ export default function CourseModuleList({
 
   const handleModuleClick = (moduleId: number) => {
     onModuleSelect?.(moduleId);
-    toggleModule(moduleId);
   };
 
 

@@ -67,17 +67,9 @@ export async function POST(
 
     const payload = {
       title: body.title as string,
-      slug: body.slug as string,
-      position: body.position as number,
-      description: body.description as string || null,
-      is_preview: body.is_preview as boolean || false,
-      is_published: body.is_published as boolean || false,
-      transcript: body.transcript as string || null,
       kind: body.kind as string,
       content_url: body.content_url as string || null,
       duration_sec: body.duration_sec as number || null,
-      video_url: body.video_url as string || null,
-      thumbnail_url: body.thumbnail_url as string || null,
       course_id: courseIdNum,
       module_id: moduleIdNum,
     };
@@ -85,12 +77,6 @@ export async function POST(
     // Validate required fields
     if (!payload.title) {
       return NextResponse.json({ error: "title is required" }, { status: 422 });
-    }
-    if (!payload.slug) {
-      return NextResponse.json({ error: "slug is required" }, { status: 422 });
-    }
-    if (!payload.position) {
-      return NextResponse.json({ error: "position is required" }, { status: 422 });
     }
     if (!payload.kind) {
       return NextResponse.json({ error: "kind is required" }, { status: 422 });

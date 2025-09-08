@@ -396,6 +396,7 @@ create table if not exists course_quiz_submission (
 );
 
 -- Course Concepts for Knowledge Graph
+CREATE EXTENSION IF NOT EXISTS pg_vector;
 create table if not exists course_concept (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
@@ -853,17 +854,6 @@ create table if not exists classroom_engagement_report (
   generated_at timestamptz default now()
 );
 
--- 创建Supabase Realtime发布
-BEGIN;
-  -- 启用课堂消息表的实时发布
-  ALTER PUBLICATION supabase_realtime ADD TABLE classroom_messages;
-  
-  -- 启用课堂帖子表的实时发布
-  ALTER PUBLICATION supabase_realtime ADD TABLE classroom_posts;
-  
-  -- 启用课堂帖子评论表的实时发布
-  ALTER PUBLICATION supabase_realtime ADD TABLE classroom_post_comments;
-COMMIT;
 -- =========================
 -- Community (from db/community/schema.sql)
 -- =========================
@@ -906,7 +896,8 @@ create table if not exists community_post (
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  unique (group_id, slug)
 );
 
 create table if not exists community_post_files (
@@ -918,9 +909,6 @@ create table if not exists community_post_files (
 );
 
 
--- 推荐复合唯一约束，保证每个 group 内 slug 唯一
-alter table community_post
-add constraint post_slug_unique unique (group_id, slug);
 
 create table if not exists community_comment (
   id bigserial primary key,
@@ -1123,3 +1111,141 @@ create table post_hashtags (
   hashtag_id bigint references hashtags(id) on delete cascade,
   primary key (post_id, hashtag_id)
 );
+
+-- =========================
+-- Embedding System Tables
+-- =========================
+
+-- Main embedding table for storing vector embeddings
+CREATE TABLE IF NOT EXISTS embeddings (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  
+  -- Content identification
+  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
+  content_id bigint NOT NULL, -- References the actual content table ID
+  content_hash text NOT NULL, -- Hash of content to detect changes
+  
+  -- Embedding data
+  embedding vector(384), -- 384-dimensional embedding vector
+  content_text text NOT NULL, -- The actual text that was embedded
+  
+  -- Enhanced metadata
+  chunk_type text CHECK (chunk_type IN ('summary', 'section', 'paragraph', 'detail')),
+  hierarchy_level int DEFAULT 0,
+  parent_chunk_id bigint REFERENCES embeddings(id),
+  section_title text,
+  semantic_density float CHECK (semantic_density >= 0 AND semantic_density <= 1),
+  key_terms text[],
+  sentence_count int DEFAULT 0,
+  word_count int DEFAULT 0,
+  has_code_block boolean DEFAULT false,
+  has_table boolean DEFAULT false,
+  has_list boolean DEFAULT false,
+  chunk_language text DEFAULT 'en',
+  
+  -- Metadata
+  embedding_model text DEFAULT 'intfloat/e5-small',
+  language text DEFAULT 'en',
+  token_count int,
+  
+  -- Status and lifecycle
+  status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'outdated')) DEFAULT 'pending',
+  error_message text,
+  retry_count int DEFAULT 0,
+  
+  -- Timestamps
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz,
+  
+  -- Ensure uniqueness per content
+  UNIQUE(content_type, content_id)
+);
+
+-- Embedding queue for batch processing
+CREATE TABLE IF NOT EXISTS embedding_queue (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  
+  -- Content identification
+  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
+  content_id bigint NOT NULL,
+  content_text text NOT NULL,
+  content_hash text NOT NULL,
+  
+  -- Processing metadata
+  priority int DEFAULT 5 CHECK (priority BETWEEN 1 AND 10), -- 1 = highest priority
+  scheduled_at timestamptz DEFAULT now(),
+  processing_started_at timestamptz,
+  retry_count int DEFAULT 0,
+  max_retries int DEFAULT 3,
+  
+  -- Status
+  status text NOT NULL CHECK (status IN ('queued', 'processing', 'completed', 'failed')) DEFAULT 'queued',
+  error_message text,
+  
+  -- Timestamps
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  
+  -- Ensure no duplicates in queue
+  UNIQUE(content_type, content_id)
+);
+
+-- Embedding search history for analytics
+CREATE TABLE IF NOT EXISTS embedding_searches (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  
+  -- Search details
+  user_id bigint REFERENCES profiles(id) ON DELETE SET NULL,
+  query_text text NOT NULL,
+  query_embedding vector(384),
+  
+  -- Search parameters
+  content_types text[] DEFAULT '{}', -- Filter by content types
+  similarity_threshold numeric(3,2) DEFAULT 0.7,
+  max_results int DEFAULT 10,
+  
+  -- Results
+  results_count int DEFAULT 0,
+  results_data jsonb DEFAULT '[]'::jsonb, -- Store top results for analytics
+  
+  -- Performance metrics
+  processing_time_ms int,
+  embedding_time_ms int,
+  search_time_ms int,
+  
+  -- Timestamps
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Document hierarchy table for storing document structure
+CREATE TABLE IF NOT EXISTS document_hierarchy (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  
+  -- Content identification
+  content_type text NOT NULL,
+  content_id bigint NOT NULL,
+  
+  -- Document structure
+  document_title text,
+  document_structure jsonb, -- Stores the hierarchical structure
+  summary_embedding_id bigint REFERENCES embeddings(id),
+  
+  -- Statistics
+  total_chunks int DEFAULT 0,
+  estimated_reading_time int DEFAULT 0, -- in minutes
+  has_table_of_contents boolean DEFAULT false,
+  
+  -- Timestamps
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  
+  -- Ensure uniqueness per content
+  UNIQUE(content_type, content_id)
+);
+

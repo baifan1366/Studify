@@ -1,35 +1,62 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Clock, MessageSquare, ThumbsUp, Heart, Users, Loader2, Reply, Trash2, MoreHorizontal } from 'lucide-react';
-import Link from 'next/link';
-import { Post } from '@/interface/community/post-interface';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Comment } from '@/interface/community/comment-interface';
-import { usePostDetail } from '@/hooks/community/use-post-detail';
-import { useComments, useCreateComment, useDeleteComment } from '@/hooks/community/use-comments';
-import { useToggleReaction } from '@/hooks/community/use-reactions';
-import { useFormat } from '@/hooks/use-format';
-import { useTranslations } from 'next-intl';
+import React, { useState, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Clock,
+  MessageSquare,
+  ThumbsUp,
+  Heart,
+  Users,
+  Loader2,
+  Reply,
+  Trash2,
+  MoreHorizontal,
+  Paperclip,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { Post } from "@/interface/community/post-interface";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Comment } from "@/interface/community/comment-interface";
+import { usePostDetail } from "@/hooks/community/use-post-detail";
+import {
+  useComments,
+  useCreateComment,
+  useDeleteComment,
+} from "@/hooks/community/use-comments";
+import { useToggleReaction } from "@/hooks/community/use-reactions";
+import { useFormat } from "@/hooks/use-format";
+import { useTranslations } from "next-intl";
 
 // Reaction button component
-const ReactionButton = ({ emoji, count, isActive, onClick, disabled }: {
+const ReactionButton = ({
+  emoji,
+  count,
+  isActive,
+  onClick,
+  disabled,
+}: {
   emoji: string;
   count: number;
   isActive?: boolean;
   onClick: () => void;
   disabled?: boolean;
 }) => (
-  <Button 
-    variant="ghost" 
-    size="sm" 
+  <Button
+    variant="ghost"
+    size="sm"
     className={`hover:bg-white/10 hover:text-white px-2 ${
-      isActive ? 'bg-blue-500/20 text-blue-400' : 'text-gray-300'
+      isActive ? "bg-blue-500/20 text-blue-400" : "text-gray-300"
     }`}
     onClick={onClick}
     disabled={disabled}
@@ -39,33 +66,73 @@ const ReactionButton = ({ emoji, count, isActive, onClick, disabled }: {
   </Button>
 );
 
-// Comment form component
-const CommentForm = ({ groupSlug, postSlug, parentId, onCancel, placeholder }: {
+const CommentForm = ({
+  groupSlug,
+  postSlug,
+  parentId,
+  onCancel,
+  placeholder,
+}: {
   groupSlug: string;
   postSlug: string;
   parentId?: number;
   onCancel?: () => void;
   placeholder?: string;
 }) => {
-  const [body, setBody] = useState('');
-  const t = useTranslations('CommunityPostDetail');
+  const [body, setBody] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = useTranslations("CommunityPostDetail");
   const createCommentMutation = useCreateComment(groupSlug, postSlug);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+
+      const validFiles: File[] = [];
+      for (const file of filesArray) {
+        if (!allowedTypes.includes(file.type)) {
+          alert(`File "${file.name}" is not a supported image type.`); //todo:change to use api returned error
+          continue;
+        }
+        validFiles.push(file);
+      }
+
+      if (validFiles.length > 0) {
+        setAttachments((prev) => [...prev, ...validFiles]);
+      }
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!body.trim()) return;
+    if (!body.trim() && attachments.length === 0) return;
 
     try {
       await createCommentMutation.mutateAsync({
         groupSlug,
         postSlug,
         body: body.trim(),
-        parent_id: parentId?.toString()
+        parent_id: parentId?.toString(),
+        files: attachments,
       });
-      setBody('');
+      setBody("");
+      setAttachments([]);
       onCancel?.();
     } catch (error) {
-      console.error('Failed to create comment:', error);
+      console.error("Failed to create comment:", error);
     }
   };
 
@@ -74,36 +141,87 @@ const CommentForm = ({ groupSlug, postSlug, parentId, onCancel, placeholder }: {
       <Textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={placeholder || t('comment_form.placeholder')}
+        placeholder={placeholder || t("comment_form.placeholder")}
         className="min-h-[80px] bg-black/20 border-white/10 text-white resize-none"
         disabled={createCommentMutation.isPending}
       />
-      <div className="flex gap-2">
-        <Button 
-          type="submit" 
+
+      {/* 附件预览 */}
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {attachments.map((file, idx) => (
+            <div
+              key={idx}
+              className="flex items-center bg-white/10 text-white px-2 py-1 rounded-md text-xs"
+            >
+              {file.name}
+              <button
+                type="button"
+                onClick={() => removeAttachment(idx)}
+                className="ml-2 hover:text-red-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <Button
+          type="submit"
           size="sm"
-          disabled={!body.trim() || createCommentMutation.isPending}
+          disabled={
+            (!body.trim() && attachments.length === 0) ||
+            createCommentMutation.isPending
+          }
         >
-          {createCommentMutation.isPending ? t('comment_form.submitting') : t('comment_form.submit')}
+          {createCommentMutation.isPending
+            ? t("comment_form.submitting")
+            : t("comment_form.submit")}
         </Button>
+
         {onCancel && (
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             size="sm"
             onClick={onCancel}
             disabled={createCommentMutation.isPending}
           >
-            {t('comment_form.cancel')}
+            {t("comment_form.cancel")}
           </Button>
         )}
+
+        {/* attachment button */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Paperclip size={16} />
+        </Button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </div>
     </form>
   );
 };
 
 // Individual comment component
-const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
+const CommentItem = ({
+  comment,
+  groupSlug,
+  postSlug,
+  depth = 0,
+}: {
   comment: Comment;
   groupSlug: string;
   postSlug: string;
@@ -112,7 +230,7 @@ const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
   const { formatRelativeTime } = useFormat();
-  const t = useTranslations('CommunityPostDetail');
+  const t = useTranslations("CommunityPostDetail");
   const deleteCommentMutation = useDeleteComment(groupSlug, postSlug);
   const toggleReactionMutation = useToggleReaction(groupSlug, postSlug);
 
@@ -121,36 +239,43 @@ const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
       groupSlug,
       postSlug,
       emoji,
-      target_type: 'comment',
-      target_id: comment.id.toString()
+      target_type: "comment",
+      target_id: comment.id.toString(),
     });
   };
 
   const handleDelete = () => {
-    if (confirm(t('comment_actions.confirm_delete'))) {
+    if (confirm(t("comment_actions.confirm_delete"))) {
       deleteCommentMutation.mutate({
         groupSlug,
         postSlug,
-        commentId: comment.id.toString()
+        commentId: comment.id.toString(),
       });
     }
   };
 
   const replies = comment.replies || [];
-  const marginLeft = depth > 0 ? `${Math.min(depth * 24, 96)}px` : '0px';
+  const marginLeft = depth > 0 ? `${Math.min(depth * 24, 96)}px` : "0px";
 
   return (
     <div style={{ marginLeft }} className="space-y-3">
       <div className="flex items-start gap-3">
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src={comment.author?.avatar_url} alt={comment.author?.display_name} />
+          <AvatarImage
+            src={comment.author?.avatar_url}
+            alt={comment.author?.display_name}
+          />
           <AvatarFallback>{comment.author?.display_name?.[0]}</AvatarFallback>
         </Avatar>
         <div className="flex-1 bg-black/20 p-3 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <p className="font-semibold text-sm text-white">{comment.author?.display_name}</p>
-              <p className="text-xs text-gray-400">{formatRelativeTime(comment.created_at)}</p>
+              <p className="font-semibold text-sm text-white">
+                {comment.author?.display_name}
+              </p>
+              <p className="text-xs text-gray-400">
+                {formatRelativeTime(comment.created_at)}
+              </p>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -159,49 +284,69 @@ const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setShowReplyForm(!showReplyForm)}>
+                <DropdownMenuItem
+                  onClick={() => setShowReplyForm(!showReplyForm)}
+                >
                   <Reply className="h-4 w-4 mr-2" />
-                  {t('comment_actions.reply')}
+                  {t("comment_actions.reply")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDelete} className="text-red-400">
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  className="text-red-400"
+                >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  {t('comment_actions.delete')}
+                  {t("comment_actions.delete")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           <p className="text-sm text-gray-300 mb-3">{comment.body}</p>
-          
+
+          {/* Picture Attachment Display */}
+          {comment.files && comment.files.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {comment.files.map((file) => (
+                <img
+                  key={file.id || file.file_name}
+                  src={file.url}
+                  alt={file.file_name}
+                  className="rounded-lg max-h-40 w-full object-cover cursor-pointer hover:opacity-80 transition"
+                  onClick={() => window.open(file.url, "_blank")}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Reaction buttons */}
           <div className="flex gap-1">
             <ReactionButton
               emoji="👍"
-              count={comment.reactions?.['👍'] || 0}
-              onClick={() => handleReaction('👍')}
+              count={comment.reactions?.["👍"] || 0}
+              onClick={() => handleReaction("👍")}
               disabled={toggleReactionMutation.isPending}
             />
             <ReactionButton
               emoji="❤️"
-              count={comment.reactions?.['❤️'] || 0}
-              onClick={() => handleReaction('❤️')}
+              count={comment.reactions?.["❤️"] || 0}
+              onClick={() => handleReaction("❤️")}
               disabled={toggleReactionMutation.isPending}
             />
             <ReactionButton
               emoji="😂"
-              count={comment.reactions?.['😂'] || 0}
-              onClick={() => handleReaction('😂')}
+              count={comment.reactions?.["😂"] || 0}
+              onClick={() => handleReaction("😂")}
               disabled={toggleReactionMutation.isPending}
             />
             <ReactionButton
               emoji="😡"
-              count={comment.reactions?.['😡'] || 0}
-              onClick={() => handleReaction('😡')}
+              count={comment.reactions?.["😡"] || 0}
+              onClick={() => handleReaction("😡")}
               disabled={toggleReactionMutation.isPending}
             />
           </div>
         </div>
       </div>
-      
+
       {/* Reply form */}
       {showReplyForm && (
         <div className="ml-11">
@@ -210,11 +355,11 @@ const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
             postSlug={postSlug}
             parentId={comment.id}
             onCancel={() => setShowReplyForm(false)}
-            placeholder={t('comment_form.reply_placeholder')}
+            placeholder={t("comment_form.reply_placeholder")}
           />
         </div>
       )}
-      
+
       {/* Replies */}
       {replies.length > 0 && (
         <div className="ml-11">
@@ -224,7 +369,10 @@ const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
             onClick={() => setShowReplies(!showReplies)}
             className="text-blue-400 hover:text-blue-300 p-0 h-auto font-normal"
           >
-            {showReplies ? t('comment_actions.hide_replies') : t('comment_actions.show_replies')} ({replies.length})
+            {showReplies
+              ? t("comment_actions.hide_replies")
+              : t("comment_actions.show_replies")}{" "}
+            ({replies.length})
           </Button>
           {showReplies && (
             <div className="mt-3 space-y-3">
@@ -249,14 +397,14 @@ const CommentItem = ({ comment, groupSlug, postSlug, depth = 0 }: {
 const buildCommentTree = (comments: Comment[]): Comment[] => {
   const commentMap = new Map<number, Comment>();
   const rootComments: Comment[] = [];
-  
+
   // First pass: create map and initialize replies array
-  comments.forEach(comment => {
+  comments.forEach((comment) => {
     commentMap.set(comment.id, { ...comment, replies: [] });
   });
-  
+
   // Second pass: build tree structure
-  comments.forEach(comment => {
+  comments.forEach((comment) => {
     const commentWithReplies = commentMap.get(comment.id)!;
     if (comment.parent_id) {
       const parent = commentMap.get(comment.parent_id);
@@ -268,28 +416,40 @@ const buildCommentTree = (comments: Comment[]): Comment[] => {
       rootComments.push(commentWithReplies);
     }
   });
-  
+
   return rootComments;
 };
 
-const PostDetailContent = ({ post, groupSlug, postSlug }: { post: Post; groupSlug: string; postSlug: string }) => {
-  const [viewMode, setViewMode] = useState<'flat' | 'tree'>('tree');
+const PostDetailContent = ({
+  post,
+  groupSlug,
+  postSlug,
+}: {
+  post: Post;
+  groupSlug: string;
+  postSlug: string;
+}) => {
+  const [viewMode, setViewMode] = useState<"flat" | "tree">("tree");
   const { formatRelativeTime } = useFormat();
-  const t = useTranslations('CommunityPostDetail');
+  const t = useTranslations("CommunityPostDetail");
   const toggleReactionMutation = useToggleReaction(groupSlug, postSlug);
-  const { data: comments = [], isLoading: commentsLoading } = useComments(groupSlug, postSlug);
+  const { data: comments = [], isLoading: commentsLoading } = useComments(
+    groupSlug,
+    postSlug
+  );
 
   const handlePostReaction = (emoji: string) => {
     toggleReactionMutation.mutate({
       groupSlug,
       postSlug,
       emoji,
-      target_type: 'post',
-      target_id: post.id.toString()
+      target_type: "post",
+      target_id: post.id.toString(),
     });
   };
 
-  const displayComments = viewMode === 'tree' ? buildCommentTree(comments) : comments;
+  const displayComments =
+    viewMode === "tree" ? buildCommentTree(comments) : comments;
 
   return (
     <Card className="bg-white/5 backdrop-blur-lg border border-white/10 text-white rounded-xl shadow-lg">
@@ -299,7 +459,10 @@ const PostDetailContent = ({ post, groupSlug, postSlug }: { post: Post; groupSlu
             <div className="flex items-center gap-2 mb-2">
               {post.group && (
                 <Link href={`/community/${post.group.slug}`}>
-                  <Badge variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400/10 cursor-pointer">
+                  <Badge
+                    variant="outline"
+                    className="border-blue-400 text-blue-400 hover:bg-blue-400/10 cursor-pointer"
+                  >
                     <Users className="w-3 h-3 mr-1" />
                     {post.group.name}
                   </Badge>
@@ -307,7 +470,9 @@ const PostDetailContent = ({ post, groupSlug, postSlug }: { post: Post; groupSlu
               )}
               <div className="flex items-center text-xs text-gray-400">
                 <Clock className="w-3 h-3 mr-1" />
-                {formatRelativeTime(post.created_at || new Date().toISOString())}
+                {formatRelativeTime(
+                  post.created_at || new Date().toISOString()
+                )}
               </div>
             </div>
             <CardTitle className="text-2xl leading-tight">
@@ -315,11 +480,16 @@ const PostDetailContent = ({ post, groupSlug, postSlug }: { post: Post; groupSlu
             </CardTitle>
             <div className="flex items-center gap-2 mt-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={post.author?.avatar_url} alt={post.author?.display_name} />
-                <AvatarFallback>{post.author?.display_name?.[0]}</AvatarFallback>
+                <AvatarImage
+                  src={post.author?.avatar_url}
+                  alt={post.author?.display_name}
+                />
+                <AvatarFallback>
+                  {post.author?.display_name?.[0]}
+                </AvatarFallback>
               </Avatar>
               <p className="text-sm text-gray-300">
-                {post.author?.display_name || t('unknown_author')}
+                {post.author?.display_name || t("unknown_author")}
               </p>
             </div>
           </div>
@@ -327,69 +497,71 @@ const PostDetailContent = ({ post, groupSlug, postSlug }: { post: Post; groupSlu
       </CardHeader>
       <CardContent className="pt-0">
         <div className="prose prose-invert max-w-none text-gray-200">
-            {post.body}
+          {post.body}
         </div>
       </CardContent>
       <CardContent className="flex justify-between pt-3">
         <div className="flex space-x-2">
           <ReactionButton
             emoji="👍"
-            count={post.reactions?.['👍'] || 0}
-            onClick={() => handlePostReaction('👍')}
+            count={post.reactions?.["👍"] || 0}
+            onClick={() => handlePostReaction("👍")}
             disabled={toggleReactionMutation.isPending}
           />
           <ReactionButton
             emoji="❤️"
-            count={post.reactions?.['❤️'] || 0}
-            onClick={() => handlePostReaction('❤️')}
+            count={post.reactions?.["❤️"] || 0}
+            onClick={() => handlePostReaction("❤️")}
             disabled={toggleReactionMutation.isPending}
           />
           <ReactionButton
             emoji="😂"
-            count={post.reactions?.['😂'] || 0}
-            onClick={() => handlePostReaction('😂')}
+            count={post.reactions?.["😂"] || 0}
+            onClick={() => handlePostReaction("😂")}
             disabled={toggleReactionMutation.isPending}
           />
           <ReactionButton
             emoji="😡"
-            count={post.reactions?.['😡'] || 0}
-            onClick={() => handlePostReaction('😡')}
+            count={post.reactions?.["😡"] || 0}
+            onClick={() => handlePostReaction("😡")}
             disabled={toggleReactionMutation.isPending}
           />
           <Button variant="ghost" size="sm" className="text-gray-300 px-2">
-            <MessageSquare className="mr-1 h-4 w-4" /> 
+            <MessageSquare className="mr-1 h-4 w-4" />
             <span className="text-xs">{comments.length}</span>
           </Button>
         </div>
       </CardContent>
-      
+
       {/* Comments Section */}
       <CardContent>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold">{t('comments_title')} ({comments.length})</h3>
+          <h3 className="text-xl font-semibold">
+            {t("comments_title")} ({comments.length})
+          </h3>
           <div className="flex gap-2">
             <Button
-              variant={viewMode === 'flat' ? 'default' : 'outline'}
+              variant={viewMode === "flat" ? "default" : "outline"}
               size="sm"
-              onClick={() => setViewMode('flat')}
+              onClick={() => setViewMode("flat")}
             >
-              {t('view_modes.flat')}
+              {t("view_modes.flat")}
             </Button>
             <Button
-              variant={viewMode === 'tree' ? 'default' : 'outline'}
+              variant={viewMode === "tree" ? "default" : "outline"}
               size="sm"
-              onClick={() => setViewMode('tree')}
+              onClick={() => setViewMode("tree")}
             >
-              {t('view_modes.tree')}
+              {t("view_modes.tree")}
             </Button>
           </div>
         </div>
-        
+
         {/* Comment Form */}
         <div className="mb-6">
           <CommentForm groupSlug={groupSlug} postSlug={postSlug} />
         </div>
-        
+
         {/* Comments List */}
         {commentsLoading ? (
           <div className="flex justify-center py-8">
@@ -397,44 +569,42 @@ const PostDetailContent = ({ post, groupSlug, postSlug }: { post: Post; groupSlu
           </div>
         ) : comments.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
-            {t('empty_comments')}
+            {t("empty_comments")}
           </div>
         ) : (
           <div className="space-y-4">
-            {viewMode === 'tree' ? (
-              displayComments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  groupSlug={groupSlug}
-                  postSlug={postSlug}
-                />
-              ))
-            ) : (
-              comments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  groupSlug={groupSlug}
-                  postSlug={postSlug}
-                  depth={0}
-                />
-              ))
-            )}
+            {viewMode === "tree"
+              ? displayComments.map((comment) => (
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    groupSlug={groupSlug}
+                    postSlug={postSlug}
+                  />
+                ))
+              : comments.map((comment) => (
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    groupSlug={groupSlug}
+                    postSlug={postSlug}
+                    depth={0}
+                  />
+                ))}
           </div>
         )}
       </CardContent>
     </Card>
   );
-}
+};
 
 const LoadingSpinner = () => {
-  const t = useTranslations('CommunityPostDetail');
-  
+  const t = useTranslations("CommunityPostDetail");
+
   return (
     <div className="flex justify-center items-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-      <span className="ml-2 text-gray-400">{t('loading')}</span>
+      <span className="ml-2 text-gray-400">{t("loading")}</span>
     </div>
   );
 };
@@ -450,21 +620,29 @@ const ErrorMessage = ({ message }: { message: string }) => (
 /**
  * Client component wrapper for post detail with React Query
  */
-export default function PostDetailClient({ groupSlug, postSlug }: { groupSlug: string, postSlug: string }) {
-    const { data: post, isLoading, error } = usePostDetail(groupSlug, postSlug);
-    const t = useTranslations('CommunityPostDetail');
+export default function PostDetailClient({
+  groupSlug,
+  postSlug,
+}: {
+  groupSlug: string;
+  postSlug: string;
+}) {
+  const { data: post, isLoading, error } = usePostDetail(groupSlug, postSlug);
+  const t = useTranslations("CommunityPostDetail");
 
-    if (isLoading) {
-        return <LoadingSpinner />;
-    }
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
-    if (error) {
-        return <ErrorMessage message={t('error_loading')} />;
-    }
+  if (error) {
+    return <ErrorMessage message={t("error_loading")} />;
+  }
 
-    if (!post) {
-        return <ErrorMessage message={t('post_not_found')} />;
-    }
+  if (!post) {
+    return <ErrorMessage message={t("post_not_found")} />;
+  }
 
-    return <PostDetailContent post={post} groupSlug={groupSlug} postSlug={postSlug} />;
+  return (
+    <PostDetailContent post={post} groupSlug={groupSlug} postSlug={postSlug} />
+  );
 }

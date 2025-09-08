@@ -44,6 +44,9 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: true,
   },
+  experimental: {
+    optimizeCss: false, // 关闭 lightningcss，用回 PostCSS
+  }
 };
 
 export default withSerwist(withNextIntl(nextConfig));

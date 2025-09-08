@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
-    "postinstall": "npx --yes install-lightningcss"
+    "start": "next start"
   },
   "dependencies": {
     "@langchain/core": "^0.3.72",

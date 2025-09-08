@@ -7,10 +7,11 @@ import { AccessToken } from 'livekit-server-sdk';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
     const { userId, role } = await req.json();
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id, status')
       .eq('public_id', id)
       .single();
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 记录参与者加入
     const { error: participantError } = await supabase
-      .from('classroom.session_participant')
+      .from('session_participant')
       .upsert({
         session_id: sessionData.id,
         user_id: user.id,

@@ -3,14 +3,16 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 更新学习路径进度
-export async function PATCH(req: NextRequest, { params }: { params: { pathId: string } }) {
+export async function PATCH(req: NextRequest, context: { params: { id: string , pathId:string}  }) {
+  const { params } = context;
   try {
     // 验证用户身份
-    const user = await authorize('student');
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
-
+    const user = authResult;
+    
     const { pathId } = params;
     const { milestoneId, status } = await req.json();
 
@@ -29,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
 
     // 验证学习路径所有权
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('user_id')
       .eq('id', pathId)
       .single();
@@ -40,13 +42,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
     }
 
     // 检查权限
-    if (pathData.user_id !== user.id && user.role !== 'tutor') {
+    if (pathData.user_id !== user.user.id && user.payload.role !== 'tutor') {
       return NextResponse.json({ error: '无权更新此学习路径' }, { status: 403 });
     }
 
     // 获取里程碑信息
     const { data: milestoneData, error: milestoneError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('id', milestoneId)
       .eq('path_id', pathId)
@@ -64,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
 
     // 更新里程碑状态
     const { error: updateError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .update({ status })
       .eq('id', milestoneId);
 
@@ -78,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
     if (status === 'completed') {
       // 获取下一个里程碑
       const { data: nextMilestoneData, error: nextMilestoneError } = await supabase
-        .from('classroom.milestone')
+        .from('milestone')
         .select('*')
         .eq('path_id', pathId)
         .eq('order_index', milestoneData.order_index + 1)
@@ -87,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
       if (!nextMilestoneError && nextMilestoneData) {
         // 解锁下一个里程碑
         const { error: unlockError } = await supabase
-          .from('classroom.milestone')
+          .from('milestone')
           .update({ status: 'in-progress' })
           .eq('id', nextMilestoneData.id);
 
@@ -103,7 +105,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
 
     // 获取更新后的学习路径进度
     const { data: updatedPathData, error: updatedPathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('progress')
       .eq('id', pathId)
       .single();

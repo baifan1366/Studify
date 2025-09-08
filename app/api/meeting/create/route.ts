@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // 在数据库中创建会议记录
     const { data: meetingData, error: meetingError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .insert({
         public_id: meetingId,
         course_id: courseId || null,
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     // 创建会议参与者记录
     const { error: participantError } = await supabase
-      .from('classroom.session_participant')
+      .from('session_participant')
       .insert({
         session_id: meetingData.id,
         user_id: authResult.user.id,
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     // 创建白板会话
     const { error: whiteboardError } = await supabase
-      .from('classroom.whiteboard_session')
+      .from('whiteboard_session')
       .insert({
         session_id: meetingData.id,
         created_by: authResult.user.id,

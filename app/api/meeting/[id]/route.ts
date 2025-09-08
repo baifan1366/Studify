@@ -6,10 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
 
@@ -18,11 +19,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select(`
         *,
         host:host_id(id, name, avatar_url),
-        participants:classroom.session_participant(user_id, role, joined_at, left_at)
+        participants:session_participant(user_id, role, joined_at, left_at)
       `)
       .eq('public_id', id)
       .single();
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     // 获取白板会话信息
     const { data: whiteboardData, error: whiteboardError } = await supabase
-      .from('classroom.whiteboard_session')
+      .from('whiteboard_session')
       .select('*')
       .eq('session_id', sessionData.id)
       .single();
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     // 获取AI Copilot状态
     const { data: aiCopilotData, error: aiCopilotError } = await supabase
-      .from('classroom.ai_copilot')
+      .from('ai_copilot')
       .select('*')
       .eq('session_id', sessionData.id)
       .single();

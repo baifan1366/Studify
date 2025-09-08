@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@/utils/supabase/server';
+import { supabase } from '@/utils/supabase/client';
 import { ChatMessage } from '@/interface/classroom/chat-message-interface';
 
 interface MeetingChatProps {
@@ -67,30 +67,25 @@ export default function MeetingChat({ meetingId, userId }: MeetingChatProps) {
   });
 
   useEffect(() => {
-    const initializeSupabase = async () => {
-      const client = await createClient();
-      const channel = client
-        .channel(`chat-${meetingId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'classroom',
-            table: 'chat_message',
-            filter: `session_id=eq.${meetingId}`,
-          },
-          (payload: any) => {
-            queryClient.invalidateQueries({ queryKey: ['chat-messages', meetingId] });
-          }
-        )
-        .subscribe();
+    const channel = supabase
+      .channel(`chat-${meetingId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'classroom',
+          table: 'chat_message',
+          filter: `session_id=eq.${meetingId}`,
+        },
+        (payload: any) => {
+          queryClient.invalidateQueries({ queryKey: ['chat-messages', meetingId] });
+        }
+      )
+      .subscribe();
 
-      return () => {
-        client.removeChannel(channel);
-      };
+    return () => {
+      supabase.removeChannel(channel);
     };
-
-    initializeSupabase();
   }, [meetingId, queryClient]);
 
   useEffect(() => {

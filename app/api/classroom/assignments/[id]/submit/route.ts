@@ -7,7 +7,8 @@ import { cookies } from 'next/headers';
  * POST /api/classroom/assignments/:id/submit
  * Body: { answer: string, fileUrl?: string }
  */
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: { id: string } }) {
+  const { params } = context;
   const assignmentId = params.id;
   
 const supabase = await createServerClient();

@@ -20,52 +20,60 @@ const supabase = await createServerClient();
   const userId = session.user.id;
   
   try {
-    let query = supabase
-      .from('assessment.assignment')
+    // Get all assignments first
+    const { data: assignments, error: assignmentError } = await supabase
+      .from('assignment')
       .select(`
         id,
         title,
         course:course_id (id, title),
         description,
         due_at,
-        submission:assessment.submission!inner(id, user_id)
+        created_at
       `)
-      .eq('submission.user_id', userId)
       .eq('is_deleted', false);
-    
-    const now = new Date().toISOString();
-    
-    // 根据状态筛选
-    switch (state) {
-      case 'upcoming':
-        // due_on > now() 且未提交
-        query = query
-          .gt('due_at', now)
-          .is('submission.id', null);
-        break;
-      case 'incomplete':
-        // due_on < now() 且未提交
-        query = query
-          .lt('due_at', now)
-          .is('submission.id', null);
-        break;
-      case 'submitted':
-        // 已提交
-        query = query
-          .not('submission.id', 'is', null);
-        break;
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Error fetching assignments:', error);
+      
+    if (assignmentError) {
+      console.error('Error fetching assignments:', assignmentError);
       return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 });
     }
     
+    // Get user submissions for these assignments
+    const assignmentIds = assignments?.map(a => a.id) || [];
+    const { data: submissions } = await supabase
+      .from('submission')
+      .select('id, assignment_id, user_id')
+      .in('assignment_id', assignmentIds)
+      .eq('user_id', userId);
+    
+    const now = new Date().toISOString();
+    
+    // Create submission lookup map
+    const submissionMap = new Map();
+    submissions?.forEach(sub => {
+      submissionMap.set(sub.assignment_id, sub);
+    });
+    
+    // Filter assignments based on state
+    const filteredAssignments = assignments?.filter(assignment => {
+      const hasSubmission = submissionMap.has(assignment.id);
+      const isOverdue = new Date(assignment.due_at) < new Date();
+      
+      switch (state) {
+        case 'upcoming':
+          return !isOverdue && !hasSubmission;
+        case 'incomplete':
+          return isOverdue && !hasSubmission;
+        case 'submitted':
+          return hasSubmission;
+        default:
+          return true;
+      }
+    }) || [];
+    
     return NextResponse.json({
       success: true,
-      data: data.map(item => ({
+      data: filteredAssignments.map((item: any) => ({
         id: item.id,
         title: item.title,
         course_name: item.course?.title || 'Unknown Course',

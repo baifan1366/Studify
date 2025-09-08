@@ -5,17 +5,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { getTranslations } from "next-intl/server";
 
 export default async function Step2Page({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const t = await getTranslations("OnboardingTutorStep2Page");
 
   return (
     <OnboardingStep
       title={t("expertise_title")}
       description={t("expertise_description")}
-      prevHref={`/${locale}/tutor/step1`}
+      prevAction={() => window.history.back()}
     >
       <div className="space-y-4">
         <div>

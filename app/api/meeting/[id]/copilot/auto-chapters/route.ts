@@ -6,10 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id, title')
       .eq('public_id', id)
       .single();
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议转录记录
     const { data: transcriptions, error: transcriptError } = await supabase
-      .from('classroom.transcription')
+      .from('transcription')
       .select('content, timestamp, user_id')
       .eq('session_id', sessionData.id)
       .order('timestamp', { ascending: true });
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 保存章节时间戳到数据库
     const { data: chaptersData, error: chaptersError } = await supabase
-      .from('classroom.meeting_chapters')
+      .from('meeting_chapters')
       .insert({
         session_id: sessionData.id,
         chapters: chapters,

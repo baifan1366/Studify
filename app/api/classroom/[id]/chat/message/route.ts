@@ -9,8 +9,9 @@ import { cookies } from 'next/headers';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const { params } = context;
   try {
     const supabase = await createServerClient();
 

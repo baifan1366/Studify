@@ -195,7 +195,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     if (!course || !currentLessonId) return null;
     
     for (const module of course.modules || []) {
-      const lesson = module.lessons?.find(l => l.public_id === currentLessonId);
+      const lesson = module.lessons?.find((l: any) => l.public_id === currentLessonId);
       if (lesson) return lesson;
     }
     return null;
@@ -277,7 +277,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const handlePreviousLesson = () => {
     if (!currentLessonId) return;
     
-    const currentIndex = allLessons.findIndex(l => l.public_id === currentLessonId);
+    const currentIndex = allLessons.findIndex((l: any) => l.public_id === currentLessonId);
     if (currentIndex > 0) {
       setCurrentLessonId(allLessons[currentIndex - 1].public_id);
     }
@@ -286,7 +286,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const handleNextLesson = () => {
     if (!currentLessonId) return;
     
-    const currentIndex = allLessons.findIndex(l => l.public_id === currentLessonId);
+    const currentIndex = allLessons.findIndex((l: any) => l.public_id === currentLessonId);
     if (currentIndex < allLessons.length - 1) {
       setCurrentLessonId(allLessons[currentIndex + 1].public_id);
     }
@@ -328,9 +328,9 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     <div className="w-full">
       {/* Bilibili Video Player */}
       <div className="mb-6">
-        {currentLesson?.video_url ? (
+        {currentLesson?.content_url ? (
           <BilibiliVideoPlayer
-            src={currentLesson.video_url}
+            src={currentLesson.content_url}
             title={currentLesson.title || 'Course Lesson'}
             poster={course?.thumbnail_url || undefined}
             danmakuMessages={danmakuMessages}
@@ -355,7 +355,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         <div className="lg:col-span-1 bg-white rounded-lg shadow-sm border p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Course Content</h3>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {course.modules?.map((module: any) => (
+            {course?.modules?.map((module: any) => (
               <div key={module.id} className="mb-6">
                 <h4 className="font-semibold text-gray-900 mb-3">{module.title}</h4>
                 <div className="space-y-2">

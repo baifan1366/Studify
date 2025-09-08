@@ -5,10 +5,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getTranslations } from "next-intl/server";
 
 export default async function Step3Page({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const t = await getTranslations("OnboardingTutorStep3Page");
 
   return (

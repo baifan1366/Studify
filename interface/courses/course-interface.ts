@@ -40,4 +40,20 @@ export interface Course {
   auto_create_classroom?: boolean;
   auto_create_community?: boolean;
   status?: 'active' | 'pending' | 'inactive';
+  
+  // Related data (populated via joins)
+  modules?: Array<{
+    id: number;
+    public_id: string;
+    title: string;
+    position: number;
+    lessons?: Array<{
+      id: number;
+      public_id: string;
+      title: string;
+      kind: 'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard';
+      content_url?: string;
+      duration_sec?: number;
+    }>;
+  }>;
 }

@@ -36,7 +36,7 @@ const supabase = await createServerClient();
   try {
     // 获取错题本列表
     const { data: mistakes, error } = await supabase
-      .from('classroom.mistake_book')
+      .from('mistake_book')
       .select(`
         id,
         mistake_content,
@@ -58,10 +58,10 @@ const supabase = await createServerClient();
     
     // 获取相关课程信息
     const courseIds = mistakes
-      .filter(m => m.assignment?.course_id)
-      .map(m => m.assignment.course_id);
+      .filter(m => m.assignment && Array.isArray(m.assignment) && m.assignment[0]?.course_id)
+      .map(m => m.assignment[0].course_id);
     
-    let courses = {};
+    let courses: Record<string, string> = {};
     if (courseIds.length > 0) {
       const { data: coursesData } = await supabase
         .from('courses.course')
@@ -69,7 +69,7 @@ const supabase = await createServerClient();
         .in('id', courseIds);
       
       if (coursesData) {
-        courses = coursesData.reduce((acc, course) => {
+        courses = coursesData.reduce((acc: Record<string, string>, course) => {
           acc[course.id] = course.title;
           return acc;
         }, {});
@@ -84,10 +84,10 @@ const supabase = await createServerClient();
       knowledge_points: mistake.knowledge_points || [],
       recommended_exercises: mistake.recommended_exercises || {},
       created_at: mistake.created_at,
-      assignment: mistake.assignment ? {
-        id: mistake.assignment.id,
-        title: mistake.assignment.title,
-        course: courses[mistake.assignment.course_id] || 'Unknown Course'
+      assignment: mistake.assignment && Array.isArray(mistake.assignment) && mistake.assignment[0] ? {
+        id: mistake.assignment[0].id,
+        title: mistake.assignment[0].title,
+        course: courses[mistake.assignment[0].course_id] || 'Unknown Course'
       } : null
     }));
     

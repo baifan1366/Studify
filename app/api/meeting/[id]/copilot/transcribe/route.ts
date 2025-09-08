@@ -6,10 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
     const { audioData, language = 'zh' } = await req.json();
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id, status')
       .eq('public_id', id)
       .single();
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 保存转录结果到数据库
     const { data: transcriptData, error: transcriptError } = await supabase
-      .from('classroom.transcription')
+      .from('transcription')
       .insert({
         session_id: sessionData.id,
         user_id: user.id,
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 同时作为聊天消息发送
     const { error: chatError } = await supabase
-      .from('classroom.chat_message')
+      .from('chat_message')
       .insert({
         session_id: sessionData.id,
         sender_id: user.id,

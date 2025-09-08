@@ -27,6 +27,7 @@ export async function GET(req: Request) {
       .select("*")
       .eq("is_deleted", false)
       .eq("visibility", "public")
+      .eq("status", "active")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
       certificate_template: body.certificate_template ?? null,
       auto_create_classroom: !!body.auto_create_classroom,
       auto_create_community: !!body.auto_create_community,
+      status: body.status ?? "inactive",
     };
 
     if (!payload.title) {

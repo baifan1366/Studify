@@ -1,10 +1,52 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown } from 'lucide-react';
+import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLessonByCourseModuleId } from '@/hooks/course/use-course-lesson';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useLessonByCourseModuleId, useUpdateLesson, useDeleteLesson } from '@/hooks/course/use-course-lesson';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { useTranslations } from 'next-intl';
 
@@ -25,6 +67,7 @@ interface CourseLessonGridProps {
   courseId?: number;
   onLessonSelect?: (lessonId: number) => void;
   selectedLessonId?: number;
+  courseStatus?: 'active' | 'pending' | 'inactive';
 }
 
 type FilterType = 'all' | 'video' | 'reading' | 'quiz' | 'assignment';
@@ -34,9 +77,11 @@ export default function CourseLessonGrid({
   moduleId, 
   courseId,
   onLessonSelect,
-  selectedLessonId
+  selectedLessonId,
+  courseStatus = 'inactive'
 }: CourseLessonGridProps) {
   const t = useTranslations('CourseLessonGrid');
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('order');
@@ -44,11 +89,25 @@ export default function CourseLessonGrid({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
   
+  // State for edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editKind, setEditKind] = useState<'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard'>('video');
+  const [editContentUrl, setEditContentUrl] = useState('');
+  const [editDurationSec, setEditDurationSec] = useState<number | undefined>(undefined);
+  
+  // State for delete confirmation
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingLesson, setDeletingLesson] = useState<Lesson | null>(null);
+  
   // Fetch lessons using the hook - only fetch if both IDs are available
   const { data: rawLessons = [], isLoading, error } = useLessonByCourseModuleId(
-    courseId?.toString() || '',
-    moduleId?.toString() || ''
+    courseId || 0,
+    moduleId || 0
   );
+  const updateLesson = useUpdateLesson();
+  const deleteLesson = useDeleteLesson();
   
   // Transform API data to UI format
   const lessons: CourseLesson[] = useMemo(() => {
@@ -97,6 +156,88 @@ export default function CourseLessonGrid({
 
     return filtered;
   }, [lessons, searchTerm, filterType, sortBy, showCompleted]);
+
+  const isEditDeleteDisabled = courseStatus === 'pending';
+
+  const handleEdit = (lesson: Lesson, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isEditDeleteDisabled) return;
+    setEditingLesson(lesson);
+    setEditTitle(lesson.title);
+    setEditKind(lesson.kind);
+    setEditContentUrl(lesson.content_url || '');
+    setEditDurationSec(lesson.duration_sec);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (lesson: Lesson, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isEditDeleteDisabled) return;
+    setDeletingLesson(lesson);
+    setDeleteOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingLesson || !editTitle.trim() || !courseId || !moduleId) return;
+    
+    try {
+      await updateLesson.mutateAsync({
+        courseId,
+        moduleId,
+        lessonId: editingLesson.id,
+        body: {
+          title: editTitle.trim(),
+          kind: editKind,
+          content_url: editContentUrl.trim() || undefined,
+          duration_sec: editDurationSec
+        }
+      });
+      
+      toast({
+        title: t('success'),
+        description: t('lessonUpdated'),
+      });
+      
+      setEditOpen(false);
+      setEditingLesson(null);
+      setEditTitle('');
+      setEditKind('video');
+      setEditContentUrl('');
+      setEditDurationSec(undefined);
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: t('updateError'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingLesson || !courseId || !moduleId) return;
+    
+    try {
+      await deleteLesson.mutateAsync({
+        courseId,
+        moduleId,
+        lessonId: deletingLesson.id
+      });
+      
+      toast({
+        title: t('success'),
+        description: t('lessonDeleted'),
+      });
+      
+      setDeleteOpen(false);
+      setDeletingLesson(null);
+    } catch (error) {
+      toast({
+        title: t('error'),
+        description: t('deleteError'),
+        variant: 'destructive',
+      });
+    }
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -359,6 +500,51 @@ export default function CourseLessonGrid({
                       <span className="text-xs text-muted-foreground">{lesson.rating}</span>
                     </div>
                   )}
+                  
+                  {/* Action buttons for list view */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={isEditDeleteDisabled}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={(e) => handleEdit(lesson, e)}
+                                disabled={isEditDeleteDisabled}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                {t('edit')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => handleDelete(lesson, e)}
+                                disabled={isEditDeleteDisabled}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {t('delete')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TooltipTrigger>
+                      {isEditDeleteDisabled && (
+                        <TooltipContent>
+                          <p>{t('pendingCourseRestriction')}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </>
             )}
@@ -375,6 +561,116 @@ export default function CourseLessonGrid({
           </p>
         </div>
       )}
+      
+      {/* Edit Lesson Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{t('editLesson')}</DialogTitle>
+            <DialogDescription>
+              {t('editLessonDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">
+                {t('title')}
+              </Label>
+              <Input
+                id="title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="col-span-3"
+                placeholder={t('enterLessonTitle')}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="kind" className="text-right">
+                {t('type')}
+              </Label>
+              <Select value={editKind} onValueChange={(value: any) => setEditKind(value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder={t('selectLessonType')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="video">{t('video')}</SelectItem>
+                  <SelectItem value="live">{t('live')}</SelectItem>
+                  <SelectItem value="document">{t('document')}</SelectItem>
+                  <SelectItem value="quiz">{t('quiz')}</SelectItem>
+                  <SelectItem value="assignment">{t('assignment')}</SelectItem>
+                  <SelectItem value="whiteboard">{t('whiteboard')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="content_url" className="text-right">
+                {t('contentUrl')}
+              </Label>
+              <Input
+                id="content_url"
+                value={editContentUrl}
+                onChange={(e) => setEditContentUrl(e.target.value)}
+                className="col-span-3"
+                placeholder={t('enterContentUrl')}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="duration" className="text-right">
+                {t('duration')} (sec)
+              </Label>
+              <Input
+                id="duration"
+                type="number"
+                value={editDurationSec || ''}
+                onChange={(e) => setEditDurationSec(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="col-span-3"
+                placeholder={t('enterDuration')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditOpen(false)}
+            >
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleEditSubmit}
+              disabled={!editTitle.trim() || updateLesson.isPending}
+            >
+              {updateLesson.isPending ? t('updating') : t('update')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteLesson')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteLessonConfirmation', { title: deletingLesson?.title || '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteLesson.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLesson.isPending ? t('deleting') : t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

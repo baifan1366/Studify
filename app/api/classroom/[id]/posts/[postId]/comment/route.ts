@@ -9,8 +9,9 @@ import { cookies } from 'next/headers';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; postId: string } }
+  context: { params: { id: string; postId: string } }
 ) {
+  const { params } = context;
   try {
     // 创建服务端Supabase客户端
 const supabase = await createServerClient();

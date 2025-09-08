@@ -3,14 +3,16 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 更新学习路径进度
-export async function PATCH(req: NextRequest, { params }: { params: { pathId: string } }) {
+export async function PATCH(req: NextRequest, context: { params: { id: string , pathId:string}  }) {
+  const { params } = context;
   try {
     // 验证用户身份
-    const user = await authorize('student');
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
-
+    const user = authResult;
+    
     const { pathId } = params;
     const { milestoneId, status } = await req.json();
 
@@ -40,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { pathId: st
     }
 
     // 检查权限
-    if (pathData.user_id !== user.id && user.role !== 'tutor') {
+    if (pathData.user_id !== user.user.id && user.payload.role !== 'tutor') {
       return NextResponse.json({ error: '无权更新此学习路径' }, { status: 403 });
     }
 

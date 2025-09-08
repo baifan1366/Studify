@@ -9,11 +9,12 @@ import { cookies } from 'next/headers';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const { params } = context;
   try {
     // 创建服务端Supabase客户端
-const supabase = await createServerClient();
+    const supabase = await createServerClient();
 
     // 获取当前用户
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -74,14 +75,14 @@ const supabase = await createServerClient();
     }
 
     // 格式化消息数据
-    const formattedMessages = messages.map(message => ({
+    const formattedMessages = messages?.map(message => ({
       id: message.id,
       content: message.content,
       authorId: message.user_id,
-      authorName: message.profiles.full_name || message.profiles.email.split('@')[0],
-      authorRole: message.classroom_members.role,
+      authorName: message.profiles?.[0]?.full_name || message.profiles?.[0]?.email?.split('@')[0] || 'Unknown',
+      authorRole: message.classroom_members?.[0]?.role || 'member',
       createdAt: message.created_at,
-    }));
+    })) || [];
 
     return NextResponse.json(formattedMessages);
   } catch (error) {

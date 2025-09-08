@@ -3,7 +3,11 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 触发里程碑奖励
-export async function POST(req: NextRequest, { params }: { params: { pathId: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: { id: string , pathId:string} }
+) {
+  const { params } = context;
   try {
     // 验证用户身份
     const authResult = await authorize('student');

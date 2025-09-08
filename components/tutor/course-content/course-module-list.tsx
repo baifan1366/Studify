@@ -42,6 +42,8 @@ import { Label } from '@/components/ui/label';
 import CreateCourseModule from './create-course-module';
 import { useModuleByCourseId, useUpdateModule, useDeleteModule } from '@/hooks/course/use-course-module';
 import { Module } from '@/interface/courses/module-interface';
+import { courseModuleSchema } from '@/lib/validations/course-module';
+import { z } from 'zod';
 
 // Extended interface for UI display
 interface CourseModule extends Module {
@@ -72,6 +74,7 @@ export default function CourseModuleList({
   const [editOpen, setEditOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   
   // State for delete confirmation
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -89,7 +92,7 @@ export default function CourseModuleList({
     onModuleSelect?.(moduleId);
   };
 
-  const isEditDeleteDisabled = courseStatus === 'pending';
+  const isEditDeleteDisabled = courseStatus === 'active' || courseStatus === 'pending';
 
   const handleEdit = (module: Module, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -107,10 +110,25 @@ export default function CourseModuleList({
   };
 
   const handleEditSubmit = async () => {
-    if (!editingModule || !editTitle.trim()) return;
+    
+    if (!editingModule) {
+      return;
+    }
     
     try {
-      await updateModule.mutateAsync({
+      // Zod validation
+      const formData = {
+        courseId,
+        title: editTitle.trim(),
+        position: editingModule.position || 1
+      };
+      
+      const moduleT = (key: string) => key; // Fallback translation function
+      const schema = courseModuleSchema(moduleT);
+      schema.parse(formData);
+      setEditErrors({});
+      
+      const result = await updateModule.mutateAsync({
         courseId,
         moduleId: editingModule.id,
         body: { title: editTitle.trim() }
@@ -124,12 +142,23 @@ export default function CourseModuleList({
       setEditOpen(false);
       setEditingModule(null);
       setEditTitle('');
+      setEditErrors({});
     } catch (error) {
-      toast({
-        title: t('error'),
-        description: t('updateError'),
-        variant: 'destructive',
-      });
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.issues.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0].toString()] = err.message;
+          }
+        });
+        setEditErrors(newErrors);
+      } else {
+        toast({
+          title: t('error'),
+          description: t('updateError'),
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -192,7 +221,9 @@ export default function CourseModuleList({
           <BookOpen className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-semibold text-foreground">{t('courseModules')}</h1>
         </div>
-        <CreateCourseModule courseId={courseId} />
+        {courseStatus === 'inactive' && (
+          <CreateCourseModule courseId={courseId} courseStatus={courseStatus}/>
+        )}
       </div>
       
       {modules.map((module) => (
@@ -266,7 +297,7 @@ export default function CourseModuleList({
                   </TooltipTrigger>
                   {isEditDeleteDisabled && (
                     <TooltipContent>
-                      <p>{t('pendingCourseRestriction')}</p>
+                      <p>{t('activePendingCourseRestriction')}</p>
                     </TooltipContent>
                   )}
                 </Tooltip>
@@ -301,9 +332,20 @@ export default function CourseModuleList({
                 id="title"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="col-span-3"
+                className={cn(
+                  "col-span-3",
+                  editErrors.title && "border-destructive focus:border-destructive"
+                )}
                 placeholder={t('enterModuleTitle')}
               />
+              {editErrors.title && (
+                <div className="col-span-3 col-start-2">
+                  <span className="text-xs text-destructive">{editErrors.title}</span>
+                </div>
+              )}
+              <div className="col-span-3 col-start-2">
+                <span className="text-xs text-muted-foreground">{editTitle.length}/100</span>
+              </div>
             </div>
           </div>
           <DialogFooter>

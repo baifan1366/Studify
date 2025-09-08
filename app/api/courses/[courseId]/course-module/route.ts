@@ -8,10 +8,10 @@ export async function GET(
 ) {
   try {
     const { courseId } = await context.params; // Await params here
+    const courseIdNum = parseInt(courseId, 10);
     const client = await createServerClient();
-    const courseIdNum = parseInt(courseId);
 
-    if (isNaN(courseIdNum)) {
+    if (!courseId) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
     }
 
@@ -42,12 +42,31 @@ export async function POST(
 ) {
   try {
     const { courseId } = await context.params; // Await params here
+    const courseIdNum = parseInt(courseId, 10);
     const body = await req.json();
     const client = await createServerClient();
-    const courseIdNum = parseInt(courseId);
 
-    if (isNaN(courseIdNum)) {
+    if (!courseId) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
+    }
+
+    // Check course status first
+    const { data: course, error: courseError } = await client
+      .from("course")
+      .select("status")
+      .eq("id", courseIdNum)
+      .eq("is_deleted", false)
+      .single();
+
+    if (courseError) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
+    // Only allow module creation if course status is 'inactive'
+    if (course.status !== 'inactive') {
+      return NextResponse.json({ 
+        error: `Cannot create module for course with status '${course.status}'. Only courses with 'inactive' status can have modules created.` 
+      }, { status: 403 });
     }
 
     const payload = {

@@ -64,7 +64,7 @@ export function useUpdateLesson() {
       body: Record<string, any>;
     }) =>
       apiSend({
-        method: 'PUT',
+        method: 'PATCH',
         url: coursesApi.updateLessonById(courseId, moduleId, lessonId),
         body,
       }),

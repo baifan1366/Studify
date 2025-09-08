@@ -6,14 +6,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ courseId: 
   try {
     const client = await createServerClient();
     const { courseId } = await params;
-    
-    // Check if courseId is a UUID format
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+    const courseIdNum = parseInt(courseId, 10);
     
     const { data, error } = await client
       .from("course")
       .select("*")
-      .eq(isUUID ? "public_id" : "slug", courseId)
+      .eq("id", courseIdNum)
       .eq("is_deleted", false)
       .single();
 
@@ -30,12 +28,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
     const body = await req.json();
     const client = await createServerClient();
     const { courseId } = await params;
+    const courseIdNum = parseInt(courseId, 10);
 
-    // Optional: authorize ownership
-    // const { data: auth } = await client.auth.getUser();
+    // Check current course status first
+    const { data: currentCourse, error: fetchError } = await client
+      .from("course")
+      .select("status")
+      .eq("id", courseIdNum)
+      .eq("is_deleted", false)
+      .single();
 
-    // Check if courseId is a UUID format
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 404 });
+    }
+
+    // Only allow edits if course status is 'inactive'
+    if (currentCourse.status !== 'inactive') {
+      return NextResponse.json({ 
+        error: `Cannot edit course with status '${currentCourse.status}'. Only courses with 'inactive' status can be edited.` 
+      }, { status: 403 });
+    }
 
     const updates = {
       title: body.title,
@@ -66,7 +78,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
     const { data, error } = await client
       .from("course")
       .update(updates)
-      .eq(isUUID ? "public_id" : "slug", courseId)
+      .eq("id", courseIdNum)
       .eq("is_deleted", false)
       .select("*")
       .single();
@@ -83,14 +95,31 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ courseI
   try {
     const client = await createServerClient();
     const { courseId } = await params;
+    const courseIdNum = parseInt(courseId, 10);
     
-    // Check if courseId is a UUID format
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+    // Check current course status first
+    const { data: currentCourse, error: fetchError } = await client
+      .from("course")
+      .select("status")
+      .eq("id", courseIdNum)
+      .eq("is_deleted", false)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 404 });
+    }
+
+    // Only allow deletion if course status is 'inactive'
+    if (currentCourse.status !== 'inactive') {
+      return NextResponse.json({ 
+        error: `Cannot delete course with status '${currentCourse.status}'. Only courses with 'inactive' status can be deleted.` 
+      }, { status: 403 });
+    }
     
     const { error } = await client
       .from("course")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq(isUUID ? "public_id" : "slug", courseId);
+      .eq("id", courseIdNum);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ success: true });

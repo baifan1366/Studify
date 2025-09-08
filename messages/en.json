@@ -977,7 +977,7 @@
     "deleteError": "Failed to delete course",
     "noCourses": "No courses found",
     "error": "Error",
-    "preview": "Preview", 
+    "preview": "Preview",
     "edit": "Edit",
     "delete": "Delete",
     "courseManagement": "Course Management",
@@ -1004,7 +1004,17 @@
     "total_lessons_min": "Total lessons must be at least 1.",
     "total_lessons_max": "Total lessons cannot exceed 1,000,000.",
     "total_duration_min": "Total duration must be at least 1 minute.",
-    "total_duration_max": "Total duration cannot exceed 1,000,000 minutes."
+    "total_duration_max": "Total duration cannot exceed 1,000,000 minutes.",
+    "marketing": "Marketing",
+    "data_science": "Data Science",
+    "languages": "Languages",
+    "other": "Other",
+    "difficulty_level": "Difficulty Level",
+    "select_level": "Select Level",
+    "beginner": "Beginner",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+    "create_course_button": "Create Course"
   },
   "EditCourse": {
     "dialog_title": "Edit Course",
@@ -1126,14 +1136,13 @@
     "collapseModulesPanel": "Collapse modules panel",
     "showModulesPanel": "Show modules panel",
     "courseModules": "Course Modules",
-    "selectModuleToView": "Select a module to view its lessons",
     "courseLessons": "Course Lessons",
-    "moduleXLessons": "Module {moduleId} lessons",
-    "selectModuleToViewLessons": "Select a module to view lessons",
-    "courseId": "Course ID",
+    "moduleXLessons": "Lessons in module {moduleId}",
+    "selectModuleToViewLessons": "Select a module to view its lessons",
     "selectModule": "Select a Module",
     "chooseModuleFromLeft": "Choose a module from the left panel to view its lessons and start learning.",
-    "showModules": "Show Modules"
+    "showModules": "Show Modules",
+    "courseId": "Course ID"
   },
   "CourseModuleList": {
     "courseModules": "Course Modules",
@@ -1163,6 +1172,7 @@
     "moduleDeleted": "Module deleted successfully",
     "updateError": "Failed to update module. Please try again.",
     "deleteError": "Failed to delete module. Please try again.",
+    "activePendingCourseRestriction": "Cannot edit or delete modules while course is active or pending. Please set course to inactive first.",
     "pendingCourseRestriction": "Cannot edit or delete modules while course is pending. Please set course to inactive first."
   },
   "CourseLessonGrid": {
@@ -1230,7 +1240,11 @@
     "enterContentUrl": "Enter content URL",
     "duration": "Duration",
     "enterDuration": "Enter duration",
-    "deleteLesson": "Delete Lesson"
+    "deleteLesson": "Delete Lesson",
+    "validationError": "Validation Error",
+    "pleaseFixErrors": "Please fix errors",
+    "onlyPendingCoursesCanEdit": "Only pending courses can be edited.",
+    "onlyPendingCoursesCanDelete": "Only pending courses can be deleted."
   },
   "CoursePage": {
     "metadata_title": "Course - Studify",
@@ -1238,5 +1252,25 @@
     "metadata_keywords": "course,learning,education,online course,skill development",
     "og_title": "Course - Studify",
     "og_description": "Interactive learning experience with progress tracking and skill development"
+  },
+  "CourseStatusErrors": {
+    "course_edit_active": "Cannot edit course with status 'active'. Only courses with 'inactive' status can be edited.",
+    "course_edit_pending": "Cannot edit course with status 'pending'. Only courses with 'inactive' status can be edited.",
+    "course_delete_active": "Cannot delete course with status 'active'. Only courses with 'inactive' status can be deleted.",
+    "course_delete_pending": "Cannot delete course with status 'pending'. Only courses with 'inactive' status can be deleted.",
+    "module_create_active": "Cannot create module for course with status 'active'. Only courses with 'inactive' status can have modules created.",
+    "module_create_pending": "Cannot create module for course with status 'pending'. Only courses with 'inactive' status can have modules created.",
+    "module_edit_active": "Cannot update module for course with status 'active'. Only courses with 'inactive' status can have modules updated.",
+    "module_edit_pending": "Cannot update module for course with status 'pending'. Only courses with 'inactive' status can have modules updated.",
+    "module_delete_active": "Cannot delete module for course with status 'active'. Only courses with 'inactive' status can have modules deleted.",
+    "module_delete_pending": "Cannot delete module for course with status 'pending'. Only courses with 'inactive' status can have modules deleted.",
+    "lesson_create_active": "Cannot create lesson for course with status 'active'. Only courses with 'inactive' status can have lessons created.",
+    "lesson_create_pending": "Cannot create lesson for course with status 'pending'. Only courses with 'inactive' status can have lessons created.",
+    "lesson_edit_active": "Cannot update lesson for course with status 'active'. Only courses with 'inactive' status can have lessons updated.",
+    "lesson_edit_pending": "Cannot update lesson for course with status 'pending'. Only courses with 'inactive' status can have lessons updated.",
+    "lesson_delete_active": "Cannot delete lesson for course with status 'active'. Only courses with 'inactive' status can have lessons deleted.",
+    "lesson_delete_pending": "Cannot delete lesson for course with status 'pending'. Only courses with 'inactive' status can have lessons deleted.",
+    "status_restrictions_tooltip": "Only inactive courses allow editing. Change course status to inactive first.",
+    "deactivate_first": "Please deactivate the course first to enable editing."
   }
 }

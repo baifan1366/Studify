@@ -14,12 +14,14 @@ import { courseModuleSchema } from '@/lib/validations/course-module';
 import { useCreateModule } from '@/hooks/course/use-course-module';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
+import { canEditModules, getStatusRestrictionMessage, CourseStatus } from '@/utils/course-status';
 
 interface CreateCourseModuleProps {
   courseId?: number;
+  courseStatus?: CourseStatus;
 }
 
-export default function CreateCourseModule({ courseId }: CreateCourseModuleProps) {
+export default function CreateCourseModule({ courseId, courseStatus }: CreateCourseModuleProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [title, setTitle] = useState('');
     const [position, setPosition] = useState(1);
@@ -29,6 +31,9 @@ export default function CreateCourseModule({ courseId }: CreateCourseModuleProps
     const t = useTranslations('CreateCourseModule');
     const moduleT = useTranslations('CourseModuleSchema');
     const createModuleMutation = useCreateModule();
+    
+    const isDisabled = !canEditModules(courseStatus || 'pending' as CourseStatus);
+    const restrictionMessage = getStatusRestrictionMessage(courseStatus || 'pending' as CourseStatus);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,7 +47,7 @@ export default function CreateCourseModule({ courseId }: CreateCourseModuleProps
         
         try {
             const formData = {
-                courseId: courseId.toString(),
+                courseId,
                 title,
                 position,
             };
@@ -51,10 +56,7 @@ export default function CreateCourseModule({ courseId }: CreateCourseModuleProps
             schema.parse(formData);
             setErrors({});
             
-            await createModuleMutation.mutateAsync({
-                courseId,
-                body: formData
-            });
+            const result = await createModuleMutation.mutateAsync(formData);
             
             // Reset form
             setTitle('');
@@ -69,17 +71,29 @@ export default function CreateCourseModule({ courseId }: CreateCourseModuleProps
                     }
                 });
                 setErrors(newErrors);
-            }
+            } 
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!isDisabled) {
+                setIsOpen(open);
+            }
+        }}>
             <DialogTrigger asChild>
-                <Button variant="default">
-                    <Plus className="h-4 w-4 mr-2" />
+                <Button 
+                    variant="default"
+                    disabled={isDisabled}
+                    className={cn(
+                        'flex items-center gap-2',
+                        isDisabled && 'opacity-50 cursor-not-allowed'
+                    )}
+                    title={isDisabled ? restrictionMessage : ''}
+                >
+                    <Plus size={16} />
                     {t('create_module_button')}
                 </Button>
             </DialogTrigger>

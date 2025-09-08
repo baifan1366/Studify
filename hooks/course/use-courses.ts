@@ -10,7 +10,7 @@ import { coursesApi } from '@/lib/api';
 /**
  * 获取所有课程
  */
-export function useCourses(owner_id?: string) {
+export function useCourses(owner_id?: number) {
   return useQuery<Course[]>({
     queryKey: ['courses', owner_id],
     queryFn: () => {
@@ -33,7 +33,7 @@ export function useMyCourses() {
 /**
  * 获取单个课程详情
  */
-export function useCourse(id?: string) {
+export function useCourse(id?: number) {
   return useQuery<Course>({
     queryKey: ['course', id],
     queryFn: () => {
@@ -76,7 +76,7 @@ export function useUpdateCourse() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...updates }: { id: string } & Partial<Omit<Course, 'id'>>) =>
+    mutationFn: ({ id, ...updates }: { id: number } & Partial<Omit<Course, 'id'>>) =>
       apiSend<Course>({
         url: coursesApi.update(id),
         method: 'PATCH',

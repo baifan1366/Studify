@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { courseLessonSchema } from "@/lib/validations/course-lesson";
+import { z } from "zod";
 
 // GET /api/courses/[courseId]/course-module/[moduleId]/course-lesson
 // List course lessons with specific courseId and moduleId
@@ -9,17 +11,12 @@ export async function GET(
 ) {
   try {
     const { courseId, moduleId } = await context.params; // 👈 Await params
+    const courseIdNum = parseInt(courseId, 10);
+    const moduleIdNum = parseInt(moduleId, 10);
     const client = await createServerClient();
 
-    const courseIdNum = parseInt(courseId);
-    const moduleIdNum = parseInt(moduleId);
-
-    if (isNaN(courseIdNum)) {
+    if (!courseId || !moduleId) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
-    }
-
-    if (isNaN(moduleIdNum)) {
-      return NextResponse.json({ error: "Invalid module ID" }, { status: 400 });
     }
 
     const { data, error } = await client
@@ -51,35 +48,63 @@ export async function POST(
 ) {
   try {
     const { courseId, moduleId } = await context.params; // 👈 Await params
+    const courseIdNum = parseInt(courseId, 10);
+    const moduleIdNum = parseInt(moduleId, 10);
     const body = await req.json();
     const client = await createServerClient();
 
-    const courseIdNum = parseInt(courseId);
-    const moduleIdNum = parseInt(moduleId);
-
-    if (isNaN(courseIdNum)) {
+    if (!courseId || !moduleId) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
     }
 
-    if (isNaN(moduleIdNum)) {
-      return NextResponse.json({ error: "Invalid module ID" }, { status: 400 });
+    // Check course status first
+    const { data: course, error: courseError } = await client
+      .from("course")
+      .select("status")
+      .eq("id", courseIdNum)
+      .eq("is_deleted", false)
+      .single();
+
+    if (courseError) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    const payload = {
-      title: body.title as string,
-      kind: body.kind as string,
-      content_url: body.content_url as string || null,
-      duration_sec: body.duration_sec as number || null,
-      course_id: courseIdNum,
-      module_id: moduleIdNum,
-    };
-
-    // Validate required fields
-    if (!payload.title) {
-      return NextResponse.json({ error: "title is required" }, { status: 422 });
+    // Only allow lesson creation if course status is 'inactive'
+    if (course.status !== 'inactive') {
+      return NextResponse.json({ 
+        error: `Cannot create lesson for course with status '${course.status}'. Only courses with 'inactive' status can have lessons created.` 
+      }, { status: 403 });
     }
-    if (!payload.kind) {
-      return NextResponse.json({ error: "kind is required" }, { status: 422 });
+
+    // Validate request body using Zod schema
+    let payload;
+    try {
+      const schema = courseLessonSchema((key: string) => key); // Simple key passthrough for server-side
+      const validatedData = schema.parse({
+        courseId: courseIdNum,
+        moduleId: moduleIdNum,
+        title: body.title,
+        kind: body.kind,
+        content_url: body.content_url,
+        duration_sec: body.duration_sec
+      });
+
+      payload = {
+        title: validatedData.title,
+        kind: validatedData.kind,
+        content_url: validatedData.content_url || null,
+        duration_sec: validatedData.duration_sec || null,
+        course_id: courseIdNum,
+        module_id: moduleIdNum,
+      };
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json({ 
+          error: "Validation failed", 
+          details: validationError.issues 
+        }, { status: 422 });
+      }
+      throw validationError;
     }
 
     const { data, error } = await client

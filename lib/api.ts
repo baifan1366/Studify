@@ -28,12 +28,12 @@ export const studentsApi = {
 // Courses API endpoints
 export const coursesApi = {
   list: "/api/courses",
-  listByOwnerId: (owner_id: string) => `/api/courses?owner_id=${owner_id}`,
+  listByOwnerId: (owner_id: number) => `/api/courses?owner_id=${owner_id}`,
   create: "/api/courses",
   search: (query: string) => `/api/courses/search?q=${encodeURIComponent(query)}`,
-  getById: (courseId: string) => `/api/courses/${courseId}`,
-  update: (courseId: string) => `/api/courses/${courseId}`,
-  updateStatus: (courseId: string) => `/api/courses/${courseId}/status`,
+  getById: (courseId: number) => `/api/courses/${courseId}`,
+  update: (courseId: number) => `/api/courses/${courseId}`,
+  updateStatus: (courseId: number) => `/api/courses/${courseId}/status`,
   delete: (courseId: number) => `/api/courses/${courseId}`,
   enroll: (courseId: number) => `/api/courses/${courseId}/enroll`,
   unenroll: (courseId: number) => `/api/courses/${courseId}/unenroll`,

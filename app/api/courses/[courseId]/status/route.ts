@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
-// PATCH /api/courses/[id]/status - update course status
+// PATCH /api/courses/[courseId]/status - update course status
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
     const body = await req.json();
     const client = await createServerClient();
-    const courseId = parseInt(params.id);
+    // Parse courseId from URL parameter (Next.js params are always strings)
+    const { courseId: courseIdString } = await params;
+    const courseId = parseInt(courseIdString, 10);
 
     if (!courseId || isNaN(courseId)) {
       return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
@@ -36,19 +38,28 @@ export async function PATCH(
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    // Business logic validation
-    if (currentCourse.status === 'pending' && status !== 'active' && status !== 'inactive') {
-      return NextResponse.json({ 
-        error: "Pending courses can only be changed to active (by admin) or inactive" 
-      }, { status: 400 });
-    }
-
-    // Only allow tutors to submit inactive courses to pending
-    // Admins can change any status (this would be handled by admin endpoints)
+    // Business logic validation based on corrected requirements
+    // Tutors can only:
+    // 1. Submit inactive courses for approval (inactive → pending)
+    // 2. Change active courses back to inactive (active → inactive)
+    
     if (status === 'pending' && currentCourse.status !== 'inactive') {
       return NextResponse.json({ 
         error: "Only inactive courses can be submitted for approval" 
       }, { status: 400 });
+    }
+
+    if (status === 'inactive' && currentCourse.status !== 'active') {
+      return NextResponse.json({ 
+        error: "Only active courses can be changed back to inactive" 
+      }, { status: 400 });
+    }
+
+    // Prevent tutors from directly setting courses to active (only admins should do this)
+    if (status === 'active') {
+      return NextResponse.json({ 
+        error: "Courses cannot be directly set to active. Only admins can approve pending courses." 
+      }, { status: 403 });
     }
 
     // Update the course status

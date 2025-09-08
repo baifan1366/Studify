@@ -16,15 +16,17 @@ import { courseLessonSchema } from '@/lib/validations/course-lesson';
 import { useCreateLesson } from '@/hooks/course/use-course-lesson';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
+import { canEditLessons, getStatusRestrictionMessage, CourseStatus } from '@/utils/course-status';
 
 const lessonKinds: Lesson['kind'][] = ['video', 'live', 'document', 'quiz', 'assignment', 'whiteboard'];
 
 interface CreateCourseLessonProps {
   courseId?: number;
   moduleId?: number;
+  courseStatus?: CourseStatus;
 }
 
-export default function CreateCourseLesson({ courseId, moduleId }: CreateCourseLessonProps) {
+export default function CreateCourseLesson({ courseId, moduleId, courseStatus }: CreateCourseLessonProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [title, setTitle] = useState('');
     const [kind, setKind] = useState<Lesson['kind']>('video');
@@ -36,10 +38,12 @@ export default function CreateCourseLesson({ courseId, moduleId }: CreateCourseL
     const t = useTranslations('CreateCourseLesson');
     const lessonT = useTranslations('CourseLessonSchema');
     const createLessonMutation = useCreateLesson();
+    
+    const isDisabled = !canEditLessons(courseStatus || 'pending' as CourseStatus);
+    const restrictionMessage = getStatusRestrictionMessage(courseStatus || 'pending' as CourseStatus);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
         if (!courseId || !moduleId) {
             setErrors({ 
                 courseId: !courseId ? t('course_id_required') : '',
@@ -52,8 +56,8 @@ export default function CreateCourseLesson({ courseId, moduleId }: CreateCourseL
         
         try {
             const formData = {
-                courseId: courseId.toString(),
-                moduleId: moduleId.toString(),
+                courseId,
+                moduleId,
                 title,
                 kind,
                 content_url: contentUrl || undefined,
@@ -64,9 +68,9 @@ export default function CreateCourseLesson({ courseId, moduleId }: CreateCourseL
             schema.parse(formData);
             setErrors({});
             
-            await createLessonMutation.mutateAsync({
-                courseId: courseId.toString(),
-                moduleId: moduleId.toString(),
+            const result = await createLessonMutation.mutateAsync({
+                courseId,
+                moduleId,
                 body: formData
             });
             
@@ -85,16 +89,28 @@ export default function CreateCourseLesson({ courseId, moduleId }: CreateCourseL
                     }
                 });
                 setErrors(newErrors);
-            }
+            } 
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+                    if (!isDisabled) {
+                        setIsOpen(open);
+                    }
+                }}>
             <DialogTrigger asChild>
-                <Button variant="default">
+                <Button 
+                    variant="default"
+                    disabled={isDisabled}
+                    className={cn(
+                        'flex items-center gap-2',
+                        isDisabled && 'opacity-50 cursor-not-allowed'
+                    )}
+                    title={isDisabled ? restrictionMessage : ''}
+                >
                     <Plus className="h-4 w-4 mr-2" />
                     {t('create_lesson_button')}
                 </Button>

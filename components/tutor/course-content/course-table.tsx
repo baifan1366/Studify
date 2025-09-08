@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/pagination";
 import { useState } from "react";
 import { Course } from "@/interface";
-import { Eye, Edit, Trash2, Settings2, ChevronDown, Send } from "lucide-react";
+import { Eye, Edit, Trash2, Settings2, ChevronDown, Send, ArrowDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFormat } from "@/hooks/use-format";
@@ -87,7 +87,7 @@ export default function CourseTable() {
     };
     
     const { data: user } = useUser();
-    const owner_id = user?.profile?.id;
+    const owner_id = user?.profile?.id ? parseInt(user.profile.id) : undefined;
     const { data: courses, isLoading, error } = useCourses(owner_id);
     const deleteCourse = useDeleteCourse();
     const updateCourseStatus = useUpdateCourseStatus();
@@ -146,7 +146,7 @@ export default function CourseTable() {
     const handleSubmitForApproval = async (course: Course) => {
         try {
             await updateCourseStatus.mutateAsync({
-                courseId: course.id.toString(),
+                courseId: course.id,
                 status: 'pending'
             });
         } catch (error) {
@@ -179,7 +179,18 @@ export default function CourseTable() {
     };
 
     const isEditDeleteDisabled = (course: Course) => {
-        return course.status === 'pending';
+        return course.status === 'active' || course.status === 'inactive';
+    };
+
+    const handleChangeToInactive = async (course: Course) => {
+        try {
+            await updateCourseStatus.mutateAsync({
+                courseId: course.id,
+                status: 'inactive'
+            });
+        } catch (error) {
+            // Error handling is done in the hook
+        }
     };
 
     if (isLoading) {
@@ -399,7 +410,7 @@ export default function CourseTable() {
                     </TableHeader>
                     <TableBody>
                         {currentCourses.map((course, index) => (
-                            <TableRow key={course.public_id}>
+                            <TableRow key={course.id}>
                                 {columnVisibility.no && (
                                     <TableCell className="w-12 sm:w-16 text-center">
                                         {startIndex + index + 1}
@@ -552,26 +563,41 @@ export default function CourseTable() {
                                                     <Send className="h-3 w-3 sm:h-4 sm:w-4" />
                                                 </Button>
                                             )}
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleEdit(course)}
-                                                title={t('edit')}
-                                                disabled={isEditDeleteDisabled(course)}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleOpenDeleteDialog(course)}
-                                                title={t('delete')}
-                                                disabled={deleteCourse.isPending || isEditDeleteDisabled(course)}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                                            </Button>
+                                            {course.status === 'active' && (
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    onClick={() => handleChangeToInactive(course)}
+                                                    title={t('changeToInactive')}
+                                                    disabled={updateCourseStatus.isPending}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <ArrowDown className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                </Button>
+                                            )}
+                                            {course.status === 'inactive' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEdit(course)}
+                                                    title={t('edit')}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                </Button>
+                                            )}
+                                            {course.status === 'inactive' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleOpenDeleteDialog(course)}
+                                                    title={t('delete')}
+                                                    disabled={deleteCourse.isPending}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </TableCell>
                                 )}

@@ -29,15 +29,20 @@ export function useCreateModule() {
   return useMutation({
     mutationFn: async ({
       courseId,
-      body,
+      ...body
     }: {
       courseId: number;
-      body: Record<string, any>;
+      title: string;
+      position?: number;
+      [key: string]: any;
     }) =>
       apiSend({
         method: 'POST',
         url: coursesApi.createModuleByCourseId(courseId),
-        body,
+        body: {
+          title: body.title,
+          position: body.position || 1,
+        },
       }),
     onSuccess: (_, { courseId }) => {
       queryClient.invalidateQueries({ queryKey: ['course-modules', courseId] });
@@ -60,7 +65,7 @@ export function useUpdateModule() {
       body: Record<string, any>;
     }) =>
       apiSend({
-        method: 'PUT',
+        method: 'PATCH',
         url: coursesApi.updateModuleById(courseId, moduleId),
         body,
       }),

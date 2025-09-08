@@ -134,7 +134,7 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
                 title,
                 description,
                 slug,
-                video_intro_url: videoIntroUrl,
+                video_intro_url: videoIntroUrl || "",
                 requirements,
                 learning_objectives: learningObjectives,
                 category,
@@ -143,14 +143,14 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
                 auto_create_classroom: autoCreateClassroom,
                 auto_create_community: autoCreateCommunity,
                 visibility: visibility as 'public' | 'private' | 'unlisted',
-                price_cents: priceCents,
+                price_cents: priceCents ? Number(priceCents) : undefined,
                 currency,
-                thumbnail_url: thumbnailUrl,
+                thumbnail_url: thumbnailUrl || "",
                 level,
                 is_free: isFree,
-                tags: tags,
-                total_lessons: totalLessons,
-                total_duration_minutes: totalDurationMinutes
+                tags,
+                total_lessons: totalLessons ? Number(totalLessons) : undefined,
+                total_duration_minutes: totalDurationMinutes ? Number(totalDurationMinutes) : undefined
             };
             
             const schema = courseSchema(courseT);
@@ -159,7 +159,7 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
             
             // Update the course
             await updateCourseMutation.mutateAsync({
-                id: course.public_id as string,
+                id: course.id,
                 ...formData
             });
             

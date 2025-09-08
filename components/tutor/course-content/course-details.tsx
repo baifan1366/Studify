@@ -17,8 +17,8 @@ export default function CourseDetails() {
   const id = params.get('id');
   const courseId = id ? parseInt(id) : 0;
   const { data: courseModule, isLoading, error } = useModuleByCourseId(courseId);
-  const { data: course } = useCourse(id || undefined);
-  const [selectedModuleId, setSelectedModuleId] = useState<number>(1);
+  const { data: course } = useCourse(courseId || undefined);
+  const [selectedModuleId, setSelectedModuleId] = useState<number | undefined>(undefined);
   const [selectedLessonId, setSelectedLessonId] = useState<number | undefined>();
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(320); // Default width in pixels
@@ -135,7 +135,9 @@ export default function CourseDetails() {
               </div>
              
             </div> 
-            <CreateCourseLesson courseId={courseId} moduleId={selectedModuleId} />
+            {course?.status === 'inactive' && selectedModuleId && (
+              <CreateCourseLesson courseId={courseId} moduleId={selectedModuleId} courseStatus={course?.status} />
+            )}
           </div>
         </div>
 

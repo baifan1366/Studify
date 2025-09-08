@@ -3,7 +3,7 @@ import { z } from "zod";
 export const courseModuleSchema = (t: (key: string) => string) =>
   z.object({
     courseId: z
-      .string()
+      .number()
       .min(1, { message: t("course_id_required") }),
 
     title: z

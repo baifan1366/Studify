@@ -8,9 +8,9 @@ interface CourseLearningPageProps {
     slug: string;
     locale: string;
   }>;
-  searchParams: {
+  searchParams: Promise<{
     lesson?: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: CourseLearningPageProps): Promise<Metadata> {
@@ -31,10 +31,11 @@ export async function generateMetadata({ params }: CourseLearningPageProps): Pro
 
 export default async function CourseLearningPage({ params, searchParams }: CourseLearningPageProps) {
   const { slug } = await params;
+  const { lesson } = await searchParams;
   return (
     <CourseLearningContent 
       courseSlug={slug} 
-      initialLessonId={searchParams.lesson}
+      initialLessonId={lesson}
     />
   );
 }

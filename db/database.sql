@@ -908,11 +908,9 @@ create table if not exists community_post_files (
   mime_type TEXT NOT NULL
 );
 
-
-
 create table if not exists community_comment (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
+  public_id uuid not null default uuid_generate_v4() unique,
   post_id bigint not null references community_post(id) on delete cascade,
   author_id bigint not null references profiles(id) on delete cascade,
   parent_id bigint references community_comment(id) on delete cascade,
@@ -921,6 +919,14 @@ create table if not exists community_comment (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
+);
+
+create table if not exists community_comment_files (
+  id UUID primary key default uuid_generate_v4(),
+  comment_id UUID references community_comment(public_id) on delete cascade,
+  url TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL
 );
 
 create table if not exists community_reaction (

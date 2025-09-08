@@ -20,6 +20,15 @@ export interface Comment {
   // 嵌套评论（可选）
   replies?: Comment[];
 
+  // 附件（可选）
+  files?: {
+    id: string;
+    comment_id: number;
+    url: string;
+    file_name?: string;
+    mime_type?: string;
+  }[];
+
   // 点赞/表情
   reactions?: Record<string, number>;
 }

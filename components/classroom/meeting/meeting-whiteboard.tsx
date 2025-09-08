@@ -8,7 +8,7 @@ import { Tldraw, TldrawEditor } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface MeetingWhiteboardProps {
   meetingId: string;

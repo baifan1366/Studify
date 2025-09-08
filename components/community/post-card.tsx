@@ -75,30 +75,45 @@ export default function PostCard({ post }: { post: Post }) {
 
         {post.files && post.files.length > 0 && (
           <div className="mt-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {post.files.map((file) => (
-                <a
+                <div
                   key={file.id}
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="bg-black/30 rounded-lg overflow-hidden group hover:ring-2 hover:ring-blue-400 transition-all"
                 >
                   {file.mime_type.startsWith("image/") ? (
-                    <img
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <img
+                        src={file.url}
+                        alt={file.file_name}
+                        className="w-full h-full object-cover"
+                      />
+                    </a>
+                  ) : file.mime_type.startsWith("video/") ? (
+                    <video
                       src={file.url}
-                      alt={file.file_name}
-                      className="w-full h-full object-cover"
+                      controls
+                      muted={false}
+                      style={{ width: "100%", height: "auto" }}
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full h-full flex flex-col items-center justify-center p-2"
+                    >
                       <Paperclip className="w-6 h-6 text-gray-400" />
                       <span className="text-xs text-gray-400 text-center truncate w-full mt-1 group-hover:text-blue-300">
                         {file.file_name}
                       </span>
-                    </div>
+                    </a>
                   )}
-                </a>
+                </div>
               ))}
             </div>
           </div>

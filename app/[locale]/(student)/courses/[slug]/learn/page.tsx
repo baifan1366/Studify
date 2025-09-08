@@ -4,16 +4,17 @@ import CourseLearningContent from '@/components/course/course-learning-content';
 import { getTranslations } from 'next-intl/server';
 
 interface CourseLearningPageProps {
-  params: {
+  params: Promise<{
     slug: string;
     locale: string;
-  };
+  }>;
   searchParams: {
     lesson?: string;
   };
 }
 
 export async function generateMetadata({ params }: CourseLearningPageProps): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations('CourseLearningPage');
 
   return {
@@ -28,10 +29,11 @@ export async function generateMetadata({ params }: CourseLearningPageProps): Pro
   };
 }
 
-export default function CourseLearningPage({ params, searchParams }: CourseLearningPageProps) {
+export default async function CourseLearningPage({ params, searchParams }: CourseLearningPageProps) {
+  const { slug } = await params;
   return (
     <CourseLearningContent 
-      courseSlug={params.slug} 
+      courseSlug={slug} 
       initialLessonId={searchParams.lesson}
     />
   );

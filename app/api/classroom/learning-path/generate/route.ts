@@ -46,7 +46,7 @@ async function generateLearningPathWithAI(goal: string, duration: number) {
 export async function POST(req: NextRequest) {
   try {
     // 验证用户身份
-    const user = await authorize();
+    const user = await authorize('student');
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     // 创建学习路径记录
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .insert({
         user_id: user.id,
         goal,
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     // 批量插入里程碑记录
     if (milestonesWithIds.length > 0) {
       const { error: milestonesError } = await supabase
-        .from('classroom.milestone')
+        .from('milestone')
         .insert(milestonesWithIds);
 
       if (milestonesError) {

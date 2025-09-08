@@ -6,7 +6,7 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { pathId: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
+    const user = await authorize('student');
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 验证学习路径所有权
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('user_id')
       .eq('id', pathId)
       .single();
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 获取当前里程碑信息
     const { data: milestoneData, error: milestoneError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('id', milestoneId)
       .eq('path_id', pathId)
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 获取下一个里程碑
     const { data: nextMilestoneData, error: nextMilestoneError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('path_id', pathId)
       .eq('order_index', milestoneData.order_index + 1)
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 解锁下一个里程碑
     const { error: unlockError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .update({ status: 'in-progress' })
       .eq('id', nextMilestoneData.id);
 

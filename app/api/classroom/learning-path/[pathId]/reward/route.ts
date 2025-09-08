@@ -6,10 +6,12 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { pathId: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
+    const userRole = authResult.payload.role;
 
     const { pathId } = params;
     const { milestoneId } = await req.json();
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 验证学习路径所有权
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('user_id')
       .eq('id', pathId)
       .single();
@@ -35,13 +37,13 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
     }
 
     // 检查权限
-    if (pathData.user_id !== user.id && user.role !== 'teacher') {
+    if (pathData.user_id !== user.id && userRole !== 'tutor') {
       return NextResponse.json({ error: '无权获取此学习路径的奖励' }, { status: 403 });
     }
 
     // 获取里程碑信息
     const { data: milestoneData, error: milestoneError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('id', milestoneId)
       .eq('path_id', pathId)
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 标记奖励已领取
     const { error: updateError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .update({
         reward: { ...reward, claimed: true, claimed_at: new Date().toISOString() }
       })

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: { pathId: stri
 
     // 获取用户最新的活跃学习路径
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('*')
       .eq('user_id', pathId)
       .eq('is_active', true)
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: { pathId: stri
 
     // 获取路径的里程碑
     const { data: milestones, error: milestonesError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('path_id', pathData.id)
       .order('order_index', { ascending: true });

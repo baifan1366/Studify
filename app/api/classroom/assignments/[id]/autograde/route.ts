@@ -88,7 +88,7 @@ const supabase = await createServerClient();
     // 如果有错误，添加到错题本
     if (aiResponse.hasErrors) {
       const { error: mistakeError } = await supabase
-        .from('classroom.mistake_book')
+        .from('mistake_book')
         .insert({
           user_id: submission.user_id,
           assignment_id: assignmentId,

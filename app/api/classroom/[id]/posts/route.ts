@@ -100,8 +100,8 @@ const supabase = await createServerClient();
           id: comment.id,
           content: comment.content,
           authorId: comment.user_id,
-          authorName: comment.profiles.full_name || comment.profiles.email.split('@')[0],
-          authorRole: comment.classroom_members.role,
+          authorName: comment.profiles[0]?.full_name || comment.profiles[0]?.email?.split('@')[0] || 'Unknown',
+          authorRole: comment.classroom_members[0]?.role || 'student',
           createdAt: comment.created_at,
         }));
 
@@ -109,8 +109,8 @@ const supabase = await createServerClient();
         id: post.id,
         content: post.content,
         authorId: post.user_id,
-        authorName: post.profiles.full_name || post.profiles.email.split('@')[0],
-        authorRole: post.classroom_members.role,
+        authorName: post.profiles[0]?.full_name || post.profiles[0]?.email?.split('@')[0] || 'Unknown',
+        authorRole: post.classroom_members[0]?.role || 'student',
         createdAt: post.created_at,
         attachments: post.attachments || [],
         comments: postComments,

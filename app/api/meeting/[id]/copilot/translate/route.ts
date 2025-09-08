@@ -6,10 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
     const { text, sourceLanguage = 'zh', targetLanguage = 'en' } = await req.json();
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id')
       .eq('public_id', id)
       .single();
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 保存翻译结果到数据库
     const { data: translationData, error: translationError } = await supabase
-      .from('classroom.translation')
+      .from('translation')
       .insert({
         session_id: sessionData.id,
         original_text: text,

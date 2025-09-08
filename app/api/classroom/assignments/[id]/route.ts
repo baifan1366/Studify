@@ -21,19 +21,25 @@ const supabase = await createServerClient();
   try {
     // 获取作业详情
     const { data: assignment, error: assignmentError } = await supabase
-      .from('assessment.assignment')
+      .from('assignment')
       .select(`
         id,
         title,
         description,
         due_at,
-        course:course_id (id, title),
-        attachments:assessment.assignment_attachment(id, file_url, file_name)
+        course_id,
+        courses!inner(id, title)
       `)
       .eq('id', assignmentId)
       .eq('is_deleted', false)
       .single();
-    
+
+    // Get assignment attachments separately
+    const { data: attachments } = await supabase
+      .from('assignment_attachment')
+      .select('id, file_url, file_name')
+      .eq('assignment_id', assignmentId);
+
     if (assignmentError) {
       console.error('Error fetching assignment:', assignmentError);
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
@@ -41,18 +47,32 @@ const supabase = await createServerClient();
     
     // 获取提交历史
     const { data: submissions, error: submissionsError } = await supabase
-      .from('assessment.submission')
+      .from('submission')
       .select(`
         id,
         created_at,
         text_content,
-        content_url,
-        grade:assessment.grade(score, feedback, graded_at)
+        content_url
       `)
       .eq('assignment_id', assignmentId)
       .eq('user_id', userId)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false });
+
+    // Get grades for submissions separately
+    let submissionsWithGrades: any[] = submissions || [];
+    if (submissions && submissions.length > 0) {
+      const submissionIds = submissions.map(s => s.id);
+      const { data: grades } = await supabase
+        .from('grade')
+        .select('submission_id, score, feedback, graded_at')
+        .in('submission_id', submissionIds);
+
+      submissionsWithGrades = submissions.map(submission => ({
+        ...submission,
+        grade: grades?.find(g => g.submission_id === submission.id) || null
+      }));
+    }
     
     if (submissionsError) {
       console.error('Error fetching submissions:', submissionsError);
@@ -65,11 +85,11 @@ const supabase = await createServerClient();
       title: assignment.title,
       description: assignment.description,
       due_at: assignment.due_at,
-      course: assignment.course,
-      attachments: assignment.attachments || [],
-      is_submitted: submissions && submissions.length > 0,
-      submissions: submissions || [],
-      grading_status: submissions && submissions.length > 0 && submissions[0].grade ? 'graded' : 'pending'
+      course: assignment.courses[0] || null,
+      attachments: attachments || [],
+      is_submitted: submissionsWithGrades && submissionsWithGrades.length > 0,
+      submissions: submissionsWithGrades || [],
+      grading_status: submissionsWithGrades && submissionsWithGrades.length > 0 && submissionsWithGrades[0].grade ? 'graded' : 'pending'
     };
     
     return NextResponse.json({

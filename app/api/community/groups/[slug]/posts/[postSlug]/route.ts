@@ -112,11 +112,25 @@ export async function GET(
     console.error("[API] Failed to fetch attachments:", attachmentError);
   }
 
+  // 7. Get hashtags
+  const { data: hashtags, error: hashtagsError } = await supabaseClient
+    .from("post_hashtags")
+    .select("hashtag:hashtags(name)")
+    .eq("post_id", post.public_id);
+
+  if (hashtagsError) {
+    console.error("[API] Failed to fetch hashtags:", hashtagsError);
+  }
+
+  // ✅ 最后再组装返回对象
   const processedPost = {
     ...post,
     comments_count: post.comments.length,
     reactions,
     files: attachments || [],
+    hashtags: (hashtags || []).map((h: { hashtag: { name: string } }) => ({
+      name: h.hashtag.name,
+    })),
   };
 
   return NextResponse.json(processedPost);

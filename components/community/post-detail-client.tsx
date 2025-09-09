@@ -576,6 +576,28 @@ const PostDetailContent = ({
         </div>
       </CardContent>
 
+      {/* ✅ Hashtags row */}
+      {post.hashtags && post.hashtags.length > 0 && (
+        <CardContent className="pt-0">
+          <div className="flex flex-wrap gap-2">
+            {post.hashtags.map((tag) => (
+              <Link
+                key={tag.name}
+                href={`/community/hashtags/${tag.name}`}
+                className="hover:underline"
+              >
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                >
+                  #{tag.name}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      )}
+
       {/* Comments Section */}
       <CardContent>
         <div className="flex items-center justify-between mb-4">

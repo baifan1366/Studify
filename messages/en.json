@@ -1300,5 +1300,13 @@
     "lesson_delete_pending": "Cannot delete lesson for course with status 'pending'. Only courses with 'inactive' status can have lessons deleted.",
     "status_restrictions_tooltip": "Only inactive courses allow editing. Change course status to inactive first.",
     "deactivate_first": "Please deactivate the course first to enable editing."
+  },
+  "CourseStatus": {
+    "deactivate_success_title": "Course Deactivated",
+    "deactivate_success_description": "The course has been successfully deactivated.",
+    "deactivate_error_title": "Deactivation Failed",
+    "deactivate_error_description": "Failed to deactivate the course. Please try again.",
+    "deactivating": "Deactivating...",
+    "deactivate_course": "Deactivate Course"
   }
 }

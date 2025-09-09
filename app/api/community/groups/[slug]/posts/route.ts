@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 import { randomUUID } from "crypto";
+import { validateFiles } from "@/utils/file-validation";
 
 export async function GET(
   request: Request,
@@ -122,7 +123,9 @@ export async function GET(
 
   // Process posts to aggregate reactions, comments count, and files
   const processedPosts = posts.map((post: any) => {
-    const hashtags = post.post_hashtags.map((ph: any) => ph.hashtags).filter(Boolean);
+    const hashtags = post.post_hashtags
+      .map((ph: any) => ph.hashtags)
+      .filter(Boolean);
     return {
       ...post,
       comments_count: post.comments[0]?.count || 0,
@@ -195,7 +198,7 @@ export async function POST(
     const files = formData.getAll("files") as File[];
     const hashtags = formData.getAll("hashtags") as string[];
 
-    // Validation
+    // ===== 基本字段验证 =====
     if (!title || title.length < 5 || title.length > 200) {
       return NextResponse.json(
         { error: "Title must be between 5-200 characters" },
@@ -207,7 +210,19 @@ export async function POST(
       return NextResponse.json({ error: "Body is required" }, { status: 400 });
     }
 
-    // Get user profile
+    // ===== 文件大小验证（后端）=====
+    if (files.length > 0) {
+      const fileCheck = validateFiles(files, {
+        maxVideoSizeMB: 30,
+        maxOtherSizeMB: 10,
+      });
+
+      if (!fileCheck.valid) {
+        return NextResponse.json({ error: fileCheck.error }, { status: 400 });
+      }
+    }
+
+    // ===== 获取用户 profile =====
     const { data: profile, error: profileError } = await supabaseClient
       .from("profiles")
       .select("id")
@@ -218,7 +233,7 @@ export async function POST(
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    // Get group
+    // ===== 获取 group =====
     const { data: group } = await supabaseClient
       .from("community_group")
       .select("id, visibility, name")
@@ -230,7 +245,7 @@ export async function POST(
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    // Check permissions
+    // ===== 权限检查 =====
     const { data: membership } = await supabaseClient
       .from("community_group_member")
       .select("id, role")
@@ -246,7 +261,7 @@ export async function POST(
       );
     }
 
-    // Rate limiting check
+    // ===== 发帖频率限制 =====
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: recentPosts } = await supabaseClient
       .from("community_post")
@@ -261,7 +276,7 @@ export async function POST(
       );
     }
 
-    // Generate unique slug
+    // ===== 创建唯一 slug =====
     const baseSlug = slugify(title);
     if (!baseSlug) {
       return NextResponse.json(
@@ -275,7 +290,7 @@ export async function POST(
       baseSlug
     );
 
-    // Create post
+    // ===== 创建帖子 =====
     const { data: newPost, error: postError } = await supabaseClient
       .from("community_post")
       .insert({
@@ -294,13 +309,12 @@ export async function POST(
       return NextResponse.json({ error: postError.message }, { status: 500 });
     }
 
-    // === 处理 hashtags ===
+    // ===== 处理 hashtags =====
     if (hashtags.length > 0) {
       for (const tag of hashtags) {
         const cleanTag = tag.trim();
         if (!cleanTag) continue;
 
-        // 查找是否已存在
         const { data: existing } = await supabaseClient
           .from("hashtags")
           .select("id")
@@ -311,7 +325,6 @@ export async function POST(
         if (existing) {
           hashtagId = existing.id;
         } else {
-          // 不存在则创建
           const { data: newHashtag } = await supabaseClient
             .from("hashtags")
             .insert([{ name: cleanTag }])
@@ -321,7 +334,6 @@ export async function POST(
         }
 
         if (hashtagId) {
-          // 建立关联
           await supabaseClient
             .from("post_hashtags")
             .insert([{ post_id: newPost.public_id, hashtag_id: hashtagId }]);
@@ -329,22 +341,22 @@ export async function POST(
       }
     }
 
-    // Handle file uploads
-    if (files && files.length > 0) {
-      const fileRecords = [];
+    // ===== 上传文件 =====
+    if (files.length > 0) {
       const BUCKET_NAME = "post-attachments";
+      const fileRecords = [];
 
       for (const file of files) {
         const filePath = `public/${groupSlug}/${
           newPost.public_id
         }/${randomUUID()}-${file.name}`;
+
         const { error: uploadError } = await supabaseClient.storage
           .from(BUCKET_NAME)
           .upload(filePath, file);
 
         if (uploadError) {
           console.error("Error uploading file:", uploadError);
-          // Decide if you want to continue or return an error
           continue;
         }
 
@@ -367,12 +379,11 @@ export async function POST(
 
         if (filesError) {
           console.error("Error inserting file records:", filesError);
-          // Potentially return an error response here
         }
       }
     }
 
-    // Add points for creating a post
+    // ===== 增加积分 =====
     await supabaseClient.from("community_points_ledger").insert({
       user_id: profile.id,
       points: 10,

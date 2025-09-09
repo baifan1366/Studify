@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { useDropzone } from "react-dropzone";
 import { useDebounce } from "use-debounce";
 import { useHashtags } from "@/hooks/community/use-community";
+import { validateFiles } from "@/utils/file-validation";
 
 interface NewPostFormProps {
   onSubmit: (post: {
@@ -39,7 +40,9 @@ export function NewPostForm({
   const [error, setError] = useState<string | null>(null);
 
   const MAX_FILES = 5;
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_FILE_SIZE_MB = 10;
+  const MAX_VIDEO_SIZE_MB = 30;
+  const MAX_NON_VIDEO_SIZE_MB = 10;
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -110,14 +113,23 @@ export function NewPostForm({
     let currentFiles = [...files];
 
     for (const file of acceptedFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`文件 ${file.name} 超过了 10MB 限制`);
-        continue;
-      }
+      // 先检查文件数量
       if (currentFiles.length >= MAX_FILES) {
         setError(`最多只能上传 ${MAX_FILES} 个文件`);
         break;
       }
+
+      // 调用统一的文件验证逻辑
+      const result = validateFiles([file], {
+        maxVideoSizeMB: MAX_VIDEO_SIZE_MB,
+        maxOtherSizeMB: MAX_NON_VIDEO_SIZE_MB,
+      });
+
+      if (!result.valid) {
+        setError(result.error);
+        continue;
+      }
+
       validFiles.push(file);
       currentFiles.push(file);
     }
@@ -137,6 +149,7 @@ export function NewPostForm({
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         [],
       "application/zip": [],
+      "application/x-zip-compressed": [],
     },
     multiple: true,
   });
@@ -180,7 +193,8 @@ export function NewPostForm({
               <p className="text-sm text-blue-300">{t("drop_here")}</p>
             ) : (
               <p className="text-sm text-gray-400">
-                {t("drag_drop_or_click")} (最多 {MAX_FILES} 个, 单个 ≤ 10MB)
+                {t("drag_drop_or_click")} (Max {MAX_FILES} files, videos ≤{" "}
+                {MAX_VIDEO_SIZE_MB}MB, others ≤ {MAX_NON_VIDEO_SIZE_MB}MB)
               </p>
             )}
           </div>

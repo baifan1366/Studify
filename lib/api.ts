@@ -47,6 +47,11 @@ export const coursesApi = {
   getLessonById: (courseId: number, moduleId: number, lessonId: number) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson/${lessonId}`,
   updateLessonById: (courseId: number, moduleId: number, lessonId: number) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson/${lessonId}`,
   deleteLessonById: (courseId: number, moduleId: number, lessonId: number) => `/api/courses/${courseId}/course-module/${moduleId}/course-lesson/${lessonId}`,
+  getChaptersByLessonId: (lessonId: number) => `/api/course-lesson/${lessonId}/course-chapter`,
+  createChapterByLessonId: (lessonId: number) => `/api/course-lesson/${lessonId}/course-chapter`,
+  getChapterById: (lessonId: number, chapterId: number) => `/api/course-lesson/${lessonId}/course-chapter/${chapterId}`,
+  updateChapterById: (lessonId: number, chapterId: number) => `/api/course-lesson/${lessonId}/course-chapter/${chapterId}`,
+  deleteChapterById: (lessonId: number, chapterId: number) => `/api/course-lesson/${lessonId}/course-chapter/${chapterId}`,
 } as const;
 
 // Classroom API endpoints
@@ -247,4 +252,15 @@ export const embeddingApi = {
 export const usersApi = {
   updateProfile: "/api/users/profile",
   getProfile: "/api/users/profile",
+} as const;
+
+// Attachments API endpoints
+export const attachmentsApi = {
+  list: "/api/attachments",
+  listByOwner: (ownerId: number) => `/api/attachments?owner_id=${ownerId}`,
+  create: "/api/attachments",
+  getById: (id: number) => `/api/attachments/${id}`,
+  update: (id: number) => `/api/attachments/${id}`,
+  delete: (id: number) => `/api/attachments/${id}`,
+  deleteByOwner: (id: number, ownerId: number) => `/api/attachments/${id}?owner_id=${ownerId}`,
 } as const;

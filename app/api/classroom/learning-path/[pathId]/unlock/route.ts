@@ -5,7 +5,7 @@ import { authorize } from '@/utils/auth/server-guard';
 // 解锁下一个里程碑
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string, pathId: string } }
+  context: { params: { pathId: string } }
 ) {
   const { params } = context;
   try {

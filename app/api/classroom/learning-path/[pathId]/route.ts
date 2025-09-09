@@ -5,7 +5,7 @@ import { authorize } from '@/utils/auth/server-guard';
 // 获取用户学习路径
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string, pathId: string } }
+  context: { params: { pathId: string } }
 ) {
   const { params } = context;
   try {

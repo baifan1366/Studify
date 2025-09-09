@@ -323,7 +323,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     className="mb-6 relative"
   >
     {/* Intensified Ripple Animation Container */}
-    <div className="absolute inset-0 rounded-lg overflow-hidden">
+    <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
       <motion.div
         className="absolute inset-0 bg-green-500/30 rounded-lg"
         animate={{
@@ -373,7 +373,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       }}
     >
       {/* Card Border Ripple Effects */}
-      <div className="absolute inset-0 overflow-hidden rounded-lg">
+      <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
         <motion.div
           className="absolute inset-0 border-2 border-green-400/40 rounded-lg"
           animate={{
@@ -448,14 +448,11 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         </CardTitle>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="relative z-20">
         {liveSessions.map((session, index) => (
-          <motion.div
+          <div
             key={session.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="flex justify-between items-center"
+            className="flex justify-between items-center relative z-30"
           >
             <div>
               <p className="font-medium">{session.title}</p>
@@ -463,20 +460,16 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 Started at {new Date(session.starts_at).toLocaleTimeString()}
               </p>
             </div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <Button 
+              onClick={() => handleJoinSession(session)}
+              variant="default"
+              disabled={false}
+              className="relative z-40 pointer-events-auto"
             >
-              <Button 
-                onClick={() => handleJoinSession(session)}
-                className="bg-green-600 hover:bg-green-700"
-                disabled={false}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Join Session (Debug)
-              </Button>
-            </motion.div>
-          </motion.div>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Join Session (Debug)
+            </Button>
+          </div>
         ))}
       </CardContent>
       </Card>

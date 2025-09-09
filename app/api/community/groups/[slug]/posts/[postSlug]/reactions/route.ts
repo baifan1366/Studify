@@ -6,7 +6,7 @@ import { getQStashQueue } from "@/lib/langChain/qstash-integration";
 
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   const authResult = await authorize("student");
   if (authResult instanceof NextResponse) {
@@ -14,7 +14,7 @@ export async function POST(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug, postSlug } = params;
+  const { slug, postSlug } = await params;
   const { emoji, target_type, target_id } = await request.json();
 
   if (!emoji || !target_type || !target_id) {

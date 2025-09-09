@@ -138,7 +138,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="text-lg font-semibold">{selectedMilestone.title}</h3>
-              <Badge variant={selectedMilestone.status === 'completed' ? "success" :
+              <Badge variant={selectedMilestone.status === 'completed' ? "secondary" :
                        selectedMilestone.status === 'in-progress' ? "default" : "outline"}
                      className="mt-1">
                 {selectedMilestone.status === 'completed' ? "已完成" : 

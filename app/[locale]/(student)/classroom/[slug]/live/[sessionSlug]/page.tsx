@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { LiveSessionRoom } from '@/components/classroom/live-session-room';
+import LiveClassroom from '@/components/classroom/live-session/live-classroom';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; sessionSlug: string }> }): Promise<Metadata> {
@@ -21,5 +21,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function Page({ params }: { params: Promise<{ slug: string; sessionSlug: string }> }) {
   const { slug, sessionSlug } = await params;
-  return <LiveSessionRoom classroomSlug={slug} sessionSlug={sessionSlug} />;
+  return (
+    <LiveClassroom 
+      classroomSlug={slug} 
+      sessionId={sessionSlug} 
+      participantName="Student" 
+      userRole="student" 
+    />
+  );
 }

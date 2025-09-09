@@ -30,6 +30,7 @@ export async function middleware(request: NextRequest) {
   // Allowlist: static assets and auth APIs/pages
   const isStatic = pathname.startsWith("/_next") || /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname);
   const isWellKnown = pathname.startsWith("/.well-known");
+  const isServiceWorker = pathname === "/sw.js";
   // Auth callback routes (bypass middleware to preserve OAuth parameters)
   const isAuthCallback = pathname.startsWith("/auth/callback") || pathname.includes("/auth/callback") || /\/[a-z]{2}\/auth\/callback/.test(pathname);
   // Public auth pages: /{locale}/sign-in, /{locale}/verify-email, and nested /{locale}/{role}/sign-up
@@ -38,7 +39,7 @@ export async function middleware(request: NextRequest) {
     /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/sign-up$/.test(pathname);
   const isTestOrPublic = pathname === "/" || pathname.startsWith("/test");
 
-  if (isStatic || isWellKnown || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic) {
+  if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic) {
     return intlResponse;
   }
 

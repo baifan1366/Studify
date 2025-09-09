@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
@@ -13,14 +14,14 @@ import {
   Settings, 
   Copy,
   ExternalLink,
-  Plus
+  Plus,
+  Play
 } from 'lucide-react';
 import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { useAssignments } from '@/hooks/classroom/use-assignments';
 
-// Dynamic import for client-side only
-const LiveClassroom = lazy(() => import('@/components/classroom/live-session/live-classroom'));
+const LiveClassroom = dynamic(() => import('@/components/classroom/live-session/live-classroom'));
 import { Assignment } from '@/interface/classroom/asg-interface';
 import { Quiz } from '@/interface/classroom/quiz-interface';
 import { Button } from '@/components/ui/button';
@@ -114,94 +115,47 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   const handleJoinSession = async (session: any) => {
     console.log('🚀 [Dashboard] handleJoinSession called with session:', session);
-    console.log('🔍 [Dashboard] Session details:', {
-      id: session.id,
-      public_id: session.public_id,
-      slug: session.slug,
-      title: session.title,
-      status: session.status,
-      starts_at: session.starts_at,
-      ends_at: session.ends_at
-    });
-
+    
     try {
-      // Construct session identifier with fallback
-      const sessionIdentifier = session.public_id || session.slug || session.id?.toString() || 'unknown';
+      // Construct session identifier with proper validation
+      const sessionIdentifier = session?.public_id 
+        ?? session?.slug 
+        ?? (session?.id?.toString() ?? 'unknown');
+      
       console.log('🆔 [Dashboard] Session identifier:', sessionIdentifier);
 
-      // Robust date validation with tolerant checks
-      const now = new Date();
-      console.log('⏰ [Dashboard] Current time:', now.toISOString());
-
-      let sessionStart = null;
-      let sessionEnd = null;
-
-      try {
-        if (session.starts_at) {
-          sessionStart = new Date(session.starts_at);
-          console.log('🕐 [Dashboard] Session start time:', sessionStart.toISOString());
-        }
-      } catch (dateError) {
-        console.warn('⚠️ [Dashboard] Invalid start date:', session.starts_at, dateError);
+      if (sessionIdentifier === 'unknown') {
+        toast({
+          title: "Invalid Session",
+          description: "Session has no valid identifier",
+          variant: "destructive"
+        });
+        return;
       }
 
-      try {
-        if (session.ends_at) {
-          sessionEnd = new Date(session.ends_at);
-          console.log('🕑 [Dashboard] Session end time:', sessionEnd.toISOString());
-        }
-      } catch (dateError) {
-        console.warn('⚠️ [Dashboard] Invalid end date:', session.ends_at, dateError);
-      }
-
-      // More tolerant time checks
-      if (sessionStart && !isNaN(sessionStart.getTime())) {
-        const timeDiff = now.getTime() - sessionStart.getTime();
-        console.log('⏱️ [Dashboard] Time difference from start (ms):', timeDiff);
-        
-        // Allow joining 5 minutes before start time
-        if (timeDiff < -300000) {
-          console.log('⏰ [Dashboard] Session starts in more than 5 minutes');
-          toast({
-            title: "Session Not Started",
-            description: "This session hasn't started yet.",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
-      if (sessionEnd && !isNaN(sessionEnd.getTime())) {
-        const timeDiff = sessionEnd.getTime() - now.getTime();
-        console.log('⏱️ [Dashboard] Time until end (ms):', timeDiff);
-        
-        // Only block if session ended more than 5 minutes ago
-        if (timeDiff < -300000) {
-          console.log('⏰ [Dashboard] Session ended more than 5 minutes ago');
-          toast({
-            title: "Session Ended",
-            description: "This session has already ended.",
-            variant: "destructive"
-          });
-          return;
-        }
+      // Basic status validation
+      if (session.status === 'cancelled') {
+        toast({
+          title: "Session Cancelled",
+          description: "This session has been cancelled.",
+          variant: "destructive"
+        });
+        return;
       }
 
       // Show joining toast
       toast({
         title: "Joining Session",
-        description: `Connecting to "${session.title}"...`,
+        description: `Redirecting to "${session.title}"...`,
       });
 
-      // Set active session to show LiveKit room
-      console.log('✅ [Dashboard] Setting activeSession with identifier:', sessionIdentifier);
-      const sessionWithIdentifier = { ...session, sessionIdentifier };
-      console.log('📦 [Dashboard] Final session object:', sessionWithIdentifier);
-      setActiveSession(sessionWithIdentifier);
+      // Redirect to live session room URL
+      const roomUrl = `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
+      console.log('🔗 [Dashboard] Redirecting to room URL:', roomUrl);
+      router.push(roomUrl);
       
     } catch (error) {
       console.error('❌ [Dashboard] Error in handleJoinSession:', error);
-      console.error('📊 [Dashboard] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Failed to Join",
         description: "Unable to join the session. Please try again.",
@@ -230,28 +184,6 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   const isOwnerOrTutor = ['owner', 'tutor'].includes(classroom.user_role);
 
-  // If user is in an active session, show LiveKit room
-  if (activeSession) {
-    const sessionId = activeSession.sessionIdentifier || activeSession.id?.toString() || 'fallback';
-    console.log('🎬 [Dashboard] Rendering LiveClassroom with:', {
-      classroomSlug,
-      sessionId,
-      participantName: (classroom as any)?.user_name || 'User',
-      userRole: isOwnerOrTutor ? 'tutor' : 'student',
-      activeSession
-    });
-    return (
-      <Suspense fallback={<div className="flex items-center justify-center p-8">Loading video classroom...</div>}>
-        <LiveClassroom
-          classroomSlug={classroomSlug}
-          sessionId={sessionId}
-          participantName={(classroom as any)?.user_name || 'User'}
-          userRole={isOwnerOrTutor ? 'tutor' : 'student'}
-          onSessionEnd={handleLeaveSession}
-        />
-      </Suspense>
-    );
-  }
   const upcomingSessions = liveSessionsData?.sessions?.filter(s => s.status === 'scheduled') || [];
   const liveSessions = liveSessionsData?.sessions?.filter(s => s.status === 'live') || [];
   

@@ -6,7 +6,7 @@ import { validateFiles } from "@/utils/file-validation";
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const authResult = await authorize("student");
   if (authResult instanceof NextResponse) {
@@ -14,7 +14,7 @@ export async function GET(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug } = params;
+  const { slug } = await params;    
 
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient
@@ -181,7 +181,7 @@ async function generateUniquePostSlug(
 
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const authResult = await authorize("student");
   if (authResult instanceof NextResponse) {
@@ -189,7 +189,7 @@ export async function POST(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug: groupSlug } = params;
+  const { slug: groupSlug } = await params;
 
   try {
     const formData = await request.formData();

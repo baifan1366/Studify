@@ -9,10 +9,13 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
+    // Register Service Worker - Only in production to avoid development redirect issues
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        })
         .then((registration) => {
           console.log('SW registered: ', registration);
           
@@ -35,6 +38,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         .catch((registrationError) => {
           console.log('SW registration failed: ', registrationError);
         });
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log('Service Worker registration skipped in development mode');
     }
 
     // PWA install prompt

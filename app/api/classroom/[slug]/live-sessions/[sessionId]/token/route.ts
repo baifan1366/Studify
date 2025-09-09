@@ -111,6 +111,7 @@ async function generateToken(
 
   // First try numeric ID
   if (!isNaN(parseInt(sessionId))) {
+    console.log('🔢 [Token API] Trying numeric ID lookup');
     const result = await supabase
       .from('classroom_live_session')
       .select('*')
@@ -118,22 +119,45 @@ async function generateToken(
       .eq('classroom_id', classroom.id)
       .single();
     
+    console.log('🔢 [Token API] Numeric ID result:', { data: result.data, error: result.error });
     liveSession = result.data;
     sessionError = result.error;
+  } else {
+    console.log('🔤 [Token API] SessionId is not numeric, skipping numeric lookup');
   }
 
-  // If numeric ID fails, try slug or public_id
-  if (!liveSession && sessionError) {
-    console.log('🔄 [Token API] Numeric ID failed, trying slug/public_id');
-    const result = await supabase
+  // If numeric ID fails or sessionId is not numeric, try slug or public_id
+  if (!liveSession) {
+    console.log('🔄 [Token API] Trying public_id and slug lookup');
+    
+    // First try public_id
+    console.log('🆔 [Token API] Trying public_id lookup');
+    const publicIdResult = await supabase
       .from('classroom_live_session')
       .select('*')
       .eq('classroom_id', classroom.id)
-      .or(`slug.eq.${sessionId},public_id.eq.${sessionId}`)
+      .eq('public_id', sessionId)
       .single();
     
-    liveSession = result.data;
-    sessionError = result.error;
+    console.log('🆔 [Token API] Public ID result:', { data: publicIdResult.data, error: publicIdResult.error });
+    
+    if (publicIdResult.data) {
+      liveSession = publicIdResult.data;
+      sessionError = null;
+    } else {
+      // If public_id fails, try slug
+      console.log('🏷️ [Token API] Trying slug lookup');
+      const slugResult = await supabase
+        .from('classroom_live_session')
+        .select('*')
+        .eq('classroom_id', classroom.id)
+        .eq('slug', sessionId)
+        .single();
+      
+      console.log('🏷️ [Token API] Slug result:', { data: slugResult.data, error: slugResult.error });
+      liveSession = slugResult.data;
+      sessionError = slugResult.error;
+    }
   }
 
   console.log('📊 [Token API] Session query result:', {

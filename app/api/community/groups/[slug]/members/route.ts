@@ -4,7 +4,7 @@ import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
@@ -12,7 +12,7 @@ export async function GET(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug } = params;
+  const { slug } = await params;
 
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient
@@ -70,7 +70,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
@@ -78,7 +78,7 @@ export async function POST(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug } = params;
+  const { slug } = await params;
 
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient
@@ -136,7 +136,7 @@ export async function POST(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
@@ -144,7 +144,7 @@ export async function DELETE(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug } = params;
+  const { slug } = await params;
 
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient

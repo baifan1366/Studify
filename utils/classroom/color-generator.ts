@@ -64,7 +64,7 @@ export function getNextClassroomColor(usedColors: string[] = []): ClassroomColor
   
   // Find color with minimum usage
   let minUsage = Infinity;
-  let selectedColor = CLASSROOM_COLORS[0];
+  let selectedColor: ClassroomColor = CLASSROOM_COLORS[0];
   
   for (const [color, usage] of colorUsageMap.entries()) {
     if (usage < minUsage) {

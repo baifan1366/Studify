@@ -1,6 +1,6 @@
 'use client';
 
-import { Message } from '@/hook/community/use-chat-history';
+import { Message } from '@/hooks/community/use-chat-history';
 import { useRealtimeSubscription } from '@/hooks/realtime/use-realtime-subscription';
 
 interface MessageResponse {
@@ -29,7 +29,7 @@ export function useRealtimeMessages(classroomId: string, initialMessages: Messag
       content: data.content,
       authorId: data.user_id,
       authorName: data.profiles.full_name || data.profiles.email.split('@')[0],
-      authorRole: data.classroom_members.role,
+      authorRole: data.classroom_members.role as "tutor" | "student",
       createdAt: data.created_at,
     }),
   });

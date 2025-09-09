@@ -34,8 +34,8 @@ export default function CreatePostForm({
     title: "",
     body: "",
     slug: "",
-    tags: [] as string[],
-    attachments: [] as string[],
+    hashtags: [] as string[],
+    files: [] as File[],
   });
 
   const router = useRouter();
@@ -75,14 +75,19 @@ export default function CreatePostForm({
       return;
     }
 
-    createPost(formData, {
+    createPost({
+      title: formData.title,
+      body: formData.body,
+      files: formData.files,
+      hashtags: formData.hashtags,
+    }, {
       onSuccess: (newPost) => {
         setFormData({
           title: "",
           body: "",
           slug: "",
-          tags: [],
-          attachments: [],
+          hashtags: [],
+          files: [],
         });
         if (onSuccess) {
           onSuccess(newPost.slug);
@@ -164,11 +169,11 @@ export default function CreatePostForm({
               placeholder="javascript, react, web-development (comma separated)"
               className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
               onChange={(e) => {
-                const tags = e.target.value
+                const hashtags = e.target.value
                   .split(",")
                   .map((tag) => tag.trim())
                   .filter(Boolean);
-                setFormData((prev) => ({ ...prev, tags }));
+                setFormData((prev) => ({ ...prev, hashtags }));
               }}
             />
           </div>

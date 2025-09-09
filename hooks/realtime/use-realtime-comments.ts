@@ -1,6 +1,13 @@
 'use client';
 
-import { Comment } from '@/hooks/classroom/use-classroom-posts';
+// Define Comment type locally since it's not exported from use-classroom-posts
+export interface Comment {
+  id: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+}
 import { useRealtimeSubscription } from '@/hooks/realtime/use-realtime-subscription';
 
 interface CommentResponse {

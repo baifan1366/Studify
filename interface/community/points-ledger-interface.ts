@@ -4,7 +4,7 @@ export interface PointsLedger {
   user_id: number;
   points: number;
   reason?: string | null;
-  ref?: Json | null;
+  ref?: JSON | null;
   is_deleted: boolean;
   created_at: Date;
   updated_at: Date;

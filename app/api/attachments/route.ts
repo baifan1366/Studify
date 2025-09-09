@@ -82,17 +82,34 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/attachments
- * Fetch all course attachments
+ * Fetch course attachments (optionally filtered by owner_id)
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const ownerId = searchParams.get('owner_id')
+
     const supabase = await createAttachmentAdminClient()
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('course_attachments')
-      .select('id, title, url, size, created_at')
+      .select('id, title, url, size, created_at, owner_id')
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
+
+    // Filter by owner_id if provided
+    if (ownerId) {
+      const ownerIdNum = parseInt(ownerId, 10)
+      if (isNaN(ownerIdNum)) {
+        return NextResponse.json(
+          { error: 'Invalid owner_id: must be a number' },
+          { status: 400 }
+        )
+      }
+      query = query.eq('owner_id', ownerIdNum)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       throw new Error(`Database error: ${error.message}`)

@@ -1,12 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, Loader2 } from 'lucide-react'
+import { Upload, Loader2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { useUploadAttachment } from '@/hooks/course/use-attachments'
+import { validateAttachmentTitle, validateFile, formatFileSize, SUPPORTED_FILE_TYPES } from '@/lib/validations/attachment'
 
 interface UploadAttachmentProps {
   ownerId: number
@@ -14,145 +17,182 @@ interface UploadAttachmentProps {
 }
 
 export function UploadAttachment({ ownerId, onUploadSuccess }: UploadAttachmentProps) {
+  const t = useTranslations('StorageDialog')
   const [title, setTitle] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
+  const [titleError, setTitleError] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const uploadMutation = useUploadAttachment()
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value
+    setTitle(newTitle)
+    
+    // Real-time validation
+    if (newTitle.trim()) {
+      const validation = validateAttachmentTitle(newTitle)
+      setTitleError(validation.success ? null : validation.error)
+    } else {
+      setTitleError(null)
+    }
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
+    setFileError(null)
+    
     if (selectedFile) {
-      // Validate file size (max 100MB)
-      const maxSize = 100 * 1024 * 1024
-      if (selectedFile.size > maxSize) {
-        toast.error('File size exceeds 100MB limit')
+      // Validate file
+      const validation = validateFile(selectedFile)
+      if (!validation.success) {
+        setFileError(validation.error)
+        setFile(null)
         return
       }
+      
       setFile(selectedFile)
+    } else {
+      setFile(null)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim()) {
-      toast.error('Please enter a title')
+    // Validate title
+    const titleValidation = validateAttachmentTitle(title)
+    if (!titleValidation.success) {
+      setTitleError(titleValidation.error)
       return
     }
 
+    // Validate file
     if (!file) {
-      toast.error('Please select a file')
+      setFileError(t('select_file_required'))
       return
     }
 
-    setIsUploading(true)
+    const fileValidation = validateFile(file)
+    if (!fileValidation.success) {
+      setFileError(fileValidation.error)
+      return
+    }
 
     try {
-      const formData = new FormData()
-      formData.append('ownerId', ownerId.toString())
-      formData.append('title', title.trim())
-      formData.append('file', file)
-
-      const response = await fetch('/api/attachments', {
-        method: 'POST',
-        body: formData,
+      await uploadMutation.mutateAsync({
+        ownerId,
+        title: title.trim(),
+        file
       })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Upload failed')
-      }
-
-      const attachment = await response.json()
       
-      // Clear form
+      // Clear form and errors
       setTitle('')
       setFile(null)
+      setTitleError(null)
+      setFileError(null)
       
       // Reset file input
       const fileInput = document.getElementById('file-input') as HTMLInputElement
       if (fileInput) {
         fileInput.value = ''
       }
-
-      toast.success('File uploaded successfully!')
       
       // Notify parent component
       onUploadSuccess?.()
     } catch (error) {
-      console.error('Upload error:', error)
-      toast.error(error instanceof Error ? error.message : 'Upload failed')
-    } finally {
-      setIsUploading(false)
+      // Error is handled by the mutation
     }
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const getSupportedFileTypesText = () => {
+    const categories = {
+      documents: ['PDF', 'Word', 'Excel', 'PowerPoint', 'Text'],
+      images: ['JPEG', 'PNG', 'GIF', 'WebP', 'SVG'],
+      videos: ['MP4', 'AVI', 'MOV', 'WebM'],
+      audio: ['MP3', 'WAV', 'OGG', 'M4A'],
+      archives: ['ZIP', 'RAR', '7Z']
+    }
+    
+    return Object.entries(categories)
+      .map(([category, types]) => `${category}: ${types.join(', ')}`)
+      .join(' | ')
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md bg-card text-card-foreground border-border">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <Upload className="h-5 w-5" />
-          Upload Attachment
+          {t('upload_title')}
         </CardTitle>
-        <CardDescription>
-          Upload course materials and resources to MEGA cloud storage
+        <CardDescription className="text-muted-foreground">
+          {t('upload_description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title" className="text-foreground">{t('file_title_label')}</Label>
             <Input
               id="title"
               type="text"
-              placeholder="Enter attachment title"
+              placeholder={t('file_title_placeholder')}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={isUploading}
+              onChange={handleTitleChange}
+              disabled={uploadMutation.isPending}
+              className={`bg-background text-foreground border-border ${titleError ? 'border-destructive' : ''}`}
               required
             />
+            {titleError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>{titleError}</span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="file-input">File</Label>
+            <Label htmlFor="file-input" className="text-foreground">{t('select_file_label')}</Label>
             <Input
               id="file-input"
               type="file"
               onChange={handleFileChange}
-              disabled={isUploading}
+              disabled={uploadMutation.isPending}
+              className={`bg-background text-foreground border-border ${fileError ? 'border-destructive' : ''}`}
+              accept={SUPPORTED_FILE_TYPES.join(',')}
               required
             />
             {file && (
               <p className="text-sm text-muted-foreground">
-                Selected: {file.name} ({formatFileSize(file.size)})
+                {t('selected_file')}: {file.name} ({formatFileSize(file.size)})
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Maximum file size: 100MB
-            </p>
+            {fileError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>{fileError}</span>
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>{t('max_file_size')}</p>
+              <p className="break-words">{t('supported_types')}: {getSupportedFileTypesText()}</p>
+            </div>
           </div>
 
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isUploading || !title.trim() || !file}
+            disabled={uploadMutation.isPending || !title.trim() || !file || !!titleError || !!fileError}
           >
-            {isUploading ? (
+            {uploadMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
+                {t('uploading')}
               </>
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Upload File
+                {t('upload_button')}
               </>
             )}
           </Button>

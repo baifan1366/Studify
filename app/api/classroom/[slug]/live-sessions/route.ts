@@ -8,7 +8,9 @@ import { authorize } from '@/utils/auth/server-guard';
  * 输入：classroom_id, title, starts_at
  * 权限: host / admin
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  
   try {
     // 验证用户身份
     const authResult = await authorize('student');
@@ -16,22 +18,29 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    const currentUserId = authResult.sub;
-    const currentProfile = authResult.user.profile;
-    const { classroom_id, title, starts_at, ends_at } = await request.json();
+    const userId = authResult.sub;
+    const { title, starts_at, ends_at } = await request.json();
 
     // 验证必填字段
-    if (!classroom_id || !title || !starts_at) {
+    if (!title || !starts_at) {
       return NextResponse.json(
-        { error: 'classroom_id, title, and starts_at are required' },
+        { error: 'title and starts_at are required' },
         { status: 400 }
       );
     }
 
-    // 验证用户 profile 是否存在
-    if (!currentProfile) {
+    const supabase = await createAdminClient();
+
+    // Get user's profile ID from JWT user_id
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Current user profile not found' },
+        { error: 'User profile not found' },
         { status: 404 }
       );
     }
@@ -63,42 +72,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = await createAdminClient();
-
-    // 检查当前用户在课堂中的权限
-    const { data: currentMember, error: currentMemberError } = await supabase
-      .from('classroom_member')
-      .select('role')
-      .eq('classroom_id', classroom_id)
-      .eq('user_id', currentProfile.id)
-      .single();
-
-    if (currentMemberError || !currentMember) {
-      return NextResponse.json(
-        { error: 'You are not a member of this classroom' },
-        { status: 403 }
-      );
-    }
-
-    // 检查权限：只有 owner 和 tutor 可以创建直播课程
-    if (!['owner', 'tutor'].includes(currentMember.role)) {
-      return NextResponse.json(
-        { error: 'Only classroom owners and tutors can create live sessions' },
-        { status: 403 }
-      );
-    }
-
-    // 验证课堂是否存在
-    const { data: classroom, error: classroomError } = await supabase
+    // Check if classroom exists
+    const { data: classroomExists, error: existsError } = await supabase
       .from('classroom')
-      .select('id, name')
-      .eq('id', classroom_id)
+      .select('id, slug, name')
+      .eq('slug', slug)
       .single();
 
-    if (classroomError || !classroom) {
+    if (existsError || !classroomExists) {
       return NextResponse.json(
         { error: 'Classroom not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if user is a member of this classroom
+    const { data: membership, error: membershipError } = await supabase
+      .from('classroom_member')
+      .select('role')
+      .eq('classroom_id', classroomExists.id)
+      .eq('user_id', profile.id)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json(
+        { error: 'Access denied - not a member of this classroom' },
+        { status: 403 }
+      );
+    }
+
+    const userRole = membership.role;
+    const classroom = classroomExists;
+
+    // 检查权限：只有 owner 和 tutor 可以创建直播课程
+    if (!['owner', 'tutor'].includes(userRole)) {
+      return NextResponse.json(
+        { error: 'Only classroom owners and tutors can create live sessions' },
+        { status: 403 }
       );
     }
 
@@ -106,9 +116,9 @@ export async function POST(request: NextRequest) {
     const { data: liveSession, error: sessionError } = await supabase
       .from('classroom_live_session')
       .insert({
-        classroom_id: classroom_id,
+        classroom_id: classroom.id,
         title: title.trim(),
-        host_id: currentProfile.id,
+        host_id: profile.id,
         starts_at: startTime.toISOString(),
         ends_at: endTime?.toISOString() || null,
         status: 'scheduled',
@@ -141,7 +151,7 @@ export async function POST(request: NextRequest) {
       session: {
         ...liveSession,
         classroom_name: classroom.name,
-        host_name: currentProfile?.display_name || authResult.user.email?.split('@')[0] || 'Unknown',
+        host_name: profile?.display_name || authResult.user.email?.split('@')[0] || 'Unknown',
         host_email: authResult.user.email,
       },
     });
@@ -159,7 +169,9 @@ export async function POST(request: NextRequest) {
  * 获取课堂的直播课程列表
  * GET /api/classroom/live-session?classroom_id=xxx
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  
   try {
     // 验证用户身份
     const authResult = await authorize('student');
@@ -167,43 +179,63 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
-    const currentUserId = authResult.sub;
-    const currentProfile = authResult.user.profile;
+    const userId = authResult.sub;
     const { searchParams } = new URL(request.url);
-    const classroom_id = searchParams.get('classroom_id');
     const status = searchParams.get('status'); // 可选过滤条件
 
-    if (!classroom_id) {
-      return NextResponse.json(
-        { error: 'classroom_id is required' },
-        { status: 400 }
-      );
-    }
+    const supabase = await createAdminClient();
 
-    // 验证用户 profile 是否存在
-    if (!currentProfile) {
+    // Get user's profile ID from JWT user_id
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Current user profile not found' },
+        { error: 'User profile not found' },
         { status: 404 }
       );
     }
 
-    const supabase = await createAdminClient();
+    console.log('GET Debug - slug:', slug, 'profileId:', profile.id);
 
-    // 检查当前用户是否是课堂成员
-    const { data: currentMember, error: currentMemberError } = await supabase
-      .from('classroom_member')
-      .select('role')
-      .eq('classroom_id', classroom_id)
-      .eq('user_id', currentProfile.id)
+    // First check if classroom exists at all
+    const { data: classroomExists, error: existsError } = await supabase
+      .from('classroom')
+      .select('id, slug, name')
+      .eq('slug', slug)
       .single();
 
-    if (currentMemberError || !currentMember) {
+    console.log('Classroom exists check:', { classroomExists, existsError });
+
+    if (existsError || !classroomExists) {
       return NextResponse.json(
-        { error: 'You are not a member of this classroom' },
+        { error: 'Classroom not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is a member of this classroom
+    const { data: membership, error: membershipError } = await supabase
+      .from('classroom_member')
+      .select('role')
+      .eq('classroom_id', classroomExists.id)
+      .eq('user_id', profile.id)
+      .single();
+
+    console.log('Membership check:', { membership, membershipError });
+
+    if (membershipError || !membership) {
+      return NextResponse.json(
+        { error: 'Access denied - not a member of this classroom' },
         { status: 403 }
       );
     }
+
+    const userRole = membership.role;
+    const classroom = classroomExists;
 
     // 构建查询
     let query = supabase
@@ -220,7 +252,7 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at
       `)
-      .eq('classroom_id', classroom_id)
+      .eq('classroom_id', classroom.id)
       .eq('is_deleted', false);
 
     // 如果指定了状态过滤
@@ -243,19 +275,19 @@ export async function GET(request: NextRequest) {
     const formattedSessions = sessions.map(session => {
       return {
         ...session,
-        host_name: session.host_id === currentProfile.id 
-          ? (currentProfile.display_name || authResult.user.email?.split('@')[0] || 'Unknown')
+        host_name: session.host_id === profile.id 
+          ? (profile.display_name || authResult.user.email?.split('@')[0] || 'Unknown')
           : 'Host', // For other hosts, we'd need to fetch their profile separately if needed
-        host_email: session.host_id === currentProfile.id ? authResult.user.email : undefined,
-        is_host: session.host_id === currentProfile.id,
-        can_manage: ['owner', 'tutor'].includes(currentMember.role),
+        host_email: session.host_id === profile.id ? authResult.user.email : undefined,
+        is_host: session.host_id === profile.id,
+        can_manage: ['owner', 'tutor'].includes(userRole),
       };
     });
 
     return NextResponse.json({
       success: true,
       sessions: formattedSessions,
-      current_user_role: currentMember.role,
+      current_user_role: userRole,
     });
 
   } catch (error) {
@@ -271,7 +303,9 @@ export async function GET(request: NextRequest) {
  * 更新直播课程状态
  * PATCH /api/classroom/live-session
  */
-export async function PATCH(request: NextRequest) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  
   try {
     // 验证用户身份
     const authResult = await authorize('student');
@@ -279,8 +313,7 @@ export async function PATCH(request: NextRequest) {
       return authResult;
     }
 
-    const currentUserId = authResult.sub;
-    const currentProfile = authResult.user.profile;
+    const userId = authResult.sub;
     const { session_id, status, title, starts_at, ends_at } = await request.json();
 
     // 验证必填字段
@@ -291,10 +324,18 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // 验证用户 profile 是否存在
-    if (!currentProfile) {
+    const supabase = await createAdminClient();
+
+    // Get user's profile ID from JWT user_id
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Current user profile not found' },
+        { error: 'User profile not found' },
         { status: 404 }
       );
     }
@@ -307,13 +348,44 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const supabase = await createAdminClient();
+    // Check if classroom exists
+    const { data: classroomExists, error: existsError } = await supabase
+      .from('classroom')
+      .select('id, slug, name')
+      .eq('slug', slug)
+      .single();
+
+    if (existsError || !classroomExists) {
+      return NextResponse.json(
+        { error: 'Classroom not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is a member of this classroom
+    const { data: membership, error: membershipError } = await supabase
+      .from('classroom_member')
+      .select('role')
+      .eq('classroom_id', classroomExists.id)
+      .eq('user_id', profile.id)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json(
+        { error: 'Access denied - not a member of this classroom' },
+        { status: 403 }
+      );
+    }
+
+    const userRole = membership.role;
+    const classroom = classroomExists;
 
     // 获取直播课程信息
     const { data: session, error: sessionError } = await supabase
       .from('classroom_live_session')
       .select('id, classroom_id, host_id, status')
       .eq('id', session_id)
+      .eq('classroom_id', classroom.id)
       .eq('is_deleted', false)
       .single();
 
@@ -324,23 +396,8 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // 检查当前用户在课堂中的权限
-    const { data: currentMember, error: currentMemberError } = await supabase
-      .from('classroom_member')
-      .select('role')
-      .eq('classroom_id', session.classroom_id)
-      .eq('user_id', currentProfile.id)
-      .single();
-
-    if (currentMemberError || !currentMember) {
-      return NextResponse.json(
-        { error: 'You are not a member of this classroom' },
-        { status: 403 }
-      );
-    }
-
     // 检查权限：只有主持人或课堂管理员可以更新
-    const canUpdate = session.host_id === currentProfile.id || ['owner', 'tutor'].includes(currentMember.role);
+    const canUpdate = session.host_id === profile.id || ['owner', 'tutor'].includes(userRole);
     
     if (!canUpdate) {
       return NextResponse.json(

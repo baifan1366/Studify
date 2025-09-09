@@ -6,7 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function GET(req: NextRequest, { params }: { params: { pathId: string } }) {
   try {
     // 验证用户身份
-    const currentUser = await getAuthUser();
+    const { data: { user }, error: authError } = await (await createServerClient()).auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const currentUser = user;
     if (!currentUser) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }

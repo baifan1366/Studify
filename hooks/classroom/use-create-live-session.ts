@@ -6,7 +6,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiSend, apiGet } from '@/lib/api-config';
 
 interface CreateLiveSessionData {
-  classroom_id: number;
+  classroomSlug: string;
   title: string;
   description?: string;
   starts_at: string;
@@ -14,6 +14,7 @@ interface CreateLiveSessionData {
 }
 
 interface UpdateLiveSessionData {
+  classroomSlug: string;
   session_id: number;
   status?: 'scheduled' | 'live' | 'ended' | 'cancelled';
   title?: string;
@@ -69,16 +70,17 @@ export function useCreateLiveSession() {
 
   return useMutation<CreateLiveSessionResponse, Error, CreateLiveSessionData>({
     mutationFn: async (data) => {
-      return apiSend<CreateLiveSessionResponse, CreateLiveSessionData>({
-        url: '/api/classroom/live-session',
+      const { classroomSlug, ...bodyData } = data;
+      return apiSend<CreateLiveSessionResponse, Omit<CreateLiveSessionData, 'classroomSlug'>>({
+        url: `/api/classroom/${classroomSlug}/live-sessions`,
         method: 'POST',
-        body: data,
+        body: bodyData,
       });
     },
     onSuccess: (data, variables) => {
       // Invalidate live sessions query for this classroom
       queryClient.invalidateQueries({ 
-        queryKey: ['live-sessions', variables.classroom_id] 
+        queryKey: ['live-sessions', variables.classroomSlug] 
       });
     },
   });
@@ -92,16 +94,17 @@ export function useUpdateLiveSession() {
 
   return useMutation<UpdateLiveSessionResponse, Error, UpdateLiveSessionData>({
     mutationFn: async (data) => {
-      return apiSend<UpdateLiveSessionResponse, UpdateLiveSessionData>({
-        url: '/api/classroom/live-session',
+      const { classroomSlug, ...bodyData } = data;
+      return apiSend<UpdateLiveSessionResponse, Omit<UpdateLiveSessionData, 'classroomSlug'>>({
+        url: `/api/classroom/${classroomSlug}/live-sessions`,
         method: 'PATCH',
-        body: data,
+        body: bodyData,
       });
     },
     onSuccess: (data, variables) => {
       // Invalidate live sessions queries
       queryClient.invalidateQueries({ 
-        queryKey: ['live-sessions'] 
+        queryKey: ['live-sessions', variables.classroomSlug] 
       });
     },
   });
@@ -110,21 +113,22 @@ export function useUpdateLiveSession() {
 /**
  * Hook for fetching live sessions for a classroom
  */
-export function useLiveSessions(classroomId: number | undefined, status?: string) {
+export function useLiveSessions(classroomSlug: string | undefined, status?: string) {
   const queryParams = new URLSearchParams();
-  
-  if (classroomId) {
-    queryParams.set('classroom_id', classroomId.toString());
-  }
   
   if (status) {
     queryParams.set('status', status);
   }
 
+  const queryString = queryParams.toString();
+  const url = classroomSlug 
+    ? `/api/classroom/${classroomSlug}/live-sessions${queryString ? `?${queryString}` : ''}`
+    : '';
+
   return useQuery<GetLiveSessionsResponse>({
-    queryKey: ['live-sessions', classroomId, status],
-    queryFn: () => apiGet<GetLiveSessionsResponse>(`/api/classroom/live-session?${queryParams}`),
-    enabled: !!classroomId,
+    queryKey: ['live-sessions', classroomSlug, status],
+    queryFn: () => apiGet<GetLiveSessionsResponse>(url),
+    enabled: !!classroomSlug,
     staleTime: 1000 * 60 * 2, // 2 minutes (shorter for live data)
   });
 }

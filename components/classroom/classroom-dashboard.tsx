@@ -87,9 +87,9 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: classroomsData } = useClassrooms();
-  const { data: membersData } = useClassroomMembers(classroom?.id);
-  const { data: liveSessionsData } = useLiveSessions(classroom?.id);
-  const { data: assignmentsData } = useAssignments('upcoming');
+  const { data: membersData } = useClassroomMembers(classroomSlug);
+  const { data: liveSessionsData } = useLiveSessions(classroomSlug);
+  const { data: assignmentsData } = useAssignments(classroomSlug, 'upcoming');
 
   useEffect(() => {
     if (classroomsData?.classrooms) {
@@ -110,6 +110,63 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
 
   const navigateToSection = (section: string) => {
     router.push(`/classroom/${classroomSlug}/${section}`);
+  };
+
+  const handleJoinSession = async (session: any) => {
+    try {
+      // Validate session status
+      if (session.status !== 'live') {
+        toast({
+          title: "Cannot Join Session",
+          description: "This session is not currently active.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if session has started
+      const now = new Date();
+      const sessionStart = new Date(session.starts_at);
+      
+      if (now < sessionStart) {
+        toast({
+          title: "Session Not Started",
+          description: "This session hasn't started yet.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if session has ended
+      if (session.ends_at) {
+        const sessionEnd = new Date(session.ends_at);
+        if (now > sessionEnd) {
+          toast({
+            title: "Session Ended",
+            description: "This session has already ended.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      // Show joining toast
+      toast({
+        title: "Joining Session",
+        description: `Connecting to "${session.title}"...`,
+      });
+
+      // Navigate to live session room
+      router.push(`/classroom/${classroomSlug}/live/${session.slug || session.id}`);
+      
+    } catch (error) {
+      console.error('Error joining session:', error);
+      toast({
+        title: "Failed to Join",
+        description: "Unable to join the session. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (!classroom) {
@@ -173,37 +230,190 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
         </div>
       </div>
 
-      {/* Live Sessions Alert */}
-      {liveSessions.length > 0 && (
-        <Card className="mb-6 border-green-200 bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-green-800 flex items-center gap-2">
-              <Video className="h-5 w-5" />
-              Live Session Active
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {liveSessions.map(session => (
-              <div key={session.id} className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium">{session.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Started at {new Date(session.starts_at).toLocaleTimeString()}
-                  </p>
-                </div>
-                <Button onClick={() => router.push(`/classroom/${classroomSlug}/live/${session.id}`)}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Join Session
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+
+
+{/* Live Sessions Alert */}
+{liveSessions.length > 0 && (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ 
+      opacity: 1, 
+      scale: [0.98, 1.02, 0.98],
+    }}
+    transition={{ 
+      duration: 0.3,
+      scale: {
+        duration: 3,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }
+    }}
+    className="mb-6 relative"
+  >
+    {/* Intensified Ripple Animation Container */}
+    <div className="absolute inset-0 rounded-lg overflow-hidden">
+      <motion.div
+        className="absolute inset-0 bg-green-500/30 rounded-lg"
+        animate={{
+          scale: [1, 1.15, 1],
+          opacity: [0.4, 0.05, 0.4],
+        }}
+        transition={{
+          duration: 1.5,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+      <motion.div
+        className="absolute inset-0 bg-green-500/20 rounded-lg"
+        animate={{
+          scale: [1, 1.25, 1],
+          opacity: [0.3, 0.02, 0.3],
+        }}
+        transition={{
+          duration: 1.8,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: 0.3,
+        }}
+      />
+      <motion.div
+        className="absolute inset-0 bg-green-500/15 rounded-lg"
+        animate={{
+          scale: [1, 1.35, 1],
+          opacity: [0.2, 0.01, 0.2],
+        }}
+        transition={{
+          duration: 2.2,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: 0.6,
+        }}
+      />
+    </div>
+    
+    {/* Main Card Content with Border Ripples */}
+    <Card
+      className="relative z-10 border-green-200 shadow-lg overflow-hidden"
+      style={{
+        backgroundColor: cardStyling.backgroundColor,
+        borderColor: cardStyling.borderColor
+      }}
+    >
+      {/* Card Border Ripple Effects */}
+      <div className="absolute inset-0 overflow-hidden rounded-lg">
+        <motion.div
+          className="absolute inset-0 border-2 border-green-400/40 rounded-lg"
+          animate={{
+            scale: [1, 1.02, 1],
+            opacity: [0.6, 0.2, 0.6],
+          }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute inset-0 border-2 border-green-300/30 rounded-lg"
+          animate={{
+            scale: [1, 1.04, 1],
+            opacity: [0.4, 0.1, 0.4],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.2,
+          }}
+        />
+        <motion.div
+          className="absolute inset-0 border border-green-200/20 rounded-lg"
+          animate={{
+            scale: [1, 1.06, 1],
+            opacity: [0.3, 0.05, 0.3],
+          }}
+          transition={{
+            duration: 1.8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.4,
+          }}
+        />
+      </div>
+      <CardHeader>
+        <CardTitle
+          className="flex items-center gap-2"
+          style={{ fontWeight: 'bold', color: 'green' }}
+        >
+          <motion.div
+            animate={{ 
+              scale: [1, 1.1, 1],
+            }}
+            transition={{ 
+              duration: 1.5, 
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          >
+            <Video className="h-5 w-5" />
+          </motion.div>
+          Live Session Active
+          
+          {/* Pulsing dot indicator */}
+          <motion.div
+            className="w-2 h-2 bg-green-500 rounded-full ml-2"
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [1, 0.6, 1],
+            }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent>
+        {liveSessions.map((session, index) => (
+          <motion.div
+            key={session.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="flex justify-between items-center"
+          >
+            <div>
+              <p className="font-medium">{session.title}</p>
+              <p className="text-sm text-muted-foreground">
+                Started at {new Date(session.starts_at).toLocaleTimeString()}
+              </p>
+            </div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button 
+                onClick={() => handleJoinSession(session)}
+                className="bg-green-600 hover:bg-green-700"
+                disabled={session.status !== 'live'}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                {session.status === 'live' ? 'Join Session' : 'Session Not Active'}
+              </Button>
+            </motion.div>
+          </motion.div>
+        ))}
+      </CardContent>
+      </Card>
+    </motion.div>
+)}
 
       <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-6">
         <div className="relative">
-          <TabsList className="relative border-b  bg-transparent p-0 h-auto w-full justify-start">
+          <TabsList className="relative border-b border-gray-100/10 bg-transparent p-0 h-auto w-full justify-start">
             <AnimatedTabsTrigger 
               value="overview" 
               isActive={activeTab === 'overview'}
@@ -362,7 +572,7 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
                 ) : (
                   <div className="space-y-3">
                     {upcomingSessions.slice(0, 3).map(session => (
-                      <div key={session.id} className="flex justify-between items-center p-3 border rounded-lg">
+                      <div key={session.id} className="flex justify-between bg-gray-100/5 hover:bg-gray-200/8 items-center p-3 rounded-lg">
                         <div>
                           <p className="font-medium">{session.title}</p>
                           <p className="text-sm text-muted-foreground">
@@ -405,7 +615,7 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
                 ) : (
                   <div className="space-y-3">
                     {assignmentsData.slice(0, 3).map((assignment: any) => (
-                      <div key={assignment.id} className="flex justify-between items-center p-3 border rounded-lg">
+                      <div key={assignment.id} className="flex justify-between items-center p-3 bg-gray-100/5 hover:bg-gray-200/8  rounded-lg">
                         <div>
                           <p className="font-medium">{assignment.title}</p>
                           <p className="text-sm text-muted-foreground">

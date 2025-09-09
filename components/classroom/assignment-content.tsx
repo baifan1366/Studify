@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User } from '@supabase/supabase-js';
+
 import { ClipboardList, Calendar, Clock, CheckCircle, AlertTriangle, FileText, Upload } from 'lucide-react';
 import { useUser } from '@/hooks/profile/use-user';
 import AnimatedSidebar from '@/components/sidebar';
@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl';
 export default function AssignmentContent() {
   const [activeMenuItem, setActiveMenuItem] = useState('assignment');
   const { data, isLoading, error } = useUser();
-  const user = data?.user;
+  const user = data;
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   const [selectedTab, setSelectedTab] = useState('pending');

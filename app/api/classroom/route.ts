@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
       .select(`
         role,
         joined_at,
-        classroom!inner(
+        classroom!classroom_member_classroom_id_fkey(
           id,
           public_id,
           slug,

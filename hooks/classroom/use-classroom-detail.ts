@@ -20,13 +20,13 @@ export interface ClassroomDetail {
 
 /**
  * 获取课程详情的hook
- * @param classroomId 课程ID
+ * @param classroomSlug 课程Slug
  */
-export function useClassroomDetail(classroomId: string) {
+export function useClassroomDetail(classroomSlug: string | undefined) {
   return useQuery<ClassroomDetail>({
-    queryKey: ["classroom", classroomId],
-    queryFn: () => apiGet<ClassroomDetail>(classroomApi.detail(classroomId)), // ✅ Use apiGet
-    enabled: !!classroomId,
+    queryKey: ["classroom", classroomSlug],
+    queryFn: () => apiGet<ClassroomDetail>(`/api/classroom/${classroomSlug}`),
+    enabled: !!classroomSlug,
     staleTime: 1000 * 60 * 5, // 5分钟缓存
     refetchOnWindowFocus: false,
   });

@@ -44,35 +44,44 @@ export interface Mistake {
 // ========================
 // Queries
 // ========================
-export function useAssignments(state: "upcoming" | "incomplete" | "submitted") {
+export function useAssignments(classroomSlug: string | undefined, state?: "upcoming" | "incomplete" | "submitted") {
+  const queryParams = new URLSearchParams();
+  
+  if (state) {
+    queryParams.set('state', state);
+  }
+
   return useQuery<Assignment[], Error>({
-    queryKey: ["assignments", state],
-    queryFn: () => apiGet<Assignment[]>(`/api/classroom/assignments?state=${state}`),
+    queryKey: ["assignments", classroomSlug, state],
+    queryFn: () => apiGet<Assignment[]>(`/api/classroom/${classroomSlug}/assignments?${queryParams}`),
+    enabled: !!classroomSlug,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useAssignmentDetail(id: string) {
+export function useAssignmentDetail(classroomSlug: string | undefined, id: string | undefined) {
   return useQuery<{ assignment: Assignment; submissions: Submission[] }, Error>({
-    queryKey: ["assignment", id],
+    queryKey: ["assignment", classroomSlug, id],
     queryFn: () =>
       apiGet<{ assignment: Assignment; submissions: Submission[] }>(
-        `/api/classroom/assignments/${id}`
+        `/api/classroom/${classroomSlug}/assignments/${id}`
       ),
-    enabled: !!id,
+    enabled: !!classroomSlug && !!id,
     staleTime: 2 * 60 * 1000,
   });
 }
 
-export function useMistakes(userId?: string) {
+export function useMistakes(classroomSlug: string | undefined, userId?: string) {
+  const queryParams = new URLSearchParams();
+  if (userId) {
+    queryParams.set('userId', userId);
+  }
+
   return useQuery<Mistake[], Error>({
-    queryKey: ["mistakes", userId],
+    queryKey: ["mistakes", classroomSlug, userId],
     queryFn: () =>
-      apiGet<Mistake[]>(
-        userId
-          ? `/api/classroom/assignments/mistakes?userId=${userId}`
-          : `/api/classroom/assignments/mistakes`
-      ),
+      apiGet<Mistake[]>(`/api/classroom/${classroomSlug}/assignments/mistakes?${queryParams}`),
+    enabled: !!classroomSlug,
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -80,7 +89,7 @@ export function useMistakes(userId?: string) {
 // ========================
 // Mutations
 // ========================
-export function useSubmitAssignment() {
+export function useSubmitAssignment(classroomSlug: string) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -91,13 +100,13 @@ export function useSubmitAssignment() {
   >({
     mutationFn: ({ id, answer, fileUrl }) =>
       apiSend<Submission>({
-        url: `/api/classroom/assignments/${id}/submit`,
+        url: `/api/classroom/${classroomSlug}/assignments/${id}/submit`,
         method: "POST",
         body: { answer, fileUrl },
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["assignment", variables.id] });
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["assignment", classroomSlug, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["assignments", classroomSlug] });
 
       toast({
         title: "提交成功",

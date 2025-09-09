@@ -37,6 +37,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomMembersPageProps {
   classroomSlug: string;
@@ -48,9 +49,9 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
   const [classroom, setClassroom] = useState<any>(null);
 
   const { data: classroomsData } = useClassrooms();
-  const { data: membersData, isLoading } = useClassroomMembers(classroom?.id);
-  const updateMemberMutation = useUpdateClassroomMember();
-  const removeMemberMutation = useRemoveClassroomMember();
+  const { data: membersData, isLoading } = useClassroomMembers(classroomSlug);
+  const updateMemberMutation = useUpdateClassroomMember(classroomSlug);
+  const removeMemberMutation = useRemoveClassroomMember(classroomSlug);
 
   useEffect(() => {
     if (classroomsData?.classrooms) {
@@ -78,8 +79,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
 
     try {
       await updateMemberMutation.mutateAsync({
-        classroom_id: classroom.id,
-        user_id: memberId,
+        userId: memberId,
         role: newRole as 'owner' | 'tutor' | 'student',
       });
       toast({
@@ -100,8 +100,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
 
     try {
       await removeMemberMutation.mutateAsync({
-        classroom_id: classroom.id,
-        user_id: memberId,
+        userId: memberId,
       });
       toast({
         title: "Success",
@@ -152,6 +151,13 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
   const members = membersData?.members || [];
   const currentUserRole = membersData?.current_user_role;
 
+  // Get classroom color styling
+  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
+    ? classroom.color as ClassroomColor 
+    : '#6aa84f';
+  
+  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -182,7 +188,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
       <div className="grid gap-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Members</CardTitle>
               <User className="h-4 w-4 text-muted-foreground" />
@@ -191,7 +197,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
               <div className="text-2xl font-bold">{members.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tutors</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
@@ -202,7 +208,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Students</CardTitle>
               <User className="h-4 w-4 text-muted-foreground" />
@@ -216,7 +222,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
         </div>
 
         {/* Members List */}
-        <Card>
+        <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
             <CardTitle>Members ({members.length})</CardTitle>
             <CardDescription>
@@ -238,18 +244,25 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
               </div>
             ) : (
               <div className="space-y-4">
-                {members.map((member) => (
+                {members.map((member, index) => (
                   <div
-                    key={member.profile_id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    key={member.user_id || `member-${index}`}
+                    className="flex items-center justify-between p-4 bg-gray-100/5 hover:bg-gray-200/8 rounded-lg"
                   >
                     <div className="flex items-center space-x-4">
-                      <Avatar>
-                        <AvatarImage src={member.avatar_url} />
-                        <AvatarFallback>
-                          {member.name?.charAt(0)?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
+                      {member.avatar_url ? (
+                        <img 
+                          src={member.avatar_url} 
+                          alt={member.name || 'Unknown User'}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary">
+                            {member.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                      )}
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{member.name || 'Unknown User'}</p>
@@ -315,7 +328,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
         </Card>
 
         {/* Instructions */}
-        <Card>
+        <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
             <CardTitle>How to Add Members</CardTitle>
           </CardHeader>

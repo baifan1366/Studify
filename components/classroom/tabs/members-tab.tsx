@@ -5,6 +5,7 @@ import { Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface MembersTabProps {
@@ -54,22 +55,17 @@ export function MembersTab({ membersData, isOwnerOrTutor, classroomSlug, navigat
         ) : (
           <div className="space-y-4">
             {membersData.members.map((member: any) => (
-              <div key={member.profile_id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div key={member.id || member.user_id || member.profiles?.user_id} className="flex items-center justify-between p-4 bg-gray-100/5 hover:bg-gray-200/8 rounded-lg">
                 <div className="flex items-center space-x-4">
-                  {member.avatar_url ? (
-                    <img 
-                      src={member.avatar_url} 
-                      alt={member.display_name || member.name || 'Unknown User'}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">U</span>
-                    </div>
-                  )}
+                  <Avatar>
+                    <AvatarImage src={member.profiles?.avatar_url} />
+                    <AvatarFallback>
+                      {member.profiles?.display_name?.charAt(0)?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
-                    <p className="font-medium">{member.display_name || member.name || 'Unknown User'}</p>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                    <p className="font-medium">{member.profiles?.display_name || 'Unknown User'}</p>
+                    <p className="text-sm text-muted-foreground">{member.profiles?.email}</p>
                     <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
                   </div>
                 </div>

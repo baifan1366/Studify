@@ -4,7 +4,7 @@ import { createClient } from "@updatedev/js";
 export async function createSupabaseClient() {
   return createClient(process.env.UPDATE_PUBLISHABLE_KEY!, {
     getSessionToken: async () => {
-      const supabaseClient = createServerClient();
+      const supabaseClient = await createServerClient();
       const { data } = await supabaseClient.auth.getSession();
       if (data.session == null) return;
       return data.session.access_token;
@@ -15,3 +15,6 @@ export async function createSupabaseClient() {
     environment: "test",
   });
 }
+
+// Backward compatibility alias
+export const createUpdateClient = createSupabaseClient;

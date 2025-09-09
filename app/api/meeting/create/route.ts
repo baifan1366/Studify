@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken } from '@/lib/stubs/livekit-server-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
 // 创建会议API路由
 export async function POST(req: NextRequest) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('tutor');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     // 解析请求体
     const { courseId, userId, role } = await req.json();
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     // 创建访问令牌，绑定用户角色
     const at = new AccessToken(apiKey, apiSecret, {
       identity: userId,
-      name: user.name || userId,
+      name: authResult.payload.name || userId,
     });
 
     // 设置房间名和TTL（24小时）

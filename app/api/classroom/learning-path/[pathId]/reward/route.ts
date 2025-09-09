@@ -6,10 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { pathId: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { pathId } = params;
     const { milestoneId } = await req.json();
@@ -34,8 +35,8 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
       return NextResponse.json({ error: '获取学习路径失败' }, { status: 500 });
     }
 
-    // 检查权限
-    if (pathData.user_id !== user.id && user.role !== 'teacher') {
+    // 检查权限 - user doesn't have role property, check via authResult.payload
+    if (pathData.user_id !== user.id && authResult.payload.role !== 'tutor') {
       return NextResponse.json({ error: '无权获取此学习路径的奖励' }, { status: 403 });
     }
 

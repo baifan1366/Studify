@@ -6,7 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { pathId: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const user = authResult.user;
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
@@ -35,8 +39,8 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
     }
 
     // 检查权限
-    if (pathData.user_id !== user.id && user.role !== 'teacher') {
-      return NextResponse.json({ error: '无权更新此学习路径' }, { status: 403 });
+    if (pathData.user_id !== user.id && authResult.payload.role !== 'tutor') {
+      return NextResponse.json({ error: '无权解锁此学习路径的里程碑' }, { status: 403 });
     }
 
     // 获取当前里程碑信息

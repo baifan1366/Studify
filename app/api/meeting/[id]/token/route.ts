@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken } from '@/lib/stubs/livekit-server-sdk';
 
 // 生成LiveKit访问令牌API路由
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
     const { userId, role } = await req.json();
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // 创建访问令牌，绑定用户角色
     const at = new AccessToken(apiKey, apiSecret, {
       identity: userId,
-      name: user.name || userId,
+      name: authResult.payload.name || userId,
     });
 
     // 设置房间名和权限（基于角色）

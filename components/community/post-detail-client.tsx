@@ -500,6 +500,49 @@ const PostDetailContent = ({
           {post.body}
         </div>
       </CardContent>
+
+      {/* Picture Attachment Display */}
+      {post.files && post.files.length > 0 && (
+        <div className="mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {post.files.map((file) => (
+              <div
+                key={file.id}
+                className="bg-black/30 rounded-lg overflow-hidden group hover:ring-2 hover:ring-blue-400 transition-all"
+              >
+                {file.mime_type.startsWith("image/") ? (
+                  <a href={file.url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={file.url}
+                      alt={file.file_name}
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                ) : file.mime_type.startsWith("video/") ? (
+                  <video
+                    src={file.url}
+                    controls
+                    style={{ width: "100%", height: "auto" }}
+                  />
+                ) : (
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full h-full flex flex-col items-center justify-center p-3"
+                  >
+                    <Paperclip className="w-6 h-6 text-gray-400" />
+                    <span className="text-xs text-gray-400 text-center truncate w-full mt-1 group-hover:text-blue-300">
+                      {file.file_name}
+                    </span>
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <CardContent className="flex justify-between pt-3">
         <div className="flex space-x-2">
           <ReactionButton

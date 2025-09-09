@@ -4,10 +4,8 @@ import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
-  console.log(`[API] GET /api/community/groups/${params.slug}/posts/${params.postSlug}`);
-  
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
     console.log('[API] Authorization failed.');
@@ -16,7 +14,7 @@ export async function GET(
   console.log('[API] Authorization successful for user:', authResult.sub);
 
   const supabaseClient = await createServerClient();
-  const { slug, postSlug } = params;
+  const { slug, postSlug } = await params;
 
   // 1. Get user profile
   console.log('[API] Fetching profile for user_id:', authResult.sub);

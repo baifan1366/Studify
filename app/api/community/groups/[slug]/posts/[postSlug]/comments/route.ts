@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   const authResult = await authorize("student");
   if (authResult instanceof NextResponse) {

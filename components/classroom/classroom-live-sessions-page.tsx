@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -15,9 +15,8 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { useClassrooms } from '@/hooks/classroom/use-create-live-session';
+import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
 import { 
-  useLiveSessions, 
   useCreateLiveSession, 
   useUpdateLiveSession 
 } from '@/hooks/classroom/use-create-live-session';
@@ -33,6 +32,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+
+// Dynamic import for client-side only
+const LiveClassroom = lazy(() => import('@/components/classroom/live-session/live-classroom'));
 
 interface ClassroomLiveSessionsPageProps {
   classroomSlug: string;
@@ -68,35 +70,74 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
     router.push(`/classroom/${classroomSlug}`);
   };
 
+  const [activeSession, setActiveSession] = useState<any>(null);
+
   const handleJoinSession = async (session: any) => {
+    console.log('🚀 [LiveSessionsPage] handleJoinSession called with session:', session);
+    console.log('🔍 [LiveSessionsPage] Session details:', {
+      id: session.id,
+      public_id: session.public_id,
+      slug: session.slug,
+      title: session.title,
+      status: session.status,
+      starts_at: session.starts_at,
+      ends_at: session.ends_at
+    });
+
     try {
-      // Validate session status
-      if (session.status !== 'live') {
-        toast({
-          title: "Cannot Join Session",
-          description: "This session is not currently active.",
-          variant: "destructive"
-        });
-        return;
-      }
+      // Construct session identifier with fallback
+      const sessionIdentifier = session.public_id || session.slug || session.id?.toString() || 'unknown';
+      console.log('🆔 [LiveSessionsPage] Session identifier:', sessionIdentifier);
 
-      // Check if session has started
+      // Robust date validation with tolerant checks
       const now = new Date();
-      const sessionStart = new Date(session.starts_at);
-      
-      if (now < sessionStart) {
-        toast({
-          title: "Session Not Started",
-          description: "This session hasn't started yet.",
-          variant: "destructive"
-        });
-        return;
+      console.log('⏰ [LiveSessionsPage] Current time:', now.toISOString());
+
+      let sessionStart = null;
+      let sessionEnd = null;
+
+      try {
+        if (session.starts_at) {
+          sessionStart = new Date(session.starts_at);
+          console.log('🕐 [LiveSessionsPage] Session start time:', sessionStart.toISOString());
+        }
+      } catch (dateError) {
+        console.warn('⚠️ [LiveSessionsPage] Invalid start date:', session.starts_at, dateError);
       }
 
-      // Check if session has ended
-      if (session.ends_at) {
-        const sessionEnd = new Date(session.ends_at);
-        if (now > sessionEnd) {
+      try {
+        if (session.ends_at) {
+          sessionEnd = new Date(session.ends_at);
+          console.log('🕑 [LiveSessionsPage] Session end time:', sessionEnd.toISOString());
+        }
+      } catch (dateError) {
+        console.warn('⚠️ [LiveSessionsPage] Invalid end date:', session.ends_at, dateError);
+      }
+
+      // More tolerant time checks
+      if (sessionStart && !isNaN(sessionStart.getTime())) {
+        const timeDiff = now.getTime() - sessionStart.getTime();
+        console.log('⏱️ [LiveSessionsPage] Time difference from start (ms):', timeDiff);
+        
+        // Allow joining 5 minutes before start time
+        if (timeDiff < -300000) {
+          console.log('⏰ [LiveSessionsPage] Session starts in more than 5 minutes');
+          toast({
+            title: "Session Not Started",
+            description: "This session hasn't started yet.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      if (sessionEnd && !isNaN(sessionEnd.getTime())) {
+        const timeDiff = sessionEnd.getTime() - now.getTime();
+        console.log('⏱️ [LiveSessionsPage] Time until end (ms):', timeDiff);
+        
+        // Only block if session ended more than 5 minutes ago
+        if (timeDiff < -300000) {
+          console.log('⏰ [LiveSessionsPage] Session ended more than 5 minutes ago');
           toast({
             title: "Session Ended",
             description: "This session has already ended.",
@@ -112,17 +153,29 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         description: `Connecting to "${session.title}"...`,
       });
 
-      // Navigate to live session room
-      router.push(`/classroom/${classroomSlug}/live/${session.slug || session.id}`);
+      // Set active session to show LiveKit room
+      console.log('✅ [LiveSessionsPage] Setting activeSession with identifier:', sessionIdentifier);
+      const sessionWithIdentifier = { ...session, sessionIdentifier };
+      console.log('📦 [LiveSessionsPage] Final session object:', sessionWithIdentifier);
+      setActiveSession(sessionWithIdentifier);
       
     } catch (error) {
-      console.error('Error joining session:', error);
+      console.error('❌ [LiveSessionsPage] Error in handleJoinSession:', error);
+      console.error('📊 [LiveSessionsPage] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Failed to Join",
         description: "Unable to join the session. Please try again.",
         variant: "destructive"
       });
     }
+  };
+
+  const handleLeaveSession = () => {
+    setActiveSession(null);
+    toast({
+      title: "Left Session",
+      description: "You have left the live session.",
+    });
   };
 
   const resetForm = () => {
@@ -256,6 +309,29 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
   const canManageSessions = classroom?.user_role === 'owner' || classroom?.user_role === 'tutor';
 
+  // If user is in an active session, show LiveKit room
+  if (activeSession) {
+    const sessionId = activeSession.sessionIdentifier || activeSession.id?.toString() || 'fallback';
+    console.log('🎬 [LiveSessionsPage] Rendering LiveClassroom with:', {
+      classroomSlug,
+      sessionId,
+      participantName: classroom?.name || 'User',
+      userRole: canManageSessions ? 'tutor' : 'student',
+      activeSession
+    });
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center p-8">Loading video classroom...</div>}>
+        <LiveClassroom
+          classroomSlug={classroomSlug}
+          sessionId={sessionId}
+          participantName={classroom?.name || 'User'}
+          userRole={canManageSessions ? 'tutor' : 'student'}
+          onSessionEnd={handleLeaveSession}
+        />
+      </Suspense>
+    );
+  }
+
   if (!classroom) {
     return (
       <div className="container mx-auto py-8">
@@ -378,9 +454,13 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button onClick={() => handleJoinSession(session)} className="bg-red-600 hover:bg-red-700">
-                        <Play className="mr-2 h-4 w-4" />
-                        Join Live
+                      <Button 
+                        onClick={() => handleJoinSession(session)} 
+                        className="bg-green-600 hover:bg-green-700"
+                        disabled={false}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Join Live (Debug)
                       </Button>
                       {canManageSessions && (
                         <DropdownMenu>
@@ -455,8 +535,11 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {session.status === 'live' && (
-                        <Button onClick={() => handleJoinSession(session)} className="bg-red-600 hover:bg-red-700">
+                      {((session.status as string) === 'live' || (session.status as string) === 'active') && (
+                        <Button 
+                          onClick={() => handleJoinSession(session)} 
+                          className="bg-red-600 hover:bg-red-700"
+                        >
                           <Play className="mr-2 h-4 w-4" />
                           Join Live
                         </Button>

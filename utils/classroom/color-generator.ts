@@ -49,15 +49,16 @@ export function getNextClassroomColor(usedColors: string[] = []): ClassroomColor
   }
   
   // All colors used, find least used color
-  const colorUsageMap = new Map<string, number>();
+  const colorUsageMap = new Map<ClassroomColor, number>();
   
   // Initialize all colors with 0 count
   CLASSROOM_COLORS.forEach(color => colorUsageMap.set(color, 0));
   
   // Count usage of each color
   usedColors.forEach(color => {
-    if (colorUsageMap.has(color)) {
-      colorUsageMap.set(color, colorUsageMap.get(color)! + 1);
+    const classroomColor = color as ClassroomColor;
+    if (colorUsageMap.has(classroomColor)) {
+      colorUsageMap.set(classroomColor, colorUsageMap.get(classroomColor)! + 1);
     }
   });
   
@@ -68,7 +69,7 @@ export function getNextClassroomColor(usedColors: string[] = []): ClassroomColor
   for (const [color, usage] of colorUsageMap.entries()) {
     if (usage < minUsage) {
       minUsage = usage;
-      selectedColor = color as ClassroomColor;
+      selectedColor = color;
     }
   }
   

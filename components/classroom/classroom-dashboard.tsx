@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
@@ -18,6 +18,9 @@ import {
 import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { useAssignments } from '@/hooks/classroom/use-assignments';
+
+// Dynamic import for client-side only
+const LiveClassroom = lazy(() => import('@/components/classroom/live-session/live-classroom'));
 import { Assignment } from '@/interface/classroom/asg-interface';
 import { Quiz } from '@/interface/classroom/quiz-interface';
 import { Button } from '@/components/ui/button';
@@ -80,23 +83,20 @@ const AnimatedTabsContent = ({ children, value, className = "", ...props }: any)
   );
 };
 
-export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
+export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [classroom, setClassroom] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
+  const [activeSession, setActiveSession] = useState<any>(null);
 
-  const { data: classroomsData } = useClassrooms();
-  const { data: membersData } = useClassroomMembers(classroomSlug);
-  const { data: liveSessionsData } = useLiveSessions(classroomSlug);
-  const { data: assignmentsData } = useAssignments(classroomSlug, 'upcoming');
+  // Fetch classroom data
+  const { data: classroomsData, isLoading: isClassroomLoading } = useClassrooms();
+  const { data: membersData, isLoading: isMembersLoading } = useClassroomMembers(classroomSlug);
+  const { data: liveSessionsData, isLoading: isLiveSessionsLoading } = useLiveSessions(classroomSlug);
+  const { data: assignmentsData, isLoading: isAssignmentsLoading } = useAssignments(classroomSlug, 'upcoming');
 
-  useEffect(() => {
-    if (classroomsData?.classrooms) {
-      const foundClassroom = classroomsData.classrooms.find(c => c.slug === classroomSlug);
-      setClassroom(foundClassroom);
-    }
-  }, [classroomsData, classroomSlug]);
+  // Find the specific classroom from the list
+  const classroom = classroomsData?.classrooms?.find(c => c.slug === classroomSlug);
 
   const handleCopyClassCode = () => {
     if (classroom?.class_code) {
@@ -113,34 +113,71 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
   };
 
   const handleJoinSession = async (session: any) => {
+    console.log('🚀 [Dashboard] handleJoinSession called with session:', session);
+    console.log('🔍 [Dashboard] Session details:', {
+      id: session.id,
+      public_id: session.public_id,
+      slug: session.slug,
+      title: session.title,
+      status: session.status,
+      starts_at: session.starts_at,
+      ends_at: session.ends_at
+    });
+
     try {
-      // Validate session status
-      if (session.status !== 'live') {
-        toast({
-          title: "Cannot Join Session",
-          description: "This session is not currently active.",
-          variant: "destructive"
-        });
-        return;
-      }
+      // Construct session identifier with fallback
+      const sessionIdentifier = session.public_id || session.slug || session.id?.toString() || 'unknown';
+      console.log('🆔 [Dashboard] Session identifier:', sessionIdentifier);
 
-      // Check if session has started
+      // Robust date validation with tolerant checks
       const now = new Date();
-      const sessionStart = new Date(session.starts_at);
-      
-      if (now < sessionStart) {
-        toast({
-          title: "Session Not Started",
-          description: "This session hasn't started yet.",
-          variant: "destructive"
-        });
-        return;
+      console.log('⏰ [Dashboard] Current time:', now.toISOString());
+
+      let sessionStart = null;
+      let sessionEnd = null;
+
+      try {
+        if (session.starts_at) {
+          sessionStart = new Date(session.starts_at);
+          console.log('🕐 [Dashboard] Session start time:', sessionStart.toISOString());
+        }
+      } catch (dateError) {
+        console.warn('⚠️ [Dashboard] Invalid start date:', session.starts_at, dateError);
       }
 
-      // Check if session has ended
-      if (session.ends_at) {
-        const sessionEnd = new Date(session.ends_at);
-        if (now > sessionEnd) {
+      try {
+        if (session.ends_at) {
+          sessionEnd = new Date(session.ends_at);
+          console.log('🕑 [Dashboard] Session end time:', sessionEnd.toISOString());
+        }
+      } catch (dateError) {
+        console.warn('⚠️ [Dashboard] Invalid end date:', session.ends_at, dateError);
+      }
+
+      // More tolerant time checks
+      if (sessionStart && !isNaN(sessionStart.getTime())) {
+        const timeDiff = now.getTime() - sessionStart.getTime();
+        console.log('⏱️ [Dashboard] Time difference from start (ms):', timeDiff);
+        
+        // Allow joining 5 minutes before start time
+        if (timeDiff < -300000) {
+          console.log('⏰ [Dashboard] Session starts in more than 5 minutes');
+          toast({
+            title: "Session Not Started",
+            description: "This session hasn't started yet.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      if (sessionEnd && !isNaN(sessionEnd.getTime())) {
+        const timeDiff = sessionEnd.getTime() - now.getTime();
+        console.log('⏱️ [Dashboard] Time until end (ms):', timeDiff);
+        
+        // Only block if session ended more than 5 minutes ago
+        if (timeDiff < -300000) {
+          console.log('⏰ [Dashboard] Session ended more than 5 minutes ago');
           toast({
             title: "Session Ended",
             description: "This session has already ended.",
@@ -156,17 +193,29 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
         description: `Connecting to "${session.title}"...`,
       });
 
-      // Navigate to live session room
-      router.push(`/classroom/${classroomSlug}/live/${session.slug || session.id}`);
+      // Set active session to show LiveKit room
+      console.log('✅ [Dashboard] Setting activeSession with identifier:', sessionIdentifier);
+      const sessionWithIdentifier = { ...session, sessionIdentifier };
+      console.log('📦 [Dashboard] Final session object:', sessionWithIdentifier);
+      setActiveSession(sessionWithIdentifier);
       
     } catch (error) {
-      console.error('Error joining session:', error);
+      console.error('❌ [Dashboard] Error in handleJoinSession:', error);
+      console.error('📊 [Dashboard] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Failed to Join",
         description: "Unable to join the session. Please try again.",
         variant: "destructive"
       });
     }
+  };
+
+  const handleLeaveSession = () => {
+    setActiveSession(null);
+    toast({
+      title: "Left Session",
+      description: "You have left the live session.",
+    });
   };
 
   if (!classroom) {
@@ -180,12 +229,35 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
   }
 
   const isOwnerOrTutor = ['owner', 'tutor'].includes(classroom.user_role);
+
+  // If user is in an active session, show LiveKit room
+  if (activeSession) {
+    const sessionId = activeSession.sessionIdentifier || activeSession.id?.toString() || 'fallback';
+    console.log('🎬 [Dashboard] Rendering LiveClassroom with:', {
+      classroomSlug,
+      sessionId,
+      participantName: (classroom as any)?.user_name || 'User',
+      userRole: isOwnerOrTutor ? 'tutor' : 'student',
+      activeSession
+    });
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center p-8">Loading video classroom...</div>}>
+        <LiveClassroom
+          classroomSlug={classroomSlug}
+          sessionId={sessionId}
+          participantName={(classroom as any)?.user_name || 'User'}
+          userRole={isOwnerOrTutor ? 'tutor' : 'student'}
+          onSessionEnd={handleLeaveSession}
+        />
+      </Suspense>
+    );
+  }
   const upcomingSessions = liveSessionsData?.sessions?.filter(s => s.status === 'scheduled') || [];
   const liveSessions = liveSessionsData?.sessions?.filter(s => s.status === 'live') || [];
   
   // Get classroom color styling
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
+  const classroomColor = ((classroom as any)?.color && CLASSROOM_COLORS.includes((classroom as any).color as ClassroomColor)) 
+    ? (classroom as any).color as ClassroomColor 
     : '#6aa84f';
   
   const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
@@ -398,10 +470,10 @@ export function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
               <Button 
                 onClick={() => handleJoinSession(session)}
                 className="bg-green-600 hover:bg-green-700"
-                disabled={session.status !== 'live'}
+                disabled={false}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                {session.status === 'live' ? 'Join Session' : 'Session Not Active'}
+                Join Session (Debug)
               </Button>
             </motion.div>
           </motion.div>

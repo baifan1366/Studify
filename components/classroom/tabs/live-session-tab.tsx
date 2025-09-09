@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Video, Calendar, Plus, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,9 @@ import { CreateLiveSessionDialog } from '@/components/classroom/Dialog/create-li
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 import { useCreateLiveSession } from '@/hooks/classroom/use-create-live-session';
 import { useToast } from '@/hooks/use-toast';
+
+// Dynamic import for client-side only
+const LiveClassroom = lazy(() => import('@/components/classroom/live-session/live-classroom'));
 
 interface LiveSessionTabProps {
   liveSessionsData: any;
@@ -22,6 +25,7 @@ interface LiveSessionTabProps {
 export function LiveSessionTab({ liveSessionsData, isOwnerOrTutor, classroomSlug, navigateToSection, router, classroom }: LiveSessionTabProps) {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [activeSession, setActiveSession] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -70,35 +74,133 @@ export function LiveSessionTab({ liveSessionsData, isOwnerOrTutor, classroomSlug
   };
 
   const handleJoinSession = async (session: any) => {
+    console.log('🚀 [LiveSessionTab] handleJoinSession called with session:', session);
+    console.log('🔍 [LiveSessionTab] Session details:', {
+      id: session.id,
+      public_id: session.public_id,
+      slug: session.slug,
+      title: session.title,
+      status: session.status,
+      starts_at: session.starts_at,
+      ends_at: session.ends_at
+    });
+
     try {
-      // Validate session status
-      if (session.status !== 'live') {
-        return;
-      }
+      // Construct session identifier with fallback
+      const sessionIdentifier = session.public_id || session.slug || session.id?.toString() || 'unknown';
+      console.log('🆔 [LiveSessionTab] Session identifier:', sessionIdentifier);
 
-      // Check if session has started
+      // Robust date validation with tolerant checks
       const now = new Date();
-      const sessionStart = new Date(session.starts_at);
-      
-      if (now < sessionStart) {
-        return;
+      console.log('⏰ [LiveSessionTab] Current time:', now.toISOString());
+
+      let sessionStart = null;
+      let sessionEnd = null;
+
+      try {
+        if (session.starts_at) {
+          sessionStart = new Date(session.starts_at);
+          console.log('🕐 [LiveSessionTab] Session start time:', sessionStart.toISOString());
+        }
+      } catch (dateError) {
+        console.warn('⚠️ [LiveSessionTab] Invalid start date:', session.starts_at, dateError);
       }
 
-      // Check if session has ended
-      if (session.ends_at) {
-        const sessionEnd = new Date(session.ends_at);
-        if (now > sessionEnd) {
+      try {
+        if (session.ends_at) {
+          sessionEnd = new Date(session.ends_at);
+          console.log('🕑 [LiveSessionTab] Session end time:', sessionEnd.toISOString());
+        }
+      } catch (dateError) {
+        console.warn('⚠️ [LiveSessionTab] Invalid end date:', session.ends_at, dateError);
+      }
+
+      // More tolerant time checks
+      if (sessionStart && !isNaN(sessionStart.getTime())) {
+        const timeDiff = now.getTime() - sessionStart.getTime();
+        console.log('⏱️ [LiveSessionTab] Time difference from start (ms):', timeDiff);
+        
+        // Allow joining 5 minutes before start time
+        if (timeDiff < -300000) {
+          console.log('⏰ [LiveSessionTab] Session starts in more than 5 minutes');
+          toast({
+            title: "Session Not Started",
+            description: "This session hasn't started yet.",
+            variant: "destructive"
+          });
           return;
         }
       }
 
-      // Navigate to live session room
-      router.push(`/classroom/${classroomSlug}/live/${session.slug || session.id}`);
+      if (sessionEnd && !isNaN(sessionEnd.getTime())) {
+        const timeDiff = sessionEnd.getTime() - now.getTime();
+        console.log('⏱️ [LiveSessionTab] Time until end (ms):', timeDiff);
+        
+        // Only block if session ended more than 5 minutes ago
+        if (timeDiff < -300000) {
+          console.log('⏰ [LiveSessionTab] Session ended more than 5 minutes ago');
+          toast({
+            title: "Session Ended",
+            description: "This session has already ended.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      // Show joining toast
+      toast({
+        title: "Joining Session",
+        description: `Connecting to "${session.title}"...`,
+      });
+
+      // Set active session to show LiveKit room
+      console.log('✅ [LiveSessionTab] Setting activeSession with identifier:', sessionIdentifier);
+      const sessionWithIdentifier = { ...session, sessionIdentifier };
+      console.log('📦 [LiveSessionTab] Final session object:', sessionWithIdentifier);
+      setActiveSession(sessionWithIdentifier);
       
     } catch (error) {
-      console.error('Error joining session:', error);
+      console.error('❌ [LiveSessionTab] Error in handleJoinSession:', error);
+      console.error('📊 [LiveSessionTab] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      toast({
+        title: "Failed to Join",
+        description: "Unable to join the session. Please try again.",
+        variant: "destructive"
+      });
     }
   };
+
+  const handleLeaveSession = () => {
+    setActiveSession(null);
+    toast({
+      title: "Left Session",
+      description: "You have left the live session.",
+    });
+  };
+
+  // If user is in an active session, show LiveKit room
+  if (activeSession) {
+    const sessionId = activeSession.sessionIdentifier || activeSession.id?.toString() || 'fallback';
+    console.log('🎬 [LiveSessionTab] Rendering LiveClassroom with:', {
+      classroomSlug,
+      sessionId,
+      participantName: classroom?.user_name || 'User',
+      userRole: isOwnerOrTutor ? 'tutor' : 'student',
+      activeSession
+    });
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center p-8">Loading video classroom...</div>}>
+        <LiveClassroom
+          classroomSlug={classroomSlug}
+          sessionId={sessionId}
+          participantName={classroom?.user_name || 'User'}
+          userRole={isOwnerOrTutor ? 'tutor' : 'student'}
+          onSessionEnd={handleLeaveSession}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <Card 
@@ -140,10 +242,10 @@ export function LiveSessionTab({ liveSessionsData, isOwnerOrTutor, classroomSlug
                   <Button 
                     onClick={() => handleJoinSession(session)}
                     className="bg-green-600 hover:bg-green-700"
-                    disabled={session.status !== 'live'}
+                    disabled={false}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    {session.status === 'live' ? 'Join Session' : 'Not Active'}
+                    Join Session (Debug)
                   </Button>
                 </div>
               ))}

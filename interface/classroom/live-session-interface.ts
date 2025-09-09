@@ -1,14 +1,16 @@
 export interface LiveSession {
-  id: number;
-  public_id: string;
+  id: string;
+  public_id?: string;
   course_id?: number | null;
-  title?: string | null;
-  host_id: number;
-  starts_at: Date;
-  ends_at?: Date | null;
-  status: "scheduled" | "live" | "ended" | "cancelled";
-  is_deleted: boolean;
-  created_at: Date;
-  updated_at: Date;
+  title: string;
+  description?: string;
+  host_id: string;
+  starts_at: string;
+  ends_at?: string | null;
+  status: "scheduled" | "live" | "ended" | "cancelled" | "active";
+  slug?: string;
+  is_deleted?: boolean;
+  created_at?: string;
+  updated_at?: string;
   deleted_at?: Date | null;
 }

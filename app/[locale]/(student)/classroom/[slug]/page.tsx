@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { ClassroomDashboard } from '@/components/classroom/classroom-dashboard';
+import ClassroomDashboard from '@/components/classroom/classroom-dashboard';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

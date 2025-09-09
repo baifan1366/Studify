@@ -9,11 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Play, Clock, Eye, EyeOff, Link, FileText, Image } from 'lucide-react';
+import { Plus, Play, Clock, Eye, EyeOff, Link, FileText, Image, File } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
 import { useCreateLesson } from '@/hooks/course/use-course-lesson';
+import { useAttachments } from '@/hooks/course/use-attachments';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { canEditLessons, getStatusRestrictionMessage, CourseStatus } from '@/utils/course-status';
@@ -38,6 +39,9 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
     const t = useTranslations('CreateCourseLesson');
     const lessonT = useTranslations('CourseLessonSchema');
     const createLessonMutation = useCreateLesson();
+    
+    // Fetch attachments for the current course owner
+    const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(courseId);
     
     const isDisabled = !canEditLessons(courseStatus || 'pending' as CourseStatus);
     const restrictionMessage = getStatusRestrictionMessage(courseStatus || 'pending' as CourseStatus);
@@ -206,21 +210,56 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                 <Label htmlFor="contentUrl" className="text-sm font-medium">
                                     {t('content_url_label')}
                                 </Label>
-                                <div className="relative mt-1.5">
-                                    <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="url"
-                                        id="contentUrl"
-                                        placeholder={t('content_url_placeholder')}
-                                        value={contentUrl}
-                                        onChange={(e) => setContentUrl(e.target.value)}
-                                        className={cn(
-                                            "pl-10 bg-background/50 border-border/50 focus:border-primary transition-colors",
-                                            errors.content_url && "border-destructive focus:border-destructive"
+                                <Select value={contentUrl} onValueChange={setContentUrl}>
+                                    <SelectTrigger className={cn(
+                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                        errors.content_url && "border-destructive focus:border-destructive"
+                                    )}>
+                                        <div className="flex items-center gap-2">
+                                            <File className="h-4 w-4 text-muted-foreground" />
+                                            <SelectValue placeholder={attachmentsLoading ? "Loading attachments..." : "Select an attachment"} />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {attachmentsLoading ? (
+                                            <SelectItem value="" disabled>Loading attachments...</SelectItem>
+                                        ) : attachments.length === 0 ? (
+                                            <SelectItem value="" disabled>No attachments available</SelectItem>
+                                        ) : (
+                                            <>
+                                                <SelectItem value="">No attachment (manual URL)</SelectItem>
+                                                {attachments.map((attachment) => (
+                                                    <SelectItem key={attachment.id} value={attachment.url || ""}>
+                                                        <div className="flex items-center gap-2">
+                                                            <File className="h-4 w-4" />
+                                                            <span className="truncate">{attachment.title}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
+                                                            </span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </>
                                         )}
-                                    />
-                                </div>
+                                    </SelectContent>
+                                </Select>
                                 {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
+                                
+                                {/* Manual URL input when no attachment is selected */}
+                                {contentUrl === '' && (
+                                    <div className="mt-2">
+                                        <div className="relative">
+                                            <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                type="url"
+                                                placeholder={t('content_url_placeholder')}
+                                                onChange={(e) => setContentUrl(e.target.value)}
+                                                className="pl-10 bg-background/50 border-border/50 focus:border-primary transition-colors"
+                                            />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">Or enter a manual URL</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

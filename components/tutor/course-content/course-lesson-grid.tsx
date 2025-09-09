@@ -52,6 +52,7 @@ import { Lesson } from '@/interface/courses/lesson-interface';
 import { useTranslations } from 'next-intl';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
 import { z } from 'zod';
+import LessonPreview from './lesson-preview';
 
 // Extended interface for UI display
 interface CourseLesson extends Lesson {
@@ -104,6 +105,10 @@ export default function CourseLessonGrid({
   // State for delete confirmation
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingLesson, setDeletingLesson] = useState<Lesson | null>(null);
+  
+  // State for lesson preview
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewingLesson, setPreviewingLesson] = useState<Lesson | null>(null);
   
   // Fetch lessons using the hook - only fetch if both IDs are available
   const { data: rawLessons = [], isLoading, error } = useLessonByCourseModuleId(
@@ -179,6 +184,13 @@ export default function CourseLessonGrid({
     if (isEditDeleteDisabled) return;
     setDeletingLesson(lesson);
     setDeleteOpen(true);
+  };
+
+  const handleLessonClick = (lesson: CourseLesson) => {
+    if (lesson.isLocked) return;
+    setPreviewingLesson(lesson);
+    setPreviewOpen(true);
+    onLessonSelect?.(lesson.id);
   };
 
   const handleEditSubmit = async () => {
@@ -447,7 +459,7 @@ export default function CourseLessonGrid({
               selectedLessonId === lesson.id && "ring-2 ring-primary ring-opacity-50 border-primary",
               viewMode === 'list' && "flex items-center gap-4 p-4"
             )}
-            onClick={() => !lesson.isLocked && onLessonSelect?.(lesson.id)}
+            onClick={() => handleLessonClick(lesson)}
           >
             {viewMode === 'grid' ? (
               <div className="p-4">
@@ -731,6 +743,13 @@ export default function CourseLessonGrid({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Lesson Preview Dialog */}
+      <LessonPreview
+        lesson={previewingLesson}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   );
 }

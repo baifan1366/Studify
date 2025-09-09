@@ -5,7 +5,7 @@ import { createServerClient } from '@/utils/supabase/server';
  * 获取作业详情
  * GET /api/classroom/assignments/:id
  */
-export async function GET(request: Request, context: { params: { id: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { params } = context;
   const assignmentId = params.id;
   

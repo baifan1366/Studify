@@ -49,6 +49,7 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomAssignmentsPageProps {
   classroomSlug: string;
@@ -287,6 +288,13 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   const draftAssignments = assignments.filter(a => a.status === 'draft');
   const closedAssignments = assignments.filter(a => a.status === 'closed');
 
+  // Get classroom color styling
+  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
+    ? classroom.color as ClassroomColor 
+    : '#6aa84f';
+  
+  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -388,7 +396,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
       <div className="grid gap-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Assignments</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
@@ -397,7 +405,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
               <div className="text-2xl font-bold">{assignments.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Published</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-500" />
@@ -406,7 +414,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
               <div className="text-2xl font-bold text-green-600">{publishedAssignments.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Drafts</CardTitle>
               <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -415,7 +423,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
               <div className="text-2xl font-bold text-yellow-600">{draftAssignments.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Avg Submission Rate</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -431,7 +439,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
         </div>
 
         {/* Assignments List */}
-        <Card>
+        <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
             <CardTitle>All Assignments</CardTitle>
             <CardDescription>

@@ -15,7 +15,10 @@ export async function POST(
       return authResult;
     }
     const user = authResult.user;
+<<<<<<< HEAD
     const userRole = authResult.payload.role;
+=======
+>>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
 
     const { pathId } = params;
     const { milestoneId } = await req.json();
@@ -40,8 +43,13 @@ export async function POST(
       return NextResponse.json({ error: '获取学习路径失败' }, { status: 500 });
     }
 
+<<<<<<< HEAD
     // 检查权限
     if (pathData.user_id !== user.id && userRole !== 'tutor') {
+=======
+    // 检查权限 - user doesn't have role property, check via authResult.payload
+    if (pathData.user_id !== user.id && authResult.payload.role !== 'tutor') {
+>>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
       return NextResponse.json({ error: '无权获取此学习路径的奖励' }, { status: 403 });
     }
 

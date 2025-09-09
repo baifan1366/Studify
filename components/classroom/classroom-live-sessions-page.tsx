@@ -24,18 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { CreateLiveSessionDialog } from '@/components/classroom/Dialog/create-livesession-dialog';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -43,6 +32,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomLiveSessionsPageProps {
   classroomSlug: string;
@@ -63,7 +53,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   });
 
   const { data: classroomsData } = useClassrooms();
-  const { data: sessionsData, isLoading } = useLiveSessions(classroom?.id);
+  const { data: sessionsData, isLoading } = useLiveSessions(classroomSlug);
   const createSessionMutation = useCreateLiveSession();
   const updateSessionMutation = useUpdateLiveSession();
 
@@ -78,8 +68,61 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
     router.push(`/classroom/${classroomSlug}`);
   };
 
-  const handleJoinSession = (sessionSlug: string) => {
-    router.push(`/classroom/${classroomSlug}/live/${sessionSlug}`);
+  const handleJoinSession = async (session: any) => {
+    try {
+      // Validate session status
+      if (session.status !== 'live') {
+        toast({
+          title: "Cannot Join Session",
+          description: "This session is not currently active.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if session has started
+      const now = new Date();
+      const sessionStart = new Date(session.starts_at);
+      
+      if (now < sessionStart) {
+        toast({
+          title: "Session Not Started",
+          description: "This session hasn't started yet.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if session has ended
+      if (session.ends_at) {
+        const sessionEnd = new Date(session.ends_at);
+        if (now > sessionEnd) {
+          toast({
+            title: "Session Ended",
+            description: "This session has already ended.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      // Show joining toast
+      toast({
+        title: "Joining Session",
+        description: `Connecting to "${session.title}"...`,
+      });
+
+      // Navigate to live session room
+      router.push(`/classroom/${classroomSlug}/live/${session.slug || session.id}`);
+      
+    } catch (error) {
+      console.error('Error joining session:', error);
+      toast({
+        title: "Failed to Join",
+        description: "Unable to join the session. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const resetForm = () => {
@@ -97,7 +140,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
     try {
       await createSessionMutation.mutateAsync({
-        classroom_id: classroom.id,
+        classroomSlug,
         title: formData.title,
         description: formData.description,
         starts_at: formData.starts_at,
@@ -136,6 +179,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
     try {
       await updateSessionMutation.mutateAsync({
+        classroomSlug: classroomSlug,
         session_id: editingSession.id,
         title: formData.title,
         description: formData.description,
@@ -159,11 +203,12 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
     }
   };
 
-  const handleStatusChange = async (sessionId: number, newStatus: string) => {
+  const handleStatusChange = async (sessionId: number, newStatus: 'scheduled' | 'live' | 'ended' | 'cancelled') => {
     try {
       await updateSessionMutation.mutateAsync({
+        classroomSlug,
         session_id: sessionId,
-        status: newStatus as 'scheduled' | 'live' | 'ended' | 'cancelled'
+        status: newStatus
       });
       
       toast({
@@ -226,8 +271,15 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   const scheduledSessions = sessions.filter(s => s.status === 'scheduled');
   const pastSessions = sessions.filter(s => s.status === 'ended');
 
+  // Get classroom color styling
+  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
+    ? classroom.color as ClassroomColor 
+    : '#6aa84f';
+  
+  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 my-[50px]">
       <div className="mb-8">
         <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -240,80 +292,21 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
               Manage live sessions for {classroom.name}
             </p>
           </div>
-          {canManageSessions && (
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Schedule Session
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Schedule Live Session</DialogTitle>
-                  <DialogDescription>
-                    Create a new live session for your classroom.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Session title"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Session description (optional)"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="starts_at">Start Time</Label>
-                    <Input
-                      id="starts_at"
-                      type="datetime-local"
-                      value={formData.starts_at}
-                      onChange={(e) => setFormData(prev => ({ ...prev, starts_at: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="ends_at">End Time</Label>
-                    <Input
-                      id="ends_at"
-                      type="datetime-local"
-                      value={formData.ends_at}
-                      onChange={(e) => setFormData(prev => ({ ...prev, ends_at: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleCreateSession}
-                    disabled={!formData.title || !formData.starts_at || !formData.ends_at}
-                  >
-                    Schedule Session
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+          <CreateLiveSessionDialog
+            isOpen={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+            formData={formData}
+            onFormDataChange={setFormData}
+            onCreateSession={handleCreateSession}
+            canManageSessions={canManageSessions}
+          />
         </div>
       </div>
 
       <div className="grid gap-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Live Now</CardTitle>
               <Video className="h-4 w-4 text-red-500" />
@@ -322,7 +315,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
               <div className="text-2xl font-bold text-red-600">{liveSessions.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
               <Calendar className="h-4 w-4 text-blue-500" />
@@ -331,7 +324,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
               <div className="text-2xl font-bold text-blue-600">{scheduledSessions.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
               <Clock className="h-4 w-4 text-gray-500" />
@@ -340,7 +333,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
               <div className="text-2xl font-bold">{pastSessions.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -353,7 +346,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
         {/* Live Sessions */}
         {liveSessions.length > 0 && (
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Video className="h-5 w-5 text-red-500" />
@@ -365,7 +358,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                 {liveSessions.map((session) => (
                   <div
                     key={session.id}
-                    className="flex items-center justify-between p-4 border rounded-lg bg-red-50 border-red-200"
+                    className="flex items-center justify-between p-4 rounded-lg bg-red-50 dark:bg-gray-100/5 dark:hover:bg-gray-200/8"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -385,7 +378,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button onClick={() => handleJoinSession(session.slug)} className="bg-red-600 hover:bg-red-700">
+                      <Button onClick={() => handleJoinSession(session)} className="bg-red-600 hover:bg-red-700">
                         <Play className="mr-2 h-4 w-4" />
                         Join Live
                       </Button>
@@ -413,7 +406,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         )}
 
         {/* All Sessions */}
-        <Card>
+        <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
             <CardTitle>All Sessions</CardTitle>
             <CardDescription>
@@ -438,7 +431,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                 {sessions.map((session) => (
                   <div
                     key={session.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className="flex items-center justify-between p-4 dark:bg-gray-100/5 dark:hover:bg-gray-200/8 rounded-lg"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -463,15 +456,15 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                     </div>
                     <div className="flex items-center gap-2">
                       {session.status === 'live' && (
-                        <Button onClick={() => handleJoinSession(session.slug)} className="bg-red-600 hover:bg-red-700">
+                        <Button onClick={() => handleJoinSession(session)} className="bg-red-600 hover:bg-red-700">
                           <Play className="mr-2 h-4 w-4" />
                           Join Live
                         </Button>
                       )}
                       {session.status === 'scheduled' && (
-                        <Button onClick={() => handleJoinSession(session.slug)} variant="outline">
+                        <Button onClick={() => handleJoinSession(session)} variant="outline" disabled>
                           <Video className="mr-2 h-4 w-4" />
-                          View Details
+                          Not Started
                         </Button>
                       )}
                       {canManageSessions && session.status === 'scheduled' && (
@@ -505,67 +498,6 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
           </CardContent>
         </Card>
       </div>
-
-      {/* Edit Session Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Live Session</DialogTitle>
-            <DialogDescription>
-              Update the session details.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-title">Title</Label>
-              <Input
-                id="edit-title"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Session title"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Session description (optional)"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-starts_at">Start Time</Label>
-              <Input
-                id="edit-starts_at"
-                type="datetime-local"
-                value={formData.starts_at}
-                onChange={(e) => setFormData(prev => ({ ...prev, starts_at: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-ends_at">End Time</Label>
-              <Input
-                id="edit-ends_at"
-                type="datetime-local"
-                value={formData.ends_at}
-                onChange={(e) => setFormData(prev => ({ ...prev, ends_at: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUpdateSession}
-              disabled={!formData.title || !formData.starts_at || !formData.ends_at}
-            >
-              Update Session
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

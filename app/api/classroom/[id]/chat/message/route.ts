@@ -9,7 +9,7 @@ import { cookies } from 'next/headers';
  */
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const { params } = context;
   try {

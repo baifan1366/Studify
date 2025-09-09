@@ -10,9 +10,19 @@ export async function GET(
   const { params } = context;
   try {
     // 验证用户身份
+<<<<<<< HEAD
     const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
+=======
+    const { data: { user }, error: authError } = await (await createServerClient()).auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const currentUser = user;
+    if (!currentUser) {
+      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+>>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
     }
     const { pathId } = params;
     const { user } = authResult;

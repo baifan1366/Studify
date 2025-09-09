@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -152,6 +152,8 @@ export default function AnimatedSidebar({
   const [isHovered, setIsHovered] = useState(false);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [showSequentialAnimation, setShowSequentialAnimation] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const routeConfig = useMemo((): RouteConfigItem[] => {
     const config = menuSections.flatMap(section =>
@@ -246,6 +248,34 @@ export default function AnimatedSidebar({
     }
   };
 
+  // Handle hover with 1.5 second delay
+  const handleMouseEnter = () => {
+    if (!isPermanentlyExpanded) {
+      hoverTimeoutRef.current = setTimeout(() => {
+        setIsHovered(true);
+      }, 400);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (!isPermanentlyExpanded) {
+      setIsHovered(false);
+    }
+  };
+
+  // Trigger sequential animation when permanently expanded
+  useEffect(() => {
+    if (isPermanentlyExpanded) {
+      setShowSequentialAnimation(true);
+    } else {
+      setShowSequentialAnimation(false);
+    }
+  }, [isPermanentlyExpanded]);
+
   // Automatically determine active item based on current route
   useEffect(() => {
     const currentPath = pathname || '';
@@ -261,10 +291,9 @@ export default function AnimatedSidebar({
   // Auto-close expanded sections when sidebar is collapsed
   useEffect(() => {
     if (!isPermanentlyExpanded && !isHovered) {
-      // Add a small delay to prevent immediate closing when moving mouse
       const timer = setTimeout(() => {
         setExpandedSections({});
-      }, 300);
+      }, 150);
       return () => clearTimeout(timer);
     }
   }, [isPermanentlyExpanded, isHovered]);
@@ -280,21 +309,60 @@ export default function AnimatedSidebar({
     document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
   }, [isExpanded, onExpansionChange]);
 
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Get button index for sequential animation
+  const getButtonIndex = (sectionIndex: number, itemIndex: number): number => {
+    let index = 0;
+    for (let i = 0; i < sectionIndex; i++) {
+      index += menuSections[i].items.length;
+    }
+    return index + itemIndex;
+  };
+
   const sidebarVariants = {
     collapsed: {
       width: '80px',
       transition: {
         type: 'spring' as const,
         stiffness: 300,
-        damping: 30
+        damping: 35,
+        mass: 0.8,
+        velocity: 2
       }
     },
     expanded: {
       width: '280px',
       transition: {
+        ease: [0.25, 0.46, 0.45, 0.94] as const
+      }
+    }
+  };
+
+  const sequentialFloatVariants = {
+    hidden: {
+      opacity: 0,
+      x: -50,
+      scale: 0.8
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        delay: 0, 
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
         type: 'spring' as const,
-        stiffness: 300,
-        damping: 30
+        stiffness: 200,
+        damping: 20
       }
     }
   };
@@ -302,35 +370,53 @@ export default function AnimatedSidebar({
   const itemVariants = {
     collapsed: {
       justifyContent: 'center',
-      transition: { duration: 0.2 }
+      transition: { 
+        duration: 1.5,
+        ease: [0.25, 0.46, 0.45, 0.94] as const
+      }
     },
     expanded: {
       justifyContent: 'flex-start',
-      transition: { duration: 0.2 }
+      transition: { 
+        duration: 1.5,
+      }
     }
   };
 
   const textVariants = {
     hidden: {
       opacity: 0,
-      x: -10,
-      transition: { duration: 0.1 }
+      x: -15,
+      transition: { 
+        duration: 1.5,
+        ease: "easeOut" as const
+      }
     },
     visible: {
       opacity: 1,
       x: 0,
-      transition: { delay: 0.1, duration: 0.2 }
+      transition: { 
+        delay: 0.05,
+        duration: 1.5,
+        ease: [0.25, 0.46, 0.45, 0.94] as const
+      }
     }
   };
 
   const iconVariants = {
     collapsed: {
-      rotate: 0,
-      scale: 1
+      scale: 1,
+      transition: { 
+        duration: 1.5,
+        ease: "easeOut" as const
+      }
     },
     expanded: {
-      rotate: 0,
-      scale: 1.1
+      scale: 1.05,
+      transition: { 
+        duration: 1.5,
+        ease: "easeOut" as const
+      }
     }
   };
 
@@ -373,7 +459,7 @@ export default function AnimatedSidebar({
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? 'expanded' : 'collapsed'}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md"
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md overflow-hidden"
         style={{
           backgroundColor: 'hsl(var(--sidebar))',
           color: 'hsl(var(--sidebar-foreground))',
@@ -382,11 +468,11 @@ export default function AnimatedSidebar({
         {/* Navigation */}
         <nav
           className="flex-1 p-4 overflow-y-auto scrollbar-hide"
-          onMouseEnter={() => !isPermanentlyExpanded && setIsHovered(true)}
-          onMouseLeave={() => !isPermanentlyExpanded && setIsHovered(false)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           style={{
-            scrollbarWidth: 'none', /* Firefox */
-            msOverflowStyle: 'none', /* Internet Explorer 10+ */
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
           }}
         >
           <div className="space-y-6">
@@ -395,19 +481,22 @@ export default function AnimatedSidebar({
 
                 {/* Section Items */}
                 <ul className="space-y-2">
-                  {section.items.map((item) => {
+                  {section.items.map((item, itemIndex) => {
                     const IconComponent = item.icon;
                     const isActive = currentActiveItem === item.id;
                     const hasSubItems = item.subItems && item.subItems.length > 0;
                     const isDropdownExpanded = expandedSections[item.id] || false;
+                    const buttonIndex = getButtonIndex(sectionIndex, itemIndex);
 
                     if (hasSubItems) {
                       return (
                         <li key={item.id}>
                           <div>
                             <motion.button
-                              variants={itemVariants}
-                              animate={isExpanded ? 'expanded' : 'collapsed'}
+                              variants={showSequentialAnimation ? sequentialFloatVariants : itemVariants}
+                              animate={showSequentialAnimation ? 'visible' : (isExpanded ? 'expanded' : 'collapsed')}
+                              custom={buttonIndex}
+                              initial={showSequentialAnimation ? 'hidden' : undefined}
                               onClick={() => {
                                 if (!isExpanded) {
                                   // If sidebar is collapsed, navigate to the main page
@@ -417,14 +506,12 @@ export default function AnimatedSidebar({
                                   toggleSectionExpansion(item.id);
                                 }
                               }}
-                              className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
+                              className={`w-full flex items-center p-3 rounded-xl transition-all duration-150 ${
                                 isActive
                                   ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
                                   : 'hover:bg-transparent dark:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600'
                               }`}
-                              whileHover={{
-                                scale: 1.02
-                              }}
+                              whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                             >
                                 <motion.div
@@ -442,7 +529,7 @@ export default function AnimatedSidebar({
                                     initial="hidden"
                                     animate="visible"
                                     exit="hidden"
-                                    className="ml-4 font-medium whitespace-nowrap "
+                                    className="ml-4 font-medium whitespace-nowrap overflow-hidden"
                                   >
                                     {getLabelForItem(item.id)}
                                   </motion.span>
@@ -460,20 +547,10 @@ export default function AnimatedSidebar({
                                 </motion.div>
                               )}
 
-                              {/* Active indicator */}
-                              {isActive && !isExpanded && (
+                              {isActive && (
                                 <motion.div
                                   layoutId="activeIndicator"
-                                  className="ml-auto w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                />
-                              )}
-                              {isActive && isExpanded && !isDropdownExpanded && (
-                                <motion.div
-                                  layoutId="activeIndicator"
-                                  className="ml-2 w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full"
+                                  className={`${isExpanded ? 'ml-2' : 'ml-auto'} w-2 h-2 bg-orange-500 dark:bg-green-900 rounded-full`}
                                   initial={{ scale: 0 }}
                                   animate={{ scale: 1 }}
                                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -485,12 +562,30 @@ export default function AnimatedSidebar({
                             <AnimatePresence>
                               {isDropdownExpanded && isExpanded && (
                                 <motion.div
-                                  className="ml-6 mt-2 space-y-1"
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  
+                                  className="ml-6 mt-2 space-y-1 overflow-hidden"
+                                  variants={{
+                                    hidden: {
+                                      opacity: 0,
+                                      height: 0,
+                                      scaleY: 0.8,
+                                      transition: {
+                                        duration: 1.5,
+                                        ease: "easeOut" as const
+                                      }
+                                    },
+                                    visible: {
+                                      opacity: 1,
+                                      height: 'auto',
+                                      scaleY: 1,
+                                      transition: {
+                                        duration: 2,
+                                        ease: [0.25, 0.46, 0.45, 0.94] as const
+                                      }
+                                    }
+                                  }}
+                                  initial="hidden"
+                                  animate="visible"
+                                  exit="hidden"
                                 >
                                   {item.subItems?.map((subItem) => {
                                     const SubIconComponent = subItem.icon;
@@ -501,9 +596,15 @@ export default function AnimatedSidebar({
                                         key={subItem.id}
                                         onClick={() => handleItemClick(subItem.id)}
                                         
-                                        className="flex items-center py-1 px-2 rounded-md hover:bg-transparent text-foreground cursor-pointer transition-colors duration-200 border-l-2 border-transparent hover:border-orange-300 dark:hover:border-green-600"
+                                        className="flex items-center w-full py-1 px-2 rounded-md hover:bg-transparent text-foreground cursor-pointer transition-all duration-150 border-l-2 border-transparent hover:border-orange-300 dark:hover:border-green-600"
                                         whileHover={{ scale: 1.02, x: 4 }}
                                         whileTap={{ scale: 0.98 }}
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ 
+                                          delay: 0.05,
+                                          duration: 1.5
+                                        }}
                                       >
                                         <div className="flex-shrink-0">
                                           <SubIconComponent size={18} />
@@ -535,17 +636,17 @@ export default function AnimatedSidebar({
                     return (
                       <li key={item.id}>
                         <motion.button
-                          variants={itemVariants}
-                          animate={isExpanded ? 'expanded' : 'collapsed'}
+                          variants={showSequentialAnimation ? sequentialFloatVariants : itemVariants}
+                          animate={showSequentialAnimation ? 'visible' : (isExpanded ? 'expanded' : 'collapsed')}
+                          custom={buttonIndex}
+                          initial={showSequentialAnimation ? 'hidden' : undefined}
                           onClick={() => handleItemClick(item.id)}
-                          className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
+                          className={`w-full flex items-center p-3 rounded-xl transition-all duration-150 ${
                             isActive
                               ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
                               : 'hover:bg-transparent dark:hover:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-300 dark:hover:border-green-600'
                           }`}
-                          whileHover={{
-                            scale: 1.02
-                          }}
+                          whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <motion.div
@@ -563,7 +664,7 @@ export default function AnimatedSidebar({
                                 initial="hidden"
                                 animate="visible"
                                 exit="hidden"
-                                className="ml-4 font-medium whitespace-nowrap"
+                                className="ml-4 font-medium whitespace-nowrap overflow-hidden"
                               >
                                 {getLabelForItem(item.id)}
                               </motion.span>
@@ -586,9 +687,12 @@ export default function AnimatedSidebar({
                   })}
                 </ul>
 
-                {/* Section Separator */}
                 {sectionIndex < menuSections.length - 1 && (
-                  <div className="mt-4 border-b border-white/10" />
+                  <motion.div 
+                    className="mt-4 border-b border-white/10"
+                    animate={{ opacity: isExpanded ? 0.3 : 0.1 }}
+                    transition={{ duration: 1.5 }}
+                  />
                 )}
               </div>
             ))}
@@ -598,9 +702,11 @@ export default function AnimatedSidebar({
         {/* Footer */}
         <div className="p-4 border-t border-white/20">
           <motion.button
-            variants={itemVariants}
-            animate={isExpanded ? 'expanded' : 'collapsed'}
-            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-200 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
+            variants={showSequentialAnimation ? sequentialFloatVariants : itemVariants}
+            animate={showSequentialAnimation ? 'visible' : (isExpanded ? 'expanded' : 'collapsed')}
+            custom={menuSections.reduce((total, section) => total + section.items.length, 0)} // Last button index
+            initial={showSequentialAnimation ? 'hidden' : undefined}
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-150 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -619,7 +725,7 @@ export default function AnimatedSidebar({
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
-                  className="ml-4 font-medium whitespace-nowrap hover:bg-transparent bg-transparent hover:border-orange-400 dark:hover:border-green-600"
+                  className="ml-4 font-medium whitespace-nowrap overflow-hidden"
                 >
                   {t('logout_button')}
                 </motion.span>

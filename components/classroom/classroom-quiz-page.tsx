@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomQuizPageProps {
   classroomSlug: string;
@@ -325,6 +326,13 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
   const draftQuizzes = quizzes.filter(q => q.status === 'draft');
   const closedQuizzes = quizzes.filter(q => q.status === 'closed');
 
+  // Get classroom color styling
+  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
+    ? classroom.color as ClassroomColor 
+    : '#6aa84f';
+  
+  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -460,7 +468,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
       <div className="grid gap-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Quizzes</CardTitle>
               <HelpCircle className="h-4 w-4 text-muted-foreground" />
@@ -469,7 +477,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
               <div className="text-2xl font-bold">{quizzes.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Published</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-500" />
@@ -478,7 +486,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
               <div className="text-2xl font-bold text-green-600">{publishedQuizzes.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Drafts</CardTitle>
               <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -487,7 +495,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
               <div className="text-2xl font-bold text-yellow-600">{draftQuizzes.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Avg Completion Rate</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -503,7 +511,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
         </div>
 
         {/* Quizzes List */}
-        <Card>
+        <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
             <CardTitle>All Quizzes</CardTitle>
             <CardDescription>

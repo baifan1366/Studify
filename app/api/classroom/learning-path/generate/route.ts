@@ -1,40 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
-import { OpenAI } from 'openai';
+import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { PromptTemplate } from "@langchain/core/prompts";
 import { v1 as uuidv1 } from 'uuid';
-
-// 初始化OpenAI客户端
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // 生成学习路径的AI函数
 async function generateLearningPathWithAI(goal: string, duration: number) {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `你是一个教育专家，负责为学生创建个性化学习路径。根据学生的学习目标和时间范围，生成一个详细的学习路径，包括里程碑和学习资源。`
-        },
-        {
-          role: "user",
-          content: `我的学习目标是：${goal}，我计划在${duration}天内完成。请为我创建一个学习路径，包括阶段性里程碑。`
-        }
-      ],
-      response_format: { type: "json_object" },
+    // 初始化ChatOpenAI模型
+    const model = new ChatOpenAI({
+      modelName: "gpt-4",
       temperature: 0.7,
+      openAIApiKey: process.env.OPENAI_API_KEY,
     });
 
-    // 解析AI返回的JSON
-    const content = response.choices[0].message.content;
-    if (!content) {
-      throw new Error('AI未返回有效内容');
-    }
+    // 创建JSON输出解析器
+    const parser = new JsonOutputParser();
 
-    const parsedContent = JSON.parse(content);
+    // 创建提示模板
+    const systemPrompt = PromptTemplate.fromTemplate(`
+      你是一个教育专家，负责为学生创建个性化学习路径。
+      根据学生的学习目标和时间范围，生成一个详细的学习路径，包括里程碑和学习资源。
+      
+      请返回JSON格式的响应，包含以下结构：
+      {{
+        "title": "学习路径标题",
+        "description": "学习路径描述",
+        "milestones": [
+          {{
+            "title": "里程碑标题",
+            "description": "里程碑描述",
+            "resource_type": "video|document|quiz|assignment",
+            "prerequisites": {{}},
+            "reward": {{
+              "points": 100,
+              "badge": "徽章名称"
+            }}
+          }}
+        ]
+      }}
+    `);
+
+    const userPrompt = PromptTemplate.fromTemplate(`
+      我的学习目标是：{goal}
+      我计划在{duration}天内完成。
+      请为我创建一个学习路径，包括阶段性里程碑。
+      每个里程碑应该合理分配时间，确保在指定天数内完成。
+    `);
+
+    // 创建消息
+    const messages = [
+      new SystemMessage(await systemPrompt.format({})),
+      new HumanMessage(await userPrompt.format({ goal, duration: duration.toString() }))
+    ];
+
+    // 调用模型并解析输出
+    const response = await model.invoke(messages);
+    const parsedContent = await parser.parse(response.content as string);
+    
     return parsedContent;
   } catch (error) {
     console.error('调用AI生成学习路径失败:', error);
@@ -50,7 +76,10 @@ export async function POST(req: NextRequest) {
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const user = authResult;
+    const user = authResult.user;
+    if (!user) {
+      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    }
 
     // 解析请求体
     const { goal, duration } = await req.json();

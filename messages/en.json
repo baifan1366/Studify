@@ -127,6 +127,13 @@
     "og_title": "Assignments - Studify",
     "og_description": "Manage your assignments and track submission progress"
   },
+  "ClassroomAssignmentsPage": {
+    "metadata_title": "Assignments - Studify",
+    "metadata_description": "View, submit, and track your assignments with due dates and progress tracking",
+    "metadata_keywords": "assignments,homework,submissions,due dates,education",
+    "og_title": "Assignments - Studify",
+    "og_description": "Manage your assignments and track submission progress"
+  },
   "ClassroomEnrolledPage": {
     "metadata_title": "Enrolled Courses - Studify",
     "metadata_description": "View and manage your enrolled courses, track progress, and access course materials",
@@ -147,6 +154,27 @@
     "metadata_keywords": "meetings,live sessions,video calls,recordings,education",
     "og_title": "Meetings - Studify",
     "og_description": "Join live meetings and access educational sessions"
+  },
+  "ClassroomLiveSessionsPage": {
+    "metadata_title": "Live Sessions - Studify",
+    "metadata_description": "Join live classroom sessions, participate in real-time discussions, and access interactive learning experiences",
+    "metadata_keywords": "live sessions,real-time learning,interactive classroom,virtual sessions,education",
+    "og_title": "Live Sessions - Studify",
+    "og_description": "Participate in live classroom sessions and interactive learning experiences"
+  },
+  "ClassroomQuizPage": {
+    "metadata_title": "Quiz - Studify",
+    "metadata_description": "Take interactive quizzes, test your knowledge, and track your performance in real-time",
+    "metadata_keywords": "quiz,assessment,test,knowledge check,interactive learning,education",
+    "og_title": "Quiz - Studify",
+    "og_description": "Interactive quizzes and assessments for enhanced learning"
+  },
+  "LiveSessionRoom": {
+    "metadata_title": "Live Session Room - Studify",
+    "metadata_description": "Join the live session room for real-time interactive learning with your instructor and classmates",
+    "metadata_keywords": "live session room,real-time learning,interactive classroom,virtual meeting,education",
+    "og_title": "Live Session Room - Studify",
+    "og_description": "Interactive live session room for real-time learning experiences"
   },
   "ClassroomPage": {
     "metadata_title": "Classroom - Studify",

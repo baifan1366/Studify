@@ -110,7 +110,7 @@ export async function GET(
 // ... (PUT and DELETE functions remain the same)
 export async function PUT(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
@@ -118,7 +118,7 @@ export async function PUT(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug, postSlug } = params;
+  const { slug, postSlug } = await params;
 
   const { title, body } = await request.json();
 
@@ -201,7 +201,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
@@ -209,7 +209,7 @@ export async function DELETE(
   }
 
   const supabaseClient = await createServerClient();
-  const { slug, postSlug } = params;
+  const { slug, postSlug } = await params;
 
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient

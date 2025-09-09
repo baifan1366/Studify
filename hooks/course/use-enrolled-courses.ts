@@ -57,15 +57,15 @@ export interface RecommendedCourse extends CourseSearchResult {
 
 // 获取已注册课程
 const fetchEnrolledCourses = () =>
-  apiGet<EnrolledCourse[]>(classroomApi.enrolled);
+  apiGet<EnrolledCourse[]>(classroomApi.enrolledCourses);
 
 // 搜索课程
 const searchCourses = (query: string, category?: string) =>
-  apiGet<CourseSearchResult[]>(classroomApi.search(query, category));
+  apiGet<CourseSearchResult[]>(`/api/courses/search?q=${encodeURIComponent(query)}${category ? `&category=${encodeURIComponent(category)}` : ''}`);
 
 // 获取推荐课程
 const fetchRecommendedCourses = () =>
-  apiGet<RecommendedCourse[]>(classroomApi.recommend);
+  apiGet<RecommendedCourse[]>('/api/courses/recommendations');
 
 // 加入课程
 const joinCourse = (courseId: string, inviteCode?: string) =>

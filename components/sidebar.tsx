@@ -248,6 +248,14 @@ export default function AnimatedSidebar({
     }
   };
 
+const handleMouseEnter = () => {
+  if (!isPermanentlyExpanded) {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setIsHovered(true);
+  }
+};
 
 
   const handleMouseLeave = () => {
@@ -461,6 +469,7 @@ export default function AnimatedSidebar({
         {/* Navigation */}
         <nav
           className="flex-1 p-4 overflow-y-auto scrollbar-hide"
+          onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           style={{
             scrollbarWidth: 'none',

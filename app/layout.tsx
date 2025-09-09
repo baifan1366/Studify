@@ -14,22 +14,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Studify - Smart Learning Platform",
-  description: "AI-powered intelligent learning and education platform with course management, online classrooms, and community features",
-  manifest: "/manifest.json",
-  themeColor: "#3b82f6",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Studify",
-  },
-  icons: {
-    icon: "/favicon.png",
-    apple: "/favicon.png",
-  },
-};
+// export const metadata: Metadata = {
+//   title: "Studify - Smart Learning Platform",
+//   description: "AI-powered intelligent learning and education platform with course management, online classrooms, and community features",
+//   manifest: "/manifest.json",
+//   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+//   appleWebApp: {
+//     capable: true,
+//     statusBarStyle: "default",
+//     title: "Studify",
+//   },
+//   icons: {
+//     icon: "/favicon.png",
+//     apple: "/favicon.png",
+//   },
+// };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

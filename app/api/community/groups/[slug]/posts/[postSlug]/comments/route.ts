@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   const authResult = await authorize("student");
   if (authResult instanceof NextResponse) {
@@ -136,7 +136,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> } 
 ) {
   try {
     const authResult = await authorize("student");
@@ -145,7 +145,7 @@ export async function POST(
     }
 
     const supabaseClient = await createServerClient();
-    const { slug, postSlug } = params;
+    const { slug, postSlug } = await params;
 
     // 解析 FormData
     const formData = await request.formData();

@@ -26,7 +26,7 @@ export default function DeactivateCourseButton({
   onSuccess
 }: DeactivateCourseButtonProps) {
   const t = useTranslations('CourseStatus');
-  const toast = useToast();
+  const { toast } = useToast();
   const updateStatusMutation = useUpdateCourseStatus();
   
   // Only show button if course can be deactivated (active → inactive)

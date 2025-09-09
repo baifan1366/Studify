@@ -4,7 +4,7 @@ import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const authResult = await authorize('student');
   if (authResult instanceof NextResponse) {
@@ -41,7 +41,7 @@ export async function GET(
         updated_at,
         deleted_at
       `)
-      .eq('slug', params.slug)
+      .eq('slug', (await params).slug)
       .eq('is_deleted', false)
       .single();
 

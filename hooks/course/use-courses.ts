@@ -46,6 +46,22 @@ export function useCourse(id?: number) {
   });
 }
 
+/**
+ * 获取单个课程详情 (通过 slug)
+ */
+export function useCourseBySlug(slug?: string) {
+  return useQuery<Course>({
+    queryKey: ['course-by-slug', slug],
+    queryFn: () => {
+      if (!slug) {
+        throw new Error('Course slug is required');
+      }
+      return apiGet<Course>(`/api/course/${slug}`);
+    },
+    enabled: Boolean(slug),
+  });
+}
+
 // ----------------------
 // Mutations
 // ----------------------

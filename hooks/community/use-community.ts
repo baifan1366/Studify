@@ -5,6 +5,7 @@ import { apiGet, apiSend } from "@/lib/api-config";
 import { Group } from "@/interface/community/group-interface";
 import { Post } from "@/interface/community/post-interface";
 import { GroupMember } from "@/interface/community/group-member-interface";
+//import { communityApi } from "@/lib/api"; //to be used
 
 // API 路径常量
 const COMMUNITY_API = {
@@ -13,7 +14,8 @@ const COMMUNITY_API = {
   groupDetail: (slug: string) => `/api/community/groups/${slug}`,
   groupMembers: (slug: string) => `/api/community/groups/${slug}/members`,
   groupPosts: (slug: string) => `/api/community/groups/${slug}/posts`,
-  postDetail: (groupSlug: string, postSlug: string) => `/api/community/groups/${groupSlug}/posts/${postSlug}`,
+  postDetail: (groupSlug: string, postSlug: string) =>
+    `/api/community/groups/${groupSlug}/posts/${postSlug}`,
   groupAccess: (slug: string) => `/api/community/groups/${slug}/access`,
 };
 
@@ -37,7 +39,12 @@ export const useGroups = () => {
     isPending: isCreatingGroup,
     error: createGroupError,
   } = useMutation({
-    mutationFn: (newGroup: { name: string; description?: string; slug: string; visibility?: "public" | "private" }) =>
+    mutationFn: (newGroup: {
+      name: string;
+      description?: string;
+      slug: string;
+      visibility?: "public" | "private";
+    }) =>
       apiSend<Group>({
         url: COMMUNITY_API.groups,
         method: "POST",
@@ -79,7 +86,11 @@ export const useGroup = (slug: string) => {
     isPending: isUpdatingGroup,
     error: updateGroupError,
   } = useMutation({
-    mutationFn: (updates: { name?: string; description?: string; visibility?: "public" | "private" }) =>
+    mutationFn: (updates: {
+      name?: string;
+      description?: string;
+      visibility?: "public" | "private";
+    }) =>
       apiSend<Group>({
         url: COMMUNITY_API.groupDetail(slug),
         method: "PUT",
@@ -203,12 +214,30 @@ export const useGroupPosts = (slug: string) => {
     isPending: isCreatingPost,
     error: createPostError,
   } = useMutation({
-    mutationFn: (newPost: { title: string; body: string }) =>
-      apiSend<Post>({
-        url: COMMUNITY_API.groupPosts(slug),
+    mutationFn: async (newPost: {
+      title: string;
+      body: string;
+      files: File[];
+      hashtags: string[];
+    }) => {
+      const formData = new FormData();
+      formData.append("title", newPost.title);
+      formData.append("body", newPost.body);
+      newPost.hashtags.forEach((tag) => formData.append("hashtags", tag));
+      newPost.files.forEach((file) => formData.append("files", file));
+
+      const response = await fetch(COMMUNITY_API.groupPosts(slug), {
         method: "POST",
-        body: newPost,
-      }),
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "API request failed");
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groupPosts", slug] });
       queryClient.invalidateQueries({ queryKey: ["communityPosts"] });
@@ -253,7 +282,9 @@ export const usePost = (groupSlug: string, postSlug: string) => {
         body: updates,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["post", groupSlug, postSlug] });
+      queryClient.invalidateQueries({
+        queryKey: ["post", groupSlug, postSlug],
+      });
       queryClient.invalidateQueries({ queryKey: ["groupPosts", groupSlug] });
       queryClient.invalidateQueries({ queryKey: ["communityPosts"] });
     },
@@ -341,7 +372,8 @@ export const useSuggestedGroups = () => {
     error,
   } = useQuery<Group[], Error>({
     queryKey: ["suggestedGroups"],
-    queryFn: () => apiGet<Group[]>(`${COMMUNITY_API.groups}?filter=suggested&limit=5`),
+    queryFn: () =>
+      apiGet<Group[]>(`${COMMUNITY_API.groups}?filter=suggested&limit=5`),
     staleTime: 1000 * 60 * 10,
   });
 
@@ -362,7 +394,10 @@ export const useGroupAccess = (slug: string) => {
     error,
   } = useQuery<{ group: Group; canPost: boolean }, Error>({
     queryKey: ["groupAccess", slug],
-    queryFn: () => apiGet<{ group: Group; canPost: boolean }>(`${COMMUNITY_API.groupDetail(slug)}/access`),
+    queryFn: () =>
+      apiGet<{ group: Group; canPost: boolean }>(
+        `${COMMUNITY_API.groupDetail(slug)}/access`
+      ),
     staleTime: 1000 * 60 * 2,
   });
 
@@ -396,7 +431,12 @@ export const useCommunity = () => {
     isPending: isAddingPost,
     error: addPostError,
   } = useMutation({
-    mutationFn: (newPost: { title: string; body: string }) =>
+    mutationFn: (newPost: {
+      title: string;
+      body: string;
+      files: File[];
+      hashtags: string[];
+    }) =>
       apiSend<Post>({
         url: COMMUNITY_API.posts,
         method: "POST",
@@ -415,5 +455,67 @@ export const useCommunity = () => {
     addPost,
     isAddingPost,
     addPostError,
+  };
+};
+
+type Hashtag = { id: number; name: string };
+
+export const useHashtags = () => {
+  const queryClient = useQueryClient();
+
+  // 查询所有 hashtags
+  const {
+    data: hashtags,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Hashtag[], Error>({
+    queryKey: ["allHashtags"],
+    queryFn: () => apiGet<Hashtag[]>("/api/community/hashtags"),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // 搜索 hashtags
+  const searchHashtags = async (query: string): Promise<Hashtag[]> => {
+    if (!query) return [];
+    try {
+      const response = await fetch(
+        `/api/community/hashtags?q=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch hashtags");
+      return await response.json();
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  };
+
+  // 新建 hashtag mutation
+  const {
+    mutate: createHashtag,
+    isPending: isCreatingHashtag,
+    error: createHashtagError,
+  } = useMutation({
+    mutationFn: (tag: string) =>
+      apiSend<Hashtag>({
+        url: "/api/community/hashtags",
+        method: "POST",
+        body: { tag },
+      }),
+    onSuccess: () => {
+      // 新建成功后，刷新 hashtags 列表
+      queryClient.invalidateQueries({ queryKey: ["allHashtags"] });
+    },
+  });
+
+  return {
+    hashtags,
+    isLoading,
+    isError,
+    error,
+    searchHashtags,
+    createHashtag,
+    isCreatingHashtag,
+    createHashtagError,
   };
 };

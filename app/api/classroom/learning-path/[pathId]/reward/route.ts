@@ -3,7 +3,11 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 触发里程碑奖励
-export async function POST(req: NextRequest, { params }: { params: { pathId: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: { id: string , pathId:string} }
+) {
+  const { params } = context;
   try {
     // 验证用户身份
     const authResult = await authorize('student');
@@ -11,6 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
       return authResult;
     }
     const user = authResult.user;
+    const userRole = authResult.payload.role;
 
     const { pathId } = params;
     const { milestoneId } = await req.json();
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 验证学习路径所有权
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('user_id')
       .eq('id', pathId)
       .single();
@@ -35,14 +40,14 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
       return NextResponse.json({ error: '获取学习路径失败' }, { status: 500 });
     }
 
-    // 检查权限 - user doesn't have role property, check via authResult.payload
-    if (pathData.user_id !== user.id && authResult.payload.role !== 'tutor') {
+    // 检查权限
+    if (pathData.user_id !== user.id && userRole !== 'tutor') {
       return NextResponse.json({ error: '无权获取此学习路径的奖励' }, { status: 403 });
     }
 
     // 获取里程碑信息
     const { data: milestoneData, error: milestoneError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('id', milestoneId)
       .eq('path_id', pathId)
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest, { params }: { params: { pathId: str
 
     // 标记奖励已领取
     const { error: updateError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .update({
         reward: { ...reward, claimed: true, claimed_at: new Date().toISOString() }
       })

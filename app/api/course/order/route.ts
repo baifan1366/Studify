@@ -185,8 +185,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: successUrl || `${process.env.NEXT_PUBLIC_APP_URL}/course/${course.slug}?success=true`,
-      cancel_url: cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL}/course/${course.slug}`,
+      success_url: successUrl || `${process.env.SITE_URL}/course/${course.slug}?success=true`,
+      cancel_url: cancelUrl || `${process.env.SITE_URL}/course/${course.slug}`,
       metadata: {
         orderId: order.public_id,
         courseId: course.public_id,

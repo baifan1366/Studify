@@ -1,15 +1,15 @@
 'use client';
 
 import CreatePostForm from '@/components/community/create-post-form';
-import { Suspense } from 'react';
+import { Suspense, use } from 'react';
 import { useGroupAccess } from '@/hooks/community/use-community';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle } from 'lucide-react';
 
 interface CreatePostPageProps {
-  params: {
+  params: Promise<{
     groupSlug: string;
-  };
+  }>;
 }
 
 function LoadingSkeleton() {
@@ -63,7 +63,8 @@ function ErrorState({ error }: { error: Error }) {
 }
 
 export default function CreatePostPage({ params }: CreatePostPageProps) {
-  const { group, canPost, isLoading, isError, error } = useGroupAccess(params.groupSlug);
+  const { groupSlug } = use(params);
+  const { group, canPost, isLoading, isError, error } = useGroupAccess(groupSlug);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -89,7 +90,7 @@ export default function CreatePostPage({ params }: CreatePostPageProps) {
         
         <Suspense fallback={<Skeleton className="h-96 w-full bg-white/10" />}>
           <CreatePostForm 
-            groupSlug={params.groupSlug}
+            groupSlug={groupSlug}
             groupName={group.name}
           />
         </Suspense>

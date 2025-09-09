@@ -13,7 +13,7 @@ export async function GET(req: Request) {
         .from("course")
         .select("*")
         .eq("is_deleted", false)
-        .eq("owner_id", owner_id)
+        .eq("owner_id", parseInt(owner_id))
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -27,6 +27,7 @@ export async function GET(req: Request) {
       .select("*")
       .eq("is_deleted", false)
       .eq("visibility", "public")
+      .eq("status", "active")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
     const payload = {
       title: body.title as string,
       description: body.description ?? null,
+      slug: body.slug as string,
       visibility: (body.visibility ?? "private") as string,
       price_cents: body.is_free ? 0 : body.price_cents ?? 0,
       currency: body.currency ?? "MYR",
@@ -64,11 +66,24 @@ export async function POST(req: Request) {
       average_rating: body.average_rating ?? 0,
       total_students: body.total_students ?? 0,
       is_free: !!body.is_free,
-      owner_id: body.owner_id,
+      owner_id: parseInt(body.owner_id),
+      video_intro_url: body.video_intro_url ?? null,
+      requirements: Array.isArray(body.requirements) ? body.requirements : [],
+      learning_objectives: Array.isArray(body.learning_objectives) ? body.learning_objectives : [],
+      category: body.category ?? null,
+      language: body.language ?? "en",
+      certificate_template: body.certificate_template ?? null,
+      auto_create_classroom: !!body.auto_create_classroom,
+      auto_create_community: !!body.auto_create_community,
+      status: body.status ?? "inactive",
     };
 
     if (!payload.title) {
       return NextResponse.json({ error: "title is required" }, { status: 422 });
+    }
+
+    if (!payload.slug) {
+      return NextResponse.json({ error: "slug is required" }, { status: 422 });
     }
 
     const { data, error } = await client

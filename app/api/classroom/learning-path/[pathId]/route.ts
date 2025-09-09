@@ -3,22 +3,22 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 获取用户学习路径
-export async function GET(req: NextRequest, { params }: { params: { pathId: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: { id: string, pathId: string } }
+) {
+  const { params } = context;
   try {
     // 验证用户身份
-    const { data: { user }, error: authError } = await (await createServerClient()).auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
-    const currentUser = user;
-    if (!currentUser) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
-    }
-
     const { pathId } = params;
+    const { user } = authResult;
     
     // 检查权限：只能查看自己的学习路径，除非是教师角色
-    if (pathId !== currentUser.id && currentUser.role !== 'teacher') {
+    if (pathId !== user.id && user.role !== 'tutor') {
       return NextResponse.json({ error: '无权访问此用户的学习路径' }, { status: 403 });
     }
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: { pathId: stri
 
     // 获取用户最新的活跃学习路径
     const { data: pathData, error: pathError } = await supabase
-      .from('classroom.learning_path')
+      .from('learning_path')
       .select('*')
       .eq('user_id', pathId)
       .eq('is_active', true)
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: { pathId: stri
 
     // 获取路径的里程碑
     const { data: milestones, error: milestonesError } = await supabase
-      .from('classroom.milestone')
+      .from('milestone')
       .select('*')
       .eq('path_id', pathData.id)
       .order('order_index', { ascending: true });

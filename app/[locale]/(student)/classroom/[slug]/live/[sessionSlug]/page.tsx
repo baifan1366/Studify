@@ -3,7 +3,8 @@ import { Metadata } from 'next';
 import { LiveSessionRoom } from '@/components/classroom/live-session-room';
 import { getTranslations } from 'next-intl/server';
 
-export async function generateMetadata({ params }: { params: { slug: string; sessionSlug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string; sessionSlug: string }> }): Promise<Metadata> {
+  const { slug, sessionSlug } = await params;
   const t = await getTranslations('LiveSessionRoom');
 
   return {
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }: { params: { slug: string; ses
   };
 }
 
-export default function Page({ params }: { params: { slug: string; sessionSlug: string } }) {
-  return <LiveSessionRoom classroomSlug={params.slug} sessionSlug={params.sessionSlug} />;
+export default async function Page({ params }: { params: Promise<{ slug: string; sessionSlug: string }> }) {
+  const { slug, sessionSlug } = await params;
+  return <LiveSessionRoom classroomSlug={slug} sessionSlug={sessionSlug} />;
 }

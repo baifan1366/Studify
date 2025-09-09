@@ -36,7 +36,7 @@ export async function GET(req: Request) {
         .limit(5);
 
       // 收集所有标签
-      userTags = enrolledCourses?.reduce((tags, enrollment) => {
+      userTags = enrolledCourses?.reduce((tags: string[], enrollment: any) => {
         return tags.concat(enrollment.course && enrollment.course.tags ? enrollment.course.tags : []);
       }, [] as string[]) || [];
     }

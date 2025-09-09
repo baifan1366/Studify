@@ -16,7 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function SuccessPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SuccessPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const t = await getTranslations('SuccessPage');
 
   return (

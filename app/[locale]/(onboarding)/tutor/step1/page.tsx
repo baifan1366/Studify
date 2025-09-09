@@ -4,10 +4,11 @@ import { Label } from "@/components/ui/label";
 import { getTranslations } from "next-intl/server";
 
 export default async function Step1Page({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const t = await getTranslations("OnboardingTutorStep1Page");
 
   return (

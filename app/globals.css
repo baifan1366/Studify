@@ -1,7 +1,63 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Line clamp utilities */
+/* ========================= */
+/* 1. Geist Font Integration */
+/* ========================= */
+
+/* Geist Sans */
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/geist/Geist-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/geist/Geist-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/geist/Geist-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Geist Mono */
+@font-face {
+  font-family: "GeistMono";
+  src: url("/fonts/geist/GeistMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GeistMono";
+  src: url("/fonts/geist/GeistMono-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GeistMono";
+  src: url("/fonts/geist/GeistMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ========================= */
+/* 2. Line Clamp Utilities   */
+/* ========================= */
 .line-clamp-1 {
   overflow: hidden;
   display: -webkit-box;
@@ -23,13 +79,16 @@
   line-clamp: 3;
 }
 
-/* Sidebar layout utilities */
+/* ========================= */
+/* 3. Sidebar Layout Styles  */
+/* ========================= */
 :root {
   --sidebar-width: 80px;
 }
 
 body {
   overflow-x: hidden;
+  font-family: var(--font-geist-sans, "Geist"), sans-serif;
 }
 
 .sidebar-content-push {
@@ -38,13 +97,19 @@ body {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ========================= */
+/* 4. Theme Config           */
+/* ========================= */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Default font families */
+  --font-sans: "Geist", sans-serif;
+  --font-mono: "GeistMono", monospace;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -80,96 +145,98 @@ body {
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ========================= */
+/* 5. Light / Dark Themes    */
+/* ========================= */
 :root {
   --radius: 0.625rem;
-  
-  /* Light Theme */
-  --background: #FDF5E6; /* Rice yellow */
-  --foreground: #222222; /* Charcoal */
+
+  /* Light Theme Colors */
+  --background: #FDF5E6; 
+  --foreground: #222222;
   --card: #FFFFFF;
   --card-foreground: #222222;
   --popover: #FFFFFF;
   --popover-foreground: #222222;
-  --primary: #FF6B00; /* Orange */
+  --primary: #FF6B00;
   --primary-foreground: #FFFFFF;
-  --secondary: #FDF5E6; /* Rice yellow */
-  --secondary-foreground: #064E3B; /* Dark green */
-  --muted: #FAF3E0; /* Light beige */
+  --secondary: #FDF5E6;
+  --secondary-foreground: #064E3B;
+  --muted: #FAF3E0;
   --muted-foreground: #666666;
-  --accent: #FAF3E0; /* Light beige */
+  --accent: #FAF3E0;
   --accent-foreground: #222222;
   --destructive: #DC2626;
   --border: #E5E7EB;
   --input: #E5E7EB;
   --ring: #FF6B00;
-  
+
   /* Sidebar */
-  --sidebar: #FAF3E0; /* Light beige */
+  --sidebar: #FAF3E0;
   --sidebar-foreground: #222222;
-  --sidebar-primary: #FF6B00; /* Orange */
+  --sidebar-primary: #FF6B00;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #E5E7EB;
   --sidebar-accent-foreground: #222222;
   --sidebar-border: #E5E7EB;
   --sidebar-ring: #FF6B00;
-  
+
   /* Charts */
-  --chart-1: #FF6B00; /* Orange */
-  --chart-2: #064E3B; /* Dark green */
-  --chart-3: #1F2937; /* Slate green */
-  --chart-4: #FDF5E6; /* Rice yellow */
-  --chart-5: #FAF3E0; /* Light beige */
+  --chart-1: #FF6B00;
+  --chart-2: #064E3B;
+  --chart-3: #1F2937;
+  --chart-4: #FDF5E6;
+  --chart-5: #FAF3E0;
 }
 
 .dark {
-  --background: #0D1F1A; /* Deep green-black */
-  --foreground: #F1F5F9; /* White-ish */
-  --card: #1F2937; /* Slate green */
+  --background: #0D1F1A;
+  --foreground: #F1F5F9;
+  --card: #1F2937;
   --card-foreground: #F1F5F9;
   --popover: #1F2937;
   --popover-foreground: #F1F5F9;
-  --primary: #FF6B00; /* Orange */
+  --primary: #FF6B00;
   --primary-foreground: #FFFFFF;
-  --secondary: #1F2937; /* Slate green */
-  --secondary-foreground: #FDF5E6; /* Rice yellow */
-  --muted: #1F2937; /* Slate green */
+  --secondary: #1F2937;
+  --secondary-foreground: #FDF5E6;
+  --muted: #1F2937;
   --muted-foreground: #9CA3AF;
-  --accent: #FDF5E6; /* Rice yellow */
-  --accent-foreground: #0D1F1A; /* Deep green-black */
+  --accent: #FDF5E6;
+  --accent-foreground: #0D1F1A;
   --destructive: #7F1D1D;
   --destructive-foreground: #FEE2E2;
-  --border: #1F2937; /* Slate green */
+  --border: #1F2937;
   --input: #1F2937;
-  --ring: #FF6B00; /* Orange */
-  
+  --ring: #FF6B00;
+
   /* Sidebar */
-  --sidebar: #1F2937; /* Slate green */
-  --sidebar-foreground: #F1F5F9; /* White-ish */
-  --sidebar-primary: #FF6B00; /* Orange */
+  --sidebar: #1F2937;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #FF6B00;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #374151;
   --sidebar-accent-foreground: #F1F5F9;
   --sidebar-border: #374151;
-  --sidebar-ring: #FF6B00; /* Orange */
-  
+  --sidebar-ring: #FF6B00;
+
   /* Charts */
-  --chart-1: #FF6B00; /* Orange */
-  --chart-2: #064E3B; /* Dark green */
-  --chart-3: #1F2937; /* Slate green */
-  --chart-4: #FDF5E6; /* Rice yellow */
-  --chart-5: #FAF3E0; /* Light beige */
-  
-  --sidebar-primary: #FF6B00; /* Orange */
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #374151;
-  --sidebar-accent-foreground: #F1F5F9;
+  --chart-1: #FF6B00;
+  --chart-2: #064E3B;
+  --chart-3: #1F2937;
+  --chart-4: #FDF5E6;
+  --chart-5: #FAF3E0;
 }
 
+/* ========================= */
+/* 6. Base Layer            */
+/* ========================= */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+      font-family: var(--font-geist-sans, "Geist"), sans-serif;
   }
 }

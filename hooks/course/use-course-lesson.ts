@@ -3,7 +3,7 @@ import { coursesApi } from '@/lib/api';
 import { apiGet, apiSend } from '@/lib/api-config';
 
 // ✅ Fetch lesson by ID
-export function useLessonById(courseId: string, moduleId: string, lessonId: string) {
+export function useLessonById(courseId: number, moduleId: number, lessonId: number) {
   return useQuery({
     queryKey: ['course-lesson', courseId, moduleId, lessonId],
     queryFn: async () =>
@@ -13,7 +13,7 @@ export function useLessonById(courseId: string, moduleId: string, lessonId: stri
 }
 
 // ✅ Fetch all lessons in a module
-export function useLessonByCourseModuleId(courseId: string, moduleId: string) {
+export function useLessonByCourseModuleId(courseId: number, moduleId: number) {
   return useQuery({
     queryKey: ['course-lessons', courseId, moduleId],
     queryFn: async () =>
@@ -32,8 +32,8 @@ export function useCreateLesson() {
       moduleId,
       body,
     }: {
-      courseId: string;
-      moduleId: string;
+      courseId: number;
+      moduleId: number;
       body: Record<string, any>;
     }) =>
       apiSend({
@@ -58,13 +58,13 @@ export function useUpdateLesson() {
       lessonId,
       body,
     }: {
-      courseId: string;
-      moduleId: string;
-      lessonId: string;
+      courseId: number;
+      moduleId: number;
+      lessonId: number;
       body: Record<string, any>;
     }) =>
       apiSend({
-        method: 'PUT',
+        method: 'PATCH',
         url: coursesApi.updateLessonById(courseId, moduleId, lessonId),
         body,
       }),
@@ -84,9 +84,9 @@ export function useDeleteLesson() {
       moduleId,
       lessonId,
     }: {
-      courseId: string;
-      moduleId: string;
-      lessonId: string;
+      courseId: number;
+      moduleId: number;
+      lessonId: number;
     }) =>
       apiSend({
         method: 'DELETE',

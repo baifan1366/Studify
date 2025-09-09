@@ -6,10 +6,11 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
 
     const { id } = params;
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id, status')
       .eq('public_id', id)
       .single();
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 检查是否已存在白板会话
     const { data: existingWhiteboard, error: checkError } = await supabase
-      .from('classroom.whiteboard_session')
+      .from('whiteboard_session')
       .select('id, liveblocks_room_id')
       .eq('session_id', sessionData.id)
       .single();
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 创建新的白板会话
     const { data: whiteboardData, error: whiteboardError } = await supabase
-      .from('classroom.whiteboard_session')
+      .from('whiteboard_session')
       .insert({
         session_id: sessionData.id,
         created_by: user.id,

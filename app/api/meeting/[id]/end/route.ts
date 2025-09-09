@@ -6,10 +6,12 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     // 验证用户身份
-    const user = await authorize();
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult.user;
+    const userRole = authResult.payload.role;
 
     const { id } = params;
 
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id, host_id')
       .eq('public_id', id)
       .single();
@@ -29,13 +31,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // 验证用户是否为会议主持人
-    if (sessionData.host_id !== user.id && user.role !== 'teacher') {
-      return NextResponse.json({ error: '只有会议主持人或教师可以结束会议' }, { status: 403 });
+    if (sessionData.host_id !== user.id && userRole !== 'tutor') {
+      return NextResponse.json({ error: '只有会议主持人或导师可以结束会议' }, { status: 403 });
     }
 
     // 更新会议状态为已结束
     const { error: updateError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .update({
         status: 'ended',
         ends_at: new Date().toISOString(),
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 更新所有参与者的离开时间
     const { error: participantError } = await supabase
-      .from('classroom.session_participant')
+      .from('session_participant')
       .update({
         left_at: new Date().toISOString(),
       })

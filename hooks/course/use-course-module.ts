@@ -3,7 +3,7 @@ import { coursesApi } from '@/lib/api';
 import { apiGet, apiSend } from '@/lib/api-config';
 
 // ✅ Fetch module by ID
-export function useModuleById(courseId: string, moduleId: string) {
+export function useModuleById(courseId: number, moduleId: number) {
   return useQuery({
     queryKey: ['course-module', courseId, moduleId],
     queryFn: async () =>
@@ -13,7 +13,7 @@ export function useModuleById(courseId: string, moduleId: string) {
 }
 
 // ✅ Fetch all modules by courseId
-export function useModuleByCourseId(courseId: string) {
+export function useModuleByCourseId(courseId: number) {
   return useQuery({
     queryKey: ['course-modules', courseId],
     queryFn: async () =>
@@ -29,15 +29,20 @@ export function useCreateModule() {
   return useMutation({
     mutationFn: async ({
       courseId,
-      body,
+      ...body
     }: {
-      courseId: string;
-      body: Record<string, any>;
+      courseId: number;
+      title: string;
+      position?: number;
+      [key: string]: any;
     }) =>
       apiSend({
         method: 'POST',
         url: coursesApi.createModuleByCourseId(courseId),
-        body,
+        body: {
+          title: body.title,
+          position: body.position || 1,
+        },
       }),
     onSuccess: (_, { courseId }) => {
       queryClient.invalidateQueries({ queryKey: ['course-modules', courseId] });
@@ -55,12 +60,12 @@ export function useUpdateModule() {
       moduleId,
       body,
     }: {
-      courseId: string;
-      moduleId: string;
+      courseId: number;
+      moduleId: number;
       body: Record<string, any>;
     }) =>
       apiSend({
-        method: 'PUT',
+        method: 'PATCH',
         url: coursesApi.updateModuleById(courseId, moduleId),
         body,
       }),
@@ -79,8 +84,8 @@ export function useDeleteModule() {
       courseId,
       moduleId,
     }: {
-      courseId: string;
-      moduleId: string;
+      courseId: number;
+      moduleId: number;
     }) =>
       apiSend({
         method: 'DELETE',

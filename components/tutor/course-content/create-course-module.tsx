@@ -5,54 +5,60 @@ import { Dialog, DialogContent, DialogTrigger, DialogDescription, DialogHeader, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, BookOpen, Clock, Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Course } from '@/interface';
 import { courseModuleSchema } from '@/lib/validations/course-module';
+import { useCreateModule } from '@/hooks/course/use-course-module';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
+import { canEditModules, getStatusRestrictionMessage, CourseStatus } from '@/utils/course-status';
 
-// Mock course data. In a real application, you would fetch this from your API.
-const mockCourses: Pick<Course, 'public_id' | 'title'>[] = [
-    { public_id: 'crs_1abc', title: 'Introduction to Next.js' },
-    { public_id: 'crs_2def', title: 'Advanced TypeScript' },
-    { public_id: 'crs_3ghi', title: 'Database Design with SQL' },
-];
+interface CreateCourseModuleProps {
+  courseId?: number;
+  courseStatus?: CourseStatus;
+}
 
-
-export default function CreateCourseModule() {
+export default function CreateCourseModule({ courseId, courseStatus }: CreateCourseModuleProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [courses, setCourses] = useState<Pick<Course, 'public_id' | 'title'>[]>([]);
-    const [selectedCourse, setSelectedCourse] = useState('');
     const [title, setTitle] = useState('');
     const [position, setPosition] = useState(1);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const t = useTranslations('CreateCourseModule');
-
-    useEffect(() => {
-        // Fetch courses when the component mounts
-        // For now, we're using mock data
-        setCourses(mockCourses);
-    }, []);
+    const moduleT = useTranslations('CourseModuleSchema');
+    const createModuleMutation = useCreateModule();
+    
+    const isDisabled = !canEditModules(courseStatus || 'pending' as CourseStatus);
+    const restrictionMessage = getStatusRestrictionMessage(courseStatus || 'pending' as CourseStatus);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        if (!courseId) {
+            setErrors({ courseId: t('course_id_required') });
+            return;
+        }
+        
+        setIsSubmitting(true);
+        
         try {
             const formData = {
-                courseId: selectedCourse,
+                courseId,
                 title,
-                position
+                position,
             };
             
-            courseModuleSchema.parse(formData);
+            const schema = courseModuleSchema(moduleT);
+            schema.parse(formData);
             setErrors({});
             
-            console.log(formData);
+            const result = await createModuleMutation.mutateAsync(formData);
             
             // Reset form
-            setSelectedCourse('');
             setTitle('');
             setPosition(1);
             setIsOpen(false);
@@ -65,84 +71,109 @@ export default function CreateCourseModule() {
                     }
                 });
                 setErrors(newErrors);
-            }
+            } 
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!isDisabled) {
+                setIsOpen(open);
+            }
+        }}>
             <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
+                <Button 
+                    variant="default"
+                    disabled={isDisabled}
+                    className={cn(
+                        'flex items-center gap-2',
+                        isDisabled && 'opacity-50 cursor-not-allowed'
+                    )}
+                    title={isDisabled ? restrictionMessage : ''}
+                >
+                    <Plus size={16} />
                     {t('create_module_button')}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px] border-0 shadow-2xl">
                 <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>{t('dialog_title')}</DialogTitle>
-                        <DialogDescription>{t('dialog_description')}</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-2 py-4">
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <Label htmlFor="course">
-                                    {t('course_label')} <span className="text-red-500">*</span>
-                                </Label>
-                                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                                    <SelectTrigger className={errors.courseId ? 'border-red-500' : ''}>
-                                        <SelectValue placeholder={t('select_course_placeholder')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {courses.map((course) => (
-                                            <SelectItem key={course.public_id} value={course.public_id}>
-                                                {course.title}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.courseId && <span className="text-xs text-red-500">{errors.courseId}</span>}
+                    <DialogHeader className="px-6 pt-6 pb-2">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20">
+                                <BookOpen className="h-5 w-5 text-primary" />
                             </div>
-                            <div className="w-24">
-                                <Label htmlFor="position">
-                                    {t('position_label')} <span className="text-red-500">*</span>
+                            <div>
+                                <DialogTitle className="text-xl font-bold">{t('dialog_title')}</DialogTitle>
+                                <DialogDescription className="text-muted-foreground mt-1">
+                                    {t('dialog_description')}
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                            
+                    <div className="px-6 py-4 space-y-6">
+                        {/* Title and Position Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="md:col-span-3">
+                                <Label htmlFor="title" className="text-sm font-medium">
+                                    {t('title_label')} <span className="text-destructive">*</span>
+                                </Label>
+                                <Input
+                                    type="text"
+                                    id="title"
+                                    placeholder={t('title_placeholder')}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    required
+                                    className={cn(
+                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                        errors.title && "border-destructive focus:border-destructive"
+                                    )}
+                                />
+                                <div className="flex justify-between text-xs mt-1">
+                                    <span className="text-destructive">{errors.title || ''}</span>
+                                    <span className="text-muted-foreground">{title.length}/100</span>
+                                </div>
+                            </div>
+                            <div>
+                                <Label htmlFor="position" className="text-sm font-medium">
+                                    {t('position_label')} <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     type="number"
                                     id="position"
-                                    placeholder={t('position_placeholder')}
+                                    placeholder="1"
                                     value={position}
                                     onChange={(e) => setPosition(Number(e.target.value))}
                                     min="1"
                                     max="100"
                                     required
-                                    className={errors.position ? 'border-red-500' : ''}
+                                    className={cn(
+                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
+                                        errors.position && "border-destructive focus:border-destructive"
+                                    )}
                                 />
-                                {errors.position && <span className="text-xs text-red-500">{errors.position}</span>}
-                            </div>
-                        </div>
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="title">
-                                {t('title_label')} <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                type="text"
-                                id="title"
-                                placeholder={t('title_placeholder')}
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                required
-                                className={errors.title ? 'border-red-500' : ''}
-                            />
-                            <div className="flex justify-between text-xs">
-                                <span className="text-red-500">{errors.title || ''}</span>
-                                <span className="text-muted-foreground">{title.length}/100 characters</span>
+                                {errors.position && <span className="text-xs text-destructive mt-1">{errors.position}</span>}
                             </div>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>{t('cancel_button')}</Button>
-                        <Button type="submit">{t('submit_button')}</Button>
+                    
+                    <DialogFooter className="px-6 pb-6 pt-2">
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            onClick={() => setIsOpen(false)}
+                        >
+                            {t('cancel_button')}
+                        </Button>
+                        <Button 
+                            type="submit" 
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? t('creating_button') : t('submit_button')}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 获取会议信息
     const { data: sessionData, error: sessionError } = await supabase
-      .from('classroom.live_session')
+      .from('live_session')
       .select('id, status')
       .eq('public_id', id)
       .single();
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 记录参与者加入
     const { error: participantError } = await supabase
-      .from('classroom.session_participant')
+      .from('session_participant')
       .upsert({
         session_id: sessionData.id,
         user_id: user.id,

@@ -3,7 +3,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // 更新学习路径进度
-export async function PATCH(req: NextRequest, context: { params: { pathId: string } }) {
+export async function PATCH(req: NextRequest, context: { params: Promise<{ pathId: string }> }) {
   const { params } = context;
   try {
     // 验证用户身份
@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, context: { params: { pathId: strin
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const { pathId } = params;
+    const { pathId } = await params;
     const { milestoneId, status } = await req.json();
 
     // 验证请求参数

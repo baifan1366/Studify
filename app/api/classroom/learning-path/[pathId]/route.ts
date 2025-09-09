@@ -5,7 +5,7 @@ import { authorize } from '@/utils/auth/server-guard';
 // 获取用户学习路径
 export async function GET(
   req: NextRequest,
-  context: { params: { pathId: string } }
+  context: { params: Promise<{ pathId: string }> }
 ) {
   const { params } = context;
   try {
@@ -14,7 +14,7 @@ export async function GET(
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const { pathId } = params;
+    const { pathId } = await params;
     const { user } = authResult;
     
     // 检查权限：只能查看自己的学习路径，除非是教师角色

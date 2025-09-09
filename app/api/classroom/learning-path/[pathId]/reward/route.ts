@@ -5,7 +5,7 @@ import { authorize } from '@/utils/auth/server-guard';
 // 触发里程碑奖励
 export async function POST(
   req: NextRequest,
-  context: { params: { pathId: string } }
+  context: { params: Promise<{ pathId: string }> }
 ) {
   const { params } = context;
   try {
@@ -17,7 +17,7 @@ export async function POST(
     const user = authResult.user;
     const userRole = authResult.payload.role;
 
-    const { pathId } = params;
+    const { pathId } = await params;
     const { milestoneId } = await req.json();
 
     // 验证请求参数

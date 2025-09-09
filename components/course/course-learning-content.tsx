@@ -19,7 +19,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { useCourse } from '@/hooks/course/use-courses';
+import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useCourseProgress, useUpdateProgress } from '@/hooks/course/use-course-progress';
 import { useCourseNotes, useCreateNote } from '@/hooks/course/use-course-notes';
 import { useUser } from '@/hooks/profile/use-user';
@@ -172,7 +172,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const [noteContent, setNoteContent] = useState('');
   const [noteTimestamp, setNoteTimestamp] = useState(0);
 
-  const { data: course, isLoading: courseLoading } = useCourse(courseSlug);
+  const { data: course, isLoading: courseLoading } = useCourseBySlug(courseSlug);
   const { data: progress } = useCourseProgress(courseSlug);
   const { data: notes } = useCourseNotes(currentLessonId || '');
   const updateProgress = useUpdateProgress();

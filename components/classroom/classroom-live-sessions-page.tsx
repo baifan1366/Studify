@@ -74,94 +74,35 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
   const handleJoinSession = async (session: any) => {
     console.log('🚀 [LiveSessionsPage] handleJoinSession called with session:', session);
-    console.log('🔍 [LiveSessionsPage] Session details:', {
-      id: session.id,
-      public_id: session.public_id,
-      slug: session.slug,
-      title: session.title,
-      status: session.status,
-      starts_at: session.starts_at,
-      ends_at: session.ends_at
-    });
-
+    
     try {
       // Construct session identifier with fallback
       const sessionIdentifier = session.public_id || session.slug || session.id?.toString() || 'unknown';
       console.log('🆔 [LiveSessionsPage] Session identifier:', sessionIdentifier);
 
-      // Robust date validation with tolerant checks
-      const now = new Date();
-      console.log('⏰ [LiveSessionsPage] Current time:', now.toISOString());
-
-      let sessionStart = null;
-      let sessionEnd = null;
-
-      try {
-        if (session.starts_at) {
-          sessionStart = new Date(session.starts_at);
-          console.log('🕐 [LiveSessionsPage] Session start time:', sessionStart.toISOString());
-        }
-      } catch (dateError) {
-        console.warn('⚠️ [LiveSessionsPage] Invalid start date:', session.starts_at, dateError);
-      }
-
-      try {
-        if (session.ends_at) {
-          sessionEnd = new Date(session.ends_at);
-          console.log('🕑 [LiveSessionsPage] Session end time:', sessionEnd.toISOString());
-        }
-      } catch (dateError) {
-        console.warn('⚠️ [LiveSessionsPage] Invalid end date:', session.ends_at, dateError);
-      }
-
-      // More tolerant time checks
-      if (sessionStart && !isNaN(sessionStart.getTime())) {
-        const timeDiff = now.getTime() - sessionStart.getTime();
-        console.log('⏱️ [LiveSessionsPage] Time difference from start (ms):', timeDiff);
-        
-        // Allow joining 5 minutes before start time
-        if (timeDiff < -300000) {
-          console.log('⏰ [LiveSessionsPage] Session starts in more than 5 minutes');
-          toast({
-            title: "Session Not Started",
-            description: "This session hasn't started yet.",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
-      if (sessionEnd && !isNaN(sessionEnd.getTime())) {
-        const timeDiff = sessionEnd.getTime() - now.getTime();
-        console.log('⏱️ [LiveSessionsPage] Time until end (ms):', timeDiff);
-        
-        // Only block if session ended more than 5 minutes ago
-        if (timeDiff < -300000) {
-          console.log('⏰ [LiveSessionsPage] Session ended more than 5 minutes ago');
-          toast({
-            title: "Session Ended",
-            description: "This session has already ended.",
-            variant: "destructive"
-          });
-          return;
-        }
+      // Basic status validation
+      if (session.status === 'cancelled') {
+        toast({
+          title: "Session Cancelled",
+          description: "This session has been cancelled.",
+          variant: "destructive"
+        });
+        return;
       }
 
       // Show joining toast
       toast({
         title: "Joining Session",
-        description: `Connecting to "${session.title}"...`,
+        description: `Redirecting to "${session.title}"...`,
       });
 
-      // Set active session to show LiveKit room
-      console.log('✅ [LiveSessionsPage] Setting activeSession with identifier:', sessionIdentifier);
-      const sessionWithIdentifier = { ...session, sessionIdentifier };
-      console.log('📦 [LiveSessionsPage] Final session object:', sessionWithIdentifier);
-      setActiveSession(sessionWithIdentifier);
+      // Redirect to live session room URL
+      const roomUrl = `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
+      console.log('🔗 [LiveSessionsPage] Redirecting to room URL:', roomUrl);
+      router.push(roomUrl);
       
     } catch (error) {
       console.error('❌ [LiveSessionsPage] Error in handleJoinSession:', error);
-      console.error('📊 [LiveSessionsPage] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Failed to Join",
         description: "Unable to join the session. Please try again.",
@@ -460,7 +401,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                         disabled={false}
                       >
                         <Play className="h-4 w-4 mr-2" />
-                        Join Live (Debug)
+                        Join Live
                       </Button>
                       {canManageSessions && (
                         <DropdownMenu>

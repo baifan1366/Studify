@@ -112,6 +112,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
+    // Generate slug for the session (using classroom slug + timestamp)
+    const sessionSlug = `${slug}-${Date.now()}`;
+
     // 创建直播课程
     const { data: liveSession, error: sessionError } = await supabase
       .from('classroom_live_session')
@@ -122,12 +125,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         starts_at: startTime.toISOString(),
         ends_at: endTime?.toISOString() || null,
         status: 'scheduled',
+        slug: sessionSlug,
       })
       .select(`
         id,
         public_id,
         classroom_id,
         title,
+        slug,
         host_id,
         starts_at,
         ends_at,
@@ -245,6 +250,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         public_id,
         classroom_id,
         title,
+        slug,
         host_id,
         starts_at,
         ends_at,
@@ -442,6 +448,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         public_id,
         classroom_id,
         title,
+        slug,
         host_id,
         starts_at,
         ends_at,

@@ -10,7 +10,8 @@ import {
   ControlBar,
   useTracks,
   useParticipants,
-  useRoomContext
+  useRoomContext,
+  LayoutContextProvider
 } from '@livekit/components-react';
 import { Track, Room, RoomEvent, Participant } from 'livekit-client';
 import { useLiveKitToken } from '@/hooks/classroom/use-livekit-token';
@@ -141,12 +142,14 @@ export default function LiveClassroom({
         }}
         className="h-full"
       >
-        <ClassroomContent 
-          userRole={userRole}
-          participantName={participantName}
-          onSessionEnd={onSessionEnd}
-        />
-        <RoomAudioRenderer />
+        <LayoutContextProvider>
+          <ClassroomContent 
+            userRole={userRole}
+            participantName={participantName}
+            onSessionEnd={onSessionEnd}
+          />
+          <RoomAudioRenderer />
+        </LayoutContextProvider>
       </LiveKitRoom>
     </div>
   );

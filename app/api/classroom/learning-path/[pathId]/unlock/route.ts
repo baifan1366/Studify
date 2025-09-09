@@ -13,13 +13,6 @@ export async function POST(
     const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
-<<<<<<< HEAD
-=======
-    }
-    const user = authResult.user;
-    if (!user) {
-      return NextResponse.json({ error: '未授权访问' }, { status: 401 });
->>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
     }
     const user = authResult;
 
@@ -47,13 +40,8 @@ export async function POST(
     }
 
     // 检查权限
-<<<<<<< HEAD
     if (pathData.user_id !== user.user.id && user.payload.role !== 'tutor') {
       return NextResponse.json({ error: '无权更新此学习路径' }, { status: 403 });
-=======
-    if (pathData.user_id !== user.id && authResult.payload.role !== 'tutor') {
-      return NextResponse.json({ error: '无权解锁此学习路径的里程碑' }, { status: 403 });
->>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
     }
 
     // 获取当前里程碑信息

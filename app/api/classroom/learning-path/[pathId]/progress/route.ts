@@ -11,19 +11,17 @@ export async function PATCH(req: NextRequest, context: { params: { id: string , 
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-<<<<<<< HEAD
-    const user = authResult;
-    
-=======
-    const user = authResult.user;
-
->>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
     const { pathId } = params;
     const { milestoneId, status } = await req.json();
 
     // 验证请求参数
     if (!milestoneId || !status) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+    }
+
+    // 验证状态值
+    if (!['in-progress', 'completed'].includes(status)) {
+      return NextResponse.json({ error: '无效的状态值' }, { status: 400 });
     }
 
     // 初始化Supabase客户端
@@ -42,11 +40,7 @@ export async function PATCH(req: NextRequest, context: { params: { id: string , 
     }
 
     // 检查权限
-<<<<<<< HEAD
-    if (pathData.user_id !== user.user.id && user.payload.role !== 'tutor') {
-=======
-    if (pathData.user_id !== user.id && authResult.payload.role !== 'tutor') {
->>>>>>> 3a76b4c655cd6f2628ebd7d03902ef809238106c
+    if (pathData.user_id !== authResult.user.id && authResult.payload.role !== 'tutor') {
       return NextResponse.json({ error: '无权更新此学习路径' }, { status: 403 });
     }
 

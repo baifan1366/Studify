@@ -1,34 +1,29 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PWAProvider } from "@/components/providers/pwa-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+export const metadata: Metadata = {
+  title: "Studify - Smart Learning Platform",
+  description: "AI-powered intelligent learning and education platform with course management, online classrooms, and community features",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Studify",
+  },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
+};
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// export const metadata: Metadata = {
-//   title: "Studify - Smart Learning Platform",
-//   description: "AI-powered intelligent learning and education platform with course management, online classrooms, and community features",
-//   manifest: "/manifest.json",
-//   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-//   appleWebApp: {
-//     capable: true,
-//     statusBarStyle: "default",
-//     title: "Studify",
-//   },
-//   icons: {
-//     icon: "/favicon.png",
-//     apple: "/favicon.png",
-//   },
-// };
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -40,9 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Studify" />
         <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background`}
-      >
+      <body className="antialiased min-h-screen bg-background">
         <ThemeProvider>
           <PWAProvider>
             {children}

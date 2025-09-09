@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createEnhancedServerClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
+import { createAdminClient } from '@/utils/supabase/server';
 
 /**
  * Individual Live Session API
@@ -92,7 +94,154 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-// ... (previous imports and code)
+
+export async function PUT(request: Request, { params }: { params: Promise<{ slug: string; sessionId: string }> }) {
+  const { slug, sessionId } = await params;
+
+  try {
+    // Verify authentication first
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      const tutorAuthResult = await authorize('tutor');
+      if (tutorAuthResult instanceof NextResponse) {
+        return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
+    const userId = authResult instanceof NextResponse ? 
+      (await authorize('tutor') as any).payload.sub : 
+      authResult.payload.sub;
+
+    // Use admin client for database operations
+    const supabase = await createAdminClient();
+
+    // Get user profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { message: 'User profile not found' },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json();
+    const { status } = body;
+
+    // Validate status
+    if (!status || !['scheduled', 'live', 'ended', 'cancelled'].includes(status)) {
+      return NextResponse.json({ 
+        error: 'Invalid status',
+        details: 'Status must be one of: scheduled, live, ended, cancelled'
+      }, { status: 400 });
+    }
+
+    console.log('🔍 [PUT Live Session] Looking for classroom with slug:', slug);
+
+    // Get the classroom by slug and verify user membership
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classroom')
+      .select(`
+        id, 
+        slug, 
+        name,
+        classroom_member!classroom_member_classroom_id_fkey!inner(user_id, role)
+      `)
+      .eq('slug', slug)
+      .eq('classroom_member.user_id', profile.id)
+      .single();
+    
+    console.log('📊 [PUT Live Session] Classroom query result:', {
+      classroom,
+      error: classroomError,
+      errorMessage: classroomError?.message,
+      errorDetails: classroomError?.details
+    });
+    
+    if (classroomError || !classroom) {
+      // Try to find any classroom to debug
+      const { data: allClassrooms } = await supabase
+        .from('classroom')
+        .select('id, slug, name')
+        .limit(5);
+      
+      console.log('🔍 [PUT Live Session] Available classrooms:', allClassrooms);
+      
+      return NextResponse.json({ 
+        error: 'Classroom not found',
+        details: 'No classroom found with the provided slug',
+        debug: {
+          searchedSlug: slug,
+          availableClassrooms: allClassrooms?.map(c => c.slug) || []
+        }
+      }, { status: 404 });
+    }
+
+    // Update session status
+    const now = new Date().toISOString();
+    const updateData: any = {
+      status,
+      updated_at: now
+    };
+
+    // Set ends_at if status is 'ended' and it's not already set
+    if (status === 'ended') {
+      updateData.ends_at = now;
+    }
+
+    const { data: updatedSession, error: updateError } = await supabase
+      .from('classroom_live_session')
+      .update(updateData)
+      .eq('public_id', sessionId)
+      .eq('classroom_id', classroom.id)
+      .eq('is_deleted', false)
+      .select()
+      .single();
+
+    if (updateError) {
+      // Try with numeric ID if public_id fails
+      const { data: updatedSessionById, error: updateByIdError } = await supabase
+        .from('classroom_live_session')
+        .update(updateData)
+        .eq('id', parseInt(sessionId))
+        .eq('classroom_id', classroom.id)
+        .eq('is_deleted', false)
+        .select()
+        .single();
+
+      if (updateByIdError) {
+        console.error('Error updating session status:', { updateError, updateByIdError });
+        return NextResponse.json({ 
+          error: 'Session not found or update failed',
+          details: 'Could not update the session status'
+        }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Session status updated successfully',
+        session: updatedSessionById
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Session status updated successfully',
+      session: updatedSession
+    });
+
+  } catch (error) {
+    console.error('Error updating session status:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: 'An error occurred while updating the session'
+    }, { status: 500 });
+  }
+}
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ slug: string; sessionId: string }> }) {
   const { slug, sessionId } = await params;

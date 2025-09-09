@@ -15,7 +15,7 @@ import {
   Brain,
   ShoppingCart
 } from 'lucide-react';
-import { useCourse } from '@/hooks/course/use-courses';
+import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
 import AnimatedSidebar from '@/components/sidebar';
@@ -38,7 +38,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   const { data: userData, isLoading: userLoading } = useUser();
   const user = userData || null;
 
-  const { data: course, isLoading } = useCourse(courseSlug);
+  const { data: course, isLoading } = useCourseBySlug(courseSlug);
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
 
@@ -338,7 +338,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                         <h3 className="text-lg font-semibold text-white">
                           Module {moduleIndex + 1}: {module.title}
                         </h3>
-                        <p className="text-white/60 text-sm mt-1">{module.description}</p>
+                        {/* Module description not available in current type */}
                       </div>
                       <div className="divide-y divide-white/10">
                         {module.lessons?.map((lesson, lessonIndex) => (
@@ -348,7 +348,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                               <span className="text-white/80">{lesson.title}</span>
                             </div>
                             <span className="text-white/60 text-sm">
-                              {lesson.duration_minutes || 0} min
+                              {lesson.duration_sec ? Math.ceil(lesson.duration_sec / 60) : 0} min
                             </span>
                           </div>
                         )) || (

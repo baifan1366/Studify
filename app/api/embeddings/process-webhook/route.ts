@@ -65,7 +65,7 @@ async function handler(request: NextRequest) {
   }
 }
 
-// Verify QStash signature if token is available
+// Verify QStash signature with environment variables
 export const POST = process.env.QSTASH_CURRENT_SIGNING_KEY 
   ? verifySignatureAppRouter(handler)
   : handler;

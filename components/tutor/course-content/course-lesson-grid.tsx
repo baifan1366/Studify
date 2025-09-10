@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical, FileText, Eye, Link } from 'lucide-react';
+import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical, FileText, Eye, Link, File } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLessonByCourseModuleId, useUpdateLesson, useDeleteLesson } from '@/hooks/course/use-course-lesson';
+import { useAttachments } from '@/hooks/course/use-attachments';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { useTranslations } from 'next-intl';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
@@ -99,6 +100,7 @@ export default function CourseLessonGrid({
   const [editTitle, setEditTitle] = useState('');
   const [editKind, setEditKind] = useState<'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard'>('video');
   const [editContentUrl, setEditContentUrl] = useState('');
+  const [editSelectedAttachment, setEditSelectedAttachment] = useState('');
   const [editDurationSec, setEditDurationSec] = useState<number | undefined>(undefined);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
@@ -117,6 +119,9 @@ export default function CourseLessonGrid({
   );
   const updateLesson = useUpdateLesson();
   const deleteLesson = useDeleteLesson();
+  
+  // Fetch attachments for the current course
+  const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(courseId || 0);
   
   // Transform API data to UI format
   const lessons: CourseLesson[] = useMemo(() => {
@@ -175,6 +180,7 @@ export default function CourseLessonGrid({
     setEditTitle(lesson.title);
     setEditKind(lesson.kind);
     setEditContentUrl(lesson.content_url || '');
+    setEditSelectedAttachment(lesson.content_url || 'manual-url');
     setEditDurationSec(lesson.duration_sec);
     setEditOpen(true);
   };
@@ -720,10 +726,9 @@ export default function CourseLessonGrid({
               <div className="space-y-2">
                 <Label htmlFor="edit-duration" className="text-sm font-medium flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  {t('duration')} (seconds)
+                  {t('duration')} ({t('seconds')})
                 </Label>
                 <div className="relative">
-                  <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="edit-duration"
                     type="number"
@@ -753,38 +758,89 @@ export default function CourseLessonGrid({
                 <Link className="h-4 w-4" />
                 {t('contentUrl')}
               </Label>
-              <div className="relative">
-                <Link className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="edit-content-url"
-                  type="url"
-                  value={editContentUrl}
-                  onChange={(e) => setEditContentUrl(e.target.value)}
-                  className={cn(
-                    "h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
-                    validationErrors.content_url && "border-destructive focus:border-destructive focus:ring-destructive/20"
+              <Select 
+                value={editSelectedAttachment} 
+                onValueChange={(value) => {
+                  setEditSelectedAttachment(value);
+                  if (value !== 'manual-url') {
+                    setEditContentUrl(value);
+                  } else {
+                    setEditContentUrl('');
+                  }
+                }}
+              >
+                <SelectTrigger className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
+                  <SelectValue placeholder={t('selectAttachment')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {attachmentsLoading ? (
+                    <SelectItem value="loading" disabled>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                        {t('loading_attachments')}
+                      </div>
+                    </SelectItem>
+                  ) : attachments.length === 0 ? (
+                    <SelectItem value="no-attachments" disabled>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <File className="h-4 w-4" />
+                        {t('no_attachments_available')}
+                      </div>
+                    </SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="manual-url">
+                        <div className="flex items-center gap-2">
+                          <Link className="h-4 w-4" />
+                          {t('no_attachment_manual_url')}
+                        </div>
+                      </SelectItem>
+                      {attachments.map((attachment) => (
+                        <SelectItem key={attachment.id} value={attachment.url || `attachment-${attachment.id}`}>
+                          <div className="flex items-center gap-2">
+                            <File className="h-4 w-4" />
+                            <span className="truncate">{attachment.title}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </>
                   )}
-                  placeholder={t('enterContentUrl')}
-                  maxLength={500}
-                />
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-destructive">{validationErrors.content_url || ''}</span>
-                <span className={cn(
-                  "text-muted-foreground",
-                  editContentUrl.length > 450 && "text-orange-500",
-                  editContentUrl.length >= 500 && "text-destructive"
-                )}>{editContentUrl.length}/500</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Enter a direct URL to your lesson content (optional)</p>
+                </SelectContent>
+              </Select>
+              {validationErrors.content_url && <span className="text-xs text-destructive mt-1">{validationErrors.content_url}</span>}
+              
+              {/* Manual URL input when manual-url is selected */}
+              {editSelectedAttachment === 'manual-url' && (
+                <div className="mt-3 space-y-2">
+                  <div className="relative">
+                    <Input
+                      type="url"
+                      placeholder={t('enterContentUrl')}
+                      value={editContentUrl}
+                      onChange={(e) => setEditContentUrl(e.target.value)}
+                      className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                      maxLength={500}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-destructive">{validationErrors.content_url || ''}</span>
+                    <span className={cn(
+                      "text-muted-foreground",
+                      editContentUrl.length > 450 && "text-orange-500",
+                      editContentUrl.length >= 500 && "text-destructive"
+                    )}>{editContentUrl.length}/500</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('content_url_description')}</p>
+                </div>
+              )}
             </div>
           </div>
           
           <DialogFooter className="pt-6 border-t border-border/50">
             <div className="flex items-center justify-between w-full">
-              <div className="text-sm text-muted-foreground">
-                Fields marked with <span className="text-destructive">*</span> are required
-              </div>
               <div className="flex gap-3">
                 <Button
                   type="button"
@@ -810,7 +866,6 @@ export default function CourseLessonGrid({
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <Edit className="h-4 w-4" />
                       {t('update')}
                     </div>
                   )}

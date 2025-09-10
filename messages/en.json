@@ -967,7 +967,13 @@
     "publish_label": "Publish",
     "publish_description_on": "Publish the lesson.",
     "publish_description_off": "Unpublish the lesson.",
-    "creating_button": "Creating..."
+    "creating_button": "Creating...",
+    "no_attachments_available": "No attachments available",
+    "no_attachment_manual_url": "No attachment manual URL",
+    "enter_attachment_manual_url": "Enter attachment manual URL",
+    "enter_attachment_manual_url_description": "Enter a direct URL to your lesson content (optional)",
+    "required_fields": "Required fields",
+    "optional_fields": "Optional fields"
   },
   "CreateCourseModule": {
     "create_module_button": "Create Module",
@@ -1333,7 +1339,17 @@
     "validationError": "Validation Error",
     "pleaseFixErrors": "Please fix errors",
     "onlyPendingCoursesCanEdit": "Only pending courses can be edited.",
-    "onlyPendingCoursesCanDelete": "Only pending courses can be deleted."
+    "onlyPendingCoursesCanDelete": "Only pending courses can be deleted.",
+    "seconds": "Seconds",
+    "content_url_description": "Enter a direct URL to your lesson content (optional)",
+    "selectAttachment": "Select attachment",
+    "loading_attachments": "Loading attachments...",
+    "no_attachments_available": "No attachments available",
+    "no_attachment_manual_url": "No attachment manual URL",
+    "enter_attachment_manual_url": "Enter attachment manual URL",
+    "enter_attachment_manual_url_description": "Enter a direct URL to your lesson content (optional)",
+    "required_fields": "Required fields",
+    "optional_fields": "Optional fields"
   },
   "CoursePage": {
     "metadata_title": "Course - Studify",

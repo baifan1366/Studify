@@ -127,9 +127,9 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                     {t('create_lesson_button')}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[900px] max-h-[95vh] bg-background text-foreground border-border overflow-hidden">
+            <DialogContent className="sm:max-w-[900px] max-h-[95vh] bg-background text-foreground border-border overflow-auto">
                 <form onSubmit={handleSubmit} className="h-full flex flex-col">
-                    <DialogHeader className="px-8 pt-8 pb-6 border-b border-border/50">
+                    <DialogHeader className="px-8 pt-2 pb-2 border-b border-border/50">
                         <div className="flex items-center gap-4">
                             <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20">
                                 <Plus className="h-6 w-6 text-primary" />
@@ -151,7 +151,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 mb-4">
                                     <div className="h-1 w-8 bg-primary rounded-full"></div>
-                                    <h3 className="text-lg font-semibold text-foreground">Basic Information</h3>
+                                    <h3 className="text-lg font-semibold text-foreground">{t('basic_information')}</h3>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -188,7 +188,6 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                             {t('duration_label')}
                                         </Label>
                                         <div className="relative">
-                                            <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 type="number"
                                                 id="duration"
@@ -213,7 +212,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 mb-4">
                                     <div className="h-1 w-8 bg-primary rounded-full"></div>
-                                    <h3 className="text-lg font-semibold text-foreground">Lesson Type & Content</h3>
+                                    <h3 className="text-lg font-semibold text-foreground">{t('lesson_type_content')}</h3>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -265,14 +264,14 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                                     <SelectItem value="loading" disabled>
                                                         <div className="flex items-center gap-2">
                                                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                                                            Loading attachments...
+                                                            {t('loading_attachments')}
                                                         </div>
                                                     </SelectItem>
                                                 ) : attachments.length === 0 ? (
                                                     <SelectItem value="no-attachments" disabled>
                                                         <div className="flex items-center gap-2 text-muted-foreground">
                                                             <File className="h-4 w-4" />
-                                                            No attachments available
+                                                            {t('no_attachments_available')}
                                                         </div>
                                                     </SelectItem>
                                                 ) : (
@@ -280,7 +279,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                                         <SelectItem value="manual-url">
                                                             <div className="flex items-center gap-2">
                                                                 <Link className="h-4 w-4" />
-                                                                No attachment (manual URL)
+                                                                {t('no_attachment_manual_url')}
                                                             </div>
                                                         </SelectItem>
                                                         {attachments.map((attachment) => (
@@ -304,7 +303,6 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                         {contentUrl === 'manual-url' && (
                                             <div className="mt-3 space-y-2">
                                                 <div className="relative">
-                                                    <Link className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                                     <Input
                                                         type="url"
                                                         placeholder={t('content_url_placeholder')}
@@ -312,7 +310,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                                         className="h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                                                     />
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">Enter a direct URL to your lesson content</p>
+                                                <p className="text-xs text-muted-foreground">{t('content_url_description')}</p>
                                             </div>
                                         )}
                                     </div>
@@ -324,7 +322,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                     <DialogFooter className="px-8 py-6 border-t border-border/50 bg-muted/20">
                         <div className="flex items-center justify-between w-full">
                             <div className="text-sm text-muted-foreground">
-                                All fields marked with <span className="text-destructive">*</span> are required
+                                {t('required_fields')} <span className="text-destructive">*</span>
                             </div>
                             <div className="flex gap-3">
                                 <Button 

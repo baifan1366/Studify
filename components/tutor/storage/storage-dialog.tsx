@@ -90,6 +90,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   // Upload form state
   const [title, setTitle] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [titleError, setTitleError] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editTitleError, setEditTitleError] = useState<string | null>(null)
 
@@ -137,11 +138,19 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       return
     }
 
+    // Validate title before uploading
+    const titleValidation = validateAttachmentTitle(title.trim())
+    if (!titleValidation.success) {
+      setTitleError(titleValidation.error || t('invalid_title'))
+      return
+    }
+
     if (!file) {
       toast.error('Please select a file')
       return
     }
 
+    setTitleError(null)
     try {
       await uploadMutation.mutateAsync({
         ownerId,
@@ -152,6 +161,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       // Clear form
       setTitle('')
       setFile(null)
+      setTitleError(null)
       const fileInput = document.getElementById('file-input') as HTMLInputElement
       if (fileInput) {
         fileInput.value = ''
@@ -279,10 +289,20 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                         type="text"
                         placeholder={t('file_title_placeholder')}
                         value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        onChange={(e) => {
+                          setTitle(e.target.value)
+                          // Clear error when user starts typing
+                          if (titleError) {
+                            setTitleError(null)
+                          }
+                        }}
                         disabled={uploadMutation.isPending}
+                        className={titleError ? 'border-destructive' : ''}
                         required
                       />
+                      {titleError && (
+                        <p className="text-sm text-destructive mt-1">{titleError}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -307,7 +327,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={uploadMutation.isPending || !title.trim() || !file}
+                      disabled={uploadMutation.isPending || !title.trim() || !file || !!titleError}
                     >
                       {uploadMutation.isPending ? (
                         <>
@@ -446,7 +466,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           setEditTitleError(null)
         }
       }}>
-        <DialogContent className="bg-background text-foreground border-border [&>button]:hidden">
+        <DialogContent className="bg-background text-foreground border-border">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5" />

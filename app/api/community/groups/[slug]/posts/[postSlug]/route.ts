@@ -4,7 +4,7 @@ import { authorize } from "@/utils/auth/server-guard";
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string; postSlug: string } }
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   const authResult = await authorize("student");
   if (authResult instanceof NextResponse) {
@@ -14,7 +14,7 @@ export async function GET(
   console.log("[API] Authorization successful for user:", authResult.sub);
 
   const supabaseClient = await createServerClient();
-  const { slug, postSlug } = params;
+  const { slug, postSlug } = await params;
 
   // 1. Get user profile
   console.log("[API] Fetching profile for user_id:", authResult.sub);
@@ -128,8 +128,8 @@ export async function GET(
     comments_count: post.comments.length,
     reactions,
     files: attachments || [],
-    hashtags: (hashtags || []).map((h: { hashtag: { name: string } }) => ({
-      name: h.hashtag.name,
+    hashtags: (hashtags || []).map((h: any) => ({
+      name: h.hashtag?.name || '',
     })),
   };
 

@@ -32,6 +32,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
     const [title, setTitle] = useState('');
     const [kind, setKind] = useState<Lesson['kind']>('video');
     const [contentUrl, setContentUrl] = useState('manual-url');
+    const [manualUrl, setManualUrl] = useState('');
     const [durationSec, setDurationSec] = useState<number | undefined>();
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +62,9 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
         try {
             // Handle special select values
             let finalContentUrl: string | undefined;
-            if (contentUrl === 'manual-url' || contentUrl === 'loading' || contentUrl === 'no-attachments') {
+            if (contentUrl === 'manual-url') {
+                finalContentUrl = manualUrl || undefined;
+            } else if (contentUrl === 'loading' || contentUrl === 'no-attachments') {
                 finalContentUrl = undefined;
             } else {
                 finalContentUrl = contentUrl || undefined;
@@ -90,6 +93,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
             setTitle('');
             setKind('video');
             setContentUrl('manual-url');
+            setManualUrl('');
             setDurationSec(undefined);
             setIsOpen(false);
         } catch (error) {
@@ -306,7 +310,8 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                                     <Input
                                                         type="url"
                                                         placeholder={t('content_url_placeholder')}
-                                                        onChange={(e) => setContentUrl(e.target.value)}
+                                                        value={manualUrl}
+                                                        onChange={(e) => setManualUrl(e.target.value)}
                                                         className="h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                                                     />
                                                 </div>
@@ -319,17 +324,12 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                         </div>
                     </div>
                     
-                    <DialogFooter className="px-8 py-6 border-t border-border/50 bg-muted/20">
-                        <div className="flex items-center justify-between w-full">
-                            <div className="text-sm text-muted-foreground">
-                                {t('required_fields')} <span className="text-destructive">*</span>
-                            </div>
+                    <DialogFooter className="px-8 py-2 border-t border-border/50">
                             <div className="flex gap-3">
                                 <Button 
                                     type="button" 
-                                    variant="outline" 
+                                    variant="ghost" 
                                     onClick={() => setIsOpen(false)}
-                                    className="px-6"
                                 >
                                     {t('cancel_button')}
                                 </Button>
@@ -345,13 +345,11 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            <Plus className="h-4 w-4" />
                                             {t('submit_button')}
                                         </div>
                                     )}
                                 </Button>
                             </div>
-                        </div>
                     </DialogFooter>
                 </form>
             </DialogContent>

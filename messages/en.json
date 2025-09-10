@@ -973,7 +973,10 @@
     "enter_attachment_manual_url": "Enter attachment manual URL",
     "enter_attachment_manual_url_description": "Enter a direct URL to your lesson content (optional)",
     "required_fields": "Required fields",
-    "optional_fields": "Optional fields"
+    "optional_fields": "Optional fields",
+    "basic_information": "Basic Information",
+    "lesson_type_content": "Lesson Type & Content",
+    "content_url_description": "Content URL Description"
   },
   "CreateCourseModule": {
     "create_module_button": "Create Module",
@@ -1349,7 +1352,18 @@
     "enter_attachment_manual_url": "Enter attachment manual URL",
     "enter_attachment_manual_url_description": "Enter a direct URL to your lesson content (optional)",
     "required_fields": "Required fields",
-    "optional_fields": "Optional fields"
+    "optional_fields": "Optional fields",
+    "basic_information": "Basic Information",
+    "title_label":"Lesson Title",
+    "title_placeholder":"Enter course title",
+    "duration_label": "Duration (seconds)",
+    "duration_placeholder": "e.g., 300",
+    "lesson_type_content": "Lesson Type & Content",
+    "type_label": "Type",
+    "type_placeholder": "Select lesson type",
+    "content_url_label": "Content URL",
+    "content_url_placeholder": "Enter content URL",
+    "cancel_button": "Cancel"
   },
   "CoursePage": {
     "metadata_title": "Course - Studify",

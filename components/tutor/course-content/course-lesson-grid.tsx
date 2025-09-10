@@ -54,6 +54,7 @@ import { useTranslations } from 'next-intl';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
 import { z } from 'zod';
 import LessonPreview from './lesson-preview';
+import { EditCourseLessonDialog } from './edit-course-lesson-dialog';
 
 // Extended interface for UI display
 interface CourseLesson extends Lesson {
@@ -97,12 +98,6 @@ export default function CourseLessonGrid({
   // State for edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editKind, setEditKind] = useState<'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard'>('video');
-  const [editContentUrl, setEditContentUrl] = useState('');
-  const [editSelectedAttachment, setEditSelectedAttachment] = useState('');
-  const [editDurationSec, setEditDurationSec] = useState<number | undefined>(undefined);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   // State for delete confirmation
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -117,11 +112,7 @@ export default function CourseLessonGrid({
     courseId || 0,
     moduleId || 0
   );
-  const updateLesson = useUpdateLesson();
   const deleteLesson = useDeleteLesson();
-  
-  // Fetch attachments for the current course
-  const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(courseId || 0);
   
   // Transform API data to UI format
   const lessons: CourseLesson[] = useMemo(() => {
@@ -177,11 +168,6 @@ export default function CourseLessonGrid({
     e.stopPropagation();
     if (isEditDeleteDisabled) return;
     setEditingLesson(lesson);
-    setEditTitle(lesson.title);
-    setEditKind(lesson.kind);
-    setEditContentUrl(lesson.content_url || '');
-    setEditSelectedAttachment(lesson.content_url || 'manual-url');
-    setEditDurationSec(lesson.duration_sec);
     setEditOpen(true);
   };
 
@@ -199,77 +185,6 @@ export default function CourseLessonGrid({
     onLessonSelect?.(lesson.id);
   };
 
-  const handleEditSubmit = async () => {
-    if (!editingLesson || !courseId || !moduleId) return;
-    
-    // Clear previous validation errors
-    setValidationErrors({});
-    
-    try {
-      // Create validation schema with translation function
-      const schema = courseLessonSchema(t);
-      
-      // Validate the form data
-      const validationData = {
-        courseId,
-        moduleId,
-        title: editTitle.trim(),
-        kind: editKind,
-        content_url: editContentUrl.trim() || undefined,
-        duration_sec: editDurationSec
-      };
-      
-      const validatedData = schema.parse(validationData);
-      
-      await updateLesson.mutateAsync({
-        courseId,
-        moduleId,
-        lessonId: editingLesson.id,
-        body: {
-          title: validatedData.title,
-          kind: validatedData.kind,
-          content_url: validatedData.content_url,
-          duration_sec: validatedData.duration_sec
-        }
-      });
-      
-      toast({
-        title: t('success'),
-        description: t('lessonUpdated'),
-      });
-      
-      setEditOpen(false);
-      setEditingLesson(null);
-      setEditTitle('');
-      setEditKind('video');
-      setEditContentUrl('');
-      setEditDurationSec(undefined);
-      setValidationErrors({});
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        // Handle validation errors
-        const errors: Record<string, string> = {};
-        error.issues.forEach((err) => {
-          if (err.path.length > 0) {
-            errors[err.path[0] as string] = err.message;
-          }
-        });
-        setValidationErrors(errors);
-        
-        toast({
-          title: t('validationError'),
-          description: t('pleaseFixErrors'),
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: t('error'),
-          description: t('updateError'),
-          variant: 'destructive',
-        });
-      }
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingLesson || !courseId || !moduleId) return;
@@ -621,260 +536,13 @@ export default function CourseLessonGrid({
       )}
       
       {/* Edit Lesson Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[700px] bg-background text-foreground border-border">
-          <DialogHeader className="pb-6 border-b border-border/50">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
-                <Edit className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold">{t('editLesson')}</DialogTitle>
-                <DialogDescription className="text-muted-foreground mt-1">
-                  {t('editLessonDescription')}
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <div className="py-6 space-y-6">
-            {/* Title Field */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-title" className="text-sm font-medium flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                {t('title')} <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="edit-title"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className={cn(
-                  "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
-                  validationErrors.title && "border-destructive focus:border-destructive focus:ring-destructive/20"
-                )}
-                placeholder={t('enterLessonTitle')}
-                maxLength={100}
-              />
-              <div className="flex justify-between text-xs">
-                <span className="text-destructive">{validationErrors.title || ''}</span>
-                <span className={cn(
-                  "text-muted-foreground",
-                  editTitle.length > 90 && "text-orange-500",
-                  editTitle.length >= 100 && "text-destructive"
-                )}>{editTitle.length}/100</span>
-              </div>
-            </div>
-            
-            {/* Type and Duration Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="edit-kind" className="text-sm font-medium flex items-center gap-2">
-                  <Play className="h-4 w-4" />
-                  {t('type')} <span className="text-destructive">*</span>
-                </Label>
-                <Select value={editKind} onValueChange={(value: any) => setEditKind(value)}>
-                  <SelectTrigger className={cn(
-                    "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
-                    validationErrors.kind && "border-destructive focus:border-destructive focus:ring-destructive/20"
-                  )}>
-                    <SelectValue placeholder={t('selectLessonType')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="video">
-                      <div className="flex items-center gap-2">
-                        <Play className="h-4 w-4" />
-                        {t('video')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="live">
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-4 w-4" />
-                        {t('live')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="document">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        {t('document')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="quiz">
-                      <div className="flex items-center gap-2">
-                        <Circle className="h-4 w-4" />
-                        {t('quiz')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="assignment">
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4" />
-                        {t('assignment')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="whiteboard">
-                      <div className="flex items-center gap-2">
-                        <Edit className="h-4 w-4" />
-                        {t('whiteboard')}
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {validationErrors.kind && (
-                  <p className="text-sm text-destructive">{validationErrors.kind}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-duration" className="text-sm font-medium flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  {t('duration')} ({t('seconds')})
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="edit-duration"
-                    type="number"
-                    value={editDurationSec || ''}
-                    onChange={(e) => setEditDurationSec(e.target.value ? parseInt(e.target.value) : undefined)}
-                    className={cn(
-                      "h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
-                      validationErrors.duration_sec && "border-destructive focus:border-destructive focus:ring-destructive/20"
-                    )}
-                    placeholder={t('enterDuration')}
-                    min="0"
-                    max="86400"
-                  />
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-destructive">{validationErrors.duration_sec || ''}</span>
-                  <span className="text-muted-foreground">
-                    {editDurationSec ? `${Math.ceil(editDurationSec / 60)}min` : ''}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Content URL Field */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-content-url" className="text-sm font-medium flex items-center gap-2">
-                <Link className="h-4 w-4" />
-                {t('contentUrl')}
-              </Label>
-              <Select 
-                value={editSelectedAttachment} 
-                onValueChange={(value) => {
-                  setEditSelectedAttachment(value);
-                  if (value !== 'manual-url') {
-                    setEditContentUrl(value);
-                  } else {
-                    setEditContentUrl('');
-                  }
-                }}
-              >
-                <SelectTrigger className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
-                  <SelectValue placeholder={t('selectAttachment')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {attachmentsLoading ? (
-                    <SelectItem value="loading" disabled>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                        {t('loading_attachments')}
-                      </div>
-                    </SelectItem>
-                  ) : attachments.length === 0 ? (
-                    <SelectItem value="no-attachments" disabled>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <File className="h-4 w-4" />
-                        {t('no_attachments_available')}
-                      </div>
-                    </SelectItem>
-                  ) : (
-                    <>
-                      <SelectItem value="manual-url">
-                        <div className="flex items-center gap-2">
-                          <Link className="h-4 w-4" />
-                          {t('no_attachment_manual_url')}
-                        </div>
-                      </SelectItem>
-                      {attachments.map((attachment) => (
-                        <SelectItem key={attachment.id} value={attachment.url || `attachment-${attachment.id}`}>
-                          <div className="flex items-center gap-2">
-                            <File className="h-4 w-4" />
-                            <span className="truncate">{attachment.title}</span>
-                            <span className="text-xs text-muted-foreground">
-                              ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-              {validationErrors.content_url && <span className="text-xs text-destructive mt-1">{validationErrors.content_url}</span>}
-              
-              {/* Manual URL input when manual-url is selected */}
-              {editSelectedAttachment === 'manual-url' && (
-                <div className="mt-3 space-y-2">
-                  <div className="relative">
-                    <Input
-                      type="url"
-                      placeholder={t('enterContentUrl')}
-                      value={editContentUrl}
-                      onChange={(e) => setEditContentUrl(e.target.value)}
-                      className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                      maxLength={500}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-destructive">{validationErrors.content_url || ''}</span>
-                    <span className={cn(
-                      "text-muted-foreground",
-                      editContentUrl.length > 450 && "text-orange-500",
-                      editContentUrl.length >= 500 && "text-destructive"
-                    )}>{editContentUrl.length}/500</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t('content_url_description')}</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <DialogFooter className="pt-6 border-t border-border/50">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditOpen(false)
-                    setValidationErrors({})
-                  }}
-                  className="px-6"
-                >
-                  {t('cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleEditSubmit}
-                  disabled={!editTitle.trim() || updateLesson.isPending}
-                  className="px-8"
-                >
-                  {updateLesson.isPending ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      {t('updating')}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      {t('update')}
-                    </div>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditCourseLessonDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        lesson={editingLesson}
+        courseId={courseId || 0}
+        moduleId={moduleId || 0}
+      />
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

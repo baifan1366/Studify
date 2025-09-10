@@ -47,13 +47,22 @@ export async function POST(req: NextRequest) {
     // Determine requested role: query param overrides (student|tutor|admin)
     const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
 
-    // Create or update profile with display_name and role
-    // Use upsert to handle cases where trigger hasn't created profile yet
+    // Create or update profile (handle case where database trigger already created it)
     const profileData = {
       user_id: data.user.id,
       role: roleParam || 'student',
-      ...(fullName ? { display_name: fullName } : {}),
+      display_name: fullName || null,
+      status: 'active',
+      points: 0,
+      onboarded: false,
+      is_deleted: false
     }
+
+    console.log('Creating/updating profile:', {
+      userId: data.user.id,
+      profileData,
+      timestamp: new Date().toISOString()
+    })
 
     const { error: profileError } = await client
       .from('profiles')
@@ -63,14 +72,28 @@ export async function POST(req: NextRequest) {
       })
 
     if (profileError) {
-      console.error('Profile creation/update error:', {
+      console.error('Profile upsert error:', {
         error: profileError,
+        errorCode: profileError.code,
+        errorDetails: profileError.details,
+        errorMessage: profileError.message,
         userId: data.user.id,
         profileData,
-        timestamp: new Date().toISOString()
+        role: roleParam || 'student',
+        fullName,
+        timestamp: new Date().toISOString(),
+        requestUrl: req.url,
+        userAgent: req.headers.get('user-agent')
       })
       return NextResponse.json({ error: 'Database error saving new user' }, { status: 400 })
     }
+
+    console.log('Profile upsert successful:', {
+      userId: data.user.id,
+      role: roleParam || 'student',
+      displayName: fullName,
+      timestamp: new Date().toISOString()
+    })
 
     // fetch role and display name from profiles (default student)
     const { data: profile } = await client

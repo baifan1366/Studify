@@ -1075,7 +1075,8 @@
     "cancel": "Cancel",
     "deleting": "Deleting...",
     "status": "Status",
-    "submitForApproval": "Submit for approval"
+    "submitForApproval": "Submit for approval",
+    "changeToInactive": "Change to inactive"
   },
   "CourseSchema": {
     "title_min_length": "Title must have at least 1 character.",

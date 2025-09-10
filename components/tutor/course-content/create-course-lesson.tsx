@@ -31,7 +31,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
     const [isOpen, setIsOpen] = useState(false);
     const [title, setTitle] = useState('');
     const [kind, setKind] = useState<Lesson['kind']>('video');
-    const [contentUrl, setContentUrl] = useState('');
+    const [contentUrl, setContentUrl] = useState('manual-url');
     const [durationSec, setDurationSec] = useState<number | undefined>();
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,12 +59,20 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
         setIsSubmitting(true);
         
         try {
+            // Handle special select values
+            let finalContentUrl: string | undefined;
+            if (contentUrl === 'manual-url' || contentUrl === 'loading' || contentUrl === 'no-attachments') {
+                finalContentUrl = undefined;
+            } else {
+                finalContentUrl = contentUrl || undefined;
+            }
+            
             const formData = {
                 courseId,
                 moduleId,
                 title,
                 kind,
-                content_url: contentUrl || undefined,
+                content_url: finalContentUrl,
                 duration_sec: durationSec
             };
             
@@ -81,7 +89,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
             // Reset form
             setTitle('');
             setKind('video');
-            setContentUrl('');
+            setContentUrl('manual-url');
             setDurationSec(undefined);
             setIsOpen(false);
         } catch (error) {
@@ -215,21 +223,18 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                         "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
                                         errors.content_url && "border-destructive focus:border-destructive"
                                     )}>
-                                        <div className="flex items-center gap-2">
-                                            <File className="h-4 w-4 text-muted-foreground" />
-                                            <SelectValue placeholder={attachmentsLoading ? "Loading attachments..." : "Select an attachment"} />
-                                        </div>
+                                        <SelectValue placeholder={attachmentsLoading ? "Loading attachments..." : "Select an attachment"} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {attachmentsLoading ? (
-                                            <SelectItem value="" disabled>Loading attachments...</SelectItem>
+                                            <SelectItem value="loading" disabled>Loading attachments...</SelectItem>
                                         ) : attachments.length === 0 ? (
-                                            <SelectItem value="" disabled>No attachments available</SelectItem>
+                                            <SelectItem value="no-attachments" disabled>No attachments available</SelectItem>
                                         ) : (
                                             <>
-                                                <SelectItem value="">No attachment (manual URL)</SelectItem>
+                                                <SelectItem value="manual-url">No attachment (manual URL)</SelectItem>
                                                 {attachments.map((attachment) => (
-                                                    <SelectItem key={attachment.id} value={attachment.url || ""}>
+                                                    <SelectItem key={attachment.id} value={attachment.url || `attachment-${attachment.id}`}>
                                                         <div className="flex items-center gap-2">
                                                             <File className="h-4 w-4" />
                                                             <span className="truncate">{attachment.title}</span>
@@ -246,7 +251,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                 {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
                                 
                                 {/* Manual URL input when no attachment is selected */}
-                                {contentUrl === '' && (
+                                {contentUrl === 'manual-url' && (
                                     <div className="mt-2">
                                         <div className="relative">
                                             <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

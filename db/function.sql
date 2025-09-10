@@ -13,11 +13,8 @@ begin
   values (new.id, 'student')
   returning id into profile_id;
   
-  -- Queue the new user profile for embedding via QStash (high priority)
-  perform queue_for_embedding_qstash('profile', profile_id, 2);
-  
-  -- Also queue the auth user data for embedding
-  perform queue_for_embedding_qstash('auth_user', new.id::bigint, 2);
+  -- No embedding calls here - let the profile trigger handle it
+  -- This keeps auth schema clean and prevents signup failures
   
   return new;
 end;

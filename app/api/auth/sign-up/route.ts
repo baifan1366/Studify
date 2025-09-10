@@ -47,16 +47,53 @@ export async function POST(req: NextRequest) {
     // Determine requested role: query param overrides (student|tutor|admin)
     const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
 
-    // Update profile with display_name and role if provided
-    if (fullName || roleParam) {
-      await client
-        .from('profiles')
-        .update({
-          ...(fullName ? { display_name: fullName } : {}),
-          ...(roleParam ? { role: roleParam } : {}),
-        })
-        .eq('user_id', data.user.id)
+    // Create or update profile (handle case where database trigger already created it)
+    const profileData = {
+      user_id: data.user.id,
+      role: roleParam || 'student',
+      display_name: fullName || null,
+      status: 'active',
+      points: 0,
+      onboarded: false,
+      is_deleted: false
     }
+
+    console.log('Creating/updating profile:', {
+      userId: data.user.id,
+      profileData,
+      timestamp: new Date().toISOString()
+    })
+
+    const { error: profileError } = await client
+      .from('profiles')
+      .upsert(profileData, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
+      })
+
+    if (profileError) {
+      console.error('Profile upsert error:', {
+        error: profileError,
+        errorCode: profileError.code,
+        errorDetails: profileError.details,
+        errorMessage: profileError.message,
+        userId: data.user.id,
+        profileData,
+        role: roleParam || 'student',
+        fullName,
+        timestamp: new Date().toISOString(),
+        requestUrl: req.url,
+        userAgent: req.headers.get('user-agent')
+      })
+      return NextResponse.json({ error: 'Database error saving new user' }, { status: 400 })
+    }
+
+    console.log('Profile upsert successful:', {
+      userId: data.user.id,
+      role: roleParam || 'student',
+      displayName: fullName,
+      timestamp: new Date().toISOString()
+    })
 
     // fetch role and display name from profiles (default student)
     const { data: profile } = await client

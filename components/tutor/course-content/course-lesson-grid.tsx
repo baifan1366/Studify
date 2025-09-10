@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical, FileText, Eye, Link, File } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -48,10 +48,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLessonByCourseModuleId, useUpdateLesson, useDeleteLesson } from '@/hooks/course/use-course-lesson';
+import { useAttachments } from '@/hooks/course/use-attachments';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { useTranslations } from 'next-intl';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
 import { z } from 'zod';
+import LessonPreview from './lesson-preview';
+import { EditCourseLessonDialog } from './edit-course-lesson-dialog';
 
 // Extended interface for UI display
 interface CourseLesson extends Lesson {
@@ -89,28 +92,26 @@ export default function CourseLessonGrid({
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('order');
   const [showCompleted, setShowCompleted] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showFilters, setShowFilters] = useState(false);
   
   // State for edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editKind, setEditKind] = useState<'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard'>('video');
-  const [editContentUrl, setEditContentUrl] = useState('');
-  const [editDurationSec, setEditDurationSec] = useState<number | undefined>(undefined);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   // State for delete confirmation
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingLesson, setDeletingLesson] = useState<Lesson | null>(null);
+  
+  // State for lesson preview
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewingLesson, setPreviewingLesson] = useState<Lesson | null>(null);
   
   // Fetch lessons using the hook - only fetch if both IDs are available
   const { data: rawLessons = [], isLoading, error } = useLessonByCourseModuleId(
     courseId || 0,
     moduleId || 0
   );
-  const updateLesson = useUpdateLesson();
   const deleteLesson = useDeleteLesson();
   
   // Transform API data to UI format
@@ -167,10 +168,6 @@ export default function CourseLessonGrid({
     e.stopPropagation();
     if (isEditDeleteDisabled) return;
     setEditingLesson(lesson);
-    setEditTitle(lesson.title);
-    setEditKind(lesson.kind);
-    setEditContentUrl(lesson.content_url || '');
-    setEditDurationSec(lesson.duration_sec);
     setEditOpen(true);
   };
 
@@ -181,77 +178,13 @@ export default function CourseLessonGrid({
     setDeleteOpen(true);
   };
 
-  const handleEditSubmit = async () => {
-    if (!editingLesson || !courseId || !moduleId) return;
-    
-    // Clear previous validation errors
-    setValidationErrors({});
-    
-    try {
-      // Create validation schema with translation function
-      const schema = courseLessonSchema(t);
-      
-      // Validate the form data
-      const validationData = {
-        courseId,
-        moduleId,
-        title: editTitle.trim(),
-        kind: editKind,
-        content_url: editContentUrl.trim() || undefined,
-        duration_sec: editDurationSec
-      };
-      
-      const validatedData = schema.parse(validationData);
-      
-      await updateLesson.mutateAsync({
-        courseId,
-        moduleId,
-        lessonId: editingLesson.id,
-        body: {
-          title: validatedData.title,
-          kind: validatedData.kind,
-          content_url: validatedData.content_url,
-          duration_sec: validatedData.duration_sec
-        }
-      });
-      
-      toast({
-        title: t('success'),
-        description: t('lessonUpdated'),
-      });
-      
-      setEditOpen(false);
-      setEditingLesson(null);
-      setEditTitle('');
-      setEditKind('video');
-      setEditContentUrl('');
-      setEditDurationSec(undefined);
-      setValidationErrors({});
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        // Handle validation errors
-        const errors: Record<string, string> = {};
-        error.issues.forEach((err) => {
-          if (err.path.length > 0) {
-            errors[err.path[0] as string] = err.message;
-          }
-        });
-        setValidationErrors(errors);
-        
-        toast({
-          title: t('validationError'),
-          description: t('pleaseFixErrors'),
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: t('error'),
-          description: t('updateError'),
-          variant: 'destructive',
-        });
-      }
-    }
+  const handleLessonClick = (lesson: CourseLesson) => {
+    if (lesson.isLocked) return;
+    setPreviewingLesson(lesson);
+    setPreviewOpen(true);
+    onLessonSelect?.(lesson.id);
   };
+
 
   const handleDeleteConfirm = async () => {
     if (!deletingLesson || !courseId || !moduleId) return;
@@ -447,7 +380,7 @@ export default function CourseLessonGrid({
               selectedLessonId === lesson.id && "ring-2 ring-primary ring-opacity-50 border-primary",
               viewMode === 'list' && "flex items-center gap-4 p-4"
             )}
-            onClick={() => !lesson.isLocked && onLessonSelect?.(lesson.id)}
+            onClick={() => handleLessonClick(lesson)}
           >
             {viewMode === 'grid' ? (
               <div className="p-4">
@@ -603,112 +536,13 @@ export default function CourseLessonGrid({
       )}
       
       {/* Edit Lesson Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('editLesson')}</DialogTitle>
-            <DialogDescription>
-              {t('editLessonDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
-                {t('title')}
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="title"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className={validationErrors.title ? "border-destructive" : ""}
-                  placeholder={t('enterLessonTitle')}
-                />
-                {validationErrors.title && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.title}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="kind" className="text-right">
-                {t('type')}
-              </Label>
-              <div className="col-span-3">
-                <Select value={editKind} onValueChange={(value: any) => setEditKind(value)}>
-                  <SelectTrigger className={validationErrors.kind ? "border-destructive" : ""}>
-                    <SelectValue placeholder={t('selectLessonType')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="video">{t('video')}</SelectItem>
-                    <SelectItem value="live">{t('live')}</SelectItem>
-                    <SelectItem value="document">{t('document')}</SelectItem>
-                    <SelectItem value="quiz">{t('quiz')}</SelectItem>
-                    <SelectItem value="assignment">{t('assignment')}</SelectItem>
-                    <SelectItem value="whiteboard">{t('whiteboard')}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {validationErrors.kind && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.kind}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="content_url" className="text-right">
-                {t('contentUrl')}
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="content_url"
-                  value={editContentUrl}
-                  onChange={(e) => setEditContentUrl(e.target.value)}
-                  className={validationErrors.content_url ? "border-destructive" : ""}
-                  placeholder={t('enterContentUrl')}
-                />
-                {validationErrors.content_url && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.content_url}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="duration" className="text-right">
-                {t('duration')} (sec)
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="duration"
-                  type="number"
-                  value={editDurationSec || ''}
-                  onChange={(e) => setEditDurationSec(e.target.value ? parseInt(e.target.value) : undefined)}
-                  className={validationErrors.duration_sec ? "border-destructive" : ""}
-                  placeholder={t('enterDuration')}
-                />
-                {validationErrors.duration_sec && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.duration_sec}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleEditSubmit}
-              disabled={!editTitle.trim() || updateLesson.isPending}
-            >
-              {updateLesson.isPending ? t('updating') : t('update')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditCourseLessonDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        lesson={editingLesson}
+        courseId={courseId || 0}
+        moduleId={moduleId || 0}
+      />
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -731,6 +565,13 @@ export default function CourseLessonGrid({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Lesson Preview Dialog */}
+      <LessonPreview
+        lesson={previewingLesson}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   );
 }

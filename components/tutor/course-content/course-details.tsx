@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
 import CourseModuleList from '@/components/tutor/course-content/course-module-list';
 import CourseLessonGrid from '@/components/tutor/course-content/course-lesson-grid';
 import CreateCourseLesson from '@/components/tutor/course-content/create-course-lesson';
+import { StorageDialog } from '@/components/tutor/storage/storage-dialog';
 import { useSearchParams } from 'next/navigation';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useCourse } from '@/hooks/course/use-courses';
@@ -134,10 +136,23 @@ export default function CourseDetails() {
                 </p>
               </div>
              
-            </div> 
-            {course?.status === 'inactive' && selectedModuleId && (
-              <CreateCourseLesson courseId={courseId} moduleId={selectedModuleId} courseStatus={course?.status} />
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Storage Dialog Button */}
+              <StorageDialog ownerId={courseId}>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="border-border hover:bg-accent hover:text-accent-foreground"
+                >
+                  <HardDrive className="h-4 w-4 mr-2" />
+                  {t('storage')}
+                </Button>
+              </StorageDialog>
+              {course?.status === 'inactive' && selectedModuleId && (
+                <CreateCourseLesson courseId={courseId} moduleId={selectedModuleId} courseStatus={course?.status} />
+              )}
+            </div>
           </div>
         </div>
 

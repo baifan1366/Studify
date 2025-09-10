@@ -215,6 +215,19 @@ create table if not exists course_lesson (
   deleted_at timestamptz
 );
 
+create table if not exists course_attachments (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  owner_id bigint not null references profiles(id) on delete restrict,
+  title text not null,
+  url text,
+  size int,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
 create table if not exists course_enrollment (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
@@ -258,13 +271,16 @@ create table if not exists course_material (
 
 create table if not exists course_chapter (
   id bigserial primary key,
-  course_id bigint not null references course(id) on delete cascade,
+  lesson_id bigint not null references course_lesson(id) on delete cascade,
   title text not null,
   description text,
   start_time_sec int,
   end_time_sec int,
   order_index int not null default 1,
-  created_at timestamptz default now()
+  is_deleted boolean not null default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists course_reviews (

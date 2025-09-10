@@ -46,7 +46,7 @@ export function useLiveKitToken({
         sessionId,
         apiUrl,
         participantName: requestData?.participantName || participantName,
-        metadata: requestData?.metadata || metadata
+        metadata: requestData?.metadata || metadata || 'default-metadata'
       });
 
       const response = await fetch(apiUrl, {
@@ -56,7 +56,7 @@ export function useLiveKitToken({
         },
         body: JSON.stringify({
           participantName: requestData?.participantName || participantName,
-          metadata: requestData?.metadata || metadata,
+          metadata: requestData?.metadata || metadata || JSON.stringify({ role: 'participant', timestamp: Date.now() }),
         }),
       });
 

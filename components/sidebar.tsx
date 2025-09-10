@@ -248,14 +248,15 @@ export default function AnimatedSidebar({
     }
   };
 
-  // Handle hover with 1.5 second delay
-  const handleMouseEnter = () => {
-    if (!isPermanentlyExpanded) {
-      hoverTimeoutRef.current = setTimeout(() => {
-        setIsHovered(true);
-      }, 400);
+const handleMouseEnter = () => {
+  if (!isPermanentlyExpanded) {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
     }
-  };
+    setIsHovered(true);
+  }
+};
+
 
   const handleMouseLeave = () => {
     if (hoverTimeoutRef.current) {
@@ -371,14 +372,14 @@ export default function AnimatedSidebar({
     collapsed: {
       justifyContent: 'center',
       transition: { 
-        duration: 1.5,
+        duration: 1,
         ease: [0.25, 0.46, 0.45, 0.94] as const
       }
     },
     expanded: {
       justifyContent: 'flex-start',
       transition: { 
-        duration: 1.5,
+        duration: 1,
       }
     }
   };
@@ -388,7 +389,7 @@ export default function AnimatedSidebar({
       opacity: 0,
       x: -15,
       transition: { 
-        duration: 1.5,
+        duration: 1,
         ease: "easeOut" as const
       }
     },
@@ -396,8 +397,8 @@ export default function AnimatedSidebar({
       opacity: 1,
       x: 0,
       transition: { 
-        delay: 0.05,
-        duration: 1.5,
+        delay: 0.02,
+        duration: 1,
         ease: [0.25, 0.46, 0.45, 0.94] as const
       }
     }
@@ -407,14 +408,14 @@ export default function AnimatedSidebar({
     collapsed: {
       scale: 1,
       transition: { 
-        duration: 1.5,
+        duration: 1,
         ease: "easeOut" as const
       }
     },
     expanded: {
       scale: 1.05,
       transition: { 
-        duration: 1.5,
+        duration: 1,
         ease: "easeOut" as const
       }
     }
@@ -506,7 +507,7 @@ export default function AnimatedSidebar({
                                   toggleSectionExpansion(item.id);
                                 }
                               }}
-                              className={`w-full flex items-center p-3 rounded-xl transition-all duration-150 ${
+                              className={`w-full flex items-center p-3 rounded-xl transition-all duration-100 ${
                                 isActive
                                   ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
                                   : 'hover:bg-transparent dark:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600'
@@ -569,7 +570,7 @@ export default function AnimatedSidebar({
                                       height: 0,
                                       scaleY: 0.8,
                                       transition: {
-                                        duration: 1.5,
+                                        duration: 0.3,
                                         ease: "easeOut" as const
                                       }
                                     },
@@ -578,7 +579,7 @@ export default function AnimatedSidebar({
                                       height: 'auto',
                                       scaleY: 1,
                                       transition: {
-                                        duration: 2,
+                                        duration: 0.3,
                                         ease: [0.25, 0.46, 0.45, 0.94] as const
                                       }
                                     }
@@ -602,8 +603,8 @@ export default function AnimatedSidebar({
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ 
-                                          delay: 0.05,
-                                          duration: 1.5
+                                          delay: 0.01,
+                                          duration: 0.3
                                         }}
                                       >
                                         <div className="flex-shrink-0">
@@ -641,7 +642,7 @@ export default function AnimatedSidebar({
                           custom={buttonIndex}
                           initial={showSequentialAnimation ? 'hidden' : undefined}
                           onClick={() => handleItemClick(item.id)}
-                          className={`w-full flex items-center p-3 rounded-xl transition-all duration-150 ${
+                          className={`w-full flex items-center p-3 rounded-xl transition-all duration-100 ${
                             isActive
                               ? 'bg-transparent dark:bg-transparent text-foreground border-l-4 border-orange-500 dark:border-green-900'
                               : 'hover:bg-transparent dark:hover:bg-transparent text-foreground border-l-4 border-transparent hover:border-orange-300 dark:hover:border-green-600'
@@ -691,7 +692,7 @@ export default function AnimatedSidebar({
                   <motion.div 
                     className="mt-4 border-b border-white/10"
                     animate={{ opacity: isExpanded ? 0.3 : 0.1 }}
-                    transition={{ duration: 1.5 }}
+                    transition={{ duration: 1 }}
                   />
                 )}
               </div>
@@ -706,7 +707,7 @@ export default function AnimatedSidebar({
             animate={showSequentialAnimation ? 'visible' : (isExpanded ? 'expanded' : 'collapsed')}
             custom={menuSections.reduce((total, section) => total + section.items.length, 0)} // Last button index
             initial={showSequentialAnimation ? 'hidden' : undefined}
-            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-150 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-100 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

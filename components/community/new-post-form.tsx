@@ -96,10 +96,10 @@ export function NewPostForm({
     setHashtags(hashtags.filter((tag) => tag !== tagToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !body) return;
-    onSubmit({ title, body, files, hashtags });
+    await onSubmit({ title, body, files, hashtags });
     setTitle("");
     setBody("");
     setFiles([]);

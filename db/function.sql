@@ -692,20 +692,98 @@ CREATE TRIGGER profile_embedding_trigger
 DROP TRIGGER IF EXISTS course_embedding_trigger ON course;
 CREATE TRIGGER course_embedding_trigger
   AFTER INSERT OR UPDATE ON course
-  FOR EACH ROW EXECUTE FUNCTION trigger_course_embedding();
 
-DROP TRIGGER IF EXISTS post_embedding_trigger ON community_post;
-CREATE TRIGGER post_embedding_trigger
-  AFTER INSERT OR UPDATE ON community_post
-  FOR EACH ROW EXECUTE FUNCTION trigger_post_embedding();
 
-DROP TRIGGER IF EXISTS comment_embedding_trigger ON community_comment;
-CREATE TRIGGER comment_embedding_trigger
-  AFTER INSERT OR UPDATE ON community_comment
-  FOR EACH ROW EXECUTE FUNCTION trigger_comment_embedding();
+--Post tsvector update function
+create or replace function community_post_tsvector_update() returns trigger as $$
+declare
+  hashtags_text text;
+begin
+  -- 拼接该 post 的所有 hashtags 名称
+  select string_agg(h.name, ' ')
+  into hashtags_text
+  from post_hashtags ph
+  join hashtags h on h.id = ph.hashtag_id
+  where ph.post_id = new.public_id;
 
-DROP TRIGGER IF EXISTS lesson_embedding_trigger ON course_lesson;
-CREATE TRIGGER lesson_embedding_trigger
-  AFTER INSERT OR UPDATE ON course_lesson
-  FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding();
+  -- 合并 title、body、hashtags 为 search_vector
+  new.search_vector :=
+    setweight(to_tsvector('english', coalesce(new.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(new.body, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(hashtags_text, '')), 'C');
 
+  return new;
+end;
+$$ language plpgsql;
+
+-- Hashtag tsvector update function
+create or replace function hashtags_tsvector_update() returns trigger as $$
+begin
+  new.search_vector := to_tsvector('english', coalesce(new.name, ''));
+  return new;
+end;
+$$ language plpgsql;
+
+-- Function to update posts when hashtag name changes
+create or replace function update_posts_on_hashtag_change() returns trigger as $$
+begin
+  update community_post
+  set updated_at = now()  -- 触发 post trigger 更新 search_vector
+  where public_id in (
+    select ph.post_id
+    from post_hashtags ph
+    where ph.hashtag_id = new.id
+  );
+  return new;
+end;
+$$ language plpgsql;
+
+-- Function to update post when its hashtag associations change
+create or replace function update_post_on_hashtag_assoc_change() returns trigger as $$
+begin
+  update community_post
+  set updated_at = now()  -- 触发 post trigger 更新 search_vector
+  where public_id = new.post_id;
+  return new;
+end;
+$$ language plpgsql;
+
+-- Drop old triggers
+drop trigger if exists trg_update_post_tsvector on community_post;
+drop trigger if exists trg_update_hashtag_tsvector on hashtags;
+drop trigger if exists trg_update_posts_on_hashtag_change on hashtags;
+drop trigger if exists trg_update_post_on_hashtag_assoc_insert on post_hashtags;
+drop trigger if exists trg_update_post_on_hashtag_assoc_delete on post_hashtags;
+
+-- Post trigger
+create trigger trg_update_post_tsvector
+before insert or update
+on community_post
+for each row
+execute procedure community_post_tsvector_update();
+
+-- Hashtag triggers
+create trigger trg_update_hashtag_tsvector
+before insert or update
+on hashtags
+for each row
+execute procedure hashtags_tsvector_update();
+
+create trigger trg_update_posts_on_hashtag_change
+after update
+on hashtags
+for each row
+execute procedure update_posts_on_hashtag_change();
+
+-- post_hashtags triggers
+create trigger trg_update_post_on_hashtag_assoc_insert
+after insert
+on post_hashtags
+for each row
+execute procedure update_post_on_hashtag_assoc_change();
+
+create trigger trg_update_post_on_hashtag_assoc_delete
+after delete
+on post_hashtags
+for each row
+execute procedure update_post_on_hashtag_assoc_change();

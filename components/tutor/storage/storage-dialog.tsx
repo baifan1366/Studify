@@ -56,7 +56,8 @@ import {
   MoreHorizontal,
   RefreshCw,
   Loader2,
-  X
+  X,
+  EllipsisVertical
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
@@ -259,7 +260,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
             </TabsList>
 
             <TabsContent value="upload" className="mt-6">
-              <Card>
+              <Card className="bg-transparent">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Upload className="h-5 w-5" />
@@ -326,7 +327,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
             </TabsContent>
 
             <TabsContent value="manage" className="mt-6 overflow-hidden">
-              <Card className="h-full overflow-hidden">
+              <Card className="h-full overflow-hidden bg-transparent">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -342,7 +343,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       </CardDescription>
                     </div>
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       onClick={() => refetch()}
                       disabled={isLoading}
@@ -391,18 +392,17 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => handlePreview(attachment.url)}
                                   disabled={!attachment.url}
                                 >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  {t('preview')}
+                                  <Eye className="h-4 w-4" />
                                 </Button>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm">
-                                      <MoreHorizontal className="h-4 w-4" />
+                                      <EllipsisVertical className="h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
@@ -446,9 +446,12 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           setEditTitleError(null)
         }
       }}>
-        <DialogContent className="bg-background text-foreground border-border">
+        <DialogContent className="bg-background text-foreground border-border [&>button]:hidden">
           <DialogHeader>
-            <DialogTitle>{t('edit_title')}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              {t('edit_title')}
+            </DialogTitle>
             <DialogDescription>
               {t('edit_description')}
             </DialogDescription>

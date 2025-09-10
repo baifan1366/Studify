@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Play, Clock, Eye, EyeOff, Link, FileText, Image, File } from 'lucide-react';
+import { Plus, Play, Clock, Eye, EyeOff, Link, FileText, Image, File, Circle, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { courseLessonSchema } from '@/lib/validations/course-lesson';
@@ -127,162 +127,233 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                     {t('create_lesson_button')}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] max-h-[90vh] border-0 shadow-2xl overflow-hidden">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader className="px-6 pt-6 pb-2">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20">
-                                <Play className="h-5 w-5 text-primary" />
+            <DialogContent className="sm:max-w-[900px] max-h-[95vh] bg-background text-foreground border-border overflow-hidden">
+                <form onSubmit={handleSubmit} className="h-full flex flex-col">
+                    <DialogHeader className="px-8 pt-8 pb-6 border-b border-border/50">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20">
+                                <Plus className="h-6 w-6 text-primary" />
                             </div>
-                            <div>
-                                <DialogTitle className="text-xl font-bold">{t('dialog_title')}</DialogTitle>
-                                <DialogDescription className="text-muted-foreground mt-1">
+                            <div className="flex-1">
+                                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                                    {t('dialog_title')}
+                                </DialogTitle>
+                                <DialogDescription className="text-muted-foreground mt-2 text-base">
                                     {t('dialog_description')}
                                 </DialogDescription>
                             </div>
                         </div>
                     </DialogHeader>
                     
-                    <div className="px-6 py-4 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="title" className="text-sm font-medium">
-                                    {t('title_label')} <span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                    type="text"
-                                    id="title"
-                                    placeholder={t('title_placeholder')}
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    required
-                                    className={cn(
-                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
-                                        errors.title && "border-destructive focus:border-destructive"
-                                    )}
-                                />
-                                <div className="flex justify-between text-xs mt-1">
-                                    <span className="text-destructive">{errors.title || ''}</span>
-                                    <span className="text-muted-foreground">{title.length}/100</span>
+                    <div className="flex-1 overflow-y-auto px-8 py-6">
+                        <div className="space-y-8">
+                            {/* Basic Information Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="h-1 w-8 bg-primary rounded-full"></div>
+                                    <h3 className="text-lg font-semibold text-foreground">Basic Information</h3>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="title" className="text-sm font-medium flex items-center gap-2">
+                                            <FileText className="h-4 w-4" />
+                                            {t('title_label')} <span className="text-destructive">*</span>
+                                        </Label>
+                                        <Input
+                                            type="text"
+                                            id="title"
+                                            placeholder={t('title_placeholder')}
+                                            value={title}
+                                            onChange={(e) => setTitle(e.target.value)}
+                                            required
+                                            className={cn(
+                                                "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                                                errors.title && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                                            )}
+                                        />
+                                        <div className="flex justify-between text-xs mt-1">
+                                            <span className="text-destructive">{errors.title || ''}</span>
+                                            <span className={cn(
+                                                "text-muted-foreground",
+                                                title.length > 90 && "text-orange-500",
+                                                title.length >= 100 && "text-destructive"
+                                            )}>{title.length}/100</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <Label htmlFor="duration" className="text-sm font-medium flex items-center gap-2">
+                                            <Clock className="h-4 w-4" />
+                                            {t('duration_label')}
+                                        </Label>
+                                        <div className="relative">
+                                            <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                type="number"
+                                                id="duration"
+                                                placeholder={t('duration_placeholder')}
+                                                value={durationSec || ''}
+                                                onChange={(e) => setDurationSec(e.target.value ? Number(e.target.value) : undefined)}
+                                                min="0"
+                                                max="86400"
+                                                className={cn(
+                                                    "h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                                                    errors.duration_sec && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                                                )}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{t('duration_description')}</p>
+                                        {errors.duration_sec && <span className="text-xs text-destructive">{errors.duration_sec}</span>}
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <Label htmlFor="duration" className="text-sm font-medium">
-                                    {t('duration_label')}
-                                </Label>
-                                <div className="relative mt-1.5">
-                                    <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="number"
-                                        id="duration"
-                                        placeholder={t('duration_placeholder')}
-                                        value={durationSec || ''}
-                                        onChange={(e) => setDurationSec(e.target.value ? Number(e.target.value) : undefined)}
-                                        min="0"
-                                        max="86400"
-                                        className={cn(
-                                            "pl-10 bg-background/50 border-border/50 focus:border-primary transition-colors",
-                                            errors.duration_sec && "border-destructive focus:border-destructive"
-                                        )}
-                                    />
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">{t('duration_description')}</p>
-                                {errors.duration_sec && <span className="text-xs text-destructive">{errors.duration_sec}</span>}
-                            </div>
-                        </div>
                             
-                        {/* Kind and Duration */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:grid-cols-1">
-                                <Label htmlFor="kind" className="text-sm font-medium">
-                                    {t('kind_label')} <span className="text-destructive">*</span>
-                                </Label>
-                                <Select value={kind} onValueChange={(value) => setKind(value as Lesson['kind'])}>
-                                    <SelectTrigger className={cn(
-                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
-                                        errors.kind && "border-destructive focus:border-destructive"
-                                    )}>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {lessonKinds.map((k) => (
-                                            <SelectItem key={k} value={k}>
-                                                {t(`kinds.${k}`)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.kind && <span className="text-xs text-destructive mt-1">{errors.kind}</span>}
-                            </div>
-                            <div className="md:grid-cols-3">
-                                <Label htmlFor="contentUrl" className="text-sm font-medium">
-                                    {t('content_url_label')}
-                                </Label>
-                                <Select value={contentUrl} onValueChange={setContentUrl}>
-                                    <SelectTrigger className={cn(
-                                        "mt-1.5 bg-background/50 border-border/50 focus:border-primary transition-colors",
-                                        errors.content_url && "border-destructive focus:border-destructive"
-                                    )}>
-                                        <SelectValue placeholder={attachmentsLoading ? "Loading attachments..." : "Select an attachment"} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {attachmentsLoading ? (
-                                            <SelectItem value="loading" disabled>Loading attachments...</SelectItem>
-                                        ) : attachments.length === 0 ? (
-                                            <SelectItem value="no-attachments" disabled>No attachments available</SelectItem>
-                                        ) : (
-                                            <>
-                                                <SelectItem value="manual-url">No attachment (manual URL)</SelectItem>
-                                                {attachments.map((attachment) => (
-                                                    <SelectItem key={attachment.id} value={attachment.url || `attachment-${attachment.id}`}>
+                            {/* Lesson Type & Content Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="h-1 w-8 bg-primary rounded-full"></div>
+                                    <h3 className="text-lg font-semibold text-foreground">Lesson Type & Content</h3>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="kind" className="text-sm font-medium flex items-center gap-2">
+                                            <Play className="h-4 w-4" />
+                                            {t('kind_label')} <span className="text-destructive">*</span>
+                                        </Label>
+                                        <Select value={kind} onValueChange={(value) => setKind(value as Lesson['kind'])}>
+                                            <SelectTrigger className={cn(
+                                                "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                                                errors.kind && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                                            )}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {lessonKinds.map((k) => (
+                                                    <SelectItem key={k} value={k}>
                                                         <div className="flex items-center gap-2">
-                                                            <File className="h-4 w-4" />
-                                                            <span className="truncate">{attachment.title}</span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
-                                                            </span>
+                                                            {k === 'video' && <Play className="h-4 w-4" />}
+                                                            {k === 'document' && <FileText className="h-4 w-4" />}
+                                                            {k === 'quiz' && <Circle className="h-4 w-4" />}
+                                                            {k === 'assignment' && <Star className="h-4 w-4" />}
+                                                            {k === 'live' && <Eye className="h-4 w-4" />}
+                                                            {k === 'whiteboard' && <Image className="h-4 w-4" />}
+                                                            {t(`kinds.${k}`)}
                                                         </div>
                                                     </SelectItem>
                                                 ))}
-                                            </>
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                                {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
-                                
-                                {/* Manual URL input when no attachment is selected */}
-                                {contentUrl === 'manual-url' && (
-                                    <div className="mt-2">
-                                        <div className="relative">
-                                            <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                type="url"
-                                                placeholder={t('content_url_placeholder')}
-                                                onChange={(e) => setContentUrl(e.target.value)}
-                                                className="pl-10 bg-background/50 border-border/50 focus:border-primary transition-colors"
-                                            />
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-1">Or enter a manual URL</p>
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.kind && <span className="text-xs text-destructive mt-1">{errors.kind}</span>}
                                     </div>
-                                )}
+                                    
+                                    <div className="space-y-2">
+                                        <Label htmlFor="contentUrl" className="text-sm font-medium flex items-center gap-2">
+                                            <Link className="h-4 w-4" />
+                                            {t('content_url_label')}
+                                        </Label>
+                                        <Select value={contentUrl} onValueChange={setContentUrl}>
+                                            <SelectTrigger className={cn(
+                                                "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                                                errors.content_url && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                                            )}>
+                                                <SelectValue placeholder={attachmentsLoading ? "Loading attachments..." : "Select an attachment"} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {attachmentsLoading ? (
+                                                    <SelectItem value="loading" disabled>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                                            Loading attachments...
+                                                        </div>
+                                                    </SelectItem>
+                                                ) : attachments.length === 0 ? (
+                                                    <SelectItem value="no-attachments" disabled>
+                                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                                            <File className="h-4 w-4" />
+                                                            No attachments available
+                                                        </div>
+                                                    </SelectItem>
+                                                ) : (
+                                                    <>
+                                                        <SelectItem value="manual-url">
+                                                            <div className="flex items-center gap-2">
+                                                                <Link className="h-4 w-4" />
+                                                                No attachment (manual URL)
+                                                            </div>
+                                                        </SelectItem>
+                                                        {attachments.map((attachment) => (
+                                                            <SelectItem key={attachment.id} value={attachment.url || `attachment-${attachment.id}`}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <File className="h-4 w-4" />
+                                                                    <span className="truncate">{attachment.title}</span>
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
+                                                                    </span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
+                                        
+                                        {/* Manual URL input when no attachment is selected */}
+                                        {contentUrl === 'manual-url' && (
+                                            <div className="mt-3 space-y-2">
+                                                <div className="relative">
+                                                    <Link className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type="url"
+                                                        placeholder={t('content_url_placeholder')}
+                                                        onChange={(e) => setContentUrl(e.target.value)}
+                                                        className="h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Enter a direct URL to your lesson content</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <DialogFooter className="px-6 pb-6 pt-2">
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
-                            onClick={() => setIsOpen(false)}
-                        >
-                            {t('cancel_button')}
-                        </Button>
-                        <Button 
-                            type="submit" 
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? t('creating_button') : t('submit_button')}
-                        </Button>
+                    <DialogFooter className="px-8 py-6 border-t border-border/50 bg-muted/20">
+                        <div className="flex items-center justify-between w-full">
+                            <div className="text-sm text-muted-foreground">
+                                All fields marked with <span className="text-destructive">*</span> are required
+                            </div>
+                            <div className="flex gap-3">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    onClick={() => setIsOpen(false)}
+                                    className="px-6"
+                                >
+                                    {t('cancel_button')}
+                                </Button>
+                                <Button 
+                                    type="submit" 
+                                    disabled={isSubmitting || !title.trim()}
+                                    className="px-8 bg-primary hover:bg-primary/90"
+                                >
+                                    {isSubmitting ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                            {t('creating_button')}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <Plus className="h-4 w-4" />
+                                            {t('submit_button')}
+                                        </div>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </form>
             </DialogContent>

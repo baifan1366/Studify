@@ -55,7 +55,8 @@
     "loading_preview": "Loading preview...",
     "failed_to_load": "Failed to load",
     "pdf_document": "PDF Document",
-    "image_file": "Image File"
+    "image_file": "Image File",
+    "invalid_title": "Invalid title"
   },
   "labels": {
     "course_id": "Course ID",

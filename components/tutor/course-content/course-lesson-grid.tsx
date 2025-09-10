@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Search, Filter, Play, Clock, CheckCircle, Circle, BookOpen, Star, Plus, ChevronDown, Edit, Trash2, MoreVertical, FileText, Eye, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,7 @@ export default function CourseLessonGrid({
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('order');
   const [showCompleted, setShowCompleted] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showFilters, setShowFilters] = useState(false);
   
   // State for edit dialog
@@ -616,108 +616,207 @@ export default function CourseLessonGrid({
       
       {/* Edit Lesson Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('editLesson')}</DialogTitle>
-            <DialogDescription>
-              {t('editLessonDescription')}
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[700px] bg-background text-foreground border-border">
+          <DialogHeader className="pb-6 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                <Edit className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold">{t('editLesson')}</DialogTitle>
+                <DialogDescription className="text-muted-foreground mt-1">
+                  {t('editLessonDescription')}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
-                {t('title')}
+          
+          <div className="py-6 space-y-6">
+            {/* Title Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-title" className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                {t('title')} <span className="text-destructive">*</span>
               </Label>
-              <div className="col-span-3">
-                <Input
-                  id="title"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className={validationErrors.title ? "border-destructive" : ""}
-                  placeholder={t('enterLessonTitle')}
-                />
-                {validationErrors.title && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.title}</p>
+              <Input
+                id="edit-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className={cn(
+                  "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                  validationErrors.title && "border-destructive focus:border-destructive focus:ring-destructive/20"
                 )}
+                placeholder={t('enterLessonTitle')}
+                maxLength={100}
+              />
+              <div className="flex justify-between text-xs">
+                <span className="text-destructive">{validationErrors.title || ''}</span>
+                <span className={cn(
+                  "text-muted-foreground",
+                  editTitle.length > 90 && "text-orange-500",
+                  editTitle.length >= 100 && "text-destructive"
+                )}>{editTitle.length}/100</span>
               </div>
             </div>
             
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="kind" className="text-right">
-                {t('type')}
-              </Label>
-              <div className="col-span-3">
+            {/* Type and Duration Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="edit-kind" className="text-sm font-medium flex items-center gap-2">
+                  <Play className="h-4 w-4" />
+                  {t('type')} <span className="text-destructive">*</span>
+                </Label>
                 <Select value={editKind} onValueChange={(value: any) => setEditKind(value)}>
-                  <SelectTrigger className={validationErrors.kind ? "border-destructive" : ""}>
+                  <SelectTrigger className={cn(
+                    "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                    validationErrors.kind && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                  )}>
                     <SelectValue placeholder={t('selectLessonType')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="video">{t('video')}</SelectItem>
-                    <SelectItem value="live">{t('live')}</SelectItem>
-                    <SelectItem value="document">{t('document')}</SelectItem>
-                    <SelectItem value="quiz">{t('quiz')}</SelectItem>
-                    <SelectItem value="assignment">{t('assignment')}</SelectItem>
-                    <SelectItem value="whiteboard">{t('whiteboard')}</SelectItem>
+                    <SelectItem value="video">
+                      <div className="flex items-center gap-2">
+                        <Play className="h-4 w-4" />
+                        {t('video')}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="live">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        {t('live')}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="document">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        {t('document')}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="quiz">
+                      <div className="flex items-center gap-2">
+                        <Circle className="h-4 w-4" />
+                        {t('quiz')}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="assignment">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        {t('assignment')}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="whiteboard">
+                      <div className="flex items-center gap-2">
+                        <Edit className="h-4 w-4" />
+                        {t('whiteboard')}
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {validationErrors.kind && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.kind}</p>
+                  <p className="text-sm text-destructive">{validationErrors.kind}</p>
                 )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-duration" className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  {t('duration')} (seconds)
+                </Label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="edit-duration"
+                    type="number"
+                    value={editDurationSec || ''}
+                    onChange={(e) => setEditDurationSec(e.target.value ? parseInt(e.target.value) : undefined)}
+                    className={cn(
+                      "h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                      validationErrors.duration_sec && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                    )}
+                    placeholder={t('enterDuration')}
+                    min="0"
+                    max="86400"
+                  />
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-destructive">{validationErrors.duration_sec || ''}</span>
+                  <span className="text-muted-foreground">
+                    {editDurationSec ? `${Math.ceil(editDurationSec / 60)}min` : ''}
+                  </span>
+                </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="content_url" className="text-right">
+            {/* Content URL Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-content-url" className="text-sm font-medium flex items-center gap-2">
+                <Link className="h-4 w-4" />
                 {t('contentUrl')}
               </Label>
-              <div className="col-span-3">
+              <div className="relative">
+                <Link className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="content_url"
+                  id="edit-content-url"
+                  type="url"
                   value={editContentUrl}
                   onChange={(e) => setEditContentUrl(e.target.value)}
-                  className={validationErrors.content_url ? "border-destructive" : ""}
+                  className={cn(
+                    "h-12 pl-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                    validationErrors.content_url && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                  )}
                   placeholder={t('enterContentUrl')}
+                  maxLength={500}
                 />
-                {validationErrors.content_url && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.content_url}</p>
-                )}
               </div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="duration" className="text-right">
-                {t('duration')} (sec)
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="duration"
-                  type="number"
-                  value={editDurationSec || ''}
-                  onChange={(e) => setEditDurationSec(e.target.value ? parseInt(e.target.value) : undefined)}
-                  className={validationErrors.duration_sec ? "border-destructive" : ""}
-                  placeholder={t('enterDuration')}
-                />
-                {validationErrors.duration_sec && (
-                  <p className="text-sm text-destructive mt-1">{validationErrors.duration_sec}</p>
-                )}
+              <div className="flex justify-between text-xs">
+                <span className="text-destructive">{validationErrors.content_url || ''}</span>
+                <span className={cn(
+                  "text-muted-foreground",
+                  editContentUrl.length > 450 && "text-orange-500",
+                  editContentUrl.length >= 500 && "text-destructive"
+                )}>{editContentUrl.length}/500</span>
               </div>
+              <p className="text-xs text-muted-foreground">Enter a direct URL to your lesson content (optional)</p>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleEditSubmit}
-              disabled={!editTitle.trim() || updateLesson.isPending}
-            >
-              {updateLesson.isPending ? t('updating') : t('update')}
-            </Button>
+          
+          <DialogFooter className="pt-6 border-t border-border/50">
+            <div className="flex items-center justify-between w-full">
+              <div className="text-sm text-muted-foreground">
+                Fields marked with <span className="text-destructive">*</span> are required
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditOpen(false)
+                    setValidationErrors({})
+                  }}
+                  className="px-6"
+                >
+                  {t('cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleEditSubmit}
+                  disabled={!editTitle.trim() || updateLesson.isPending}
+                  className="px-8"
+                >
+                  {updateLesson.isPending ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      {t('updating')}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Edit className="h-4 w-4" />
+                      {t('update')}
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -47,15 +47,29 @@ export async function POST(req: NextRequest) {
     // Determine requested role: query param overrides (student|tutor|admin)
     const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
 
-    // Update profile with display_name and role if provided
-    if (fullName || roleParam) {
-      await client
-        .from('profiles')
-        .update({
-          ...(fullName ? { display_name: fullName } : {}),
-          ...(roleParam ? { role: roleParam } : {}),
-        })
-        .eq('user_id', data.user.id)
+    // Create or update profile with display_name and role
+    // Use upsert to handle cases where trigger hasn't created profile yet
+    const profileData = {
+      user_id: data.user.id,
+      role: roleParam || 'student',
+      ...(fullName ? { display_name: fullName } : {}),
+    }
+
+    const { error: profileError } = await client
+      .from('profiles')
+      .upsert(profileData, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
+      })
+
+    if (profileError) {
+      console.error('Profile creation/update error:', {
+        error: profileError,
+        userId: data.user.id,
+        profileData,
+        timestamp: new Date().toISOString()
+      })
+      return NextResponse.json({ error: 'Database error saving new user' }, { status: 400 })
     }
 
     // fetch role and display name from profiles (default student)

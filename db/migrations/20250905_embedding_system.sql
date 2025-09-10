@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
   content_text text NOT NULL, -- The actual text that was embedded
   
   -- Metadata
-  embedding_model text DEFAULT 'sentence-transformers/all-MiniLM-L6-v2',
+  embedding_model text DEFAULT 'intfloat/e5-small',
   language text DEFAULT 'en',
   token_count int,
   

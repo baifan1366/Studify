@@ -11,6 +11,7 @@ import { GroupMember } from "@/interface/community/group-member-interface";
 const COMMUNITY_API = {
   groups: "/api/community/groups",
   posts: "/api/community/posts",
+  searchPosts: "/api/community/posts/search",
   groupDetail: (slug: string) => `/api/community/groups/${slug}`,
   groupMembers: (slug: string) => `/api/community/groups/${slug}/members`,
   groupPosts: (slug: string) => `/api/community/groups/${slug}/posts`,
@@ -517,5 +518,32 @@ export const useHashtags = () => {
     createHashtag,
     isCreatingHashtag,
     createHashtagError,
+  };
+};
+
+// Search posts hook
+export const useSearchPosts = (query: string) => {
+  const {
+    data: posts,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Post[], Error>({
+    queryKey: ["searchPosts", query],
+    queryFn: () => {
+      if (!query || query.trim() === "") return Promise.resolve([]);
+      return apiGet<Post[]>(
+        `${COMMUNITY_API.searchPosts}?query=${encodeURIComponent(query)}`
+      );
+    },
+    enabled: !!query && query.trim().length > 0, // 只有在 query 有值时才发请求
+    staleTime: 1000 * 30, // 缓存 30 秒，避免用户每次输入都重新拉
+  });
+
+  return {
+    posts,
+    isLoading,
+    isError,
+    error,
   };
 };

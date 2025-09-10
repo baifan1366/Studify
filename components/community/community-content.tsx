@@ -6,11 +6,14 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
 import AnimatedSidebar from "@/components/sidebar";
 import ClassroomHeader from "@/components/header";
-import { usePopularPosts } from "@/hooks/community/use-community";
+import {
+  usePopularPosts,
+  useSearchPosts,
+} from "@/hooks/community/use-community";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp } from "lucide-react";
+import { Plus, TrendingUp, Search } from "lucide-react";
 import Link from "next/link";
 import PostCard from "./post-card";
 import CommunitySidebar from "./community-sidebar";
@@ -21,6 +24,7 @@ export default function CommunityContent() {
   const [user, setUser] = useState<User | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
+  const [query, setQuery] = useState("");
 
   // Fetch user for header
   useEffect(() => {
@@ -39,7 +43,26 @@ export default function CommunityContent() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const { posts, isLoading, isError, error } = usePopularPosts();
+  // 数据来源：热门 or 搜索
+  const {
+    posts: popularPosts,
+    isLoading: isPopularLoading,
+    isError: isPopularError,
+    error: popularError,
+  } = usePopularPosts();
+
+  const {
+    posts: searchPosts,
+    isLoading: isSearchLoading,
+    isError: isSearchError,
+    error: searchError,
+  } = useSearchPosts(query);
+
+  const posts = query.trim().length > 0 ? searchPosts : popularPosts;
+  const isLoading =
+    query.trim().length > 0 ? isSearchLoading : isPopularLoading;
+  const isError = query.trim().length > 0 ? isSearchError : isPopularError;
+  const error = query.trim().length > 0 ? searchError : popularError;
 
   const handleMenuToggle = () => {
     setIsPermanentlyExpanded(!isPermanentlyExpanded);
@@ -75,13 +98,21 @@ export default function CommunityContent() {
               {/* Header */}
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-3">
-                  <TrendingUp className="w-8 h-8 text-blue-400" />
+                  {query.trim().length > 0 ? (
+                    <Search className="w-8 h-8 text-green-400" />
+                  ) : (
+                    <TrendingUp className="w-8 h-8 text-blue-400" />
+                  )}
                   <div>
                     <h1 className="text-3xl font-bold text-white">
-                      Community Feed
+                      {query.trim().length > 0
+                        ? "Search Results"
+                        : "Community Feed"}
                     </h1>
                     <p className="text-gray-400">
-                      Discover popular posts from all groups
+                      {query.trim().length > 0
+                        ? "Posts matching your search"
+                        : "Discover popular posts from all groups"}
                     </p>
                   </div>
                 </div>
@@ -91,6 +122,17 @@ export default function CommunityContent() {
                     Create Post
                   </Button>
                 </Link>
+              </div>
+
+              {/* Post & Hashtag Search Bar */}
+              <div className="w-full mb-8">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search posts or hashtags..."
+                  className="w-full px-4 py-3 rounded-2xl bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
               {/* Posts Feed */}
@@ -125,16 +167,22 @@ export default function CommunityContent() {
                   <div className="bg-white/5 rounded-xl p-8 border border-white/10">
                     <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-white mb-2">
-                      No posts yet
+                      {query.trim().length > 0
+                        ? "No results found"
+                        : "No posts yet"}
                     </h3>
                     <p className="text-gray-400 mb-6">
-                      Be the first to share something with the community!
+                      {query.trim().length > 0
+                        ? "Try searching with different keywords or hashtags."
+                        : "Be the first to share something with the community!"}
                     </p>
                     <div className="flex gap-3 justify-center">
                       <Link href="/community/create">
                         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                           <Plus className="w-4 h-4 mr-2" />
-                          Create Group
+                          {query.trim().length > 0
+                            ? "Create Post"
+                            : "Create Group"}
                         </Button>
                       </Link>
                     </div>

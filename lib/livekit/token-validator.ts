@@ -121,7 +121,7 @@ class LiveKitTokenValidator {
   ): { isValid: boolean; error?: string } {
     const {
       allowedOrigins = [],
-      requireHttps = process.env.NODE_ENV === 'production'
+      requireHttps = process.env.NEXT_PUBLIC_NODE_ENV === 'production'
     } = options;
 
     // 检查 HTTPS

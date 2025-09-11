@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       version: process.version,
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NEXT_PUBLIC_NODE_ENV || 'development'
     };
 
     return NextResponse.json(healthData, { 

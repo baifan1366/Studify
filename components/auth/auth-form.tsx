@@ -68,10 +68,32 @@ export function AuthForm({
     try {
       console.log('Starting OAuth flow with Google');
       
+      // Use production URL if available, fallback to current origin
+      // Ensure we never use localhost in production
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      const currentOrigin = window.location.origin;
+      
+      // In production, prioritize NEXT_PUBLIC_SITE_URL and avoid localhost
+      let redirectUrl;
+      if (process.env.NEXT_PUBLIC_NODE_ENV === 'production') {
+        if (siteUrl && !siteUrl.includes('localhost')) {
+          redirectUrl = `${siteUrl}/${locale}/auth/callback`;
+        } else if (!currentOrigin.includes('localhost')) {
+          redirectUrl = `${currentOrigin}/${locale}/auth/callback`;
+        } else {
+          // Fallback: try to construct from window.location.host
+          const protocol = window.location.protocol;
+          const host = window.location.host;
+          redirectUrl = `${protocol}//${host}/${locale}/auth/callback`;
+        }
+      } else {
+        redirectUrl = `${currentOrigin}/${locale}/auth/callback`;
+      }
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/${locale}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: { access_type: "offline" },
           skipBrowserRedirect: false,
         },

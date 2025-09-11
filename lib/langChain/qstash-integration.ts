@@ -10,8 +10,15 @@ export class QStashEmbeddingQueue {
       throw new Error("QSTASH_TOKEN environment variable is required");
     }
 
+    // Initialize QStash client with proper configuration
+    // Use local development server if available, otherwise production
+    const qstashUrl = process.env.NODE_ENV === 'development' && process.env.QSTASH_DEV_URL
+      ? process.env.QSTASH_DEV_URL
+      : process.env.QSTASH_URL || "https://qstash.upstash.io";
+    
     this.client = new Client({
       token: process.env.QSTASH_TOKEN,
+      baseUrl: qstashUrl,
     });
 
     this.baseUrl = process.env.SITE_URL || "http://localhost:3000";

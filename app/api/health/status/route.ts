@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NEXT_PUBLIC_NODE_ENV || 'development',
       services: {
         app: appStatus.status === 'fulfilled' ? appStatus.value : { error: 'Failed to get app status' },
         keepAlive: keepAliveStatus.status === 'fulfilled' ? keepAliveStatus.value : { error: 'Failed to get keep-alive status' },

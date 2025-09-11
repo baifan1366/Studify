@@ -72,7 +72,7 @@ export class StartupOptimizer {
   private async initKeepAlive(): Promise<void> {
     try {
       // Only start keep-alive in production
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NEXT_PUBLIC_NODE_ENV === 'production') {
         startKeepAlive();
         this.criticalServices.set('keepalive', true);
         console.log('Keep-alive system started');

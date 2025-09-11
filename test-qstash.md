@@ -12,7 +12,7 @@ QSTASH_URL="http://127.0.0.1:8080"
 QSTASH_DEV_URL="http://127.0.0.1:8080"
 QSTASH_CURRENT_SIGNING_KEY="sig_7kYjw48mhY7kAjqNGcy6cr29RJ6r"
 QSTASH_NEXT_SIGNING_KEY="sig_5ZB6DVzB1wjE8S6rZ7eenA8Pdnhs"
-NODE_ENV="development"
+NEXT_PUBLIC_NODE_ENV="development"
 ```
 
 ## 1. Test QStash Connection

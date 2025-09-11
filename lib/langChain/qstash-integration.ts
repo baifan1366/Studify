@@ -12,7 +12,7 @@ export class QStashEmbeddingQueue {
 
     // Initialize QStash client with proper configuration
     // Use local development server if available, otherwise production
-    const qstashUrl = process.env.NODE_ENV === 'development' && process.env.QSTASH_DEV_URL
+    const qstashUrl = process.env.NEXT_PUBLIC_NODE_ENV === 'development' && process.env.QSTASH_DEV_URL
       ? process.env.QSTASH_DEV_URL
       : process.env.QSTASH_URL || "https://qstash.upstash.io";
     
@@ -21,7 +21,7 @@ export class QStashEmbeddingQueue {
       baseUrl: qstashUrl,
     });
 
-    this.baseUrl = process.env.SITE_URL || "http://localhost:3000";
+    this.baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   }
 
   // Queue single embedding job via QStash

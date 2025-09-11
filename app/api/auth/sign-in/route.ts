@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       : NextResponse.json({ ok: true, userId: data.user.id, role, name })
     res.cookies.set(APP_SESSION_COOKIE, jwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NEXT_PUBLIC_NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: APP_SESSION_TTL_SECONDS,

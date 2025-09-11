@@ -164,7 +164,7 @@ NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Node环境
-NODE_ENV=production
+NEXT_PUBLIC_NODE_ENV=production
 ```
 
 ### Render 部署设置
@@ -180,7 +180,7 @@ NODE_ENV=production
 ### 常见问题
 
 1. **保活系统未启动**
-   - 检查环境变量 `NODE_ENV=production`
+   - 检查环境变量 `NEXT_PUBLIC_NODE_ENV=production`
    - 查看服务器日志确认启动消息
 
 2. **预热失败**

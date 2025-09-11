@@ -47,7 +47,25 @@ export async function POST(req: NextRequest) {
     // Determine requested role: query param overrides (student|tutor|admin)
     const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
     const role = roleParam || 'student'
-    const name = fullName || undefined
+    const name = fullName || data.user.email?.split('@')[0] || undefined
+
+    // Manually create profile since we removed the database trigger
+    const { error: profileError } = await client
+      .from('profiles')
+      .insert({
+        user_id: data.user.id,
+        role: role,
+        full_name: fullName,
+        email: data.user.email,
+        display_name: fullName || data.user.email?.split('@')[0]
+      })
+      .select()
+      .single()
+
+    if (profileError) {
+      console.error('Failed to create profile:', profileError)
+      // Don't fail the signup, just log the error
+    }
 
     // If email confirmation is required, Supabase will not create a session
     // In that case, do NOT set cookie; instruct client to show verify-email screen
@@ -73,7 +91,7 @@ export async function POST(req: NextRequest) {
       : NextResponse.json({ ok: true, userId: data.user.id, role, name })
     res.cookies.set(APP_SESSION_COOKIE, jwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NEXT_PUBLIC_NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: APP_SESSION_TTL_SECONDS,

@@ -68,10 +68,15 @@ export function AuthForm({
     try {
       console.log('Starting OAuth flow with Google');
       
+      // Use production URL if available, fallback to current origin
+      const redirectUrl = process.env.NEXT_PUBLIC_NODE_ENV === 'production' 
+        ? `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/${locale}/auth/callback`
+        : `${window.location.origin}/${locale}/auth/callback`;
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/${locale}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: { access_type: "offline" },
           skipBrowserRedirect: false,
         },

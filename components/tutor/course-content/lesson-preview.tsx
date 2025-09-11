@@ -15,16 +15,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslations } from 'next-intl';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { cn } from '@/lib/utils';
+import ChapterManagement from './chapter-management';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  ownerId?: number;
 }
 
 type ContentType = 'video' | 'image' | 'pdf' | 'document' | 'audio' | 'unknown';
 
-export default function LessonPreview({ lesson, open, onOpenChange }: LessonPreviewProps) {
+export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: LessonPreviewProps) {
   const t = useTranslations('LessonPreview');
   const [contentType, setContentType] = useState<ContentType>('unknown');
   const [isLoading, setIsLoading] = useState(false);
@@ -208,7 +210,7 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
                   className="gap-2"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  {t('watchOnYoutube')}
+                  {t('openLink')}
                 </Button>
               </div>
             </div>
@@ -493,35 +495,13 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
               renderContent()
             )}
 
-            {/* Chapters panel for video lessons */}
-            {lesson.kind === 'video' && showChapters && (
-              <div className="bg-muted/50 rounded-lg p-4 border">
-                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                  <List className="h-4 w-4" />
-                  {t('chapters')}
-                </h3>
-                <div className="space-y-2">
-                  {/* Sample chapters - in a real implementation, these would come from the lesson data */}
-                  <div className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-muted-foreground">00:00</span>
-                      <span className="text-sm">{t('introduction')}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-muted-foreground">02:30</span>
-                      <span className="text-sm">{t('mainContent')}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-muted-foreground">08:15</span>
-                      <span className="text-sm">{t('summary')}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Chapter Management - Always available for video lessons */}
+            {lesson.kind === 'video' && (
+              <ChapterManagement 
+                lessonId={lesson.id} 
+                ownerId={ownerId}
+                className="mt-4"
+              />
             )}
           </div>
         </DialogContent>

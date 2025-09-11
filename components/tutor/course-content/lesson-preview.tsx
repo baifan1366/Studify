@@ -29,6 +29,7 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
   const [contentType, setContentType] = useState<ContentType>('unknown');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [embedError, setEmbedError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
 
@@ -41,6 +42,7 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
     // Video detection
     if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be') || 
         urlLower.includes('vimeo.com') || urlLower.includes('loom.com') ||
+        urlLower.includes('facebook.com') || urlLower.includes('fb.watch') ||
         urlLower.match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|m4v)(\?|$)/)) {
       return 'video';
     }
@@ -72,7 +74,11 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
   const getYouTubeEmbedUrl = (url: string): string => {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
-    return match ? `https://www.youtube.com/embed/${match[1]}` : url;
+    if (match) {
+      // Add necessary parameters for proper embedding
+      return `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&origin=${window.location.origin}&rel=0&modestbranding=1`;
+    }
+    return url;
   };
 
   // Convert Vimeo URL to embed format
@@ -89,6 +95,32 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
     return match ? `https://www.loom.com/embed/${match[1]}` : url;
   };
 
+  // Convert Facebook URL to embed format
+  const getFacebookEmbedUrl = (url: string): string => {
+    // Facebook videos have complex URL patterns, try to extract video ID
+    const fbWatchRegex = /fb\.watch\/([a-zA-Z0-9_-]+)/;
+    const fbVideoRegex = /facebook\.com\/.*\/videos\/(\d+)/;
+    const fbPostRegex = /facebook\.com\/.*\/posts\/(\d+)/;
+    
+    let match = url.match(fbWatchRegex);
+    if (match) {
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=560`;
+    }
+    
+    match = url.match(fbVideoRegex);
+    if (match) {
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=560`;
+    }
+    
+    match = url.match(fbPostRegex);
+    if (match) {
+      return `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=false&width=560`;
+    }
+    
+    // Fallback: try generic Facebook embed
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=560`;
+  };
+
   // Get proper embed URL for videos
   const getEmbedUrl = (url: string, type: ContentType): string => {
     if (type !== 'video') return url;
@@ -102,6 +134,9 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
     if (url.includes('loom.com')) {
       return getLoomEmbedUrl(url);
     }
+    if (url.includes('facebook.com') || url.includes('fb.watch')) {
+      return getFacebookEmbedUrl(url);
+    }
     
     return url;
   };
@@ -110,6 +145,7 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
     if (lesson?.content_url) {
       setContentType(detectContentType(lesson.content_url));
       setError(null);
+      setEmbedError(false);
     }
   }, [lesson?.content_url]);
 
@@ -159,6 +195,26 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
 
     switch (contentType) {
       case 'video':
+        if (embedError) {
+          return (
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 bg-muted/30 rounded-lg">
+              <Play className="h-16 w-16 text-muted-foreground" />
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-2">{t('videoEmbedError')}</h3>
+                <p className="text-muted-foreground mb-4">{t('videoEmbedErrorDescription')}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(lesson.content_url, '_blank')}
+                  className="gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {t('watchOnYoutube')}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div className={cn(
             "relative bg-black rounded-lg overflow-hidden",
@@ -168,9 +224,24 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
               src={embedUrl}
               className="w-full h-full"
               frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
               title={lesson.title}
+              onError={() => setEmbedError(true)}
+              onLoad={(e) => {
+                // Check if iframe content loaded successfully
+                try {
+                  const iframe = e.target as HTMLIFrameElement;
+                  if (iframe.contentDocument === null) {
+                    setEmbedError(true);
+                  }
+                } catch (error) {
+                  // Cross-origin restrictions prevent access, but this is normal for YouTube embeds
+                  // We'll rely on the onError handler for actual errors
+                }
+              }}
             />
             <div className="absolute top-2 right-2 flex gap-2">
               <Button
@@ -210,17 +281,31 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
       case 'pdf':
         return (
           <div className="space-y-4">
-            <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+            <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
               <iframe
-                src={`${lesson.content_url}#toolbar=0`}
+                src={`${lesson.content_url}#toolbar=0&navpanes=0&scrollbar=0`}
                 className="w-full h-full"
                 title={lesson.title}
+                onError={() => setError(t('pdfLoadError'))}
               />
             </div>
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => window.open(lesson.content_url, '_blank')}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {t('openInNewTab')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = lesson.content_url ? lesson.content_url as string : '';
+                  link.download = lesson.title + '.pdf';
+                  link.click();
+                }}
                 className="gap-2"
               >
                 <Download className="h-4 w-4" />
@@ -246,20 +331,94 @@ export default function LessonPreview({ lesson, open, onOpenChange }: LessonPrev
         );
 
       case 'document':
+        // Try to preview common document formats
+        const isGoogleDoc = lesson.content_url.includes('docs.google.com');
+        const isOfficeDoc = lesson.content_url.includes('office.com') || lesson.content_url.includes('sharepoint.com');
+        const canPreview = isGoogleDoc || isOfficeDoc || lesson.content_url.toLowerCase().includes('.pdf');
+        
+        if (canPreview) {
+          let previewUrl = lesson.content_url;
+          
+          // Convert Google Docs to preview mode
+          if (isGoogleDoc && !lesson.content_url.includes('/preview')) {
+            previewUrl = lesson.content_url.replace('/edit', '/preview').replace('/view', '/preview');
+            if (!previewUrl.includes('/preview')) {
+              previewUrl += '/preview';
+            }
+          }
+          
+          // Office documents can often be previewed directly
+          if (isOfficeDoc && !lesson.content_url.includes('embed=1')) {
+            previewUrl += (lesson.content_url.includes('?') ? '&' : '?') + 'embed=1';
+          }
+          
+          return (
+            <div className="space-y-4">
+              <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full"
+                  title={lesson.title}
+                  onError={() => setError(t('documentLoadError'))}
+                />
+              </div>
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(lesson.content_url, '_blank')}
+                  className="gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {t('openInNewTab')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = lesson.content_url ? lesson.content_url as string : '';
+                    link.download = lesson.title;
+                    link.click();
+                  }}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  {t('downloadDocument')}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+        
+        // Fallback for non-previewable documents
         return (
           <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
             <FileText className="h-16 w-16 text-muted-foreground" />
             <div>
               <h3 className="text-lg font-medium text-foreground mb-2">{t('documentPreview')}</h3>
               <p className="text-muted-foreground mb-4">{t('documentPreviewDescription')}</p>
-              <Button
-                variant="outline"
-                onClick={() => window.open(lesson.content_url, '_blank')}
-                className="gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t('openDocument')}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(lesson.content_url, '_blank')}
+                  className="gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {t('openDocument')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = lesson.content_url ? lesson.content_url as string : '';
+                    link.download = lesson.title;
+                    link.click();
+                  }}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  {t('downloadDocument')}
+                </Button>
+              </div>
             </div>
           </div>
         );

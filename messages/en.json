@@ -976,7 +976,7 @@
     "optional_fields": "Optional fields",
     "basic_information": "Basic Information",
     "lesson_type_content": "Lesson Type & Content",
-    "content_url_description": "Content URL Description",
+    "content_url_description": "Enter a direct URL to your lesson content (optional)",
     "type_label": "Type",
     "type_placeholder":"Select lesson type",
     "video": "Video",
@@ -1432,6 +1432,13 @@
     "exitFullscreen": "Exit Fullscreen",
     "introduction": "Introduction",
     "mainContent": "Main Content",
-    "summary": "Summary"
+    "summary": "Summary",
+    "videoEmbedError": "Video Embedding Failed",
+    "videoEmbedErrorDescription": "This video cannot be embedded due to platform restrictions. You can watch it directly on the video platform.",
+    "watchOnYoutube": "Watch on YouTube",
+    "pdfLoadError": "Failed to load PDF document",
+    "documentLoadError": "Failed to load document preview",
+    "openInNewTab": "Open in New Tab",
+    "downloadDocument": "Download Document"
   }
 }

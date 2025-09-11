@@ -243,7 +243,7 @@ export function EditCourseLessonDialog({
                   <div className="space-y-2">
                     <Label htmlFor="edit-duration" className="text-sm font-medium flex items-center gap-2">
                       <Clock className="h-4 w-4" />
-                      {t('duration_label')} ({gridT('seconds')})
+                      {t('duration_label')}
                     </Label>
                     <Input
                       type="number"

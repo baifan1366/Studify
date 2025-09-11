@@ -19,6 +19,7 @@ import {
 import { useTranslations } from "next-intl";
 import { Post } from "@/interface/community/post-interface";
 import Link from "next/link";
+import ZoomImage from "@/components/image-zoom/ZoomImage";
 
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
@@ -82,17 +83,11 @@ export default function PostCard({ post }: { post: Post }) {
                   className="bg-black/30 rounded-lg overflow-hidden group hover:ring-2 hover:ring-blue-400 transition-all"
                 >
                   {file.mime_type.startsWith("image/") ? (
-                    <a
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <img
-                        src={file.url}
-                        alt={file.file_name}
-                        className="w-full h-full object-cover"
-                      />
-                    </a>
+                    <ZoomImage
+                      src={file.url}
+                      alt={file.file_name}
+                      className="w-full h-full object-cover"
+                    />
                   ) : file.mime_type.startsWith("video/") ? (
                     <video
                       src={file.url}

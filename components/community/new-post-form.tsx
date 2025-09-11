@@ -40,7 +40,6 @@ export function NewPostForm({
   const [error, setError] = useState<string | null>(null);
 
   const MAX_FILES = 5;
-  const MAX_FILE_SIZE_MB = 10;
   const MAX_VIDEO_SIZE_MB = 30;
   const MAX_NON_VIDEO_SIZE_MB = 10;
 

@@ -85,7 +85,14 @@ export async function POST(req: NextRequest) {
       req.headers.get('content-type')?.includes('multipart/form-data')
 
     const targetLocale = locale || req.cookies.get('next-intl-locale')?.value || 'en'
-    const redirectUrl = new URL(`/${targetLocale}/home`, req.nextUrl.origin)
+    
+    // Use NEXT_PUBLIC_SITE_URL in production to avoid localhost issues
+    let redirectOrigin = req.nextUrl.origin;
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SITE_URL) {
+      redirectOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+    }
+    
+    const redirectUrl = new URL(`/${targetLocale}/home`, redirectOrigin)
     const res = isFormPost
       ? NextResponse.redirect(redirectUrl)
       : NextResponse.json({ ok: true, userId: data.user.id, role, name })

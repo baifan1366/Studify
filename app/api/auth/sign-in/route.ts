@@ -68,8 +68,15 @@ export async function POST(req: NextRequest) {
       tutor: `/${targetLocale}/tutor/dashboard`,
       admin: `/${targetLocale}/admin/dashboard`,
     }
+    // For form posts, redirect to the appropriate dashboard
+    // Use NEXT_PUBLIC_SITE_URL in production to avoid localhost issues
+    let redirectOrigin = req.nextUrl.origin;
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SITE_URL) {
+      redirectOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+    }
+    
     const res = isFormPost
-      ? NextResponse.redirect(new URL(pathByRole[role], req.nextUrl.origin))
+      ? NextResponse.redirect(new URL(pathByRole[role], redirectOrigin))
       : NextResponse.json({ ok: true, userId: data.user.id, role, name })
     res.cookies.set(APP_SESSION_COOKIE, jwt, {
       httpOnly: true,

@@ -35,7 +35,6 @@ async function createMegaStorage(email: string, password: string, retryCount = 0
   const baseDelay = 2000 // 2 seconds
   
   try {
-    console.log(`Attempting MEGA authentication (attempt ${retryCount + 1}/${maxRetries + 1})...`)
     
     const storage = new Storage({
       email,
@@ -52,7 +51,6 @@ async function createMegaStorage(email: string, password: string, retryCount = 0
     })
     
     await Promise.race([readyPromise, timeoutPromise])
-    console.log('MEGA authentication successful')
     
     return storage
   } catch (error) {
@@ -68,7 +66,6 @@ async function createMegaStorage(email: string, password: string, retryCount = 0
     
     if (isRetryable && retryCount < maxRetries) {
       const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff
-      console.log(`Retrying MEGA authentication in ${delay}ms...`)
       await sleep(delay)
       return createMegaStorage(email, password, retryCount + 1)
     }
@@ -94,7 +91,6 @@ async function uploadFileToMega(storage: Storage, file: File, retryCount = 0): P
   const baseDelay = 1000
   
   try {
-    console.log(`Uploading file to MEGA: ${file.name} (${file.size} bytes)`)
     
     // Convert File to Buffer for MEGA upload
     const arrayBuffer = await file.arrayBuffer()
@@ -107,7 +103,6 @@ async function uploadFileToMega(storage: Storage, file: File, retryCount = 0): P
     })
     
     const uploadedFile = await Promise.race([uploadPromise, timeoutPromise])
-    console.log('File uploaded successfully to MEGA')
     
     return uploadedFile
   } catch (error) {
@@ -115,7 +110,6 @@ async function uploadFileToMega(storage: Storage, file: File, retryCount = 0): P
     
     if (retryCount < maxRetries) {
       const delay = baseDelay * Math.pow(2, retryCount)
-      console.log(`Retrying file upload in ${delay}ms...`)
       await sleep(delay)
       return uploadFileToMega(storage, file, retryCount + 1)
     }
@@ -132,7 +126,6 @@ async function getShareLink(uploadedFile: any, retryCount = 0): Promise<string> 
   const baseDelay = 1000
   
   try {
-    console.log('Generating MEGA share link...')
     
     const shareUrl = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -175,14 +168,12 @@ async function getShareLink(uploadedFile: any, retryCount = 0): Promise<string> 
       }
     })
     
-    console.log('MEGA share link generated successfully')
     return shareUrl
   } catch (error) {
     console.error(`Share link generation failed (attempt ${retryCount + 1}):`, error)
     
     if (retryCount < maxRetries) {
       const delay = baseDelay * Math.pow(2, retryCount)
-      console.log(`Retrying share link generation in ${delay}ms...`)
       await sleep(delay)
       return getShareLink(uploadedFile, retryCount + 1)
     }
@@ -221,9 +212,7 @@ export async function uploadToMega(file: File): Promise<UploadResult> {
 
   let storage: Storage | null = null
 
-  try {
-    console.log(`Starting MEGA upload for file: ${file.name}`)
-    
+  try {    
     // Create MEGA storage instance with retry logic
     storage = await createMegaStorage(email, password)
     
@@ -232,9 +221,7 @@ export async function uploadToMega(file: File): Promise<UploadResult> {
     
     // Get public share link with retry logic
     const shareUrl = await getShareLink(uploadedFile)
-    
-    console.log(`MEGA upload completed successfully. Share URL: ${shareUrl}`)
-    
+        
     return {
       url: shareUrl,
       size: file.size

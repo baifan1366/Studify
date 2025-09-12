@@ -17,6 +17,7 @@ import { Lesson } from '@/interface/courses/lesson-interface';
 import { cn } from '@/lib/utils';
 import ChapterManagement from './chapter-management';
 import { detectLessonVideoSource, detectAttachmentVideo } from '@/utils/attachment/video-utils';
+import VideoPlayer from '@/components/ui/video-player';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -37,6 +38,17 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   const [embedError, setEmbedError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
+  const [cloudinaryData, setCloudinaryData] = useState<{
+    hls_url?: string;
+    fallback_url?: string;
+    cached?: boolean;
+  } | null>(null);
+  const [processingVideo, setProcessingVideo] = useState(false);
+  const [processingStage, setProcessingStage] = useState<string>('');
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryTimeout, setRetryTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<number>(0);
+  const [processingStartTime, setProcessingStartTime] = useState<number>(0);
 
   // Detect content type with priority system
   const detectContentType = (lesson: Lesson): ContentType => {
@@ -163,12 +175,6 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   useEffect(() => {
     if (lesson) {
       const detectedType = detectContentType(lesson);
-      console.log('🎥 Video Detection Debug:', {
-        attachments: lesson.attachments,
-        contentUrl: lesson.content_url,
-        detectedType,
-        videoSource: detectLessonVideoSource(lesson.attachments, lesson.content_url)
-      });
       setContentType(detectedType);
       setError(null);
       setEmbedError(false);
@@ -213,17 +219,131 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
     }
   };
 
-  // Render video content with unified native <video> approach
+  // Calculate exponential backoff delay
+  const getRetryDelay = (attempt: number): number => {
+    return Math.min(1000 * Math.pow(2, attempt), 30000); // Max 30 seconds
+  };
+
+  // Estimate processing time based on file size
+  const estimateProcessingTime = (sizeBytes?: number): number => {
+    if (!sizeBytes) return 60; // Default 1 minute
+    const sizeMB = sizeBytes / (1024 * 1024);
+    // Rough estimate: 10 seconds per MB + 30 seconds base time
+    return Math.max(30, Math.ceil(sizeMB * 10 + 30));
+  };
+
+  // Fetch Cloudinary HLS URL for MEGA videos with retry logic
+  const fetchCloudinaryUrl = async (attachmentId: number, attempt: number = 0) => {
+    
+    if (!attachmentId || attachmentId === undefined) {
+      console.error('❌ Invalid attachment ID:', attachmentId);
+      setError('Invalid attachment ID');
+      return;
+    }
+    
+    setProcessingVideo(true);
+    setRetryCount(attempt);
+    
+    if (attempt === 0) {
+      setProcessingStartTime(Date.now());
+
+      // Use default estimate since we only have attachment IDs, not full attachment objects
+      // The actual file size would need to be fetched from the database if needed for estimation
+      setEstimatedTime(60); // Default estimate
+    }
+    
+    try {
+      setProcessingStage(attempt === 0 ? 'Initializing video processing...' : `Retrying... (attempt ${attempt + 1})`);
+      
+      const url = `/api/video/preview?attachmentId=${attachmentId}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('retry-after') || '3600', 10);
+        throw new Error(`Rate limit exceeded. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`);
+      }
+      
+      // Handle processing in progress
+      if (response.status === 202 && data.processing) {
+        setProcessingStage('Video is being processed by another request...');
+        const retryAfter = parseInt(response.headers.get('retry-after') || '300', 10);
+        
+        if (attempt < 3) {
+          const delay = Math.max(retryAfter * 1000, getRetryDelay(attempt));
+          setRetryTimeout(setTimeout(() => {
+            fetchCloudinaryUrl(attachmentId, attempt + 1);
+          }, delay));
+          return;
+        } else {
+          throw new Error('Video processing is taking longer than expected. Please try again later.');
+        }
+      }
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process video');
+      }
+      
+      setProcessingStage('Processing completed successfully!');
+      const newCloudinaryData = {
+        hls_url: data.hls_url,
+        fallback_url: data.fallback_url,
+        cached: data.cached,
+      };
+      setCloudinaryData(newCloudinaryData);
+      
+      // Stop processing since we got the data successfully
+      setProcessingVideo(false);
+      setProcessingStage('');
+      
+    } catch (error) {
+      console.error('❌ Cloudinary processing failed:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Video processing failed';
+      
+      // Implement retry logic with exponential backoff
+      if (attempt < 3 && !errorMessage.includes('Rate limit') && !errorMessage.includes('Access denied')) {
+        const delay = getRetryDelay(attempt);
+        setProcessingStage(`Processing failed. Retrying in ${Math.ceil(delay / 1000)} seconds...`);
+        
+        setRetryTimeout(setTimeout(() => {
+          fetchCloudinaryUrl(attachmentId, attempt + 1);
+        }, delay));
+        return;
+      }
+      
+      // Final fallback: try direct MEGA streaming
+      if (attempt >= 3) {
+        setProcessingStage('Falling back to direct streaming...');
+        setError('Video processing failed. Attempting direct streaming as fallback.');
+        // Note: Direct MEGA streaming would need to be implemented in the streaming API
+      } else {
+        setError(errorMessage);
+      }
+    } finally {
+      if (attempt >= 3 || cloudinaryData) {
+        setProcessingVideo(false);
+        setProcessingStage('');
+      }
+    }
+  };
+
+  // Cleanup retry timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [retryTimeout]);
+
+  // Render video content with Cloudinary HLS streaming
   const renderVideoContent = () => {
+    
     // Use priority-based video source detection
     const videoSource = detectLessonVideoSource(lesson?.attachments, lesson?.content_url);
-    
-    console.log('🎬 Video Preview Debug:', {
-      attachments: lesson?.attachments,
-      contentUrl: lesson?.content_url,
-      videoSource,
-      scenario: videoSource?.sourceType || 'No source'
-    });
 
     // Check if we have any video source
     if (!videoSource) {
@@ -232,25 +352,118 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       return null;
     }
 
-    // Get video source URL based on priority system
-    let videoSrc: string;
-    
-    if (videoSource.sourceType === 'attachment') {
-      // Priority 1: MEGA attachment from lesson.attachments
-      videoSrc = videoSource.videoSrc!;
-      console.log('✅ Using MEGA attachment from attachments array:', videoSrc);
-    } else if (videoSource.sourceType === 'content_url' && videoSource.isMegaAttachment) {
-      // Priority 2: MEGA attachment from content_url
-      videoSrc = videoSource.videoSrc!;
-      console.log('✅ Using MEGA attachment from content_url:', videoSrc);
-    } else if (videoSource.sourceType === 'content_url') {
-      // Priority 3: Third-party URL
-      videoSrc = videoSource.videoSrc!;
-      console.log('🌐 Using third-party URL:', videoSrc);
-    } else {
-      console.error('❌ Invalid video source configuration');
-      setEmbedError(true);
-      return null;
+    // Handle MEGA attachments with Cloudinary processing
+    if (videoSource.sourceType === 'attachment' && lesson?.attachments?.[0]) {
+      const attachmentId = lesson.attachments[0]; // This is already the ID number
+      
+      // If we don't have Cloudinary data yet, fetch it
+      if (!cloudinaryData && !processingVideo) {
+        fetchCloudinaryUrl(attachmentId);
+        return (
+          <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+            <div className="text-center text-white space-y-4 max-w-md">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
+              <div className="space-y-3">
+                <p className="text-lg font-medium">Processing video for streaming...</p>
+                {processingStage && (
+                  <p className="text-sm opacity-90 font-medium">{processingStage}</p>
+                )}
+                {estimatedTime > 0 && processingStartTime > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs opacity-70">
+                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                    </p>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                        style={{
+                          width: `${Math.min(100, ((Date.now() - processingStartTime) / (estimatedTime * 1000)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                {retryCount > 0 && (
+                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                )}
+                <p className="text-xs opacity-60">Large files may take several minutes to process</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // Show processing state
+      if (processingVideo) {
+        return (
+          <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+            <div className="text-center text-white space-y-4 max-w-md">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
+              <div className="space-y-3">
+                <p className="text-lg font-medium">Processing video...</p>
+                {processingStage && (
+                  <p className="text-sm opacity-90 font-medium">{processingStage}</p>
+                )}
+                {estimatedTime > 0 && processingStartTime > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs opacity-70">
+                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                    </p>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                        style={{
+                          width: `${Math.min(100, ((Date.now() - processingStartTime) / (estimatedTime * 1000)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                {retryCount > 0 && (
+                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                )}
+                <p className="text-xs opacity-60">Converting to HLS streaming format</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // Use Cloudinary HLS streaming if available
+      if (cloudinaryData?.hls_url) {
+        return (
+          <div className="space-y-2">
+            <VideoPlayer
+              hlsSrc={cloudinaryData.hls_url}
+              src={cloudinaryData.fallback_url}
+              className="aspect-video"
+              onError={(error) => {
+                console.error('🎬 VideoPlayer error:', error);
+                setError(`VideoPlayer error: ${error}`);
+              }}
+              onLoadStart={() => {
+                // Only set loading if we don't already have cloudinary data loaded
+                if (!cloudinaryData?.hls_url) {
+                  setIsLoading(true);
+                }
+              }}
+              onCanPlay={() => {
+                setIsLoading(false);
+              }}
+            />
+            {cloudinaryData.cached && (
+              <div className="text-xs text-muted-foreground text-center">
+                ✓ Using cached HLS stream
+              </div>
+            )}
+            {!cloudinaryData.cached && processingStartTime > 0 && (
+              <div className="text-xs text-muted-foreground text-center">
+                ✓ Processed in {Math.ceil((Date.now() - processingStartTime) / 1000)} seconds
+              </div>
+            )}
+          </div>
+        );
+      } 
     }
 
     // Error fallback UI
@@ -274,141 +487,54 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    // Unified native video player
-    return (
-      <div className={cn(
-        "relative bg-black rounded-lg overflow-hidden",
-        isFullscreen ? "fixed inset-0 z-50" : "aspect-video"
-      )}>
-        <video
-          src={videoSrc}
-          className="w-full h-full object-contain"
-          controls
-          preload="metadata"
-          onError={(e) => {
-            const video = e.target as HTMLVideoElement;
-            console.error('❌ Video load error:', {
-              src: videoSrc,
-              error: video.error,
-              errorCode: video.error?.code,
-              errorMessage: video.error?.message,
-              networkState: video.networkState,
-              readyState: video.readyState
-            });
-            setEmbedError(true);
-            setIsLoading(false);
-            if (loadingTimeout) {
-              clearTimeout(loadingTimeout);
-              setLoadingTimeout(null);
-            }
-          }}
-          onLoadStart={() => {
-            console.log('⏳ Video loading started:', videoSrc);
-            setIsLoading(true);
-            setLoadingProgress(10);
-            
-            // Set timeout to detect stuck loading (extended to 2 minutes)
-            const timeout = setTimeout(() => {
-              console.warn('⚠️ Video loading timeout after 2 minutes:', videoSrc);
-              setIsLoading(false);
-              setEmbedError(true);
-              setLoadingProgress(0);
-            }, 120000);
-            setLoadingTimeout(timeout);
-            
-            // Simulate progress during loading
-            const progressInterval = setInterval(() => {
-              setLoadingProgress(prev => {
-                if (prev >= 90) {
-                  clearInterval(progressInterval);
-                  return prev;
-                }
-                return prev + Math.random() * 10;
-              });
-            }, 1000);
-          }}
-          onLoadedMetadata={(e) => {
-            const video = e.target as HTMLVideoElement;
-            console.log('📋 Video metadata loaded:', {
-              src: videoSrc,
-              duration: video.duration,
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight
-            });
-            setLoadingProgress(60);
-          }}
-          onCanPlay={() => {
-            console.log('✅ Video ready to play:', videoSrc);
-            setLoadingProgress(90);
-            setTimeout(() => {
-              setIsLoading(false);
-              setLoadingProgress(100);
-              if (loadingTimeout) {
-                clearTimeout(loadingTimeout);
-                setLoadingTimeout(null);
-              }
-            }, 500);
-          }}
-          onCanPlayThrough={() => {
-            console.log('🎬 Video can play through:', videoSrc);
-            setLoadingProgress(100);
-            setIsLoading(false);
-          }}
-          onWaiting={() => {
-            console.log('⏸️ Video waiting for data:', videoSrc);
-            setIsLoading(true);
-            setLoadingProgress(prev => Math.max(prev, 30));
-          }}
-          onPlaying={() => {
-            console.log('▶️ Video started playing:', videoSrc);
-            setIsLoading(false);
-            setLoadingProgress(100);
-          }}
-          onStalled={() => {
-            console.warn('⚠️ Video stalled:', videoSrc);
-          }}
-          onSuspend={() => {
-            console.log('⏹️ Video loading suspended:', videoSrc);
-          }}
-          onAbort={() => {
-            console.warn('🛑 Video loading aborted:', videoSrc);
-            setIsLoading(false);
-            setLoadingProgress(0);
-          }}
-          onTimeUpdate={(e) => {
-            const video = e.target as HTMLVideoElement;
-            // Only log progress occasionally to avoid spam
-            if (video.duration > 0 && Math.floor(video.currentTime) % 10 === 0) {
-              const progress = video.currentTime / video.duration;
-              console.log('📊 Video progress:', {
-                currentTime: video.currentTime,
-                duration: video.duration,
-                progress: Math.round(progress * 100) + '%'
-              });
-            }
-          }}
-        >
-          <p className="text-white text-center p-4">
-            Your browser does not support the video tag.
-          </p>
-        </video>
-        
-        {/* Loading overlay with progress bar - Always show when isLoading is true */}
-        {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white z-10">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mb-6"></div>
-            <div className="text-center space-y-4">
-              <p className="text-lg font-medium">加载视频中...</p>
-              <div className="w-80 bg-gray-600 rounded-full h-3 shadow-inner">
-                <div 
-                  className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-500 ease-out shadow-lg"
-                  style={{ width: `${Math.min(Math.max(loadingProgress, 5), 100)}%` }}
-                ></div>
-              </div>
-              <p className="text-sm opacity-90 font-mono">{Math.round(Math.max(loadingProgress, 5))}%</p>
+    // Handle MEGA content_url with Cloudinary processing
+    if (videoSource.sourceType === 'content_url' && videoSource.isMegaAttachment) {
+      // For content_url MEGA videos, show message to use attachments system
+      return (
+        <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+          <div className="text-center text-white space-y-4">
+            <Play className="h-16 w-16 mx-auto opacity-50" />
+            <div>
+              <p className="text-lg font-medium">MEGA Video Detected</p>
+              <p className="text-sm opacity-80">Please use the attachments system for optimal streaming</p>
+              <p className="text-xs opacity-60 mt-2">Direct MEGA URLs are no longer supported for security reasons</p>
             </div>
           </div>
-        )}
+        </div>
+      );
+    }
+
+    // Handle third-party URLs (YouTube, Vimeo, etc.)
+    if (videoSource.sourceType === 'content_url' && !videoSource.isMegaAttachment) {
+      const videoSrc = videoSource.videoSrc!;
+      
+      // For third-party videos, use the original embed approach
+      return renderThirdPartyVideo(videoSrc);
+    }
+
+    console.error('❌ Invalid video source configuration');
+    setEmbedError(true);
+    return null;
+  };
+
+  // Render third-party video content (YouTube, Vimeo, etc.)
+  const renderThirdPartyVideo = (videoSrc: string) => {
+
+    // Check for iframe-based embedding (YouTube, Vimeo, etc.)
+    const embedUrl = getEmbedUrl(videoSrc, 'video');
+    
+    return (
+      <div className="aspect-video bg-black rounded-lg overflow-hidden">
+        <iframe
+          src={embedUrl}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onError={() => {
+            console.error('❌ Iframe embed error:', embedUrl);
+            setEmbedError(true);
+          }}
+        />
       </div>
     );
   };

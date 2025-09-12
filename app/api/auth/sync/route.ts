@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     // 设置 app_session cookie (middleware 需要的)
     response.cookies.set('app_session', token, {
       httpOnly: true,
-      secure: process.env.NEXT_PUBLIC_NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 3600, // 7 days
       path: '/'

@@ -77,7 +77,11 @@ export default function AuthCallback() {
           return;
         }
 
-        router.replace("/en/home");
+        // Get locale from URL path or default to 'en'
+        const pathSegments = window.location.pathname.split('/');
+        const locale = pathSegments[1] || 'en';
+        
+        router.replace(`/${locale}/home`);
       } catch (err) {
         console.error("Sync error:", err);
         setError("Failed to sync authentication");
@@ -100,7 +104,11 @@ export default function AuthCallback() {
           <h1 className="text-2xl font-bold text-red-600 mb-4">Authentication Error</h1>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => router.push("/en/auth/login")}
+            onClick={() => {
+              const pathSegments = window.location.pathname.split('/');
+              const locale = pathSegments[1] || 'en';
+              router.push(`/${locale}/sign-in`);
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Return to Login

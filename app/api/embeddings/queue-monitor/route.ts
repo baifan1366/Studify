@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getQStashQueue } from '@/lib/langChain/qstash-integration';
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs';
+import { getVectorStore } from '@/lib/langChain/vectorstore';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,61 +37,43 @@ async function handler(request: NextRequest) {
       });
     }
     
-    console.log(`📦 Found ${queueItems.length} items in queue, attempting to process...`);
+    console.log(`📦 Found ${queueItems.length} items in queue, processing directly...`);
     
-    // Check if QStash is available and configured
-    let results;
-    let processingMethod = 'unknown';
+    // Process embeddings directly instead of re-queuing to QStash
+    let processedCount = 0;
+    let failedCount = 0;
+    const vectorStore = getVectorStore();
     
-    if (process.env.QSTASH_TOKEN) {
+    for (const item of queueItems) {
       try {
-        // Send items to QStash
-        const qstash = getQStashQueue();
-        results = await qstash.queueBatch(
-          queueItems.map(item => ({
-            contentType: item.content_type,
-            contentId: item.content_id,
-            priority: item.priority
-          }))
-        );
-        processingMethod = 'qstash';
-        console.log(`🚀 QStash results: ${results.successful} successful, ${results.failed} failed`);
-      } catch (qstashError) {
-        console.error('❌ QStash processing failed:', qstashError);
-        // Fallback to direct processing
-        results = { successful: 0, failed: queueItems.length, results: [] };
-        processingMethod = 'qstash_failed';
-      }
-    } else {
-      console.warn('⚠️ QSTASH_TOKEN not configured, skipping QStash processing');
-      results = { successful: 0, failed: 0, results: [] };
-      processingMethod = 'qstash_not_configured';
-    }
-    
-    // Update successfully processed items status in database
-    const processedIds = queueItems
-      .filter((_, index) => {
-        const result = results.results[index];
-        return result && result.status === 'fulfilled' && result.value && result.value.success;
-      })
-      .map(item => item.id);
-    
-    if (processedIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from('embedding_queue')
-        .update({ 
-          status: 'processing',
-          processing_started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .in('id', processedIds);
+        console.log(`🔄 Processing ${item.content_type}:${item.content_id}...`);
         
-      if (updateError) {
-        console.error('❌ Error updating processed items:', updateError);
-      } else {
-        console.log(`✅ Updated ${processedIds.length} items to processing status`);
+        // Process the embedding directly
+        const success = await vectorStore.processEmbedding(item);
+        
+        if (success) {
+          processedCount++;
+          console.log(`✅ Successfully processed ${item.content_type}:${item.content_id}`);
+        } else {
+          failedCount++;
+          console.log(`❌ Failed to process ${item.content_type}:${item.content_id}`);
+        }
+      } catch (error) {
+        failedCount++;
+        console.error(`❌ Error processing ${item.content_type}:${item.content_id}:`, error);
       }
     }
+    
+    const results = {
+      successful: processedCount,
+      failed: failedCount,
+      results: []
+    };
+    const processingMethod = 'direct_processing';
+    
+    // Since we processed items directly, no need to update status to 'processing'
+    // The processEmbedding function already handles status updates
+    console.log(`✅ Direct processing completed: ${processedCount} successful, ${failedCount} failed`);
     
     return NextResponse.json({
       message: `Processed ${results.successful} items via ${processingMethod}, ${results.failed} failed`,

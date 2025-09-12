@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 import redis from "@/utils/redis/redis";
-import { getQStashQueue } from "@/lib/langChain/qstash-integration";
 
 export async function POST(
   request: Request,
@@ -117,41 +116,48 @@ export async function POST(
     .single();
 
   if (existingReaction) {
-    // Remove existing reaction (toggle off) delete in redis
+    // Remove existing reaction (toggle off)
+    const { error } = await supabaseClient
+      .from("community_reaction")
+      .delete()
+      .eq("user_id", profileId)
+      .eq("target_type", target_type)
+      .eq("target_id", targetId)
+      .eq("emoji", emoji);
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 });
+    }
+
+    // Update Redis cache
     await redis.hdel(`post:${targetId}:reactions`, profileId.toString());
 
-    //send to qstash
-    await getQStashQueue().queueEmbedding("reaction", targetId, 5);
-    await getQStashQueue().queueReaction(
-      "removed",
-      profileId,
-      target_type,
-      targetId,
-      emoji
-    );
-
     return NextResponse.json({
-      message: "Reaction removed (cached)",
+      message: "Reaction removed",
       action: "removed",
     });
   } else {
     // Add new reaction
+    const { error } = await supabaseClient
+      .from("community_reaction")
+      .insert({
+        user_id: profileId,
+        target_type: target_type,
+        target_id: targetId,
+        emoji: emoji,
+      });
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 });
+    }
+
+    // Update Redis cache
     await redis.hset(`post:${targetId}:reactions`, {
       [profileId]: emoji,
     });
 
-    //send to qstash
-    await getQStashQueue().queueEmbedding("reaction", targetId, 5);
-    await getQStashQueue().queueReaction(
-      "added",
-      profileId,
-      target_type,
-      targetId,
-      emoji
-    );
-
     return NextResponse.json({
-      message: "Reaction added (cached)",
+      message: "Reaction added",
       action: "added",
     });
   }

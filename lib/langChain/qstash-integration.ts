@@ -120,6 +120,46 @@ export class QStashEmbeddingQueue {
     }
   }
 
+  async queueReaction(
+    action: "added" | "removed",
+    userId: number,
+    targetType: "post" | "comment",
+    targetId: number,
+    emoji: string,
+    delay?: number
+  ) {
+    try {
+      const payload = {
+        action,
+        user_id: userId,
+        target_type: targetType,
+        target_id: targetId,
+        emoji,
+        timestamp: Date.now(),
+      };
+
+      const response = await this.client.publishJSON({
+        url: `${this.baseUrl}/api/reactions/process-webhook`,
+        body: payload,
+        delay: delay ? delay : undefined,
+        retries: 3,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      return {
+        success: true,
+        messageId: (response as any).messageId || "unknown",
+      };
+    } catch (error) {
+      console.error("QStash reaction queue error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
 }
 
 // Singleton instance

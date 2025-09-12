@@ -74,7 +74,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         title: body.title,
         kind: body.kind,
         content_url: body.content_url,
-        duration_sec: body.duration_sec
+        duration_sec: body.duration_sec,
+        attachments: body.attachments,
       });
     } catch (validationError) {
       if (validationError instanceof z.ZodError) {
@@ -92,6 +93,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
       content_url: validatedData.content_url,
       duration_sec: validatedData.duration_sec,
       live_session_id: body.live_session_id,
+      attachments: validatedData.attachments,
       updated_at: new Date().toISOString(),
     } as Record<string, any>;
 

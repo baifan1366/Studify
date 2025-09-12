@@ -62,9 +62,9 @@ export function EditCourseLessonDialog({
   // Form state
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard'>('video')
-  const [contentUrl, setContentUrl] = useState('')
-  const [selectedAttachment, setSelectedAttachment] = useState('')
+  const [contentUrl, setContentUrl] = useState('manual-url')
   const [manualUrl, setManualUrl] = useState('')
+  const [selectedAttachments, setSelectedAttachments] = useState<number[]>([])
   const [durationSec, setDurationSec] = useState<number | undefined>()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -78,16 +78,30 @@ export function EditCourseLessonDialog({
     if (lesson) {
       setTitle(lesson.title)
       setKind(lesson.kind)
-      setContentUrl(lesson.content_url || '')
       
-      // Check if the content_url matches any attachment URL
-      const matchingAttachment = attachments.find(att => att.url === lesson.content_url)
-      if (matchingAttachment) {
-        setSelectedAttachment(lesson.content_url || '')
+      // Handle existing lesson data
+      if (lesson.attachments && lesson.attachments.length > 0) {
+        // Lesson has attachments - find matching attachment and set selection
+        const attachmentId = lesson.attachments[0] // Take first attachment
+        const matchingAttachment = attachments.find(att => att.id === attachmentId)
+        if (matchingAttachment) {
+          setContentUrl(matchingAttachment.url || `attachment-${attachmentId}`)
+          setSelectedAttachments(lesson.attachments)
+        } else {
+          setContentUrl(`attachment-${attachmentId}`)
+          setSelectedAttachments(lesson.attachments)
+        }
         setManualUrl('')
+      } else if (lesson.content_url) {
+        // Lesson has manual URL
+        setContentUrl('manual-url')
+        setManualUrl(lesson.content_url)
+        setSelectedAttachments([])
       } else {
-        setSelectedAttachment('manual-url')
-        setManualUrl(lesson.content_url || '')
+        // No content
+        setContentUrl('manual-url')
+        setManualUrl('')
+        setSelectedAttachments([])
       }
       
       setDurationSec(lesson.duration_sec)
@@ -107,12 +121,26 @@ export function EditCourseLessonDialog({
       const schema = courseLessonSchema(lessonT)
       
       // Validate the form data
-      // Determine final content URL
+      // Handle content URL vs attachments logic
       let finalContentUrl: string | undefined
-      if (selectedAttachment === 'manual-url') {
+      let finalAttachments: number[] = []
+      
+      if (contentUrl === 'manual-url') {
+        // Manual URL - save to content_url field
         finalContentUrl = manualUrl.trim() || undefined
+      } else if (contentUrl === 'loading' || contentUrl === 'no-attachments') {
+        finalContentUrl = undefined
       } else {
-        finalContentUrl = contentUrl.trim() || undefined
+        // Selected attachment - extract attachment ID and save to attachments array
+        const selectedAttachment = attachments.find(att => 
+          att.url === contentUrl || `attachment-${att.id}` === contentUrl
+        )
+        if (selectedAttachment) {
+          finalAttachments = [selectedAttachment.id]
+          finalContentUrl = undefined // Don't save URL when using attachments
+        } else {
+          finalContentUrl = contentUrl || undefined
+        }
       }
       
       const validationData = {
@@ -121,6 +149,7 @@ export function EditCourseLessonDialog({
         title: title.trim(),
         kind,
         content_url: finalContentUrl,
+        attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
         duration_sec: durationSec
       }
       
@@ -134,6 +163,7 @@ export function EditCourseLessonDialog({
           title: validatedData.title,
           kind: validatedData.kind,
           content_url: validatedData.content_url,
+          attachments: validatedData.attachments,
           duration_sec: validatedData.duration_sec
         }
       })
@@ -173,12 +203,20 @@ export function EditCourseLessonDialog({
   }
 
   const handleAttachmentChange = (value: string) => {
-    setSelectedAttachment(value)
-    if (value !== 'manual-url') {
-      setContentUrl(value)
-      setManualUrl('')
+    setContentUrl(value)
+    if (value === 'manual-url' || value === 'loading' || value === 'no-attachments') {
+      setSelectedAttachments([])
     } else {
-      setContentUrl('')
+      setManualUrl('')
+      // Extract attachment ID if it's an attachment selection
+      const selectedAttachment = attachments.find(att => 
+        att.url === value || `attachment-${att.id}` === value
+      )
+      if (selectedAttachment) {
+        setSelectedAttachments([selectedAttachment.id])
+      } else {
+        setSelectedAttachments([])
+      }
     }
   }
 
@@ -336,7 +374,7 @@ export function EditCourseLessonDialog({
                       {t('content_url_label')}
                     </Label>
                     <Select 
-                      value={selectedAttachment} 
+                      value={contentUrl} 
                       onValueChange={handleAttachmentChange}
                     >
                       <SelectTrigger className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
@@ -383,7 +421,7 @@ export function EditCourseLessonDialog({
                     {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
                     
                     {/* Manual URL input when manual-url is selected */}
-                    {selectedAttachment === 'manual-url' && (
+                    {contentUrl === 'manual-url' && (
                       <div className="mt-3 space-y-2">
                         <div className="relative">
                           <Input

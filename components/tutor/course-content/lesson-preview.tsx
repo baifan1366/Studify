@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, FileText, Image, ExternalLink, Clock, BookOpen, X, Download, Maximize2, List } from 'lucide-react';
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { cn } from '@/lib/utils';
 import ChapterManagement from './chapter-management';
+import { detectLessonVideoSource, detectAttachmentVideo } from '@/utils/attachment/video-utils';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -30,18 +31,34 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   const t = useTranslations('LessonPreview');
   const [contentType, setContentType] = useState<ContentType>('unknown');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [embedError, setEmbedError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
 
-  // Detect content type from URL
-  const detectContentType = (url: string): ContentType => {
-    if (!url) return 'unknown';
+  // Detect content type with priority system
+  const detectContentType = (lesson: Lesson): ContentType => {
+    // Priority 1: Check attachments first
+    if (lesson.attachments && lesson.attachments.length > 0) {
+      // Assume attachments are videos (could be enhanced to check file type)
+      return 'video';
+    }
     
+    // Priority 2: Check content_url
+    if (!lesson.content_url) return 'unknown';
+    
+    const url = lesson.content_url;
     const urlLower = url.toLowerCase();
     
-    // Video detection
+    // Check for MEGA attachments in content_url
+    const attachmentInfo = detectAttachmentVideo(url);
+    if (attachmentInfo?.isMegaAttachment) {
+      return 'video';
+    }
+    
+    // Video detection for external sources
     if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be') || 
         urlLower.includes('vimeo.com') || urlLower.includes('loom.com') ||
         urlLower.includes('facebook.com') || urlLower.includes('fb.watch') ||
@@ -144,12 +161,26 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   };
 
   useEffect(() => {
-    if (lesson?.content_url) {
-      setContentType(detectContentType(lesson.content_url));
+    if (lesson) {
+      const detectedType = detectContentType(lesson);
+      console.log('🎥 Video Detection Debug:', {
+        attachments: lesson.attachments,
+        contentUrl: lesson.content_url,
+        detectedType,
+        videoSource: detectLessonVideoSource(lesson.attachments, lesson.content_url)
+      });
+      setContentType(detectedType);
       setError(null);
       setEmbedError(false);
+      // Reset loading states when lesson changes
+      setIsLoading(false);
+      setLoadingProgress(0);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
-  }, [lesson?.content_url]);
+  }, [lesson?.attachments, lesson?.content_url, loadingTimeout]);
 
   const formatDuration = (seconds?: number): string => {
     if (!seconds) return '';
@@ -182,8 +213,212 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
     }
   };
 
+  // Render video content with unified native <video> approach
+  const renderVideoContent = () => {
+    // Use priority-based video source detection
+    const videoSource = detectLessonVideoSource(lesson?.attachments, lesson?.content_url);
+    
+    console.log('🎬 Video Preview Debug:', {
+      attachments: lesson?.attachments,
+      contentUrl: lesson?.content_url,
+      videoSource,
+      scenario: videoSource?.sourceType || 'No source'
+    });
+
+    // Check if we have any video source
+    if (!videoSource) {
+      console.error('❌ No video source found');
+      setEmbedError(true);
+      return null;
+    }
+
+    // Get video source URL based on priority system
+    let videoSrc: string;
+    
+    if (videoSource.sourceType === 'attachment') {
+      // Priority 1: MEGA attachment from lesson.attachments
+      videoSrc = videoSource.videoSrc!;
+      console.log('✅ Using MEGA attachment from attachments array:', videoSrc);
+    } else if (videoSource.sourceType === 'content_url' && videoSource.isMegaAttachment) {
+      // Priority 2: MEGA attachment from content_url
+      videoSrc = videoSource.videoSrc!;
+      console.log('✅ Using MEGA attachment from content_url:', videoSrc);
+    } else if (videoSource.sourceType === 'content_url') {
+      // Priority 3: Third-party URL
+      videoSrc = videoSource.videoSrc!;
+      console.log('🌐 Using third-party URL:', videoSrc);
+    } else {
+      console.error('❌ Invalid video source configuration');
+      setEmbedError(true);
+      return null;
+    }
+
+    // Error fallback UI
+    if (embedError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 bg-muted/30 rounded-lg">
+          <Play className="h-16 w-16 text-muted-foreground" />
+          <div>
+            <h3 className="text-lg font-medium text-foreground mb-2">{t('videoEmbedError')}</h3>
+            <p className="text-muted-foreground mb-4">{t('videoEmbedErrorDescription')}</p>
+            <Button
+              variant="outline"
+              onClick={() => window.open(lesson?.content_url as string, '_blank')}
+              className="gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t('openLink')}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Unified native video player
+    return (
+      <div className={cn(
+        "relative bg-black rounded-lg overflow-hidden",
+        isFullscreen ? "fixed inset-0 z-50" : "aspect-video"
+      )}>
+        <video
+          src={videoSrc}
+          className="w-full h-full object-contain"
+          controls
+          preload="metadata"
+          onError={(e) => {
+            const video = e.target as HTMLVideoElement;
+            console.error('❌ Video load error:', {
+              src: videoSrc,
+              error: video.error,
+              errorCode: video.error?.code,
+              errorMessage: video.error?.message,
+              networkState: video.networkState,
+              readyState: video.readyState
+            });
+            setEmbedError(true);
+            setIsLoading(false);
+            if (loadingTimeout) {
+              clearTimeout(loadingTimeout);
+              setLoadingTimeout(null);
+            }
+          }}
+          onLoadStart={() => {
+            console.log('⏳ Video loading started:', videoSrc);
+            setIsLoading(true);
+            setLoadingProgress(10);
+            
+            // Set timeout to detect stuck loading (extended to 2 minutes)
+            const timeout = setTimeout(() => {
+              console.warn('⚠️ Video loading timeout after 2 minutes:', videoSrc);
+              setIsLoading(false);
+              setEmbedError(true);
+              setLoadingProgress(0);
+            }, 120000);
+            setLoadingTimeout(timeout);
+            
+            // Simulate progress during loading
+            const progressInterval = setInterval(() => {
+              setLoadingProgress(prev => {
+                if (prev >= 90) {
+                  clearInterval(progressInterval);
+                  return prev;
+                }
+                return prev + Math.random() * 10;
+              });
+            }, 1000);
+          }}
+          onLoadedMetadata={(e) => {
+            const video = e.target as HTMLVideoElement;
+            console.log('📋 Video metadata loaded:', {
+              src: videoSrc,
+              duration: video.duration,
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight
+            });
+            setLoadingProgress(60);
+          }}
+          onCanPlay={() => {
+            console.log('✅ Video ready to play:', videoSrc);
+            setLoadingProgress(90);
+            setTimeout(() => {
+              setIsLoading(false);
+              setLoadingProgress(100);
+              if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                setLoadingTimeout(null);
+              }
+            }, 500);
+          }}
+          onCanPlayThrough={() => {
+            console.log('🎬 Video can play through:', videoSrc);
+            setLoadingProgress(100);
+            setIsLoading(false);
+          }}
+          onWaiting={() => {
+            console.log('⏸️ Video waiting for data:', videoSrc);
+            setIsLoading(true);
+            setLoadingProgress(prev => Math.max(prev, 30));
+          }}
+          onPlaying={() => {
+            console.log('▶️ Video started playing:', videoSrc);
+            setIsLoading(false);
+            setLoadingProgress(100);
+          }}
+          onStalled={() => {
+            console.warn('⚠️ Video stalled:', videoSrc);
+          }}
+          onSuspend={() => {
+            console.log('⏹️ Video loading suspended:', videoSrc);
+          }}
+          onAbort={() => {
+            console.warn('🛑 Video loading aborted:', videoSrc);
+            setIsLoading(false);
+            setLoadingProgress(0);
+          }}
+          onTimeUpdate={(e) => {
+            const video = e.target as HTMLVideoElement;
+            // Only log progress occasionally to avoid spam
+            if (video.duration > 0 && Math.floor(video.currentTime) % 10 === 0) {
+              const progress = video.currentTime / video.duration;
+              console.log('📊 Video progress:', {
+                currentTime: video.currentTime,
+                duration: video.duration,
+                progress: Math.round(progress * 100) + '%'
+              });
+            }
+          }}
+        >
+          <p className="text-white text-center p-4">
+            Your browser does not support the video tag.
+          </p>
+        </video>
+        
+        {/* Loading overlay with progress bar - Always show when isLoading is true */}
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white z-10">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mb-6"></div>
+            <div className="text-center space-y-4">
+              <p className="text-lg font-medium">加载视频中...</p>
+              <div className="w-80 bg-gray-600 rounded-full h-3 shadow-inner">
+                <div 
+                  className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-500 ease-out shadow-lg"
+                  style={{ width: `${Math.min(Math.max(loadingProgress, 5), 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-sm opacity-90 font-mono">{Math.round(Math.max(loadingProgress, 5))}%</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
-    if (!lesson?.content_url) {
+    // Check if we have any content source (attachments or content_url)
+    const hasAttachments = lesson?.attachments && lesson.attachments.length > 0;
+    const hasContentUrl = lesson?.content_url;
+    
+    if (!hasAttachments && !hasContentUrl) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -193,80 +428,12 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    const embedUrl = getEmbedUrl(lesson.content_url, contentType);
+    // Use the original URL as entered by the tutor
+    const embedUrl = lesson.content_url;
 
     switch (contentType) {
       case 'video':
-        if (embedError) {
-          return (
-            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 bg-muted/30 rounded-lg">
-              <Play className="h-16 w-16 text-muted-foreground" />
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">{t('videoEmbedError')}</h3>
-                <p className="text-muted-foreground mb-4">{t('videoEmbedErrorDescription')}</p>
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(lesson.content_url, '_blank')}
-                  className="gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {t('openLink')}
-                </Button>
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div className={cn(
-            "relative bg-black rounded-lg overflow-hidden",
-            isFullscreen ? "fixed inset-0 z-50" : "aspect-video"
-          )}>
-            <iframe
-              src={embedUrl}
-              className="w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
-              title={lesson.title}
-              onError={() => setEmbedError(true)}
-              onLoad={(e) => {
-                // Check if iframe content loaded successfully
-                try {
-                  const iframe = e.target as HTMLIFrameElement;
-                  if (iframe.contentDocument === null) {
-                    setEmbedError(true);
-                  }
-                } catch (error) {
-                  // Cross-origin restrictions prevent access, but this is normal for YouTube embeds
-                  // We'll rely on the onError handler for actual errors
-                }
-              }}
-            />
-            <div className="absolute top-2 right-2 flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-black/50 hover:bg-black/70 text-white"
-                onClick={() => setShowChapters(!showChapters)}
-                title={t('chapters')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-black/50 hover:bg-black/70 text-white"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-              >
-                {isFullscreen ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-        );
+        return renderVideoContent();
 
       case 'image':
         return (
@@ -334,24 +501,24 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
 
       case 'document':
         // Try to preview common document formats
-        const isGoogleDoc = lesson.content_url.includes('docs.google.com');
-        const isOfficeDoc = lesson.content_url.includes('office.com') || lesson.content_url.includes('sharepoint.com');
-        const canPreview = isGoogleDoc || isOfficeDoc || lesson.content_url.toLowerCase().includes('.pdf');
+        const isGoogleDoc = lesson?.content_url?.includes('docs.google.com');
+        const isOfficeDoc = lesson?.content_url?.includes('office.com') || lesson?.content_url?.includes('sharepoint.com');
+        const canPreview = isGoogleDoc || isOfficeDoc || lesson?.content_url?.toLowerCase().includes('.pdf');
         
         if (canPreview) {
-          let previewUrl = lesson.content_url;
+          let previewUrl = lesson?.content_url;
           
           // Convert Google Docs to preview mode
-          if (isGoogleDoc && !lesson.content_url.includes('/preview')) {
-            previewUrl = lesson.content_url.replace('/edit', '/preview').replace('/view', '/preview');
-            if (!previewUrl.includes('/preview')) {
+          if (isGoogleDoc && !lesson?.content_url?.includes('/preview')) {
+            previewUrl = lesson?.content_url?.replace('/edit', '/preview').replace('/view', '/preview');
+            if (!previewUrl?.includes('/preview')) {
               previewUrl += '/preview';
             }
           }
           
           // Office documents can often be previewed directly
-          if (isOfficeDoc && !lesson.content_url.includes('embed=1')) {
-            previewUrl += (lesson.content_url.includes('?') ? '&' : '?') + 'embed=1';
+          if (isOfficeDoc && !lesson?.content_url?.includes('embed=1')) {
+            previewUrl += (lesson?.content_url?.includes('?') ? '&' : '?') + 'embed=1';
           }
           
           return (

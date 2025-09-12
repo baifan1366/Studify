@@ -46,27 +46,26 @@ export async function POST(req: NextRequest) {
 
     // Determine requested role: query param overrides (student|tutor|admin)
     const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
+    const role = roleParam || 'student'
+    const name = fullName || data.user.email?.split('@')[0] || undefined
 
-    // Update profile with display_name and role if provided
-    if (fullName || roleParam) {
-      await client
-        .from('profiles')
-        .update({
-          ...(fullName ? { display_name: fullName } : {}),
-          ...(roleParam ? { role: roleParam } : {}),
-        })
-        .eq('user_id', data.user.id)
-    }
-
-    // fetch role and display name from profiles (default student)
-    const { data: profile } = await client
+    // Manually create profile since we removed the database trigger
+    const { error: profileError } = await client
       .from('profiles')
-      .select('role, display_name')
-      .eq('user_id', data.user.id)
+      .insert({
+        user_id: data.user.id,
+        role: role,
+        full_name: fullName,
+        email: data.user.email,
+        display_name: fullName || data.user.email?.split('@')[0]
+      })
+      .select()
       .single()
 
-    const role = (profile?.role as 'student' | 'tutor' | 'admin') || 'student'
-    const name = profile?.display_name || fullName || undefined
+    if (profileError) {
+      console.error('Failed to create profile:', profileError)
+      // Don't fail the signup, just log the error
+    }
 
     // If email confirmation is required, Supabase will not create a session
     // In that case, do NOT set cookie; instruct client to show verify-email screen
@@ -86,7 +85,14 @@ export async function POST(req: NextRequest) {
       req.headers.get('content-type')?.includes('multipart/form-data')
 
     const targetLocale = locale || req.cookies.get('next-intl-locale')?.value || 'en'
-    const redirectUrl = new URL(`/${targetLocale}/home`, req.nextUrl.origin)
+    
+    // Use NEXT_PUBLIC_SITE_URL in production to avoid localhost issues
+    let redirectOrigin = req.nextUrl.origin;
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SITE_URL) {
+      redirectOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+    }
+    
+    const redirectUrl = new URL(`/${targetLocale}/home`, redirectOrigin)
     const res = isFormPost
       ? NextResponse.redirect(redirectUrl)
       : NextResponse.json({ ok: true, userId: data.user.id, role, name })

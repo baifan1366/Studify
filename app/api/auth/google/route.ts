@@ -31,7 +31,35 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No user returned from token exchange" }, { status: 500 });
     }
 
-    // 3) 按你的流程：缓存到 Redis 并把 redis_key 写入 user_metadata（admin 更新）
+    // Create profile if it doesn't exist (for OAuth users)
+    const { data: existingProfile, error: profileCheckError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileCheckError || !existingProfile) {
+      // Create profile for new OAuth user
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: user.id,
+          role: 'student',
+          full_name: user.user_metadata?.full_name,
+          email: user.email,
+          display_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          avatar_url: user.user_metadata?.avatar_url,
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('Failed to create profile for OAuth user:', createError);
+        // Don't fail the auth, just log the error
+      }
+    }
+
+    // 按你的流程：缓存到 Redis 并把 redis_key 写入 user_metadata（admin 更新）
     const cacheKey = `user:${user.id}`;
     const userProfile = {
       id: user.id,

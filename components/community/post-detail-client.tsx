@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, use } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,17 +16,20 @@ import {
   MoreHorizontal,
   Paperclip,
   X,
+  UploadCloud,
 } from "lucide-react";
 import Link from "next/link";
-import { Post } from "@/interface/community/post-interface";
+import { Post, PostFile } from "@/interface/community/post-interface";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDropzone } from "react-dropzone";
 import { Comment } from "@/interface/community/comment-interface";
 import { usePostDetail } from "@/hooks/community/use-post-detail";
 import {
@@ -37,6 +40,9 @@ import {
 import { useToggleReaction } from "@/hooks/community/use-reactions";
 import { useFormat } from "@/hooks/use-format";
 import { useTranslations } from "next-intl";
+import { useUpdatePost, useDeletePost } from "@/hooks/community/use-community";
+import { validateFiles } from "@/utils/file-validation";
+import ZoomImage from "@/components/image-zoom/ZoomImage";
 
 // Reaction button component
 const ReactionButton = ({
@@ -89,26 +95,16 @@ const CommentForm = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-
       const allowedTypes = [
         "image/jpeg",
         "image/png",
         "image/gif",
         "image/webp",
       ];
-
-      const validFiles: File[] = [];
-      for (const file of filesArray) {
-        if (!allowedTypes.includes(file.type)) {
-          alert(`File "${file.name}" is not a supported image type.`); //todo:change to use api returned error
-          continue;
-        }
-        validFiles.push(file);
-      }
-
-      if (validFiles.length > 0) {
-        setAttachments((prev) => [...prev, ...validFiles]);
-      }
+      const validFiles = filesArray.filter((file) =>
+        allowedTypes.includes(file.type)
+      );
+      setAttachments((prev) => [...prev, ...validFiles]);
     }
   };
 
@@ -145,8 +141,6 @@ const CommentForm = ({
         className="min-h-[80px] bg-black/20 border-white/10 text-white resize-none"
         disabled={createCommentMutation.isPending}
       />
-
-      {/* 附件预览 */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {attachments.map((file, idx) => (
@@ -158,7 +152,7 @@ const CommentForm = ({
               <button
                 type="button"
                 onClick={() => removeAttachment(idx)}
-                className="ml-2 hover:text-red-400"
+                className="ml-2 hover:text-red-400 z-100"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -166,7 +160,6 @@ const CommentForm = ({
           ))}
         </div>
       )}
-
       <div className="flex items-center gap-2">
         <Button
           type="submit"
@@ -180,7 +173,6 @@ const CommentForm = ({
             ? t("comment_form.submitting")
             : t("comment_form.submit")}
         </Button>
-
         {onCancel && (
           <Button
             type="button"
@@ -192,8 +184,6 @@ const CommentForm = ({
             {t("comment_form.cancel")}
           </Button>
         )}
-
-        {/* attachment button */}
         <Button
           type="button"
           variant="ghost"
@@ -202,7 +192,6 @@ const CommentForm = ({
         >
           <Paperclip size={16} />
         </Button>
-
         <input
           ref={fileInputRef}
           type="file"
@@ -215,7 +204,6 @@ const CommentForm = ({
   );
 };
 
-// Individual comment component
 const CommentItem = ({
   comment,
   groupSlug,
@@ -301,8 +289,6 @@ const CommentItem = ({
             </DropdownMenu>
           </div>
           <p className="text-sm text-gray-300 mb-3">{comment.body}</p>
-
-          {/* Picture Attachment Display */}
           {comment.files && comment.files.length > 0 && (
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
               {comment.files.map((file) => (
@@ -316,8 +302,6 @@ const CommentItem = ({
               ))}
             </div>
           )}
-
-          {/* Reaction buttons */}
           <div className="flex gap-1">
             <ReactionButton
               emoji="👍"
@@ -346,8 +330,6 @@ const CommentItem = ({
           </div>
         </div>
       </div>
-
-      {/* Reply form */}
       {showReplyForm && (
         <div className="ml-11">
           <CommentForm
@@ -359,8 +341,6 @@ const CommentItem = ({
           />
         </div>
       )}
-
-      {/* Replies */}
       {replies.length > 0 && (
         <div className="ml-11">
           <Button
@@ -393,17 +373,12 @@ const CommentItem = ({
   );
 };
 
-// Build tree structure from flat comments
 const buildCommentTree = (comments: Comment[]): Comment[] => {
   const commentMap = new Map<number, Comment>();
   const rootComments: Comment[] = [];
-
-  // First pass: create map and initialize replies array
   comments.forEach((comment) => {
     commentMap.set(comment.id, { ...comment, replies: [] });
   });
-
-  // Second pass: build tree structure
   comments.forEach((comment) => {
     const commentWithReplies = commentMap.get(comment.id)!;
     if (comment.parent_id) {
@@ -416,8 +391,262 @@ const buildCommentTree = (comments: Comment[]): Comment[] => {
       rootComments.push(commentWithReplies);
     }
   });
-
   return rootComments;
+};
+
+const PostEditForm = ({
+  post,
+  onSave,
+  onCancel,
+}: {
+  post: Post;
+  onSave: (updates: any) => void;
+  onCancel: () => void;
+}) => {
+  const [editTitle, setEditTitle] = useState(post.title || "");
+  const [editBody, setEditBody] = useState(post.body || "");
+  const [existingFiles, setExistingFiles] = useState<PostFile[]>(
+    post.files || []
+  );
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations("CommunityPostDetail");
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const MAX_FILES = 5;
+  const MAX_VIDEO_SIZE_MB = 30;
+  const MAX_NON_VIDEO_SIZE_MB = 10;
+
+  const onDrop = (acceptedFiles: File[]) => {
+    setError(null);
+    const validFiles: File[] = [];
+    let currentFiles = [...files];
+
+    for (const file of acceptedFiles) {
+      // 先检查文件数量
+      if (currentFiles.length >= MAX_FILES) {
+        setError(`最多只能上传 ${MAX_FILES} 个文件`);
+        break;
+      }
+
+      // 调用统一的文件验证逻辑
+      const result = validateFiles([file], {
+        maxVideoSizeMB: MAX_VIDEO_SIZE_MB,
+        maxOtherSizeMB: MAX_NON_VIDEO_SIZE_MB,
+      });
+
+      if (!result.valid) {
+        setError(result.error);
+        continue;
+      }
+
+      validFiles.push(file);
+      currentFiles.push(file);
+    }
+
+    if (validFiles.length > 0) {
+      setFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [],
+      "video/*": [],
+      "application/pdf": [],
+      "application/msword": [],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [],
+      "application/zip": [],
+      "application/x-zip-compressed": [],
+    },
+    multiple: true,
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      const validFiles = filesArray.filter((file) =>
+        allowedTypes.includes(file.type)
+      );
+      setNewFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const removeExistingFile = (fileId: string) => {
+    setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  const removeNewFile = (index: number) => {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+  3;
+  const handleSave = () => {
+    const removedFileIds = (post.files || [])
+      .filter((f) => !existingFiles.find((ef) => ef.id === f.id))
+      .map((f) => f.id);
+    onSave({
+      title: editTitle,
+      body: editBody,
+      files,
+      removeFileIds: removedFileIds,
+    });
+  };
+
+  return (
+    <div className="p-6">
+      <div className="space-y-4">
+        <div>
+          <label
+            htmlFor="edit-title"
+            className="block text-sm font-medium text-gray-300 mb-1"
+          >
+            {t("edit_form.title")}
+          </label>
+          <Input
+            id="edit-title"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="bg-black/20 border-white/10"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="edit-body"
+            className="block text-sm font-medium text-gray-300 mb-1"
+          >
+            {t("edit_form.body")}
+          </label>
+          <Textarea
+            id="edit-body"
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            className="min-h-[200px] bg-black/20 border-white/10"
+          />
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-gray-300 mb-2">
+            {t("edit_form.attachments")}
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {/* 已有文件 */}
+            {existingFiles.map((file) => (
+              <div
+                key={file.id}
+                className="relative group aspect-video rounded-lg overflow-hidden bg-black/40 flex items-center justify-center"
+              >
+                <button
+                  onClick={() => removeExistingFile(file.id)}
+                  className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+
+                {file.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                  <img
+                    src={file.url}
+                    alt={file.file_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : file.url.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video
+                    src={file.url}
+                    className="w-full h-full object-cover"
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-400">
+                    <Paperclip className="h-8 w-8 mb-2" />
+                    <span className="text-xs truncate max-w-[90%]">
+                      {file.file_name}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* 新上传的文件 */}
+            {files.map((file, index) => {
+              const previewUrl = URL.createObjectURL(file);
+              return (
+                <div
+                  key={index}
+                  className="relative group aspect-video rounded-lg overflow-hidden bg-black/40 flex items-center justify-center"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFiles(files.filter((_, i) => i !== index))
+                    }
+                    className="absolute top-1 right-1 bg-black/60 rounded-full p-1 text-white opacity-70 hover:opacity-100 z-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+
+                  {file.type.startsWith("image/") ? (
+                    <img
+                      src={previewUrl}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : file.type.startsWith("video/") ? (
+                    <video
+                      src={previewUrl}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-gray-400">
+                      <Paperclip className="h-8 w-8 mb-2" />
+                      <span className="text-xs truncate max-w-[90%]">
+                        {file.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* drag & drop 区 */}
+            <div
+              {...getRootProps()}
+              className={`flex flex-col items-center justify-center aspect-video border-2 border-dashed rounded-xl cursor-pointer transition ${
+                isDragActive
+                  ? "border-blue-400 bg-blue-500/10"
+                  : "border-white/20 bg-black/30"
+              }`}
+            >
+              <input {...getInputProps()} />
+              <UploadCloud className="h-6 w-6 mb-2 text-gray-400" />
+              {isDragActive ? (
+                <p className="text-sm text-blue-300">{t("drop_here")}</p>
+              ) : (
+                <p className="text-sm text-gray-400 text-center">
+                  {t("drag_drop_or_click")}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 mt-6">
+        <Button variant="outline" onClick={onCancel}>
+          {t("cancel")}
+        </Button>
+        <Button onClick={handleSave}>{t("save")}</Button>
+      </div>
+    </div>
+  );
 };
 
 const PostDetailContent = ({
@@ -429,6 +658,7 @@ const PostDetailContent = ({
   groupSlug: string;
   postSlug: string;
 }) => {
+  const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<"flat" | "tree">("tree");
   const { formatRelativeTime } = useFormat();
   const t = useTranslations("CommunityPostDetail");
@@ -437,6 +667,27 @@ const PostDetailContent = ({
     groupSlug,
     postSlug
   );
+  const updatePostMutation = useUpdatePost(groupSlug, postSlug);
+  const deletePostMutation = useDeletePost(groupSlug, postSlug);
+
+  const handleSave = async (updates: any) => {
+    try {
+      await updatePostMutation.mutateAsync(updates);
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to update post:", err);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      await deletePostMutation.mutateAsync();
+      // delete 后跳转到社区主页
+      window.location.href = `/community/${groupSlug}`; // TODO: use a better redirect method
+    } catch (err) {
+      console.error("Failed to delete post:", err);
+    }
+  };
 
   const handlePostReaction = (emoji: string) => {
     toggleReactionMutation.mutate({
@@ -450,6 +701,17 @@ const PostDetailContent = ({
 
   const displayComments =
     viewMode === "tree" ? buildCommentTree(comments) : comments;
+  const files = post.files;
+
+  if (isEditing) {
+    return (
+      <PostEditForm
+        post={post}
+        onSave={handleSave}
+        onCancel={() => setIsEditing(false)}
+      />
+    );
+  }
 
   return (
     <Card className="bg-white/5 backdrop-blur-lg border border-white/10 text-white rounded-xl shadow-lg">
@@ -493,6 +755,28 @@ const PostDetailContent = ({
               </p>
             </div>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                {t("edit_post")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (confirm(t("confirm_delete_post"))) {
+                    handleDeletePost();
+                  }
+                }}
+                className="text-red-500"
+              >
+                {t("delete_post")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -500,6 +784,41 @@ const PostDetailContent = ({
           {post.body}
         </div>
       </CardContent>
+
+      {files && files.length > 0 && (
+        <CardContent className="pt-0">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {files.map((file) => (
+              <div
+                key={file.id}
+                className="bg-black/30 rounded-lg overflow-hidden flex items-center justify-center aspect-video"
+              >
+                {file.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                  <ZoomImage
+                    src={file.url}
+                    alt={file.file_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : file.url.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video
+                    src={file.url}
+                    className="w-full h-full object-cover"
+                    controls={true}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-400 p-4">
+                    <Paperclip className="h-8 w-8 mb-2" />
+                    <span className="text-xs truncate max-w-[90%]">
+                      {file.file_name}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      )}
+
       <CardContent className="flex justify-between pt-3">
         <div className="flex space-x-2">
           <ReactionButton
@@ -533,7 +852,27 @@ const PostDetailContent = ({
         </div>
       </CardContent>
 
-      {/* Comments Section */}
+      {post.hashtags && post.hashtags.length > 0 && (
+        <CardContent className="pt-0">
+          <div className="flex flex-wrap gap-2">
+            {post.hashtags.map((tag) => (
+              <Link
+                key={tag.name}
+                href={`/community/hashtags/${tag.name}`}
+                className="hover:underline"
+              >
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                >
+                  #{tag.name}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      )}
+
       <CardContent>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold">
@@ -556,13 +895,9 @@ const PostDetailContent = ({
             </Button>
           </div>
         </div>
-
-        {/* Comment Form */}
         <div className="mb-6">
           <CommentForm groupSlug={groupSlug} postSlug={postSlug} />
         </div>
-
-        {/* Comments List */}
         {commentsLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
@@ -600,7 +935,6 @@ const PostDetailContent = ({
 
 const LoadingSpinner = () => {
   const t = useTranslations("CommunityPostDetail");
-
   return (
     <div className="flex justify-center items-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
@@ -617,9 +951,6 @@ const ErrorMessage = ({ message }: { message: string }) => (
   </Card>
 );
 
-/**
- * Client component wrapper for post detail with React Query
- */
 export default function PostDetailClient({
   groupSlug,
   postSlug,

@@ -267,7 +267,7 @@ GET /api/embeddings/queue
 - **解决**: 系统自动回退到数据库队列
 
 #### 2. Webhook接收失败
-- **检查**: `SITE_URL` 配置
+- **检查**: `NEXT_PUBLIC_SITE_URL` 配置
 - **文件**: `app/api/embeddings/process-webhook/route.ts`
 - **解决**: 检查网络连接和URL配置
 
@@ -302,7 +302,7 @@ GET /api/embeddings/queue
 QSTASH_TOKEN=qstash_xxxxx
 QSTASH_CURRENT_SIGNING_KEY=sig_xxxxx
 QSTASH_NEXT_SIGNING_KEY=sig_xxxxx
-SITE_URL=https://your-domain.com
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
 EMBEDDING_QUEUE_STRATEGY=qstash
 ```
 

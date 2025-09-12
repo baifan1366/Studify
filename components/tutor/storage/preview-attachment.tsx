@@ -156,19 +156,9 @@ export function PreviewAttachment({ url, onClose }: PreviewAttachmentProps) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-background text-foreground border-border">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto bg-background text-foreground border-border">
         <DialogHeader>
-          <div className="flex items-center justify-between">
             <DialogTitle className="text-foreground">{t('file_preview')}</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
         </DialogHeader>
         <div className="overflow-auto max-h-[calc(90vh-8rem)]">
           {renderPreviewContent()}

@@ -1,35 +1,3 @@
--- =============================================================================
--- Function to create a public profile for a new user
--- =============================================================================
-create or replace function public.create_public_profile_for_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-declare
-  profile_id bigint;
-begin
-  insert into public.profiles (user_id, role)
-  values (new.id, 'student')
-  returning id into profile_id;
-  
-  -- Queue the new user profile for embedding via QStash (high priority)
-  perform queue_for_embedding_qstash('profile', profile_id, 2);
-  
-  -- Also queue the auth user data for embedding
-  perform queue_for_embedding_qstash('auth_user', new.id::bigint, 2);
-  
-  return new;
-end;
-$$;
-
--- =============================================================================
--- Trigger to call the function when a new user is created
--- =============================================================================
-create or replace trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.create_public_profile_for_user();
-
 -- =========================
 -- QStash Integration Functions
 -- =========================
@@ -47,19 +15,28 @@ DECLARE
   payload jsonb;
   response text;
 BEGIN
+  -- Validate content type for embedding
+  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson') THEN
+    RAISE NOTICE 'Invalid content type for embedding: %', p_content_type;
+    RETURN false;
+  END IF;
+
   -- Get the base URL from environment or use default
   webhook_url := coalesce(
     current_setting('app.site_url', true),
     'http://localhost:3000'
   ) || '/api/embeddings/process-webhook';
   
-  -- Create payload
+  -- Create payload for embedding webhook
   payload := jsonb_build_object(
     'contentType', p_content_type,
     'contentId', p_content_id,
     'priority', p_priority,
     'timestamp', extract(epoch from now())
   );
+  
+  -- Log the embedding queue request
+  RAISE NOTICE 'Queueing % % for embedding with priority %', p_content_type, p_content_id, p_priority;
   
   -- Use pg_net extension to make HTTP request to QStash
   -- Note: This requires pg_net extension and proper QStash configuration
@@ -70,6 +47,7 @@ BEGIN
   
 EXCEPTION WHEN OTHERS THEN
   -- If QStash fails, fallback to database queue
+  RAISE NOTICE 'QStash embedding failed, using database queue: %', SQLERRM;
   RETURN queue_for_embedding(p_content_type, p_content_id, p_priority);
 END;
 $$;
@@ -709,3 +687,96 @@ CREATE TRIGGER lesson_embedding_trigger
   AFTER INSERT OR UPDATE ON course_lesson
   FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding();
 
+--Post tsvector update function
+create or replace function community_post_tsvector_update() returns trigger as $$
+declare
+  hashtags_text text;
+begin
+  -- 拼接该 post 的所有 hashtags 名称
+  select string_agg(h.name, ' ')
+  into hashtags_text
+  from post_hashtags ph
+  join hashtags h on h.id = ph.hashtag_id
+  where ph.post_id = new.public_id;
+
+  -- 合并 title、body、hashtags 为 search_vector
+  new.search_vector :=
+    setweight(to_tsvector('english', coalesce(new.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(new.body, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(hashtags_text, '')), 'C');
+
+  return new;
+end;
+$$ language plpgsql;
+
+-- Hashtag tsvector update function
+create or replace function hashtags_tsvector_update() returns trigger as $$
+begin
+  new.search_vector := to_tsvector('english', coalesce(new.name, ''));
+  return new;
+end;
+$$ language plpgsql;
+
+-- Function to update posts when hashtag name changes
+create or replace function update_posts_on_hashtag_change() returns trigger as $$
+begin
+  update community_post
+  set updated_at = now()  -- 触发 post trigger 更新 search_vector
+  where public_id in (
+    select ph.post_id
+    from post_hashtags ph
+    where ph.hashtag_id = new.id
+  );
+  return new;
+end;
+$$ language plpgsql;
+
+-- Function to update post when its hashtag associations change
+create or replace function update_post_on_hashtag_assoc_change() returns trigger as $$
+begin
+  update community_post
+  set updated_at = now()  -- 触发 post trigger 更新 search_vector
+  where public_id = new.post_id;
+  return new;
+end;
+$$ language plpgsql;
+
+-- Drop old triggers
+drop trigger if exists trg_update_post_tsvector on community_post;
+drop trigger if exists trg_update_hashtag_tsvector on hashtags;
+drop trigger if exists trg_update_posts_on_hashtag_change on hashtags;
+drop trigger if exists trg_update_post_on_hashtag_assoc_insert on post_hashtags;
+drop trigger if exists trg_update_post_on_hashtag_assoc_delete on post_hashtags;
+
+-- Post trigger
+create trigger trg_update_post_tsvector
+before insert or update
+on community_post
+for each row
+execute procedure community_post_tsvector_update();
+
+-- Hashtag triggers
+create trigger trg_update_hashtag_tsvector
+before insert or update
+on hashtags
+for each row
+execute procedure hashtags_tsvector_update();
+
+create trigger trg_update_posts_on_hashtag_change
+after update
+on hashtags
+for each row
+execute procedure update_posts_on_hashtag_change();
+
+-- post_hashtags triggers
+create trigger trg_update_post_on_hashtag_assoc_insert
+after insert
+on post_hashtags
+for each row
+execute procedure update_post_on_hashtag_assoc_change();
+
+create trigger trg_update_post_on_hashtag_assoc_delete
+after delete
+on post_hashtags
+for each row
+execute procedure update_post_on_hashtag_assoc_change();

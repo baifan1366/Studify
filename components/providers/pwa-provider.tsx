@@ -10,7 +10,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Register Service Worker - Only in production to avoid development redirect issues
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    if ('serviceWorker' in navigator && process.env.NEXT_PUBLIC_NODE_ENV === 'production') {
       navigator.serviceWorker
         .register('/sw.js', {
           scope: '/',
@@ -38,7 +38,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         .catch((registrationError) => {
           console.log('SW registration failed: ', registrationError);
         });
-    } else if (process.env.NODE_ENV === 'development') {
+    } else if (process.env.NEXT_PUBLIC_NODE_ENV === 'development') {
       console.log('Service Worker registration skipped in development mode');
     }
 

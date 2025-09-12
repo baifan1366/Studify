@@ -11,6 +11,17 @@ on storage.objects
 for select
 using (bucket_id = 'post-attachments');
 
+-- 允许已登录用户删除自己上传的 post 附件
+create policy "Allow authenticated delete own post attachments"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'post-attachments'
+  and auth.uid() = owner
+);
+
+
 -- 允许认证用户读取 hashtags 表
 CREATE POLICY "Allow authenticated users to read hashtags"
 ON public.hashtags

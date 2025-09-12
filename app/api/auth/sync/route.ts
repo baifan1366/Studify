@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const cacheKey = `user:${user.id}`;
     
     // 从 profiles 表获取用户完整信息
-    const { data: profile, error: profileError } = await supabase
+    let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', user.id)
@@ -34,7 +34,37 @@ export async function POST(req: Request) {
 
     if (profileError || !profile) {
       console.error("Failed to get user profile:", profileError);
-      return NextResponse.json({ error: "Failed to get user profile" }, { status: 500 });
+      
+      // If profile doesn't exist, create it (for OAuth users)
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: user.id,
+          role: 'student',
+          full_name: user.user_metadata?.full_name,
+          email: user.email,
+          display_name: user.user_metadata?.full_name || user.email?.split('@')[0]
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error("Failed to create user profile:", createError);
+        return NextResponse.json({ error: "Failed to create user profile" }, { status: 500 });
+      }
+      
+      // Retry getting the profile
+      const { data: newProfile, error: retryError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (retryError || !newProfile) {
+        return NextResponse.json({ error: "Failed to get user profile after creation" }, { status: 500 });
+      }
+      
+      profile = newProfile;
     }
 
     const userProfile = {

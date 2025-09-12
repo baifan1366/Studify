@@ -141,7 +141,7 @@ export default function CourseDetails() {
               {/* Storage Dialog Button */}
               <StorageDialog ownerId={courseId}>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   className="border-border hover:bg-accent hover:text-accent-foreground"
                 >

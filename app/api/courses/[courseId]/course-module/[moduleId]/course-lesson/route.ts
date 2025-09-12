@@ -86,7 +86,8 @@ export async function POST(
         title: body.title,
         kind: body.kind,
         content_url: body.content_url,
-        duration_sec: body.duration_sec
+        duration_sec: body.duration_sec,
+        attachments: body.attachments,
       });
 
       payload = {
@@ -94,6 +95,7 @@ export async function POST(
         kind: validatedData.kind,
         content_url: validatedData.content_url || null,
         duration_sec: validatedData.duration_sec || null,
+        attachments: validatedData.attachments || null,
         course_id: courseIdNum,
         module_id: moduleIdNum,
       };

@@ -40,7 +40,6 @@ export function NewPostForm({
   const [error, setError] = useState<string | null>(null);
 
   const MAX_FILES = 5;
-  const MAX_FILE_SIZE_MB = 10;
   const MAX_VIDEO_SIZE_MB = 30;
   const MAX_NON_VIDEO_SIZE_MB = 10;
 
@@ -96,10 +95,10 @@ export function NewPostForm({
     setHashtags(hashtags.filter((tag) => tag !== tagToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !body) return;
-    onSubmit({ title, body, files, hashtags });
+    await onSubmit({ title, body, files, hashtags });
     setTitle("");
     setBody("");
     setFiles([]);

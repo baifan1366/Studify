@@ -913,6 +913,7 @@ create table if not exists community_post (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
+  search_vector tsvector,
   unique (group_id, slug)
 );
 
@@ -1123,16 +1124,24 @@ create table if not exists tutoring_share (
   deleted_at timestamptz
 );
 
-create table hashtags ( 
+create table if not exists hashtags (
   id bigserial primary key,
-  name text unique not null check (name <> '')
+  name text unique not null check (name <> ''),
+  search_vector tsvector
 );
 
-create table post_hashtags (
+create table if not exists post_hashtags (
   post_id uuid references community_post(public_id) on delete cascade,
   hashtag_id bigint references hashtags(id) on delete cascade,
   primary key (post_id, hashtag_id)
 );
+
+-- Search Vectors indexes (post and hashtags)
+create index if not exists idx_community_post_search
+  on community_post using gin(search_vector);
+
+create index if not exists idx_hashtags_search
+  on hashtags using gin(search_vector);
 
 -- =========================
 -- Embedding System Tables

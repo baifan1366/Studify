@@ -46,24 +46,49 @@ export class SmartWarmup {
       // Ping embedding server to wake it up
       const embeddingServerUrl = "https://embedding-server-jxsa.onrender.com";
       
+      // Create AbortController for better timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds for cold starts
+      
       const response = await fetch(`${embeddingServerUrl}/health`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Studify-Warmup/1.0'
+          'User-Agent': 'Studify-Warmup/1.0',
+          'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(15000) // 15 second timeout
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         this.embeddingServerWarmedUp = true;
         const warmupTime = Date.now() - startTime;
-        console.log(`Embedding server warmed up in ${warmupTime}ms`);
+        console.log(`✅ Embedding server warmed up successfully in ${warmupTime}ms`);
       } else {
-        console.warn(`Embedding server warmup failed: ${response.status}`);
+        console.warn(`⚠️ Embedding server warmup failed with status: ${response.status}`);
+        // Still mark as warmed up to avoid repeated attempts
+        this.embeddingServerWarmedUp = true;
       }
     } catch (error) {
-      console.error('Embedding server warmup error:', error);
+      const warmupTime = Date.now() - startTime;
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error(`❌ Embedding server warmup timeout after ${warmupTime}ms - server may be cold starting`);
+        } else {
+          console.error(`❌ Embedding server warmup error after ${warmupTime}ms:`, error.message);
+        }
+      } else {
+        console.error(`❌ Embedding server warmup unknown error after ${warmupTime}ms:`, error);
+      }
+      
+      // Mark as warmed up to prevent repeated failed attempts
+      this.embeddingServerWarmedUp = true;
+      
       // Don't throw - let the actual request handle the cold start
+    } finally {
+      // Reset the warmup promise so future requests can try again if needed
+      this.warmupPromise = null;
     }
   }
 

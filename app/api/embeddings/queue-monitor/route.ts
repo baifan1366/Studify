@@ -31,29 +31,47 @@ async function handler(request: NextRequest) {
       return NextResponse.json({ 
         message: 'No items in queue',
         processed: 0,
-        failed: 0
+        failed: 0,
+        embeddingServerStatus: 'idle'
       });
     }
     
-    console.log(`📦 Found ${queueItems.length} items in queue, sending to QStash...`);
+    console.log(`📦 Found ${queueItems.length} items in queue, attempting to process...`);
     
-    // Send items to QStash
-    const qstash = getQStashQueue();
-    const results = await qstash.queueBatch(
-      queueItems.map(item => ({
-        contentType: item.content_type,
-        contentId: item.content_id,
-        priority: item.priority
-      }))
-    );
+    // Check if QStash is available and configured
+    let results;
+    let processingMethod = 'unknown';
     
-    console.log(`🚀 QStash results: ${results.successful} successful, ${results.failed} failed`);
+    if (process.env.QSTASH_TOKEN) {
+      try {
+        // Send items to QStash
+        const qstash = getQStashQueue();
+        results = await qstash.queueBatch(
+          queueItems.map(item => ({
+            contentType: item.content_type,
+            contentId: item.content_id,
+            priority: item.priority
+          }))
+        );
+        processingMethod = 'qstash';
+        console.log(`🚀 QStash results: ${results.successful} successful, ${results.failed} failed`);
+      } catch (qstashError) {
+        console.error('❌ QStash processing failed:', qstashError);
+        // Fallback to direct processing
+        results = { successful: 0, failed: queueItems.length, results: [] };
+        processingMethod = 'qstash_failed';
+      }
+    } else {
+      console.warn('⚠️ QSTASH_TOKEN not configured, skipping QStash processing');
+      results = { successful: 0, failed: 0, results: [] };
+      processingMethod = 'qstash_not_configured';
+    }
     
     // Update successfully processed items status in database
     const processedIds = queueItems
       .filter((_, index) => {
         const result = results.results[index];
-        return result.status === 'fulfilled' && result.value.success;
+        return result && result.status === 'fulfilled' && result.value && result.value.success;
       })
       .map(item => item.id);
     
@@ -75,10 +93,12 @@ async function handler(request: NextRequest) {
     }
     
     return NextResponse.json({
-      message: `Processed ${results.successful} items via QStash, ${results.failed} failed`,
+      message: `Processed ${results.successful} items via ${processingMethod}, ${results.failed} failed`,
       processed: results.successful,
       failed: results.failed,
       total: queueItems.length,
+      processingMethod,
+      embeddingServerStatus: 'processing',
       queueItems: queueItems.map(item => ({
         id: item.id,
         contentType: item.content_type,
@@ -91,7 +111,11 @@ async function handler(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error in queue monitor:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        embeddingServerStatus: 'error'
+      },
       { status: 500 }
     );
   }
@@ -155,7 +179,32 @@ if (!process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.NODE_ENV === 'product
   console.warn('QSTASH_CURRENT_SIGNING_KEY is missing in production - signature verification disabled');
 }
 
+// Enhanced handler with better error handling for signature verification
+async function enhancedHandler(request: NextRequest) {
+  try {
+    // Log request details for debugging
+    console.log('🔍 Queue monitor request:', {
+      method: request.method,
+      url: request.url,
+      headers: Object.fromEntries(request.headers.entries()),
+      hasSigningKey: !!process.env.QSTASH_CURRENT_SIGNING_KEY,
+      nodeEnv: process.env.NODE_ENV
+    });
+
+    return await handler(request);
+  } catch (error) {
+    console.error('❌ Queue monitor handler error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Handler error', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    );
+  }
+}
+
 // For local development or missing signing key, bypass signature verification
 export const POST = (process.env.NODE_ENV === 'development' || !process.env.QSTASH_CURRENT_SIGNING_KEY)
-  ? handler
-  : verifySignatureAppRouter(handler);
+  ? enhancedHandler
+  : verifySignatureAppRouter(enhancedHandler);

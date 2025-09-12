@@ -258,30 +258,57 @@ export const useGroupPosts = (slug: string) => {
 
 // Individual post hook
 export const usePost = (groupSlug: string, postSlug: string) => {
-  const queryClient = useQueryClient();
-
-  const {
-    data: post,
-    isLoading,
-    isError,
-    error,
-  } = useQuery<Post, Error>({
+  return useQuery<Post, Error>({
     queryKey: ["post", groupSlug, postSlug],
     queryFn: () => apiGet<Post>(COMMUNITY_API.postDetail(groupSlug, postSlug)),
     staleTime: 1000 * 60 * 1,
   });
+};
 
-  const {
-    mutate: updatePost,
-    isPending: isUpdatingPost,
-    error: updatePostError,
-  } = useMutation({
-    mutationFn: (updates: { title: string; body: string }) =>
-      apiSend<Post>({
-        url: COMMUNITY_API.postDetail(groupSlug, postSlug),
-        method: "PUT",
-        body: updates,
-      }),
+// 更新单个 post
+export const useUpdatePost = (groupSlug: string, postSlug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      updates: {
+        title?: string;
+        body?: string;
+        files?: File[];
+        removeFileIds?: string[];
+      }
+    ) => {
+      const formData = new FormData();
+      if (updates.title !== undefined) {
+        formData.append("title", updates.title);
+      }
+      if (updates.body !== undefined) {
+        formData.append("body", updates.body);
+      }
+      if (updates.files) {
+        updates.files.forEach((file) => formData.append("files", file));
+      }
+      if (updates.removeFileIds) {
+        updates.removeFileIds.forEach((id) =>
+          formData.append("removeFileIds", id)
+        );
+      }
+
+      const response = await fetch(
+        COMMUNITY_API.postDetail(groupSlug, postSlug),
+        {
+          method: "PATCH",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "API request failed");
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["post", groupSlug, postSlug],
@@ -290,12 +317,13 @@ export const usePost = (groupSlug: string, postSlug: string) => {
       queryClient.invalidateQueries({ queryKey: ["communityPosts"] });
     },
   });
+};
 
-  const {
-    mutate: deletePost,
-    isPending: isDeletingPost,
-    error: deletePostError,
-  } = useMutation({
+// 删除单个 post
+export const useDeletePost = (groupSlug: string, postSlug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
     mutationFn: () =>
       apiSend({
         url: COMMUNITY_API.postDetail(groupSlug, postSlug),
@@ -306,19 +334,6 @@ export const usePost = (groupSlug: string, postSlug: string) => {
       queryClient.invalidateQueries({ queryKey: ["communityPosts"] });
     },
   });
-
-  return {
-    post,
-    isLoading,
-    isError,
-    error,
-    updatePost,
-    isUpdatingPost,
-    updatePostError,
-    deletePost,
-    isDeletingPost,
-    deletePostError,
-  };
 };
 
 // Popular posts hook for main feed

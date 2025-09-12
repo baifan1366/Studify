@@ -1,32 +1,3 @@
--- =============================================================================
--- Function to create a public profile for a new user
--- =============================================================================
-create or replace function public.create_public_profile_for_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-declare
-  profile_id bigint;
-begin
-  insert into public.profiles (user_id, role)
-  values (new.id, 'student')
-  returning id into profile_id;
-  
-  -- No embedding calls here - let the profile trigger handle it
-  -- This keeps auth schema clean and prevents signup failures
-  
-  return new;
-end;
-$$;
-
--- =============================================================================
--- Trigger to call the function when a new user is created
--- =============================================================================
-create or replace trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.create_public_profile_for_user();
-
 -- =========================
 -- QStash Integration Functions
 -- =========================
@@ -44,19 +15,28 @@ DECLARE
   payload jsonb;
   response text;
 BEGIN
+  -- Validate content type for embedding
+  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson') THEN
+    RAISE NOTICE 'Invalid content type for embedding: %', p_content_type;
+    RETURN false;
+  END IF;
+
   -- Get the base URL from environment or use default
   webhook_url := coalesce(
     current_setting('app.site_url', true),
     'http://localhost:3000'
   ) || '/api/embeddings/process-webhook';
   
-  -- Create payload
+  -- Create payload for embedding webhook
   payload := jsonb_build_object(
     'contentType', p_content_type,
     'contentId', p_content_id,
     'priority', p_priority,
     'timestamp', extract(epoch from now())
   );
+  
+  -- Log the embedding queue request
+  RAISE NOTICE 'Queueing % % for embedding with priority %', p_content_type, p_content_id, p_priority;
   
   -- Use pg_net extension to make HTTP request to QStash
   -- Note: This requires pg_net extension and proper QStash configuration
@@ -67,6 +47,7 @@ BEGIN
   
 EXCEPTION WHEN OTHERS THEN
   -- If QStash fails, fallback to database queue
+  RAISE NOTICE 'QStash embedding failed, using database queue: %', SQLERRM;
   RETURN queue_for_embedding(p_content_type, p_content_id, p_priority);
 END;
 $$;
@@ -689,7 +670,22 @@ CREATE TRIGGER profile_embedding_trigger
 DROP TRIGGER IF EXISTS course_embedding_trigger ON course;
 CREATE TRIGGER course_embedding_trigger
   AFTER INSERT OR UPDATE ON course
+  FOR EACH ROW EXECUTE FUNCTION trigger_course_embedding();
 
+DROP TRIGGER IF EXISTS post_embedding_trigger ON community_post;
+CREATE TRIGGER post_embedding_trigger
+  AFTER INSERT OR UPDATE ON community_post
+  FOR EACH ROW EXECUTE FUNCTION trigger_post_embedding();
+
+DROP TRIGGER IF EXISTS comment_embedding_trigger ON community_comment;
+CREATE TRIGGER comment_embedding_trigger
+  AFTER INSERT OR UPDATE ON community_comment
+  FOR EACH ROW EXECUTE FUNCTION trigger_comment_embedding();
+
+DROP TRIGGER IF EXISTS lesson_embedding_trigger ON course_lesson;
+CREATE TRIGGER lesson_embedding_trigger
+  AFTER INSERT OR UPDATE ON course_lesson
+  FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding();
 
 --Post tsvector update function
 create or replace function community_post_tsvector_update() returns trigger as $$

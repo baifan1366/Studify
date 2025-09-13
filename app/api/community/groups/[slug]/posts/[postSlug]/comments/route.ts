@@ -136,7 +136,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ slug: string; postSlug: string }> } 
+  { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
   try {
     const authResult = await authorize("student");

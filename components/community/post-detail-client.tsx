@@ -17,6 +17,7 @@ import {
   Paperclip,
   X,
   UploadCloud,
+  Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { Post, PostFile } from "@/interface/community/post-interface";
@@ -36,6 +37,7 @@ import {
   useComments,
   useCreateComment,
   useDeleteComment,
+  useEditComment,
 } from "@/hooks/community/use-comments";
 import { useToggleReaction } from "@/hooks/community/use-reactions";
 import { useFormat } from "@/hooks/use-format";
@@ -221,6 +223,11 @@ const CommentItem = ({
   const t = useTranslations("CommunityPostDetail");
   const deleteCommentMutation = useDeleteComment(groupSlug, postSlug);
   const toggleReactionMutation = useToggleReaction(groupSlug, postSlug);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editBody, setEditBody] = useState(comment.body || "");
+  const editCommentMutation = useEditComment(groupSlug, postSlug);
+
+  const commentMaxDepth = 3;
 
   const handleReaction = (emoji: string) => {
     toggleReactionMutation.mutate({
@@ -230,6 +237,22 @@ const CommentItem = ({
       target_type: "comment",
       target_id: comment.id.toString(),
     });
+  };
+
+  const handleSaveEdit = () => {
+    editCommentMutation.mutate(
+      {
+        groupSlug,
+        postSlug,
+        commentId: comment.id.toString(),
+        body: editBody,
+      },
+      {
+        onSuccess: () => {
+          setShowEditForm(false);
+        },
+      }
+    );
   };
 
   const handleDelete = () => {
@@ -273,11 +296,21 @@ const CommentItem = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem
-                  onClick={() => setShowReplyForm(!showReplyForm)}
+                  onClick={() => {
+                    setShowEditForm(!showEditForm);
+                  }}
                 >
-                  <Reply className="h-4 w-4 mr-2" />
-                  {t("comment_actions.reply")}
+                  <Pencil className="h-4 w-4 mr-2" />
+                  {t("comment_actions.edit")}
                 </DropdownMenuItem>
+                {depth < commentMaxDepth && (
+                  <DropdownMenuItem
+                    onClick={() => setShowReplyForm(!showReplyForm)}
+                  >
+                    <Reply className="h-4 w-4 mr-2" />
+                    {t("comment_actions.reply")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={handleDelete}
                   className="text-red-400"
@@ -288,46 +321,75 @@ const CommentItem = ({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <p className="text-sm text-gray-300 mb-3">{comment.body}</p>
-          {comment.files && comment.files.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {comment.files.map((file) => (
-                <img
-                  key={file.id || file.file_name}
-                  src={file.url}
-                  alt={file.file_name}
-                  className="rounded-lg max-h-40 w-full object-cover cursor-pointer hover:opacity-80 transition"
-                  onClick={() => window.open(file.url, "_blank")}
-                />
-              ))}
+          {/* 这里判断是否在编辑 */}
+          {showEditForm ? (
+            <div className="space-y-2">
+              <textarea
+                className="w-full p-2 rounded bg-black/30 border border-gray-700 text-white text-sm"
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={editCommentMutation.isPending}
+                >
+                  {t("comment_actions.save")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowEditForm(false)}
+                >
+                  {t("comment_actions.cancel")}
+                </Button>
+              </div>
             </div>
+          ) : (
+            <>
+              <p className="text-sm text-gray-300 mb-3">{comment.body}</p>
+              {comment.files && comment.files.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {comment.files.map((file) => (
+                    <img
+                      key={file.id || file.file_name}
+                      src={file.url}
+                      alt={file.file_name}
+                      className="rounded-lg max-h-40 w-full object-cover cursor-pointer hover:opacity-80 transition"
+                      onClick={() => window.open(file.url, "_blank")}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-1">
+                <ReactionButton
+                  emoji="👍"
+                  count={comment.reactions?.["👍"] || 0}
+                  onClick={() => handleReaction("👍")}
+                  disabled={toggleReactionMutation.isPending}
+                />
+                <ReactionButton
+                  emoji="❤️"
+                  count={comment.reactions?.["❤️"] || 0}
+                  onClick={() => handleReaction("❤️")}
+                  disabled={toggleReactionMutation.isPending}
+                />
+                <ReactionButton
+                  emoji="😂"
+                  count={comment.reactions?.["😂"] || 0}
+                  onClick={() => handleReaction("😂")}
+                  disabled={toggleReactionMutation.isPending}
+                />
+                <ReactionButton
+                  emoji="😡"
+                  count={comment.reactions?.["😡"] || 0}
+                  onClick={() => handleReaction("😡")}
+                  disabled={toggleReactionMutation.isPending}
+                />
+              </div>
+            </>
           )}
-          <div className="flex gap-1">
-            <ReactionButton
-              emoji="👍"
-              count={comment.reactions?.["👍"] || 0}
-              onClick={() => handleReaction("👍")}
-              disabled={toggleReactionMutation.isPending}
-            />
-            <ReactionButton
-              emoji="❤️"
-              count={comment.reactions?.["❤️"] || 0}
-              onClick={() => handleReaction("❤️")}
-              disabled={toggleReactionMutation.isPending}
-            />
-            <ReactionButton
-              emoji="😂"
-              count={comment.reactions?.["😂"] || 0}
-              onClick={() => handleReaction("😂")}
-              disabled={toggleReactionMutation.isPending}
-            />
-            <ReactionButton
-              emoji="😡"
-              count={comment.reactions?.["😡"] || 0}
-              onClick={() => handleReaction("😡")}
-              disabled={toggleReactionMutation.isPending}
-            />
-          </div>
         </div>
       </div>
       {showReplyForm && (
@@ -342,7 +404,7 @@ const CommentItem = ({
         </div>
       )}
       {replies.length > 0 && (
-        <div className="ml-11">
+        <div className="ml-11 border-l border-gray-700 pl-4">
           <Button
             variant="ghost"
             size="sm"
@@ -377,13 +439,14 @@ const buildCommentTree = (comments: Comment[]): Comment[] => {
   const commentMap = new Map<number, Comment>();
   const rootComments: Comment[] = [];
   comments.forEach((comment) => {
-    commentMap.set(comment.id, { ...comment, replies: [] });
+    commentMap.set(comment.id, { ...comment, replies: [], depth: 0 });
   });
   comments.forEach((comment) => {
     const commentWithReplies = commentMap.get(comment.id)!;
     if (comment.parent_id) {
       const parent = commentMap.get(comment.parent_id);
       if (parent) {
+        commentWithReplies.depth = (parent.depth ?? 0) + 1;
         parent.replies = parent.replies || [];
         parent.replies.push(commentWithReplies);
       }

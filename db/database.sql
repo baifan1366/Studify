@@ -175,6 +175,7 @@ create table if not exists course (
   total_students int default 0,
   is_free boolean not null default false,
   status text check(status in ('active', 'pending', 'inactive')) default 'inactive',
+  community_group_public_id UUID references community_group(public_id) on delete set null,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -875,7 +876,7 @@ create table if not exists classroom_engagement_report (
 -- =========================
 create table if not exists community_group (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
+  public_id uuid not null default uuid_generate_v4() unique,
   name text not null,
   description text,
   slug text unique not null,

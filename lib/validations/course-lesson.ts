@@ -25,6 +25,10 @@ export const courseLessonSchema = (t: (key: string) => string) =>
       .url({ message: t("url_invalid") })
       .optional(),
 
+    attachments: z
+      .array(z.number().positive({ message: t("attachment_id_invalid") }))
+      .optional(),
+
     duration_sec: z
       .number()
       .min(0, { message: t("duration_min") })

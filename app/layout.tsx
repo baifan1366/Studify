@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PWAProvider } from "@/components/providers/pwa-provider";
 import "./globals.css";
+import "@livekit/components-styles";
 
 export const metadata: Metadata = {
   title: "Studify - Smart Learning Platform",
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Studify" />
         <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
-      <body className="antialiased min-h-screen bg-background">
+      <body className="antialiased min-h-screen bg-background" data-lk-theme="default">
         <ThemeProvider>
           <PWAProvider>
             {children}

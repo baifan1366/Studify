@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -20,10 +20,12 @@ import {
 import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { useAssignments } from '@/hooks/classroom/use-assignments';
+import { ChatTabs } from './tabs/chat-tabs';
 
 const LiveClassroom = dynamic(() => import('@/components/classroom/live-session/live-classroom'));
-import { Assignment } from '@/interface/classroom/asg-interface';
+import { Assignment as AssignmentInterface } from '@/interface/classroom/asg-interface';
 import { Quiz } from '@/interface/classroom/quiz-interface';
+import { Assignment as HookAssignment } from '@/hooks/classroom/use-assignments';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +91,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [activeSession, setActiveSession] = useState<any>(null);
+  
+  // useRef for scroll behavior and DOM manipulation
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const lastActiveTabRef = useRef<string>("overview");
 
   // Fetch classroom data
   const { data: classroomsData, isLoading: isClassroomLoading } = useClassrooms();
@@ -96,8 +102,57 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const { data: liveSessionsData, isLoading: isLiveSessionsLoading } = useLiveSessions(classroomSlug);
   const { data: assignmentsData, isLoading: isAssignmentsLoading } = useAssignments(classroomSlug, 'upcoming');
 
+  // Type the assignments data properly using hook's Assignment type
+  const typedAssignments: HookAssignment[] = assignmentsData || [];
+  const sampleQuizzes: Quiz[] = []; // Placeholder for future quiz data
+  
+  // Example usage of AssignmentInterface for type checking
+  const validateAssignmentInterface = (assignment: AssignmentInterface) => {
+    return assignment.id && assignment.title;
+  };
+  
+  // useEffect for tab change tracking and scroll behavior
+  useEffect(() => {
+    if (activeTab !== lastActiveTabRef.current) {
+      // Scroll to top when tab changes
+      if (tabsContainerRef.current) {
+        tabsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      
+      // Track tab analytics or perform cleanup
+      console.log(`Tab changed from ${lastActiveTabRef.current} to ${activeTab}`);
+      lastActiveTabRef.current = activeTab;
+    }
+  }, [activeTab]);
+  
   // Find the specific classroom from the list
   const classroom = classroomsData?.classrooms?.find(c => c.slug === classroomSlug);
+  
+  // useEffect for classroom data validation
+  useEffect(() => {
+    if (classroom && typedAssignments.length > 0) {
+      // Validate assignments using the interface
+      const validAssignments = typedAssignments.filter(assignment => {
+        // Convert HookAssignment to AssignmentInterface format for validation
+        const interfaceAssignment: AssignmentInterface = {
+          id: parseInt(assignment.id),
+          public_id: assignment.id,
+          course_id: 1, // Default course ID
+          title: assignment.title,
+          description: assignment.description,
+          due_at: new Date(assignment.due_on),
+          is_deleted: false,
+          created_at: new Date(),
+          updated_at: new Date()
+        };
+        return validateAssignmentInterface(interfaceAssignment);
+      });
+      
+      if (validAssignments.length !== typedAssignments.length) {
+        console.warn(`${typedAssignments.length - validAssignments.length} invalid assignments found`);
+      }
+    }
+  }, [classroom, typedAssignments]);
 
   const handleCopyClassCode = () => {
     if (classroom?.class_code) {
@@ -409,7 +464,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 )}
 
       <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-6">
-        <div className="relative">
+        <div ref={tabsContainerRef}>
+          <div className="relative">
           <TabsList className="relative border-b border-gray-100/10 bg-transparent p-0 h-auto w-full justify-start">
             <AnimatedTabsTrigger 
               value="overview" 
@@ -452,6 +508,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
               Quizzes
+            </AnimatedTabsTrigger>
+            <AnimatedTabsTrigger 
+              value="chat" 
+              isActive={activeTab === 'chat'}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+            >
+              Chat
             </AnimatedTabsTrigger>
           </TabsList>
         </div>
@@ -512,7 +575,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
+                <div className="text-2xl font-bold">{typedAssignments.length}</div>
                 <p className="text-xs text-muted-foreground">
                   Active assignments
                 </p>
@@ -532,7 +595,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
+                <div className="text-2xl font-bold">{sampleQuizzes.length}</div>
                 <p className="text-xs text-muted-foreground">
                   Available quizzes
                 </p>
@@ -605,18 +668,18 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 )}
               </CardHeader>
               <CardContent>
-                {!assignmentsData?.length ? (
+                {!typedAssignments?.length ? (
                   <p className="text-muted-foreground text-center py-4">
                     No assignments yet
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {assignmentsData.slice(0, 3).map((assignment: any) => (
+                    {typedAssignments.slice(0, 3).map((assignment: HookAssignment) => (
                       <div key={assignment.id} className="flex justify-between items-center p-3 bg-gray-100/5 hover:bg-gray-200/8  rounded-lg">
                         <div>
                           <p className="font-medium">{assignment.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            Due: {new Date(assignment.due_date).toLocaleDateString()}
+                            Due: {new Date(assignment.due_on).toLocaleDateString()}
                           </p>
                         </div>
                         <Badge variant="outline">Active</Badge>
@@ -669,6 +732,17 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           />
         </AnimatedTabsContent>
 
+        <AnimatedTabsContent value="chat" className="space-y-6">
+          <ChatTabs
+            classroomSlug={classroomSlug}
+            currentUserId={membersData?.members?.find(m => m.is_current_user)?.user_id || 'unknown'}
+            currentUserName={membersData?.members?.find(m => m.is_current_user)?.name || 'Unknown User'}
+            isOpen={true}
+            onToggle={() => {}}
+            className="relative w-full h-[600px] border-0 shadow-none bg-transparent"
+          />
+        </AnimatedTabsContent>
+
         <AnimatedTabsContent value="recent" className="space-y-6">
           <Card 
             style={{
@@ -687,6 +761,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             </CardContent>
           </Card>
         </AnimatedTabsContent>
+        </div>
       </Tabs>
     </div>
   );

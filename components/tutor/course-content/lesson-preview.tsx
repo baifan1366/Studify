@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, FileText, Image, ExternalLink, Clock, BookOpen, X, Download, Maximize2, List } from 'lucide-react';
 import {
   Dialog,
@@ -16,6 +16,8 @@ import { useTranslations } from 'next-intl';
 import { Lesson } from '@/interface/courses/lesson-interface';
 import { cn } from '@/lib/utils';
 import ChapterManagement from './chapter-management';
+import { detectLessonVideoSource, detectAttachmentVideo } from '@/utils/attachment/video-utils';
+import VideoPlayer from '@/components/ui/video-player';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -30,18 +32,45 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   const t = useTranslations('LessonPreview');
   const [contentType, setContentType] = useState<ContentType>('unknown');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [embedError, setEmbedError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
+  const [cloudinaryData, setCloudinaryData] = useState<{
+    hls_url?: string;
+    fallback_url?: string;
+    cached?: boolean;
+  } | null>(null);
+  const [processingVideo, setProcessingVideo] = useState(false);
+  const [processingStage, setProcessingStage] = useState<string>('');
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryTimeout, setRetryTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<number>(0);
+  const [processingStartTime, setProcessingStartTime] = useState<number>(0);
 
-  // Detect content type from URL
-  const detectContentType = (url: string): ContentType => {
-    if (!url) return 'unknown';
+  // Detect content type with priority system
+  const detectContentType = (lesson: Lesson): ContentType => {
+    // Priority 1: Check attachments first
+    if (lesson.attachments && lesson.attachments.length > 0) {
+      // Assume attachments are videos (could be enhanced to check file type)
+      return 'video';
+    }
     
+    // Priority 2: Check content_url
+    if (!lesson.content_url) return 'unknown';
+    
+    const url = lesson.content_url;
     const urlLower = url.toLowerCase();
     
-    // Video detection
+    // Check for MEGA attachments in content_url
+    const attachmentInfo = detectAttachmentVideo(url);
+    if (attachmentInfo?.isMegaAttachment) {
+      return 'video';
+    }
+    
+    // Video detection for external sources
     if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be') || 
         urlLower.includes('vimeo.com') || urlLower.includes('loom.com') ||
         urlLower.includes('facebook.com') || urlLower.includes('fb.watch') ||
@@ -144,12 +173,20 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   };
 
   useEffect(() => {
-    if (lesson?.content_url) {
-      setContentType(detectContentType(lesson.content_url));
+    if (lesson) {
+      const detectedType = detectContentType(lesson);
+      setContentType(detectedType);
       setError(null);
       setEmbedError(false);
+      // Reset loading states when lesson changes
+      setIsLoading(false);
+      setLoadingProgress(0);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
-  }, [lesson?.content_url]);
+  }, [lesson?.attachments, lesson?.content_url, loadingTimeout]);
 
   const formatDuration = (seconds?: number): string => {
     if (!seconds) return '';
@@ -182,8 +219,332 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
     }
   };
 
+  // Calculate exponential backoff delay
+  const getRetryDelay = (attempt: number): number => {
+    return Math.min(1000 * Math.pow(2, attempt), 30000); // Max 30 seconds
+  };
+
+  // Estimate processing time based on file size
+  const estimateProcessingTime = (sizeBytes?: number): number => {
+    if (!sizeBytes) return 60; // Default 1 minute
+    const sizeMB = sizeBytes / (1024 * 1024);
+    // Rough estimate: 10 seconds per MB + 30 seconds base time
+    return Math.max(30, Math.ceil(sizeMB * 10 + 30));
+  };
+
+  // Fetch Cloudinary HLS URL for MEGA videos with retry logic
+  const fetchCloudinaryUrl = async (attachmentId: number, attempt: number = 0) => {
+    
+    if (!attachmentId || attachmentId === undefined) {
+      console.error('❌ Invalid attachment ID:', attachmentId);
+      setError('Invalid attachment ID');
+      return;
+    }
+    
+    setProcessingVideo(true);
+    setRetryCount(attempt);
+    
+    if (attempt === 0) {
+      setProcessingStartTime(Date.now());
+
+      // Use default estimate since we only have attachment IDs, not full attachment objects
+      // The actual file size would need to be fetched from the database if needed for estimation
+      setEstimatedTime(60); // Default estimate
+    }
+    
+    try {
+      setProcessingStage(attempt === 0 ? 'Initializing video processing...' : `Retrying... (attempt ${attempt + 1})`);
+      
+      const url = `/api/video/preview?attachmentId=${attachmentId}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('retry-after') || '3600', 10);
+        throw new Error(`Rate limit exceeded. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`);
+      }
+      
+      // Handle processing in progress
+      if (response.status === 202 && data.processing) {
+        setProcessingStage('Video is being processed by another request...');
+        const retryAfter = parseInt(response.headers.get('retry-after') || '300', 10);
+        
+        if (attempt < 3) {
+          const delay = Math.max(retryAfter * 1000, getRetryDelay(attempt));
+          setRetryTimeout(setTimeout(() => {
+            fetchCloudinaryUrl(attachmentId, attempt + 1);
+          }, delay));
+          return;
+        } else {
+          throw new Error('Video processing is taking longer than expected. Please try again later.');
+        }
+      }
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process video');
+      }
+      
+      setProcessingStage('Processing completed successfully!');
+      const newCloudinaryData = {
+        hls_url: data.hls_url,
+        fallback_url: data.fallback_url,
+        cached: data.cached,
+      };
+      setCloudinaryData(newCloudinaryData);
+      
+      // Stop processing since we got the data successfully
+      setProcessingVideo(false);
+      setProcessingStage('');
+      
+    } catch (error) {
+      console.error('❌ Cloudinary processing failed:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Video processing failed';
+      
+      // Implement retry logic with exponential backoff
+      if (attempt < 3 && !errorMessage.includes('Rate limit') && !errorMessage.includes('Access denied')) {
+        const delay = getRetryDelay(attempt);
+        setProcessingStage(`Processing failed. Retrying in ${Math.ceil(delay / 1000)} seconds...`);
+        
+        setRetryTimeout(setTimeout(() => {
+          fetchCloudinaryUrl(attachmentId, attempt + 1);
+        }, delay));
+        return;
+      }
+      
+      // Final fallback: try direct MEGA streaming
+      if (attempt >= 3) {
+        setProcessingStage('Falling back to direct streaming...');
+        setError('Video processing failed. Attempting direct streaming as fallback.');
+        // Note: Direct MEGA streaming would need to be implemented in the streaming API
+      } else {
+        setError(errorMessage);
+      }
+    } finally {
+      if (attempt >= 3 || cloudinaryData) {
+        setProcessingVideo(false);
+        setProcessingStage('');
+      }
+    }
+  };
+
+  // Cleanup retry timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [retryTimeout]);
+
+  // Render video content with Cloudinary HLS streaming
+  const renderVideoContent = () => {
+    
+    // Use priority-based video source detection
+    const videoSource = detectLessonVideoSource(lesson?.attachments, lesson?.content_url);
+
+    // Check if we have any video source
+    if (!videoSource) {
+      console.error('❌ No video source found');
+      setEmbedError(true);
+      return null;
+    }
+
+    // Handle MEGA attachments with Cloudinary processing
+    if (videoSource.sourceType === 'attachment' && lesson?.attachments?.[0]) {
+      const attachmentId = lesson.attachments[0]; // This is already the ID number
+      
+      // If we don't have Cloudinary data yet, fetch it
+      if (!cloudinaryData && !processingVideo) {
+        fetchCloudinaryUrl(attachmentId);
+        return (
+          <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+            <div className="text-center text-white space-y-4 max-w-md">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
+              <div className="space-y-3">
+                <p className="text-lg font-medium">Processing video for streaming...</p>
+                {processingStage && (
+                  <p className="text-sm opacity-90 font-medium">{processingStage}</p>
+                )}
+                {estimatedTime > 0 && processingStartTime > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs opacity-70">
+                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                    </p>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                        style={{
+                          width: `${Math.min(100, ((Date.now() - processingStartTime) / (estimatedTime * 1000)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                {retryCount > 0 && (
+                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                )}
+                <p className="text-xs opacity-60">Large files may take several minutes to process</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // Show processing state
+      if (processingVideo) {
+        return (
+          <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+            <div className="text-center text-white space-y-4 max-w-md">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
+              <div className="space-y-3">
+                <p className="text-lg font-medium">Processing video...</p>
+                {processingStage && (
+                  <p className="text-sm opacity-90 font-medium">{processingStage}</p>
+                )}
+                {estimatedTime > 0 && processingStartTime > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs opacity-70">
+                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                    </p>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                        style={{
+                          width: `${Math.min(100, ((Date.now() - processingStartTime) / (estimatedTime * 1000)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                {retryCount > 0 && (
+                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                )}
+                <p className="text-xs opacity-60">Converting to HLS streaming format</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // Use Cloudinary HLS streaming if available
+      if (cloudinaryData?.hls_url) {
+        return (
+          <div className="space-y-2">
+            <VideoPlayer
+              hlsSrc={cloudinaryData.hls_url}
+              src={cloudinaryData.fallback_url}
+              className="aspect-video"
+              onError={(error) => {
+                console.error('🎬 VideoPlayer error:', error);
+                setError(`VideoPlayer error: ${error}`);
+              }}
+              onLoadStart={() => {
+                // Only set loading if we don't already have cloudinary data loaded
+                if (!cloudinaryData?.hls_url) {
+                  setIsLoading(true);
+                }
+              }}
+              onCanPlay={() => {
+                setIsLoading(false);
+              }}
+            />
+            {cloudinaryData.cached && (
+              <div className="text-xs text-muted-foreground text-center">
+                ✓ Using cached HLS stream
+              </div>
+            )}
+            {!cloudinaryData.cached && processingStartTime > 0 && (
+              <div className="text-xs text-muted-foreground text-center">
+                ✓ Processed in {Math.ceil((Date.now() - processingStartTime) / 1000)} seconds
+              </div>
+            )}
+          </div>
+        );
+      } 
+    }
+
+    // Error fallback UI
+    if (embedError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 bg-muted/30 rounded-lg">
+          <Play className="h-16 w-16 text-muted-foreground" />
+          <div>
+            <h3 className="text-lg font-medium text-foreground mb-2">{t('videoEmbedError')}</h3>
+            <p className="text-muted-foreground mb-4">{t('videoEmbedErrorDescription')}</p>
+            <Button
+              variant="outline"
+              onClick={() => window.open(lesson?.content_url as string, '_blank')}
+              className="gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t('openLink')}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Handle MEGA content_url with Cloudinary processing
+    if (videoSource.sourceType === 'content_url' && videoSource.isMegaAttachment) {
+      // For content_url MEGA videos, show message to use attachments system
+      return (
+        <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+          <div className="text-center text-white space-y-4">
+            <Play className="h-16 w-16 mx-auto opacity-50" />
+            <div>
+              <p className="text-lg font-medium">MEGA Video Detected</p>
+              <p className="text-sm opacity-80">Please use the attachments system for optimal streaming</p>
+              <p className="text-xs opacity-60 mt-2">Direct MEGA URLs are no longer supported for security reasons</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Handle third-party URLs (YouTube, Vimeo, etc.)
+    if (videoSource.sourceType === 'content_url' && !videoSource.isMegaAttachment) {
+      const videoSrc = videoSource.videoSrc!;
+      
+      // For third-party videos, use the original embed approach
+      return renderThirdPartyVideo(videoSrc);
+    }
+
+    console.error('❌ Invalid video source configuration');
+    setEmbedError(true);
+    return null;
+  };
+
+  // Render third-party video content (YouTube, Vimeo, etc.)
+  const renderThirdPartyVideo = (videoSrc: string) => {
+
+    // Check for iframe-based embedding (YouTube, Vimeo, etc.)
+    const embedUrl = getEmbedUrl(videoSrc, 'video');
+    
+    return (
+      <div className="aspect-video bg-black rounded-lg overflow-hidden">
+        <iframe
+          src={embedUrl}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onError={() => {
+            console.error('❌ Iframe embed error:', embedUrl);
+            setEmbedError(true);
+          }}
+        />
+      </div>
+    );
+  };
+
   const renderContent = () => {
-    if (!lesson?.content_url) {
+    // Check if we have any content source (attachments or content_url)
+    const hasAttachments = lesson?.attachments && lesson.attachments.length > 0;
+    const hasContentUrl = lesson?.content_url;
+    
+    if (!hasAttachments && !hasContentUrl) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -193,80 +554,12 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    const embedUrl = getEmbedUrl(lesson.content_url, contentType);
+    // Use the original URL as entered by the tutor
+    const embedUrl = lesson.content_url;
 
     switch (contentType) {
       case 'video':
-        if (embedError) {
-          return (
-            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 bg-muted/30 rounded-lg">
-              <Play className="h-16 w-16 text-muted-foreground" />
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">{t('videoEmbedError')}</h3>
-                <p className="text-muted-foreground mb-4">{t('videoEmbedErrorDescription')}</p>
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(lesson.content_url, '_blank')}
-                  className="gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {t('openLink')}
-                </Button>
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div className={cn(
-            "relative bg-black rounded-lg overflow-hidden",
-            isFullscreen ? "fixed inset-0 z-50" : "aspect-video"
-          )}>
-            <iframe
-              src={embedUrl}
-              className="w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
-              title={lesson.title}
-              onError={() => setEmbedError(true)}
-              onLoad={(e) => {
-                // Check if iframe content loaded successfully
-                try {
-                  const iframe = e.target as HTMLIFrameElement;
-                  if (iframe.contentDocument === null) {
-                    setEmbedError(true);
-                  }
-                } catch (error) {
-                  // Cross-origin restrictions prevent access, but this is normal for YouTube embeds
-                  // We'll rely on the onError handler for actual errors
-                }
-              }}
-            />
-            <div className="absolute top-2 right-2 flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-black/50 hover:bg-black/70 text-white"
-                onClick={() => setShowChapters(!showChapters)}
-                title={t('chapters')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-black/50 hover:bg-black/70 text-white"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-              >
-                {isFullscreen ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-        );
+        return renderVideoContent();
 
       case 'image':
         return (
@@ -334,24 +627,24 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
 
       case 'document':
         // Try to preview common document formats
-        const isGoogleDoc = lesson.content_url.includes('docs.google.com');
-        const isOfficeDoc = lesson.content_url.includes('office.com') || lesson.content_url.includes('sharepoint.com');
-        const canPreview = isGoogleDoc || isOfficeDoc || lesson.content_url.toLowerCase().includes('.pdf');
+        const isGoogleDoc = lesson?.content_url?.includes('docs.google.com');
+        const isOfficeDoc = lesson?.content_url?.includes('office.com') || lesson?.content_url?.includes('sharepoint.com');
+        const canPreview = isGoogleDoc || isOfficeDoc || lesson?.content_url?.toLowerCase().includes('.pdf');
         
         if (canPreview) {
-          let previewUrl = lesson.content_url;
+          let previewUrl = lesson?.content_url;
           
           // Convert Google Docs to preview mode
-          if (isGoogleDoc && !lesson.content_url.includes('/preview')) {
-            previewUrl = lesson.content_url.replace('/edit', '/preview').replace('/view', '/preview');
-            if (!previewUrl.includes('/preview')) {
+          if (isGoogleDoc && !lesson?.content_url?.includes('/preview')) {
+            previewUrl = lesson?.content_url?.replace('/edit', '/preview').replace('/view', '/preview');
+            if (!previewUrl?.includes('/preview')) {
               previewUrl += '/preview';
             }
           }
           
           // Office documents can often be previewed directly
-          if (isOfficeDoc && !lesson.content_url.includes('embed=1')) {
-            previewUrl += (lesson.content_url.includes('?') ? '&' : '?') + 'embed=1';
+          if (isOfficeDoc && !lesson?.content_url?.includes('embed=1')) {
+            previewUrl += (lesson?.content_url?.includes('?') ? '&' : '?') + 'embed=1';
           }
           
           return (

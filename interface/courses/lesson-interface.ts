@@ -6,6 +6,7 @@ export interface Lesson {
   title: string;
   kind: 'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard';
   content_url?: string;
+  attachments?: number[]; // Array of attachment IDs
   duration_sec?: number;
   live_session_id?: number;
   is_deleted: boolean;

@@ -53,6 +53,32 @@ const createComment = async (params: {
   return response.json();
 };
 
+const editComment = async (params: {
+  groupSlug: string;
+  postSlug: string;
+  commentId: string;
+  body: string;
+}): Promise<Comment> => {
+  const { groupSlug, postSlug, commentId, body } = params;
+
+  const formData = new FormData();
+  formData.append("body", body);
+
+  const response = await fetch(
+    `/api/community/groups/${groupSlug}/posts/${postSlug}/comments/${commentId}`,
+    {
+      method: "PATCH",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to edit comment: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
 // Delete a comment
 const deleteComment = async (params: {
   groupSlug: string;
@@ -91,6 +117,24 @@ export const useCreateComment = (groupSlug: string, postSlug: string) => {
         queryKey: ["comments", groupSlug, postSlug],
       });
       // Also invalidate post data to update comment count
+      queryClient.invalidateQueries({
+        queryKey: ["post", groupSlug, postSlug],
+      });
+    },
+  });
+};
+
+export const useEditComment = (groupSlug: string, postSlug: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: editComment,
+    onSuccess: () => {
+      // Invalidate and refetch comments
+      queryClient.invalidateQueries({
+        queryKey: ["comments", groupSlug, postSlug],
+      });
+      // 可能需要更新 post 数据（例如评论数没变，但 last_updated 可能更新）
       queryClient.invalidateQueries({
         queryKey: ["post", groupSlug, postSlug],
       });

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import ChapterManagement from './chapter-management';
 import { detectLessonVideoSource, detectAttachmentVideo } from '@/utils/attachment/video-utils';
 import VideoPlayer from '@/components/ui/video-player';
+import { DocumentPreview, type FileType } from '@/components/ui/document-preview';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -554,189 +555,66 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    // Use the original URL as entered by the tutor
-    const embedUrl = lesson.content_url;
-
-    switch (contentType) {
-      case 'video':
-        return renderVideoContent();
-
-      case 'image':
-        return (
-          <div className="relative">
-            <img
-              src={lesson.content_url}
-              alt={lesson.title}
-              className="w-full h-auto max-h-96 object-contain rounded-lg bg-muted"
-              onError={() => setError(t('imageLoadError'))}
-            />
-          </div>
-        );
-
-      case 'pdf':
-        return (
-          <div className="space-y-4">
-            <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
-              <iframe
-                src={`${lesson.content_url}#toolbar=0&navpanes=0&scrollbar=0`}
-                className="w-full h-full"
-                title={lesson.title}
-                onError={() => setError(t('pdfLoadError'))}
-              />
-            </div>
-            <div className="flex justify-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => window.open(lesson.content_url, '_blank')}
-                className="gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t('openInNewTab')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = lesson.content_url ? lesson.content_url as string : '';
-                  link.download = lesson.title + '.pdf';
-                  link.click();
-                }}
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                {t('downloadPdf')}
-              </Button>
-            </div>
-          </div>
-        );
-
-      case 'audio':
-        return (
-          <div className="space-y-4">
-            <div className="bg-muted rounded-lg p-6">
-              <audio
-                controls
-                className="w-full"
-                src={lesson.content_url}
-              >
-                {t('audioNotSupported')}
-              </audio>
-            </div>
-          </div>
-        );
-
-      case 'document':
-        // Try to preview common document formats
-        const isGoogleDoc = lesson?.content_url?.includes('docs.google.com');
-        const isOfficeDoc = lesson?.content_url?.includes('office.com') || lesson?.content_url?.includes('sharepoint.com');
-        const canPreview = isGoogleDoc || isOfficeDoc || lesson?.content_url?.toLowerCase().includes('.pdf');
-        
-        if (canPreview) {
-          let previewUrl = lesson?.content_url;
-          
-          // Convert Google Docs to preview mode
-          if (isGoogleDoc && !lesson?.content_url?.includes('/preview')) {
-            previewUrl = lesson?.content_url?.replace('/edit', '/preview').replace('/view', '/preview');
-            if (!previewUrl?.includes('/preview')) {
-              previewUrl += '/preview';
-            }
-          }
-          
-          // Office documents can often be previewed directly
-          if (isOfficeDoc && !lesson?.content_url?.includes('embed=1')) {
-            previewUrl += (lesson?.content_url?.includes('?') ? '&' : '?') + 'embed=1';
-          }
-          
-          return (
-            <div className="space-y-4">
-              <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-full"
-                  title={lesson.title}
-                  onError={() => setError(t('documentLoadError'))}
-                />
-              </div>
-              <div className="flex justify-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(lesson.content_url, '_blank')}
-                  className="gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {t('openInNewTab')}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = lesson.content_url ? lesson.content_url as string : '';
-                    link.download = lesson.title;
-                    link.click();
-                  }}
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  {t('downloadDocument')}
-                </Button>
-              </div>
-            </div>
-          );
-        }
-        
-        // Fallback for non-previewable documents
-        return (
-          <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-            <FileText className="h-16 w-16 text-muted-foreground" />
-            <div>
-              <h3 className="text-lg font-medium text-foreground mb-2">{t('documentPreview')}</h3>
-              <p className="text-muted-foreground mb-4">{t('documentPreviewDescription')}</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(lesson.content_url, '_blank')}
-                  className="gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {t('openDocument')}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = lesson.content_url ? lesson.content_url as string : '';
-                    link.download = lesson.title;
-                    link.click();
-                  }}
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  {t('downloadDocument')}
-                </Button>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-            <ExternalLink className="h-16 w-16 text-muted-foreground" />
-            <div>
-              <h3 className="text-lg font-medium text-foreground mb-2">{t('externalContent')}</h3>
-              <p className="text-muted-foreground mb-4">{t('externalContentDescription')}</p>
-              <Button
-                variant="outline"
-                onClick={() => window.open(lesson.content_url, '_blank')}
-                className="gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t('openLink')}
-              </Button>
-            </div>
-          </div>
-        );
+    // Handle video content with existing video logic
+    if (contentType === 'video') {
+      return renderVideoContent();
     }
+
+    // Handle audio content (keep existing logic)
+    if (contentType === 'audio') {
+      return (
+        <div className="space-y-4">
+          <div className="bg-muted rounded-lg p-6">
+            <audio
+              controls
+              className="w-full"
+              src={lesson.content_url}
+            >
+              {t('audioNotSupported')}
+            </audio>
+          </div>
+        </div>
+      );
+    }
+
+    // For all other content types, use the DocumentPreview component
+    if (lesson.content_url) {
+      const attachmentId = hasAttachments ? lesson.attachments?.[0] : undefined;
+      
+      return (
+        <DocumentPreview
+          url={lesson.content_url}
+          fileType={lesson.kind as FileType}
+          attachmentId={attachmentId}
+          onDownload={() => {
+            const link = document.createElement('a');
+            link.href = lesson.content_url as string;
+            link.download = lesson.title;
+            link.click();
+          }}
+          showControls={true}
+        />
+      );
+    }
+
+    // Fallback for unknown content
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+        <ExternalLink className="h-16 w-16 text-muted-foreground" />
+        <div>
+          <h3 className="text-lg font-medium text-foreground mb-2">{t('externalContent')}</h3>
+          <p className="text-muted-foreground mb-4">{t('externalContentDescription')}</p>
+          <Button
+            variant="outline"
+            onClick={() => window.open(lesson.content_url, '_blank')}
+            className="gap-2"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {t('openLink')}
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   if (!lesson) return null;

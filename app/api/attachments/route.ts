@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { uploadToMega } from '@/lib/mega'
 import { createAttachmentAdminClient } from '@/utils/supabase/server'
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
+import { detectFileType } from '@/utils/attachment/file-type-detector'
 
 /**
  * POST /api/attachments
@@ -49,6 +50,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Detect file type from filename and MIME type
+    const fileType = detectFileType(file.name, file.type)
+
     // Upload file to MEGA
     const { url, size } = await uploadToMega(file)
 
@@ -61,7 +65,8 @@ export async function POST(request: NextRequest) {
         owner_id: ownerIdNum,
         title,
         url,
-        size
+        size,
+        type: fileType
       })
       .select()
       .single()
@@ -93,7 +98,7 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('course_attachments')
-      .select('id, title, url, size, created_at, owner_id')
+      .select('id, title, url, size, type, created_at, owner_id')
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
 

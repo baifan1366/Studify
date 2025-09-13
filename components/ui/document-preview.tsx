@@ -10,6 +10,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import ReactMarkdown from 'react-markdown'
+import { useTranslations } from 'next-intl'
 
 // Set up PDF.js worker with version matching
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -39,6 +40,7 @@ export function DocumentPreview({
   className = '',
   showControls = true
 }: DocumentPreviewProps) {
+  const t = useTranslations('DocumentPreview')
   const [fileType, setFileType] = useState<FileType>(providedFileType || 'other')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -554,14 +556,14 @@ export function DocumentPreview({
             <div className="text-center text-white space-y-4 max-w-md">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
               <div className="space-y-3">
-                <p className="text-lg font-medium">Processing video for streaming...</p>
+                <p className="text-lg font-medium">{t('processing_video')}</p>
                 {processingStage && (
                   <p className="text-sm opacity-90 font-medium">{processingStage}</p>
                 )}
                 {estimatedTime > 0 && processingStartTime > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs opacity-70">
-                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                      {t('estimated_time')}: {Math.ceil(estimatedTime / 60)} {t('minutes')}
                     </p>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div 
@@ -574,9 +576,9 @@ export function DocumentPreview({
                   </div>
                 )}
                 {retryCount > 0 && (
-                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                  <p className="text-xs opacity-70">{t('retry_attempt')}: {retryCount + 1}/{t('max_retries')}</p>
                 )}
-                <p className="text-xs opacity-60">Large files may take several minutes to process</p>
+                <p className="text-xs opacity-60">{t('large_files')}: {t('several_minutes')}</p>
               </div>
             </div>
           </div>
@@ -590,14 +592,14 @@ export function DocumentPreview({
             <div className="text-center text-white space-y-4 max-w-md">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
               <div className="space-y-3">
-                <p className="text-lg font-medium">Processing video...</p>
+                <p className="text-lg font-medium">{t('processing_video')}</p>
                 {processingStage && (
                   <p className="text-sm opacity-90 font-medium">{processingStage}</p>
                 )}
                 {estimatedTime > 0 && processingStartTime > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs opacity-70">
-                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                      {t('estimated_time')}: {Math.ceil(estimatedTime / 60)} {t('minutes')}
                     </p>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div 
@@ -610,9 +612,9 @@ export function DocumentPreview({
                   </div>
                 )}
                 {retryCount > 0 && (
-                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                  <p className="text-xs opacity-70">{t('retry_attempt')}: {retryCount + 1}/{t('max_retries')}</p>
                 )}
-                <p className="text-xs opacity-60">Converting to HLS streaming format</p>
+                <p className="text-xs opacity-60">{t('converting_to_hls_streaming_format')}</p>
               </div>
             </div>
           </div>
@@ -627,11 +629,11 @@ export function DocumentPreview({
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="flex items-center gap-2 bg-secondary text-secondary-foreground">
                   <Play className="h-4 w-4" />
-                  Video File
+                  {t('video_file')}
                 </Badge>
                 <Button onClick={handleDownload} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
-                  Download
+                  {t('download')}
                 </Button>
               </div>
             )}
@@ -655,12 +657,12 @@ export function DocumentPreview({
               />
               {cloudinaryData.cached && (
                 <div className="text-xs text-muted-foreground text-center">
-                  ✓ Using cached HLS stream
+                  ✓ {t('using_cached_hls_stream')}
                 </div>
               )}
               {!cloudinaryData.cached && processingStartTime > 0 && (
                 <div className="text-xs text-muted-foreground text-center">
-                  ✓ Processed in {Math.ceil((Date.now() - processingStartTime) / 1000)} seconds
+                  ✓ {t('processed_in')} {Math.ceil((Date.now() - processingStartTime) / 1000)} {t('seconds')}
                 </div>
               )}
             </div>
@@ -674,14 +676,14 @@ export function DocumentPreview({
       <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
         <Play className="h-16 w-16 text-muted-foreground" />
         <div>
-          <h3 className="text-lg font-medium text-foreground mb-2">Video Preview</h3>
+          <h3 className="text-lg font-medium text-foreground mb-2">{t('video_preview')}</h3>
           <p className="text-muted-foreground mb-4">
-            Video streaming is not available for this file. You can download it to view.
+            {t('video_streaming_not_available')}
           </p>
           <div className="flex gap-2">
             <Button onClick={handleDownload} className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Download className="h-4 w-4 mr-2" />
-              Download
+              {t('download')}
             </Button>
             <Button
               variant="outline"
@@ -689,7 +691,7 @@ export function DocumentPreview({
               className="gap-2"
             >
               <ExternalLink className="h-4 w-4" />
-              Open Link
+              {t('open_link')}
             </Button>
           </div>
         </div>
@@ -704,11 +706,11 @@ export function DocumentPreview({
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <div className="space-y-2">
             <p className="text-muted-foreground">
-              {isValidating ? 'Validating file...' : processingStage || 'Loading preview...'}
+              {isValidating ? t('validating_file') : processingStage || t('loading_preview')}
             </p>
             {fileSize > 0 && (
               <p className="text-xs text-muted-foreground">
-                File size: {(fileSize / (1024 * 1024)).toFixed(1)}MB
+                {t('file_size')}: {(fileSize / (1024 * 1024)).toFixed(1)}MB
               </p>
             )}
             {fileType === 'pdf' && loadingProgress > 0 && (
@@ -720,13 +722,13 @@ export function DocumentPreview({
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(loadingProgress)}% loaded
+                  {Math.round(loadingProgress)}% {t('loaded')}
                 </p>
               </div>
             )}
             {retryCount > 0 && (
               <p className="text-xs text-muted-foreground">
-                Retry attempt {retryCount}/{MAX_RETRIES}
+                {t('retry_attempt')} {retryCount}/{MAX_RETRIES}
               </p>
             )}
           </div>
@@ -744,35 +746,35 @@ export function DocumentPreview({
             <p className="text-destructive font-medium">{error}</p>
             {fileSize > 50 * 1024 * 1024 && (
               <div className="text-xs text-yellow-600 bg-yellow-50 p-3 rounded-lg space-y-1">
-                <p className="font-medium">⚠️ Large File Detected</p>
-                <p>Files over 50MB may have loading issues. Consider:</p>
+                <p className="font-medium">⚠️ {t('large_file_detected')}</p>
+                <p>{t('files_over_50mb_may_have_loading_issues')}. {t('consider')}</p>
                 <ul className="text-left space-y-1 mt-2">
-                  <li>• Downloading the file for local viewing</li>
-                  <li>• Using a smaller file if available</li>
-                  <li>• Checking your internet connection speed</li>
+                  <li>• {t('downloading_file_for_local_viewing')}</li>
+                  <li>• {t('using_smaller_file_if_available')}</li>
+                  <li>• {t('checking_internet_connection_speed')}</li>
                 </ul>
               </div>
             )}
             {corsError && (
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>💡 Possible solutions:</p>
+                <p>💡 {t('possible_solutions')}:</p>
                 <ul className="text-left max-w-md mx-auto space-y-1">
-                  <li>• Download the file to view it locally</li>
-                  <li>• Ask the file owner to enable CORS</li>
-                  <li>• Use a proxy service for external files</li>
+                  <li>• {t('downloading_file_for_local_viewing')}</li>
+                  <li>• {t('ask_file_owner_to_enable_cors')}</li>
+                  <li>• {t('use_proxy_service_for_external_files')}</li>
                 </ul>
               </div>
             )}
             {retryCount >= MAX_RETRIES && (
               <p className="text-xs text-muted-foreground">
-                All retry attempts failed. Please check your internet connection.
+                {t('all_retry_attempts_failed')}. {t('please_check_internet_connection')}
               </p>
             )}
           </div>
           <div className="flex gap-2 justify-center flex-wrap">
             <Button onClick={handleDownload} variant="outline">
               <Download className="h-4 w-4 mr-2" />
-              Download File
+              {t('download_file')}
             </Button>
             <Button
               variant="outline"
@@ -780,7 +782,7 @@ export function DocumentPreview({
               className="gap-2"
             >
               <ExternalLink className="h-4 w-4" />
-              Open Direct Link
+              {t('open_direct_link')}
             </Button>
             {retryCount > 0 && retryCount < MAX_RETRIES && (
               <Button 
@@ -797,7 +799,7 @@ export function DocumentPreview({
                 }}
                 variant="default"
               >
-                Retry Loading
+                {t('retry_loading')}
               </Button>
             )}
           </div>
@@ -818,7 +820,7 @@ export function DocumentPreview({
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="flex items-center gap-2 bg-secondary text-secondary-foreground">
                   <FileText className="h-4 w-4" />
-                  PDF Document
+                  {t('pdf_document')}
                 </Badge>
                 <div className="flex items-center gap-2">
                   {numPages > 0 && (
@@ -845,7 +847,7 @@ export function DocumentPreview({
                   )}
                   <Button onClick={handleDownload} variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-2" />
-                    Download
+                    {t('download')}
                   </Button>
                 </div>
               </div>
@@ -872,7 +874,7 @@ export function DocumentPreview({
                     <div className="text-center space-y-3">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                       <span className="text-sm text-muted-foreground">
-                        Loading PDF...
+                        {t('loading_pdf')}
                       </span>
                       {loadingProgress > 0 && (
                         <div className="w-32 mx-auto">
@@ -914,11 +916,11 @@ export function DocumentPreview({
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="flex items-center gap-2 bg-secondary text-secondary-foreground">
                   <FileText className="h-4 w-4" />
-                  Office Document
+                  {t('office_document')}
                 </Badge>
                 <Button onClick={handleDownload} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
-                  Download
+                  {t('download')}
                 </Button>
               </div>
             )}
@@ -945,7 +947,7 @@ export function DocumentPreview({
                       {processingStage || 'Loading Office document...'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Large documents may take up to 2 minutes to load
+                      {t('large_documents_may_take_up_to_2_minutes_to_load')}
                     </p>
                   </div>
                 </div>
@@ -961,11 +963,11 @@ export function DocumentPreview({
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="flex items-center gap-2 bg-secondary text-secondary-foreground">
                   <FileText className="h-4 w-4" />
-                  Text File
+                  {t('text_file')}
                 </Badge>
                 <Button onClick={handleDownload} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
-                  Download
+                  {t('download')}
                 </Button>
               </div>
             )}
@@ -990,11 +992,11 @@ export function DocumentPreview({
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="flex items-center gap-2 bg-secondary text-secondary-foreground">
                   <ImageIcon className="h-4 w-4" />
-                  Image File
+                  {t('image_file')}
                 </Badge>
                 <Button onClick={handleDownload} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
-                  Download
+                  {t('download')}
                 </Button>
               </div>
             )}
@@ -1015,14 +1017,14 @@ export function DocumentPreview({
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2 text-foreground">Preview Not Available</h3>
+              <h3 className="text-lg font-medium mb-2 text-foreground">{t('preview_not_available')}</h3>
               <p className="text-muted-foreground mb-6">
-                This file type is not supported for preview. You can download it to view.
+                {t('this_file_type_is_not_supported_for_preview_you_can_download_it_to_view')}
               </p>
               <div className="flex gap-2 justify-center">
                 <Button onClick={handleDownload} className="bg-primary text-primary-foreground hover:bg-primary/90">
                   <Download className="h-4 w-4 mr-2" />
-                  Download
+                  {t('download')}
                 </Button>
                 <Button
                   variant="outline"
@@ -1030,7 +1032,7 @@ export function DocumentPreview({
                   className="gap-2"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Open Link
+                  {t('open_link')}
                 </Button>
               </div>
             </div>

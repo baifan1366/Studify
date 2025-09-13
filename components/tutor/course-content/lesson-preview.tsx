@@ -365,14 +365,14 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
             <div className="text-center text-white space-y-4 max-w-md">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
               <div className="space-y-3">
-                <p className="text-lg font-medium">Processing video for streaming...</p>
+                <p className="text-lg font-medium">{t('processing_video')}</p>
                 {processingStage && (
                   <p className="text-sm opacity-90 font-medium">{processingStage}</p>
                 )}
                 {estimatedTime > 0 && processingStartTime > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs opacity-70">
-                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                      {t('estimated_time')}: {Math.ceil(estimatedTime / 60)} {t('minutes')}
                     </p>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div 
@@ -385,9 +385,9 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
                   </div>
                 )}
                 {retryCount > 0 && (
-                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                  <p className="text-xs opacity-70">{t('retry_attempt')}: {retryCount + 1}/4</p>
                 )}
-                <p className="text-xs opacity-60">Large files may take several minutes to process</p>
+                <p className="text-xs opacity-60">{t('large_files_may_take_several_minutes_to_process')}</p>
               </div>
             </div>
           </div>
@@ -401,14 +401,14 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
             <div className="text-center text-white space-y-4 max-w-md">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
               <div className="space-y-3">
-                <p className="text-lg font-medium">Processing video...</p>
+                <p className="text-lg font-medium">{t('processing_video')}</p>
                 {processingStage && (
                   <p className="text-sm opacity-90 font-medium">{processingStage}</p>
                 )}
                 {estimatedTime > 0 && processingStartTime > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs opacity-70">
-                      Estimated time: {Math.ceil(estimatedTime / 60)} minutes
+                      {t('estimated_time')}: {Math.ceil(estimatedTime / 60)} {t('minutes')}
                     </p>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div 
@@ -421,9 +421,9 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
                   </div>
                 )}
                 {retryCount > 0 && (
-                  <p className="text-xs opacity-70">Retry attempt: {retryCount + 1}/4</p>
+                  <p className="text-xs opacity-70">{t('retry_attempt')}: {retryCount + 1}/4</p>
                 )}
-                <p className="text-xs opacity-60">Converting to HLS streaming format</p>
+                <p className="text-xs opacity-60">{t('converting_to_hls_streaming_format')}</p>
               </div>
             </div>
           </div>
@@ -454,12 +454,12 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
             />
             {cloudinaryData.cached && (
               <div className="text-xs text-muted-foreground text-center">
-                ✓ Using cached HLS stream
+                ✓ {t('using_cached_hls_stream')}
               </div>
             )}
             {!cloudinaryData.cached && processingStartTime > 0 && (
               <div className="text-xs text-muted-foreground text-center">
-                ✓ Processed in {Math.ceil((Date.now() - processingStartTime) / 1000)} seconds
+                ✓ {t('processed_in')} {Math.ceil((Date.now() - processingStartTime) / 1000)} {t('seconds')}
               </div>
             )}
           </div>
@@ -496,9 +496,9 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
           <div className="text-center text-white space-y-4">
             <Play className="h-16 w-16 mx-auto opacity-50" />
             <div>
-              <p className="text-lg font-medium">MEGA Video Detected</p>
-              <p className="text-sm opacity-80">Please use the attachments system for optimal streaming</p>
-              <p className="text-xs opacity-60 mt-2">Direct MEGA URLs are no longer supported for security reasons</p>
+              <p className="text-lg font-medium">{t('megaVideoDetected')}</p>
+              <p className="text-sm opacity-80">{t('pleaseUseAttachmentsSystemForOptimalStreaming')}</p>
+              <p className="text-xs opacity-60 mt-2">{t('directMegaUrlsAreNoLongerSupportedForSecurityReasons')}</p>
             </div>
           </div>
         </div>

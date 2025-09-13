@@ -316,7 +316,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       />
                       {file && (
                         <p className="text-sm text-muted-foreground">
-                          Selected: {file.name} ({formatFileSize(file.size)})
+                          {t('selected')}: {file.name} ({formatFileSize(file.size)})
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
@@ -377,7 +377,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      Loading attachments...
+                      {t('loading_attachments')}
                     </div>
                   ) : attachments.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">

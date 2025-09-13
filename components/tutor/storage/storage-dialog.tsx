@@ -246,7 +246,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
             </Button>
           )}
         </DialogTrigger>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-background text-foreground border-border">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto bg-background text-foreground border-border">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HardDrive className="h-5 w-5" />

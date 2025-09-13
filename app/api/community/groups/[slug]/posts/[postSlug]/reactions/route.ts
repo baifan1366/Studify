@@ -141,7 +141,6 @@ export async function POST(
     });
 
     //send to qstash
-    await getQStashQueue().queueEmbedding("reaction", targetId, 5);
     await getQStashQueue().queueReaction(
       "added",
       profileId,

@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/sign-up$/.test(pathname);
   const isTestOrPublic = pathname === "/" || pathname.startsWith("/test");
   // QStash webhook endpoints (bypass auth for external webhooks)
-  const isQStashWebhook = pathname.includes("/process-webhook");
+  const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor");
 
   if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic || isQStashWebhook) {
     return intlResponse;

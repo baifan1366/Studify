@@ -1248,7 +1248,10 @@
     "kind_required": "Lesson type is required.",
     "url_invalid": "Please enter a valid URL.",
     "duration_min": "Duration must be 0 or greater.",
-    "duration_max": "Duration cannot exceed 86400 seconds (24 hours)."
+    "duration_max": "Duration cannot exceed 86400 seconds (24 hours).",
+    "attachments_required": "Attachments are required.",
+    "attachment_id_invalid": "Invalid attachment ID.",
+    "attachment_id_required": "Attachment ID is required"
   },
   "CourseDetails": {
     "expandModulesPanel": "Expand modules panel",

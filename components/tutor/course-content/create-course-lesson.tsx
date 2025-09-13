@@ -33,6 +33,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
     const [kind, setKind] = useState<Lesson['kind']>('video');
     const [contentUrl, setContentUrl] = useState('manual-url');
     const [manualUrl, setManualUrl] = useState('');
+    const [selectedAttachments, setSelectedAttachments] = useState<number[]>([]);
     const [durationSec, setDurationSec] = useState<number | undefined>();
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,14 +61,26 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
         setIsSubmitting(true);
         
         try {
-            // Handle special select values
+            // Handle content URL vs attachments logic
             let finalContentUrl: string | undefined;
+            let finalAttachments: number[] = [];
+            
             if (contentUrl === 'manual-url') {
+                // Manual URL - save to content_url field
                 finalContentUrl = manualUrl || undefined;
             } else if (contentUrl === 'loading' || contentUrl === 'no-attachments') {
                 finalContentUrl = undefined;
             } else {
-                finalContentUrl = contentUrl || undefined;
+                // Selected attachment - extract attachment ID and save to attachments array
+                const selectedAttachment = attachments.find(att => 
+                    att.url === contentUrl || `attachment-${att.id}` === contentUrl
+                );
+                if (selectedAttachment) {
+                    finalAttachments = [selectedAttachment.id];
+                    finalContentUrl = undefined; // Don't save URL when using attachments
+                } else {
+                    finalContentUrl = contentUrl || undefined;
+                }
             }
             
             const formData = {
@@ -76,6 +89,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                 title,
                 kind,
                 content_url: finalContentUrl,
+                attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
                 duration_sec: durationSec
             };
             
@@ -94,6 +108,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
             setKind('video');
             setContentUrl('manual-url');
             setManualUrl('');
+            setSelectedAttachments([]);
             setDurationSec(undefined);
             setIsOpen(false);
         } catch (error) {
@@ -256,7 +271,22 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                             <Link className="h-4 w-4" />
                                             {t('content_url_label')}
                                         </Label>
-                                        <Select value={contentUrl} onValueChange={setContentUrl}>
+                                        <Select value={contentUrl} onValueChange={(value) => {
+                                            setContentUrl(value);
+                                            // Update selectedAttachments when an attachment is selected
+                                            if (value !== 'manual-url' && value !== 'loading' && value !== 'no-attachments') {
+                                                const selectedAttachment = attachments.find(att => 
+                                                    att.url === value || `attachment-${att.id}` === value
+                                                );
+                                                if (selectedAttachment) {
+                                                    setSelectedAttachments([selectedAttachment.id]);
+                                                } else {
+                                                    setSelectedAttachments([]);
+                                                }
+                                            } else {
+                                                setSelectedAttachments([]);
+                                            }
+                                        }}>
                                             <SelectTrigger className={cn(
                                                 "h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
                                                 errors.content_url && "border-destructive focus:border-destructive focus:ring-destructive/20"

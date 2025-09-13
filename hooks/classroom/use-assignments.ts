@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { apiGet, apiSend } from "@/lib/api-config";
 
 // ========================
@@ -91,7 +91,6 @@ export function useMistakes(classroomSlug: string | undefined, userId?: string) 
 // ========================
 export function useSubmitAssignment(classroomSlug: string) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation<
     Submission,
@@ -108,18 +107,10 @@ export function useSubmitAssignment(classroomSlug: string) {
       queryClient.invalidateQueries({ queryKey: ["assignment", classroomSlug, variables.id] });
       queryClient.invalidateQueries({ queryKey: ["assignments", classroomSlug] });
 
-      toast({
-        title: "提交成功",
-        description: "作业已成功提交。",
-        variant: "success",
-      });
+      toast.success("作业已成功提交");
     },
     onError: (error) => {
-      toast({
-        title: "提交失败",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`提交失败: ${error.message}`);
     },
   });
 }

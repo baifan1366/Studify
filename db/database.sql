@@ -32,6 +32,26 @@ create table if not exists profiles (
   onboarded boolean not null default false,
   onboarded_step int default 0 check (onboarded_step >= 0 and onboarded_step <= 3),
   is_deleted boolean not null default false,
+  -- Enhanced profile fields for settings functionality
+  preferences jsonb default '{}',
+  theme text default 'system' check (theme in ('light', 'dark', 'system')),
+  language text default 'en',
+  notification_settings jsonb default '{
+    "email_notifications": true,
+    "push_notifications": true,
+    "course_updates": true,
+    "community_updates": false,
+    "marketing_emails": false
+  }',
+  privacy_settings jsonb default '{
+    "profile_visibility": "public",
+    "show_email": false,
+    "show_progress": true,
+    "data_collection": true
+  }',
+  two_factor_enabled boolean default false,
+  email_verified boolean default false,
+  profile_completion int default 0 check (profile_completion >= 0 and profile_completion <= 100),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   last_login timestamptz,

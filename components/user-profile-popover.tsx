@@ -66,12 +66,12 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
   }, [isOpen, onClose, triggerRef]);
 
   const handleProfileClick = () => {
-    router.push('/protected/profile');
+    router.push('/profile');
     onClose();
   };
 
   const handleSettingsClick = () => {
-    router.push('/protected/settings');
+    router.push('/settings');
     onClose();
   };
 

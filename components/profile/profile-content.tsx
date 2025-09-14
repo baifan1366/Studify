@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
+import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
 import Image from 'next/image';
@@ -12,6 +13,8 @@ import Image from 'next/image';
 export default function ProfileContent() {
   const t = useTranslations('ProfileContent');
   const { data: userData } = useUser();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
+  const updateProfileMutation = useUpdateProfile();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -22,7 +25,7 @@ export default function ProfileContent() {
   });
 
   const user = userData;
-  const profile = user?.profile;
+  const profile = fullProfileData?.profile || user?.profile;
   const userDisplayName = profile?.display_name || user?.user_metadata?.full_name || '';
   const userEmail = user?.email || '';
   const userName = userDisplayName || userEmail?.split('@')[0] || 'Unknown User';
@@ -43,13 +46,21 @@ export default function ProfileContent() {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    // TODO: Implement profile update API call
-    toast({
-      title: t('profile_updated'),
-      description: t('profile_updated_desc'),
-    });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await updateProfileMutation.mutateAsync(editForm);
+      toast({
+        title: t('profile_updated'),
+        description: t('profile_updated_desc'),
+      });
+      setIsEditing(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update profile. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleCancel = () => {
@@ -219,12 +230,13 @@ export default function ProfileContent() {
                       <div className="flex gap-2">
                         <motion.button
                           onClick={handleSave}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-medium"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                          disabled={updateProfileMutation.isPending}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium"
+                          whileHover={{ scale: updateProfileMutation.isPending ? 1 : 1.05 }}
+                          whileTap={{ scale: updateProfileMutation.isPending ? 1 : 0.95 }}
                         >
                           <Save size={16} />
-                          {t('save')}
+                          {updateProfileMutation.isPending ? 'Saving...' : t('save')}
                         </motion.button>
                         <motion.button
                           onClick={handleCancel}

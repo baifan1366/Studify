@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
+import { useFullProfile, useUpdateSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
 
@@ -35,6 +36,8 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'lan
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
   const { data: userData } = useUser();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
+  const updateSettingsMutation = useUpdateSettings();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [settings, setSettings] = useState({
@@ -67,7 +70,39 @@ export default function SettingsContent() {
   });
 
   const user = userData;
-  const profile = user?.profile;
+  const profile = fullProfileData?.profile || user?.profile;
+
+  // Load settings from profile data
+  React.useEffect(() => {
+    if (profile) {
+      const notificationSettings = profile.notification_settings || {};
+      const privacySettings = profile.privacy_settings || {};
+      
+      setSettings(prev => ({
+        ...prev,
+        // Account settings
+        twoFactorEnabled: profile.two_factor_enabled || false,
+        emailVerified: profile.email_verified || false,
+        
+        // Notification settings
+        emailNotifications: notificationSettings.email_notifications ?? true,
+        pushNotifications: notificationSettings.push_notifications ?? true,
+        courseUpdates: notificationSettings.course_updates ?? true,
+        communityUpdates: notificationSettings.community_updates ?? false,
+        marketingEmails: notificationSettings.marketing_emails ?? false,
+        
+        // Privacy settings
+        profileVisibility: privacySettings.profile_visibility || 'public',
+        showEmail: privacySettings.show_email ?? false,
+        showProgress: privacySettings.show_progress ?? true,
+        dataCollection: privacySettings.data_collection ?? true,
+        
+        // Appearance settings
+        theme: profile.theme || 'system',
+        language: profile.language || 'en',
+      }));
+    }
+  }, [profile]);
 
   const tabs = [
     { id: 'account', label: t('account'), icon: User },
@@ -78,12 +113,56 @@ export default function SettingsContent() {
     { id: 'data', label: t('data'), icon: Database }
   ] as const;
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = async (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-    toast({
-      title: t('setting_updated'),
-      description: t('setting_updated_desc'),
-    });
+    
+    // Prepare update data based on setting type
+    let updateData: any = {};
+    
+    // Account settings
+    if (key === 'twoFactorEnabled') {
+      updateData.two_factor_enabled = value;
+    }
+    
+    // Notification settings
+    if (['emailNotifications', 'pushNotifications', 'courseUpdates', 'communityUpdates', 'marketingEmails'].includes(key)) {
+      const notificationKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      updateData.notification_settings = {
+        [notificationKey]: value
+      };
+    }
+    
+    // Privacy settings
+    if (['profileVisibility', 'showEmail', 'showProgress', 'dataCollection'].includes(key)) {
+      const privacyKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      updateData.privacy_settings = {
+        [privacyKey]: value
+      };
+    }
+    
+    // Appearance settings
+    if (key === 'theme') {
+      updateData.theme = value;
+    }
+    if (key === 'language') {
+      updateData.language = value;
+    }
+    
+    try {
+      await updateSettingsMutation.mutateAsync(updateData);
+      toast({
+        title: t('setting_updated'),
+        description: t('setting_updated_desc'),
+      });
+    } catch (error) {
+      // Revert the setting if update failed
+      setSettings(prev => ({ ...prev, [key]: !value }));
+      toast({
+        title: 'Error',
+        description: 'Failed to update setting. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleExportData = () => {

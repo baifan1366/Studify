@@ -83,7 +83,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const t = useTranslations('StorageDialog')
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('upload')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string } | null>(null)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ isOpen: false, attachment: null })
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ isOpen: false, attachment: null })
   
@@ -174,12 +174,12 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     }
   }
 
-  const handlePreview = (url: string | null) => {
-    if (!url) {
+  const handlePreview = (attachment: CourseAttachment) => {
+    if (!attachment.url) {
       toast.error('No preview available for this file')
       return
     }
-    setPreviewUrl(url)
+    setPreviewData({ url: attachment.url, attachmentId: attachment.id, fileType: attachment.type })
   }
 
   const handleEdit = (attachment: CourseAttachment) => {
@@ -316,7 +316,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       />
                       {file && (
                         <p className="text-sm text-muted-foreground">
-                          Selected: {file.name} ({formatFileSize(file.size)})
+                          {t('selected')}: {file.name} ({formatFileSize(file.size)})
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
@@ -377,7 +377,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      Loading attachments...
+                      {t('loading_attachments')}
                     </div>
                   ) : attachments.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
@@ -414,7 +414,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handlePreview(attachment.url)}
+                                  onClick={() => handlePreview(attachment)}
                                   disabled={!attachment.url}
                                 >
                                   <Eye className="h-4 w-4" />
@@ -454,8 +454,13 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       </Dialog>
 
       {/* Preview Modal */}
-      {previewUrl && (
-        <PreviewAttachment url={previewUrl} onClose={() => setPreviewUrl(null)} />
+      {previewData && (
+        <PreviewAttachment 
+          url={previewData.url} 
+          attachmentId={previewData.attachmentId}
+          fileType={previewData.fileType as 'pdf' | 'video' | 'image' | 'office' | 'text' | 'other'}
+          onClose={() => setPreviewData(null)} 
+        />
       )}
 
       {/* Edit Dialog */}

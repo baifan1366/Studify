@@ -3,6 +3,8 @@ export interface Profile {
   public_id: string;
   user_id: string;
   display_name: string | null;
+  full_name: string | null;
+  email: string | null;
   role: "admin" | "student" | "tutor";
   avatar_url: string | null;
   bio: string | null;

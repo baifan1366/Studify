@@ -242,6 +242,10 @@ create table if not exists course_attachments (
   owner_id bigint not null references profiles(id) on delete restrict,
   title text not null,
   url text,
+  type text DEFAULT 'other',
+  cloudinary_hls_url text,
+  cloudinary_processed_at timestamptz,
+  cloudinary_public_id text,
   size int,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
@@ -277,17 +281,6 @@ create table if not exists course_progress (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, lesson_id)
-);
-
-create table if not exists course_material (
-  id bigserial primary key,
-  course_id bigint not null references course(id) on delete cascade,
-  title text not null,
-  content_url text,
-  material_type text check (material_type in ('video','pdf','link')) not null,
-  order_index int not null default 1,
-  is_deleted boolean not null default false,
-  created_at timestamptz default now()
 );
 
 create table if not exists course_chapter (

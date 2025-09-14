@@ -24,9 +24,9 @@ export function StoragePage({ ownerId }: StoragePageProps) {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold mb-2">Course Storage</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
         <p className="text-muted-foreground">
-          Upload and manage your course attachments with MEGA cloud storage
+          {t('description')}
         </p>
         
         {/* Storage Dialog Button */}
@@ -34,7 +34,7 @@ export function StoragePage({ ownerId }: StoragePageProps) {
           <StorageDialog ownerId={ownerId}>
             <Button variant="default" size="lg" className="gap-2">
               <HardDrive className="h-5 w-5" />
-              {t('title')}
+              {t('upload_title')}
             </Button>
           </StorageDialog>
         </div>

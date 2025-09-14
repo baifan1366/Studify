@@ -530,11 +530,11 @@ export default function CreateCourse() {
                                                     <SelectValue placeholder={t('select_currency')} />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="USD">USD</SelectItem>
-                                                    <SelectItem value="EUR">EUR</SelectItem>
-                                                    <SelectItem value="GBP">GBP</SelectItem>
-                                                    <SelectItem value="MYR">MYR</SelectItem>
-                                                    <SelectItem value="SGD">SGD</SelectItem>
+                                                    <SelectItem value="USD">{t('usd')}</SelectItem>
+                                                    <SelectItem value="EUR">{t('eur')}</SelectItem>
+                                                    <SelectItem value="GBP">{t('gbp')}</SelectItem>
+                                                    <SelectItem value="MYR">{t('myr')}</SelectItem>
+                                                    <SelectItem value="SGD">{t('sgd')}</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             {errors.currency && <span className="text-xs text-red-500">{errors.currency}</span>}

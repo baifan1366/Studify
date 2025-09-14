@@ -1,83 +1,60 @@
 "use client";
-import React from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/community/achievement/header";
 import SummaryCard from "@/components/community/achievement/summary-card";
 import Filters from "@/components/community/achievement/filters";
 import AchievementCard from "@/components/community/achievement/achievement-card";
-
-// --- Mock Data: In a real app, this would come from an API ---
-const achievements = [
-  {
-    id: 1,
-    name: "First Post",
-    description: "Publish your first post in the community.",
-    unlocked: true,
-    unlockedDate: "2023-10-01",
-  },
-  {
-    id: 2,
-    name: "Community Helper",
-    description: 'Your reply was marked as the "best answer".',
-    unlocked: true,
-    unlockedDate: "2023-10-15",
-  },
-  {
-    id: 3,
-    name: "Well-Received",
-    description: "Receive 10 upvotes on a single post.",
-    unlocked: true,
-    unlockedDate: "2023-11-05",
-  },
-  {
-    id: 4,
-    name: "Topic Starter",
-    description: "Start a discussion in 3 different study groups.",
-    unlocked: false,
-  },
-  {
-    id: 5,
-    name: "Daily Visitor",
-    description: "Visit the community for 7 consecutive days.",
-    unlocked: false,
-  },
-  {
-    id: 6,
-    name: "Influencer",
-    description: "A post you made received over 50 replies.",
-    unlocked: false,
-  },
-  {
-    id: 7,
-    name: "Prolific Writer",
-    description: "Publish 25 posts in total.",
-    unlocked: true,
-    unlockedDate: "2023-12-10",
-  },
-  {
-    id: 8,
-    name: "Problem Solver",
-    description: 'Have 10 of your replies marked as "best answer".',
-    unlocked: false,
-  },
-  {
-    id: 9,
-    name: "Legendary Contributor",
-    description: "Receive 1000 upvotes in total.",
-    unlocked: false,
-  },
-];
+import { User } from "@supabase/supabase-js";
+import { supabase } from "@/utils/supabase/client";
+import {
+  useUserAchievements,
+  useUnlockAchievement,
+  useRevokeAchievement,
+} from "@/hooks/community/use-achievements";
+import { Achievement } from "@/interface/community/achievement-interface";
 
 export default function AchievementContent() {
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
-  const totalCount = achievements.length;
+  const [user, setUser] = useState<User | null>(null);
 
-  const [filter, setFilter] = React.useState("all");
+  // Fetch user for header
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const filteredAchievements = achievements.filter((a) => {
+  // 按用户显示解锁状态
+  const {
+    achievements: userAchievements,
+    isLoading,
+    isError,
+  } = useUserAchievements(user?.id ?? "");
+
+  const { mutate: unlockAchievement } = useUnlockAchievement(user?.id ?? 0);
+  const { mutate: revokeAchievement } = useRevokeAchievement(user?.id ?? 0);
+  const unlockedCount = userAchievements?.filter((a) => a.unlocked).length ?? 0;
+  const totalCount = userAchievements?.length ?? 0;
+
+  const [filter, setFilter] = useState("all");
+
+  const filteredAchievements = (userAchievements ?? []).filter((a) => {
     if (filter === "unlocked") return a.unlocked;
     if (filter === "locked") return !a.unlocked;
     return true;
   });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Failed to load achievements</div>;
 
   return (
     <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen text-gray-800">

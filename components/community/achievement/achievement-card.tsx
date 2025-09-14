@@ -1,20 +1,13 @@
 "use client";
 import React from "react";
 import { Trophy, Lock } from "lucide-react";
+import { Achievement } from "@/interface/community/achievement-interface";
 
-interface Achievement {
-  id: number;
-  name: string;
-  description: string;
-  unlocked: boolean;
-  unlockedDate?: string;
-}
-
-export default function AchievementCard({
-  achievement,
-}: {
+type Props = {
   achievement: Achievement;
-}) {
+};
+
+export default function AchievementCard({ achievement }: Props) {
   return (
     <div
       key={achievement.id}
@@ -49,9 +42,9 @@ export default function AchievementCard({
         >
           {achievement.description}
         </p>
-        {achievement.unlocked && achievement.unlockedDate && (
+        {achievement.unlocked && achievement.unlocked_at && (
           <p className="text-xs text-gray-400 mt-3">
-            Unlocked on {achievement.unlockedDate}
+            Unlocked on {achievement.unlocked_at}
           </p>
         )}
       </div>

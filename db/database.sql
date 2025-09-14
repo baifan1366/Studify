@@ -262,17 +262,6 @@ create table if not exists course_progress (
   unique (user_id, lesson_id)
 );
 
-create table if not exists course_material (
-  id bigserial primary key,
-  course_id bigint not null references course(id) on delete cascade,
-  title text not null,
-  content_url text,
-  material_type text check (material_type in ('video','pdf','link')) not null,
-  order_index int not null default 1,
-  is_deleted boolean not null default false,
-  created_at timestamptz default now()
-);
-
 create table if not exists course_chapter (
   id bigserial primary key,
   lesson_id bigint not null references course_lesson(id) on delete cascade,

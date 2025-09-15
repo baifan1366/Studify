@@ -12,10 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/hooks/profile/use-user";
+import { formatDate } from "@/lib/formatters";
 
 interface EditAnnouncementProps {
   announcementId?: number;
@@ -33,6 +35,7 @@ export default function EditAnnouncement({
   trigger 
 }: EditAnnouncementProps) {
   const t = useTranslations("Announcements");
+  const { data: userData } = useUser();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -46,11 +49,11 @@ export default function EditAnnouncement({
 
   // Form state
   const [formData, setFormData] = useState({
-    created_by: 1,
+    created_by: userData?.profile?.id,
     title: "",
     message: "",
     image_url: "",
-    edep_link: "",
+    deep_link: "",
     status: "draft" as "draft" | "scheduled" | "sent" | "failed",
     scheduled_at: "",
   });
@@ -59,11 +62,11 @@ export default function EditAnnouncement({
   useEffect(() => {
     if (announcement) {
       setFormData({
-        created_by: announcement.created_by,
+        created_by: userData?.profile?.id?.toString() || "",
         title: announcement.title,
         message: announcement.message,
         image_url: announcement.image_url || "",
-        edep_link: announcement.deep_link || "",
+        deep_link: announcement.deep_link || "",
         status: announcement.status,
         scheduled_at: announcement.scheduled_at ? 
           new Date(announcement.scheduled_at).toISOString().slice(0, 16) : "",
@@ -115,6 +118,7 @@ export default function EditAnnouncement({
       await updateAnnouncementMutation.mutateAsync({
         id: announcement.id,
         ...formData,
+        created_by: Number(userData?.profile?.id),
       });
       
       toast({
@@ -136,11 +140,11 @@ export default function EditAnnouncement({
   const handleCancel = () => {
     if (announcement) {
       setFormData({
-        created_by: announcement.created_by,
+        created_by: userData?.profile?.id?.toString() || "",
         title: announcement.title,
         message: announcement.message,
         image_url: announcement.image_url || "",
-        edep_link: announcement.deep_link || "",
+        deep_link: announcement.deep_link || "",
         status: announcement.status,
         scheduled_at: announcement.scheduled_at ? 
           new Date(announcement.scheduled_at).toISOString().slice(0, 16) : "",
@@ -164,11 +168,14 @@ export default function EditAnnouncement({
             <Edit className="h-5 w-5" />
             {t("edit_announcement")}
           </DialogTitle>
+          <DialogDescription>
+            {t("edit_announcement_description")}
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
           <div className="space-y-6">
-            <Card>
+            <Card className="bg-transparent p-2">
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
               </CardHeader>
@@ -186,7 +193,7 @@ export default function EditAnnouncement({
         ) : (
           <form onSubmit={onSubmit} className="space-y-6">
             {/* Basic Information */}
-            <Card>
+            <Card className="bg-transparent p-2">
               <CardHeader>
                 <CardTitle className="text-lg">{t("basic_information")}</CardTitle>
               </CardHeader>
@@ -302,7 +309,7 @@ export default function EditAnnouncement({
             </Card>
 
             {/* Media & Links */}
-            <Card>
+            <Card className="bg-transparent p-2">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <ImageIcon className="h-5 w-5" />
@@ -336,14 +343,14 @@ export default function EditAnnouncement({
 
                 {/* Deep Link */}
                 <div className="space-y-2">
-                  <Label htmlFor="edep_link" className="text-sm font-medium">
+                  <Label htmlFor="deep_link" className="text-sm font-medium">
                     <LinkIcon className="inline h-4 w-4 mr-1" />
                     {t("deep_link")}
                   </Label>
                   <Input
-                    id="edep_link"
-                    value={formData.edep_link}
-                    onChange={(e) => handleInputChange("edep_link", e.target.value)}
+                    id="deep_link"
+                    value={formData.deep_link}
+                    onChange={(e) => handleInputChange("deep_link", e.target.value)}
                     placeholder={t("deep_link_placeholder")}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -354,7 +361,7 @@ export default function EditAnnouncement({
             </Card>
 
             {/* Metadata */}
-            <Card className="bg-gray-50 dark:bg-gray-900/50">
+            <Card className="bg-gray-50 dark:bg-gray-900/50 p-2">
               <CardHeader>
                 <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                   {t("announcement_metadata")}
@@ -363,16 +370,16 @@ export default function EditAnnouncement({
               <CardContent className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex justify-between">
                   <span>{t("created_at")}:</span>
-                  <span>{new Date(announcement.created_at).toLocaleString()}</span>
+                  <span>{formatDate(announcement.created_at)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t("updated_at")}:</span>
-                  <span>{new Date(announcement.updated_at).toLocaleString()}</span>
+                  <span>{formatDate(announcement.updated_at)}</span>
                 </div>
                 {announcement.sent_at && (
                   <div className="flex justify-between">
                     <span>{t("sent_at")}:</span>
-                    <span>{new Date(announcement.sent_at).toLocaleString()}</span>
+                    <span>{formatDate(announcement.sent_at)}</span>
                   </div>
                 )}
               </CardContent>
@@ -382,7 +389,7 @@ export default function EditAnnouncement({
             <div className="flex justify-end gap-3 pt-6 border-t">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={handleCancel}
                 disabled={updateAnnouncementMutation.isPending}
               >

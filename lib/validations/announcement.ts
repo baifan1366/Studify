@@ -6,7 +6,7 @@ export const announcementSchema = (t: (key: string) => string) =>
     title: z.string().min(1, { message: t("title_required") }),
     message: z.string().min(1, { message: t("message_required") }),
     image_url: z.string().optional(),
-    edep_link: z.string().optional(),
+    deep_link: z.string().optional(),
     status: z.enum(["draft", "scheduled", "sent", "failed"]),
     scheduled_at: z.string().optional(),
     sent_at: z.string().optional(),

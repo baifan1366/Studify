@@ -265,3 +265,13 @@ export const attachmentsApi = {
   delete: (id: number) => `/api/attachments/${id}`,
   deleteByOwner: (id: number, ownerId: number) => `/api/attachments/${id}?owner_id=${ownerId}`,
 } as const;
+
+// Announcements API endpoints
+export const announcementsApi = {
+  list: "/api/announcements",
+  getById: (id: number) => `/api/announcements/${id}`,
+  create: "/api/announcements",
+  update: (id: number) => `/api/announcements/${id}`,
+  delete: (id: number) => `/api/announcements/${id}`,
+  updateStatus: (id: number) => `/api/announcements/${id}/status`,
+} as const;

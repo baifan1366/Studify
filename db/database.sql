@@ -1015,36 +1015,6 @@ create table if not exists community_user_achievement (
   constraint unique_user_achievement unique (user_id, achievement_id)
 );
 
-create table if not exists community_challenges (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
-  title text not null,
-  description text,
-  max_score int not null,
-  passing_score int not null,
-  metadata jsonb,
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists community_challenge_results (
-  id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
-  user_id bigint not null references profiles(id) on delete cascade,
-  challenge_id bigint not null references community_challenges(id) on delete cascade,
-  score int not null,
-  max_score int not null,
-  passed boolean not null,
-  attempted_at timestamptz not null default now(),
-  is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique(user_id, challenge_id)
-);
-
 create table if not exists community_checkin (
   id bigserial primary key,
   user_id bigint not null references profiles(id) on delete cascade,

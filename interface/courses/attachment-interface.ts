@@ -11,4 +11,5 @@ export interface CourseAttachment {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  cloudinary_mp3?: string | null
 }

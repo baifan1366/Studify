@@ -244,6 +244,7 @@ create table if not exists course_attachments (
   url text,
   type text DEFAULT 'other',
   cloudinary_hls_url text,
+  cloudinary_mp3 text,
   cloudinary_processed_at timestamptz,
   cloudinary_public_id text,
   size int,

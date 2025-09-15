@@ -1045,6 +1045,14 @@ create table if not exists community_challenge_results (
   unique(user_id, challenge_id)
 );
 
+create table if not exists community_checkin (
+  id bigserial primary key,
+  user_id bigint not null references profiles(id) on delete cascade,
+  checkin_date date not null default current_date,
+  created_at timestamptz not null default now(),
+  unique (user_id, checkin_date) -- 防止同一天重复签到
+);
+
 -- =========================
 -- Tutoring (from db/tutoring/schema.sql)
 -- =========================

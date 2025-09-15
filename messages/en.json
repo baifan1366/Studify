@@ -1736,5 +1736,29 @@
     "buying_now": "Buying Now",
     "buy_now": "Buy Now",
     "add_to_cart": "Add to Cart"
+  },
+  "AdminDashboardPage": {
+    "metadata_title": "Dashboard | Admin | Studify",
+    "metadata_description": "View and manage your courses, students, and settings",
+    "metadata_keywords": "dashboard,admin,studify,courses,students,settings",
+    "og_title": "Dashboard | Admin | Studify",
+    "og_description": "View and manage your courses, students, and settings",
+    "page_title": "Dashboard | Admin | Studify"
+  },
+  "AdminAnnouncementsPage": {
+    "metadata_title": "Announcements | Admin | Studify",
+    "metadata_description": "View and manage announcements for your courses",
+    "metadata_keywords": "announcements,admin,studify,courses",
+    "og_title": "Announcements | Admin | Studify",
+    "og_description": "View and manage announcements for your courses",
+    "page_title": "Announcements | Admin | Studify"
+  },
+  "AdminSettingsPage": {
+    "metadata_title": "Settings | Admin | Studify",
+    "metadata_description": "View and manage settings for your courses",
+    "metadata_keywords": "settings,admin,studify,courses",
+    "og_title": "Settings | Admin | Studify",
+    "og_description": "View and manage settings for your courses",
+    "page_title": "Settings | Admin | Studify"
   }
 }

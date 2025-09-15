@@ -13,18 +13,6 @@ export const userApi = {
   getUser: "/api/user",
 } as const;
 
-// Students API endpoints
-export const studentsApi = {
-  list: "/api/students",
-  getById: (id: number) => `/api/students/${id}`,
-  create: "/api/students",
-  update: (id: number) => `/api/students/${id}`,
-  delete: (id: number) => `/api/students/${id}`,
-  search: (query: string) =>
-    `/api/students/search?q=${encodeURIComponent(query)}`,
-  progress: (id: number) => `/api/students/${id}/progress`,
-} as const;
-
 // Courses API endpoints
 export const coursesApi = {
   list: "/api/courses",
@@ -247,12 +235,6 @@ export const embeddingApi = {
   search: "/api/embeddings/search",
   queue: "/api/embeddings/queue",
   processor: "/api/embeddings/processor",
-} as const;
-
-// Users API endpoints
-export const usersApi = {
-  updateProfile: "/api/users/profile",
-  getProfile: "/api/users/profile",
 } as const;
 
 // Attachments API endpoints

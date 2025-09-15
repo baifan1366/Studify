@@ -237,6 +237,12 @@ export const embeddingApi = {
   processor: "/api/embeddings/processor",
 } as const;
 
+// Users API endpoints
+export const usersApi = {
+  updateProfile: "/api/users/profile",
+  getProfile: "/api/users/profile",
+} as const;
+
 // Attachments API endpoints
 export const attachmentsApi = {
   list: "/api/attachments",

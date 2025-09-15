@@ -25,7 +25,7 @@ export async function GET(
     // 3. 拿到所有成就
     const { data: achievements, error: achError } = await supabase
       .from("community_achievement")
-      .select("id, public_id, code, name, description, created_at")
+      .select("id, public_id, code, name, description, rule , created_at")
       .eq("is_deleted", false)
       .order("created_at", { ascending: true });
 
@@ -53,19 +53,27 @@ export async function GET(
     // 5. 用 profileId (bigint) 查用户成就
     const { data: userAchievements, error: userError } = await supabase
       .from("community_user_achievement")
-      .select("achievement_id, unlocked_at")
+      .select("achievement_id, unlocked_at, current_value, unlocked")
       .eq("user_id", profileId)
       .eq("is_deleted", false);
 
     // 6. 合并结果：标记哪些成就是已解锁
     const unlockedMap = new Map(
-      userAchievements?.map((ua) => [ua.achievement_id, ua.unlocked_at]) ?? []
+      userAchievements?.map((ua) => [
+        ua.achievement_id,
+        {
+          unlocked: ua.unlocked,
+          unlocked_at: ua.unlocked_at,
+          current_value: ua.current_value,
+        },
+      ]) ?? []
     );
 
     const result = (achievements ?? []).map((a) => ({
       ...a,
-      unlocked: unlockedMap.has(a.id),
-      unlocked_at: unlockedMap.get(a.id) ?? null,
+      unlocked: unlockedMap.get(a.id)?.unlocked ?? false,
+      unlocked_at: unlockedMap.get(a.id)?.unlocked_at ?? null,
+      current_value: unlockedMap.get(a.id)?.current_value ?? 0,
     }));
 
     // 6. 返回结果

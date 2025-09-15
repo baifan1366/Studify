@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 
-interface Params {
-  params: { userId: string };
-}
-
 export async function GET(
   _req: Request,
-  { params }: Params
+  { params }: { params: Promise<{ userId: string }> }
 ): Promise<NextResponse> {
   try {
     // 1. 权限验证（比如：学生用户才能看自己的成就）
@@ -17,7 +13,7 @@ export async function GET(
       return authResult;
     }
 
-    const { userId } = params;
+    const { userId } = await params;
 
     // 2. 创建 Supabase server client
     const supabase = await createServerClient();

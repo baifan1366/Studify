@@ -62,6 +62,7 @@
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
     "react-markdown": "^8.0.6",
+    "react-onesignal": "^3.3.0",
     "react-pdf": "^10.1.0",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",

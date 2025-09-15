@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       // Select ALL fields defined in the Profile interface
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, public_id, user_id, display_name, role, avatar_url, bio, timezone, status, banned_reason, banned_at, points, onboarded, onboard_step, is_deleted, created_at, updated_at, last_login, deleted_at')
+        .select('*')
         .eq('user_id', user.id)
         .single();
 
@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
         public_id: profileData.public_id,
         user_id: profileData.user_id,
         display_name: profileData.display_name,
+        full_name: profileData.full_name,
+        email: profileData.email,
         role: profileData.role,
         avatar_url: profileData.avatar_url,
         bio: profileData.bio,
@@ -84,6 +86,14 @@ export async function GET(req: NextRequest) {
         onboard_step: profileData.onboard_step,
         is_deleted: profileData.is_deleted,
         created_at: profileData.created_at,
+        preferences: profileData.preferences,
+        theme: profileData.theme,
+        language: profileData.language,
+        notification_settings: profileData.notification_settings,
+        privacy_settings: profileData.privacy_settings,
+        two_factor_enabled: profileData.two_factor_enabled,
+        email_verified: profileData.email_verified,
+        profile_completion: profileData.profile_completion,
         updated_at: profileData.updated_at,
         last_login: profileData.last_login,
         deleted_at: profileData.deleted_at,

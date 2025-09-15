@@ -258,23 +258,23 @@ export default function CoursesContent() {
       <Tabs value={activeFilter} onValueChange={setActiveFilter} className="mb-6">
         <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-sm">
           <TabsTrigger value="all" className="data-[state=active]:bg-white/20">
-            All Courses
+            {t('all_courses')}
             <Badge variant="secondary" className="ml-2">{uiCourses.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="enrolled" className="data-[state=active]:bg-white/20">
-            Enrolled
+            {t('enrolled')}
             <Badge variant="secondary" className="ml-2">{enrolledCoursesData.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="available" className="data-[state=active]:bg-white/20">
-            Available
+            {t('available')}
             <Badge variant="secondary" className="ml-2">{availableCourses.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="free" className="data-[state=active]:bg-white/20">
-            Free
+            {t('free')}
             <Badge variant="secondary" className="ml-2">{uiCourses.filter(c => c.isFree).length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="paid" className="data-[state=active]:bg-white/20">
-            Paid
+            {t('paid')}
             <Badge variant="secondary" className="ml-2">{uiCourses.filter(c => !c.isFree).length}</Badge>
           </TabsTrigger>
         </TabsList>
@@ -286,7 +286,7 @@ export default function CoursesContent() {
           <Filter size={20} className="text-black/70 dark:text-white/70" />
           <h3 className="text-lg font-semibold text-black dark:text-white">Filters & Search</h3>
           <Button variant="ghost" size="sm" onClick={resetFilters} className="ml-auto">
-            Reset All
+            {t('reset_all')}
           </Button>
         </div>
 
@@ -294,10 +294,10 @@ export default function CoursesContent() {
           {/* Search */}
           <div>
             <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              Search Courses
+              {t('search_courses')}
             </label>
             <Input
-              placeholder="Search by title or instructor..."
+              placeholder={t('search_courses')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-white/10 border-white/20"
@@ -307,14 +307,14 @@ export default function CoursesContent() {
           {/* Level Filter */}
           <div>
             <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              Level
+              {t('level')}
             </label>
             <Select value={selectedLevel} onValueChange={setSelectedLevel}>
               <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder="Select level" />
+                <SelectValue placeholder={t('select_level')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
+                <SelectItem value="all">{t('all_levels')}</SelectItem>
                 {filterOptions.levels.map(level => (
                   <SelectItem key={level} value={level}>
                     {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -327,14 +327,14 @@ export default function CoursesContent() {
           {/* Category Filter */}
           <div>
             <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              Category
+              {t('category')}
             </label>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder="Select category" />
+                <SelectValue placeholder={t('select_category')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">{t('all_categories')}</SelectItem>
                 {filterOptions.categories.map(category => (
                   <SelectItem key={category} value={category}>
                     {category}
@@ -347,17 +347,17 @@ export default function CoursesContent() {
           {/* Price Filter */}
           <div>
             <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              Price Range
+              {t('price_range')}
             </label>
             <Select value={priceFilter} onValueChange={setPriceFilter}>
               <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder="Select price range" />
+                <SelectValue placeholder={t('select_price_range')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Prices</SelectItem>
-                <SelectItem value="under-50">Under $50</SelectItem>
-                <SelectItem value="50-100">$50 - $100</SelectItem>
-                <SelectItem value="over-100">Over $100</SelectItem>
+                <SelectItem value="all">{t('all_prices')}</SelectItem>
+                <SelectItem value="under-50">{t('under_50')}</SelectItem>
+                <SelectItem value="50-100">{t('50_100')}</SelectItem>
+                <SelectItem value="over-100">{t('over_100')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -365,17 +365,17 @@ export default function CoursesContent() {
           {/* Duration Filter */}
           <div>
             <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              Duration
+              {t('duration')}
             </label>
             <Select value={durationFilter} onValueChange={setDurationFilter}>
               <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder="Select duration" />
+                <SelectValue placeholder={t('select_duration')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Durations</SelectItem>
-                <SelectItem value="short">Short (2 hours)</SelectItem>
-                <SelectItem value="medium">Medium (2-3 hours)</SelectItem>
-                <SelectItem value="long">Long (3+ hours)</SelectItem>
+                <SelectItem value="all">{t('all_durations')}</SelectItem>
+                <SelectItem value="short">{t('short_2_hours')}</SelectItem>
+                <SelectItem value="medium">{t('medium_2_3_hours')}</SelectItem>
+                <SelectItem value="long">{t('long_3_hours')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -383,14 +383,14 @@ export default function CoursesContent() {
           {/* Instructor Filter */}
           <div>
             <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              Instructor
+              {t('instructor')}
             </label>
             <Select value={instructorFilter} onValueChange={setInstructorFilter}>
               <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder="Select instructor" />
+                <SelectValue placeholder={t('select_instructor')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Instructors</SelectItem>
+                <SelectItem value="all">{t('all_instructors')}</SelectItem>
                 {filterOptions.instructors.map(instructor => (
                   <SelectItem key={instructor} value={instructor}>
                     {instructor}
@@ -404,7 +404,7 @@ export default function CoursesContent() {
         {/* Results Count */}
         <div className="mt-4 text-center">
           <p className="text-sm text-black/60 dark:text-white/60">
-            Showing {filteredCourses.length} of {uiCourses.length} courses
+            {t('showing_courses', { count: filteredCourses.length, total: uiCourses.length })}
           </p>
         </div>
       </div>

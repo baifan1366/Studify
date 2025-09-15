@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('TutorNotificationsPage');
+  const t = await getTranslations('AdminSettingsPage');
 
   return {
     title: t('metadata_title'),
@@ -16,8 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function TutorNotificationsPage() {
-  const t = await getTranslations('TutorNotificationsPage');
+export default async function AdminSettingsPage() {
+  const t = await getTranslations('AdminSettingsPage');
 
   return (
     <div>

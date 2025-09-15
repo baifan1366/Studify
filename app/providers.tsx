@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/components/auth-provider";
+import { runOneSignal } from "@/utils/notification/onesignal";
 import { ReactQueryProvider } from "@/components/providers/react-query-provider";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -25,6 +26,10 @@ export function Providers({ children }: { children: ReactNode }) {
         setMessages({});
       });
   }, [pathname]);
+
+  useEffect(() => {
+    runOneSignal(); // Initialize OneSignal when visiting /notification
+  }, []);
 
   if (!messages) return null;
 

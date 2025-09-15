@@ -1004,11 +1004,15 @@ create table if not exists community_user_achievement (
   public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   achievement_id bigint not null references community_achievement(id) on delete cascade,
+  current_value int not null default 0,
+  unlocked boolean not null default false,
   unlocked_at timestamptz not null default now(),
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
+
+  constraint unique_user_achievement unique (user_id, achievement_id)
 );
 
 create table if not exists community_challenges (

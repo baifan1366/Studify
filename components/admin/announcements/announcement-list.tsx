@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Search, Filter, MoreHorizontal, Calendar, Send, Clock, AlertCircle } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Calendar, Send, Clock, AlertCircle, Edit, Eye, Copy } from "lucide-react";
 import { useAnnouncements, useDeleteAnnouncement, useUpdateAnnouncementStatus } from "@/hooks/announcements/use-announcements";
 import { Announcement } from "@/interface";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+
+// Import all announcement components
+import CreateAnnouncement from "./create-announcement";
+import EditAnnouncement from "./edit-announcement";
+import PreviewAnnouncement from "./preview-announcement";
+import ScheduleAnnouncement from "./schedule-announcement";
+import DeleteAnnouncement from "./delete-announcement";
 
 const statusConfig = {
   draft: { 
@@ -40,6 +47,13 @@ export default function AnnouncementList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+
+  // Dialog state management
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: announcements, isLoading, error } = useAnnouncements();
   const deleteAnnouncementMutation = useDeleteAnnouncement();
@@ -125,7 +139,7 @@ export default function AnnouncementList() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t("announcements")}</h1>
           <p className="text-gray-600 dark:text-gray-400">{t("manage_announcements")}</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           {t("create_announcement")}
         </Button>
@@ -172,7 +186,7 @@ export default function AnnouncementList() {
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   {t("no_announcements_desc")}
                 </p>
-                <Button className="gap-2">
+                <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="h-4 w-4" />
                   {t("create_first_announcement")}
                 </Button>
@@ -210,18 +224,49 @@ export default function AnnouncementList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>{t("edit")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("preview")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("duplicate")}</DropdownMenuItem>
-                        {announcement.status === 'draft' && (
-                          <DropdownMenuItem onClick={() => handleStatusUpdate(announcement.id, 'scheduled')}>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedAnnouncement(announcement);
+                            setEditDialogOpen(true);
+                          }}
+                          disabled={announcement.status === 'sent'}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          {t("edit")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedAnnouncement(announcement);
+                            setPreviewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t("preview")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Copy className="h-4 w-4 mr-2" />
+                          {t("duplicate")}
+                        </DropdownMenuItem>
+                        {(announcement.status === 'draft' || announcement.status === 'scheduled') && (
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedAnnouncement(announcement);
+                              setScheduleDialogOpen(true);
+                            }}
+                          >
+                            <Calendar className="h-4 w-4 mr-2" />
                             {t("schedule")}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem 
                           className="text-red-600 dark:text-red-400"
-                          onClick={() => setSelectedAnnouncement(announcement)}
+                          onClick={() => {
+                            setSelectedAnnouncement(announcement);
+                            setDeleteDialogOpen(true);
+                          }}
+                          disabled={announcement.status === 'sent'}
                         >
+                          <AlertCircle className="h-4 w-4 mr-2" />
                           {t("delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -248,31 +293,51 @@ export default function AnnouncementList() {
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!selectedAnnouncement} onOpenChange={() => setSelectedAnnouncement(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("delete_announcement")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("delete_confirmation", { title: selectedAnnouncement?.title || "" })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (selectedAnnouncement) {
-                  handleDelete(selectedAnnouncement);
-                  setSelectedAnnouncement(null);
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {t("delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Integrated Components */}
+      <CreateAnnouncement 
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
+      
+      {selectedAnnouncement && (
+        <>
+          <EditAnnouncement 
+            announcement={selectedAnnouncement}
+            open={editDialogOpen}
+            onOpenChange={(open) => {
+              setEditDialogOpen(open);
+              if (!open) setSelectedAnnouncement(null);
+            }}
+          />
+          
+          <PreviewAnnouncement 
+            announcement={selectedAnnouncement}
+            open={previewDialogOpen}
+            onOpenChange={(open) => {
+              setPreviewDialogOpen(open);
+              if (!open) setSelectedAnnouncement(null);
+            }}
+          />
+          
+          <ScheduleAnnouncement 
+            announcement={selectedAnnouncement}
+            open={scheduleDialogOpen}
+            onOpenChange={(open) => {
+              setScheduleDialogOpen(open);
+              if (!open) setSelectedAnnouncement(null);
+            }}
+          />
+          
+          <DeleteAnnouncement 
+            announcement={selectedAnnouncement}
+            open={deleteDialogOpen}
+            onOpenChange={(open) => {
+              setDeleteDialogOpen(open);
+              if (!open) setSelectedAnnouncement(null);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

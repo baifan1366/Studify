@@ -84,9 +84,17 @@ export default function CreateAnnouncement({
     }
 
     try {
+      // Prepare form data, ensuring scheduled_at is null if not scheduled
+      const submitData = {
+        ...formData,
+        scheduled_at: formData.status === "scheduled" && formData.scheduled_at 
+          ? formData.scheduled_at 
+          : null
+      };
+
       await createAnnouncementMutation.mutateAsync({
         created_by: formData.created_by,
-        body: formData,
+        body: submitData,
       });
       
       toast({

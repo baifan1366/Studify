@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { validateAttachmentTitle } from '@/lib/validations/attachment'
+import { useFormat } from '@/hooks/use-format'
 import {
   Dialog,
   DialogContent,
@@ -57,10 +58,14 @@ import {
   RefreshCw,
   Loader2,
   X,
-  EllipsisVertical
+  EllipsisVertical,
+  Music,
+  Download,
+  Play
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
+import { useConvertToAudio } from '@/hooks/course/use-audio-conversion'
 import { PreviewAttachment } from './preview-attachment'
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
@@ -81,6 +86,7 @@ interface DeleteDialogState {
 
 export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const t = useTranslations('StorageDialog')
+  const { formatDate } = useFormat()
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('upload')
   const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string } | null>(null)
@@ -99,6 +105,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const uploadMutation = useUploadAttachment()
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
+  const convertToAudioMutation = useConvertToAudio()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return 'Unknown size'
@@ -108,15 +115,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -232,6 +230,27 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     }
   }
 
+  const handleConvertToAudio = async (attachment: CourseAttachment) => {
+    try {
+      await convertToAudioMutation.mutateAsync({
+        attachmentId: attachment.id,
+        ownerId
+      })
+    } catch (error) {
+      // Error is handled by the mutation
+    }
+  }
+
+  const handleDownloadAudio = (mp3Url: string, title: string) => {
+    const link = document.createElement('a')
+    link.href = mp3Url
+    link.download = `${title}.mp3`
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const attachmentCount = attachments.length
   const pluralSuffix = attachmentCount !== 1 ? 's' : ''
 
@@ -258,7 +277,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="upload" className="gap-2">
                 <Upload className="h-4 w-4" />
                 {t('upload_tab')}
@@ -266,6 +285,10 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
               <TabsTrigger value="manage" className="gap-2">
                 <FileText className="h-4 w-4" />
                 {t('manage_tab')}
+              </TabsTrigger>
+              <TabsTrigger value="audio" className="gap-2">
+                <Music className="h-4 w-4" />
+                Audio Convert
               </TabsTrigger>
             </TabsList>
 
@@ -407,7 +430,13 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
-                              {formatDate(attachment.created_at)}
+                              {formatDate(attachment.created_at, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
@@ -445,6 +474,106 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                         ))}
                       </TableBody>
                     </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="audio" className="mt-6">
+              <Card className="bg-transparent">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Music className="h-5 w-5" />
+                    Video to Audio Converter
+                  </CardTitle>
+                  <CardDescription>
+                    Convert your video files to MP3 audio format for easy download and use.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="overflow-auto max-h-96">
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      Loading videos...
+                    </div>
+                  ) : (
+                    (() => {
+                      const videoAttachments = attachments.filter(attachment => attachment.type === 'video')
+                      
+                      if (videoAttachments.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Play className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No video files found</p>
+                            <p className="text-sm">Upload video files first to convert them to audio.</p>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div className="space-y-4">
+                          {videoAttachments.map((attachment) => (
+                            <div key={attachment.id} className="border rounded-lg p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h3 className="font-medium">{attachment.title}</h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    {formatFileSize(attachment.size)} • {formatDate(attachment.created_at, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="ml-2">
+                                  Video
+                                </Badge>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                {attachment.cloudinary_mp3 ? (
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <div className="flex items-center gap-2 text-green-600 text-sm">
+                                      <Music className="h-4 w-4" />
+                                      Audio ready
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleDownloadAudio(attachment.cloudinary_mp3!, attachment.title)}
+                                      className="ml-auto"
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Download MP3
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleConvertToAudio(attachment)}
+                                    disabled={convertToAudioMutation.isPending}
+                                    className="ml-auto"
+                                  >
+                                    {convertToAudioMutation.isPending ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Converting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Music className="h-4 w-4 mr-2" />
+                                        Convert to Audio
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()
                   )}
                 </CardContent>
               </Card>

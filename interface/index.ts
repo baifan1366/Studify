@@ -51,3 +51,4 @@ export * from "./tutoring/note-interface";
 export * from "./tutoring/share-interface";
 export * from "./tutoring/student-interface";
 export * from "./tutoring/tutor-interface";
+export * from "./admin/announcement-interface";

@@ -1295,3 +1295,21 @@ CREATE TABLE IF NOT EXISTS document_hierarchy (
   UNIQUE(content_type, content_id)
 );
 
+CREATE TABLE announcements (
+    id bigserial primary key,
+    public_id uuid not null default uuid_generate_v4(),
+    created_by bigint not null references profiles(id) on delete cascade,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    image_url TEXT,               -- optional (for rich notifications)
+    deep_link TEXT,               -- optional (redirect URL in app)
+    status VARCHAR(20) DEFAULT 'draft',  -- draft | scheduled | sent | failed
+    scheduled_at TIMESTAMPTZ,     -- optional, for scheduling
+    sent_at TIMESTAMPTZ,
+    onesignal_id TEXT,            -- store OneSignal notification_id
+    onesignal_response JSONB,     -- store full API response
+    is_deleted boolean default false,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);

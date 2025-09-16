@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +13,8 @@ import Image from 'next/image';
 
 export default function ProfileContent() {
   const t = useTranslations('ProfileContent');
+  const router = useRouter();
+  const pathname = usePathname();
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
   const updateProfileMutation = useUpdateProfile();
@@ -21,8 +24,11 @@ export default function ProfileContent() {
     display_name: '',
     full_name: '',
     bio: '',
-    timezone: ''
+    timezone: '',
+    avatar_url: ''
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const user = userData;
   const profile = fullProfileData?.profile || user?.profile;
@@ -37,7 +43,8 @@ export default function ProfileContent() {
         display_name: profile.display_name || '',
         full_name: (profile as any)?.full_name || '',
         bio: (profile as any)?.bio || '',
-        timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur'
+        timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur',
+        avatar_url: profile.avatar_url || ''
       });
     }
   }, [profile]);
@@ -48,12 +55,46 @@ export default function ProfileContent() {
 
   const handleSave = async () => {
     try {
-      await updateProfileMutation.mutateAsync(editForm);
+      let updateData = { ...editForm };
+      
+      // Handle avatar upload if a new file is selected
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        
+        // Upload avatar to your backend/storage service
+        // This is a placeholder - you'll need to implement the actual upload endpoint
+        try {
+          const response = await fetch('/api/profile/avatar', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (response.ok) {
+            const { avatar_url } = await response.json();
+            updateData = { ...updateData, avatar_url };
+          } else {
+            throw new Error('Avatar upload failed');
+          }
+        } catch (avatarError) {
+          toast({
+            title: 'Avatar upload failed',
+            description: 'Profile updated but avatar upload failed. Please try again.',
+            variant: 'destructive',
+          });
+        }
+      }
+
+      await updateProfileMutation.mutateAsync(updateData);
+      
       toast({
         title: t('profile_updated'),
         description: t('profile_updated_desc'),
       });
+      
       setIsEditing(false);
+      setAvatarFile(null);
+      setAvatarPreview(null);
     } catch (error) {
       toast({
         title: 'Error',
@@ -65,28 +106,84 @@ export default function ProfileContent() {
 
   const handleCancel = () => {
     setIsEditing(false);
+    setAvatarFile(null);
+    setAvatarPreview(null);
     // Reset form to original values
     if (profile) {
       setEditForm({
         display_name: profile.display_name || '',
         full_name: (profile as any)?.full_name || '',
         bio: (profile as any)?.bio || '',
-        timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur'
+        timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur',
+        avatar_url: profile.avatar_url || ''
       });
     }
   };
 
   const handleAvatarChange = () => {
-    // TODO: Implement avatar upload
-    toast({
-      title: t('avatar_upload'),
-      description: t('avatar_upload_desc'),
-    });
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          toast({
+            title: 'File too large',
+            description: 'Please select an image smaller than 5MB',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          toast({
+            title: 'Invalid file type',
+            description: 'Please select an image file',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        setAvatarFile(file);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setAvatarPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        toast({
+          title: 'Avatar selected',
+          description: 'Click "Save" to update your profile with the new avatar',
+        });
+      }
+    };
+    input.click();
+  };
+
+  // Quick Actions handlers
+  const handleNavigateToCourses = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    router.push(`/${locale}/course`);
+  };
+
+  const handleNavigateToAchievements = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    router.push(`/${locale}/achievements`);
+  };
+
+  const handleNavigateToCommunity = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    router.push(`/${locale}/community`);
   };
 
   return (
     <AnimatedBackground>
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 pb-32 overflow-y-auto">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <motion.div
@@ -103,7 +200,7 @@ export default function ProfileContent() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
             {/* Profile Card */}
             <motion.div
               className="lg:col-span-1"
@@ -132,7 +229,15 @@ export default function ProfileContent() {
                   {/* Avatar */}
                   <div className="relative inline-block mb-4">
                     <div className="w-32 h-32 rounded-full overflow-hidden bg-white/20 flex items-center justify-center mx-auto">
-                      {userAvatar ? (
+                      {avatarPreview ? (
+                        <Image
+                          src={avatarPreview}
+                          alt="Profile Preview"
+                          width={128}
+                          height={128}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      ) : userAvatar ? (
                         <Image
                           src={userAvatar}
                           alt="Profile"
@@ -352,7 +457,7 @@ export default function ProfileContent() {
               </div>
 
               {/* Quick Actions */}
-              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6 mb-8">
                 <div className="relative z-10">
                   <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                     <Settings size={20} />
@@ -361,6 +466,7 @@ export default function ProfileContent() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <motion.button
+                      onClick={handleNavigateToCourses}
                       className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
@@ -373,6 +479,7 @@ export default function ProfileContent() {
                     </motion.button>
 
                     <motion.button
+                      onClick={handleNavigateToAchievements}
                       className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
@@ -385,6 +492,7 @@ export default function ProfileContent() {
                     </motion.button>
 
                     <motion.button
+                      onClick={handleNavigateToCommunity}
                       className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}

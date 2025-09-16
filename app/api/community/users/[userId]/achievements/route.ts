@@ -3,8 +3,8 @@ import { createServerClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 
 export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ userId: string }> }
+  request: Request,
+  context: { params: Promise<{ userId: string }> }
 ): Promise<NextResponse> {
   try {
     // 1. 权限验证（比如：学生用户才能看自己的成就）
@@ -13,7 +13,7 @@ export async function GET(
       return authResult;
     }
 
-    const { userId } = await params;
+    const { userId } = await context.params;
 
     // 2. 创建 Supabase server client
     const supabase = await createServerClient();

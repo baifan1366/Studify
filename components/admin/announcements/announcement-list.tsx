@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Search, Filter, MoreHorizontal, Calendar, Send, Clock, AlertCircle, Edit, Eye, Copy } from "lucide-react";
-import { useAnnouncements, useDeleteAnnouncement, useUpdateAnnouncementStatus } from "@/hooks/announcements/use-announcements";
+import { useAnnouncements, useDeleteAnnouncement, useUpdateAnnouncementStatus, useSendAnnouncement } from "@/hooks/announcements/use-announcements";
 import { Announcement } from "@/interface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ export default function AnnouncementList() {
   const { data: announcements, isLoading, error } = useAnnouncements();
   const deleteAnnouncementMutation = useDeleteAnnouncement();
   const updateStatusMutation = useUpdateAnnouncementStatus();
+  const sendAnnouncementMutation = useSendAnnouncement();
 
   const filteredAnnouncements = announcements?.filter(announcement => {
     const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,6 +90,14 @@ export default function AnnouncementList() {
       await updateStatusMutation.mutateAsync({ announcementId, status });
     } catch (error) {
       console.error("Failed to update status:", error);
+    }
+  };
+
+  const handleSendAnnouncement = async (announcementId: number) => {
+    try {
+      await sendAnnouncementMutation.mutateAsync(announcementId);
+    } catch (error) {
+      console.error("Failed to send announcement:", error);
     }
   };
 
@@ -253,15 +262,25 @@ export default function AnnouncementList() {
                           {t("duplicate")}
                         </DropdownMenuItem>
                         {(announcement.status === 'draft' || announcement.status === 'scheduled') && (
-                          <DropdownMenuItem 
-                            onClick={() => {
-                              setSelectedAnnouncement(announcement);
-                              setScheduleDialogOpen(true);
-                            }}
-                          >
-                            <Calendar className="h-4 w-4 mr-2" />
-                            {t("schedule")}
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem 
+                              onClick={() => handleSendAnnouncement(announcement.id)}
+                              disabled={sendAnnouncementMutation.isPending}
+                              className="text-green-600 dark:text-green-400"
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              {sendAnnouncementMutation.isPending ? t("sending") : t("send_now")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setSelectedAnnouncement(announcement);
+                                setScheduleDialogOpen(true);
+                              }}
+                            >
+                              <Calendar className="h-4 w-4 mr-2" />
+                              {t("schedule")}
+                            </DropdownMenuItem>
+                          </>
                         )}
                         <DropdownMenuItem 
                           className="text-red-600 dark:text-red-400"

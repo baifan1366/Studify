@@ -461,3 +461,50 @@ export class NotificationService {
 }
 
 export const notificationService = new NotificationService();
+
+/**
+ * Helper function to create notifications for all users
+ * Used for system-wide announcements
+ */
+export async function createNotificationForAllUsers({
+  kind,
+  payload
+}: {
+  kind: string;
+  payload: {
+    title: string;
+    message: string;
+    announcement_id?: number;
+    deep_link?: string;
+    image_url?: string;
+  };
+}): Promise<void> {
+  try {
+    // Get all active user IDs
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('status', 'active')
+      .eq('is_deleted', false);
+
+    if (error) throw error;
+    if (!profiles || profiles.length === 0) return;
+
+    const userIds = profiles.map(p => p.id);
+
+    // Create bulk notifications
+    await notificationService.createBulkNotifications({
+      user_ids: userIds,
+      kind,
+      payload,
+      title: payload.title,
+      message: payload.message,
+      deep_link: payload.deep_link,
+      image_url: payload.image_url,
+      send_push: true,
+    });
+  } catch (error) {
+    console.error('Failed to create notifications for all users:', error);
+    throw error;
+  }
+}

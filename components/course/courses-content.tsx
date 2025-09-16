@@ -10,7 +10,7 @@ import { useUser } from '@/hooks/profile/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { formatCurrency } from '@/lib/formatters';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,6 +29,7 @@ export default function CoursesContent() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const t = useTranslations('CoursesContent');
+  const locale = useLocale();
   const [currency, setCurrency] = useState('MYR');
   const router = useRouter();
 
@@ -60,7 +61,7 @@ export default function CoursesContent() {
       return {
         id: c.public_id,
         title: c.title,
-        instructor: user?.profile?.display_name || user?.email?.split('@')[0] || `Owner #${c.owner_id}`,
+        instructor: `Instructor`, // TODO: Fetch actual instructor info from owner_id
         duration: c.total_duration_minutes
           ? `${c.total_duration_minutes} mins`
           : '—',
@@ -70,7 +71,7 @@ export default function CoursesContent() {
         price: c.price_cents ? formatCurrency(c.price_cents / 100, currency) : 'Free',
         priceCents: c.price_cents || 0,
         isFree: !c.price_cents || c.price_cents === 0,
-        points: Math.floor(Math.random() * 500) + 100,
+        points: Math.max(100, Math.floor((c.price_cents || 0) / 10)), // Calculate points based on price
         thumbnailUrl: c.thumbnail_url,
         level: c.level || 'beginner',
         category: c.category || 'General',
@@ -86,12 +87,15 @@ export default function CoursesContent() {
         ][idx % 6],
       };
     });
-  }, [courses, user, currency, enrolledCourseIds]);
+  }, [courses, currency, enrolledCourseIds]);
 
   const handleAddToCart = (courseId: string | number) => {
+    // TODO: Implement actual cart functionality
+    // For now, just show a toast with better UX
+    const course = uiCourses.find(c => c.id === courseId);
     toast({
       title: t('added_to_cart'),
-      description: t('course_added_to_cart', { courseId }),
+      description: course ? `${course.title} ${t('course_added_to_cart')}` : t('course_added_to_cart'),
     });
   };
 
@@ -101,7 +105,25 @@ export default function CoursesContent() {
       const result = await purchaseCourse.mutateAsync({
         courseId: String(courseId)
       });
-      router.push(result.checkoutUrl || '');
+      
+      // Handle free course enrollment
+      if (result.enrolled) {
+        toast({
+          title: t('enrollment_success'),
+          description: t('you_are_now_enrolled'),
+        });
+        // Find the course to get its slug for navigation
+        const course = uiCourses.find(c => c.id === courseId);
+        if (course?.slug) {
+          router.push(`/${locale}/courses/${course.slug}`);
+        }
+        return;
+      }
+      
+      // Handle paid course checkout
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      }
     } catch (error) {
       toast({
         title: t('purchase_failed'),

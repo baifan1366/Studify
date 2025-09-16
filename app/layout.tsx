@@ -5,9 +5,13 @@ import { PWAProvider } from "@/components/providers/pwa-provider";
 import "./globals.css";
 import "@livekit/components-styles";
 import { setupNotification } from "@/utils/notification/notifications-setup";
+import { useEffect } from "react";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  setupNotification();
+  useEffect(() => {
+    setupNotification();
+  }, []);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

@@ -54,8 +54,10 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
         };
         const communityIcon = communityIcons[payload.type as keyof typeof communityIcons] || '💬';
         return `${communityIcon} ${payload.group_name || 'Community Update'}`;
+      case 'system':
+        return payload.title || '📢 System Announcement';
       default:
-        return 'Notification';
+        return payload.title || 'Notification';
     }
   };
 
@@ -86,8 +88,10 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
           : payload.type === 'comment'
           ? 'Someone commented on your post'
           : 'Someone reacted to your content';
+      case 'system':
+        return payload.message || 'System announcement';
       default:
-        return 'You have a new notification';
+        return payload.message || 'You have a new notification';
     }
   };
 
@@ -101,8 +105,10 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
         return `/classroom/${payload.classroom_slug}`;
       case 'community_notification':
         return `/community/groups/${payload.group_slug}`;
+      case 'system':
+        return payload.deep_link || '#';
       default:
-        return '#';
+        return payload.deep_link || '#';
     }
   };
 

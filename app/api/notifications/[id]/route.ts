@@ -5,7 +5,7 @@ import { notificationService } from '@/lib/notifications/notification-service';
 // PATCH /api/notifications/[id] - Mark notification as read or update
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await authorize('student');
@@ -15,9 +15,10 @@ export async function PATCH(
     const { user, payload } = authResult;
     const body = await request.json();
     const { is_read } = body;
+    const { id } = await context.params;
 
     if (is_read === true) {
-      await notificationService.markAsRead(params.id, user.profile?.id || parseInt(payload.sub));
+      await notificationService.markAsRead(id, user.profile?.id || parseInt(payload.sub));
     }
 
     return NextResponse.json({ success: true });
@@ -33,7 +34,7 @@ export async function PATCH(
 // DELETE /api/notifications/[id] - Delete notification
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await authorize('student');
@@ -41,8 +42,9 @@ export async function DELETE(
       return authResult;
     }
     const { user, payload } = authResult;
+    const { id } = await context.params;
 
-    await notificationService.deleteNotification(params.id, user.profile?.id || parseInt(payload.sub));
+    await notificationService.deleteNotification(id, user.profile?.id || parseInt(payload.sub));
 
     return NextResponse.json({ success: true });
   } catch (error) {

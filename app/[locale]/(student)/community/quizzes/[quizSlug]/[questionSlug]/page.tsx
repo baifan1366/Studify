@@ -28,14 +28,16 @@ const mockComments = [
   },
 ];
 
-export default function Page({
+export default async function Page({
   params,
 }: {
-  params: { quizSlug: string; questionSlug: string };
+  params: Promise<{ quizSlug: string; questionSlug: string }>;
 }) {
+  const { quizSlug, questionSlug } = await params;
+  
   return (
     <SingleQuestionContent
-      quizSlug={params.quizSlug}
+      quizSlug={quizSlug}
       question={mockQuestion}
       comments={mockComments}
     />

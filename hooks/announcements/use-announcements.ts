@@ -114,3 +114,32 @@ export function useDeleteAnnouncement() {
     },
   });
 }
+
+export function useSendAnnouncement() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (announcementId: number) => 
+      apiSend<Announcement>({
+        url: `/api/announcements/${announcementId}/send`,
+        method: 'POST',
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      queryClient.invalidateQueries({ queryKey: ['announcement', data.id] });
+      toast({
+        title: 'Success',
+        description: 'Announcement sent successfully! Notifications have been created for all users.',
+      });
+    },
+    onError: (error: Error) => {
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send announcement',
+        variant: 'destructive',
+      });
+    },
+  });
+}

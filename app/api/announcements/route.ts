@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { createNotificationForAllUsers } from "@/lib/notifications/notification-service";
 
 // GET /api/announcements
 export async function GET() {
@@ -58,6 +59,25 @@ export async function POST(req: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // If announcement is sent immediately (not draft or scheduled), create notifications
+    if (data && payload.status === 'sent') {
+      try {
+        await createNotificationForAllUsers({
+          kind: 'system',
+          payload: {
+            title: 'New Announcement',
+            message: `${data.title}: ${data.message}`,
+            announcement_id: data.id,
+            deep_link: data.deep_link || undefined,
+            image_url: data.image_url || undefined
+          }
+        });
+      } catch (notificationError) {
+        console.error('Failed to create notifications for announcement:', notificationError);
+        // Don't fail the announcement creation if notification fails
+      }
     }
 
     return NextResponse.json({ data }, { status: 201 });

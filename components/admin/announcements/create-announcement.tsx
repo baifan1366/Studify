@@ -228,6 +228,13 @@ export default function CreateAnnouncement({
                         </Badge>
                       </div>
                     </SelectItem>
+                    <SelectItem value="sent">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          {t("send_now")}
+                        </Badge>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -332,12 +339,12 @@ export default function CreateAnnouncement({
                 {createAnnouncementMutation.isPending ? (
                   <>
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    {t("creating")}
+                    {formData.status === "sent" ? t("sending") : t("creating")}
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4" />
-                    {formData.status === "scheduled" ? t("schedule_announcement") : t("save_draft")}
+                    {formData.status === "sent" ? <Send className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                    {formData.status === "sent" ? t("send_announcement") : formData.status === "scheduled" ? t("schedule_announcement") : t("save_draft")}
                   </>
                 )}
               </Button>

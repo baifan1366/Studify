@@ -11,7 +11,7 @@ export async function setupNotification() {
     if (Capacitor.isNativePlatform()) {
       // 📱 Native app (iOS/Android via Capacitor)
       console.log("[Notification] Running Capacitor OneSignal");
-      initCapacitor();
+      await initCapacitor();
     } else {
       // 🌐 Web / PWA
       console.log("[Notification] Running Web OneSignal");

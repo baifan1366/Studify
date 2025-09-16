@@ -2,7 +2,7 @@ import OneSignal from "react-onesignal";
 
 export async function runOneSignal() {
   await OneSignal.init({
-    appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID as string,
+    appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!,
   });
 
   // 🔹 Ask browser permission with OneSignal’s default prompt

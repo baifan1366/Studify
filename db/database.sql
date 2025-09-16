@@ -1041,6 +1041,7 @@ create table if not exists community_quiz_question (
   public_id uuid not null default uuid_generate_v4(),
   quiz_id bigint not null references community_quiz(id),
   slug text not null, -- 比如 "q1" 或 "derivative-definition"
+  question_type text not null default 'single_choice' check (question_type in ('single_choice', 'multiple_choice', 'fill_in_blank'));
   question_text text not null,
   options text[],
   correct_answers text[],
@@ -1055,6 +1056,14 @@ create table if not exists community_quiz_attempt (
   answers text[], -- 用户提交答案
   is_correct boolean,
   created_at timestamptz not null default now()
+);
+
+create table if not exists community_quiz_attempt_answer (
+  id bigserial primary key,
+  attempt_id bigint not null references community_quiz_attempt(id) on delete cascade,
+  question_id bigint not null references community_quiz_question(id),
+  user_answer text[],   -- 存储用户选的选项索引，或填空的文本
+  is_correct boolean
 );
 
 create table if not exists community_quiz_like (

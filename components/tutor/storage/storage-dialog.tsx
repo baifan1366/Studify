@@ -61,11 +61,12 @@ import {
   EllipsisVertical,
   Music,
   Download,
-  Play
+  Play,
+  Brain
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
-import { useConvertToAudio } from '@/hooks/course/use-audio-conversion'
+import { useProcessVideoEmbeddings } from '@/hooks/embedding/use-video-embeddings'
 import { PreviewAttachment } from './preview-attachment'
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
@@ -105,7 +106,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const uploadMutation = useUploadAttachment()
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
-  const convertToAudioMutation = useConvertToAudio()
+  const processVideoMutation = useProcessVideoEmbeddings()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return 'Unknown size'
@@ -150,11 +151,27 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
 
     setTitleError(null)
     try {
-      await uploadMutation.mutateAsync({
+      const uploadResult = await uploadMutation.mutateAsync({
         ownerId,
         title: title.trim(),
         file
       })
+
+      // Check if uploaded file is a video and automatically process it
+      if (file.type.startsWith('video/') && uploadResult?.id) {
+        toast.success('Video uploaded! Processing for AI features...')
+        
+        // Process video for embeddings in the background
+        try {
+          await processVideoMutation.mutateAsync({
+            attachment_id: uploadResult.id
+          })
+          toast.success('Video processed successfully! AI features are now available.')
+        } catch (processError) {
+          console.error('Video processing error:', processError)
+          toast.error('Video uploaded but AI processing failed. You can retry processing later.')
+        }
+      }
 
       // Clear form
       setTitle('')
@@ -230,26 +247,19 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     }
   }
 
-  const handleConvertToAudio = async (attachment: CourseAttachment) => {
+  const handleProcessVideo = async (attachment: CourseAttachment) => {
     try {
-      await convertToAudioMutation.mutateAsync({
-        attachmentId: attachment.id,
-        ownerId
+      toast.success('Processing video for AI features...')
+      await processVideoMutation.mutateAsync({
+        attachment_id: attachment.id
       })
+      toast.success('Video processed successfully! AI features are now available.')
     } catch (error) {
-      // Error is handled by the mutation
+      console.error('Video processing error:', error)
+      toast.error('Video processing failed. Please try again later.')
     }
   }
 
-  const handleDownloadAudio = (mp3Url: string, title: string) => {
-    const link = document.createElement('a')
-    link.href = mp3Url
-    link.download = `${title}.mp3`
-    link.target = '_blank'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   const attachmentCount = attachments.length
   const pluralSuffix = attachmentCount !== 1 ? 's' : ''
@@ -277,7 +287,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="upload" className="gap-2">
                 <Upload className="h-4 w-4" />
                 {t('upload_tab')}
@@ -285,10 +295,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
               <TabsTrigger value="manage" className="gap-2">
                 <FileText className="h-4 w-4" />
                 {t('manage_tab')}
-              </TabsTrigger>
-              <TabsTrigger value="audio" className="gap-2">
-                <Music className="h-4 w-4" />
-                Audio Convert
               </TabsTrigger>
             </TabsList>
 
@@ -455,6 +461,15 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    {attachment.type === 'video' && (
+                                      <DropdownMenuItem 
+                                        onClick={() => handleProcessVideo(attachment)}
+                                        disabled={processVideoMutation.isPending}
+                                      >
+                                        <Brain className="h-4 w-4 mr-2" />
+                                        {processVideoMutation.isPending ? 'Processing...' : 'Process for AI'}
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem onClick={() => handleEdit(attachment)}>
                                       <Edit className="h-4 w-4 mr-2" />
                                       {t('edit')}
@@ -479,105 +494,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
               </Card>
             </TabsContent>
 
-            <TabsContent value="audio" className="mt-6">
-              <Card className="bg-transparent">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Music className="h-5 w-5" />
-                    Video to Audio Converter
-                  </CardTitle>
-                  <CardDescription>
-                    Convert your video files to MP3 audio format for easy download and use.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="overflow-auto max-h-96">
-                  {isLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      Loading videos...
-                    </div>
-                  ) : (
-                    (() => {
-                      const videoAttachments = attachments.filter(attachment => attachment.type === 'video')
-                      
-                      if (videoAttachments.length === 0) {
-                        return (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Play className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No video files found</p>
-                            <p className="text-sm">Upload video files first to convert them to audio.</p>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <div className="space-y-4">
-                          {videoAttachments.map((attachment) => (
-                            <div key={attachment.id} className="border rounded-lg p-4 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <h3 className="font-medium">{attachment.title}</h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    {formatFileSize(attachment.size)} • {formatDate(attachment.created_at, {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </p>
-                                </div>
-                                <Badge variant="outline" className="ml-2">
-                                  Video
-                                </Badge>
-                              </div>
-                              
-                              <div className="flex items-center gap-2">
-                                {attachment.cloudinary_mp3 ? (
-                                  <div className="flex items-center gap-2 flex-1">
-                                    <div className="flex items-center gap-2 text-green-600 text-sm">
-                                      <Music className="h-4 w-4" />
-                                      Audio ready
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleDownloadAudio(attachment.cloudinary_mp3!, attachment.title)}
-                                      className="ml-auto"
-                                    >
-                                      <Download className="h-4 w-4 mr-2" />
-                                      Download MP3
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleConvertToAudio(attachment)}
-                                    disabled={convertToAudioMutation.isPending}
-                                    className="ml-auto"
-                                  >
-                                    {convertToAudioMutation.isPending ? (
-                                      <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Converting...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Music className="h-4 w-4 mr-2" />
-                                        Convert to Audio
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })()
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>

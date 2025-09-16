@@ -1319,7 +1319,7 @@ CREATE TABLE IF NOT EXISTS document_hierarchy (
   UNIQUE(content_type, content_id)
 );
 
-CREATE TABLE announcements (
+CREATE TABLE IF NOT EXISTS announcements (
     id bigserial primary key,
     public_id uuid not null default uuid_generate_v4(),
     created_by bigint not null references profiles(id) on delete cascade,
@@ -1336,4 +1336,35 @@ CREATE TABLE announcements (
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
     deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS video_embeddings (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  attachment_id bigint NOT NULL references course_attachments(id) on delete cascade,
+  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),  
+  embedding vector(384), -- 384-dimensional embedding vector
+  content_text text NOT NULL, -- The actual text that was embedded
+  chunk_type text CHECK (chunk_type IN ('summary', 'section', 'paragraph', 'detail')),
+  hierarchy_level int DEFAULT 0,
+  parent_chunk_id bigint REFERENCES embeddings(id),
+  section_title text,
+  semantic_density float CHECK (semantic_density >= 0 AND semantic_density <= 1),
+  key_terms text[],
+  sentence_count int DEFAULT 0,
+  word_count int DEFAULT 0,
+  has_code_block boolean DEFAULT false,
+  has_table boolean DEFAULT false,
+  has_list boolean DEFAULT false,
+  chunk_language text DEFAULT 'en',
+  embedding_model text DEFAULT 'intfloat/e5-small',
+  language text DEFAULT 'en',
+  token_count int,
+  status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'outdated')) DEFAULT 'pending',
+  error_message text,
+  retry_count int DEFAULT 0,
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
 );

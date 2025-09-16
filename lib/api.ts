@@ -412,3 +412,13 @@ export const api = {
     return response.json();
   },
 };
+// video embeddings api
+export const videoEmbeddingsApi = {
+  list: "/api/embeddings/video-embeddings",
+  getById: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+  getByAttachmentId: (attachmentId: number) => `/api/embeddings/video-embeddings/attachment/${attachmentId}`,
+  create: "/api/embeddings/video-embeddings",
+  process: "/api/embeddings/video-embeddings/process",
+  update: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+  delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+} as const;

@@ -152,7 +152,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     setTitleError(null)
     try {
       const uploadResult = await uploadMutation.mutateAsync({
-        ownerId,
         title: title.trim(),
         file
       })

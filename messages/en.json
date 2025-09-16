@@ -1963,6 +1963,8 @@
     "edit_announcement_description": "Edit announcement details",
     "delete_announcement_desc": "Delete announcement",
     "preview_announcement_desc": "Preview announcement",
+    "reschedule_info": "The announcement will be automatically sent at the scheduled time",
+    "schedule_info": "The announcement will be automatically sent at the scheduled time",
     "reschedule_announcement_desc": "Modify the scheduled time for this announcement",
     "schedule_announcement_desc": "Set when this announcement should be sent to users"
   },

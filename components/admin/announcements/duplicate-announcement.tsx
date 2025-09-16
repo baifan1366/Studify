@@ -55,7 +55,7 @@ export default function DuplicateAnnouncement({
         image_url: announcement.image_url || "",
         deep_link: announcement.deep_link || "",
         status: "draft" as const, // Always create duplicates as draft
-        scheduled_at: null, // Reset scheduling
+        // scheduled_at is omitted to reset scheduling (undefined is valid for optional fields)
       };
 
       // Validate the data

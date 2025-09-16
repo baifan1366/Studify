@@ -330,38 +330,46 @@ export default function ScheduleAnnouncement({
           </div>
         </div>
 
-        {/* Fixed Action Buttons Footer */}
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleCancel}
-            disabled={updateStatusMutation.isPending}
-          >
-            <X className="h-4 w-4 mr-2" />
-            {t("cancel")}
-          </Button>
-          
-          {canSchedule && (
-            <Button
-              onClick={handleSchedule}
-              disabled={updateStatusMutation.isPending || !scheduledDateTime}
-              className="gap-2"
-            >
-              {updateStatusMutation.isPending ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  {t("scheduling")}
-                </>
-              ) : (
-                <>
-                  <Calendar className="h-4 w-4" />
-                  {isCurrentlyScheduled ? t("reschedule") : t("schedule_now")}
-                </>
+          <Separator />
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <Calendar className="h-4 w-4" />
+              <span>{isCurrentlyScheduled ? t("reschedule_info") : t("schedule_info")}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleCancel}
+                disabled={updateStatusMutation.isPending}
+              >
+                <X className="h-4 w-4 mr-2" />
+                {t("cancel")}
+              </Button>
+              
+              {canSchedule && (
+                <Button
+                  onClick={handleSchedule}
+                  disabled={updateStatusMutation.isPending || !scheduledDateTime}
+                  className="gap-2"
+                >
+                  {updateStatusMutation.isPending ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      {t("scheduling")}
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="h-4 w-4" />
+                      {isCurrentlyScheduled ? t("reschedule") : t("schedule_now")}
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
-        </DialogFooter>
+            </div>
+          </div>
       </DialogContent>
     </Dialog>
   );

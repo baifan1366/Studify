@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/formatters";
 
 interface ScheduleAnnouncementProps {
   announcement: Announcement;
@@ -79,6 +80,7 @@ export default function ScheduleAnnouncement({
         setScheduledDateTime(nextWeek.toISOString().slice(0, 16));
         break;
       default:
+        //add translation
         const presetData = timePresets.find(p => p.label === preset);
         if (presetData && presetData.minutes) {
           const scheduledTime = new Date(now.getTime() + presetData.minutes * 60000);
@@ -119,7 +121,7 @@ export default function ScheduleAnnouncement({
       toast({
         title: t("success"),
         description: t("announcement_scheduled", { 
-          time: scheduledTime.toLocaleString() 
+          time: formatDate(scheduledTime.toISOString(), "en-US", { hour: "2-digit", minute: "2-digit" }) 
         }),
       });
       
@@ -155,17 +157,21 @@ export default function ScheduleAnnouncement({
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-auto">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Calendar className="h-5 w-5" />
             {isCurrentlyScheduled ? t("reschedule_announcement") : t("schedule_announcement")}
           </DialogTitle>
+          <DialogDescription>
+            {isCurrentlyScheduled ? t("reschedule_announcement_desc") : t("schedule_announcement_desc")}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="space-y-6">
           {/* Announcement Preview */}
-          <Card>
+          <Card className="bg-transparent p-2">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -181,7 +187,7 @@ export default function ScheduleAnnouncement({
                       <Clock className="h-3 w-3 mr-1" />
                       {t(announcement.status)}
                     </Badge>
-                    <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                    <span>{formatDate(announcement.created_at)}</span>
                   </div>
                 </div>
               </div>
@@ -195,7 +201,7 @@ export default function ScheduleAnnouncement({
                   <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
                     <Calendar className="h-4 w-4" />
                     <span className="text-sm font-medium">
-                      {t("currently_scheduled_for")}: {new Date(announcement.scheduled_at).toLocaleString()}
+                      {t("currently_scheduled_for")}: {formatDate(announcement.scheduled_at, "en-US", { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
                 </div>
@@ -204,7 +210,7 @@ export default function ScheduleAnnouncement({
           </Card>
 
           {!canSchedule ? (
-            <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+            <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-2">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
@@ -225,7 +231,7 @@ export default function ScheduleAnnouncement({
           ) : (
             <>
               {/* Quick Presets */}
-              <Card>
+              <Card className="p-2 bg-transparent">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Clock className="h-5 w-5" />
@@ -250,7 +256,7 @@ export default function ScheduleAnnouncement({
               </Card>
 
               {/* Custom Date/Time */}
-              <Card>
+              <Card className="p-2 bg-transparent">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
@@ -283,7 +289,7 @@ export default function ScheduleAnnouncement({
                       <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                         <CheckCircle className="h-4 w-4" />
                         <span className="text-sm font-medium">
-                          {t("will_be_sent_at")}: {new Date(scheduledDateTime).toLocaleString()}
+                          {t("will_be_sent_at")}: {formatDate(scheduledDateTime, "en-US", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
                       <p className="text-xs text-green-600 dark:text-green-400 mt-1">
@@ -295,7 +301,7 @@ export default function ScheduleAnnouncement({
               </Card>
 
               {/* Scheduling Info */}
-              <Card className="bg-gray-50 dark:bg-gray-900/50">
+              <Card className="bg-gray-50 dark:bg-gray-900/50 p-2">
                 <CardHeader>
                   <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                     {t("scheduling_information")}
@@ -321,41 +327,48 @@ export default function ScheduleAnnouncement({
             </>
           )}
 
-          <Separator />
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={updateStatusMutation.isPending}
-            >
-              <X className="h-4 w-4 mr-2" />
-              {t("cancel")}
-            </Button>
-            
-            {canSchedule && (
-              <Button
-                onClick={handleSchedule}
-                disabled={updateStatusMutation.isPending || !scheduledDateTime}
-                className="gap-2"
-              >
-                {updateStatusMutation.isPending ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    {t("scheduling")}
-                  </>
-                ) : (
-                  <>
-                    <Calendar className="h-4 w-4" />
-                    {isCurrentlyScheduled ? t("reschedule") : t("schedule_now")}
-                  </>
-                )}
-              </Button>
-            )}
           </div>
         </div>
+
+        <DialogFooter className="px-6 py-4 border-t flex-shrink-0">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <Calendar className="h-4 w-4" />
+              <span>{isCurrentlyScheduled ? t("reschedule_info") : t("schedule_info")}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleCancel}
+                disabled={updateStatusMutation.isPending}
+              >
+                <X className="h-4 w-4 mr-2" />
+                {t("cancel")}
+              </Button>
+              
+              {canSchedule && (
+                <Button
+                  onClick={handleSchedule}
+                  disabled={updateStatusMutation.isPending || !scheduledDateTime}
+                  className="gap-2"
+                >
+                  {updateStatusMutation.isPending ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      {t("scheduling")}
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="h-4 w-4" />
+                      {isCurrentlyScheduled ? t("reschedule") : t("schedule_now")}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

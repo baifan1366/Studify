@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/formatters";
 
 interface DeleteAnnouncementProps {
   announcement: Announcement;
@@ -100,11 +101,14 @@ export default function DeleteAnnouncement({
             <Trash2 className="h-5 w-5" />
             {t("delete_announcement")}
           </DialogTitle>
+          <DialogDescription>
+            {t("delete_announcement_desc")}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Announcement Preview */}
-          <Card className="border-red-200 dark:border-red-800">
+          <Card className="border-red-200 dark:border-red-800 p-2">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -115,7 +119,7 @@ export default function DeleteAnnouncement({
                     <Badge className={config.color}>
                       {t(announcement.status)}
                     </Badge>
-                    <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                    <span>{formatDate(announcement.created_at)}</span>
                   </div>
                 </div>
               </div>
@@ -126,12 +130,12 @@ export default function DeleteAnnouncement({
               </p>
               {announcement.scheduled_at && (
                 <div className="mt-3 text-sm text-blue-600 dark:text-blue-400">
-                  {t("scheduled_for")}: {new Date(announcement.scheduled_at).toLocaleString()}
+                  {t("scheduled_for")}: {formatDate(announcement.scheduled_at)}
                 </div>
               )}
               {announcement.sent_at && (
                 <div className="mt-3 text-sm text-green-600 dark:text-green-400">
-                  {t("sent_at")}: {new Date(announcement.sent_at).toLocaleString()}
+                  {t("sent_at")}: {formatDate(announcement.sent_at)}
                 </div>
               )}
             </CardContent>
@@ -180,7 +184,7 @@ export default function DeleteAnnouncement({
           <div className="flex items-center justify-end gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={handleCancel}
               disabled={deleteAnnouncementMutation.isPending}
             >

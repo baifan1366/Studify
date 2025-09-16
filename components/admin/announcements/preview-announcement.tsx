@@ -7,9 +7,10 @@ import { Announcement } from "@/interface";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/lib/formatters";
 
 interface PreviewAnnouncementProps {
   announcement: Announcement;
@@ -63,10 +64,10 @@ export default function PreviewAnnouncement({
       <div className="max-w-sm mx-auto">
         {/* Phone Frame */}
         <div className="bg-black rounded-[2.5rem] p-2">
-          <div className="bg-white dark:bg-gray-800 rounded-[2rem] overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-[2rem] overflow-auto">
             {/* Status Bar */}
             <div className="bg-gray-50 dark:bg-gray-900 px-6 py-2 flex justify-between items-center text-xs">
-              <span className="font-medium">9:41</span>
+              <span className="font-medium">{formatDate(announcement.created_at)}</span>
               <div className="flex items-center gap-1">
                 <div className="w-4 h-2 bg-green-500 rounded-sm"></div>
                 <div className="w-6 h-3 border border-gray-400 rounded-sm">
@@ -172,11 +173,14 @@ export default function PreviewAnnouncement({
             <Eye className="h-5 w-5" />
             {t("preview_announcement")}
           </DialogTitle>
+          <DialogDescription>
+            {t("preview_announcement_desc")}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Announcement Details */}
-          <Card>
+          <Card className="bg-transparent p-2">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -188,15 +192,15 @@ export default function PreviewAnnouncement({
                       <StatusIcon className="h-3 w-3 mr-1" />
                       {t(announcement.status)}
                     </Badge>
-                    <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                    <span>{formatDate(announcement.created_at)}</span>
                     {announcement.scheduled_at && (
                       <span>
-                        {t("scheduled_for")}: {new Date(announcement.scheduled_at).toLocaleString()}
+                        {t("scheduled_for")}: {formatDate(announcement.scheduled_at)}
                       </span>
                     )}
                     {announcement.sent_at && (
                       <span>
-                        {t("sent_at")}: {new Date(announcement.sent_at).toLocaleString()}
+                        {t("sent_at")}: {formatDate(announcement.sent_at)}
                       </span>
                     )}
                   </div>
@@ -241,7 +245,7 @@ export default function PreviewAnnouncement({
           </Card>
 
           {/* Status Information */}
-          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 p-2">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
                 <StatusIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
@@ -288,7 +292,7 @@ export default function PreviewAnnouncement({
           </div>
 
           {/* Technical Details */}
-          <Card className="bg-gray-50 dark:bg-gray-900/50">
+          <Card className="bg-gray-50 dark:bg-gray-900/50 p-2">
             <CardHeader>
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 {t("technical_details")}
@@ -306,11 +310,11 @@ export default function PreviewAnnouncement({
                 </div>
                 <div className="flex justify-between">
                   <span>{t("created_at")}:</span>
-                  <span>{new Date(announcement.created_at).toLocaleString()}</span>
+                  <span>{formatDate(announcement.created_at)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t("updated_at")}:</span>
-                  <span>{new Date(announcement.updated_at).toLocaleString()}</span>
+                  <span>{formatDate(announcement.updated_at)}</span>
                 </div>
                 {announcement.onesignal_id && (
                   <div className="flex justify-between col-span-2">

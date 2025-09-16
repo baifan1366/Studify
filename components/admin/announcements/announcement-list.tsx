@@ -21,6 +21,7 @@ import EditAnnouncement from "./edit-announcement";
 import PreviewAnnouncement from "./preview-announcement";
 import ScheduleAnnouncement from "./schedule-announcement";
 import DeleteAnnouncement from "./delete-announcement";
+import DuplicateAnnouncement from "./duplicate-announcement";
 
 const statusConfig = {
   draft: { 
@@ -54,6 +55,7 @@ export default function AnnouncementList() {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
 
   const { data: announcements, isLoading, error } = useAnnouncements();
   const deleteAnnouncementMutation = useDeleteAnnouncement();
@@ -103,7 +105,7 @@ export default function AnnouncementList() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="bg-transparent">
               <CardHeader>
                 <Skeleton className="h-6 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
@@ -120,7 +122,7 @@ export default function AnnouncementList() {
 
   if (error) {
     return (
-      <Card className="border-red-200 dark:border-red-800">
+      <Card className="border-red-200 dark:border-red-800 bg-transparent">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
             <AlertCircle className="h-5 w-5" />
@@ -146,20 +148,21 @@ export default function AnnouncementList() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <div className="flex items-center gap-4">
+        {/* Search bar grows to take remaining space */}
+        <div className="flex-1">
           <Input
             placeholder={t("search_announcements")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
           />
         </div>
+
+        {/* Filter only takes the size it needs */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="flex items-center min-w-[120px]">
             <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder={t("filter_status")} />
+            <span>{t("filter")}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("all_statuses")}</SelectItem>
@@ -174,7 +177,7 @@ export default function AnnouncementList() {
       {/* Announcements Grid */}
       <div className="grid gap-4">
         {filteredAnnouncements.length === 0 ? (
-          <Card className="border-dashed">
+          <Card className="border-dashed bg-transparent">
             <CardContent className="pt-6">
               <div className="text-center py-8">
                 <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
@@ -183,9 +186,6 @@ export default function AnnouncementList() {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                   {t("no_announcements")}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {t("no_announcements_desc")}
-                </p>
                 <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="h-4 w-4" />
                   {t("create_first_announcement")}
@@ -197,7 +197,7 @@ export default function AnnouncementList() {
           filteredAnnouncements.map((announcement) => {
             const StatusIcon = statusConfig[announcement.status].icon;
             return (
-              <Card key={announcement.id} className="hover:shadow-md transition-shadow">
+              <Card key={announcement.id} className="hover:shadow-md transition-shadow bg-transparent">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -243,7 +243,12 @@ export default function AnnouncementList() {
                           <Eye className="h-4 w-4 mr-2" />
                           {t("preview")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedAnnouncement(announcement);
+                            setDuplicateDialogOpen(true);
+                          }}
+                        >
                           <Copy className="h-4 w-4 mr-2" />
                           {t("duplicate")}
                         </DropdownMenuItem>
@@ -333,6 +338,15 @@ export default function AnnouncementList() {
             open={deleteDialogOpen}
             onOpenChange={(open) => {
               setDeleteDialogOpen(open);
+              if (!open) setSelectedAnnouncement(null);
+            }}
+          />
+          
+          <DuplicateAnnouncement 
+            announcement={selectedAnnouncement}
+            open={duplicateDialogOpen}
+            onOpenChange={(open) => {
+              setDuplicateDialogOpen(open);
               if (!open) setSelectedAnnouncement(null);
             }}
           />

@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from '@/hooks/profile/use-user';
 
 interface CreateAnnouncementProps {
   open?: boolean;
@@ -28,6 +29,7 @@ export default function CreateAnnouncement({
   trigger 
 }: CreateAnnouncementProps) {
   const t = useTranslations("Announcements");
+  const { data: userData } = useUser();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -35,11 +37,11 @@ export default function CreateAnnouncement({
 
   // Form state
   const [formData, setFormData] = useState({
-    created_by: 1, // This should come from auth context
+    created_by: userData?.profile?.id,
     title: "",
     message: "",
     image_url: "",
-    edep_link: "",
+    deep_link: "",
     status: "draft" as "draft" | "scheduled" | "sent" | "failed",
     scheduled_at: "",
   });
@@ -93,7 +95,7 @@ export default function CreateAnnouncement({
       };
 
       await createAnnouncementMutation.mutateAsync({
-        created_by: formData.created_by,
+        created_by: Number(formData?.created_by || ""),
         body: submitData,
       });
       
@@ -104,11 +106,11 @@ export default function CreateAnnouncement({
       
       // Reset form
       setFormData({
-        created_by: 1,
+        created_by: userData?.profile?.id,
         title: "",
         message: "",
         image_url: "",
-        edep_link: "",
+        deep_link: "",
         status: "draft",
         scheduled_at: "",
       });
@@ -128,11 +130,11 @@ export default function CreateAnnouncement({
 
   const handleCancel = () => {
     setFormData({
-      created_by: 1,
+      created_by: userData?.profile?.id,
       title: "",
       message: "",
       image_url: "",
-      edep_link: "",
+      deep_link: "",
       status: "draft",
       scheduled_at: "",
     });
@@ -154,11 +156,14 @@ export default function CreateAnnouncement({
             <Send className="h-5 w-5" />
             {t("create_announcement")}
           </DialogTitle>
+          <DialogDescription>
+            {t('create_announcement_desc')}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-6">
           {/* Basic Information */}
-          <Card>
+          <Card className="bg-transparent p-2">
             <CardHeader>
               <CardTitle className="text-lg">{t("basic_information")}</CardTitle>
             </CardHeader>
@@ -250,7 +255,7 @@ export default function CreateAnnouncement({
           </Card>
 
           {/* Media & Links */}
-          <Card>
+          <Card className="bg-transparent p-2">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <ImageIcon className="h-5 w-5" />
@@ -284,14 +289,14 @@ export default function CreateAnnouncement({
 
               {/* Deep Link */}
               <div className="space-y-2">
-                <Label htmlFor="edep_link" className="text-sm font-medium">
+                <Label htmlFor="deep_link" className="text-sm font-medium">
                   <LinkIcon className="inline h-4 w-4 mr-1" />
                   {t("deep_link")}
                 </Label>
                 <Input
-                  id="edep_link"
-                  value={formData.edep_link}
-                  onChange={(e) => handleInputChange("edep_link", e.target.value)}
+                  id="deep_link"
+                  value={formData.deep_link}
+                  onChange={(e) => handleInputChange("deep_link", e.target.value)}
                   placeholder={t("deep_link_placeholder")}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -312,7 +317,7 @@ export default function CreateAnnouncement({
             <div className="flex items-center gap-3">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={handleCancel}
                 disabled={createAnnouncementMutation.isPending}
               >

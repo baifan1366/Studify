@@ -43,10 +43,7 @@ export async function POST(req: Request) {
       sent_at: body.sent_at as string | null,
       onesignal_id: body.onesignal_id as string | null,
       onesignal_response: body.onesignal_response as string | null,
-      is_deleted: body.is_deleted as boolean,
-      created_at: body.created_at as string,
-      updated_at: body.updated_at as string,
-      deleted_at: body.deleted_at as string | null
+      created_by: body.created_by as number,
     };
 
     if (!payload.title) {

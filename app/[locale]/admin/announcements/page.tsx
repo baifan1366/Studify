@@ -21,7 +21,7 @@ export default async function AdminAnnouncementsPage() {
   const t = await getTranslations('AdminAnnouncementsPage');
 
   return (
-    <div>
+    <div className="p-4">
       <AnnouncementList />
     </div>
   );

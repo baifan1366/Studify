@@ -49,6 +49,16 @@ export function useEnrolledCourses() {
   });
 }
 
+//get does user has been enroll this course or not
+export function useEnrolledCourseStatus(userId: number, courseId: number) {
+  return useQuery<Enrollment, Error>({
+    queryKey: ["enrolledCourse", userId, courseId],
+    queryFn: () => apiGet<Enrollment>(classroomApi.enrolledCoursesByUserIdAndCourseId(userId, courseId)),
+    staleTime: 1000 * 60 * 3, // 缓存 3 分钟
+    refetchOnWindowFocus: false,
+  });
+}
+
 //get current user enrolled courses
 export function useEnrolledCoursesByUserId(userId: number) {
   return useQuery<Enrollment[], Error>({
@@ -75,6 +85,23 @@ export function useRecommendedCourses() {
     queryKey: ["recommendedCourses"],
     queryFn: fetchRecommendedCourses,
     staleTime: 1000 * 60 * 5, // 缓存 5 分钟
+  });
+}
+
+//after payment success auto create enrollment record
+export function useCreateEnrollment() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Partial<Enrollment> & { owner_id: number, course_id: number }) =>
+      apiSend<Enrollment>({
+        url: classroomApi.createEnrollment,
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['enrolledCourses'] });
+    },
   });
 }
 

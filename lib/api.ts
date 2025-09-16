@@ -77,7 +77,9 @@ export const classroomApi = {
   
   // Legacy endpoints (keeping for backward compatibility)
   enrolledCourses: "/api/classroom/enrolled-courses",
+  createEnrollment: "/api/classroom/enrolled-courses",
   enrolledCoursesByUserId: (userId: number) => `/api/classroom/enrolled-courses/${userId}`,
+  enrolledCoursesByUserIdAndCourseId: (userId: number, courseId: number) => `/api/classroom/enrolled-courses/${userId}/${courseId}`,
   assignments: "/api/classroom/assignments",
   assignmentDetail: (id: string) => `/api/classroom/assignments/${id}`,
   submitAssignment: (id: string) => `/api/classroom/assignments/${id}/submit`,

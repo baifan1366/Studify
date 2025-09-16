@@ -14,8 +14,8 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
       <div className="flex items-center mb-4">
         <Avatar className="h-10 w-10 mr-3">
           <AvatarImage
-            src={quiz.author.avatar_url}
-            alt={quiz.author.display_name}
+            src={quiz.author.avatar_url || ''}
+            alt={quiz.author.display_name || ''}
           />
           <AvatarFallback>{quiz.author.display_name?.charAt(0)}</AvatarFallback>
         </Avatar>

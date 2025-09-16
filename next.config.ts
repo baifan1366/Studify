@@ -7,7 +7,7 @@ const withSerwist = withSerwistInit({
   // use something else that works, such as "service-worker/index.ts".
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
-  disable: process.env.NEXT_PUBLIC_NODE_ENV !== "production",
+  disable: process.env.NODE_ENV !== "production",
 });
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");

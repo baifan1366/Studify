@@ -8,6 +8,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
     "@langchain/core": "^0.3.72",
     "@langchain/openai": "^0.6.11",
     "@liveblocks/client": "^3.5.1",
@@ -56,6 +59,7 @@
     "next": "^15.5.0",
     "next-intl": "^4.3.5",
     "next-themes": "^0.4.6",
+    "onesignal-cordova-plugin": "^5.2.15",
     "pdfjs-dist": "^5.4.149",
     "react": "19.1.0",
     "react-doc-viewer": "^0.1.14",

@@ -330,10 +330,8 @@ export default function ScheduleAnnouncement({
           </div>
         </div>
 
-          <Separator />
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-4">
+        <DialogFooter className="px-6 py-4 border-t flex-shrink-0">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Calendar className="h-4 w-4" />
               <span>{isCurrentlyScheduled ? t("reschedule_info") : t("schedule_info")}</span>
@@ -370,6 +368,7 @@ export default function ScheduleAnnouncement({
               )}
             </div>
           </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

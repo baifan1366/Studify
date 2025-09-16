@@ -17,8 +17,6 @@ export * from "./classroom/submission-interface";
 export * from "./classroom/wb-event-interface";
 export * from "./classroom/wb-session-interface";
 export * from "./community/achievement-interface";
-export * from "./community/challenge-interface";
-export * from "./community/challenge-result-interface";
 export * from "./community/comment-interface";
 export * from "./community/group-interface";
 export * from "./community/group-member-interface";

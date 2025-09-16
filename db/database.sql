@@ -1023,6 +1023,48 @@ create table if not exists community_checkin (
   unique (user_id, checkin_date) -- 防止同一天重复签到
 );
 
+create table if not exists community_quiz (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  slug text unique not null, -- 比如 "calculus-basics"
+  creator_id uuid not null references auth.users(id),
+  title text not null,
+  description text,
+  tags text[],
+  difficulty int check (difficulty between 1 and 5),
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists community_quiz_question (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  quiz_id bigint not null references community_quiz(id),
+  slug text not null, -- 比如 "q1" 或 "derivative-definition"
+  question_text text not null,
+  options text[],
+  correct_answers text[],
+  explanation text,
+  unique(quiz_id, slug) -- 确保在 quiz 内唯一
+);
+
+create table if not exists community_quiz_attempt (
+  id bigserial primary key,
+  quiz_id bigint not null references community_quiz(id),
+  user_id uuid not null references auth.users(id),
+  answers text[], -- 用户提交答案
+  is_correct boolean,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists community_quiz_like (
+  id bigserial primary key,
+  quiz_id bigint not null references community_quiz(id),
+  user_id uuid not null references auth.users(id),
+  created_at timestamptz not null default now(),
+  unique(quiz_id, user_id)
+);
+
 -- =========================
 -- Tutoring (from db/tutoring/schema.sql)
 -- =========================

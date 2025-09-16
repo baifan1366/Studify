@@ -55,7 +55,7 @@ export default function DuplicateAnnouncement({
         image_url: announcement.image_url || "",
         deep_link: announcement.deep_link || "",
         status: "draft" as const, // Always create duplicates as draft
-        scheduled_at: "", // Reset scheduling
+        scheduled_at: null, // Reset scheduling
       };
 
       // Validate the data
@@ -139,7 +139,7 @@ export default function DuplicateAnnouncement({
           {/* Action buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isProcessing}
             >

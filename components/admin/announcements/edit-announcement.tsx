@@ -119,6 +119,7 @@ export default function EditAnnouncement({
         id: announcement.id,
         ...formData,
         created_by: Number(formData.created_by),
+        scheduled_at: formData.scheduled_at || null,
         updated_at: new Date().toISOString(),
       };
 

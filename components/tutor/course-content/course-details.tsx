@@ -142,7 +142,7 @@ export default function CourseDetails() {
             </div>
             <div className="flex items-center gap-2">
               {/* Storage Dialog Button */}
-              <StorageDialog ownerId={userId}>
+              <StorageDialog ownerId={parseInt(userId)}>
                 <Button
                   variant="default"
                   size="sm"

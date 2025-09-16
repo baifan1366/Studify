@@ -1,6 +1,6 @@
 import SingleQuizContent from "@/components/community/quiz/single/single-quiz-content";
 
-import { CommunityQuiz } from "@/interface/community/quiz";
+import { CommunityQuiz } from "@/interface/community/quiz-interface";
 
 const mockQuiz: Omit<CommunityQuiz, "likes" | "comments" | "attempts"> = {
   id: "1",
@@ -11,7 +11,7 @@ const mockQuiz: Omit<CommunityQuiz, "likes" | "comments" | "attempts"> = {
   },
   description: "This quiz is designed to push your calculus skills...",
   tags: ["Calculus", "Mathematics", "Advanced", "STEM"],
-  difficulty: "Hard",
+  difficulty: 3,
 };
 
 const mockLeaderboard = [

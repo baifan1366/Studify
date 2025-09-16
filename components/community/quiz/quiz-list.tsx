@@ -1,13 +1,8 @@
 import QuizCard from "./quiz-card";
+import type { CommunityQuiz } from "@/interface/community/quiz-interface";
 
 interface QuizListProps {
-  quizzes: {
-    id: number;
-    title: string;
-    description: string;
-    difficulty: string;
-    tags: string[];
-  }[];
+  quizzes: CommunityQuiz[];
 }
 
 export default function QuizList({ quizzes }: QuizListProps) {

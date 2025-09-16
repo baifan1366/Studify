@@ -75,36 +75,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ videoI
   }
 }
 
-// DELETE /api/courses/[courseId] - soft delete
-export async function DELETE(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ videoId: string }> }) {
   try {
     const client = await createServerClient();
-    const { courseId } = await params;
-    const courseIdNum = parseInt(courseId, 10);
-    
-    // Check current course status first
-    const { data: currentCourse, error: fetchError } = await client
-      .from("course")
-      .select("status")
-      .eq("id", courseIdNum)
-      .eq("is_deleted", false)
-      .single();
+    const { videoId } = await params;
+    const videoIdNum = parseInt(videoId, 10);
 
-    if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 404 });
-    }
-
-    // Only allow deletion if course status is 'inactive'
-    if (currentCourse.status !== 'inactive') {
-      return NextResponse.json({ 
-        error: `Cannot delete course with status '${currentCourse.status}'. Only courses with 'inactive' status can be deleted.` 
-      }, { status: 403 });
-    }
-    
     const { error } = await client
-      .from("course")
+      .from("video_embeddings")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("id", courseIdNum);
+      .eq("id", videoIdNum);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ success: true });

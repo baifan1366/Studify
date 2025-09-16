@@ -183,7 +183,7 @@ export async function PATCH(
 // DELETE /api/admin/users/[userId] - Soft delete user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   const authResult = await authorize('admin');
   if (authResult instanceof NextResponse) {
@@ -191,7 +191,7 @@ export async function DELETE(
   }
 
   try {
-    const { userId } = params;
+    const { userId } = await params;
     const supabase = await createAdminClient();
 
     // Get current user data

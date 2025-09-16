@@ -157,8 +157,8 @@ export default function ScheduleAnnouncement({
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-w-2xl overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-auto">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Calendar className="h-5 w-5" />
             {isCurrentlyScheduled ? t("reschedule_announcement") : t("schedule_announcement")}
@@ -168,7 +168,8 @@ export default function ScheduleAnnouncement({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="space-y-6">
           {/* Announcement Preview */}
           <Card className="bg-transparent p-2">
             <CardHeader className="pb-3">
@@ -326,9 +327,11 @@ export default function ScheduleAnnouncement({
             </>
           )}
 
-          <Separator />
+          </div>
+        </div>
 
-          {/* Action Buttons */}
+        {/* Fixed Action Buttons Footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t bg-gray-50/50 dark:bg-gray-900/50">
           <div className="flex items-center justify-end gap-3">
             <Button
               type="button"

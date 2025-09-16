@@ -49,7 +49,7 @@ export default function EditAnnouncement({
 
   // Form state
   const [formData, setFormData] = useState({
-    created_by: userData?.profile?.id,
+    created_by: userData?.profile?.id || 0,
     title: "",
     message: "",
     image_url: "",
@@ -62,7 +62,7 @@ export default function EditAnnouncement({
   useEffect(() => {
     if (announcement) {
       setFormData({
-        created_by: userData?.profile?.id?.toString() || "",
+        created_by: userData?.profile?.id || announcement.created_by,
         title: announcement.title,
         message: announcement.message,
         image_url: announcement.image_url || "",
@@ -73,7 +73,7 @@ export default function EditAnnouncement({
       });
       setImagePreview(announcement.image_url);
     }
-  }, [announcement]);
+  }, [announcement, userData?.profile?.id]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -115,11 +115,14 @@ export default function EditAnnouncement({
     }
 
     try {
-      await updateAnnouncementMutation.mutateAsync({
+      const updateData = {
         id: announcement.id,
         ...formData,
-        created_by: Number(userData?.profile?.id),
-      });
+        created_by: Number(formData.created_by),
+        updated_at: new Date().toISOString(),
+      };
+
+      await updateAnnouncementMutation.mutateAsync(updateData);
       
       toast({
         title: t("success"),
@@ -129,6 +132,7 @@ export default function EditAnnouncement({
       if (onOpenChange) onOpenChange(false);
       else setIsOpen(false);
     } catch (error) {
+      console.error('Update failed:', error);
       toast({
         title: t("error"),
         description: t("update_failed"),
@@ -140,7 +144,7 @@ export default function EditAnnouncement({
   const handleCancel = () => {
     if (announcement) {
       setFormData({
-        created_by: userData?.profile?.id?.toString() || "",
+        created_by: userData?.profile?.id || announcement.created_by,
         title: announcement.title,
         message: announcement.message,
         image_url: announcement.image_url || "",

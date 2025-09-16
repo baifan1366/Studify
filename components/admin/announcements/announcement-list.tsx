@@ -21,6 +21,7 @@ import EditAnnouncement from "./edit-announcement";
 import PreviewAnnouncement from "./preview-announcement";
 import ScheduleAnnouncement from "./schedule-announcement";
 import DeleteAnnouncement from "./delete-announcement";
+import DuplicateAnnouncement from "./duplicate-announcement";
 
 const statusConfig = {
   draft: { 
@@ -54,6 +55,7 @@ export default function AnnouncementList() {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
 
   const { data: announcements, isLoading, error } = useAnnouncements();
   const deleteAnnouncementMutation = useDeleteAnnouncement();
@@ -241,7 +243,12 @@ export default function AnnouncementList() {
                           <Eye className="h-4 w-4 mr-2" />
                           {t("preview")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedAnnouncement(announcement);
+                            setDuplicateDialogOpen(true);
+                          }}
+                        >
                           <Copy className="h-4 w-4 mr-2" />
                           {t("duplicate")}
                         </DropdownMenuItem>
@@ -331,6 +338,15 @@ export default function AnnouncementList() {
             open={deleteDialogOpen}
             onOpenChange={(open) => {
               setDeleteDialogOpen(open);
+              if (!open) setSelectedAnnouncement(null);
+            }}
+          />
+          
+          <DuplicateAnnouncement 
+            announcement={selectedAnnouncement}
+            open={duplicateDialogOpen}
+            onOpenChange={(open) => {
+              setDuplicateDialogOpen(open);
               if (!open) setSelectedAnnouncement(null);
             }}
           />

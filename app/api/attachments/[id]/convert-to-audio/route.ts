@@ -39,10 +39,26 @@ export async function POST(
       }
     }
 
-    const userId = authResult.user.id
     const userRole = authResult.payload.role
     const supabase = await createServerClient();
 
+    // Get user's profile ID for ownership check
+    let profileId = null;
+    if (userRole === 'student') {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', authResult.payload.sub)
+        .single();
+
+      if (profileError || !profile) {
+        return NextResponse.json(
+          { error: 'User profile not found' },
+          { status: 404 }
+        )
+      }
+      profileId = profile.id;
+    }
 
     // Get attachment details - tutors can access any attachment, students only their own
     let attachmentQuery = supabase
@@ -52,8 +68,8 @@ export async function POST(
       .eq('is_deleted', false)
 
     // Only restrict by owner_id for students
-    if (userRole === 'student') {
-      attachmentQuery = attachmentQuery.eq('owner_id', userId)
+    if (userRole === 'student' && profileId) {
+      attachmentQuery = attachmentQuery.eq('owner_id', profileId)
     }
 
     const { data: attachment, error: attachmentError } = await attachmentQuery.single()

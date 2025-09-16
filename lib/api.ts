@@ -275,3 +275,14 @@ export const announcementsApi = {
   delete: (id: number) => `/api/announcements/${id}`,
   updateStatus: (id: number) => `/api/announcements/${id}/status`,
 } as const;
+
+// video embeddings api
+export const videoEmbeddingsApi = {
+  list: "/api/embeddings/video-embeddings",
+  getById: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+  getByAttachmentId: (attachmentId: number) => `/api/embeddings/video-embeddings/attachment/${attachmentId}`,
+  create: "/api/embeddings/video-embeddings",
+  process: "/api/embeddings/video-embeddings/process",
+  update: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+  delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+} as const;

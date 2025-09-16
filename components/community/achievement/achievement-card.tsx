@@ -8,6 +8,11 @@ type Props = {
 };
 
 export default function AchievementCard({ achievement }: Props) {
+  const minValue = achievement.rule?.min ?? 0;
+  const currentValue = achievement.current_value ?? 0;
+  const progress =
+    minValue > 0 ? Math.min((currentValue / minValue) * 100, 100) : 0;
+
   return (
     <div
       key={achievement.id}
@@ -28,6 +33,7 @@ export default function AchievementCard({ achievement }: Props) {
             </>
           )}
         </div>
+
         <h3
           className={`font-bold text-lg ${
             achievement.unlocked ? "text-gray-900" : "text-gray-500"
@@ -35,6 +41,7 @@ export default function AchievementCard({ achievement }: Props) {
         >
           {achievement.name}
         </h3>
+
         <p
           className={`text-sm mt-1 ${
             achievement.unlocked ? "text-gray-600" : "text-gray-400"
@@ -42,6 +49,23 @@ export default function AchievementCard({ achievement }: Props) {
         >
           {achievement.description}
         </p>
+
+        {/* 进度条 */}
+        {!achievement.unlocked && (
+          <div className="w-full mt-4">
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-yellow-400 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {currentValue}/{minValue}
+            </p>
+          </div>
+        )}
+
+        {/* 解锁时间 */}
         {achievement.unlocked && achievement.unlocked_at && (
           <p className="text-xs text-gray-400 mt-3">
             Unlocked on {achievement.unlocked_at}

@@ -59,7 +59,7 @@ export async function GET(
 // PATCH /api/admin/users/[userId] - Update user (role, status, ban)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   const authResult = await authorize('admin');
   if (authResult instanceof NextResponse) {
@@ -67,7 +67,7 @@ export async function PATCH(
   }
 
   try {
-    const { userId } = params;
+    const { userId } = await params;
     const updates = await request.json();
     const supabase = await createAdminClient();
 

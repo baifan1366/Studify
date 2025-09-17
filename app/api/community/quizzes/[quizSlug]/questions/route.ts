@@ -31,14 +31,45 @@ export async function GET(
 
   const supabase = await createClient();
 
-  // 先拿 quiz id（不要把 promise 放进 .eq）
+  // 获取当前用户ID（如果已登录）
+  let userId = null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id || null;
+  } catch (err) {
+    // 用户未登录，继续处理
+  }
+
+  // 先拿 quiz id 和权限信息
   const { data: quiz, error: quizErr } = await supabase
     .from("community_quiz")
-    .select("id")
+    .select("id, visibility, author_id")
     .eq("slug", quizSlug)
     .maybeSingle();
 
   if (quizErr || !quiz) {
+    return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
+  // 检查private quiz的访问权限
+  if (quiz.visibility === 'private' && userId) {
+    const isAuthor = quiz.author_id === userId;
+    
+    if (!isAuthor) {
+      // 检查用户是否有权限
+      const { data: permission } = await supabase
+        .from("community_quiz_permission")
+        .select("permission_type")
+        .eq("quiz_id", quiz.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (!permission) {
+        return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+      }
+    }
+  } else if (quiz.visibility === 'private' && !userId) {
+    // 未登录用户无法访问private quiz
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 

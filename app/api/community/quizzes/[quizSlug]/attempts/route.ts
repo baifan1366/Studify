@@ -18,7 +18,7 @@ export async function POST(
     // 找 quiz
     const { data: quiz, error: quizErr } = await supabase
       .from("community_quiz")
-      .select("id, max_attempts, visibility")
+      .select("id, max_attempts, visibility, author_id")
       .eq("slug", quizSlug)
       .maybeSingle();
 
@@ -26,10 +26,26 @@ export async function POST(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    // 检查 quiz 是否为 public（如果是 private 可能需要额外权限检查）
-    if (quiz.visibility === 'private') {
-      // 这里可以添加额外的权限检查逻辑
-      // 例如检查用户是否是 quiz 的创建者或有特殊权限
+    // 检查是否是作者
+    const isAuthor = quiz.author_id === userId;
+
+    // 检查 quiz 是否为 public（如果是 private 需要权限检查）
+    if (quiz.visibility === 'private' && !isAuthor) {
+      // 检查用户是否有权限（通过community_quiz_permission表）
+      const { data: permission } = await supabase
+        .from("community_quiz_permission")
+        .select("permission_type")
+        .eq("quiz_id", quiz.id)
+        .eq("user_id", userId)
+        .in("permission_type", ["attempt", "edit"])
+        .maybeSingle();
+      
+      if (!permission) {
+        return NextResponse.json(
+          { error: "You don't have permission to access this private quiz" },
+          { status: 403 }
+        );
+      }
     }
 
     // 检查用户已有的 attempts 数量
@@ -43,7 +59,8 @@ export async function POST(
       return NextResponse.json({ error: attemptsErr.message }, { status: 500 });
     }
 
-    if (existingAttempts && existingAttempts.length >= quiz.max_attempts) {
+    // 作者可以无限制预览自己的quiz
+    if (!isAuthor && existingAttempts && existingAttempts.length >= quiz.max_attempts) {
       return NextResponse.json(
         { error: `Maximum attempts (${quiz.max_attempts}) reached for this quiz` },
         { status: 403 }

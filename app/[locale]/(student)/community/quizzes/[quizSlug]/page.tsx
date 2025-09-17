@@ -1,56 +1,50 @@
-import SingleQuizContent from "@/components/community/quiz/single/single-quiz-content";
+"use client";
 
+import { useParams } from "next/navigation";
+import { useQuiz } from "@/hooks/community/use-quiz";
+import SingleQuizContent from "@/components/community/quiz/single/single-quiz-content";
+import { Card, CardContent } from "@/components/ui/card";
+import { AlertCircle } from "lucide-react";
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 
-const mockQuiz: Omit<CommunityQuiz, "likes" | "comments" | "attempts"> = {
-  id: 1,
-  slug: "advanced-calculus-challenge",
-  title: "Advanced Calculus Challenge",
-  author: {
-    display_name: "John Doe",
-    avatar_url: "https://github.com/shadcn.png",
-  },
-  description: "This quiz is designed to push your calculus skills...",
-  tags: ["Calculus", "Mathematics", "Advanced", "STEM"],
-  difficulty: 3,
-};
+export default function QuizDetailPage() {
+  const { quizSlug } = useParams<{ quizSlug: string }>();
+  const { data: quiz, isLoading, error } = useQuiz(quizSlug);
 
-const mockLeaderboard = [
-  {
-    rank: 1,
-    name: "Alice",
-    score: 98,
-    avatarUrl: "https://i.pravatar.cc/150?u=a",
-  },
-  {
-    rank: 2,
-    name: "Bob",
-    score: 95,
-    avatarUrl: "https://i.pravatar.cc/150?u=b",
-  },
-];
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
 
-const mockComments = [
-  {
-    id: "1",
-    author: { name: "Frank", avatarUrl: "https://i.pravatar.cc/150?u=c" },
-    text: "Great quiz!",
-    likes: 15,
-  },
-  {
-    id: "2",
-    author: { name: "Grace", avatarUrl: "https://i.pravatar.cc/150?u=d" },
-    text: "Question 3 was tricky!",
-    likes: 8,
-  },
-];
+  if (error || !quiz) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Quiz Not Found</h2>
+              <p className="text-gray-600 mb-4">
+                {error?.message || "The quiz you're looking for doesn't exist or has been removed."}
+              </p>
+              <a 
+                href="/community/quizzes" 
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Browse Other Quizzes
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-export default function Page() {
-  return (
-    <SingleQuizContent
-      quiz={mockQuiz}
-      leaderboard={mockLeaderboard}
-      comments={mockComments}
-    />
-  );
+  return <SingleQuizContent quiz={quiz} />;
 }

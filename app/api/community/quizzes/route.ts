@@ -27,15 +27,57 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    // 获取所有quiz数据
+    const { data: quizzes, error: quizError } = await supabase
       .from("community_quiz")
-      .select("id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode");
+      .select(`
+        id, 
+        public_id, 
+        slug, 
+        title, 
+        description, 
+        tags, 
+        difficulty, 
+        max_attempts, 
+        visibility, 
+        quiz_mode,
+        author_id
+      `);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (quizError) {
+      return NextResponse.json({ error: quizError.message }, { status: 500 });
     }
 
-    return NextResponse.json(data, { status: 200 });
+    if (!quizzes || quizzes.length === 0) {
+      return NextResponse.json([], { status: 200 });
+    }
+
+    // 获取所有作者的ID
+    const authorIds = [...new Set(quizzes.map(quiz => quiz.author_id))];
+
+    // 获取作者信息
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("user_id, display_name, avatar_url")
+      .in("user_id", authorIds);
+
+    if (profileError) {
+      console.warn("Failed to fetch author profiles:", profileError);
+    }
+
+    // 将作者信息合并到quiz数据中
+    const quizzesWithAuthors = quizzes.map(quiz => {
+      const author = profiles?.find(profile => profile.user_id === quiz.author_id);
+      return {
+        ...quiz,
+        author: author ? {
+          display_name: author.display_name,
+          avatar_url: author.avatar_url
+        } : null
+      };
+    });
+
+    return NextResponse.json(quizzesWithAuthors, { status: 200 });
   } catch (err: any) {
     console.error("Fetch quizzes error:", err);
     return NextResponse.json(
@@ -103,7 +145,7 @@ export async function POST(req: Request) {
           max_attempts,
           visibility,
           quiz_mode,
-          creator_id: userId, // 关键：记录是谁创建的
+          author_id: userId, // 关键：记录是谁创建的
         })
         .select("slug, public_id")
         .single();

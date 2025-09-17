@@ -172,6 +172,9 @@ export const useUserAttemptStatus = (quizSlug: string) => {
     attemptCount: number; 
     maxAttempts: number; 
     canAttempt: boolean;
+    accessReason: string;
+    isAuthor: boolean;
+    userPermission: 'view' | 'attempt' | 'edit' | null;
     quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility' | 'quiz_mode'>;
   }, Error>({
     queryKey: ["userAttemptStatus", quizSlug],

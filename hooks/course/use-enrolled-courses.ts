@@ -56,6 +56,7 @@ export function useEnrolledCourseStatus(userId: number, courseId: number) {
     queryFn: () => apiGet<Enrollment>(classroomApi.enrolledCoursesByUserIdAndCourseId(userId, courseId)),
     staleTime: 1000 * 60 * 3, // 缓存 3 分钟
     refetchOnWindowFocus: false,
+    enabled: !!(userId && courseId && userId > 0 && courseId > 0), // Only run query when we have valid IDs
   });
 }
 

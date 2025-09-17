@@ -91,56 +91,6 @@ create trigger lesson_slug_trigger
   before insert or update on course_lesson
   for each row execute function generate_lesson_slug();
 
--- Function to automatically create classroom and community group when course is purchased
-create or replace function create_course_resources()
-returns trigger as $$
-declare
-  classroom_id bigint;
-  community_group_id bigint;
-  course_record record;
-begin
-  -- Get course details
-  select * into course_record from course where id = new.course_id;
-  
-  -- Create classroom if auto_create_classroom is true
-  if course_record.auto_create_classroom then
-    insert into classroom (
-      slug, name, description, class_code, visibility, owner_id
-    ) values (
-      course_record.slug || '-classroom',
-      course_record.title || ' - Classroom',
-      'Auto-generated classroom for ' || course_record.title,
-      upper(substring(md5(random()::text) from 1 for 8)),
-      'private',
-      new.user_id
-    ) returning id into classroom_id;
-    
-    -- Add user as classroom member
-    insert into classroom_member (classroom_id, user_id, role)
-    values (classroom_id, new.user_id, 'student');
-  end if;
-  
-  -- Create community group if auto_create_community is true
-  if course_record.auto_create_community then
-    insert into community_group (
-      name, description, slug, visibility, owner_id
-    ) values (
-      course_record.title || ' - Community',
-      'Auto-generated community for ' || course_record.title,
-      course_record.slug || '-community',
-      'private',
-      course_record.owner_id
-    ) returning id into community_group_id;
-    
-    -- Add user as community member
-    insert into community_group_member (group_id, user_id, role)
-    values (community_group_id, new.user_id, 'member');
-  end if;
-  
-  return new;
-end;
-$$ language plpgsql;
-
 drop trigger if exists course_enrollment_resources_trigger on course_enrollment;
 create trigger course_enrollment_resources_trigger
   after insert on course_enrollment

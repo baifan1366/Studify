@@ -25,9 +25,9 @@ function makeBaseSlug(text: string) {
 
 export async function GET(
   req: Request,
-  context: Promise<{ params: { quizSlug: string } }>
+  { params }: { params: Promise<{ quizSlug: string }> }
 ) {
-  const { params } = await context; // ✅ 等待 context
+  const { quizSlug } = await params;
 
   const supabase = await createClient();
 
@@ -35,7 +35,7 @@ export async function GET(
   const { data: quiz, error: quizErr } = await supabase
     .from("community_quiz")
     .select("id")
-    .eq("slug", params.quizSlug)
+    .eq("slug", quizSlug)
     .maybeSingle();
 
   if (quizErr || !quiz) {

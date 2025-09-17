@@ -4,10 +4,10 @@ import { authorize } from "@/utils/auth/server-guard";
 
 export async function POST(
   req: Request,
-  context: Promise<{ params: { quizSlug: string } }>
+  { params }: { params: Promise<{ quizSlug: string }> }
 ) {
   try {
-    const { params } = await context;
+    const { quizSlug } = await params;
 
     const auth = await authorize("student");
     if (auth instanceof NextResponse) return auth;
@@ -19,7 +19,7 @@ export async function POST(
     const { data: quiz, error: quizErr } = await supabase
       .from("community_quiz")
       .select("id")
-      .eq("slug", params.quizSlug)
+      .eq("slug", quizSlug)
       .maybeSingle();
 
     if (quizErr || !quiz) {

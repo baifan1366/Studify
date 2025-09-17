@@ -250,18 +250,30 @@ export async function POST(request: NextRequest) {
 
     // Get the base URL for redirects - prioritize environment variable, fallback to request headers
     const getBaseUrl = () => {
+      console.log('Environment NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);
+      
       // First try environment variable (should be set correctly in deployment)
-      if (process.env.NEXT_PUBLIC_SITE_URL && !process.env.NEXT_PUBLIC_SITE_URL.includes('localhost')) {
-        return process.env.NEXT_PUBLIC_SITE_URL;
+      if (process.env.NEXT_PUBLIC_SITE_URL) {
+        // Remove trailing slash if present to avoid double slashes
+        const cleanUrl = process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '');
+        console.log('Using environment URL (cleaned):', cleanUrl);
+        return cleanUrl;
       }
       
       // Fallback to request headers for deployed environments
       const host = request.headers.get('host');
       const protocol = request.headers.get('x-forwarded-proto') || 'https';
-      return `${protocol}://${host}`;
+      const fallbackUrl = `${protocol}://${host}`;
+      console.log('Using fallback URL from headers:', fallbackUrl);
+      return fallbackUrl;
     };
 
     const baseUrl = getBaseUrl();
+    const finalSuccessUrl = `${baseUrl}/course/${course.slug}?success=true`;
+    const finalCancelUrl = `${baseUrl}/course/${course.slug}`;
+    
+    console.log('Final success URL:', finalSuccessUrl);
+    console.log('Final cancel URL:', finalCancelUrl);
 
     // Create Stripe checkout session for paid courses
     const session = await stripe.checkout.sessions.create({
@@ -281,8 +293,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: successUrl ? successUrl.replace('{courseSlug}', course.slug) : `${baseUrl}/courses/${course.slug}?success=true`,
-      cancel_url: cancelUrl ? cancelUrl.replace('{courseSlug}', course.slug) : `${baseUrl}/courses/${course.slug}`,
+      success_url: successUrl ? successUrl.replace('{courseSlug}', course.slug) : finalSuccessUrl,
+      cancel_url: cancelUrl ? cancelUrl.replace('{courseSlug}', course.slug) : finalCancelUrl,
       metadata: {
         orderId: order.public_id,
         courseId: course.public_id,

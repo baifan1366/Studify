@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown } from 'lucide-react';
+import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCourses } from '@/hooks/course/use-courses';
 import { useEnrolledCoursesByUserId } from '@/hooks/course/use-enrolled-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
@@ -30,6 +30,25 @@ export default function CoursesContent() {
   const t = useTranslations('CoursesContent');
   const locale = useLocale();
   const [currency, setCurrency] = useState('MYR');
+
+  // Initialize currency from localStorage on client side
+  useEffect(() => {
+    const savedCurrency = localStorage.getItem('preferred-currency');
+    if (savedCurrency) {
+      setCurrency(savedCurrency);
+    }
+  }, []);
+
+  // Handle currency change with persistence and feedback
+  const handleCurrencyChange = (newCurrency: string) => {
+    setCurrency(newCurrency);
+    localStorage.setItem('preferred-currency', newCurrency);
+    toast({
+      title: t('currency_updated'),
+      description: t('currency_changed_to', { currency: newCurrency }),
+      duration: 2000,
+    });
+  };
   const router = useRouter();
 
   // Filter states
@@ -40,6 +59,7 @@ export default function CoursesContent() {
   const [priceFilter, setPriceFilter] = useState('all');
   const [durationFilter, setDurationFilter] = useState('all');
   const [instructorFilter, setInstructorFilter] = useState('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Categorize courses based on enrollment
   const { enrolledCourseIds, availableCourses, enrolledCoursesData } = useMemo(() => {
@@ -227,25 +247,45 @@ export default function CoursesContent() {
         {/* Currency Selector */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-2">
-              {t('change_currency')}
+            <Button variant="outline" className="ml-2 min-w-[120px]">
+              <span className="mr-2">💱</span>
+              {currency}
+              <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent align="end">
             <DropdownMenuLabel>{t('change_currency')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setCurrency('MYR')}>{t('MYR')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('USD')}>{t('USD')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('EUR')}>{t('EUR')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('GBP')}>{t('GBP')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('SGD')}>{t('SGD')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('PHP')}>{t('PHP')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('THB')}>{t('THB')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('IDR')}>{t('IDR')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('VND')}>{t('VND')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('CNY')}>{t('CNY')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('JPY')}>{t('JPY')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCurrency('KRW')}>{t('KRW')}</DropdownMenuItem>
+            {[
+              { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+              { code: 'USD', symbol: '$', name: 'US Dollar' },
+              { code: 'EUR', symbol: '€', name: 'Euro' },
+              { code: 'GBP', symbol: '£', name: 'British Pound' },
+              { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+              { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
+              { code: 'THB', symbol: '฿', name: 'Thai Baht' },
+              { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
+              { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
+              { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+              { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+              { code: 'KRW', symbol: '₩', name: 'Korean Won' },
+            ].map((curr) => (
+              <DropdownMenuItem 
+                key={curr.code}
+                onClick={() => handleCurrencyChange(curr.code)}
+                className={`flex items-center justify-between ${
+                  currency === curr.code ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-sm">{curr.symbol}</span>
+                  <span>{curr.code}</span>
+                </span>
+                {currency === curr.code && (
+                  <span className="text-blue-500 text-sm">✓</span>
+                )}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -281,121 +321,152 @@ export default function CoursesContent() {
         <div className="flex items-center gap-4 mb-4">
           <Filter size={20} className="text-black/70 dark:text-white/70" />
           <h3 className="text-lg font-semibold text-black dark:text-white">Filters & Search</h3>
-          <Button variant="ghost" size="sm" onClick={resetFilters} className="ml-auto">
-            {t('reset_all')}
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search */}
-          <div>
-            <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              {t('search_courses')}
-            </label>
-            <Input
-              placeholder={t('search_courses')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/10 border-white/20"
-            />
-          </div>
-
-          {/* Level Filter */}
-          <div>
-            <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              {t('level')}
-            </label>
-            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-              <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder={t('select_level')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all_levels')}</SelectItem>
-                {filterOptions.levels.map(level => (
-                  <SelectItem key={level} value={level}>
-                    {level.charAt(0).toUpperCase() + level.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Category Filter */}
-          <div>
-            <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              {t('category')}
-            </label>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder={t('select_category')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all_categories')}</SelectItem>
-                {filterOptions.categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Price Filter */}
-          <div>
-            <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              {t('price_range')}
-            </label>
-            <Select value={priceFilter} onValueChange={setPriceFilter}>
-              <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder={t('select_price_range')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all_prices')}</SelectItem>
-                <SelectItem value="under-50">{t('under_50')}</SelectItem>
-                <SelectItem value="50-100">{t('50_100')}</SelectItem>
-                <SelectItem value="over-100">{t('over_100')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Duration Filter */}
-          <div>
-            <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              {t('duration')}
-            </label>
-            <Select value={durationFilter} onValueChange={setDurationFilter}>
-              <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder={t('select_duration')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all_durations')}</SelectItem>
-                <SelectItem value="short">{t('short_2_hours')}</SelectItem>
-                <SelectItem value="medium">{t('medium_2_3_hours')}</SelectItem>
-                <SelectItem value="long">{t('long_3_hours')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Instructor Filter */}
-          <div>
-            <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-              {t('instructor')}
-            </label>
-            <Select value={instructorFilter} onValueChange={setInstructorFilter}>
-              <SelectTrigger className="bg-white/10 border-white/20">
-                <SelectValue placeholder={t('select_instructor')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all_instructors')}</SelectItem>
-                {filterOptions.instructors.map(instructor => (
-                  <SelectItem key={instructor} value={instructor}>
-                    {instructor}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="ml-auto flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex items-center gap-2"
+            >
+              {showAdvancedFilters ? (
+                <>
+                  <ChevronUp size={16} />
+                  {t('show_less')}
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={16} />
+                  {t('show_more')}
+                </>
+              )}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              {t('reset_all')}
+            </Button>
           </div>
         </div>
+
+        {/* Always visible: Search */}
+        <div className="mb-4">
+          <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+            {t('search_courses')}
+          </label>
+          <Input
+            placeholder={t('search_courses')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-white/10 border-white/20 max-w-md"
+          />
+        </div>
+
+        {/* Collapsible Advanced Filters */}
+        <motion.div
+          initial={false}
+          animate={{
+            height: showAdvancedFilters ? 'auto' : 0,
+            opacity: showAdvancedFilters ? 1 : 0,
+          }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="overflow-hidden"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-4 border-t border-white/10">
+            {/* Level Filter */}
+            <div>
+              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+                {t('level')}
+              </label>
+              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <SelectTrigger className="bg-white/10 border-white/20">
+                  <SelectValue placeholder={t('select_level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all_levels')}</SelectItem>
+                  {filterOptions.levels.map(level => (
+                    <SelectItem key={level} value={level}>
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+                {t('category')}
+              </label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="bg-white/10 border-white/20">
+                  <SelectValue placeholder={t('select_category')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all_categories')}</SelectItem>
+                  {filterOptions.categories.map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Price Filter */}
+            <div>
+              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+                {t('price_range')}
+              </label>
+              <Select value={priceFilter} onValueChange={setPriceFilter}>
+                <SelectTrigger className="bg-white/10 border-white/20">
+                  <SelectValue placeholder={t('select_price_range')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all_prices')}</SelectItem>
+                  <SelectItem value="under-50">{t('under_50')}</SelectItem>
+                  <SelectItem value="50-100">{t('50_100')}</SelectItem>
+                  <SelectItem value="over-100">{t('over_100')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Duration Filter */}
+            <div>
+              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+                {t('duration')}
+              </label>
+              <Select value={durationFilter} onValueChange={setDurationFilter}>
+                <SelectTrigger className="bg-white/10 border-white/20">
+                  <SelectValue placeholder={t('select_duration')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all_durations')}</SelectItem>
+                  <SelectItem value="short">{t('short_2_hours')}</SelectItem>
+                  <SelectItem value="medium">{t('medium_2_3_hours')}</SelectItem>
+                  <SelectItem value="long">{t('long_3_hours')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Instructor Filter */}
+            <div>
+              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+                {t('instructor')}
+              </label>
+              <Select value={instructorFilter} onValueChange={setInstructorFilter}>
+                <SelectTrigger className="bg-white/10 border-white/20">
+                  <SelectValue placeholder={t('select_instructor')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all_instructors')}</SelectItem>
+                  {filterOptions.instructors.map(instructor => (
+                    <SelectItem key={instructor} value={instructor}>
+                      {instructor}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Results Count */}
         <div className="mt-4 text-center">

@@ -58,13 +58,14 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizSlug: string } }
+  { params }: { params: Promise<{ quizSlug: string }> }
 ) {
   try {
     const auth = await authorize("student");
     if (auth instanceof NextResponse) return auth;
 
     const supabase = await createClient();
+    const { quizSlug } = await params;
 
     const body: RequestBody = await req.json();
 
@@ -101,7 +102,7 @@ export async function POST(
     const { data: quiz, error: quizErr } = await supabase
       .from("community_quiz")
       .select("id")
-      .eq("slug", params.quizSlug)
+      .eq("slug", quizSlug)
       .maybeSingle();
 
     if (quizErr || !quiz) {

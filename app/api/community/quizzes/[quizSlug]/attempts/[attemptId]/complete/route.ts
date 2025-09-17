@@ -4,7 +4,7 @@ import { authorize } from "@/utils/auth/server-guard";
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizSlug: string; attemptId: string } }
+  { params }: { params: Promise<{ quizSlug: string; attemptId: string }> }
 ) {
   try {
     const auth = await authorize("student");
@@ -12,12 +12,13 @@ export async function POST(
     const { sub: userId } = auth;
 
     const supabase = await createClient();
+    const { quizSlug, attemptId } = await params;
 
     // 1. 找 attempt
     const { data: attempt, error: attemptErr } = await supabase
       .from("community_quiz_attempt")
       .select("id, user_id, quiz_id")
-      .eq("id", params.attemptId)
+      .eq("id", attemptId)
       .maybeSingle();
 
     if (attemptErr || !attempt) {

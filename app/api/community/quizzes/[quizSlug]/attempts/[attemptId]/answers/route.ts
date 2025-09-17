@@ -4,7 +4,7 @@ import { authorize } from "@/utils/auth/server-guard";
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizSlug: string; attemptId: string } }
+  { params }: { params: Promise<{ quizSlug: string; attemptId: string }> }
 ) {
   try {
     const auth = await authorize("student");
@@ -18,11 +18,13 @@ export async function POST(
       user_answer: string[];
     };
 
+    const { quizSlug, attemptId } = await params;
+
     // 1. 检查 attempt 是否存在并且属于这个用户
     const { data: attempt, error: attemptErr } = await supabase
       .from("community_quiz_attempt")
       .select("id, user_id, quiz_id")
-      .eq("id", params.attemptId)
+      .eq("id", attemptId)
       .maybeSingle();
 
     if (attemptErr || !attempt) {

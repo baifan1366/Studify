@@ -1032,6 +1032,9 @@ create table if not exists community_quiz (
   description text,
   tags text[],
   difficulty int check (difficulty between 1 and 5),
+  max_attempts int not null default 1,
+  visibility text check (visibility in ('public','private')) default 'public',
+  quiz_mode text check (mode in ('practice', 'strict')) default 'practice',
   is_deleted boolean not null default false,
   created_at timestamptz not null default now()
 );

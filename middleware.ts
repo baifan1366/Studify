@@ -41,7 +41,10 @@ export async function middleware(request: NextRequest) {
   // QStash webhook endpoints (bypass auth for external webhooks)
   const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor");
   // Stripe webhook endpoints (bypass auth for external webhooks)
-  const isStripeWebhook = pathname.includes("/course/webhook") || pathname.includes("/stripe/webhook");
+  const isStripeWebhook = pathname.includes("/api/course/webhook") || 
+                          pathname.includes("/course/webhook") || 
+                          pathname.includes("/stripe/webhook") ||
+                          pathname.endsWith("/webhook");
 
   if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic || isQStashWebhook || isStripeWebhook) {
     return intlResponse;

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { verifyAppJwt } from "@/utils/auth/jwt";
 import redis from "@/utils/redis/redis";
 import { smartWarmupMiddleware } from "@/lib/langChain/smart-warmup";
+import { createServerClient } from "@/utils/supabase/server";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -37,6 +38,9 @@ export async function middleware(request: NextRequest) {
   const isPublicAuthPage =
     /\/(?:[a-zA-Z-]+)?\/(sign-in|verify-email)$/.test(pathname) ||
     /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/sign-up$/.test(pathname);
+  // Onboarding pages (allow access without onboarding check)
+  const isOnboardingPage = /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/onboarding/.test(pathname) || 
+                           /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname);
   const isTestOrPublic = pathname === "/" || pathname.startsWith("/test");
   // QStash webhook endpoints (bypass auth for external webhooks)
   const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor");
@@ -80,6 +84,31 @@ export async function middleware(request: NextRequest) {
     const reqHeaders = new Headers(request.headers);
     reqHeaders.set("x-user-id", userId);
     reqHeaders.set("x-user-role", role);
+
+    // Check onboarding status for protected pages (skip for API routes and onboarding pages)
+    if (!isApi && !isOnboardingPage) {
+      try {
+        const supabase = await createServerClient();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarded, role')
+          .eq('user_id', userId)
+          .single();
+
+        if (profile && !profile.onboarded) {
+          const url = request.nextUrl.clone();
+          const locale = request.cookies.get("next-intl-locale")?.value || "en";
+          const userRole = profile.role || role || 'student';
+          url.pathname = `/${locale}/${userRole}`;
+          
+          console.log(`[middleware] redirecting to onboarding`, { userId, role: userRole, pathname });
+          return NextResponse.redirect(url);
+        }
+      } catch (error) {
+        console.error('[middleware] failed to check onboarding status:', error);
+        // Continue without onboarding check if there's an error
+      }
+    }
 
     // Create a next response carrying modified request headers
     const nextRes = NextResponse.next({ request: { headers: reqHeaders } });

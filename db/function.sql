@@ -156,7 +156,11 @@ BEGIN
         result_text := COALESCE(profile_record.display_name, '') || ' ' || 
                       COALESCE(profile_record.full_name, '') || ' ' || 
                       COALESCE(profile_record.bio, '') || ' ' || 
-                      COALESCE(profile_record.role, '');
+                      COALESCE(profile_record.role, '') || ' ' ||
+                      COALESCE(profile_record.preferences->>'onboarding', '') || ' ' ||
+                      COALESCE(profile_record.preferences->'interests'->>'broadField', '') || ' ' ||
+                      COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(profile_record.preferences->'interests'->'subFields')), ' '), '') || ' ' ||
+                      COALESCE(profile_record.timezone, '');
       END IF;
       
     WHEN 'course' THEN
@@ -530,7 +534,8 @@ BEGIN
     OLD.display_name IS DISTINCT FROM NEW.display_name OR
     OLD.full_name IS DISTINCT FROM NEW.full_name OR
     OLD.bio IS DISTINCT FROM NEW.bio OR
-    OLD.role IS DISTINCT FROM NEW.role
+    OLD.role IS DISTINCT FROM NEW.role OR
+    OLD.preferences IS DISTINCT FROM NEW.preferences
   )) THEN
     PERFORM queue_for_embedding_qstash('profile', NEW.id, 3);
   END IF;

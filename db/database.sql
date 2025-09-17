@@ -1027,14 +1027,14 @@ create table if not exists community_quiz (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
   slug text unique not null, -- 比如 "calculus-basics"
-  creator_id uuid not null references auth.users(id),
+  author_id uuid not null references auth.users(id),
   title text not null,
   description text,
   tags text[],
   difficulty int check (difficulty between 1 and 5),
   max_attempts int not null default 1,
   visibility text check (visibility in ('public','private')) default 'public',
-  quiz_mode text check (mode in ('practice', 'strict')) default 'practice',
+  quiz_mode text check (quiz_mode in ('practice', 'strict')) default 'practice',
   is_deleted boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -1067,6 +1067,30 @@ create table if not exists community_quiz_attempt_answer (
   question_id bigint not null references community_quiz_question(id),
   user_answer text[],   -- 存储用户选的选项索引，或填空的文本
   is_correct boolean
+);
+
+create table if not exists community_quiz_permission (
+  id bigserial primary key,
+  quiz_id bigint not null references community_quiz(id),
+  user_id uuid not null references auth.users(id),
+  permission_type text not null check (permission_type in ('view', 'attempt', 'edit')),
+  granted_by uuid not null references auth.users(id),
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique(quiz_id, user_id, permission_type)
+);
+
+create table if not exists community_quiz_invite_token (
+  id bigserial primary key,
+  token text unique not null,
+  quiz_id bigint not null references community_quiz(id),
+  permission_type text not null check (permission_type in ('view', 'attempt', 'edit')),
+  created_by uuid not null references auth.users(id),
+  expires_at timestamptz,
+  max_uses int default null, -- null = unlimited
+  current_uses int default 0,
+  is_active boolean default true,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists community_quiz_like (

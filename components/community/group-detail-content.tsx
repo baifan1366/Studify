@@ -1,11 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
-import AnimatedSidebar from "@/components/sidebar";
-import ClassroomHeader from "@/components/header";
 import {
   useGroup,
   useGroupPosts,
@@ -48,8 +45,6 @@ export default function GroupDetailContent({
   const t = useTranslations("CommunityContent");
   const th = useTranslations("Header");
   const [user, setUser] = useState<User | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
 
   // Fetch user for header
   useEffect(() => {
@@ -108,36 +103,10 @@ export default function GroupDetailContent({
     leaveGroup();
   };
 
-  const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
-  };
-
   // Handle access denied for private groups
   if (groupError && groupErrorMessage?.message.includes("Access denied")) {
     return (
       <>
-        <ClassroomHeader
-          title="Community"
-          userName={user?.email?.split("@")[0] || th("default_user_name")}
-          sidebarExpanded={isPermanentlyExpanded}
-          onMenuToggle={handleMenuToggle}
-        />
-
-        <AnimatedSidebar
-          activeItem="community"
-          onExpansionChange={setSidebarExpanded}
-          isPermanentlyExpanded={isPermanentlyExpanded}
-        />
-
-        <motion.div
-          className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-          style={{
-            marginLeft: sidebarExpanded ? "280px" : "80px",
-            transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            width: `calc(100vw - ${sidebarExpanded ? "280px" : "80px"})`,
-          }}
-        >
           <div className="max-w-4xl mx-auto">
             <div className="text-center py-12">
               <Lock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
@@ -188,34 +157,12 @@ export default function GroupDetailContent({
               </Link>
             </div>
           </div>
-        </motion.div>
       </>
     );
   }
 
   return (
     <>
-      <ClassroomHeader
-        title={group?.name || "Loading..."}
-        userName={user?.email?.split("@")[0] || th("default_user_name")}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      <AnimatedSidebar
-        activeItem="community"
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: sidebarExpanded ? "280px" : "80px",
-          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          width: `calc(100vw - ${sidebarExpanded ? "280px" : "80px"})`,
-        }}
-      >
         <div className="max-w-4xl mx-auto">
           {groupLoading && (
             <div className="space-y-6">
@@ -390,7 +337,6 @@ export default function GroupDetailContent({
             </>
           )}
         </div>
-      </motion.div>
     </>
   );
 }

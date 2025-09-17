@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
-import UserProfilePopover from './user-profile-popover';
+import UserProfilePopover from '@/components/user-profile-popover';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 
 interface ClassroomHeaderProps {

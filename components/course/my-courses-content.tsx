@@ -5,17 +5,11 @@ import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { BookOpen, Clock, Users, Star } from 'lucide-react';
 import { useMyCourses } from '@/hooks/course/use-courses';
-import AnimatedSidebar from '@/components/sidebar';
-import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function MyCoursesContent() {
-  const [activeMenuItem, setActiveMenuItem] = useState('my-courses');
   const [user, setUser] = useState<User | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   
   const { data: courses, isLoading } = useMyCourses();
   const { toast } = useToast();
@@ -69,22 +63,6 @@ export default function MyCoursesContent() {
     fetchUser();
   }, [toast]);
 
-
-
-  const handleMenuItemClick = (itemId: string) => {
-    setActiveMenuItem(itemId);
-    console.log('Menu item clicked:', itemId);
-  };
-
-  const handleHeaderAction = (action: string) => {
-    console.log('Header action:', action);
-  };
-
-  const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
-  };
-
   const handleContinueCourse = (courseId: string | number) => {
     toast({
       title: "Continue Course",
@@ -100,41 +78,7 @@ export default function MyCoursesContent() {
   };
 
   return (
-    <AnimatedBackground>
-      {/* Header */}
-      <ClassroomHeader
-        title="My Courses"
-        userName={user?.email?.split('@')[0] || 'Student'}
-        onProfileClick={() => handleHeaderAction('profile')}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      {/* Sidebar */}
-      <AnimatedSidebar
-        activeItem={activeMenuItem}
-        onItemClick={handleMenuItemClick}
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      {/* Main Content Area */}
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`
-        }}
-      >
-
-        {/* Courses Content */}
-        <motion.div
-          className="relative z-10 space-y-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
+    <>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
               My Learning
@@ -254,8 +198,6 @@ export default function MyCoursesContent() {
               ))
             )}
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatedBackground>
+    </>
   );
 }

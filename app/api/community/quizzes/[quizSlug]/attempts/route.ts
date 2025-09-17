@@ -18,12 +18,36 @@ export async function POST(
     // 找 quiz
     const { data: quiz, error: quizErr } = await supabase
       .from("community_quiz")
-      .select("id")
+      .select("id, max_attempts, visibility")
       .eq("slug", quizSlug)
       .maybeSingle();
 
     if (quizErr || !quiz) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+    }
+
+    // 检查 quiz 是否为 public（如果是 private 可能需要额外权限检查）
+    if (quiz.visibility === 'private') {
+      // 这里可以添加额外的权限检查逻辑
+      // 例如检查用户是否是 quiz 的创建者或有特殊权限
+    }
+
+    // 检查用户已有的 attempts 数量
+    const { data: existingAttempts, error: attemptsErr } = await supabase
+      .from("community_quiz_attempt")
+      .select("id")
+      .eq("quiz_id", quiz.id)
+      .eq("user_id", userId);
+
+    if (attemptsErr) {
+      return NextResponse.json({ error: attemptsErr.message }, { status: 500 });
+    }
+
+    if (existingAttempts && existingAttempts.length >= quiz.max_attempts) {
+      return NextResponse.json(
+        { error: `Maximum attempts (${quiz.max_attempts}) reached for this quiz` },
+        { status: 403 }
+      );
     }
 
     // 创建 attempt

@@ -1,11 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
-import AnimatedSidebar from "@/components/sidebar";
-import ClassroomHeader from "@/components/header";
 import {
   usePopularPosts,
   useSearchPosts,
@@ -22,8 +19,6 @@ export default function CommunityContent() {
   const t = useTranslations("CommunityContent");
   const th = useTranslations("Header");
   const [user, setUser] = useState<User | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   const [query, setQuery] = useState("");
 
   // Fetch user for header
@@ -64,33 +59,8 @@ export default function CommunityContent() {
   const isError = query.trim().length > 0 ? isSearchError : isPopularError;
   const error = query.trim().length > 0 ? searchError : popularError;
 
-  const handleMenuToggle = () => {
-    setIsPermanentlyExpanded(!isPermanentlyExpanded);
-    setSidebarExpanded(!isPermanentlyExpanded);
-  };
-
   return (
     <>
-      <ClassroomHeader
-        title={t("community_header_title")}
-        userName={user?.email?.split("@")[0] || th("default_user_name")}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      <AnimatedSidebar
-        activeItem="community"
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      <motion.div
-        className="relative z-10 mt-16 h-full"
-        style={{
-          marginLeft: sidebarExpanded ? "200px" : "60px",
-          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
-      >
         <div className="flex h-full">
           {/* Main Feed */}
           <div className="flex-1 min-w-0 p-6 overflow-y-auto max-w-4xl mx-auto">
@@ -197,7 +167,6 @@ export default function CommunityContent() {
             <CommunitySidebar />
           </div>
         </div>
-      </motion.div>
     </>
   );
 }

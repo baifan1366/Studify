@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { X, Timer, Triangle, Square, Circle, Diamond } from "lucide-react";
+import { X, Timer, Triangle, Square, Circle, Diamond, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { useQuizQuestions } from "@/hooks/community/use-quiz-questions";
 import {
@@ -46,6 +47,8 @@ export default function QuizAttemptPage() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [textAnswer, setTextAnswer] = useState("");
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreatingAttempt, setIsCreatingAttempt] = useState(false);
 
   // Hooks
   const { data: questions, isLoading } = useQuizQuestions(quizSlug);
@@ -61,10 +64,22 @@ export default function QuizAttemptPage() {
 
   // 初始化 attempt
   useEffect(() => {
-    if (!attemptId) {
-      createAttempt().then((data) => setAttemptId(data.id));
+    if (!attemptId && !isCreatingAttempt && !error) {
+      setIsCreatingAttempt(true);
+      createAttempt()
+        .then((data) => {
+          setAttemptId(data.id);
+          setError(null);
+        })
+        .catch((err) => {
+          console.error("Failed to create attempt:", err);
+          setError(err.message || "Failed to start quiz. You may have reached the maximum number of attempts.");
+        })
+        .finally(() => {
+          setIsCreatingAttempt(false);
+        });
     }
-  }, [attemptId, createAttempt]);
+  }, [attemptId, createAttempt, isCreatingAttempt, error]);
 
   // 倒计时
   useEffect(() => {
@@ -79,10 +94,42 @@ export default function QuizAttemptPage() {
     return () => clearInterval(timer);
   }, [timeLeft, isAnswered]);
 
-  if (isLoading) {
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <Alert className="border-red-500 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertDescription className="text-red-700">
+              {error}
+            </AlertDescription>
+          </Alert>
+          <div className="mt-4 flex gap-2 justify-center">
+            <Button 
+              onClick={() => router.push(`/community/quizzes/${quizSlug}`)}
+              variant="outline"
+            >
+              Back to Quiz
+            </Button>
+            <Button 
+              onClick={() => {
+                setError(null);
+                setAttemptId(null);
+              }}
+              variant="default"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || isCreatingAttempt) {
     return (
       <div className="flex h-screen items-center justify-center text-white">
-        Loading questions...
+        {isCreatingAttempt ? "Starting quiz..." : "Loading questions..."}
       </div>
     );
   }

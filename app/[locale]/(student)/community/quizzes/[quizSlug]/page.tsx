@@ -13,6 +13,9 @@ const mockQuiz: Omit<CommunityQuiz, "likes" | "comments" | "attempts"> = {
   description: "This quiz is designed to push your calculus skills...",
   tags: ["Calculus", "Mathematics", "Advanced", "STEM"],
   difficulty: 3,
+  max_attempts: 5,
+  visibility: "public",
+  quiz_mode: "practice",
 };
 
 const mockLeaderboard = [

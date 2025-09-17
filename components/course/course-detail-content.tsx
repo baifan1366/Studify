@@ -20,23 +20,15 @@ import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
 import { useEnrolledCourseStatus } from '@/hooks/course/use-enrolled-courses';
-import AnimatedSidebar from '@/components/sidebar';
-import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import AnimatedBackground from '@/components/ui/animated-background';
 
 interface CourseDetailContentProps {
   courseSlug: string;
 }
 
-export default function CourseDetailContent({ courseSlug }: CourseDetailContentProps) {
-  const [activeMenuItem, setActiveMenuItem] = useState('courses');
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(80);
-  
+export default function CourseDetailContent({ courseSlug }: CourseDetailContentProps) {  
   // Use centralized user authentication
   const { data: userData, isLoading: userLoading } = useUser();
   const user = userData || null;
@@ -104,20 +96,6 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
     fetchUser();
   }, [toast]);
 
-  const handleMenuItemClick = (itemId: string) => {
-    setActiveMenuItem(itemId);
-  };
-
-  const handleHeaderAction = (action: string) => {
-    console.log('Header action:', action);
-  };
-
-  const handleMenuToggle = () => {
-    const newExpanded = !isPermanentlyExpanded;
-    setIsPermanentlyExpanded(newExpanded);
-    setSidebarExpanded(newExpanded);
-  };
-
   const handleEnrollNow = async () => {
     if (!course) return;
     
@@ -149,30 +127,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
 
   if (isLoading) {
     return (
-      <AnimatedBackground sidebarWidth={sidebarWidth}>
-        <ClassroomHeader
-          title="Course Details"
-          userName="Student"
-          onProfileClick={() => handleHeaderAction('profile')}
-          sidebarExpanded={isPermanentlyExpanded}
-          onMenuToggle={handleMenuToggle}
-        />
-
-        <AnimatedSidebar
-          activeItem={activeMenuItem}
-          onItemClick={handleMenuItemClick}
-          onExpansionChange={setSidebarExpanded}
-          isPermanentlyExpanded={isPermanentlyExpanded}
-        />
-
-        <motion.div
-          className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-          style={{
-            marginLeft: sidebarExpanded ? '280px' : '80px',
-            transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
-          }}
-        >
+      <>
           <div className="max-w-6xl mx-auto space-y-8">
             <Skeleton className="w-full h-64 rounded-xl" />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -186,43 +141,18 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
               </div>
             </div>
           </div>
-        </motion.div>
-      </AnimatedBackground>
+      </>
     );
   }
 
   if (!course) {
     return (
-      <AnimatedBackground sidebarWidth={sidebarWidth}>
-        <ClassroomHeader
-          title="Course Not Found"
-          userName={user?.email?.split('@')[0] || 'Student'}
-          onProfileClick={() => handleHeaderAction('profile')}
-          sidebarExpanded={isPermanentlyExpanded}
-          onMenuToggle={handleMenuToggle}
-        />
-
-        <AnimatedSidebar
-          activeItem={activeMenuItem}
-          onItemClick={handleMenuItemClick}
-          onExpansionChange={setSidebarExpanded}
-          isPermanentlyExpanded={isPermanentlyExpanded}
-        />
-
-        <motion.div
-          className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-          style={{
-            marginLeft: sidebarExpanded ? '280px' : '80px',
-            transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
-          }}
-        >
+      <>
           <div className="max-w-6xl mx-auto text-center py-20">
             <h1 className="text-4xl font-bold text-white/90 mb-4">Course Not Found</h1>
             <p className="text-lg text-white/70">The course you're looking for doesn't exist.</p>
           </div>
-        </motion.div>
-      </AnimatedBackground>
+      </>
     );
   }
 
@@ -230,37 +160,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   const isFree = !course.price_cents || course.price_cents === 0;
 
   return (
-    <AnimatedBackground sidebarWidth={sidebarWidth}>
-      <ClassroomHeader
-        title={course.title}
-        userName={user?.email?.split('@')[0] || 'Student'}
-        onProfileClick={() => handleHeaderAction('profile')}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      <AnimatedSidebar
-        activeItem={activeMenuItem}
-        onItemClick={handleMenuItemClick}
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: sidebarExpanded ? '280px' : '80px',
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarExpanded ? '280px' : '80px'})`,
-        }}
-      >
-        <motion.div
-          className="max-w-6xl mx-auto space-y-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          {/* Hero Section */}
+    <>
           <div className="relative bg-white/5 backdrop-blur-md rounded-2xl overflow-hidden border border-white/20">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
               <div className="space-y-6">
@@ -478,8 +378,6 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
               </div>
             </div>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatedBackground>
+    </>
   );
 }

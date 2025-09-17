@@ -1,51 +1,49 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LiveKitRoom, 
-  GridLayout,
-  CarouselLayout,
-  FocusLayout,
-  ParticipantTile,
-  RoomAudioRenderer,
-  useTracks,
-  useParticipants,
-  useRoomContext,
-  LayoutContextProvider
-} from '@livekit/components-react';
-import { Track, Room, RoomEvent, Participant } from 'livekit-client';
-import { useLiveKitToken } from '@/hooks/classroom/use-livekit-token';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Loader2, 
   Users, 
+  MessageCircle, 
+  Hand, 
+  Grid3X3, 
+  Presentation, 
+  Focus, 
+  Video, 
+  VideoOff, 
   Mic, 
   MicOff, 
-  Video, 
-  VideoOff,
-  Share,
-  MessageCircle,
+  Settings, 
   MoreVertical,
-  Star,
-  Heart,
-  Zap,
-  Settings,
+  MoreHorizontal,
+  Clock,
   Maximize,
-  Volume2,
-  VolumeX,
-  Pin,
-  Grid3X3,
-  Presentation,
-  Hand,
-  Coffee,
-  Sparkles
+  Loader2
 } from 'lucide-react';
-import { ChatTabs } from '../tabs/chat-tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { 
+  LiveKitRoom, 
+  useDataChannel,
+  RoomAudioRenderer, 
+  useTracks,
+  useParticipants, 
+  useLocalParticipant, 
+  VideoTrack, 
+  AudioTrack, 
+  useRoomContext 
+} from '@livekit/components-react';
+import { useParticipantsInfo, type ParticipantInfo } from '@/hooks/classroom/use-participants-info';
+import { Track } from 'livekit-client';
+import { setLogLevel, LogLevel, RoomEvent } from 'livekit-client';
+import { useLiveKitToken } from '@/hooks/classroom/use-livekit-token';
 import BottomControls from './bottom-controls';
+
+// Suppress verbose LiveKit logs in development
+if (process.env.NODE_ENV === 'development') {
+  setLogLevel(LogLevel.warn);
+}
 
 interface LiveClassroomProps {
   classroomSlug: string;
@@ -56,7 +54,7 @@ interface LiveClassroomProps {
   classroomColor?: string;
 }
 
-export default function LiveClassroom({
+export default function RedesiLiveClassroom({
   classroomSlug,
   sessionId,
   participantName,
@@ -64,28 +62,59 @@ export default function LiveClassroom({
   onSessionEnd,
   classroomColor = '#6366f1'
 }: LiveClassroomProps) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(true);
+  const [layout, setLayout] = useState('grid');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState(2347); 
+  const [reactions, setReactions] = useState<Array<{ id: number; type: string; at: number }>>([]);
+  const [floatingReactions, setFloatingReactions] = useState<Array<{ id: number; type: string; x: number; y: number }>>([]);
+  const [reactionEmojis, setReactionEmojis] = useState<Array<{ id: string; emoji: string; timestamp: number }>>([]);
+  const [focusedParticipant, setFocusedParticipant] = useState<any>(null);
+  const [localMediaState, setLocalMediaState] = useState<{
+    camera: boolean;
+    microphone: boolean;
+    screenShare: boolean;
+  }>({
+    camera: true,
+    microphone: true,
+    screenShare: false
+  });
 
-  const {
-    tokenData,
-    isLoading,
-    error,
-    generateToken,
-    refreshToken
-  } = useLiveKitToken({
+  const reactionEmojiMap = {
+    heart: '❤️',
+    clap: '👏',
+    thumbs: '👍',
+    fire: '🔥',
+    mind: '🤯',
+    rocket: '🚀'
+  };
+
+  const { tokenData, isLoading, error, generateToken } = useLiveKitToken({
     classroomSlug,
     sessionId,
     participantName,
-    autoRefresh: true
+    metadata: JSON.stringify({ role: userRole, timestamp: Date.now() })
   });
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // 初始化时生成 Token
+  // Auto-generate token on mount - MUST be before any early returns
   useEffect(() => {
     if (!tokenData && !isLoading && !error) {
       generateToken();
     }
   }, [tokenData, isLoading, error, generateToken]);
+
+  // Session timer - MUST be before any early returns
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionDuration(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // DataChannel error handling will be added in LiveClassroomContent where room context is available
 
   const handleConnect = () => {
     if (!tokenData) {
@@ -100,13 +129,95 @@ export default function LiveClassroom({
 
   const handleConnected = () => {
     setIsConnected(true);
-    setConnectionError(null);
     toast.success('成功连接到课堂');
   };
 
   const handleError = (error: Error) => {
-    setConnectionError(error.message);
     toast.error(`连接错误: ${error.message}`);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return hours > 0 
+      ? `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      : `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const addReaction = useCallback((emoji: string) => {
+    const newReaction = {
+      id: Math.random().toString(36).substr(2, 9),
+      emoji,
+      timestamp: Date.now(),
+    };
+    setReactionEmojis((prev: Array<{ id: string; emoji: string; timestamp: number }>) => [...prev, newReaction]);
+    
+    // Remove reaction after animation
+    setTimeout(() => {
+      setReactionEmojis((prev: Array<{ id: string; emoji: string; timestamp: number }>) => 
+        prev.filter((r: { id: string; emoji: string; timestamp: number }) => r.id !== newReaction.id)
+      );
+    }, 3000);
+  }, []);
+
+  const toggleMedia = useCallback(async (type: keyof typeof localMediaState) => {
+    setLocalMediaState(prev => ({
+      ...prev,
+      [type]: !prev[type]
+    }));
+    
+    // This will be handled by LiveKit in the LiveClassroomContent component
+    // where we have access to the room context
+  }, []);
+
+  const handleEndSession = () => {
+    console.log('Ending session...');
+    onSessionEnd?.();
+    toast.info('课堂已结束');
+  };
+
+  const handleToggleRecording = useCallback(async () => {
+    try {
+      setIsRecording(!isRecording);
+      if (!isRecording) {
+        // Start recording via API
+        const response = await fetch(`/api/classroom/${classroomSlug}/live-sessions/${sessionId}/recording`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'start' })
+        });
+        
+        if (response.ok) {
+          toast.success('开始录制');
+        } else {
+          throw new Error('Failed to start recording');
+        }
+      } else {
+        // Stop recording via API
+        const response = await fetch(`/api/classroom/${classroomSlug}/live-sessions/${sessionId}/recording`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'stop' })
+        });
+        
+        if (response.ok) {
+          toast.info('停止录制');
+        } else {
+          throw new Error('Failed to stop recording');
+        }
+      }
+    } catch (error) {
+      console.error('Recording error:', error);
+      toast.error('录制操作失败');
+      // Revert state on error
+      setIsRecording(isRecording);
+    }
+  }, [isRecording, classroomSlug, sessionId]);
+
+  const onRefreshToken = () => {
+    generateToken();
+    toast.info('正在刷新连接令牌...');
   };
 
   if (isLoading) {
@@ -128,7 +239,7 @@ export default function LiveClassroom({
         <CardContent className="flex items-center justify-center h-full">
           <div className="flex flex-col items-center space-y-4">
             <p className="text-red-500">
-              {error instanceof Error ? error.message : error || '无法获取课堂访问权限'}
+              {typeof error === 'string' ? error : '无法获取课堂访问权限'}
             </p>
             <Button onClick={handleConnect} variant="outline">
               重新连接
@@ -140,11 +251,9 @@ export default function LiveClassroom({
   }
 
   return (
-    // LiveKitRoom
     <div
-      className="relative w-full h-[110dvh] bg-background "
+      className="relative w-full mb-12"
       style={{
-        // 预留底部空间，避免固定底部控件被遮挡，并适配安全区
         paddingBottom: 'calc(env(safe-area-inset-bottom, 100px) + 4.5rem)'
       }}
     >
@@ -155,6 +264,11 @@ export default function LiveClassroom({
         onConnected={handleConnected}
         onDisconnected={handleDisconnected}
         onError={handleError}
+        className=" bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative"
+        style={{
+          margin: '0 10px',
+          
+        }}
         options={{
           adaptiveStream: true,
           dynacast: true,
@@ -170,193 +284,606 @@ export default function LiveClassroom({
                 width: 1280, 
                 height: 720, 
                 resolution: { width: 1280, height: 720 }, 
-                encoding: { maxBitrate: 1_200_000 } 
-              },
-            ],
-          },
+                encoding: { maxBitrate: 1_500_000 } 
+              }
+            ]
+          }
         }}
-        className="h-full"
       >
-        <LayoutContextProvider>
-          <ClassroomContent 
-            userRole={userRole}
-            participantName={participantName}
-            onSessionEnd={onSessionEnd}
-            classroomColor={classroomColor}
-            isConnected={isConnected}
-            connectionError={connectionError}
-            onRefreshToken={() => { void refreshToken(); }}
-            classroomSlug={classroomSlug}
-            sessionId={sessionId}
-          />
-          <RoomAudioRenderer />
-        </LayoutContextProvider>
+        <RoomAudioRenderer />
+        <LiveClassroomContent
+          classroomSlug={classroomSlug}
+          sessionId={sessionId}
+          participantName={participantName}
+          userRole={userRole}
+          onSessionEnd={handleEndSession}
+          classroomColor={classroomColor}
+          isConnected={isConnected}
+          connectionError={connectionError}
+          onRefreshToken={onRefreshToken}
+          layout={layout}
+          setLayout={setLayout}
+          isChatOpen={isChatOpen}
+          setIsChatOpen={setIsChatOpen}
+          isParticipantsOpen={isParticipantsOpen}
+          setIsParticipantsOpen={setIsParticipantsOpen}
+          sessionDuration={sessionDuration}
+          reactions={reactions}
+          floatingReactions={floatingReactions}
+          focusedParticipant={focusedParticipant}
+          setFocusedParticipant={setFocusedParticipant}
+          participants={[]}
+          reactionEmojis={{}}
+          reactionEmojiMap={reactionEmojiMap}
+          toggleMedia={toggleMedia}
+          handleToggleRecording={handleToggleRecording}
+          isRecording={isRecording}
+          localMediaState={localMediaState}
+          addReaction={addReaction}
+          formatDuration={formatDuration}
+        />
       </LiveKitRoom>
     </div>
   );
 }
 
-interface ClassroomContentProps {
-  userRole: 'student' | 'tutor';
+interface LiveClassroomContentProps {
+  classroomSlug: string;
+  sessionId: string;
   participantName: string;
+  userRole: 'student' | 'tutor';
   onSessionEnd?: () => void;
   classroomColor?: string;
   isConnected?: boolean;
   connectionError?: string | null;
-  onRefreshToken?: () => Promise<void> | void;
-  classroomSlug: string;
-  sessionId: string;
+  onRefreshToken?: () => void;
+  layout: string;
+  setLayout: (layout: string) => void;
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
+  isParticipantsOpen: boolean;
+  setIsParticipantsOpen: (open: boolean) => void;
+  sessionDuration: number;
+  reactions: Array<{ id: number; type: string; at: number }>;
+  floatingReactions: Array<{ id: number; type: string; x: number; y: number }>;
+  focusedParticipant: any;
+  setFocusedParticipant: (participant: any) => void;
+  participants: any[];
+  reactionEmojis: Record<string, string>;
+  toggleMedia: (type: 'camera' | 'microphone' | 'screenShare') => void;
+  handleToggleRecording: () => void;
+  isRecording: boolean;
+  localMediaState: { camera: boolean; microphone: boolean; screenShare: boolean };
+  addReaction: (type: string) => void;
+  reactionEmojiMap: Record<string, string>;
+  formatDuration: (seconds: number) => string;
 }
 
-function ClassroomContent({ userRole, participantName, onSessionEnd, classroomColor = '#6366f1', isConnected, connectionError, onRefreshToken, classroomSlug, sessionId }: ClassroomContentProps) {
+function LiveClassroomContent({
+  classroomSlug,
+  sessionId,
+  participantName: originalParticipantName,
+  userRole,
+  onSessionEnd,
+  classroomColor = '#6366f1',
+  isConnected,
+  connectionError,
+  onRefreshToken,
+  layout,
+  setLayout,
+  isChatOpen,
+  setIsChatOpen,
+  isParticipantsOpen,
+  setIsParticipantsOpen,
+  sessionDuration,
+  reactions,
+  floatingReactions,
+  focusedParticipant,
+  setFocusedParticipant,
+  participants: propParticipants,
+  reactionEmojis,
+  toggleMedia,
+  handleToggleRecording,
+  isRecording,
+  localMediaState,
+  addReaction,
+  formatDuration,
+  reactionEmojiMap
+}: LiveClassroomContentProps) {
   const room = useRoomContext();
-  const participants = useParticipants();
-  const tracks = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: true },
-    { source: Track.Source.ScreenShare, withPlaceholder: false },
-  ]);
+  const livekitParticipants = useParticipants();
+  const { localParticipant } = useLocalParticipant();
+  const { data: participantsInfo = [] } = useParticipantsInfo(classroomSlug);
+  
+  // Get all tracks using useTracks for better subscription handling
+  const allTracks = useTracks([Track.Source.Camera, Track.Source.Microphone, Track.Source.ScreenShare]);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [layout, setLayout] = useState('grid');
-  const [reactions, setReactions] = useState<{ id: number; type: string; at: number }[]>([]);
-  const [floatingReactions, setFloatingReactions] = useState<{
-    id: number;
-    type: string;
-    x: number;
-    y: number;
-  }[]>([]);
-  const [sessionDuration, setSessionDuration] = useState(0);
-  // 选中的聚焦轨道，用于手动放大某个视频
-  const [selectedTrackRef, setSelectedTrackRef] = useState<any | null>(null);
-  // Chat panel state
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // Create a Map for O(1) lookup of participant info
+  const participantsInfoMap = useMemo(() => {
+    const m = new Map<string, ParticipantInfo>();
+    // Ensure participantsInfo is an array before calling forEach
+    if (Array.isArray(participantsInfo)) {
+      participantsInfo.forEach(pi => {
+        // Use user_id as the key to match with LiveKit participant.identity
+        m.set(String(pi.user_id ?? pi.id), pi);
+      });
+    }
+    return m;
+  }, [participantsInfo]);
 
-  // Session timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSessionDuration(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // Debug logging to compare identities
+  console.log('livekit identities', livekitParticipants.map(p => p.identity));
+  console.log('participantsInfo', Array.isArray(participantsInfo) ? participantsInfo.map(pi => ({ id: pi.id, user_id: pi.user_id, display_name: pi.display_name })) : participantsInfo);
 
-  // Format session duration
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Merge LiveKit participants with database participant info
+  const mergedParticipants = useMemo(() => {
+    return livekitParticipants.map(p => {
+      // LiveKit participant.identity should contain the user_id
+      const idKey = String(p.identity);
+      const info = participantsInfoMap.get(idKey) ?? null;
 
-  // Add floating reactions
-  const addReaction = (type: string) => {
-    const newReaction = {
-      id: Date.now(),
-      type,
-      x: Math.random() * 100,
-      y: Math.random() * 100
-    };
-    setFloatingReactions(prev => [...prev, newReaction]);
-    // 记录最近的反应，便于在 UI 中显示（最多 5 条）
-    setReactions(prev => {
-      const next = [...prev, { id: newReaction.id, type, at: Date.now() }];
-      return next.slice(-5);
+      console.log(`Merging participant ${p.identity}:`, {
+        livekitIdentity: p.identity,
+        foundInfo: !!info,
+        infoUserId: info?.user_id,
+        infoDisplayName: info?.display_name
+      });
+
+      return {
+        // Basic LiveKit fields
+        identity: p.identity,
+        sid: p.sid,
+        isLocal: p.isLocal,
+        metadata: p.metadata,
+        participantObj: p, // Original LiveKit participant for useTracks/useParticipantTracks
+
+        // Display fields from database or fallback
+        displayName: info?.display_name ?? info?.full_name ?? info?.name ?? p.name ?? p.identity,
+        avatarUrl: info?.avatar_url ?? undefined,
+        role: info?.role ?? (p.metadata ? (() => { 
+          try { 
+            return JSON.parse(p.metadata).role 
+          } catch { 
+            return undefined 
+          } 
+        })() : undefined),
+        userInfo: info // Full user info object for additional data
+      };
     });
+  }, [livekitParticipants, participantsInfoMap]);
+  
+  // Add track subscription event listeners
+  useEffect(() => {
+    if (!room) return;
     
-    setTimeout(() => {
-      setFloatingReactions(prev => prev.filter(r => r.id !== newReaction.id));
-    }, 3000);
+    const handleTrackSubscribed = (track: any, publication: any, participant: any) => {
+      console.log('Track subscribed:', {
+        trackSid: publication.trackSid,
+        participantIdentity: participant.identity,
+        trackKind: track.kind,
+        trackSource: track.source
+      });
+    };
+    
+    const handleTrackUnsubscribed = (track: any, publication: any, participant: any) => {
+      console.log('Track unsubscribed:', {
+        trackSid: publication.trackSid,
+        participantIdentity: participant.identity
+      });
+    };
+    
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+    
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+      room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+    };
+  }, [room]);
+  
+  // Use merged participants for video rendering
+  const participants = mergedParticipants;
+  
+  // Get current user's display name from merged participants
+  const currentUserDisplayName = localParticipant 
+    ? mergedParticipants.find((p: any) => p.identity === localParticipant.identity)?.displayName || originalParticipantName
+    : originalParticipantName;
+  
+  // Use currentLocalMediaState from props
+  const currentLocalMediaState = {
+    camera: localParticipant?.isCameraEnabled ?? localMediaState.camera,
+    microphone: localParticipant?.isMicrophoneEnabled ?? localMediaState.microphone,
+    screenShare: localParticipant?.isScreenShareEnabled ?? localMediaState.screenShare
   };
+  
+  const isCameraEnabled = currentLocalMediaState.camera;
+  const isMicEnabled = currentLocalMediaState.microphone;
+  
+  // Ensure local participant publishes tracks on connect
+  useEffect(() => {
+    if (!localParticipant || !room) return;
+    
+    const enableLocalTracks = async () => {
+      try {
+        // Enable camera and microphone by default
+        await localParticipant.setCameraEnabled(true);
+        await localParticipant.setMicrophoneEnabled(true);
+        console.log('Local tracks enabled on connect');
+        
+        // Verify local publications
+        console.log("Local publications:", [...localParticipant.trackPublications.values()].map(pub => ({
+          kind: pub.kind,
+          source: pub.source,
+          trackSid: pub.trackSid,
+          isEnabled: pub.isEnabled,
+          isMuted: pub.isMuted
+        })));
+      } catch (error) {
+        console.error('Failed to enable local tracks:', error);
+      }
+    };
+    
+    // Small delay to ensure room is fully connected
+    const timer = setTimeout(enableLocalTracks, 1000);
+    return () => clearTimeout(timer);
+  }, [localParticipant, room]);
 
-  const reactionEmojis: Record<string, string> = {
-    heart: '❤️',
-    clap: '👏',
-    thumbs: '👍',
-    fire: '🔥',
-    mind: '🤯',
-    rocket: '🚀'
-  };
-
-  // 主持人控制功能
-  const handleStartRecording = async () => {
-    if (userRole !== 'tutor') return;
+  // Use enhancedToggleMedia from props - enhanced with LiveKit integration
+  const enhancedToggleMedia = useCallback(async (type: 'camera' | 'microphone' | 'screenShare') => {
+    if (!localParticipant) {
+      // If no localParticipant, just call the prop function
+      toggleMedia(type);
+      return;
+    }
     
     try {
-      // 这里需要调用后端 API 开始录制
-      // await startRecording(sessionId);
-      setIsRecording(true);
-      toast.success('开始录制');
+      switch (type) {
+        case 'camera':
+          await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled);
+          break;
+        case 'microphone':
+          await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
+          break;
+        case 'screenShare':
+          if (localParticipant.isScreenShareEnabled) {
+            await localParticipant.setScreenShareEnabled(false);
+          } else {
+            await localParticipant.setScreenShareEnabled(true);
+          }
+          break;
+      }
+      
+      // Call the parent toggleMedia to update local state
+      toggleMedia(type);
+      
+      // Show success message
+      const mediaNames = {
+        camera: '摄像头',
+        microphone: '麦克风', 
+        screenShare: '屏幕共享'
+      };
+      toast.success(`${mediaNames[type]}已${localParticipant.isCameraEnabled || localParticipant.isMicrophoneEnabled || localParticipant.isScreenShareEnabled ? '开启' : '关闭'}`);
     } catch (error) {
-      toast.error('录制启动失败');
+      console.error(`Failed to toggle ${type}:`, error);
+      toast.error(`无法切换${type === 'camera' ? '摄像头' : type === 'microphone' ? '麦克风' : '屏幕共享'}`);
+    }
+  }, [localParticipant, toggleMedia]);
+
+  // Session timer is handled in parent component
+
+  // Use LiveKit's lossy DataChannel for reactions only (not chat)
+  const { message: reactionMessage } = useDataChannel('reactions');
+  
+  // Disable DataChannel chat handling - chat uses API persistence
+  useEffect(() => {
+    if (!room) return;
+
+    const handleDataPacket = () => {
+      // ❌ 不处理 DataChannel 消息
+      // 因为我们走 API 持久化，不需要 LiveKit DataChannel
+      // Chat is handled by API + Database, not DataChannel
+    };
+
+    // Add listener but don't process chat messages
+    room.on(RoomEvent.DataReceived, handleDataPacket);
+
+    return () => {
+      room.off(RoomEvent.DataReceived, handleDataPacket);
+    };
+  }, [room]);
+  
+  // Send reaction via lossy DataChannel
+  const sendReaction = useCallback((emoji: string) => {
+    if (room?.localParticipant) {
+      const reactionData = {
+        type: 'reaction',
+        emoji,
+        userId: room.localParticipant.identity,
+        timestamp: Date.now()
+      };
+      
+      room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify(reactionData)),
+        { reliable: false } // Use lossy for reactions (low latency)
+      ).catch((error: any) => {
+        console.error('Failed to send reaction:', error);
+      });
+    }
+    
+    // Add reaction locally
+    addReaction(emoji);
+  }, [room, addReaction]);
+  
+  // Handle incoming reaction messages only (ignore chat)
+  useEffect(() => {
+    if (reactionMessage) {
+      try {
+        const data = JSON.parse(new TextDecoder().decode(reactionMessage.payload));
+        // Only process reactions, ignore chat messages
+        if (data.type === 'reaction') {
+          addReaction(data.emoji);
+        }
+        // Chat messages are ignored - handled by API
+      } catch (error) {
+        console.error('Error parsing reaction message:', error);
+      }
+    }
+  }, [reactionMessage, addReaction]);
+
+  const handleStartRecording = () => {
+    toast.success('开始录制');
+  };
+
+  const handleStopRecording = () => {
+    toast.info('停止录制');
+  };
+
+  const handleEndSession = () => {
+    if (room) {
+      room.disconnect();
+    }
+    onSessionEnd?.();
+    toast.info('课堂已结束');
+  };
+
+  const setConnectionError = (error: string | null) => {
+    if (error) {
+      toast.error(error);
+      if (onRefreshToken) {
+        onRefreshToken();
+      }
     }
   };
 
-  const handleStopRecording = async () => {
-    if (userRole !== 'tutor') return;
-    
-    try {
-      // 这里需要调用后端 API 停止录制
-      // await stopRecording(sessionId);
-      setIsRecording(false);
-      toast.success('录制已停止');
-    } catch (error) {
-      toast.error('录制停止失败');
+  // Monitor connection errors
+  useEffect(() => {
+    if (connectionError) {
+      setConnectionError(connectionError);
     }
-  };
+  }, [connectionError, onRefreshToken]);
 
-  const handleEndSession = async () => {
-    if (userRole !== 'tutor') return;
-    
-    try {
-      // 断开所有连接
-      await room?.disconnect();
-      onSessionEnd?.();
-      toast.success('课堂已结束');
-    } catch (error) {
-      toast.error('结束课堂失败');
-    }
-  };
+  return (
+    <>
+      {/* Floating Reactions */}
+      <FloatingReactions reactions={floatingReactions} reactionEmojis={reactionEmojis} />
+      
+      <Header 
+        isConnected={isConnected}
+        participantCount={participants.length}
+        sessionDuration={sessionDuration}
+        formatDuration={formatDuration}
+        isRecording={isRecording}
+        userRole={userRole}
+        layout={layout}
+        setLayout={setLayout}
+      />
+      
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar 
+          participants={participants}
+          isParticipantsOpen={isParticipantsOpen}
+          setIsParticipantsOpen={setIsParticipantsOpen}
+          isChatOpen={isChatOpen}
+          setIsChatOpen={setIsChatOpen}
+          userRole={userRole}
+        />
 
-  const handleRemoveParticipant = async (participant: Participant) => {
-    if (userRole !== 'tutor') return;
-    
-    try {
-      // 这里需要调用后端 API 移除参与者
-      // await removeParticipant(sessionId, participant.identity);
-      toast.success(`已移除 ${participant.name || participant.identity}`);
-    } catch (error) {
-      toast.error('移除参与者失败');
-    }
-  };
+        {/* Video Area */}
+        <div className="flex-1 relative p-4 z-[10]">
+          <VideoArea 
+            layout={layout}
+            participants={participants}
+            focusedParticipant={focusedParticipant}
+            setFocusedParticipant={setFocusedParticipant}
+          />
+        </div>
 
-  // Layout selector component with motion
-  const LayoutSelector = () => (
+        {/* Chat Panel */}
+        <ChatPanel isOpen={isChatOpen} />
+      </div>
+
+      {/* Bottom Control Bar */}
+      <BottomControls 
+        colors={{ primary: classroomColor, light: '#818cf8', dark: '#4338ca' }}
+        userRole={userRole}
+        isRecording={isRecording}
+        onStartRecording={() => handleToggleRecording()}
+        onStopRecording={() => handleToggleRecording()}
+        onEndSession={handleEndSession}
+        sessionDuration={sessionDuration}
+        formatDuration={formatDuration}
+        addReaction={sendReaction}
+        reactionEmojis={reactionEmojiMap}
+      />
+      
+      {userRole === 'tutor' && (
+        <EnhancedParticipantsList participants={participants} />
+      )}
+      
+    </>
+  );
+}
+
+// Enhanced Participants List Component - Updated for LiveKit participants
+function EnhancedParticipantsList({ participants }: any) {
+  return (
     <motion.div 
-      className="flex items-center space-x-2 bg-black/20 backdrop-blur-sm rounded-lg p-1"
+      className="absolute top-20 right-6 w-80 bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4 z-30"
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {[
-        { key: 'grid', icon: Grid3X3, label: 'Grid' },
-        { key: 'presentation', icon: Presentation, label: 'Presentation' },
-        { key: 'focus', icon: Maximize, label: 'Focus' }
-      ].map(({ key, icon: Icon, label }) => (
+      <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+        <Users className="w-5 h-5" />
+        参与者 ({participants.length})
+      </h3>
+      <div className="space-y-3 max-h-96 overflow-y-auto">
+        {participants.map((participant: any) => {
+          const participantName = participant.name || participant.identity || 'Unknown';
+          const isLocal = participant.isLocal;
+          const participantCameraEnabled = participant.isCameraEnabled;
+          const participantMicEnabled = participant.isMicrophoneEnabled;
+          
+          return (
+            <motion.div
+              key={participant.sid || participant.identity}
+              className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/10"
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center justify-center text-white font-medium">
+                    {participantName.charAt(0).toUpperCase()}
+                  </div>
+                  {isLocal && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-slate-800" />
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-white font-medium truncate">
+                      {participantName}
+                    </span>
+                    {isLocal && (
+                      <span className="text-xs text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">你</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-white/60 capitalize">
+                    {isLocal ? '本地用户' : '远程用户'}
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <div className={`p-1 rounded ${participantMicEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    {participantMicEnabled ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
+                  </div>
+                  <div className={`p-1 rounded ${participantCameraEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    {participantCameraEnabled ? <Video className="w-3 h-3" /> : <VideoOff className="w-3 h-3" />}
+                  </div>
+                  {!isLocal && (
+                    <motion.button
+                      className="p-1 rounded hover:bg-red-500/20 text-red-400"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <MoreHorizontal className="w-3 h-3" />
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+function Header({ isConnected, participantCount, sessionDuration, formatDuration, isRecording, userRole, layout, setLayout }: any) {
+  return (
+    <motion.header 
+      className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="flex items-center justify-between">
+        {/* Left - Status & Info */}
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${
+              isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+            }`} />
+            <h1 className="text-xl font-semibold text-white">Live Classroom</h1>
+          </div>
+          
+          <div className="flex items-center space-x-4 text-sm text-slate-300">
+            <div className="flex items-center space-x-1.5">
+              <Users className="w-4 h-4" />
+              <span>{participantCount}</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <Clock className="w-4 h-4" />
+              <span>{formatDuration(sessionDuration)}</span>
+            </div>
+            {isRecording && (
+              <div className="flex items-center space-x-1.5 bg-red-500/20 px-2 py-1 rounded-full border border-red-400/30">
+                <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
+                <span className="text-red-300 text-xs font-medium">REC</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Center - Layout Controls */}
+        <LayoutControls layout={layout} setLayout={setLayout} />
+
+        {/* Right - Actions */}
+        <div className="flex items-center space-x-2">
+          <motion.button
+            className="p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Settings className="w-4 h-4 text-slate-300" />
+          </motion.button>
+        </div>
+      </div>
+    </motion.header>
+  );
+}
+
+// Layout Controls Component
+function LayoutControls({ layout, setLayout }: any) {
+  const layouts = [
+    { key: 'grid', icon: Grid3X3, label: 'Grid' },
+    { key: 'presentation', icon: Presentation, label: 'Presentation' },
+    { key: 'focus', icon: Maximize, label: 'Focus' }
+  ];
+
+  return (
+    <div className="flex justify-center items-center bg-slate-700/30 backdrop-blur-sm rounded-lg p-1">
+      {layouts.map(({ key, icon: Icon, label }) => (
         <motion.button
           key={key}
           onClick={() => setLayout(key)}
-          className={`p-2 rounded-md relative ${
+          className={`relative flex items-center space-x-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
             layout === key 
               ? 'text-white' 
-              : 'text-white/60 hover:text-white'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          title={label}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          <Icon className="w-4 h-4" />
+          <Icon className="w-4 h-4 flex-shrink-0" />
+          <span className="text-xs">{label}</span>
           {layout === key && (
             <motion.div
-              className="absolute inset-0 bg-white/20 rounded-md"
+              className="absolute inset-0 bg-indigo-500/20 backdrop-blur-sm rounded-md border border-indigo-400/30"
               layoutId="activeLayout"
               initial={false}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -364,867 +891,552 @@ function ClassroomContent({ userRole, participantName, onSessionEnd, classroomCo
           )}
         </motion.button>
       ))}
-    </motion.div>
-  );
-
-  // Reaction bar component with motion
-  const ReactionBar = () => (
-    <motion.div 
-      className="flex items-center space-x-2 bg-black/30 backdrop-blur-sm rounded-full px-3 py-2"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      {Object.entries(reactionEmojis).map(([key, emoji], index) => (
-        <motion.button
-          key={key}
-          onClick={() => addReaction(key)}
-          className="text-xl hover:drop-shadow-lg"
-          whileHover={{ scale: 1.25 }}
-          whileTap={{ scale: 0.9 }}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: index * 0.1, duration: 0.2 }}
-        >
-          {emoji}
-        </motion.button>
-      ))}
-    </motion.div>
-  );
-
-  // Generate classroom color variants
-  const getClassroomColors = (baseColor: string) => {
-    const hex = baseColor.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    
-    return {
-      primary: baseColor,
-      light: `rgb(${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)})`,
-      dark: `rgb(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)})`,
-      gradient: `linear-gradient(135deg, ${baseColor}20, ${baseColor}40, ${baseColor}60)`
-    };
-  };
-
-  const colors = getClassroomColors(classroomColor);
-
-  return (
-    <div
-      className="relative w-full overflow-hidden flex flex-col min-h-0"
-      style={{
-        // 限制高度，不超过 LiveKitRoom 的 safe-area-inset-bottom 预留空间
-        height: 'calc(100dvh - (env(safe-area-inset-bottom, 0px) + 4.5rem))',
-        background: `linear-gradient(135deg, ${colors.dark}70, ${colors.primary}40)`
-      }}
-    >
-      <FloatingReactions floatingReactions={floatingReactions} reactionEmojis={reactionEmojis} />
-      <ClassroomHeader 
-        colors={colors} 
-        participants={participants} 
-        room={room}
-        userRole={userRole}
-        isRecording={isRecording}
-        layout={layout}
-        setLayout={setLayout}
-        participantName={participantName}
-        reactions={reactions}
-        isConnected={isConnected}
-        connectionError={connectionError}
-        onRefreshToken={onRefreshToken}
-      />
-      <MainContent layout={layout} participants={participants} tracks={tracks} colors={colors} selectedTrackRef={selectedTrackRef} setSelectedTrackRef={setSelectedTrackRef} setLayout={setLayout} />
-      <BottomControls
-        colors={colors}
-        userRole={userRole}
-        isRecording={isRecording}
-        onStartRecording={handleStartRecording}
-        onStopRecording={handleStopRecording}
-        onEndSession={handleEndSession}
-        sessionDuration={sessionDuration}
-        formatDuration={formatDuration}
-        addReaction={addReaction}
-        reactionEmojis={reactionEmojis}
-      />
-      {userRole === 'tutor' && (
-        <EnhancedParticipantsList participants={participants} onRemoveParticipant={handleRemoveParticipant} />
-      )}
-      <ChatTabs
-        classroomSlug={classroomSlug}
-        sessionId={parseInt(sessionId)}
-        currentUserId={room?.localParticipant?.identity || 'unknown'}
-        currentUserName={participantName}
-        isOpen={isChatOpen}
-        onToggle={() => setIsChatOpen(!isChatOpen)}
-      />
-      <style jsx>{`
-        @keyframes float {
-          0% { transform: translateY(0px) scale(1); opacity: 1; }
-          50% { transform: translateY(-100px) scale(1.2); opacity: 0.8; }
-          100% { transform: translateY(-200px) scale(0.8); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
 
-// Floating Reactions Component
-function FloatingReactions({ floatingReactions, reactionEmojis }: { floatingReactions: any[], reactionEmojis: Record<string, string> }) {
+// Sidebar Component
+function Sidebar({ participants, isParticipantsOpen, setIsParticipantsOpen, isChatOpen, setIsChatOpen, userRole }: any) {
+  return (
+    <motion.aside 
+      className="w-16 bg-slate-800/30 backdrop-blur-sm border-r border-slate-700/50 flex flex-col z-20"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, delay: 0.1 }}
+    >
+      <div className="flex-1 flex flex-col items-center py-4 space-y-4">
+        {/* Participants Toggle */}
+        <motion.button
+          onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
+          className={`p-3 rounded-xl transition-all relative ${
+            isParticipantsOpen 
+              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-400/30' 
+              : 'bg-slate-700/50 text-slate-400 hover:bg-slate-600/50 hover:text-slate-200'
+          }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Users className="w-5 h-5" />
+          <div className="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            {participants.length}
+          </div>
+        </motion.button>
+
+        {/* Chat Toggle */}
+        <motion.button
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className={`p-3 rounded-xl transition-all ${
+            isChatOpen 
+              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-400/30' 
+              : 'bg-slate-700/50 text-slate-400 hover:bg-slate-600/50 hover:text-slate-200'
+          }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <MessageCircle className="w-5 h-5" />
+        </motion.button>
+
+        {/* Hand Raise */}
+        <motion.button
+          className="p-3 rounded-xl bg-slate-700/50 text-slate-400 hover:bg-slate-600/50 hover:text-slate-200 transition-all"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Hand className="w-5 h-5" />
+        </motion.button>
+      </div>
+
+      {/* Participants List (when open) */}
+      <AnimatePresence>
+        {isParticipantsOpen && (
+          <motion.div
+            className="absolute left-16 top-0 w-80 h-full bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 z-[100] pointer-events-auto"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ParticipantsList participants={participants} userRole={userRole} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.aside>
+  );
+}
+
+// Participants List Component
+function ParticipantsList({ participants, userRole }: any) {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-slate-700/50">
+        <h3 className="text-lg font-medium text-white flex items-center gap-2">
+          <Users className="w-5 h-5" />
+          Participants ({participants.length})
+        </h3>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-3">
+          {participants.map((participant: any, index: number) => (
+            <ParticipantCard 
+              key={participant.sid || participant.identity || participant.id || `participant-${index}`} 
+              participant={participant} 
+              userRole={userRole} 
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Participant Card Component - Updated to use merged participant data
+function ParticipantCard({ participant, userRole }: any) {
+  // participant is the merged object containing participant.participantObj (LiveKit participant)
+  const livekitParticipant = participant.participantObj;
+  
+  // Use useTracks to get real-time track status from LiveKit
+  const allTracks = useTracks([Track.Source.Camera, Track.Source.Microphone, Track.Source.ScreenShare]);
+  const participantTracks = allTracks.filter(t => t.participant.identity === livekitParticipant.identity);
+
+  const cameraTrackRef = participantTracks.find(t => t.source === Track.Source.Camera);
+  const micTrackRef = participantTracks.find(t => t.source === Track.Source.Microphone);
+
+  const participantCameraEnabled = !!cameraTrackRef?.publication?.track && !cameraTrackRef?.publication?.isMuted;
+  const participantMicEnabled = !!micTrackRef?.publication?.track && !micTrackRef?.publication?.isMuted;
+
+  // Use merged display fields
+  const displayName = participant.displayName;
+  const avatarUrl = participant.avatarUrl;
+  const role = participant.role;
+  const isLocal = livekitParticipant.isLocal;
+  const userInfo = participant.userInfo;
+  
+  // Add screen share status
+  const participantScreenShareEnabled = participantTracks.some(
+    t => t.source === Track.Source.ScreenShare && !t.publication?.isMuted
+  );
+  
+  // Debug logging for participant data with track status
+  console.log('ParticipantCard data:', {
+    displayName,
+    avatarUrl,
+    role,
+    userInfo,
+    participantCameraEnabled,
+    participantMicEnabled,
+    participantTracksCount: participantTracks.length,
+    allTracksCount: allTracks.length,
+    isLocal,
+    participantSid: participant.sid
+  });
+
+  return (
+    <motion.div
+      className="bg-slate-700/30 backdrop-blur-sm rounded-lg p-3 border border-slate-600/30"
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div className="flex items-center space-x-3">
+        <div className="relative">
+          {avatarUrl ? (
+            <img 
+              src={avatarUrl} 
+              alt={displayName}
+              className="w-10 h-10 rounded-full object-cover border-2 border-slate-600"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                if (nextElement) {
+                  nextElement.style.display = 'flex';
+                }
+              }}
+            />
+          ) : null}
+          <div 
+            className={`w-10 h-10 rounded-full bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center justify-center text-white font-medium ${
+              avatarUrl ? 'hidden' : 'flex'
+            }`}
+          >
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+          {isLocal && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-slate-800" />
+          )}
+          {/* Camera status overlay */}
+          {!participantCameraEnabled && (
+            <div className="absolute inset-0 bg-slate-800/70 rounded-full flex items-center justify-center">
+              <VideoOff className="w-4 h-4 text-slate-400" />
+            </div>
+          )}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center space-x-2">
+            <span className="text-white font-medium truncate">{displayName}</span>
+            {isLocal && (
+              <span className="text-xs text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">You</span>
+            )}
+            {userInfo && (
+              <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">DB</span>
+            )}
+          </div>
+          <div className="text-xs text-slate-400 capitalize">
+            {role} {userInfo?.email && `• ${userInfo.email.split('@')[0]}`}
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-1">
+          <div className={`p-1 rounded ${participantMicEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            {participantMicEnabled ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
+          </div>
+          <div className={`p-1 rounded ${participantCameraEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            {participantCameraEnabled ? <Video className="w-3 h-3" /> : <VideoOff className="w-3 h-3" />}
+          </div>
+          {participantScreenShareEnabled && (
+            <div className="p-1 rounded bg-blue-500/20 text-blue-400">
+              <Presentation className="w-3 h-3" />
+            </div>
+          )}
+          {userRole === 'tutor' && !isLocal && (
+            <motion.button
+              className="p-1 rounded hover:bg-slate-600/50 text-slate-400"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <MoreHorizontal className="w-3 h-3" />
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Video Area Component
+function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant }: any) {
+  return (
+    <motion.div 
+      className="h-full bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative z-[10]"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+    >
+      <AnimatePresence mode="wait">
+        {layout === 'grid' && (
+          <GridVideoLayout 
+            key="grid" 
+            participants={participants} 
+            setFocusedParticipant={setFocusedParticipant}
+          />
+        )}
+        {layout === 'presentation' && (
+          <PresentationVideoLayout 
+            key="presentation" 
+            participants={participants} 
+          />
+        )}
+        {layout === 'focus' && (
+          <FocusVideoLayout 
+            key="focus" 
+            participants={participants}
+            focusedParticipant={focusedParticipant}
+            setFocusedParticipant={setFocusedParticipant}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// Grid Video Layout
+function GridVideoLayout({ participants, setFocusedParticipant }: any) {
+  const getGridClasses = (count: number) => {
+    if (count <= 1) return 'grid-cols-1';
+    if (count <= 2) return 'grid-cols-1 md:grid-cols-2';
+    if (count <= 4) return 'grid-cols-2 lg:grid-cols-2';
+    if (count <= 6) return 'grid-cols-2 lg:grid-cols-3';
+    if (count <= 9) return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-3';
+    return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+  };
+
+  const getAspectRatio = (count: number) => {
+    // For single participant, use full height
+    if (count <= 1) return 'aspect-video';
+    // For multiple participants, maintain video aspect ratio
+    return 'aspect-video';
+  };
+
+  return (
+    <motion.div 
+      className="h-full pl-8 pr-8 pb-4 pt-4 z-10"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className={`grid gap-2 md:gap-4 h-full w-full ${getGridClasses(participants.length)}`}>
+        {participants.map((participant: any, index: number) => (
+          <div 
+            key={participant.sid || participant.identity || `participant-${index}`}
+            className={`relative w-full ${getAspectRatio(participants.length)} min-h-0`}
+          >
+            <VideoTile 
+              participant={participant}
+              size="grid"
+              onFocus={() => setFocusedParticipant(participant)}
+              showFocusButton={true}
+            />
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// Presentation Video Layout
+function PresentationVideoLayout({ participants }: any) {
+  const presenter = participants.find((p: any) => p.metadata?.includes('tutor')) || participants[0];
+  const others = participants.filter((p: any) => p.sid !== presenter?.sid);
+
+  return (
+    <motion.div 
+      className="h-full flex gap-4 p-4"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex-1">
+        <VideoTile participant={presenter} size="large" />
+      </div>
+      <div className="w-64 space-y-4 overflow-y-auto">
+        {others.map((participant: any, index: number) => (
+          <VideoTile 
+            key={participant.sid || participant.identity || `other-${index}`}
+            participant={participant}
+            size="small"
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// Focus Video Layout
+function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant }: any) {
+  const focused = focusedParticipant || participants[0];
+  const others = participants.filter((p: any) => p.sid !== focused?.sid);
+
+  return (
+    <motion.div 
+      className="h-full flex flex-col gap-4 p-4"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex-1 relative">
+        <VideoTile participant={focused} size="large" />
+        <motion.button
+          onClick={() => setFocusedParticipant(null)}
+          className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg hover:bg-slate-700/80 transition-colors"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          Exit Focus
+        </motion.button>
+      </div>
+      {others.length > 0 && (
+        <div className="h-24 flex gap-4 overflow-x-auto">
+          {others.map((participant: any, index: number) => (
+            <motion.button
+              key={participant.sid || participant.identity || `focus-${index}`}
+              onClick={() => setFocusedParticipant(participant)}
+              className="flex-shrink-0 w-32"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <VideoTile participant={participant} size="thumbnail" />
+            </motion.button>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = false }: any) {
+  const sizeClasses: Record<string, string> = {
+    thumbnail: 'w-32 h-20',
+    small: 'w-48 h-32',
+    normal: 'w-64 h-48',
+    large: 'w-full h-full',
+    grid: 'w-full h-full'
+  };
+
+  // Use the original LiveKit participant object for track operations
+  const livekitParticipant = participant.participantObj || participant;
+  
+  const allTracks = useTracks([Track.Source.Camera, Track.Source.Microphone, Track.Source.ScreenShare]);
+  const participantTracks = allTracks.filter(trackRef => 
+    trackRef.participant.identity === livekitParticipant.identity
+  );
+
+  const cameraTrackRef = participantTracks.find(trackRef => trackRef.source === Track.Source.Camera);
+  const micTrackRef = participantTracks.find(trackRef => trackRef.source === Track.Source.Microphone);
+  const screenShareTrackRef = participantTracks.find(trackRef => trackRef.source === Track.Source.ScreenShare);
+
+  // Use merged participant data
+  const participantName = participant.displayName || participant.identity || 'Unknown';
+  const isLocal = livekitParticipant.isLocal;
+  const role = participant.role || 'participant';
+
+  return (
+    <div className="flex flex-col space-y-4">
+      
+      {/* --- Screen Share 独立容器 --- */}
+      {screenShareTrackRef && (
+        <motion.div 
+          className={`${sizeClasses[size]} relative rounded-xl overflow-hidden bg-black`}
+          whileHover={{ scale: 1.02 }}
+          transition={{ duration: 0.2 }}
+        >
+          <VideoTrack 
+            trackRef={screenShareTrackRef}
+            className="w-full h-full]"
+          />
+          <div className="absolute top-2 left-2 bg-blue-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+            Screen Share - {participantName}
+          </div>
+          {micTrackRef && <AudioTrack trackRef={micTrackRef} />}
+        </motion.div>
+      )}
+
+      {/* --- Camera 独立容器 --- */}
+      <motion.div 
+        className={`${sizeClasses[size]} relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800`}
+        whileHover={{ scale: 1.02 }}
+        transition={{ duration: 0.2 }}
+      >
+        {cameraTrackRef ? (
+          <div className="relative w-full aspect-video">
+            <VideoTrack
+              trackRef={cameraTrackRef}
+              className="w-full h-full object-cover rounded-lg"
+            />
+          </div>
+
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-400">
+            <VideoOff className="w-8 h-8 mb-2" />
+            <span>No Camera</span>
+          </div>
+        )}
+
+        {/* Overlay */}
+        <div className="absolute top-3 left-3 flex items-center space-x-2 z-10">
+          {isLocal && (
+            <div className="bg-yellow-400/20 text-yellow-300 px-2 py-1 rounded-full text-xs font-medium border border-yellow-400/30">
+              You
+            </div>
+          )}
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3 z-10">
+          <div className="text-white font-medium text-sm truncate">{participantName}</div>
+          <div className="text-slate-300 text-xs capitalize">{role}</div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+
+// Chat Panel Component
+function ChatPanel({ isOpen }: any) {
+  const [messages] = useState([
+    { id: 1, user: 'Jane Smith', message: 'Great explanation!', time: '2:34 PM' },
+    { id: 2, user: 'Mike Johnson', message: 'Can you repeat the last part?', time: '2:35 PM' },
+    { id: 3, user: 'Sarah Wilson', message: 'Thanks for sharing the resources', time: '2:36 PM' },
+  ]);
+
   return (
     <AnimatePresence>
-      {floatingReactions.map((reaction) => (
+      {isOpen && (
         <motion.div
-          key={reaction.id}
-          className="absolute pointer-events-none z-20"
-          style={{ left: `${reaction.x}%`, top: `${reaction.y}%` }}
-          initial={{ opacity: 1, scale: 1, y: 0 }}
-          animate={{ opacity: [1, 0.8, 0], scale: [1, 1.2, 0.8], y: [-200] }}
-          exit={{ opacity: 0, scale: 0 }}
-          transition={{ duration: 3, ease: "easeOut" }}
+          className="w-80 bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
+          transition={{ duration: 0.3 }}
         >
-          <motion.div
-          className="text-4xl drop-shadow-lg opacity-90"
-          animate={{ rotate: [0, 10, -10, 0] }}
-          transition={{ duration: 0.5, repeat: Infinity }}
-        >
-          {reactionEmojis[reaction.type as keyof typeof reactionEmojis]}
+          <div className="p-4 border-b border-slate-700/50">
+            <h3 className="text-lg font-medium text-white flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Chat
+            </h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((message) => (
+              <div key={message.id} className="bg-slate-700/30 rounded-lg p-3">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-sm font-medium text-white">{message.user}</span>
+                  <span className="text-xs text-slate-400">{message.time}</span>
+                </div>
+                <p className="text-sm text-slate-200">{message.message}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 border-t border-slate-700/50">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Type a message..."
+                className="flex-1 bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <motion.button 
+                className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Send
+              </motion.button>
+            </div>
+          </div>
         </motion.div>
-        </motion.div>
-      ))}
+      )}
     </AnimatePresence>
   );
 }
 
-// ClassroomHeader Component
-function ClassroomHeader({ colors, participants, room, userRole, isRecording, layout, setLayout, participantName, reactions, isConnected, connectionError, onRefreshToken }: any) {
-  // 使用 Room 和 RoomEvent：监听部分房间事件（例如参与者加入/离开）
-  useEffect(() => {
-    if (!room) return;
-    const onJoin = (p: Participant) => {
-      // 这里可以根据需要进行 UI 更新或提示
-      // console.log('Participant joined:', p.identity);
-    };
-    const onLeave = (p: Participant) => {
-      // console.log('Participant left:', p.identity);
-    };
-    room.on(RoomEvent.ParticipantConnected, onJoin);
-    room.on(RoomEvent.ParticipantDisconnected, onLeave);
-    return () => {
-      room.off(RoomEvent.ParticipantConnected, onJoin);
-      room.off(RoomEvent.ParticipantDisconnected, onLeave);
-    };
-  }, [room]);
 
-  // 控制台输出连接状态与错误
-  useEffect(() => {
-    console.log('[LiveClassroom] Connection state:', isConnected ? 'Connected' : 'Connecting');
-  }, [isConnected]);
-
-  useEffect(() => {
-    if (connectionError) {
-      console.error('[LiveClassroom] Connection error:', connectionError);
-    }
-  }, [connectionError]);
-
-  // 使用 Room 值：校验实例类型（确保非类型级别的使用）
-  useEffect(() => {
-    if (room) {
-      console.debug('[LiveClassroom] room instanceof Room:', room instanceof Room);
-    }
-  }, [room]);
-
+// Floating Reactions Component
+function FloatingReactions({ reactions, reactionEmojis }: any) {
   return (
-    <motion.div 
-      className="relative z-10 flex items-center justify-between p-6 backdrop-blur-sm border-b" 
-      style={{
-        backgroundColor: `${colors.primary}15`,
-        borderBottomColor: `${colors.primary}30`
-      }}
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="flex items-center space-x-6">
-        <div className="flex items-center space-x-3">
-          <div className={`w-3 h-3 rounded-full animate-pulse ${
-            room?.state === 'connected' ? 'bg-green-400' : 'bg-yellow-400'
-          }`} />
-          <h1 className="text-2xl font-bold text-white">Live Classroom</h1>
-        </div>
-        
-        <div className="flex items-center space-x-4 text-white/80">
-          <div className="flex items-center space-x-2">
-            <Users className="w-5 h-5" />
-            <span className="font-medium">{participants.length}</span>
-          </div>
-          {/* 展示当前登录者名称 */}
-          <Badge variant="secondary" className="bg-white/15 text-white border-white/20">
-            You: {participantName}
-          </Badge>
-          
-          {isRecording && (
-            <div className="flex items-center space-x-2 bg-red-500/20 px-3 py-1 rounded-full border border-red-400/30">
-              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-              <span className="text-red-300 text-sm font-medium">REC</span>
-            </div>
-          )}
-
-          <div className="flex items-center space-x-2 bg-white/10 px-3 py-1 rounded-full">
-            <Coffee className="w-4 h-4" />
-            <span className="text-sm">{userRole === 'tutor' ? 'Teaching' : 'Learning'}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-4">
-        {/* 最近的 Reactions 改为在用户框右上角显示（此处移除）*/}
-        <motion.div 
-          className="flex items-center space-x-2 bg-black/20 backdrop-blur-sm rounded-lg p-1"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {[
-            { key: 'grid', icon: Grid3X3, label: 'Grid' },
-            { key: 'presentation', icon: Presentation, label: 'Presentation' },
-            { key: 'focus', icon: Maximize, label: 'Focus' }
-          ].map(({ key, icon: Icon, label }) => (
-            <motion.button
-              key={key}
-              onClick={() => setLayout(key)}
-              className={`p-2 rounded-md relative ${
-                layout === key 
-                  ? 'text-white' 
-                  : 'text-white/60 hover:text-white'
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              title={label}
-            >
-              <Icon className="w-4 h-4" />
-              {layout === key && (
-                <motion.div
-                  className="absolute inset-0 bg-white/20 rounded-md"
-                  layoutId="activeLayout"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-            </motion.button>
-          ))}
-        </motion.div>
-        <button className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-          <Settings className="w-5 h-5 text-white" />
-        </button>
-        {/* 刷新 Token 按钮 */}
-        <Button size="sm" variant="outline" onClick={() => onRefreshToken?.()} className="hidden md:inline">
-          Refresh Token
-        </Button>
-      </div>
-    </motion.div>
-  );
-}
-
-// MainContent Component
-function MainContent({ layout, participants, tracks, colors, selectedTrackRef, setSelectedTrackRef, setLayout }: any) {
-  return (
-    <div className="flex-1 relative overflow-hidden">
-      <div className="p-2 max-w-7xl mx-auto h-full">
-        <motion.div 
-          className="relative rounded-2xl overflow-hidden border min-h-0 h-full" 
-          style={{
-            backgroundColor: `${colors.dark}15`,
-            borderColor: `${colors.primary}30`,
-            backdropFilter: 'blur(6px)'
-          }}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <AnimatePresence mode="wait">
-            {layout === 'grid' && (
-              <motion.div
-                key="grid"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <GridLayoutView participants={participants} tracks={tracks} onFocusTrack={(t: any) => { setSelectedTrackRef(t); setLayout('focus'); }} />
-              </motion.div>
-            )}
-            {layout === 'presentation' && (
-              <motion.div
-                key="presentation"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <PresentationLayoutView participants={participants} tracks={tracks} />
-              </motion.div>
-            )}
-            {layout === 'focus' && (
-              <motion.div
-                key="focus"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <FocusLayoutView participants={participants} tracks={tracks} selectedTrackRef={selectedTrackRef} onExitFocus={() => setSelectedTrackRef(null)} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-interface ParticipantsListProps {
-  participants: Participant[];
-  onRemoveParticipant: (participant: Participant) => void;
-}
-
-// Custom Layout Components
-interface LayoutProps {
-  participants: Participant[];
-  tracks: any[];
-}
-
-interface GridLayoutProps extends LayoutProps {
-  onFocusTrack: (t: any) => void;
-}
-
-interface FocusLayoutProps extends LayoutProps {
-  selectedTrackRef: any | null;
-  onExitFocus: () => void;
-}
-
-// Adaptive Participant Tile with dynamic object-fit
-interface AdaptiveParticipantTileProps {
-  trackRef: any;
-  className?: string;
-}
-
-function AdaptiveParticipantTile({ trackRef, className = '' }: AdaptiveParticipantTileProps) {
-  const [objectFit, setObjectFit] = useState<'cover' | 'contain'>('contain');
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (!trackRef?.publication?.track) return;
-
-    const track = trackRef.publication.track;
-    
-    // 方法1: 尝试从 track 的 dimensions 获取
-    const updateObjectFit = () => {
-      let width = 0;
-      let height = 0;
-
-      // 尝试从 track dimensions 获取
-      if (track.dimensions) {
-        width = track.dimensions.width;
-        height = track.dimensions.height;
-      }
-      
-      // 如果没有 dimensions，尝试从 video element 获取
-      if ((!width || !height) && videoRef.current) {
-        width = videoRef.current.videoWidth;
-        height = videoRef.current.videoHeight;
-      }
-
-      if (width && height) {
-        const aspectRatio = width / height;
-        // 宽屏视频 (>1.5) 使用 cover，竖屏或方形视频使用 contain
-        const newFit = aspectRatio > 1.5 ? 'cover' : 'contain';
-        setObjectFit(newFit);
-      }
-    };
-
-    // 监听 track 的维度变化
-    track.on('dimensionsChanged', updateObjectFit);
-    
-    // 初始检查
-    updateObjectFit();
-
-    return () => {
-      track.off('dimensionsChanged', updateObjectFit);
-    };
-  }, [trackRef]);
-
-  // 监听 video 元素的 loadedmetadata 事件
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleLoadedMetadata = () => {
-      if (video.videoWidth && video.videoHeight) {
-        const aspectRatio = video.videoWidth / video.videoHeight;
-        const newFit = aspectRatio > 1.5 ? 'cover' : 'contain';
-        setObjectFit(newFit);
-      }
-    };
-
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    
-    // 如果视频已经加载，立即检查
-    if (video.videoWidth && video.videoHeight) {
-      handleLoadedMetadata();
-    }
-
-    return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    };
-  }, []);
-
-  return (
-    <div className={`adaptive-tile ${className}`}>
-      <ParticipantTile 
-        trackRef={trackRef} 
-        className="w-full h-full"
-      />
-      <style jsx>{`
-        .adaptive-tile :global(.lk-participant-media-video),
-        .adaptive-tile :global(.lk-participant-media-video video) {
-          object-fit: ${objectFit} !important;
-          width: 100% !important;
-          height: 100% !important;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// Custom Participant Tile Component
-interface CustomParticipantTileProps {
-  participant: Participant;
-  size?: 'small' | 'normal' | 'large';
-  isPinned?: boolean;
-  className?: string;
-  latestReaction?: string | null;
-}
-
-function CustomParticipantTile({ participant, size = 'normal', isPinned = false, className = '', latestReaction = null }: CustomParticipantTileProps) {
-  return (
-    <div className={`
-        relative group rounded-xl overflow-hidden transition-all duration-300
-        aspect-video min-h-32
-        ${isPinned ? 'ring-2 ring-yellow-400 ring-opacity-60' : ''}
-        bg-gradient-to-br from-purple-900/40 to-blue-900/40 backdrop-blur-sm
-        hover:scale-105 hover:shadow-2xl cursor-pointer
-        ${className}
-    `}>
-      {/* 简化占位符：固定高度，非动画，防止开关摄像头尺寸抖动 */}
-      <div className="absolute inset-0">
-        {participant.isCameraEnabled ? (
-          <div className="w-full h-full bg-black/20 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold">
-              {(participant.name || participant.identity).charAt(0).toUpperCase()}
-            </div>
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-800/60">
-            <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center">
-              <VideoOff className="w-6 h-6 text-gray-300" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Status indicators */}
-      <div className="absolute top-2 left-2 flex space-x-1">
-        {participant.isLocal && (
-          <div className="px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full text-xs font-bold text-black flex items-center">
-            <Star className="w-3 h-3 mr-1" />
-            YOU
-          </div>
-        )}
-      </div>
-
-      {/* Audio/Video status + 最近一次 Reaction（右上角，仅展示一个） */}
-      <div className="absolute top-2 right-2 flex items-center space-x-1">
-        <div className={`p-1 rounded-full ${participant.isMicrophoneEnabled ? 'bg-green-500/80' : 'bg-red-500/80'}`}>
-          {participant.isMicrophoneEnabled ? <Mic className="w-3 h-3 text-white" /> : <MicOff className="w-3 h-3 text-white" />}
-        </div>
-        {!participant.isCameraEnabled && (
-          <div className="p-1 rounded-full bg-red-500/80">
-            <VideoOff className="w-3 h-3 text-white" />
-          </div>
-        )}
-        {latestReaction && (
-          <div className="ml-1 px-1.5 py-0.5 rounded-full bg-black/40 border border-white/10 text-xs">
-            <span>{latestReaction === 'heart' ? '❤️' : latestReaction === 'clap' ? '👏' : latestReaction === 'thumbs' ? '👍' : latestReaction === 'fire' ? '🔥' : latestReaction === 'mind' ? '🤯' : latestReaction === 'rocket' ? '🚀' : '✨'}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Participant name */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-white font-medium text-sm truncate">
-              {participant.name || participant.identity}
-            </div>
-            <div className="text-white/70 text-xs flex items-center">
-              <div className="w-2 h-2 rounded-full mr-1 bg-green-400" />
-              active
-            </div>
-          </div>
-          {isPinned && <Pin className="w-4 h-4 text-yellow-400" />}
-        </div>
-      </div>
-
-      {/* Hover controls */}
-      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center space-x-2">
-        <button className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30">
-          <Pin className="w-4 h-4" />
-        </button>
-        <button className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30">
-          <MoreVertical className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function GridLayoutView({ participants, tracks, onFocusTrack }: GridLayoutProps) {
-  // 仅使用摄像头轨道进行网格布局判断
-  const cameraTracks = tracks.filter((t: any) => t.source === Track.Source.Camera);
-  const count = cameraTracks.length;
-  const defaultTile = "rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900";
-
-  // 单人时，让视频自然适应容器，不强制固定比例
-  if (count <= 1) {
-    const trackRef = cameraTracks[0] ?? tracks.find((t: any) => t);
-    return (
-      <div className="p-4">
-        <div className="single-video-container w-full bg-black rounded-2xl overflow-hidden">
-          <div className="single-video-content">
-            {trackRef ? (
-              <FocusLayout trackRef={trackRef} />
-            ) : (
-              <div className="w-full min-h-[300px] flex items-center justify-center bg-black/20">
-                <div className="text-white/60 text-sm">No video yet…</div>
-              </div>
-            )}
-          </div>
-        </div>
-        <style jsx>{`
-          .single-video-container {
-            /* 容器自适应内容，不强制固定高宽比 */
-            display: flex;
-            flex-direction: column;
-          }
-          .single-video-content {
-            /* 让内容自然流动 */
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .single-video-content :global(.lk-focus-layout) {
-            /* FocusLayout 自适应 */
-            width: 100% !important;
-            height: auto !important;
-            min-height: 300px;
-            max-height: 70vh;
-          }
-          .single-video-content :global(.lk-participant-media-video),
-          .single-video-content :global(.lk-participant-media-video video) {
-            width: 100% !important;
-            height: auto !important;
-            object-fit: contain !important;
-            max-height: 70vh !important;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // 多人时，使用 LiveKit 的 GridLayout 组件
-  return (
-    <div className="h-full p-4" aria-label={`participants-${participants.length}`}>
-      <GridLayout tracks={cameraTracks}>
-        <div className="participant-grid-item relative">
-          <ParticipantTile className={`w-full h-full max-w-full max-h-full ${defaultTile}`} />
-          {/* 放大按钮（右上角） */}
-          <button
-            className="lk-button lk-focus-toggle-button absolute top-2 right-2 z-10 bg-white/20 text-white rounded-md px-2 py-1 hover:bg-white/30 opacity-0 transition-opacity"
-            onClick={() => {
-              // Get the trackRef from the current tile context
-              const trackRef = cameraTracks[0]; // This will be properly handled by GridLayout
-              onFocusTrack(trackRef);
+    <div className="absolute inset-0 pointer-events-none z-50">
+      <AnimatePresence>
+        {reactions.map((reaction: any) => (
+          <motion.div
+            key={reaction.id}
+            className="absolute text-4xl"
+            style={{ left: `${reaction.x}%`, top: `${reaction.y}%` }}
+            initial={{ opacity: 1, scale: 1, y: 0 }}
+            animate={{ 
+              opacity: [1, 0.8, 0], 
+              scale: [1, 1.2, 0.8], 
+              y: -200,
+              rotate: [0, 10, -10, 0]
             }}
-            title="Maximize"
+            exit={{ opacity: 0, scale: 0 }}
+            transition={{ duration: 3, ease: "easeOut" }}
           >
-            ⤢
-          </button>
-        </div>
-      </GridLayout>
-      <style jsx>{`
-        
-        .participant-grid-item {
-          min-height: 120px;
-          max-height: 300px;
-          border-radius: 12px;
-          overflow: hidden;
-          background: linear-gradient(135deg, #1f2937, #374151);
-          transition: all 0.2s ease;
-          position: relative;
-        }
-        
-        .participant-grid-item:hover {
-          transform: scale(1.02);
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        
-        .participant-grid-item:hover .lk-focus-toggle-button {
-          opacity: 1;
-        }
-        
-        /* 奇数参与者时，最后一个居中 */
-        ${count % 2 === 1 && count > 2 ? `
-          .participant-grid-item:nth-child(${count}) {
-            grid-column: ${Math.ceil(count / 2)} / span 1;
-            justify-self: center;
-            max-width: 300px;
-          }
-        ` : ''}
-        
-        /* 响应式调整 */
-        @media (max-width: 768px) {
-          .multi-participant-grid {
-            grid-template-columns: 1fr 1fr !important;
-            gap: 8px;
-          }
-          .participant-grid-item {
-            min-height: 100px;
-            max-height: 200px;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .multi-participant-grid {
-            grid-template-columns: 1fr !important;
-            gap: 6px;
-          }
-          .participant-grid-item {
-            min-height: 150px;
-            max-height: 250px;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function PresentationLayoutView({ participants, tracks }: LayoutProps) {
-  const presenterTrack =
-    tracks.find(t => t.source === Track.Source.ScreenShare) ||
-    tracks.find(t => t.source === Track.Source.Camera);
-
-  const otherCameraTracks = tracks.filter(
-    t => t !== presenterTrack && t.source === Track.Source.Camera
-  );
-
-  return (
-    <div className="h-full flex gap-4 p-2">
-      {/* Main presenter area */}
-      <div className="flex-1 min-w-0">
-        <div className="w-full h-full rounded-xl overflow-hidden bg-black">
-          {presenterTrack ? (
-            <AdaptiveParticipantTile 
-              trackRef={presenterTrack} 
-              className="w-full h-full"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-black/20">
-              <div className="text-white/60 text-lg">No presenter video</div>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Side participants */}
-      <div className="w-64 flex-shrink-0 overflow-y-auto">
-        <div className="space-y-2">
-          {otherCameraTracks.map((trackRef: any, idx: number) => (
-            <div key={idx} className="w-full">
-              <AdaptiveParticipantTile 
-                trackRef={trackRef}
-                className="min-h-[84px] max-h-[120px] rounded-lg overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FocusLayoutView({ participants, tracks, selectedTrackRef, onExitFocus }: FocusLayoutProps) {
-  // 优先聚焦当前发言人（active speaker），否则使用共享屏幕，其次任意摄像头
-  const activeSpeaker = participants.find(p => (p as any).isSpeaking || p.isSpeaking);
-  const activeSpeakerCamera = activeSpeaker
-    ? tracks.find(t => t.source === Track.Source.Camera && t.participant === activeSpeaker)
-    : undefined;
-  const focusTrack =
-    selectedTrackRef ||
-    activeSpeakerCamera ||
-    tracks.find(t => t.source === Track.Source.ScreenShare) ||
-    tracks.find(t => t.source === Track.Source.Camera);
-  const otherTracks = tracks.filter(t => t !== focusTrack && t.source === Track.Source.Camera);
-
-  return (
-    <div className="focus-layout-container p-2">
-      {/* 主聚焦视频区域 - 自适应容器，最大化显示 */}
-      <div className="focus-main-video bg-black rounded-2xl overflow-hidden">
-        <div className="focus-video-content">
-          {focusTrack ? (
-            <AdaptiveParticipantTile 
-              trackRef={focusTrack} 
-              className="w-full h-full"
-            />
-          ) : (
-            <div className="w-full min-h-[400px] flex items-center justify-center bg-black/20">
-              <div className="text-white/60 text-lg">No video to focus on…</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 其他参与者缩略图 */}
-      {otherTracks.length > 0 && (
-        <div className="w-64 overflow-y-auto">
-          <CarouselLayout tracks={otherTracks} orientation="vertical">
-            <ParticipantTile className={`min-w-[140px] min-h-[84px] max-w-full max-h-full rounded-lg overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900`} />
-          </CarouselLayout>
-        </div>
-      )}
-
-      {/* 退出聚焦按钮 */}
-      <div className="absolute top-6 right-6 z-30">
-        <button
-          className="lk-button lk-focus-toggle-button bg-black/60 text-white rounded-lg px-4 py-2 hover:bg-black/80 transition-all backdrop-blur-sm"
-          onClick={onExitFocus}
-          title="Exit focus view"
-        >
-          <span className="flex items-center gap-2">
-            ↙ Exit Focus
-          </span>
-        </button>
-      </div>
-
-      <style jsx>{`
-        .focus-layout-container {
-          /* 容器自适应内容，不强制固定高宽比 */
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .focus-main-video {
-          /* 主视频区域：最大化显示但保持自适应 */
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 200px;
-          height: 100%;
-          overflow: hidden;
-        }
-        
-        .focus-video-content {
-          /* 视频内容自然流动，不强制比例 */
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .focus-video-content :global(.adaptive-tile) {
-          /* AdaptiveParticipantTile 在 focus 中的样式 */
-          width: 100% !important;
-          height: 100% !important;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .focus-video-content :global(.lk-participant-tile) {
-          /* LiveKit tile 自适应 */
-          width: 100% !important;
-          height: 100% !important;
-          max-width: 100% !important;
-          max-height: 100% !important;
-        }
-        
-        .focus-thumbnails {
-          /* 缩略图区域 */
-          flex-shrink: 0;
-          max-height: 100px;
-          margin-top: 8px;
-        }
-        
-        /* 响应式调整 */
-        @media (max-width: 768px) {
-          .focus-main-video {
-            min-height: 180px;
-          }
-          .focus-thumbnails {
-            max-height: 80px;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function EnhancedParticipantsList({ participants, onRemoveParticipant }: ParticipantsListProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  // 取最近一次 reaction 类型（只展示一个）
-  const [latestReaction, setLatestReaction] = useState<string | null>(null);
-  useEffect(() => {
-    // 简单从 document 上读取全局最近一次的浮动表情（如果需要可通过 props 提供）。此处保持为空或未来接驳。
-    // 先占位：不主动更新，供上层传入时使用。
-  }, []);
-
-  return (
-    <div className="absolute top-20 right-4 w-80 z-20">
-      <div className={`bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10 transition-all duration-200 ${
-        isOpen ? 'opacity-100' : 'opacity-90 hover:opacity-100'
-      }`}>
-        <div 
-          className="cursor-pointer p-4 border-b border-white/10"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <div className="flex items-center justify-between text-white">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Participants ({participants.length})
-            </h3>
-            <div className={`transform transition-transform duration-200 ${
-              isOpen ? 'rotate-180' : ''
-            }`}>
-              ▼
-            </div>
-          </div>
-        </div>
-        
-        {isOpen && (
-          <div className="p-4 max-h-96 overflow-y-auto">
-            <div className="space-y-3">
-              {participants.map((participant) => (
-                <CustomParticipantTile key={participant.identity} participant={participant} latestReaction={latestReaction} />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+            {reactionEmojis[reaction.type]}
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

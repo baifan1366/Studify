@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown } from 'lucide-react';
 import { useCourses } from '@/hooks/course/use-courses';
-import { useEnrolledCoursesByUserId, useCreateEnrollment } from '@/hooks/course/use-enrolled-courses';
+import { useEnrolledCoursesByUserId } from '@/hooks/course/use-enrolled-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,7 +26,6 @@ export default function CoursesContent() {
   const { data: enrolledCourses } = useEnrolledCoursesByUserId(userId as number);
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
-  const createEnrollment = useCreateEnrollment();
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const t = useTranslations('CoursesContent');
   const locale = useLocale();
@@ -96,46 +95,9 @@ export default function CoursesContent() {
         courseId: String(courseId)
       });
       
-      // Handle free course enrollment
-      if (result.enrolled) {
-        // Create enrollment record for free courses
-        const course = uiCourses.find(c => c.id === courseId);
-        if (course && userId) {
-          try {
-            await createEnrollment.mutateAsync({
-              course_id: parseInt(course.id),
-              user_id: parseInt(userId),
-              owner_id: parseInt(userId),
-              role: 'student',
-              status: 'active',
-              started_at: new Date().toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            
-            toast({
-              title: t('enrollment_success'),
-              description: t('you_are_now_enrolled'),
-            });
-            
-            if (course?.slug) {
-              router.push(`/${locale}/courses/${course.slug}`);
-            }
-          } catch (enrollmentError) {
-            toast({
-              title: t('enrollment_failed'),
-              description: t('error_creating_enrollment'),
-              variant: 'destructive',
-            });
-          }
-        }
-        return;
-      }
+      // The purchaseCourse hook now handles all navigation and enrollment
+      // No need for manual enrollment creation here as the API handles it
       
-      // Handle paid course checkout - enrollment will be created via webhook after payment
-      if (result.checkoutUrl) {
-        window.location.href = result.checkoutUrl;
-      }
     } catch (error) {
       toast({
         title: t('purchase_failed'),

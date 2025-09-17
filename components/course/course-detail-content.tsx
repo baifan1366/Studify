@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
+import { useSearchParams } from 'next/navigation';
 import { 
   BookOpen, 
   Clock, 
@@ -40,18 +41,42 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   const { data: userData, isLoading: userLoading } = useUser();
   const user = userData || null;
 
-  const { data: course, isLoading } = useCourseBySlug(courseSlug);
+  const { data: course, isLoading, refetch: refetchCourse } = useCourseBySlug(courseSlug);
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
+  const searchParams = useSearchParams();
+  const isSuccess = searchParams.get('success') === 'true';
   
   // Check enrollment status
   const userId = userData?.profile?.id;
   const courseId = course?.id;
-  const { data: enrollmentData } = useEnrolledCourseStatus(
+  const { data: enrollmentData, refetch: refetchEnrollment } = useEnrolledCourseStatus(
     Number(userId) || 0,
     Number(courseId) || 0
   );
-  const isEnrolled = !!enrollmentData;
+  // Only consider enrolled if we have valid user, course, and actual enrollment data with records
+  const isEnrolled = !!(userId && courseId && enrollmentData && Array.isArray(enrollmentData) && enrollmentData.length > 0);
+
+  // Handle success parameter from payment completion
+  useEffect(() => {
+    if (isSuccess && course) {
+      // Show success message
+      toast({
+        title: 'Payment Successful!',
+        description: `You have successfully enrolled in ${course.title}`,
+        variant: 'default',
+      });
+      
+      // Refetch course and enrollment data
+      refetchCourse();
+      refetchEnrollment();
+      
+      // Remove success parameter from URL without page reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('success');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [isSuccess, course, toast, refetchCourse, refetchEnrollment]);
 
   useEffect(() => {
     const fetchUser = async () => {

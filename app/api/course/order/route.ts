@@ -3,6 +3,79 @@ import { stripe } from '@/lib/stripe';
 import { createClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
+/**
+ * Handle classroom creation and joining after enrollment
+ * Implements COURSE.md L15-20 flow
+ */
+async function handleClassroomFlow(supabase: any, course: any, userId: number) {
+  try {
+    // Check if classroom exists for this course slug
+    const { data: existingClassroom } = await supabase
+      .from('classroom')
+      .select('*')
+      .eq('slug', course.slug)
+      .single();
+
+    let classroomId;
+
+    if (!existingClassroom) {
+      // Create new classroom if doesn't exist
+      const { data: newClassroom, error: createError } = await supabase
+        .from('classroom')
+        .insert({
+          name: course.title,
+          description: `Classroom for ${course.title}`,
+          slug: course.slug,
+          visibility: 'private',
+          owner_id: course.owner_id,
+          class_code: generateClassCode(),
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Failed to create classroom:', createError);
+        return;
+      }
+      classroomId = newClassroom.id;
+    } else {
+      classroomId = existingClassroom.id;
+    }
+
+    // Join user to classroom (useJoinClassroom equivalent)
+    const { data: existingMembership } = await supabase
+      .from('classroom_member')
+      .select('id')
+      .eq('classroom_id', classroomId)
+      .eq('user_id', userId)
+      .single();
+
+    if (!existingMembership) {
+      const { error: joinError } = await supabase
+        .from('classroom_member')
+        .insert({
+          classroom_id: classroomId,
+          user_id: userId,
+          role: 'student',
+          status: 'active'
+        });
+
+      if (joinError) {
+        console.error('Failed to join classroom:', joinError);
+      }
+    }
+  } catch (error) {
+    console.error('Classroom flow error:', error);
+  }
+}
+
+/**
+ * Generate a random class code
+ */
+function generateClassCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authResult = await authorize('student');
@@ -164,9 +237,13 @@ export async function POST(request: NextRequest) {
         .update({ status: 'paid' })
         .eq('id', order.id);
 
+      // After enrollment, handle classroom creation/joining as per COURSE.md L15-20
+      await handleClassroomFlow(supabase, course, profileId);
+
       return NextResponse.json({
         success: true,
         enrolled: true,
+        courseSlug: course.slug,
         orderId: order.public_id
       });
     }
@@ -189,8 +266,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: successUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/course/${course.slug}?success=true`,
-      cancel_url: cancelUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/course/${course.slug}`,
+      success_url: successUrl ? successUrl.replace('{courseSlug}', course.slug) : `${process.env.NEXT_PUBLIC_SITE_URL}/courses/${course.slug}?success=true`,
+      cancel_url: cancelUrl ? cancelUrl.replace('{courseSlug}', course.slug) : `${process.env.NEXT_PUBLIC_SITE_URL}/courses/${course.slug}`,
       metadata: {
         orderId: order.public_id,
         courseId: course.public_id,

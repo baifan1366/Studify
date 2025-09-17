@@ -26,9 +26,12 @@ export function usePurchaseCourse() {
 
   return useMutation<PurchaseCourseResponse, Error, PurchaseCourseData>({
     mutationFn: async (data) => {
-      // Include locale-aware success URL
-      const successUrl = data.successUrl || `${window.location.origin}/${locale}/courses/{courseSlug}?success=true`;
-      const cancelUrl = data.cancelUrl || `${window.location.origin}/${locale}/courses/{courseSlug}`;
+      // Include locale-aware success URL - ensure proper URL construction
+      const baseUrl = window.location.origin;
+      const successUrl = data.successUrl || `${baseUrl}/${locale}/courses/{courseSlug}?success=true`;
+      const cancelUrl = data.cancelUrl || `${baseUrl}/${locale}/courses/{courseSlug}`;
+      
+      console.log('Purchase URLs:', { successUrl, cancelUrl, locale, baseUrl });
       
       return apiSend<PurchaseCourseResponse, PurchaseCourseData>({
         url: '/api/course/order',

@@ -248,6 +248,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Get the base URL for redirects - prioritize environment variable, fallback to request headers
+    const getBaseUrl = () => {
+      // First try environment variable (should be set correctly in deployment)
+      if (process.env.NEXT_PUBLIC_SITE_URL && !process.env.NEXT_PUBLIC_SITE_URL.includes('localhost')) {
+        return process.env.NEXT_PUBLIC_SITE_URL;
+      }
+      
+      // Fallback to request headers for deployed environments
+      const host = request.headers.get('host');
+      const protocol = request.headers.get('x-forwarded-proto') || 'https';
+      return `${protocol}://${host}`;
+    };
+
+    const baseUrl = getBaseUrl();
+
     // Create Stripe checkout session for paid courses
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -266,8 +281,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: successUrl ? successUrl.replace('{courseSlug}', course.slug) : `${process.env.NEXT_PUBLIC_SITE_URL}/courses/${course.slug}?success=true`,
-      cancel_url: cancelUrl ? cancelUrl.replace('{courseSlug}', course.slug) : `${process.env.NEXT_PUBLIC_SITE_URL}/courses/${course.slug}`,
+      success_url: successUrl ? successUrl.replace('{courseSlug}', course.slug) : `${baseUrl}/courses/${course.slug}?success=true`,
+      cancel_url: cancelUrl ? cancelUrl.replace('{courseSlug}', course.slug) : `${baseUrl}/courses/${course.slug}`,
       metadata: {
         orderId: order.public_id,
         courseId: course.public_id,

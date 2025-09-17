@@ -82,9 +82,9 @@ export default function QuizForm() {
       <Button
         onClick={handleSubmit}
         className="w-full"
-        disabled={create.isLoading}
+        disabled={create.isPending}
       >
-        {create.isLoading ? "Creating..." : "Create Quiz"}
+        {create.isPending ? "Creating..." : "Create Quiz"}
       </Button>
     </div>
   );

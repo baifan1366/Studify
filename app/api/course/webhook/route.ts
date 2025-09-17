@@ -7,18 +7,26 @@ import { headers } from "next/headers";
  * Handle classroom creation and joining after enrollment
  * Implements COURSE.md L15-20 flow
  */
-async function handleClassroomFlow(supabase: any, course: any, userId: number) {
+async function handleClassroomFlow(supabase: any, course: any, userId: number): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log(`[ClassroomFlow] Starting classroom flow for user ${userId}, course ${course.slug}`);
+    
     // Check if classroom exists for this course slug
-    const { data: existingClassroom } = await supabase
+    const { data: existingClassroom, error: classroomError } = await supabase
       .from('classroom')
       .select('*')
       .eq('slug', course.slug)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle "not found" gracefully
+
+    if (classroomError) {
+      console.error('[ClassroomFlow] Failed to lookup classroom:', classroomError);
+      return { success: false, error: `Failed to lookup classroom: ${classroomError.message}` };
+    }
 
     let classroomId;
 
     if (!existingClassroom) {
+      console.log(`[ClassroomFlow] Creating new classroom for course ${course.slug}`);
       // Create new classroom if doesn't exist
       const { data: newClassroom, error: createError } = await supabase
         .from('classroom')
@@ -34,23 +42,37 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number) {
         .single();
 
       if (createError) {
-        console.error('Failed to create classroom:', createError);
-        return;
+        console.error('[ClassroomFlow] Failed to create classroom:', createError);
+        return { success: false, error: `Failed to create classroom: ${createError.message}` };
       }
+      
+      if (!newClassroom) {
+        console.error('[ClassroomFlow] Classroom created but no data returned');
+        return { success: false, error: 'Classroom created but no data returned' };
+      }
+      
       classroomId = newClassroom.id;
+      console.log(`[ClassroomFlow] Created classroom with ID ${classroomId}`);
     } else {
       classroomId = existingClassroom.id;
+      console.log(`[ClassroomFlow] Using existing classroom with ID ${classroomId}`);
     }
 
-    // Join user to classroom (useJoinClassroom equivalent)
-    const { data: existingMembership } = await supabase
+    // Check if user is already a member
+    const { data: existingMembership, error: membershipError } = await supabase
       .from('classroom_member')
       .select('id')
       .eq('classroom_id', classroomId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle "not found" gracefully
+
+    if (membershipError) {
+      console.error('[ClassroomFlow] Failed to check existing membership:', membershipError);
+      return { success: false, error: `Failed to check membership: ${membershipError.message}` };
+    }
 
     if (!existingMembership) {
+      console.log(`[ClassroomFlow] Adding user ${userId} to classroom ${classroomId}`);
       const { error: joinError } = await supabase
         .from('classroom_member')
         .insert({
@@ -61,11 +83,19 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number) {
         });
 
       if (joinError) {
-        console.error('Failed to join classroom:', joinError);
+        console.error('[ClassroomFlow] Failed to join classroom:', joinError);
+        return { success: false, error: `Failed to join classroom: ${joinError.message}` };
       }
+      console.log(`[ClassroomFlow] Successfully joined user ${userId} to classroom ${classroomId}`);
+    } else {
+      console.log(`[ClassroomFlow] User ${userId} is already a member of classroom ${classroomId}`);
     }
+
+    console.log(`[ClassroomFlow] Classroom flow completed successfully for user ${userId}`);
+    return { success: true };
   } catch (error) {
-    console.error('Classroom flow error:', error);
+    console.error('[ClassroomFlow] Unexpected error in classroom flow:', error);
+    return { success: false, error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
 
@@ -181,7 +211,13 @@ export async function POST(request: NextRequest) {
           } else {
             console.log('[Webhook] Enrollment successful, handling classroom flow');
             // After enrollment, handle classroom creation/joining as per COURSE.md L15-20
-            await handleClassroomFlow(supabase, course, user.id);
+            const classroomResult = await handleClassroomFlow(supabase, course, user.id);
+            if (!classroomResult.success) {
+              console.error('[Webhook] Classroom flow failed:', classroomResult.error);
+              // Log error but don't fail the entire webhook - enrollment was successful
+            } else {
+              console.log('[Webhook] Classroom flow completed successfully');
+            }
             let groupPublicId = course.community_group_public_id;
 
             if (!groupPublicId) {

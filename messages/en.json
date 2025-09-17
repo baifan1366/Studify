@@ -1820,7 +1820,11 @@
     "enrollment_error": "Enrollment error",
     "view_course": "View Course",
     "view_details": "View Details",
-    "error_creating_enrollment": "Error creating enrollment"
+    "error_creating_enrollment": "Error creating enrollment",
+    "currency_updated": "Currency Updated",
+    "currency_changed_to": "Currency changed to {currency}",
+    "show_more": "Show More",
+    "show_less": "Show Less"
   },
   "AdminDashboardPage": {
     "metadata_title": "Dashboard | Admin | Studify",

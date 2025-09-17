@@ -1397,3 +1397,13 @@ CREATE TABLE IF NOT EXISTS video_embeddings (
   updated_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz
 );
+
+CREATE TABLE currencies (
+    id bigserial PRIMARY KEY,
+    code CHAR(3) UNIQUE NOT NULL,
+    name VARCHAR(100),
+    country VARCHAR(100),
+    symbol VARCHAR(10),
+    rate_to_usd DECIMAL(15,6),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);

@@ -7,6 +7,9 @@ type Body = {
   description?: string;
   difficulty?: number; // 1-5
   tags?: string[];
+  max_attempts?: number;
+  visibility?: 'public' | 'private';
+  quiz_mode?: 'practice' | 'strict';
 };
 
 /** 使用你提供的 slugify（严格按你给的实现） */
@@ -26,7 +29,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("community_quiz")
-      .select("id, public_id, slug, title, description, tags, difficulty");
+      .select("id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -54,7 +57,15 @@ export async function POST(req: Request) {
     const supabase = await createClient();
 
     const body: Body = await req.json();
-    const { title, description = null, difficulty = 1, tags = [] } = body;
+    const { 
+      title, 
+      description = null, 
+      difficulty = 1, 
+      tags = [], 
+      max_attempts = 1, 
+      visibility = 'public', 
+      quiz_mode = 'practice' 
+    } = body;
 
     if (!title || typeof title !== "string") {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -89,7 +100,10 @@ export async function POST(req: Request) {
           description,
           difficulty,
           tags,
-          author_id: userId, // 关键：记录是谁创建的
+          max_attempts,
+          visibility,
+          quiz_mode,
+          creator_id: userId, // 关键：记录是谁创建的
         })
         .select("slug, public_id")
         .single();

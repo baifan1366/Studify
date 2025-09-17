@@ -1,9 +1,11 @@
+"use client";
+
 import React from "react";
 import { motion } from "framer-motion";
 import { Spinner } from "../ui/spinner";
 import { ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
 
-interface OnboardingStepProps {
+export interface OnboardingStepProps {
   title: string;
   description: string;
   children: React.ReactNode;
@@ -144,4 +146,5 @@ const OnboardingStep: React.FC<OnboardingStepProps> = ({
   );
 };
 
+export { OnboardingStep };
 export default OnboardingStep;

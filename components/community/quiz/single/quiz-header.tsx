@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Heart, Play, Share2 } from "lucide-react";
-import { CommunityQuiz } from "@/interface/community/quiz";
+import { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { Hashtag } from "@/interface/community/post-interface";
 
 export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
@@ -14,19 +14,19 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
       <div className="flex items-center mb-4">
         <Avatar className="h-10 w-10 mr-3">
           <AvatarImage
-            src={quiz.author.avatar_url || ''}
-            alt={quiz.author.display_name || ''}
+            src={quiz.author?.avatar_url || ''}
+            alt={quiz.author?.display_name || ''}
           />
-          <AvatarFallback>{quiz.author.display_name?.charAt(0)}</AvatarFallback>
+          <AvatarFallback>{quiz.author?.display_name?.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
-          <p className="font-semibold">{quiz.author.display_name}</p>
+          <p className="font-semibold">{quiz.author?.display_name}</p>
           <p className="text-sm text-muted-foreground">Quiz Creator</p>
         </div>
       </div>
       <p className="text-lg text-muted-foreground mb-4">{quiz.description}</p>
       <div className="flex flex-wrap gap-2 mb-6">
-        {quiz.tags.map((tag: string | Hashtag) => (
+        {quiz.tags?.map((tag: string | Hashtag) => (
           <Badge
             key={typeof tag === "string" ? tag : tag.id}
             variant="secondary"

@@ -66,8 +66,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
-import { useProcessVideoEmbeddings } from '@/hooks/embedding/use-video-embeddings'
+import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
+import { VideoProcessingProgress } from '@/components/video-processing/video-processing-progress'
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
 interface StorageDialogProps {
@@ -93,6 +94,10 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string } | null>(null)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ isOpen: false, attachment: null })
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ isOpen: false, attachment: null })
+  const [videoProcessingState, setVideoProcessingState] = useState<{ isOpen: boolean; queueId: string | null; attachmentTitle?: string }>({ 
+    isOpen: false, 
+    queueId: null 
+  })
   
   // Upload form state
   const [title, setTitle] = useState('')
@@ -106,7 +111,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const uploadMutation = useUploadAttachment()
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
-  const processVideoMutation = useProcessVideoEmbeddings()
+  const startVideoProcessingMutation = useStartVideoProcessing()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return 'Unknown size'
@@ -158,17 +163,19 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
 
       // Check if uploaded file is a video and automatically process it
       if (file.type.startsWith('video/') && uploadResult?.id) {
-        toast.success('Video uploaded! Processing for AI features...')
+        toast.success('Video uploaded! Starting AI processing...')
         
-        // Process video for embeddings in the background
+        // Start video processing in the background
         try {
-          await processVideoMutation.mutateAsync({
-            attachment_id: uploadResult.id
+          const processingResult = await startVideoProcessingMutation.mutateAsync(uploadResult.id)
+          setVideoProcessingState({
+            isOpen: true,
+            queueId: processingResult.queue_id,
+            attachmentTitle: uploadResult.title || title.trim()
           })
-          toast.success('Video processed successfully! AI features are now available.')
         } catch (processError) {
           console.error('Video processing error:', processError)
-          toast.error('Video uploaded but AI processing failed. You can retry processing later.')
+          toast.error('Video uploaded but failed to start AI processing. You can retry processing later.')
         }
       }
 
@@ -248,14 +255,16 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
 
   const handleProcessVideo = async (attachment: CourseAttachment) => {
     try {
-      toast.success('Processing video for AI features...')
-      await processVideoMutation.mutateAsync({
-        attachment_id: attachment.id
+      toast.success('Starting video processing for AI features...')
+      const processingResult = await startVideoProcessingMutation.mutateAsync(attachment.id)
+      setVideoProcessingState({
+        isOpen: true,
+        queueId: processingResult.queue_id,
+        attachmentTitle: attachment.title
       })
-      toast.success('Video processed successfully! AI features are now available.')
     } catch (error) {
       console.error('Video processing error:', error)
-      toast.error('Video processing failed. Please try again later.')
+      toast.error('Failed to start video processing. Please try again later.')
     }
   }
 
@@ -463,10 +472,10 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                                     {attachment.type === 'video' && (
                                       <DropdownMenuItem 
                                         onClick={() => handleProcessVideo(attachment)}
-                                        disabled={processVideoMutation.isPending}
+                                        disabled={startVideoProcessingMutation.isPending}
                                       >
                                         <Brain className="h-4 w-4 mr-2" />
-                                        {processVideoMutation.isPending ? 'Processing...' : 'Process for AI'}
+                                        {startVideoProcessingMutation.isPending ? 'Starting...' : 'Process for AI'}
                                       </DropdownMenuItem>
                                     )}
                                     <DropdownMenuItem onClick={() => handleEdit(attachment)}>
@@ -611,6 +620,14 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Video Processing Progress Dialog */}
+      <VideoProcessingProgress
+        queueId={videoProcessingState.queueId}
+        isOpen={videoProcessingState.isOpen}
+        onClose={() => setVideoProcessingState({ isOpen: false, queueId: null })}
+        attachmentTitle={videoProcessingState.attachmentTitle}
+      />
     </>
   )
 }

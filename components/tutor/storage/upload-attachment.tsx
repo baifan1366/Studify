@@ -80,7 +80,6 @@ export function UploadAttachment({ ownerId, onUploadSuccess }: UploadAttachmentP
 
     try {
       await uploadMutation.mutateAsync({
-        ownerId,
         title: title.trim(),
         file
       })

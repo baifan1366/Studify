@@ -1815,7 +1815,12 @@
     "course_enrolled_successfully": "Course enrolled successfully!",
     "enrollment_success": "Enrollment Success",
     "you_are_now_enrolled": "You are now enrolled in this course",
-    "redirecting_to_course": "Redirecting to course..."
+    "redirecting_to_course": "Redirecting to course...",
+    "enrollment_failed": "Enrollment failed",
+    "enrollment_error": "Enrollment error",
+    "view_course": "View Course",
+    "view_details": "View Details",
+    "error_creating_enrollment": "Error creating enrollment"
   },
   "AdminDashboardPage": {
     "metadata_title": "Dashboard | Admin | Studify",

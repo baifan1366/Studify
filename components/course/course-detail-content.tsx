@@ -18,10 +18,12 @@ import {
 import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
+import { useEnrolledCourseStatus } from '@/hooks/course/use-enrolled-courses';
 import AnimatedSidebar from '@/components/sidebar';
 import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 import AnimatedBackground from '@/components/ui/animated-background';
 
 interface CourseDetailContentProps {
@@ -41,6 +43,15 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   const { data: course, isLoading } = useCourseBySlug(courseSlug);
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
+  
+  // Check enrollment status
+  const userId = userData?.profile?.id;
+  const courseId = course?.id;
+  const { data: enrollmentData } = useEnrolledCourseStatus(
+    Number(userId) || 0,
+    Number(courseId) || 0
+  );
+  const isEnrolled = !!enrollmentData;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -258,28 +269,36 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
 
                 <div className="flex items-center gap-4">
                   <div className="text-3xl font-bold text-white">{price}</div>
-                  <button
-                    onClick={handleEnrollNow}
-                    disabled={purchaseCourse.isPending}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-                  >
-                    {purchaseCourse.isPending ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Processing...
-                      </>
-                    ) : isFree ? (
-                      <>
-                        <Play size={20} />
-                        Enroll for Free
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart size={20} />
-                        Enroll Now
-                      </>
-                    )}
-                  </button>
+                  {!isEnrolled && (
+                    <Button
+                      onClick={handleEnrollNow}
+                      disabled={purchaseCourse.isPending}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    >
+                      {purchaseCourse.isPending ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Processing...
+                        </>
+                      ) : isFree ? (
+                        <>
+                          <Play size={20} />
+                          Free
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={20} />
+                          Buy Now
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {isEnrolled && (
+                    <div className="flex items-center gap-2 text-green-400 font-semibold">
+                      <CheckCircle size={20} />
+                      Already Enrolled
+                    </div>
+                  )}
                 </div>
               </div>
 

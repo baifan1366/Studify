@@ -2,9 +2,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, Users, Star, ShoppingCart, Zap, Filter, ChevronDown } from 'lucide-react';
+import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown } from 'lucide-react';
 import { useCourses } from '@/hooks/course/use-courses';
-import { useEnrolledCoursesByUserId } from '@/hooks/course/use-enrolled-courses';
+import { useEnrolledCoursesByUserId, useCreateEnrollment } from '@/hooks/course/use-enrolled-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,7 +26,7 @@ export default function CoursesContent() {
   const { data: enrolledCourses } = useEnrolledCoursesByUserId(userId as number);
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const createEnrollment = useCreateEnrollment();
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const t = useTranslations('CoursesContent');
   const locale = useLocale();
@@ -89,16 +89,6 @@ export default function CoursesContent() {
     });
   }, [courses, currency, enrolledCourseIds]);
 
-  const handleAddToCart = (courseId: string | number) => {
-    // TODO: Implement actual cart functionality
-    // For now, just show a toast with better UX
-    const course = uiCourses.find(c => c.id === courseId);
-    toast({
-      title: t('added_to_cart'),
-      description: course ? `${course.title} ${t('course_added_to_cart')}` : t('course_added_to_cart'),
-    });
-  };
-
   const handleBuyNow = async (courseId: string | number) => {
     setIsBuyingNow(true);
     try {
@@ -108,19 +98,41 @@ export default function CoursesContent() {
       
       // Handle free course enrollment
       if (result.enrolled) {
-        toast({
-          title: t('enrollment_success'),
-          description: t('you_are_now_enrolled'),
-        });
-        // Find the course to get its slug for navigation
+        // Create enrollment record for free courses
         const course = uiCourses.find(c => c.id === courseId);
-        if (course?.slug) {
-          router.push(`/${locale}/courses/${course.slug}`);
+        if (course && userId) {
+          try {
+            await createEnrollment.mutateAsync({
+              course_id: parseInt(course.id),
+              user_id: parseInt(userId),
+              owner_id: parseInt(userId),
+              role: 'student',
+              status: 'active',
+              started_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+            toast({
+              title: t('enrollment_success'),
+              description: t('you_are_now_enrolled'),
+            });
+            
+            if (course?.slug) {
+              router.push(`/${locale}/courses/${course.slug}`);
+            }
+          } catch (enrollmentError) {
+            toast({
+              title: t('enrollment_failed'),
+              description: t('error_creating_enrollment'),
+              variant: 'destructive',
+            });
+          }
         }
         return;
       }
       
-      // Handle paid course checkout
+      // Handle paid course checkout - enrollment will be created via webhook after payment
       if (result.checkoutUrl) {
         window.location.href = result.checkoutUrl;
       }
@@ -223,7 +235,7 @@ export default function CoursesContent() {
   }, [uiCourses]);
 
   const handleGoToCourse = (courseSlug: string) => {
-    router.push(`/${courseSlug}`);
+    router.push(`/${locale}/courses/${courseSlug}`);
   };
 
   const resetFilters = () => {
@@ -543,16 +555,16 @@ export default function CoursesContent() {
                       ) : (
                         <>
                           <Button
-                            onClick={() => handleAddToCart(course.id)}
+                            onClick={() => handleGoToCourse(course.slug)}
                             variant="outline"
-                            disabled={isAddingToCart}
+                            className="flex-1"
                           >
-                            <ShoppingCart size={16} />
-                            {isAddingToCart ? t('adding_to_cart') : t('add_to_cart')}
+                            {t('view_details')}
                           </Button>
                           <Button
                             onClick={() => handleBuyNow(course.id)}
                             variant="default"
+                            className="flex-1"
                             disabled={isBuyingNow}
                           >
                             {isBuyingNow ? t('buying_now') : t('buy_now')}

@@ -13,6 +13,7 @@ const QUIZ_API = {
   quizAttempts: (quizSlug: string) =>
     `/api/community/quizzes/${quizSlug}/attempts`,
   quizLikes: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/likes`,
+  userAttempts: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/user-attempts`,
 };
 
 // ✅ 所有 quiz 列表
@@ -43,6 +44,9 @@ export const useCreateQuiz = () => {
       description?: string;
       difficulty?: number;
       tags?: string[];
+      max_attempts?: number;
+      visibility?: 'public' | 'private';
+      quiz_mode?: 'practice' | 'strict';
     }) =>
       apiSend<CommunityQuiz>({
         url: QUIZ_API.quizzes,
@@ -159,5 +163,19 @@ export const useCompleteAttempt = (quizSlug: string, attemptId: number) => {
         url: `${QUIZ_API.quizAttempts(quizSlug)}/${attemptId}/complete`,
         method: "POST",
       }),
+  });
+};
+
+// 检查用户的尝试状态
+export const useUserAttemptStatus = (quizSlug: string) => {
+  return useQuery<{ 
+    attemptCount: number; 
+    maxAttempts: number; 
+    canAttempt: boolean;
+    quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility' | 'quiz_mode'>;
+  }, Error>({
+    queryKey: ["userAttemptStatus", quizSlug],
+    queryFn: () => apiGet(QUIZ_API.userAttempts(quizSlug)),
+    staleTime: 1000 * 30, // 30秒缓存
   });
 };

@@ -8,14 +8,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Play, Lock, CheckCircle } from "lucide-react";
 import type { CommunityQuiz } from "@/interface/community/quiz-interface";
+import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 
 interface QuizCardProps {
   quiz: CommunityQuiz;
 }
 
 export default function QuizCard({ quiz }: QuizCardProps) {
+  const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
+
   // difficulty label: convert number -> text if needed
   const difficultyLabel =
     typeof quiz.difficulty === "number"
@@ -32,6 +35,12 @@ export default function QuizCard({ quiz }: QuizCardProps) {
   const tagStrings = (quiz.tags || []).map((t) =>
     typeof t === "string" ? t : (t as any).name || String(t)
   );
+
+  // 确定按钮状态
+  const canAttempt = attemptStatus?.canAttempt ?? true;
+  const attemptCount = attemptStatus?.attemptCount ?? 0;
+  const maxAttempts = attemptStatus?.maxAttempts ?? quiz.max_attempts;
+  const isPrivate = quiz.visibility === 'private';
 
   return (
     <Card className="h-full flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative">
@@ -54,13 +63,39 @@ export default function QuizCard({ quiz }: QuizCardProps) {
           )}
         </div>
       </CardContent>
-      <CardFooter className="mt-auto px-4 pb-4 flex justify-end">
-        <Link href={`/community/quizzes/${quiz.slug}/attempt`}>
-          <Button size="sm" className="rounded-lg">
-            <Play className="h-4 w-4 mr-1" />
-            Start
-          </Button>
-        </Link>
+      <CardFooter className="mt-auto px-4 pb-4 flex flex-col gap-2">
+        {/* 显示尝试次数信息 */}
+        {!statusLoading && attemptStatus && (
+          <div className="text-xs text-gray-500 text-center">
+            {attemptCount}/{maxAttempts} attempts used
+          </div>
+        )}
+        
+        {/* 按钮区域 */}
+        <div className="flex justify-end w-full">
+          {statusLoading ? (
+            <Button size="sm" disabled className="rounded-lg">
+              Loading...
+            </Button>
+          ) : isPrivate ? (
+            <Button size="sm" disabled className="rounded-lg">
+              <Lock className="h-4 w-4 mr-1" />
+              Private
+            </Button>
+          ) : !canAttempt ? (
+            <Button size="sm" disabled className="rounded-lg">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Completed
+            </Button>
+          ) : (
+            <Link href={`/community/quizzes/${quiz.slug}/attempt`}>
+              <Button size="sm" className="rounded-lg">
+                <Play className="h-4 w-4 mr-1" />
+                Start
+              </Button>
+            </Link>
+          )}
+        </div>
       </CardFooter>
     </Card>
   );

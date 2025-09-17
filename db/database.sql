@@ -754,6 +754,23 @@ create table if not exists classroom_submission (
   deleted_at timestamptz
 );
 
+create table if not exists classroom_attachments (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  owner_id bigint not null references profiles(id) on delete cascade,
+  context_type text not null check (
+    context_type in ('submission', 'post', 'comment', 'material', 'announcement')
+  ),
+  context_id bigint not null,
+  file_url text not null,       
+  file_name text not null,     
+  mime_type text not null,      
+  size_bytes bigint not null,  
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists classroom_grade (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),

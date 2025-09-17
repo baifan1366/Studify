@@ -740,6 +740,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             isOpen={true}
             onToggle={() => {}}
             className="relative w-full h-[600px] border-0 shadow-none bg-transparent"
+            classroom={classroom}
           />
         </AnimatedTabsContent>
 

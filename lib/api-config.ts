@@ -230,6 +230,27 @@ export async function apiUploadFile(url: string, file: File) {
   return res.json(); // { id, url }
 }
 
+export async function apiPostFormData<T>(url: string, formData: FormData): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { error: errorText };
+    }
+    throw { response: { data: errorData }, message: errorData.error || "Request failed" };
+  }
+
+  return res.json() as Promise<T>;
+}
+
 // Export default configuration
 export default {
   tables: TABLES,

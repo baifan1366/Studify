@@ -7,6 +7,7 @@ export async function GET(req: Request) {
     const client = await createServerClient();
     const { searchParams } = new URL(req.url);
     const owner_id = searchParams.get('owner_id');
+    const slug = searchParams.get('slug');
 
     if(owner_id) {
       const {data, error} = await client
@@ -18,6 +19,20 @@ export async function GET(req: Request) {
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ data });
+    }
+
+    if(slug) {
+      const {data, error} = await client
+        .from("course")
+        .select("*")
+        .eq("is_deleted", false)
+        .eq("slug", slug)
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 404 });
       }
       return NextResponse.json({ data });
     }

@@ -3,6 +3,8 @@ export interface Profile {
   public_id: string;
   user_id: string;
   display_name: string | null;
+  full_name: string | null;
+  email: string | null;
   role: "admin" | "student" | "tutor";
   avatar_url: string | null;
   bio: string | null;
@@ -14,6 +16,14 @@ export interface Profile {
   onboarded: boolean;
   onboard_step: number;
   is_deleted: boolean;
+  preferences: string;
+  theme: string;
+  language: string;
+  notification_settings: string;
+  privacy_settings: string;
+  two_factor_enabled: boolean;
+  email_verified: boolean;
+  profile_completion: number;
   created_at: string;
   updated_at: string;
   last_login: string | null;

@@ -2,11 +2,16 @@
   "compilerOptions": {
     "target": "ES2020",
     "types": [
-      // Other types...
-      // This allows Serwist to type `window.serwist`.
-      "@serwist/next/typings"
+      "@serwist/next/typings",
+      "react",
+      "react-dom"
     ],
-    "lib": ["dom", "dom.iterable", "esnext","webworker"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext",
+      "webworker"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -24,9 +29,19 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules","public/sw.js"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "public/sw.js"
+  ]
 }

@@ -24,13 +24,11 @@ export function useUploadAttachment() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ ownerId, title, file }: {
-      ownerId: number
+    mutationFn: async ({ title, file }: {
       title: string
       file: File
     }) => {
       const formData = new FormData()
-      formData.append('ownerId', ownerId.toString())
       formData.append('title', title.trim())
       formData.append('file', file)
 
@@ -46,11 +44,11 @@ export function useUploadAttachment() {
 
       return response.json() as Promise<CourseAttachment>
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
       toast.success('File uploaded successfully!')
       // Invalidate and refetch attachments
       queryClient.invalidateQueries({ queryKey: ['attachments'] })
-      queryClient.invalidateQueries({ queryKey: ['attachments', variables.ownerId] })
+      queryClient.invalidateQueries({ queryKey: ['attachments', data.owner_id] })
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Upload failed')

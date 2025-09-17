@@ -12,6 +12,7 @@ import { StorageDialog } from '@/components/tutor/storage/storage-dialog';
 import { useSearchParams } from 'next/navigation';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useCourse } from '@/hooks/course/use-courses';
+import { useUser } from '@/hooks/profile/use-user';
 
 export default function CourseDetails() {
   const t = useTranslations('CourseDetails');
@@ -24,6 +25,8 @@ export default function CourseDetails() {
   const [selectedLessonId, setSelectedLessonId] = useState<number | undefined>();
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(320); // Default width in pixels
+  const { data: userData } = useUser();
+  const userId = userData?.profile?.id || "0";
 
   const handleModuleSelect = (moduleId: number) => {
     setSelectedModuleId(moduleId);
@@ -139,7 +142,7 @@ export default function CourseDetails() {
             </div>
             <div className="flex items-center gap-2">
               {/* Storage Dialog Button */}
-              <StorageDialog ownerId={courseId}>
+              <StorageDialog ownerId={parseInt(userId)}>
                 <Button
                   variant="default"
                   size="sm"

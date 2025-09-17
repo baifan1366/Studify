@@ -171,6 +171,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const [activeTab, setActiveTab] = useState<'notes' | 'quiz' | 'ai'>('notes');
   const [noteContent, setNoteContent] = useState('');
   const [noteTimestamp, setNoteTimestamp] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const { data: course, isLoading: courseLoading } = useCourseBySlug(courseSlug);
   const { data: progress } = useCourseProgress(courseSlug);
@@ -223,6 +225,50 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     }
   }, [allLessons]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Only handle shortcuts when not typing in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          // Toggle play/pause (would need to be implemented in video player)
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          handlePreviousLesson();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleNextLesson();
+          break;
+        case 'f':
+          e.preventDefault();
+          setIsFullscreen(!isFullscreen);
+          break;
+        case 'n':
+          e.preventDefault();
+          setActiveTab('notes');
+          break;
+        case 'q':
+          e.preventDefault();
+          setActiveTab('quiz');
+          break;
+        case 'a':
+          e.preventDefault();
+          setActiveTab('ai');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentLessonId, isFullscreen]);
+
   const handleTimeUpdate = (time: number) => {
     setNoteTimestamp(time);
     
@@ -243,11 +289,25 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         progressPct: 100,
         timeSpentSec: 100 // Full completion
       });
+      
+      // Check if this completes the entire course
+      const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
+      const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
+      const isLastLesson = allLessons.findIndex((l: any) => l.public_id === currentLessonId) === allLessons.length - 1;
+      
+      if (isLastLesson && completedCount === allLessons.length - 1) {
+        // Course completed!
+        toast({
+          title: '🎉 Course Completed!',
+          description: 'Congratulations! You have successfully completed this course.',
+        });
+      } else {
+        toast({
+          title: 'Lesson Complete!',
+          description: 'Great job! You can now move to the next lesson.',
+        });
+      }
     }
-    toast({
-      title: 'Lesson Complete!',
-      description: 'Great job! You can now move to the next lesson.',
-    });
   };
 
   const handleCreateNote = async () => {
@@ -349,11 +409,84 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         )}
       </div>
 
+      {/* Lesson Navigation */}
+      <div className="flex items-center justify-between mb-6 bg-white rounded-lg shadow-sm border p-4">
+        <button
+          onClick={handlePreviousLesson}
+          disabled={!currentLessonId || allLessons.findIndex((l: any) => l.public_id === currentLessonId) === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 rounded-lg text-sm font-medium transition-colors"
+        >
+          <ChevronLeft size={16} />
+          Previous Lesson
+        </button>
+        
+        <div className="text-center">
+          <h2 className="text-lg font-semibold text-gray-900">{currentLesson?.title}</h2>
+          <p className="text-sm text-gray-600">
+            Lesson {(allLessons.findIndex((l: any) => l.public_id === currentLessonId) + 1)} of {allLessons.length}
+          </p>
+          <div className="flex items-center justify-center gap-4 mt-2">
+            <div className="text-xs text-gray-500">
+              Duration: {currentLesson?.duration_sec ? Math.ceil(currentLesson.duration_sec / 60) : 0} min
+            </div>
+            {currentLesson && (
+              <button
+                onClick={handleLessonComplete}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-full transition-colors"
+              >
+                Mark Complete
+              </button>
+            )}
+          </div>
+        </div>
+        
+        <button
+          onClick={handleNextLesson}
+          disabled={!currentLessonId || allLessons.findIndex((l: any) => l.public_id === currentLessonId) === allLessons.length - 1}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-50 disabled:text-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          Next Lesson
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
       {/* Course Content and Learning Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Course Content Sidebar */}
         <div className="lg:col-span-1 bg-white rounded-lg shadow-sm border p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Course Content</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Course Content</h3>
+            <div className="text-xs text-gray-500">
+              {(() => {
+                const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
+                return progressArray.filter((p: any) => p.state === 'completed').length;
+              })()} / {allLessons.length} completed
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mb-4">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${(() => {
+                    const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
+                    const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
+                    return allLessons.length > 0 ? (completedCount / allLessons.length) * 100 : 0;
+                  })()}%` 
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {(() => {
+                const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
+                const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
+                return allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0;
+              })()}% Complete
+            </p>
+          </div>
+          
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {course?.modules?.map((module: any) => (
               <div key={module.id} className="mb-6">

@@ -8,6 +8,7 @@ import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
 import UserProfilePopover from './user-profile-popover';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -96,9 +97,6 @@ export default function ClassroomHeader({
             </div>
           </motion.div>
         </div>
-        <div className="flex items-center gap-4">
-          <ThemeSwitcher />
-        </div>
         {/* Right side - Actions */}
         <motion.div
           className="flex items-center space-x-4"
@@ -106,6 +104,8 @@ export default function ClassroomHeader({
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
         >
+          <ThemeSwitcher />
+          <NotificationBell />
 
           {/* Profile Button */}
           <div className="relative">

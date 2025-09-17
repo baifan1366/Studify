@@ -780,3 +780,188 @@ after delete
 on post_hashtags
 for each row
 execute procedure update_post_on_hashtag_assoc_change();
+
+---------------------------------------
+--   community achievement function  --
+--------------------------------------- 
+create or replace function unlock_achievement(_user_id bigint, _achievement_id bigint)
+returns boolean as $$
+declare
+  rule_json jsonb;
+  min_count int;
+  ach_type text;
+  emoji_filter text;
+  current_val int;
+begin
+  -- 取成就规则
+  select rule, (rule->>'min')::int, rule->>'type', rule->>'emoji'
+  into rule_json, min_count, ach_type, emoji_filter
+  from community_achievement
+  where id = _achievement_id and is_deleted = false;
+
+  -- 当前进度
+  select current_value
+  into current_val
+  from community_user_achievement
+  where user_id = _user_id and achievement_id = _achievement_id;
+
+  -- 如果还没解锁且达成条件 → 解锁
+  if current_val >= min_count then
+    update community_user_achievement
+    set unlocked = true, unlocked_at = now(), updated_at = now()
+    where user_id = _user_id and achievement_id = _achievement_id
+      and unlocked = false;
+    return true;
+  end if;
+
+  return false;
+end;
+$$ language plpgsql;
+
+--AFTER INSERT triggers
+--post related
+create or replace function trg_after_post_insert_update_progress()
+returns trigger as $$
+declare
+  ach record;
+begin
+  -- 处理 post_count
+  for ach in
+    select id, rule from community_achievement
+    where (rule->>'type') in ('post_count','distinct_group_post_count')
+      and is_deleted = false
+  loop
+    insert into community_user_achievement(user_id, achievement_id, current_value)
+    values (new.author_id, ach.id, 0)
+    on conflict (user_id, achievement_id) do nothing;
+
+    if (ach.rule->>'type') = 'post_count' then
+      update community_user_achievement
+      set current_value = current_value + 1, updated_at = now()
+      where user_id = new.author_id and achievement_id = ach.id;
+
+    elsif (ach.rule->>'type') = 'distinct_group_post_count' then
+      update community_user_achievement
+      set current_value = (
+        select count(distinct group_id)
+        from community_post
+        where author_id = new.author_id and is_deleted = false
+      ), updated_at = now()
+      where user_id = new.author_id and achievement_id = ach.id;
+    end if;
+
+    perform unlock_achievement(new.author_id, ach.id);
+  end loop;
+
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_after_post_insert on community_post;
+create trigger trg_after_post_insert
+after insert on community_post
+for each row
+execute function trg_after_post_insert_update_progress();
+
+
+--comment related
+create or replace function trg_after_comment_insert_update_progress()
+returns trigger as $$
+declare
+  ach record;
+  post_author_id bigint;
+begin
+  -- 先把帖子作者查出来（供后面复用）
+  select author_id into post_author_id from community_post where id = NEW.post_id;
+
+  for ach in
+    select id, rule from community_achievement
+    where (rule->>'type') in ('comment_count','comment_counts')
+      and is_deleted = false
+  loop
+    -- 1) 确保评论者在这项成就上有一条记录（初始化）
+    insert into community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
+    values (NEW.author_id, ach.id, 0, now(), now())
+    on conflict (user_id, achievement_id) do nothing;
+
+    -- 2) comment_count: 给评论者 +1，使用原子 INSERT ... ON CONFLICT DO UPDATE
+    if (ach.rule->>'type') = 'comment_count' then
+      insert into community_user_achievement(user_id, achievement_id, current_value, updated_at)
+      values (NEW.author_id, ach.id, 1, now())
+      on conflict (user_id, achievement_id) do update
+      set current_value = community_user_achievement.current_value + 1,
+          updated_at = now();
+
+    -- 3) comment_counts: 更新“帖子作者”收到的（非作者自己）评论总数
+    elsif (ach.rule->>'type') = 'comment_counts' then
+      -- 只在评论者不是帖子作者时更新（避免作者自评导致置 0）
+      if post_author_id is not null and NEW.author_id != post_author_id then
+        -- 确保帖子作者有行
+        insert into community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
+        values (post_author_id, ach.id, 0, now(), now())
+        on conflict (user_id, achievement_id) do nothing;
+
+        update community_user_achievement
+        set current_value = (
+          select count(*) from community_comment
+          where post_id = NEW.post_id
+            and is_deleted = false
+            and author_id != post_author_id
+        ), updated_at = now()
+        where user_id = post_author_id
+          and achievement_id = ach.id;
+      end if;
+    end if;
+
+    -- 4) 调用解锁函数：对不同规则要传不同的 user_id
+    perform unlock_achievement(
+      case when (ach.rule->>'type') = 'comment_counts' then post_author_id else NEW.author_id end,
+      ach.id
+    );
+  end loop;
+
+  return NEW;
+end;
+$$ language plpgsql;
+
+--reaction related
+create or replace function trg_after_reaction_insert_update_progress()
+returns trigger as $$
+declare
+  ach record;
+begin
+  for ach in
+    select id, rule from community_achievement
+    where (rule->>'type') = 'reaction_count'
+      and is_deleted = false
+  loop
+    insert into community_user_achievement(user_id, achievement_id, current_value)
+    values (new.user_id, ach.id, 0)
+    on conflict (user_id, achievement_id) do nothing;
+
+    if (ach.rule->>'emoji') is not null then
+      update community_user_achievement
+      set current_value = current_value + 1, updated_at = now()
+      where user_id = new.user_id
+        and achievement_id = ach.id
+        and new.emoji = (ach.rule->>'emoji');
+    else
+      update community_user_achievement
+      set current_value = current_value + 1, updated_at = now()
+      where user_id = new.user_id
+        and achievement_id = ach.id;
+    end if;
+
+    perform unlock_achievement(new.user_id, ach.id);
+  end loop;
+
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_after_reaction_insert on community_reaction;
+create trigger trg_after_reaction_insert
+after insert on community_reaction
+for each row
+execute function trg_after_reaction_insert_update_progress();
+

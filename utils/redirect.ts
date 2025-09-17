@@ -17,7 +17,7 @@ export function encodedRedirect(
 export function getRedirectUrlFromPath(locale?: string, role?: string) {
   const base = locale ? `/${locale}` : "";
 
-  if (role === "tutor") {
+  if (role === "tutor" || role === "admin") {
     return `${base}/dashboard`;
   }
 

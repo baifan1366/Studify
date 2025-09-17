@@ -9,6 +9,7 @@ export interface Comment {
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date | null;
+  depth?: number;
 
   // UI 扩展字段
   author?: {

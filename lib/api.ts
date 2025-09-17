@@ -77,6 +77,9 @@ export const classroomApi = {
   
   // Legacy endpoints (keeping for backward compatibility)
   enrolledCourses: "/api/classroom/enrolled-courses",
+  createEnrollment: "/api/classroom/enrolled-courses",
+  enrolledCoursesByUserId: (userId: number) => `/api/classroom/enrolled-courses/${userId}`,
+  enrolledCoursesByUserIdAndCourseId: (userId: number, courseId: number) => `/api/classroom/enrolled-courses/${userId}/${courseId}`,
   assignments: "/api/classroom/assignments",
   assignmentDetail: (id: string) => `/api/classroom/assignments/${id}`,
   submitAssignment: (id: string) => `/api/classroom/assignments/${id}/submit`,
@@ -263,4 +266,161 @@ export const attachmentsApi = {
   update: (id: number) => `/api/attachments/${id}`,
   delete: (id: number) => `/api/attachments/${id}`,
   deleteByOwner: (id: number, ownerId: number) => `/api/attachments/${id}?owner_id=${ownerId}`,
+} as const;
+
+// Announcements API endpoints
+export const announcementsApi = {
+  list: "/api/announcements",
+  getById: (id: number) => `/api/announcements/${id}`,
+  create: "/api/announcements",
+  update: (id: number) => `/api/announcements/${id}`,
+  delete: (id: number) => `/api/announcements/${id}`,
+  updateStatus: (id: number) => `/api/announcements/${id}/status`,
+} as const;
+
+// Achievements API endpoints
+export const achievementsApi = {
+  list: '/achievements',
+  unlock: '/achievements',
+} as const;
+
+// Admin API endpoints
+export const adminApi = {
+  // User management
+  getUsers: (filters?: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    status?: string;
+    search?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.page) params.set('page', filters.page.toString());
+    if (filters?.limit) params.set('limit', filters.limit.toString());
+    if (filters?.role) params.set('role', filters.role);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.search) params.set('search', filters.search);
+    return api.get(`/api/admin/users?${params.toString()}`);
+  },
+  getUser: (userId: string) => api.get(`/api/admin/users/${userId}`),
+  promoteToAdmin: (data: { user_id?: string; email?: string }) => 
+    api.post('/api/admin/users', data),
+  updateUser: (userId: string, updates: any) => 
+    api.put(`/api/admin/users/${userId}`, updates),
+  deleteUser: (userId: string) => 
+    api.delete(`/api/admin/users/${userId}`),
+  
+  // Role management
+  getRoles: () => api.get('/api/admin/roles'),
+  bulkUpdateRoles: (data: { userIds: string[]; newRole: string; reason?: string }) => 
+    api.post('/api/admin/roles/bulk-update', data),
+  
+  // Analytics
+  getAnalytics: (period: number = 30) => 
+    api.get(`/api/admin/analytics?period=${period}`),
+  
+  // Reports and moderation
+  getReports: (filters?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    subject_type?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.page) params.set('page', filters.page.toString());
+    if (filters?.limit) params.set('limit', filters.limit.toString());
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    if (filters?.subject_type && filters.subject_type !== 'all') params.set('subject_type', filters.subject_type);
+    return api.get(`/api/admin/reports?${params.toString()}`);
+  },
+  getReport: (reportId: string) => api.get(`/api/admin/reports/${reportId}`),
+  updateReportStatus: (reportId: string, data: { status: string; notes?: string }) => 
+    api.put(`/api/admin/reports/${reportId}`, data),
+  executeModerationAction: (reportId: string, data: any) => 
+    api.post(`/api/admin/reports/${reportId}/actions`, data),
+  
+  // Batch operations
+  batchReportAction: (data: {
+    reportIds: string[];
+    action: 'resolve' | 'reject' | 'hide_all' | 'delete_all' | 'ban_all';
+    notes?: string;
+    ban_duration_hours?: number;
+  }) => api.post('/api/admin/reports/batch', data),
+  
+  // Course management
+  getCourses: (filters?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    category?: string;
+    search?: string;
+    owner_id?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.page) params.set('page', filters.page.toString());
+    if (filters?.limit) params.set('limit', filters.limit.toString());
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
+    if (filters?.search) params.set('search', filters.search);
+    if (filters?.owner_id) params.set('owner_id', filters.owner_id);
+    return api.get(`/api/admin/courses?${params.toString()}`);
+  },
+  getCourse: (courseId: string) => api.get(`/api/admin/courses/${courseId}`),
+  updateCourse: (courseId: string, data: any) => 
+    api.put(`/api/admin/courses/${courseId}`, data),
+  deleteCourse: (courseId: string) => 
+    api.delete(`/api/admin/courses/${courseId}`),
+  approveCourse: (courseId: string, notes?: string) => 
+    api.post(`/api/admin/courses/${courseId}/approve`, { notes }),
+  rejectCourse: (courseId: string, reason: string) => 
+    api.put(`/api/admin/courses/${courseId}/approve`, { reason }),
+  getCourseAnalytics: (period: number = 30) => 
+    api.get(`/api/admin/courses/analytics?period=${period}`),
+} as const;
+
+// Recommendations API endpoints
+export const recommendationsApi = {
+  get: '/recommendations',
+} as const;
+
+// API client for making HTTP requests
+export const api = {
+  get: async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  post: async (url: string, data?: any) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  put: async (url: string, data?: any) => {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  delete: async (url: string) => {
+    const response = await fetch(url, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+};
+// video embeddings api
+export const videoEmbeddingsApi = {
+  list: "/api/embeddings/video-embeddings",
+  getById: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+  getByAttachmentId: (attachmentId: number) => `/api/embeddings/video-embeddings/attachment/${attachmentId}`,
+  create: "/api/embeddings/video-embeddings",
+  process: "/api/embeddings/video-embeddings/process",
+  update: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
+  delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
 } as const;

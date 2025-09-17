@@ -22,12 +22,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get course details - handle both UUID and slug
+    // Get course details - handle both public_id and slug
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
     const { data: course, error: courseError } = await supabase
       .from('course')
       .select('*')
-      .eq('slug', courseId)
+      .eq(isUUID ? 'public_id' : 'slug', courseId)
       .eq('is_deleted', false)
       .single();
 
@@ -80,8 +80,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !order) {
+      console.error('Order creation error:', orderError);
       return NextResponse.json(
-        { error: 'Failed to create order' },
+        { error: `Failed to create order: ${orderError?.message || 'Unknown error'}` },
         { status: 500 }
       );
     }
@@ -109,8 +110,9 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (productError) {
+        console.error('Product creation error:', productError);
         return NextResponse.json(
-          { error: 'Failed to create product' },
+          { error: `Failed to create product: ${productError?.message || 'Unknown error'}` },
           { status: 500 }
         );
       }
@@ -129,8 +131,9 @@ export async function POST(request: NextRequest) {
       });
 
     if (orderItemError) {
+      console.error('Order item creation error:', orderItemError);
       return NextResponse.json(
-        { error: 'Failed to create order item' },
+        { error: `Failed to create order item: ${orderItemError?.message || 'Unknown error'}` },
         { status: 500 }
       );
     }
@@ -148,8 +151,9 @@ export async function POST(request: NextRequest) {
         });
 
       if (enrollmentError) {
+        console.error('Enrollment error:', enrollmentError);
         return NextResponse.json(
-          { error: 'Failed to enroll in course' },
+          { error: `Failed to enroll in course: ${enrollmentError?.message || 'Unknown error'}` },
           { status: 500 }
         );
       }

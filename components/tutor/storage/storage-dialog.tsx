@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { validateAttachmentTitle } from '@/lib/validations/attachment'
+import { useFormat } from '@/hooks/use-format'
 import {
   Dialog,
   DialogContent,
@@ -57,11 +58,17 @@ import {
   RefreshCw,
   Loader2,
   X,
-  EllipsisVertical
+  EllipsisVertical,
+  Music,
+  Download,
+  Play,
+  Brain
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
+import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
+import { VideoProcessingProgress } from '@/components/video-processing/video-processing-progress'
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
 interface StorageDialogProps {
@@ -81,11 +88,16 @@ interface DeleteDialogState {
 
 export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const t = useTranslations('StorageDialog')
+  const { formatDate } = useFormat()
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('upload')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string } | null>(null)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ isOpen: false, attachment: null })
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ isOpen: false, attachment: null })
+  const [videoProcessingState, setVideoProcessingState] = useState<{ isOpen: boolean; queueId: string | null; attachmentTitle?: string }>({ 
+    isOpen: false, 
+    queueId: null 
+  })
   
   // Upload form state
   const [title, setTitle] = useState('')
@@ -99,6 +111,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const uploadMutation = useUploadAttachment()
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
+  const startVideoProcessingMutation = useStartVideoProcessing()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return 'Unknown size'
@@ -108,15 +121,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -152,11 +156,28 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
 
     setTitleError(null)
     try {
-      await uploadMutation.mutateAsync({
-        ownerId,
+      const uploadResult = await uploadMutation.mutateAsync({
         title: title.trim(),
         file
       })
+
+      // Check if uploaded file is a video and automatically process it
+      if (file.type.startsWith('video/') && uploadResult?.id) {
+        toast.success('Video uploaded! Starting AI processing...')
+        
+        // Start video processing in the background
+        try {
+          const processingResult = await startVideoProcessingMutation.mutateAsync(uploadResult.id)
+          setVideoProcessingState({
+            isOpen: true,
+            queueId: processingResult.queue_id,
+            attachmentTitle: uploadResult.title || title.trim()
+          })
+        } catch (processError) {
+          console.error('Video processing error:', processError)
+          toast.error('Video uploaded but failed to start AI processing. You can retry processing later.')
+        }
+      }
 
       // Clear form
       setTitle('')
@@ -174,12 +195,12 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     }
   }
 
-  const handlePreview = (url: string | null) => {
-    if (!url) {
+  const handlePreview = (attachment: CourseAttachment) => {
+    if (!attachment.url) {
       toast.error('No preview available for this file')
       return
     }
-    setPreviewUrl(url)
+    setPreviewData({ url: attachment.url, attachmentId: attachment.id, fileType: attachment.type })
   }
 
   const handleEdit = (attachment: CourseAttachment) => {
@@ -231,6 +252,22 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       // Error is handled by the mutation
     }
   }
+
+  const handleProcessVideo = async (attachment: CourseAttachment) => {
+    try {
+      toast.success('Starting video processing for AI features...')
+      const processingResult = await startVideoProcessingMutation.mutateAsync(attachment.id)
+      setVideoProcessingState({
+        isOpen: true,
+        queueId: processingResult.queue_id,
+        attachmentTitle: attachment.title
+      })
+    } catch (error) {
+      console.error('Video processing error:', error)
+      toast.error('Failed to start video processing. Please try again later.')
+    }
+  }
+
 
   const attachmentCount = attachments.length
   const pluralSuffix = attachmentCount !== 1 ? 's' : ''
@@ -316,7 +353,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       />
                       {file && (
                         <p className="text-sm text-muted-foreground">
-                          Selected: {file.name} ({formatFileSize(file.size)})
+                          {t('selected')}: {file.name} ({formatFileSize(file.size)})
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
@@ -377,7 +414,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      Loading attachments...
+                      {t('loading_attachments')}
                     </div>
                   ) : attachments.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
@@ -407,14 +444,20 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
-                              {formatDate(attachment.created_at)}
+                              {formatDate(attachment.created_at, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handlePreview(attachment.url)}
+                                  onClick={() => handlePreview(attachment)}
                                   disabled={!attachment.url}
                                 >
                                   <Eye className="h-4 w-4" />
@@ -426,6 +469,15 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    {attachment.type === 'video' && (
+                                      <DropdownMenuItem 
+                                        onClick={() => handleProcessVideo(attachment)}
+                                        disabled={startVideoProcessingMutation.isPending}
+                                      >
+                                        <Brain className="h-4 w-4 mr-2" />
+                                        {startVideoProcessingMutation.isPending ? 'Starting...' : 'Process for AI'}
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem onClick={() => handleEdit(attachment)}>
                                       <Edit className="h-4 w-4 mr-2" />
                                       {t('edit')}
@@ -449,13 +501,19 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                 </CardContent>
               </Card>
             </TabsContent>
+
           </Tabs>
         </DialogContent>
       </Dialog>
 
       {/* Preview Modal */}
-      {previewUrl && (
-        <PreviewAttachment url={previewUrl} onClose={() => setPreviewUrl(null)} />
+      {previewData && (
+        <PreviewAttachment 
+          url={previewData.url} 
+          attachmentId={previewData.attachmentId}
+          fileType={previewData.fileType as 'pdf' | 'video' | 'image' | 'office' | 'text' | 'other'}
+          onClose={() => setPreviewData(null)} 
+        />
       )}
 
       {/* Edit Dialog */}
@@ -562,6 +620,14 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Video Processing Progress Dialog */}
+      <VideoProcessingProgress
+        queueId={videoProcessingState.queueId}
+        isOpen={videoProcessingState.isOpen}
+        onClose={() => setVideoProcessingState({ isOpen: false, queueId: null })}
+        attachmentTitle={videoProcessingState.attachmentTitle}
+      />
     </>
   )
 }

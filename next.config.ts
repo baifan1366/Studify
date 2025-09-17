@@ -7,12 +7,21 @@ const withSerwist = withSerwistInit({
   // use something else that works, such as "service-worker/index.ts".
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
-  disable: process.env.NEXT_PUBLIC_NODE_ENV !== "production",
+  disable: process.env.NODE_ENV !== "production",
 });
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      // Rewrite font requests to bypass locale routing
+      {
+        source: '/:locale/fonts/:path*',
+        destination: '/fonts/:path*',
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -29,6 +38,16 @@ const nextConfig: NextConfig = {
           {
             key: "Access-Control-Allow-Headers",
             value: "Content-Type, Authorization",
+          },
+        ],
+      },
+      // Add proper headers for font files
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },

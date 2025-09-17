@@ -32,6 +32,26 @@ create table if not exists profiles (
   onboarded boolean not null default false,
   onboarded_step int default 0 check (onboarded_step >= 0 and onboarded_step <= 3),
   is_deleted boolean not null default false,
+  -- Enhanced profile fields for settings functionality
+  preferences jsonb default '{}',
+  theme text default 'system' check (theme in ('light', 'dark', 'system')),
+  language text default 'en',
+  notification_settings jsonb default '{
+    "email_notifications": true,
+    "push_notifications": true,
+    "course_updates": true,
+    "community_updates": false,
+    "marketing_emails": false
+  }',
+  privacy_settings jsonb default '{
+    "profile_visibility": "public",
+    "show_email": false,
+    "show_progress": true,
+    "data_collection": true
+  }',
+  two_factor_enabled boolean default false,
+  email_verified boolean default false,
+  profile_completion int default 0 check (profile_completion >= 0 and profile_completion <= 100),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   last_login timestamptz,
@@ -175,6 +195,7 @@ create table if not exists course (
   total_students int default 0,
   is_free boolean not null default false,
   status text check(status in ('active', 'pending', 'inactive')) default 'inactive',
+  community_group_public_id UUID references community_group(public_id) on delete set null,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -221,6 +242,11 @@ create table if not exists course_attachments (
   owner_id bigint not null references profiles(id) on delete restrict,
   title text not null,
   url text,
+  type text DEFAULT 'other',
+  cloudinary_hls_url text,
+  cloudinary_mp3 text,
+  cloudinary_processed_at timestamptz,
+  cloudinary_public_id text,
   size int,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
@@ -256,17 +282,6 @@ create table if not exists course_progress (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, lesson_id)
-);
-
-create table if not exists course_material (
-  id bigserial primary key,
-  course_id bigint not null references course(id) on delete cascade,
-  title text not null,
-  content_url text,
-  material_type text check (material_type in ('video','pdf','link')) not null,
-  order_index int not null default 1,
-  is_deleted boolean not null default false,
-  created_at timestamptz default now()
 );
 
 create table if not exists course_chapter (
@@ -892,7 +907,7 @@ create table if not exists classroom_engagement_report (
 -- =========================
 create table if not exists community_group (
   id bigserial primary key,
-  public_id uuid not null default uuid_generate_v4(),
+  public_id uuid not null default uuid_generate_v4() unique,
   name text not null,
   description text,
   slug text unique not null,
@@ -1006,41 +1021,74 @@ create table if not exists community_user_achievement (
   public_id uuid not null default uuid_generate_v4(),
   user_id bigint not null references profiles(id) on delete cascade,
   achievement_id bigint not null references community_achievement(id) on delete cascade,
+  current_value int not null default 0,
+  unlocked boolean not null default false,
   unlocked_at timestamptz not null default now(),
   is_deleted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
+
+  constraint unique_user_achievement unique (user_id, achievement_id)
 );
 
-create table if not exists community_challenges (
+create table if not exists community_checkin (
+  id bigserial primary key,
+  user_id bigint not null references profiles(id) on delete cascade,
+  checkin_date date not null default current_date,
+  created_at timestamptz not null default now(),
+  unique (user_id, checkin_date) -- 防止同一天重复签到
+);
+
+create table if not exists community_quiz (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
+  slug text unique not null, -- 比如 "calculus-basics"
+  creator_id uuid not null references auth.users(id),
   title text not null,
   description text,
-  max_score int not null,
-  passing_score int not null,
-  metadata jsonb,
+  tags text[],
+  difficulty int check (difficulty between 1 and 5),
   is_deleted boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
+  created_at timestamptz not null default now()
 );
 
-create table if not exists community_challenge_results (
+create table if not exists community_quiz_question (
   id bigserial primary key,
   public_id uuid not null default uuid_generate_v4(),
-  user_id bigint not null references profiles(id) on delete cascade,
-  challenge_id bigint not null references community_challenges(id) on delete cascade,
-  score int not null,
-  max_score int not null,
-  passed boolean not null,
-  attempted_at timestamptz not null default now(),
-  is_deleted boolean not null default false,
+  quiz_id bigint not null references community_quiz(id),
+  slug text not null, -- 比如 "q1" 或 "derivative-definition"
+  question_type text not null default 'single_choice' check (question_type in ('single_choice', 'multiple_choice', 'fill_in_blank'));
+  question_text text not null,
+  options text[],
+  correct_answers text[],
+  explanation text,
+  unique(quiz_id, slug) -- 确保在 quiz 内唯一
+);
+
+create table if not exists community_quiz_attempt (
+  id bigserial primary key,
+  quiz_id bigint not null references community_quiz(id),
+  user_id uuid not null references auth.users(id),
+  answers text[], -- 用户提交答案
+  is_correct boolean,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists community_quiz_attempt_answer (
+  id bigserial primary key,
+  attempt_id bigint not null references community_quiz_attempt(id) on delete cascade,
+  question_id bigint not null references community_quiz_question(id),
+  user_answer text[],   -- 存储用户选的选项索引，或填空的文本
+  is_correct boolean
+);
+
+create table if not exists community_quiz_like (
+  id bigserial primary key,
+  quiz_id bigint not null references community_quiz(id),
+  user_id uuid not null references auth.users(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique(user_id, challenge_id)
+  unique(quiz_id, user_id)
 );
 
 -- =========================
@@ -1297,3 +1345,52 @@ CREATE TABLE IF NOT EXISTS document_hierarchy (
   UNIQUE(content_type, content_id)
 );
 
+CREATE TABLE IF NOT EXISTS announcements (
+    id bigserial primary key,
+    public_id uuid not null default uuid_generate_v4(),
+    created_by bigint not null references profiles(id) on delete cascade,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    image_url TEXT,               -- optional (for rich notifications)
+    deep_link TEXT,               -- optional (redirect URL in app)
+    status VARCHAR(20) DEFAULT 'draft',  -- draft | scheduled | sent | failed
+    scheduled_at TIMESTAMPTZ,     -- optional, for scheduling
+    sent_at TIMESTAMPTZ,
+    onesignal_id TEXT,            -- store OneSignal notification_id
+    onesignal_response JSONB,     -- store full API response
+    is_deleted boolean default false,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS video_embeddings (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  attachment_id bigint NOT NULL references course_attachments(id) on delete cascade,
+  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),  
+  embedding vector(384), -- 384-dimensional embedding vector
+  content_text text NOT NULL, -- The actual text that was embedded
+  chunk_type text CHECK (chunk_type IN ('summary', 'section', 'paragraph', 'detail')),
+  hierarchy_level int DEFAULT 0,
+  parent_chunk_id bigint REFERENCES embeddings(id),
+  section_title text,
+  semantic_density float CHECK (semantic_density >= 0 AND semantic_density <= 1),
+  key_terms text[],
+  sentence_count int DEFAULT 0,
+  word_count int DEFAULT 0,
+  has_code_block boolean DEFAULT false,
+  has_table boolean DEFAULT false,
+  has_list boolean DEFAULT false,
+  chunk_language text DEFAULT 'en',
+  embedding_model text DEFAULT 'intfloat/e5-small',
+  language text DEFAULT 'en',
+  token_count int,
+  status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'outdated')) DEFAULT 'pending',
+  error_message text,
+  retry_count int DEFAULT 0,
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
+);

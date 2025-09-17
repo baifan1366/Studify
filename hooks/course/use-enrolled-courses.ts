@@ -4,50 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { classroomApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { apiSend, apiGet } from "@/lib/api-config";
-
-// =====================
-// Type Definitions
-// =====================
-
-// 已注册课程类型
-export interface EnrolledCourse {
-  id: string;
-  title: string;
-  description: string;
-  instructor: string;
-  instructorAvatar?: string;
-  progress: number;
-  totalLessons: number;
-  completedLessons: number;
-  nextLesson: string;
-  dueDate: string;
-  status: string;
-  color: string;
-  lastAccessed: string;
-  tags: string[];
-  role: string;
-}
-
-// 搜索课程类型
-export interface CourseSearchResult {
-  id: string;
-  title: string;
-  description: string;
-  instructor: string;
-  instructorAvatar?: string;
-  totalLessons: number;
-  studentCount: number;
-  rating: number;
-  price: number;
-  currency: string;
-  isFree: boolean;
-  color: string;
-  tags: string[];
-  duration: string;
-}
+import { Enrollment, Course } from "@/interface";
 
 // 推荐课程类型
-export interface RecommendedCourse extends CourseSearchResult {
+export interface RecommendedCourse extends Course {
   recommendReason: string;
 }
 
@@ -57,11 +17,11 @@ export interface RecommendedCourse extends CourseSearchResult {
 
 // 获取已注册课程
 const fetchEnrolledCourses = () =>
-  apiGet<EnrolledCourse[]>(classroomApi.enrolledCourses);
+  apiGet<Enrollment[]>(classroomApi.enrolledCourses);
 
 // 搜索课程
 const searchCourses = (query: string, category?: string) =>
-  apiGet<CourseSearchResult[]>(`/api/courses/search?q=${encodeURIComponent(query)}${category ? `&category=${encodeURIComponent(category)}` : ''}`);
+  apiGet<Course[]>(`/api/courses/search?q=${encodeURIComponent(query)}${category ? `&category=${encodeURIComponent(category)}` : ''}`);
 
 // 获取推荐课程
 const fetchRecommendedCourses = () =>
@@ -81,7 +41,7 @@ const joinCourse = (courseId: string, inviteCode?: string) =>
 
 // 已注册课程 Hook
 export function useEnrolledCourses() {
-  return useQuery<EnrolledCourse[], Error>({
+  return useQuery<Enrollment[], Error>({
     queryKey: ["enrolledCourses"],
     queryFn: fetchEnrolledCourses,
     staleTime: 1000 * 60 * 3, // 缓存 3 分钟
@@ -89,9 +49,29 @@ export function useEnrolledCourses() {
   });
 }
 
+//get does user has been enroll this course or not
+export function useEnrolledCourseStatus(userId: number, courseId: number) {
+  return useQuery<Enrollment, Error>({
+    queryKey: ["enrolledCourse", userId, courseId],
+    queryFn: () => apiGet<Enrollment>(classroomApi.enrolledCoursesByUserIdAndCourseId(userId, courseId)),
+    staleTime: 1000 * 60 * 3, // 缓存 3 分钟
+    refetchOnWindowFocus: false,
+  });
+}
+
+//get current user enrolled courses
+export function useEnrolledCoursesByUserId(userId: number) {
+  return useQuery<Enrollment[], Error>({
+    queryKey: ["enrolledCourses", userId],
+    queryFn: () => apiGet<Enrollment[]>(classroomApi.enrolledCoursesByUserId(userId)),
+    staleTime: 1000 * 60 * 3, // 缓存 3 分钟
+    refetchOnWindowFocus: false,
+  });
+}
+
 // 搜索课程 Hook
 export function useSearchCourses(query: string, category?: string) {
-  return useQuery<CourseSearchResult[], Error>({
+  return useQuery<Course[], Error>({
     queryKey: ["searchCourses", query, category],
     queryFn: () => searchCourses(query, category),
     enabled: !!query, // 只有有关键词时才搜索
@@ -105,6 +85,23 @@ export function useRecommendedCourses() {
     queryKey: ["recommendedCourses"],
     queryFn: fetchRecommendedCourses,
     staleTime: 1000 * 60 * 5, // 缓存 5 分钟
+  });
+}
+
+//after payment success auto create enrollment record
+export function useCreateEnrollment() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Partial<Enrollment> & { owner_id: number, course_id: number }) =>
+      apiSend<Enrollment>({
+        url: classroomApi.createEnrollment,
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['enrolledCourses'] });
+    },
   });
 }
 

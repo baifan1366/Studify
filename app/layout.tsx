@@ -1,32 +1,17 @@
-import type { Metadata, Viewport } from "next";
+"use client";
+
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PWAProvider } from "@/components/providers/pwa-provider";
 import "./globals.css";
 import "@livekit/components-styles";
-
-export const metadata: Metadata = {
-  title: "Studify - Smart Learning Platform",
-  description: "AI-powered intelligent learning and education platform with course management, online classrooms, and community features",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Studify",
-  },
-  icons: {
-    icon: "/favicon.png",
-    apple: "/favicon.png",
-  },
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
+import { setupNotification } from "@/utils/notification/notifications-setup";
+import { useEffect } from "react";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    setupNotification();
+  }, []);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

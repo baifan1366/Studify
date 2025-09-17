@@ -56,7 +56,7 @@ export function useCourseBySlug(slug?: string) {
       if (!slug) {
         throw new Error('Course slug is required');
       }
-      return apiGet<Course>(`/api/course/${slug}`);
+      return apiGet<Course>(`/api/courses?slug=${slug}`);
     },
     enabled: Boolean(slug),
   });

@@ -4,9 +4,12 @@ export interface Achievement {
   code: string;
   name: string;
   description?: string | null;
+  current_value?: number;
   rule?: Record<string, any> | null;
-  is_deleted: boolean;
-  created_at: Date;
-  updated_at: Date;
+  unlocked?: boolean; // 针对用户
+  unlocked_at?: string; // 成就解锁时间
+  is_deleted?: boolean;
+  created_at?: Date;
+  updated_at?: Date;
   deleted_at?: Date | null;
 }

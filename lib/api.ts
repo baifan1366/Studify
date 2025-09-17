@@ -262,6 +262,7 @@ export const attachmentsApi = {
   list: "/api/attachments",
   listByOwner: (ownerId: number) => `/api/attachments?owner_id=${ownerId}`,
   create: "/api/attachments",
+  saveMetadata: "/api/attachments/save-metadata", // New endpoint for client-side uploads
   getById: (id: number) => `/api/attachments/${id}`,
   update: (id: number) => `/api/attachments/${id}`,
   delete: (id: number) => `/api/attachments/${id}`,

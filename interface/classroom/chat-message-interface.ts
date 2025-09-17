@@ -30,7 +30,7 @@ export interface HookChatMessage {
   userAvatar?: string | null;
   content: string;
   timestamp: Date;
-  type: 'text' | 'system';
+  type: 'user' | 'system';
 }
 
 // Response from chat API

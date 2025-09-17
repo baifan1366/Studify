@@ -3,7 +3,8 @@ import SingleQuizContent from "@/components/community/quiz/single/single-quiz-co
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 
 const mockQuiz: Omit<CommunityQuiz, "likes" | "comments" | "attempts"> = {
-  id: "1",
+  id: 1,
+  slug: "advanced-calculus-challenge",
   title: "Advanced Calculus Challenge",
   author: {
     display_name: "John Doe",

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const router = useRouter();
   const isAuthor = currentUser?.id === quiz.author_id;
+  const [isNavigating, setIsNavigating] = useState(false);
 
   return (
     <div className="mb-8">
@@ -56,10 +58,16 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
         ) : attemptStatus?.canAttempt ? (
           <Button 
             size="lg"
-            onClick={() => router.push(`/community/quizzes/${quiz.slug}/attempt`)}
+            disabled={isNavigating}
+            onClick={() => {
+              if (!isNavigating) {
+                setIsNavigating(true);
+                router.push(`/community/quizzes/${quiz.slug}/attempt`);
+              }
+            }}
           >
             <Play className="h-5 w-5 mr-2" />
-            {isAuthor ? "Preview Quiz" : "Attempt Quiz"}
+            {isNavigating ? "Starting..." : (isAuthor ? "Preview Quiz" : "Attempt Quiz")}
           </Button>
         ) : (
           <Button size="lg" disabled>

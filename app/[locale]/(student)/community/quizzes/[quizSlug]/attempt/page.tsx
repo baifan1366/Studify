@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -62,9 +62,12 @@ export default function QuizAttemptPage() {
     attemptId ?? -1
   );
 
-  // 初始化 attempt
+  // 初始化 attempt - 使用ref防止重复创建
+  const attemptCreatedRef = useRef(false);
+  
   useEffect(() => {
-    if (!attemptId && !isCreatingAttempt && !error) {
+    if (!attemptId && !isCreatingAttempt && !error && !attemptCreatedRef.current) {
+      attemptCreatedRef.current = true;
       setIsCreatingAttempt(true);
       createAttempt()
         .then((data) => {
@@ -74,12 +77,13 @@ export default function QuizAttemptPage() {
         .catch((err) => {
           console.error("Failed to create attempt:", err);
           setError(err.message || "Failed to start quiz. You may have reached the maximum number of attempts.");
+          attemptCreatedRef.current = false; // 重置以允许重试
         })
         .finally(() => {
           setIsCreatingAttempt(false);
         });
     }
-  }, [attemptId, createAttempt, isCreatingAttempt, error]);
+  }, []); // 空依赖数组，只在组件挂载时执行一次
 
   // 倒计时
   useEffect(() => {
@@ -115,6 +119,7 @@ export default function QuizAttemptPage() {
               onClick={() => {
                 setError(null);
                 setAttemptId(null);
+                attemptCreatedRef.current = false; // 重置ref以允许重新创建
               }}
               variant="default"
             >

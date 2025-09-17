@@ -79,15 +79,32 @@ function generateClassCode(): string {
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
+  console.log('[Webhook] Received Stripe webhook request');
+  
   try {
     const body = await request.text();
-    const signature = (await headers()).get("stripe-signature")!;
+    const signature = (await headers()).get("stripe-signature");
+
+    console.log('[Webhook] Body length:', body.length);
+    console.log('[Webhook] Has signature:', !!signature);
+    console.log('[Webhook] Webhook secret configured:', !!webhookSecret);
+
+    if (!signature) {
+      console.error('[Webhook] Missing Stripe signature header');
+      return NextResponse.json({ error: "Missing signature header" }, { status: 400 });
+    }
+
+    if (!webhookSecret) {
+      console.error('[Webhook] Missing webhook secret configuration');
+      return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+    }
 
     let event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      console.log('[Webhook] Event type:', event.type);
     } catch (err) {
-      console.error("Webhook signature verification failed:", err);
+      console.error("[Webhook] Signature verification failed:", err);
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
@@ -95,8 +112,16 @@ export async function POST(request: NextRequest) {
 
     switch (event.type) {
       case "checkout.session.completed": {
+        console.log('[Webhook] Processing checkout.session.completed');
         const session = event.data.object;
-        const { orderId, courseId, userId } = session.metadata!;
+        
+        if (!session.metadata) {
+          console.error('[Webhook] Missing session metadata');
+          return NextResponse.json({ error: "Missing session metadata" }, { status: 400 });
+        }
+        
+        const { orderId, courseId, userId } = session.metadata;
+        console.log('[Webhook] Session metadata:', { orderId, courseId, userId });
 
         // Get order details
         const { data: order, error: orderError } = await supabase
@@ -139,6 +164,8 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (course && user) {
+          console.log('[Webhook] Creating enrollment for user:', user.id, 'course:', course.id);
+          
           // Enroll user in course
           const { error: enrollmentError } = await supabase
             .from("course_enrollment")
@@ -150,8 +177,9 @@ export async function POST(request: NextRequest) {
             });
 
           if (enrollmentError) {
-            console.error("Failed to enroll user:", enrollmentError);
+            console.error("[Webhook] Failed to enroll user:", enrollmentError);
           } else {
+            console.log('[Webhook] Enrollment successful, handling classroom flow');
             // After enrollment, handle classroom creation/joining as per COURSE.md L15-20
             await handleClassroomFlow(supabase, course, user.id);
             let groupPublicId = course.community_group_public_id;
@@ -246,9 +274,10 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
+    console.log('[Webhook] Successfully processed webhook event');
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("[Webhook] Webhook error:", error);
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 }

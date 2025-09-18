@@ -204,7 +204,7 @@ export default function AdminCoursesStats() {
                   <div className="text-right">
                     <p className="text-sm font-medium">{course.total_students} students</p>
                     <p className="text-xs text-muted-foreground">
-                      ⭐ {course.average_rating.toFixed(1)} • {course.total_lessons} lessons
+                      ⭐ {course.average_rating ? course.average_rating.toFixed(1) : 'N/A'} • {course.total_lessons} lessons
                     </p>
                   </div>
                 </div>

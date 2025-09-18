@@ -367,7 +367,7 @@ export default function AdminCoursesList() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{course.average_rating.toFixed(1)}</span>
+                          <span className="text-sm">{course.average_rating ? course.average_rating.toFixed(1) : 'N/A'}</span>
                         </div>
                       </TableCell>
                       <TableCell>

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUpdateStudentStatus } from '@/hooks/students/use-student';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,11 +46,10 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock,
-  ArrowLeft,
   Save,
   RotateCcw,
-  Info
+  Info,
+  Edit
 } from 'lucide-react';
 
 // Using the actual enrollment status from the interface
@@ -56,8 +62,9 @@ interface StudentWithProfile extends Enrollment {
 }
 
 interface EditStudentStatusProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   studentId: string;
-  onClose?: () => void;
   onSave?: (status: EnrollmentStatus) => void;
 }
 
@@ -104,12 +111,12 @@ const statusConfig: Record<EnrollmentStatus, {
 };
 
 export default function EditStudentStatus({ 
+  open,
+  onOpenChange,
   studentId, 
-  onClose, 
   onSave 
 }: EditStudentStatusProps) {
   const t = useTranslations('EditStudentStatus');
-  const router = useRouter();
   const { toast } = useToast();
   const { mutateAsync: updateStatus, isPending } = useUpdateStudentStatus();
 
@@ -122,6 +129,10 @@ export default function EditStudentStatus({
 
   // Mock student data - replace with actual API call
   useEffect(() => {
+    if (!open || !studentId) {
+      return;
+    }
+
     const fetchStudent = async () => {
       try {
         setIsLoading(true);
@@ -214,7 +225,7 @@ export default function EditStudentStatus({
     };
 
     fetchStudent();
-  }, [studentId, t, toast]);
+  }, [open, studentId, t, toast]);
 
   // Track changes
   useEffect(() => {
@@ -264,6 +275,9 @@ export default function EditStudentStatus({
       // Callback for parent component
       onSave?.(selectedStatus);
       
+      // Close dialog
+      onOpenChange(false);
+      
     } catch (error) {
       toast({
         title: t('update_failed'),
@@ -278,10 +292,10 @@ export default function EditStudentStatus({
       if (confirm(t('unsaved_changes_warning'))) {
         setSelectedStatus(student?.status || 'active');
         setHasChanges(false);
-        onClose?.();
+        onOpenChange(false);
       }
     } else {
-      onClose?.();
+      onOpenChange(false);
     }
   };
 
@@ -292,84 +306,71 @@ export default function EditStudentStatus({
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-64" />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Skeleton className="h-96 w-full rounded-xl" />
-            </div>
-            <div>
-              <Skeleton className="h-64 w-full rounded-xl" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!student) {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <XCircle size={48} className="text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {t('student_not_found')}
-            </h3>
-            <p className="text-muted-foreground text-center mb-6">
-              {t('student_not_found_desc')}
-            </p>
-            <Button onClick={() => router.back()}>
-              <ArrowLeft size={16} className="mr-2" />
-              {t('go_back')}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setStudent(null);
+      setSelectedStatus('active');
+      setHasChanges(false);
+      setIsLoading(true);
+    }
+  }, [open]);
 
   const currentConfig = statusConfig[selectedStatus];
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => router.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft size={16} />
-              {t('back')}
-            </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-                {t('edit_student_status')}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {t('edit_student_status_desc')}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit size={20} />
+              {t('edit_student_status')}
+            </DialogTitle>
+            <DialogDescription>
+              {student ? 
+                t('edit_student_status_desc', { name: student.student_profile?.display_name || student.student_profile?.full_name || 'Student' }) :
+                t('loading_student_data')
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="space-y-6 py-8">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-16 w-16 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+              <Skeleton className="h-32 w-full" />
+            </div>
+          )}
+
+          {/* Error state */}
+          {!isLoading && !student && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <XCircle size={48} className="text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                {t('student_not_found')}
+              </h3>
+              <p className="text-muted-foreground text-center mb-6">
+                {t('student_not_found_desc')}
               </p>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Student Information */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Student Profile Card */}
-            <Card>
+          {/* Main Content */}
+          {!isLoading && student && (
+            <div className="space-y-6">
+              {/* Student Profile Card */}
+              <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User size={20} />
@@ -448,10 +449,10 @@ export default function EditStudentStatus({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
 
-            {/* Status Change Section */}
-            <Card>
+              {/* Status Change Section */}
+              <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <RotateCcw size={20} />
@@ -515,95 +516,70 @@ export default function EditStudentStatus({
               </CardContent>
             </Card>
           </div>
+        )}
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Action Buttons */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  {t('actions')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  onClick={handleSave}
-                  disabled={!hasChanges || isPending}
-                  className="w-full flex items-center gap-2"
-                  size="lg"
-                >
-                  {isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {t('saving')}
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} />
-                      {t('save_changes')}
-                    </>
-                  )}
-                </Button>
-                
-                <Button 
-                  variant="outline"
-                  onClick={handleReset}
-                  disabled={!hasChanges}
-                  className="w-full flex items-center gap-2"
-                >
-                  <RotateCcw size={16} />
-                  {t('reset_changes')}
-                </Button>
-                
-                <Button 
-                  variant="ghost"
-                  onClick={handleCancel}
-                  className="w-full flex items-center gap-2"
-                >
-                  <ArrowLeft size={16} />
-                  {t('cancel')}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Status Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Info size={20} />
-                  {t('status_information')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(statusConfig).map(([status, config]) => (
-                    <div 
-                      key={status}
-                      className={`p-3 rounded-lg border transition-all ${
-                        selectedStatus === status 
-                          ? config.bgColor + ' ring-2 ring-primary/20' 
-                          : 'bg-muted/30 border-border'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={config.color}>
-                          {config.icon}
-                        </span>
-                        <span className="font-medium text-sm">
-                          {t(`status_${status}`)}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {t(`status_${status}_desc`)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+        {/* Dialog Footer with Action Buttons */}
+        {!isLoading && student && (
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button 
+              variant="outline"
+              onClick={handleReset}
+              disabled={!hasChanges}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw size={16} />
+              {t('reset_changes')}
+            </Button>
+            
+            <Button 
+              variant="ghost"
+              onClick={handleCancel}
+              className="flex items-center gap-2"
+            >
+              <XCircle size={16} />
+              {t('cancel')}
+            </Button>
+            
+            <Button 
+              variant="outline"
+              onClick={handleReset}
+              disabled={!hasChanges}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw size={16} />
+              {t('reset_changes')}
+            </Button>
+            
+            <Button 
+              variant="ghost"
+              onClick={handleCancel}
+              className="flex items-center gap-2"
+            >
+              <XCircle size={16} />
+              {t('cancel')}
+            </Button>
+            
+            <Button 
+              onClick={handleSave}
+              disabled={!hasChanges || isPending}
+              className="flex items-center gap-2"
+            >
+              {isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {t('saving')}
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  {t('save_changes')}
+                </>
+              )}
+            </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
@@ -631,6 +607,6 @@ export default function EditStudentStatus({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

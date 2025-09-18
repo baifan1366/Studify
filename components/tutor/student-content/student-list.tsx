@@ -33,10 +33,10 @@ import {
   Grid,
   List
 } from 'lucide-react';
-import Link from 'next/link';
 import { Course } from '@/interface/courses/course-interface';
 import { Enrollment } from '@/interface/courses/enrollment-interface';
 import { Profile } from '@/interface/user/profile-interface';
+import EditStudentStatus from './edit-student-status';
 
 type ViewMode = 'courses' | 'students';
 type SortBy = 'name' | 'date' | 'progress';
@@ -53,10 +53,16 @@ interface CourseWithStudentCount extends Course {
 }
 
 export default function StudentList() {
-  const t = useTranslations('StudentList');
+  const t = useTranslations('student');
   const { data: user } = useUser();
+  const { data: courses, isLoading: coursesLoading } = useCourses();
+  const { data: enrollments, isLoading: enrollmentsLoading } = useEnrolledStudent();
+  
+  // Dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+
   const userId = user?.profile?.id || "";
-  const { data: courses, isLoading: coursesLoading } = useCourses(Number(userId));
   const { data: students, isLoading: studentsLoading } = useEnrolledStudent(undefined, Number(userId));
   
   // State management
@@ -69,7 +75,7 @@ export default function StudentList() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const isLoading = coursesLoading || studentsLoading;
+  const isLoading = coursesLoading || studentsLoading || enrollmentsLoading;
 
   // Process actual enrollment data
   const enhancedStudents: EnhancedEnrollment[] = useMemo(() => {
@@ -191,12 +197,21 @@ export default function StudentList() {
     }
   }, [viewMode, coursesWithCounts, enhancedStudents, searchQuery, selectedCourse, sortBy, sortOrder]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
-  const paginatedData = filteredAndSortedData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredAndSortedData.slice(startIndex, endIndex);
+
+  // Dialog handlers
+  const handleEditStudent = (studentId: string) => {
+    setSelectedStudentId(studentId);
+    setEditDialogOpen(true);
+  };
+
+  const handleStatusUpdate = (status: string) => {
+    // Optionally refresh data or show success message
+    setEditDialogOpen(false);
+  };
 
   // Loading skeleton
   if (isLoading) {
@@ -221,7 +236,8 @@ export default function StudentList() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -335,6 +351,7 @@ export default function StudentList() {
             students={enhancedStudents}
             selectedCourse={selectedCourse}
             onSelectCourse={setSelectedCourse}
+            onEditStudent={handleEditStudent}
             t={t}
           />
         ) : (
@@ -343,6 +360,7 @@ export default function StudentList() {
             courses={coursesWithCounts}
             selectedStudent={selectedStudent}
             onSelectStudent={setSelectedStudent}
+            onEditStudent={handleEditStudent}
             t={t}
           />
         )}
@@ -388,7 +406,16 @@ export default function StudentList() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+
+      {/* Edit Student Status Dialog */}
+      <EditStudentStatus
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        studentId={selectedStudentId}
+        onSave={handleStatusUpdate}
+      />
+    </>
   );
 }
 
@@ -397,13 +424,15 @@ function CoursesGrid({
   courses, 
   students, 
   selectedCourse, 
-  onSelectCourse, 
+  onSelectCourse,
+  onEditStudent,
   t 
 }: {
   courses: CourseWithStudentCount[];
   students: EnhancedEnrollment[];
   selectedCourse: string | null;
   onSelectCourse: (courseId: string | null) => void;
+  onEditStudent: (studentId: string) => void;
   t: any;
 }) {
   return (
@@ -483,7 +512,7 @@ function CoursesGrid({
               {students
                 .filter(student => student.course_id.toString() === selectedCourse)
                 .map((student) => (
-                  <StudentCard key={student.id} student={student} t={t} />
+                  <StudentCard key={student.id} student={student} t={t} onEditStudent={onEditStudent} />
                 ))}
             </div>
           </CardContent>
@@ -498,13 +527,15 @@ function StudentsGrid({
   students, 
   courses, 
   selectedStudent, 
-  onSelectStudent, 
+  onSelectStudent,
+  onEditStudent,
   t 
 }: {
   students: EnhancedEnrollment[];
   courses: CourseWithStudentCount[];
   selectedStudent: string | null;
   onSelectStudent: (studentId: string | null) => void;
+  onEditStudent: (studentId: string) => void;
   t: any;
 }) {
   return (
@@ -519,7 +550,7 @@ function StudentsGrid({
             onClick={() => onSelectStudent(selectedStudent === student.id.toString() ? null : student.id.toString())}
           >
             <CardContent className="p-4">
-              <StudentCard student={student} t={t} showCourse />
+              <StudentCard student={student} t={t} showCourse onEditStudent={onEditStudent} />
               
               <Button
                 variant="ghost"
@@ -595,11 +626,13 @@ function StudentsGrid({
 function StudentCard({ 
   student, 
   t, 
-  showCourse = false 
+  showCourse = false,
+  onEditStudent 
 }: { 
   student: EnhancedEnrollment; 
   t: any; 
-  showCourse?: boolean; 
+  showCourse?: boolean;
+  onEditStudent: (studentId: string) => void;
 }) {
   const studentName = student.student_profile?.display_name || student.student_profile?.full_name || 'Unknown Student';
   const studentEmail = student.student_profile?.email || 'No email';
@@ -650,12 +683,15 @@ function StudentCard({
           <span>{new Date(student.started_at).toLocaleDateString()}</span>
         </div>
         
-        <Link href={`/tutor/students/${student.id}/edit`}>
-          <Button size="sm" variant="outline" className="flex items-center gap-1">
-            <Edit size={12} />
-            {t('edit')}
-          </Button>
-        </Link>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="flex items-center gap-1"
+          onClick={() => onEditStudent(student.id.toString())}
+        >
+          <Edit size={12} />
+          {t('edit')}
+        </Button>
       </div>
     </div>
   );

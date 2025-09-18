@@ -82,9 +82,9 @@ async function handler(req: Request) {
     const isFirstDay = !existingCurrencies || existingCurrencies.length === 0;
     console.log(`[Currency API] First day check: ${isFirstDay ? 'TRUE - Creating records' : 'FALSE - Updating records'}`);
 
-    // Fetch exchange rates from exchangerate.host
+    // Fetch exchange rates from exchangerate.host using live endpoint
     const symbols = SUPPORTED_CURRENCIES.map(c => c.code).join(',');
-    const exchangeRateUrl = `https://api.exchangerate.host/latest?access_key=${apiKey}&base=USD&symbols=${symbols}&format=1`;
+    const exchangeRateUrl = `http://api.exchangerate.host/live?access_key=${apiKey}&currencies=${symbols}&source=USD&format=1`;
     
     console.log('[Currency API] Fetching rates from exchangerate.host...');
     const response = await fetch(exchangeRateUrl);
@@ -107,6 +107,17 @@ async function handler(req: Request) {
       );
     }
 
+    // Convert live quotes to rates format (quotes like USDMYR, USDEUR to direct rates)
+    const rates: { [key: string]: number } = {};
+    if (data.quotes) {
+      Object.entries(data.quotes).forEach(([pair, rate]) => {
+        // Extract currency code from pair (e.g., USDMYR -> MYR)
+        const currency = pair.slice(3); // Remove 'USD' prefix
+        rates[currency] = rate as number;
+      });
+    }
+    rates['USD'] = 1.0; // USD base rate
+
     console.log('[Currency API] Successfully fetched exchange rates');
 
     if (isFirstDay) {
@@ -118,7 +129,7 @@ async function handler(req: Request) {
         name: currency.name,
         country: currency.country,
         symbol: currency.symbol,
-        rate_to_usd: currency.code === 'USD' ? 1.0 : (data.rates[currency.code] || 1.0)
+        rate_to_usd: currency.code === 'USD' ? 1.0 : (rates[currency.code] || 1.0)
       }));
 
       const { data: insertedCurrencies, error: insertError } = await supabase
@@ -141,7 +152,7 @@ async function handler(req: Request) {
         message: 'Currency records created successfully',
         action: 'created',
         count: insertedCurrencies.length,
-        rates: data.rates
+        rates: rates
       });
 
     } else {
@@ -149,7 +160,7 @@ async function handler(req: Request) {
       console.log('[Currency API] Updating existing currency rates...');
       
       const updatePromises = SUPPORTED_CURRENCIES.map(async (currency) => {
-        const newRate = currency.code === 'USD' ? 1.0 : (data.rates[currency.code] || 1.0);
+        const newRate = currency.code === 'USD' ? 1.0 : (rates[currency.code] || 1.0);
         
         const { error } = await supabase
           .from('currencies')
@@ -175,7 +186,7 @@ async function handler(req: Request) {
         message: 'Currency rates updated successfully',
         action: 'updated',
         count: updatedRates.length,
-        rates: data.rates,
+        rates: rates,
         updatedRates
       });
     }

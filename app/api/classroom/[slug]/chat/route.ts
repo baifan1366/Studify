@@ -10,7 +10,8 @@ export async function GET(
   try {
     const { slug } = await params;
     const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get('session_id');
+    // Accept both session_id and sessionId for compatibility
+    const sessionId = searchParams.get('session_id') || searchParams.get('sessionId');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -59,7 +60,36 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Build query for chat messages
+    // Get all live sessions for this classroom
+    const { data: classroomSessions, error: sessionsError } = await supabase
+      .from('classroom_live_session')
+      .select('id')
+      .eq('classroom_id', classroom.id);
+
+    if (sessionsError) {
+      console.error('Error fetching classroom sessions:', sessionsError);
+      // Return empty list instead of 500 to avoid breaking UI
+      return NextResponse.json({
+        success: true,
+        messages: [],
+        total: 0,
+        hasMore: false
+      });
+    }
+
+    const sessionIds = classroomSessions?.map(s => s.id) || [];
+    
+    if (sessionIds.length === 0) {
+      // No sessions found, return empty messages
+      return NextResponse.json({
+        success: true,
+        messages: [],
+        total: 0,
+        hasMore: false
+      });
+    }
+
+    // Query chat messages for these sessions
     let query = supabase
       .from('classroom_chat_message')
       .select(`
@@ -68,19 +98,14 @@ export async function GET(
         session_id,
         message,
         created_at,
-        updated_at,
-        is_deleted,
-        profiles!classroom_chat_message_sender_id_fkey (
-          id,
-          display_name,
-          avatar_url
-        )
+        sender_id
       `)
+      .in('session_id', sessionIds)
       .eq('is_deleted', false)
       .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
 
-    // Filter by session_id if provided
+    // Filter by specific session_id if provided
     if (sessionId) {
       query = query.eq('session_id', parseInt(sessionId));
     }
@@ -89,29 +114,79 @@ export async function GET(
 
     if (messagesError) {
       console.error('Error fetching messages:', messagesError);
-      return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
+      // Return empty list instead of 500 to avoid breaking UI
+      return NextResponse.json({
+        success: true,
+        messages: [],
+        total: 0,
+        hasMore: false
+      });
     }
 
+    // If there are no messages, return early
+    if (!messages || messages.length === 0) {
+      return NextResponse.json({
+        success: true,
+        messages: [],
+        total: 0,
+        hasMore: false
+      });
+    }
+
+    // Get user profiles for message senders
+    const senderIds = [...new Set(messages.map(m => m.sender_id))];
+    let profiles: { id: number; display_name: string | null; avatar_url: string | null }[] | null = [];
+    if (senderIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', senderIds);
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Proceed without profiles to avoid failing the whole request
+        profiles = [];
+      } else {
+        profiles = profilesData;
+      }
+    }
+
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+    // Get current user's profile for comparison
+    const currentUserProfile = await supabase
+      .from('profiles')
+      .select('id, user_id')
+      .eq('user_id', user.id)
+      .single();
+
     // Transform messages to match frontend interface
-    const transformedMessages = messages?.map(msg => ({
-      id: msg.public_id,
-      userId: (msg.profiles as any)?.id?.toString() || '',
-      userName: (msg.profiles as any)?.display_name || 'Unknown User',
-      userAvatar: (msg.profiles as any)?.avatar_url || null,
-      content: msg.message,
-      timestamp: new Date(msg.created_at),
-      type: 'text' as const
-    })) || [];
+    const transformedMessages = messages?.map(msg => {
+      const profile = profileMap.get(msg.sender_id);
+      const isCurrentUser = msg.sender_id === currentUserProfile.data?.id;
+      return {
+        id: msg.public_id,
+        userId: isCurrentUser ? currentUserProfile.data?.user_id || '' : profile?.id?.toString() || '',
+        userName: profile?.display_name || 'Unknown User',
+        userAvatar: profile?.avatar_url || null,
+        content: msg.message,
+        timestamp: new Date(msg.created_at),
+        type: 'text' as const
+      };
+    }) || [];
 
     return NextResponse.json({
+      success: true,
       messages: transformedMessages,
-      total: messages?.length || 0,
-      hasMore: messages?.length === limit
+      total: transformedMessages.length,
+      hasMore: transformedMessages.length === limit
     });
 
   } catch (error) {
     console.error('Chat messages fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -217,7 +292,7 @@ export async function POST(
       type: 'text' as const
     };
 
-    return NextResponse.json({ message: transformedMessage }, { status: 201 });
+    return NextResponse.json({ success: true, message: transformedMessage }, { status: 201 });
 
   } catch (error) {
     console.error('Chat message send error:', error);

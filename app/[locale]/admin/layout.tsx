@@ -7,7 +7,9 @@ export default async function AdminLayout({
 }) {
   return (
     <LayoutWrapper>
-      {children}
+      <div className="p-4">
+        {children}
+      </div>
     </LayoutWrapper>
   );
 }

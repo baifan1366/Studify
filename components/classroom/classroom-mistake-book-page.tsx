@@ -276,7 +276,7 @@ export default function ClassroomMistakeBookPage({
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -322,7 +322,7 @@ export default function ClassroomMistakeBookPage({
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardContent className="pt-6">
             <div className="flex items-center">
               <AlertCircle className="h-8 w-8 text-red-600" />
@@ -334,7 +334,7 @@ export default function ClassroomMistakeBookPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardContent className="pt-6">
             <div className="flex items-center">
               <Brain className="h-8 w-8 text-blue-600" />
@@ -348,7 +348,7 @@ export default function ClassroomMistakeBookPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardContent className="pt-6">
             <div className="flex items-center">
               <FileText className="h-8 w-8 text-green-600" />
@@ -362,7 +362,7 @@ export default function ClassroomMistakeBookPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardContent className="pt-6">
             <div className="flex items-center">
               <Tag className="h-8 w-8 text-purple-600" />
@@ -378,7 +378,7 @@ export default function ClassroomMistakeBookPage({
       {/* Mistake List */}
       <div className="space-y-4">
         {filteredMistakes.length === 0 ? (
-          <Card>
+          <Card className="bg-transparent p-2">
             <CardContent className="pt-6">
               <div className="text-center py-8">
                 <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />

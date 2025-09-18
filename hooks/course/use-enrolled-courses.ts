@@ -60,12 +60,24 @@ export function useEnrolledCourseStatus(userId: number, courseId: number) {
   });
 }
 
-//get current user enrolled courses
-export function useEnrolledCoursesByUserId(userId: number) {
+// Get enrolled courses for a specific user
+export function useEnrolledCoursesByUserId(userId: number | null) {
   return useQuery<Enrollment[], Error>({
     queryKey: ["enrolledCourses", userId],
-    queryFn: () => apiGet<Enrollment[]>(classroomApi.enrolledCoursesByUserId(userId)),
-    staleTime: 1000 * 60 * 3, // 缓存 3 分钟
+    queryFn: async () => {
+      if (!userId) {
+        return [];
+      }
+      try {
+        const data = await apiGet<Enrollment[]>(classroomApi.enrolledCoursesByUserId(userId));
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching enrollments:', error);
+        throw error;
+      }
+    },
+    enabled: !!userId, // Only run the query if userId is available
+    staleTime: 1000 * 60 * 3, // 3 minutes cache
     refetchOnWindowFocus: false,
   });
 }

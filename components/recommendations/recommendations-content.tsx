@@ -216,7 +216,7 @@ function CategorySection({
   const t = useTranslations('Recommendations');
   
   return (
-    <Card>
+    <Card className="bg-transparent p-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {icon}

@@ -4,17 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { useStudents } from '@/hooks/profile/use-students';
-import AnimatedSidebar from '@/components/sidebar';
-import ClassroomHeader from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
 
 export default function StudentsContent() {
-  const [activeMenuItem, setActiveMenuItem] = useState('students');
   const [user, setUser] = useState<User | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
   
   const { isLoading } = useStudents();
   const { toast } = useToast();
@@ -48,24 +42,6 @@ export default function StudentsContent() {
     fetchUser();
   }, [toast]);
 
-
-
-  const handleMenuItemClick = (itemId: string) => {
-    setActiveMenuItem(itemId);
-    console.log('Menu item clicked:', itemId);
-  };
-
-  const handleHeaderAction = (action: string) => {
-    console.log('Header action:', action);
-  };
-
-  const handleMenuToggle = () => {
-    const newExpanded = !isPermanentlyExpanded;
-    setIsPermanentlyExpanded(newExpanded);
-    setSidebarExpanded(newExpanded);
-    setSidebarWidth(newExpanded ? 280 : 80);
-  };
-
   const handleViewProfile = (studentId: number) => {
     toast({
       title: "Profile View",
@@ -91,41 +67,7 @@ export default function StudentsContent() {
   ];
 
   return (
-    <AnimatedBackground sidebarWidth={sidebarWidth}>
-      {/* Header */}
-      <ClassroomHeader
-        title="Students"
-        userName={user?.email?.split('@')[0] || 'Student'}
-        onProfileClick={() => handleHeaderAction('profile')}
-        sidebarExpanded={isPermanentlyExpanded}
-        onMenuToggle={handleMenuToggle}
-      />
-
-      {/* Sidebar */}
-      <AnimatedSidebar
-        activeItem={activeMenuItem}
-        onItemClick={handleMenuItemClick}
-        onExpansionChange={setSidebarExpanded}
-        isPermanentlyExpanded={isPermanentlyExpanded}
-      />
-
-      {/* Main Content Area */}
-      <motion.div
-        className="relative z-10 mt-16 p-6 h-full overflow-y-auto"
-        style={{
-          marginLeft: `${sidebarWidth}px`, // Use shared state for synchronization
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          width: `calc(100vw - ${sidebarWidth}px)`
-        }}
-      >
-
-        {/* Students Content */}
-        <motion.div
-          className="relative z-10 space-y-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
+    <>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
               Students Management
@@ -213,8 +155,6 @@ export default function StudentsContent() {
               ))
             )}
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatedBackground>
+    </>
   );
 }

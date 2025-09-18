@@ -1,20 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 
 /**
  * Handle classroom creation and joining after enrollment
  * Implements COURSE.md L15-20 flow
  */
-async function handleClassroomFlow(supabase: any, course: any, userId: number) {
+async function handleClassroomFlow(supabase: any, course: any, userId: number): Promise<{ success: boolean; error?: string }> {
   try {
+    
     // Check if classroom exists for this course slug
-    const { data: existingClassroom } = await supabase
+    const { data: existingClassroom, error: classroomError } = await supabase
       .from('classroom')
       .select('*')
       .eq('slug', course.slug)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle "not found" gracefully
+
+    if (classroomError) {
+      console.error('[ClassroomFlow] Failed to lookup classroom:', classroomError);
+      return { success: false, error: `Failed to lookup classroom: ${classroomError.message}` };
+    }
 
     let classroomId;
 
@@ -34,21 +40,32 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number) {
         .single();
 
       if (createError) {
-        console.error('Failed to create classroom:', createError);
-        return;
+        console.error('[ClassroomFlow] Failed to create classroom:', createError);
+        return { success: false, error: `Failed to create classroom: ${createError.message}` };
       }
+      
+      if (!newClassroom) {
+        console.error('[ClassroomFlow] Classroom created but no data returned');
+        return { success: false, error: 'Classroom created but no data returned' };
+      }
+      
       classroomId = newClassroom.id;
     } else {
       classroomId = existingClassroom.id;
     }
 
-    // Join user to classroom (useJoinClassroom equivalent)
-    const { data: existingMembership } = await supabase
+    // Check if user is already a member
+    const { data: existingMembership, error: membershipError } = await supabase
       .from('classroom_member')
       .select('id')
       .eq('classroom_id', classroomId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle "not found" gracefully
+
+    if (membershipError) {
+      console.error('[ClassroomFlow] Failed to check existing membership:', membershipError);
+      return { success: false, error: `Failed to check membership: ${membershipError.message}` };
+    }
 
     if (!existingMembership) {
       const { error: joinError } = await supabase
@@ -61,11 +78,15 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number) {
         });
 
       if (joinError) {
-        console.error('Failed to join classroom:', joinError);
+        console.error('[ClassroomFlow] Failed to join classroom:', joinError);
+        return { success: false, error: `Failed to join classroom: ${joinError.message}` };
       }
-    }
+    } 
+
+    return { success: true };
   } catch (error) {
-    console.error('Classroom flow error:', error);
+    console.error('[ClassroomFlow] Unexpected error in classroom flow:', error);
+    return { success: false, error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
 
@@ -79,24 +100,41 @@ function generateClassCode(): string {
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
+  
   try {
     const body = await request.text();
-    const signature = (await headers()).get("stripe-signature")!;
+    const signature = (await headers()).get("stripe-signature");
+
+    if (!signature) {
+      console.error('[Webhook] Missing Stripe signature header');
+      return NextResponse.json({ error: "Missing signature header" }, { status: 400 });
+    }
+
+    if (!webhookSecret) {
+      console.error('[Webhook] Missing webhook secret configuration');
+      return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+    }
 
     let event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
-      console.error("Webhook signature verification failed:", err);
+      console.error("[Webhook] Signature verification failed:", err);
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        const { orderId, courseId, userId } = session.metadata!;
+        
+        if (!session.metadata) {
+          console.error('[Webhook] Missing session metadata');
+          return NextResponse.json({ error: "Missing session metadata" }, { status: 400 });
+        }
+        
+        const { orderId, courseId, userId } = session.metadata;
 
         // Get order details
         const { data: order, error: orderError } = await supabase
@@ -139,6 +177,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (course && user) {
+          
           // Enroll user in course
           const { error: enrollmentError } = await supabase
             .from("course_enrollment")
@@ -150,10 +189,14 @@ export async function POST(request: NextRequest) {
             });
 
           if (enrollmentError) {
-            console.error("Failed to enroll user:", enrollmentError);
+            console.error("[Webhook] Failed to enroll user:", enrollmentError);
           } else {
             // After enrollment, handle classroom creation/joining as per COURSE.md L15-20
-            await handleClassroomFlow(supabase, course, user.id);
+            const classroomResult = await handleClassroomFlow(supabase, course, user.id);
+            if (!classroomResult.success) {
+              console.error('[Webhook] Classroom flow failed:', classroomResult.error);
+              // Log error but don't fail the entire webhook - enrollment was successful
+            } 
             let groupPublicId = course.community_group_public_id;
 
             if (!groupPublicId) {
@@ -248,7 +291,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("[Webhook] Webhook error:", error);
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 }

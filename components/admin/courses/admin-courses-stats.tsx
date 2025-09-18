@@ -39,7 +39,7 @@ export default function AdminCoursesStats() {
 
   if (error || !analytics) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-24">
           <div className="text-center">
             <BookOpen className="h-6 w-6 text-destructive mx-auto mb-2" />
@@ -115,7 +115,7 @@ export default function AdminCoursesStats() {
       {/* Additional Stats */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Revenue Stats */}
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
@@ -148,7 +148,7 @@ export default function AdminCoursesStats() {
         </Card>
 
         {/* Enrollment Stats */}
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -181,7 +181,7 @@ export default function AdminCoursesStats() {
 
       {/* Top Courses */}
       {analytics.topCourses.length > 0 && (
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle>Top Performing Courses</CardTitle>
             <CardDescription>
@@ -218,7 +218,7 @@ export default function AdminCoursesStats() {
 
       {/* Pending Courses */}
       {analytics.pendingCourses.length > 0 && (
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle>Courses Awaiting Review</CardTitle>
             <CardDescription>

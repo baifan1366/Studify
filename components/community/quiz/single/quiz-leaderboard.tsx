@@ -16,7 +16,7 @@ export default function QuizLeaderboard({
   recentAttempts: RecentAttempt[];
 }) {
   return (
-    <Card>
+    <Card className="bg-transparent p-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CheckCircle className="h-5 w-5" />

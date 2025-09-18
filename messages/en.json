@@ -809,9 +809,21 @@
     "student_courses": "Student Courses",
     "progress": "Progress",
     "enrolled_on": "Enrolled on",
-    "edit": "Edit"
+    "edit": "Edit",
+    "enrolled_courses": "Enrolled Courses",
+    "courses": "courses",
+    "avg_progress": "Avg Progress",
+    "overall_progress": "Overall Progress",
+    "first_enrolled": "First Enrolled",
+    "status_active": "Active",
+    "status_completed": "Completed", 
+    "status_dropped": "Dropped",
+    "status_locked": "Locked"
   },
   "EditStudentStatus": {
+    "error_loading_student": "Error loading student data",
+    "error_loading_student_desc": "Failed to load student data. Please try again.",
+    "retry": "Retry",
     "edit_student_status": "Edit Student Status",
     "edit_student_status_desc": "Update the enrollment status for {name}",
     "loading_student_data": "Loading student data...",

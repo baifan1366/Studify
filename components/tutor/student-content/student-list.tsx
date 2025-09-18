@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useEnrolledStudent } from '@/hooks/students/use-student';
+import { useStudentsByTutorId } from '@/hooks/students/use-student';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCourses } from '@/hooks/course/use-courses';
 import { useUser } from '@/hooks/profile/use-user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +48,9 @@ interface EnhancedEnrollment extends Enrollment {
   progress?: number;
 }
 
-interface CourseWithStudentCount extends Course {
+interface CourseWithStudentCount {
+  id: number;
+  title: string;
   studentsCount: number;
 }
 
@@ -58,18 +59,13 @@ export default function StudentList() {
   const { data: user } = useUser();
   const userId = user?.profile?.id || "";
   
-  // Get all courses created by this tutor
-  const { data: courses, isLoading: coursesLoading } = useCourses(Number(userId));
-  
-  // Get course IDs to fetch students for
-  const courseIds = courses?.map(course => course.id) || [];
-  
-  // Get all students enrolled in any courses (we'll filter to tutor's courses later)
-  const { data: allStudents, isLoading: studentsLoading } = useEnrolledStudent();
+  // Get tutor's students data using the new hook
+  const { data: tutorData, isLoading } = useStudentsByTutorId(Number(userId));
   
   // Dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [selectedStudentCourseId, setSelectedStudentCourseId] = useState<string>('');
   
   // State management
   const [viewMode, setViewMode] = useState<ViewMode>('courses');
@@ -81,32 +77,21 @@ export default function StudentList() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const isLoading = coursesLoading || studentsLoading;
-
-  // Filter students to only those enrolled in tutor's courses
-  const tutorStudents = useMemo(() => {
-    if (!allStudents || !Array.isArray(allStudents) || !courseIds.length) return [];
-    
-    return allStudents.filter((enrollment: Enrollment) => 
-      courseIds.includes(enrollment.course_id)
-    );
-  }, [allStudents, courseIds]);
-  
-  // Process actual enrollment data for tutor's students only
+  // Process enrollment data with progress simulation
   const enhancedStudents: EnhancedEnrollment[] = useMemo(() => {
-    if (!tutorStudents || !Array.isArray(tutorStudents)) return [];
+    if (!tutorData?.enrollments || !Array.isArray(tutorData.enrollments)) return [];
     
-    return tutorStudents.map((enrollment: Enrollment) => ({
+    return tutorData.enrollments.map((enrollment: Enrollment) => ({
       ...enrollment,
       progress: Math.floor(Math.random() * 100) // TODO: Replace with actual progress calculation
     } as EnhancedEnrollment));
-  }, [tutorStudents]);
+  }, [tutorData?.enrollments]);
 
-  // Process courses with student counts (only tutor's courses)
+  // Process courses with student counts from API data
   const coursesWithCounts = useMemo((): CourseWithStudentCount[] => {
-    if (!courses || !Array.isArray(courses)) return [];
+    if (!tutorData?.courses || !Array.isArray(tutorData.courses)) return [];
     
-    return courses.map((course: Course): CourseWithStudentCount => {
+    return tutorData.courses.map((course): CourseWithStudentCount => {
       // Count students enrolled in this specific course
       const studentCount = enhancedStudents.filter(enrollment => 
         enrollment.course_id === course.id && 
@@ -118,7 +103,7 @@ export default function StudentList() {
         studentsCount: studentCount
       };
     });
-  }, [courses, enhancedStudents]);
+  }, [tutorData?.courses, enhancedStudents]);
 
   // Filtering and sorting logic
   const filteredAndSortedData = useMemo(() => {
@@ -128,8 +113,7 @@ export default function StudentList() {
       // Search filter for courses
       if (searchQuery) {
         courseData = courseData.filter((course) =>
-          course.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          course.description?.toLowerCase().includes(searchQuery.toLowerCase())
+          course.title?.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
 
@@ -143,8 +127,9 @@ export default function StudentList() {
             bValue = b.title || '';
             break;
           case 'date':
-            aValue = new Date(a.created_at);
-            bValue = new Date(b.created_at);
+            // Since simplified course structure doesn't have created_at, sort by course ID as proxy
+            aValue = a.id || 0;
+            bValue = b.id || 0;
             break;
           case 'progress':
             aValue = a.studentsCount || 0;
@@ -218,8 +203,21 @@ export default function StudentList() {
   const paginatedData = filteredAndSortedData.slice(startIndex, endIndex);
 
   // Dialog handlers
-  const handleEditStudent = (studentId: string) => {
-    setSelectedStudentId(studentId);
+  const handleEditStudent = (userId: string, courseId: string) => {
+    
+    // Verify the enrollment exists in our local data
+    const enrollment = enhancedStudents.find(e => 
+      e.user_id.toString() === userId && e.course_id.toString() === courseId
+    );
+    
+    if (!enrollment) {
+      console.error('❌ [EditStudent] Enrollment not found in local data!');
+      alert('Error: Cannot find this enrollment. Please refresh and try again.');
+      return;
+    }
+    
+    setSelectedStudentId(userId);
+    setSelectedStudentCourseId(courseId);
     setEditDialogOpen(true);
   };
 
@@ -300,7 +298,6 @@ export default function StudentList() {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
             <Input
               placeholder={t('search_placeholder')}
               value={searchQuery}
@@ -440,6 +437,7 @@ export default function StudentList() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         studentId={selectedStudentId}
+        courseId={selectedStudentCourseId}
         onSave={handleStatusUpdate}
       />
     </>
@@ -459,7 +457,7 @@ function CoursesGrid({
   students: EnhancedEnrollment[];
   selectedCourse: string | null;
   onSelectCourse: (courseId: string | null) => void;
-  onEditStudent: (studentId: string) => void;
+  onEditStudent: (studentId: string, courseId: string) => void;
   t: any;
 }) {
   return (
@@ -477,15 +475,7 @@ function CoursesGrid({
               <div className="space-y-3">
                 {/* Course Thumbnail */}
                 <div className="aspect-video bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex items-center justify-center overflow-hidden">
-                  {course.thumbnail_url ? (
-                    <img
-                      src={course.thumbnail_url}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <BookOpen size={32} className="text-muted-foreground" />
-                  )}
+                  <BookOpen size={32} className="text-muted-foreground" />
                 </div>
 
                 {/* Course Info */}
@@ -527,7 +517,7 @@ function CoursesGrid({
 
       {/* Expanded Course Students */}
       {selectedCourse && (
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users size={20} />
@@ -549,6 +539,15 @@ function CoursesGrid({
   );
 }
 
+// Interface for grouped student data
+interface GroupedStudent {
+  user_id: number;
+  student_profile?: Profile;
+  enrollments: EnhancedEnrollment[];
+  totalCourses: number;
+  avgProgress: number;
+}
+
 // Students Grid Component
 function StudentsGrid({ 
   students, 
@@ -562,79 +561,146 @@ function StudentsGrid({
   courses: CourseWithStudentCount[];
   selectedStudent: string | null;
   onSelectStudent: (studentId: string | null) => void;
-  onEditStudent: (studentId: string) => void;
+  onEditStudent: (userId: string, courseId: string) => void;
   t: any;
 }) {
+  // Group students by user_id
+  const groupedStudents = useMemo((): GroupedStudent[] => {
+    const groups = new Map<number, GroupedStudent>();
+    
+    students.forEach(enrollment => {
+      const userId = enrollment.user_id;
+      
+      if (!groups.has(userId)) {
+        groups.set(userId, {
+          user_id: userId,
+          student_profile: enrollment?.student_profile,
+          enrollments: [],
+          totalCourses: 0,
+          avgProgress: 0
+        });
+      }
+      
+      const group = groups.get(userId)!;
+      group.enrollments.push(enrollment);
+    });
+    
+    // Calculate stats for each group
+    groups.forEach(group => {
+      group.totalCourses = group.enrollments.length;
+      const totalProgress = group.enrollments.reduce((sum, enrollment) => sum + (enrollment.progress || 0), 0);
+      group.avgProgress = group.totalCourses > 0 ? Math.round(totalProgress / group.totalCourses) : 0;
+    });
+    
+    return Array.from(groups.values());
+  }, [students]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {students.map((student) => (
-          <Card 
-            key={student.id}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
-              selectedStudent === student.id.toString() ? 'ring-2 ring-primary' : ''
-            }`}
-            onClick={() => onSelectStudent(selectedStudent === student.id.toString() ? null : student.id.toString())}
-          >
-            <CardContent className="p-4">
-              <StudentCard student={student} t={t} showCourse onEditStudent={onEditStudent} />
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full mt-3 flex items-center gap-2"
-              >
-                {selectedStudent === student.id.toString() ? (
-                  <>
-                    <ChevronUp size={16} />
-                    {t('hide_courses')}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown size={16} />
-                    {t('show_courses')}
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {groupedStudents.map((groupedStudent) => {
+          const studentId = groupedStudent.user_id.toString();
+          const isSelected = selectedStudent === studentId;
+          
+          return (
+            <Card 
+              key={groupedStudent.user_id}
+              className={`cursor-pointer transition-all hover:shadow-lg ${
+                isSelected ? 'ring-2 ring-primary' : ''
+              }`}
+              onClick={() => onSelectStudent(isSelected ? null : studentId)}
+            >
+              <CardContent className="p-4">
+                <GroupedStudentCard 
+                  groupedStudent={groupedStudent} 
+                  t={t} 
+                  onEditStudent={onEditStudent} 
+                />
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-3 flex items-center gap-2"
+                >
+                  {isSelected ? (
+                    <>
+                      <ChevronUp size={16} />
+                      {t('hide_courses')}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={16} />
+                      {t('show_courses')} ({groupedStudent.totalCourses})
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Expanded Student Courses */}
       {selectedStudent && (
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen size={20} />
-              {t('student_courses')} - {students.find(s => s.id.toString() === selectedStudent)?.student_profile?.display_name || students.find(s => s.id.toString() === selectedStudent)?.student_profile?.full_name}
+              {t('student_courses')} - {groupedStudents.find(s => s.user_id.toString() === selectedStudent)?.student_profile?.display_name || groupedStudents.find(s => s.user_id.toString() === selectedStudent)?.student_profile?.full_name}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {courses
-                .filter(course => students.some(s => s.id.toString() === selectedStudent && s.course_id === course.id))
-                .map((course) => {
-                  const studentData = students.find(s => s.id.toString() === selectedStudent && s.course_id === course.id);
+              {groupedStudents
+                .find(s => s.user_id.toString() === selectedStudent)
+                ?.enrollments.map((enrollment) => {
+                  const course = courses.find(c => c.id === enrollment.course_id);
+                  if (!course) return null;
+                  
                   return (
-                    <Card key={course.id}>
+                    <Card key={enrollment.id}>
                       <CardContent className="p-4">
                         <div className="space-y-3">
-                          <h4 className="font-semibold truncate">{course.title}</h4>
+                          <div className="flex items-start justify-between">
+                            <h4 className="font-semibold truncate flex-1">{course.title}</h4>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="ml-2 flex items-center gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditStudent(enrollment.user_id.toString(), enrollment.course_id.toString());
+                              }}
+                            >
+                              <Edit size={12} />
+                              {t('edit')}
+                            </Button>
+                          </div>
+                          
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">{t('progress')}</span>
-                              <span>{studentData?.progress || 0}%</span>
+                              <span>{enrollment.progress || 0}%</span>
                             </div>
                             <div className="w-full bg-muted rounded-full h-2">
                               <div 
                                 className="bg-primary h-2 rounded-full transition-all"
-                                style={{ width: `${studentData?.progress || 0}%` }}
+                                style={{ width: `${enrollment.progress || 0}%` }}
                               />
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {t('enrolled_on')}: {new Date(studentData?.started_at || '').toLocaleDateString()}
+                          
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar size={12} />
+                              <span>{new Date(enrollment.started_at).toLocaleDateString()}</span>
+                            </div>
+                            <Badge 
+                              variant={enrollment.status === 'active' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {t(`status_${enrollment.status}`)}
+                            </Badge>
                           </div>
                         </div>
                       </CardContent>
@@ -649,6 +715,75 @@ function StudentsGrid({
   );
 }
 
+// Grouped Student Card Component  
+function GroupedStudentCard({ 
+  groupedStudent, 
+  t, 
+  onEditStudent 
+}: { 
+  groupedStudent: GroupedStudent; 
+  t: any; 
+  onEditStudent: (userId: string, courseId: string) => void;
+}) {
+  const studentName = groupedStudent.student_profile?.display_name || groupedStudent.student_profile?.full_name || 'Unknown Student';
+  const studentEmail = groupedStudent.student_profile?.email || 'No email';
+  const studentAvatar = groupedStudent.student_profile?.avatar_url || '';
+  
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <Avatar>
+          <AvatarImage src={studentAvatar} />
+          <AvatarFallback>
+            {studentName.split(' ').map(n => n[0]).join('').toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold text-foreground truncate">{studentName}</h4>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Mail size={12} />
+            <span className="truncate">{studentEmail}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('enrolled_courses')}</div>
+          <Badge variant="outline" className="text-xs">
+            <BookOpen size={12} className="mr-1" />
+            {groupedStudent.totalCourses} {t('courses')}
+          </Badge>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('avg_progress')}</div>
+          <div className="text-sm font-medium">{groupedStudent.avgProgress}%</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{t('overall_progress')}</span>
+          <span>{groupedStudent.avgProgress}%</span>
+        </div>
+        <div className="w-full bg-muted rounded-full h-2">
+          <div 
+            className="bg-primary h-2 rounded-full transition-all"
+            style={{ width: `${groupedStudent.avgProgress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          {t('first_enrolled')}: {new Date(Math.min(...groupedStudent.enrollments.map(e => new Date(e.started_at).getTime()))).toLocaleDateString()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Student Card Component
 function StudentCard({ 
   student, 
@@ -659,7 +794,7 @@ function StudentCard({
   student: EnhancedEnrollment; 
   t: any; 
   showCourse?: boolean;
-  onEditStudent: (studentId: string) => void;
+  onEditStudent: (studentId: string, courseId: string) => void;
 }) {
   const studentName = student.student_profile?.display_name || student.student_profile?.full_name || 'Unknown Student';
   const studentEmail = student.student_profile?.email || 'No email';
@@ -714,7 +849,7 @@ function StudentCard({
           size="sm" 
           variant="outline" 
           className="flex items-center gap-1"
-          onClick={() => onEditStudent(student.id.toString())}
+          onClick={() => onEditStudent(student.user_id.toString(), student.course_id.toString())}
         >
           <Edit size={12} />
           {t('edit')}

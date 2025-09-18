@@ -130,7 +130,7 @@ export default function SessionManager({
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </CardContent>
@@ -226,7 +226,7 @@ export default function SessionManager({
             />
           ))
         ) : (
-          <Card>
+          <Card className="bg-transparent p-2">
             <CardContent className="flex flex-col items-center justify-center h-64 text-center">
               <Video className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">暂无直播课堂</h3>
@@ -280,7 +280,7 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
   const canDelete = userRole === 'tutor' && session.status !== 'active';
 
   return (
-    <Card>
+    <Card className="bg-transparent p-2">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>

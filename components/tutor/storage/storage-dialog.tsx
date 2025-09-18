@@ -57,18 +57,19 @@ import {
   MoreHorizontal,
   RefreshCw,
   Loader2,
-  X,
   EllipsisVertical,
   Music,
   Download,
   Play,
-  Brain
+  Brain,
+  Settings
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
+import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-tasks'
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
-import { VideoProcessingProgress } from '@/components/video-processing/video-processing-progress'
+// VideoProcessingProgress is no longer needed - using toast notifications instead
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
 interface StorageDialogProps {
@@ -94,10 +95,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string } | null>(null)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ isOpen: false, attachment: null })
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ isOpen: false, attachment: null })
-  const [videoProcessingState, setVideoProcessingState] = useState<{ isOpen: boolean; queueId: string | null; attachmentTitle?: string }>({ 
-    isOpen: false, 
-    queueId: null 
-  })
+  // videoProcessingState is no longer needed - using background tasks with toast
   
   // Upload form state
   const [title, setTitle] = useState('')
@@ -105,6 +103,9 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const [titleError, setTitleError] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editTitleError, setEditTitleError] = useState<string | null>(null)
+  
+  // Client-side upload state
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   // Hooks
   const { data: attachments = [], isLoading, refetch } = useAttachments(ownerId)
@@ -112,6 +113,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
   const startVideoProcessingMutation = useStartVideoProcessing()
+  const { startVideoProcessingTask, startEmbeddingTask } = useBackgroundTasks()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return 'Unknown size'
@@ -125,12 +127,8 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      const maxSize = 100 * 1024 * 1024 // 100MB
-      if (selectedFile.size > maxSize) {
-        toast.error('File size exceeds 100MB limit')
-        return
-      }
       setFile(selectedFile)
+      setUploadProgress(0)
     }
   }
 
@@ -155,24 +153,42 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     }
 
     setTitleError(null)
+    setUploadProgress(0)
+    
     try {
       const uploadResult = await uploadMutation.mutateAsync({
         title: title.trim(),
-        file
+        file,
+        onProgress: (progress) => {
+          setUploadProgress(progress)
+        }
       })
 
       // Check if uploaded file is a video and automatically process it
       if (file.type.startsWith('video/') && uploadResult?.id) {
-        toast.success('Video uploaded! Starting AI processing...')
+        toast.success('Video uploaded! Starting background AI processing...', {
+          description: 'You can continue working while we process your video'
+        })
         
-        // Start video processing in the background
+        // Start video processing in the background (non-blocking)
         try {
           const processingResult = await startVideoProcessingMutation.mutateAsync(uploadResult.id)
-          setVideoProcessingState({
-            isOpen: true,
-            queueId: processingResult.queue_id,
-            attachmentTitle: uploadResult.title || title.trim()
-          })
+          
+          // Start background monitoring
+          const taskId = startVideoProcessingTask(
+            uploadResult.id,
+            uploadResult.title || title.trim(),
+            processingResult.queue_id
+          )
+          
+          // Start embedding generation monitoring
+          setTimeout(() => {
+            startEmbeddingTask(
+              uploadResult.id,
+              uploadResult.title || title.trim()
+            )
+          }, 5000) // Start after 5 seconds
+          
         } catch (processError) {
           console.error('Video processing error:', processError)
           toast.error('Video uploaded but failed to start AI processing. You can retry processing later.')
@@ -183,6 +199,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       setTitle('')
       setFile(null)
       setTitleError(null)
+      setUploadProgress(0)
       const fileInput = document.getElementById('file-input') as HTMLInputElement
       if (fileInput) {
         fileInput.value = ''
@@ -192,8 +209,11 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       setActiveTab('manage')
     } catch (error) {
       // Error is handled by the mutation
+    } finally {
+      setUploadProgress(0)
     }
   }
+
 
   const handlePreview = (attachment: CourseAttachment) => {
     if (!attachment.url) {
@@ -255,13 +275,27 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
 
   const handleProcessVideo = async (attachment: CourseAttachment) => {
     try {
-      toast.success('Starting video processing for AI features...')
-      const processingResult = await startVideoProcessingMutation.mutateAsync(attachment.id)
-      setVideoProcessingState({
-        isOpen: true,
-        queueId: processingResult.queue_id,
-        attachmentTitle: attachment.title
+      toast.success('Starting background video processing...', {
+        description: 'You can continue working while we process your video'
       })
+      
+      const processingResult = await startVideoProcessingMutation.mutateAsync(attachment.id)
+      
+      // Start background monitoring (non-blocking)
+      const taskId = startVideoProcessingTask(
+        attachment.id,
+        attachment.title,
+        processingResult.queue_id
+      )
+      
+      // Start embedding generation monitoring
+      setTimeout(() => {
+        startEmbeddingTask(
+          attachment.id,
+          attachment.title
+        )
+      }, 5000) // Start after 5 seconds
+      
     } catch (error) {
       console.error('Video processing error:', error)
       toast.error('Failed to start video processing. Please try again later.')
@@ -309,13 +343,15 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
             <TabsContent value="upload" className="mt-6">
               <Card className="bg-transparent">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="h-5 w-5" />
-                    {t('upload_title')}
-                  </CardTitle>
-                  <CardDescription>
-                    {t('upload_description')}
-                  </CardDescription>
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Upload className="h-5 w-5" />
+                      {t('upload_title')}
+                    </CardTitle>
+                    <CardDescription>
+                      {t('upload_description')}
+                    </CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleUpload} className="space-y-4">
@@ -352,13 +388,26 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                         required
                       />
                       {file && (
-                        <p className="text-sm text-muted-foreground">
-                          {t('selected')}: {file.name} ({formatFileSize(file.size)})
-                        </p>
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            {t('selected')}: {file.name} ({formatFileSize(file.size)})
+                          </p>
+                          {uploadMutation.isPending && uploadProgress > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Upload Progress</span>
+                                <span>{uploadProgress.toFixed(0)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                  style={{ width: `${uploadProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        {t('max_file_size')}
-                      </p>
                     </div>
 
                     <Button 
@@ -369,7 +418,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       {uploadMutation.isPending ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          {t('uploading')}
+                          {uploadProgress > 0 ? `Uploading... ${uploadProgress.toFixed(0)}%` : t('uploading')}
                         </>
                       ) : (
                         <>
@@ -621,13 +670,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Video Processing Progress Dialog */}
-      <VideoProcessingProgress
-        queueId={videoProcessingState.queueId}
-        isOpen={videoProcessingState.isOpen}
-        onClose={() => setVideoProcessingState({ isOpen: false, queueId: null })}
-        attachmentTitle={videoProcessingState.attachmentTitle}
-      />
+      {/* Video processing progress is now handled via toast notifications */}
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { qstashClient } from "@/utils/qstash/qstash";
+import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { sendVideoProcessingNotification } from "@/lib/video-processing/notification-service";
 import { z } from "zod";
 
@@ -124,32 +125,38 @@ async function generateDualEmbeddings(text: string, retryCount: number = 0): Pro
 }
 
 async function scheduleRetry(queueId: number, attachmentId: number, userId: string, transcriptionText: string, retryCount: number) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const embedEndpoint = `${baseUrl}/api/video-processing/steps/embed`;
   
   // Calculate delay: 1 minute * retry_count (1min, 2min, 3min)
   const delayMinutes = retryCount;
-  const delaySeconds = delayMinutes * 60;
   
   console.log(`Scheduling embedding retry ${retryCount} in ${delayMinutes} minutes for queue:`, queueId);
   
   try {
-    const qstashResponse = await qstashClient.publish({
-      url: embedEndpoint,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const queueManager = getQueueManager();
+    const queueName = `video-processing-${userId}`;
+    
+    // Ensure the queue exists
+    await queueManager.ensureQueue(queueName, 1);
+    
+    // Enqueue the retry
+    const qstashResponse = await queueManager.enqueue(
+      queueName,
+      embedEndpoint,
+      {
         queue_id: queueId,
         attachment_id: attachmentId,
         user_id: userId,
         transcription_text: transcriptionText,
         timestamp: new Date().toISOString(),
         retry_attempt: retryCount,
-      }),
-      delay: delaySeconds,
-      retries: 0, // No additional retries, we handle it manually
-    });
+      },
+      {
+        delay: `${delayMinutes}m`,
+        retries: 0, // No additional retries, we handle it manually
+      }
+    );
 
     console.log(`Embedding retry ${retryCount} scheduled:`, qstashResponse.messageId);
     return qstashResponse.messageId;
@@ -161,7 +168,7 @@ async function scheduleRetry(queueId: number, attachmentId: number, userId: stri
 
 async function sendCompletionNotification(userId: string, attachmentId: number, queueId: number) {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
     const notificationEndpoint = `${baseUrl}/api/notifications`;
     
     await fetch(notificationEndpoint, {

@@ -75,7 +75,7 @@ export function CreateClassroomPage() {
         </p>
       </div>
 
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Classroom Details</CardTitle>
           <CardDescription>

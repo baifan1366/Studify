@@ -59,6 +59,9 @@ export function useCourseBySlug(slug?: string) {
       return apiGet<Course>(`/api/courses?slug=${slug}`);
     },
     enabled: Boolean(slug),
+    staleTime: 0, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when user returns from payment
+    refetchOnMount: true, // Always refetch on mount
   });
 }
 

@@ -17,8 +17,10 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { useAdminCourseAnalytics } from '@/hooks/admin/use-admin-courses';
+import { useFormat } from '@/hooks/use-format';
 
 export default function AdminCoursesStats() {
+  const { formatNumber } = useFormat();
   const { data: analytics, isLoading, error } = useAdminCourseAnalytics(30);
 
   if (isLoading) {
@@ -37,7 +39,7 @@ export default function AdminCoursesStats() {
 
   if (error || !analytics) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-24">
           <div className="text-center">
             <BookOpen className="h-6 w-6 text-destructive mx-auto mb-2" />
@@ -113,7 +115,7 @@ export default function AdminCoursesStats() {
       {/* Additional Stats */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Revenue Stats */}
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
@@ -125,7 +127,7 @@ export default function AdminCoursesStats() {
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Total Revenue</span>
                 <span className="font-medium">
-                  ${analytics.overview.totalRevenue.toFixed(2)}
+                  ${formatNumber(analytics.overview.totalRevenue, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -136,7 +138,7 @@ export default function AdminCoursesStats() {
                 <span className="text-sm text-muted-foreground">Avg. per Transaction</span>
                 <span className="font-medium">
                   ${analytics.overview.totalTransactions > 0 
-                    ? (analytics.overview.totalRevenue / analytics.overview.totalTransactions).toFixed(2)
+                    ? formatNumber(analytics.overview.totalRevenue / analytics.overview.totalTransactions, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : '0.00'
                   }
                 </span>
@@ -146,7 +148,7 @@ export default function AdminCoursesStats() {
         </Card>
 
         {/* Enrollment Stats */}
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -167,7 +169,7 @@ export default function AdminCoursesStats() {
                 <span className="text-sm text-muted-foreground">Completion Rate</span>
                 <span className="font-medium">
                   {analytics.overview.totalEnrollments > 0
-                    ? ((analytics.overview.completedEnrollments / analytics.overview.totalEnrollments) * 100).toFixed(1)
+                    ? formatNumber((analytics.overview.completedEnrollments / analytics.overview.totalEnrollments) * 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                     : '0'
                   }%
                 </span>
@@ -179,7 +181,7 @@ export default function AdminCoursesStats() {
 
       {/* Top Courses */}
       {analytics.topCourses.length > 0 && (
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle>Top Performing Courses</CardTitle>
             <CardDescription>
@@ -204,7 +206,7 @@ export default function AdminCoursesStats() {
                   <div className="text-right">
                     <p className="text-sm font-medium">{course.total_students} students</p>
                     <p className="text-xs text-muted-foreground">
-                      ⭐ {course.average_rating.toFixed(1)} • {course.total_lessons} lessons
+                      ⭐ {course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'} • {course.total_lessons} lessons
                     </p>
                   </div>
                 </div>
@@ -216,7 +218,7 @@ export default function AdminCoursesStats() {
 
       {/* Pending Courses */}
       {analytics.pendingCourses.length > 0 && (
-        <Card>
+        <Card className="bg-transparent p-2">
           <CardHeader>
             <CardTitle>Courses Awaiting Review</CardTitle>
             <CardDescription>

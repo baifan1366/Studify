@@ -36,7 +36,7 @@ export default function AdminReportsStats() {
 
   if (error || !stats) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-24">
           <div className="text-center">
             <AlertTriangle className="h-6 w-6 text-destructive mx-auto mb-2" />

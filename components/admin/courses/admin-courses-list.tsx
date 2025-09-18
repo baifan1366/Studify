@@ -66,6 +66,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAdminCourses, useUpdateCourse, useDeleteCourse, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
+import { useFormat } from '@/hooks/use-format';
 import type { AdminCourse, AdminCourseFilters } from '@/interface/admin/admin-interface';
 
 const statusColors = {
@@ -75,9 +76,9 @@ const statusColors = {
 } as const;
 
 const levelColors = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-yellow-100 text-yellow-800',
-  advanced: 'bg-red-100 text-red-800',
+  beginner: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  intermediate: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  advanced: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 } as const;
 
 export default function AdminCoursesList() {
@@ -93,6 +94,7 @@ export default function AdminCoursesList() {
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
+  const { formatNumber } = useFormat();
   const { data: coursesData, isLoading, error } = useAdminCourses(filters);
   const updateCourse = useUpdateCourse();
   const deleteCourse = useDeleteCourse();
@@ -147,7 +149,7 @@ export default function AdminCoursesList() {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </CardContent>
@@ -157,7 +159,7 @@ export default function AdminCoursesList() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <BookOpen className="h-8 w-8 text-destructive mx-auto mb-2" />
@@ -179,12 +181,27 @@ export default function AdminCoursesList() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filters
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              Filters
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilters({
+                page: 1,
+                limit: 20,
+                status: 'all',
+                category: 'all',
+                search: ''
+              })}
+            >
+              Clear Filters
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -257,7 +274,7 @@ export default function AdminCoursesList() {
       </Card>
 
       {/* Courses Table */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Courses ({coursesData?.pagination.total || 0})</CardTitle>
           <CardDescription>
@@ -352,7 +369,7 @@ export default function AdminCoursesList() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{course.average_rating.toFixed(1)}</span>
+                          <span className="text-sm">{course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -362,30 +379,44 @@ export default function AdminCoursesList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label="View course details">
                             <Eye className="h-4 w-4" />
                           </Button>
                           
                           {course.status === 'pending' && (
                             <>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive">Reject</Button>
-                              </AlertDialogTrigger>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedCourse(course);
+                                  setShowApprovalDialog(true);
+                                }}
+                                aria-label="Approve course"
+                              >
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedCourse(course);
+                                  setShowRejectionDialog(true);
+                                }}
+                                aria-label="Reject course"
+                              >
+                                <XCircle className="h-4 w-4 text-destructive" />
+                              </Button>
                             </>
                           )}
                           
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label="Edit course">
                             <Edit className="h-4 w-4" />
                           </Button>
                           
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" aria-label="Delete course">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
@@ -401,8 +432,9 @@ export default function AdminCoursesList() {
                                 <AlertDialogAction
                                   onClick={() => deleteCourse.mutate(course.public_id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  disabled={deleteCourse.isPending}
                                 >
-                                  Delete
+                                  {deleteCourse.isPending ? 'Deleting...' : 'Delete'}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -475,8 +507,11 @@ export default function AdminCoursesList() {
               <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleApprove}>
-                Approve Course
+              <Button 
+                onClick={handleApprove}
+                disabled={approveCourse.isPending}
+              >
+                {approveCourse.isPending ? 'Approving...' : 'Approve Course'}
               </Button>
             </div>
           </div>
@@ -510,9 +545,9 @@ export default function AdminCoursesList() {
               <Button
                 variant="destructive"
                 onClick={handleReject}
-                disabled={!rejectionReason.trim()}
+                disabled={!rejectionReason.trim() || rejectCourse.isPending}
               >
-                Reject Course
+                {rejectCourse.isPending ? 'Rejecting...' : 'Reject Course'}
               </Button>
             </div>
           </div>

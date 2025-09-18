@@ -23,6 +23,11 @@ export const studentsApi = {
   search: (query: string) =>
     `/api/students/search?q=${encodeURIComponent(query)}`,
   progress: (id: number) => `/api/students/${id}/progress`,
+  getByCourseId: (courseId: number) => `/api/students/by-course/${courseId}`,
+  getByStudentId: (studentId: number) => `/api/students/by-student/${studentId}`,
+  getByTutorId: (tutorId: number) => `/api/students/by-tutor/${tutorId}`,
+  getEnrollmentById: (studentId: number, courseId: number) => `/api/students/${studentId}/${courseId}`,
+  updateEnrollmentStatus: (studentId: number, courseId: number) => `/api/students/${studentId}/${courseId}`,
 } as const;
 
 // Courses API endpoints
@@ -262,6 +267,7 @@ export const attachmentsApi = {
   list: "/api/attachments",
   listByOwner: (ownerId: number) => `/api/attachments?owner_id=${ownerId}`,
   create: "/api/attachments",
+  saveMetadata: "/api/attachments/save-metadata", // New endpoint for client-side uploads
   getById: (id: number) => `/api/attachments/${id}`,
   update: (id: number) => `/api/attachments/${id}`,
   delete: (id: number) => `/api/attachments/${id}`,
@@ -373,7 +379,7 @@ export const adminApi = {
   approveCourse: (courseId: string, notes?: string) => 
     api.post(`/api/admin/courses/${courseId}/approve`, { notes }),
   rejectCourse: (courseId: string, reason: string) => 
-    api.put(`/api/admin/courses/${courseId}/approve`, { reason }),
+    api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
 } as const;
@@ -402,6 +408,15 @@ export const api = {
   put: async (url: string, data?: any) => {
     const response = await fetch(url, {
       method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  patch: async (url: string, data?: any) => {
+    const response = await fetch(url, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: data ? JSON.stringify(data) : undefined,
     });

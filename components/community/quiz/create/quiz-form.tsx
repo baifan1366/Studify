@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateQuiz } from "@/hooks/community/use-quiz";
 import { useRouter, useParams } from "next/navigation";
 
@@ -12,6 +15,9 @@ export default function QuizForm() {
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState(1);
   const [tags, setTags] = useState<string[]>([]);
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [quizMode, setQuizMode] = useState<'practice' | 'strict'>('practice');
   const router = useRouter();
   const params = useParams(); // { locale: 'en', ... } 在 app/[locale] 结构下可用
 
@@ -19,7 +25,15 @@ export default function QuizForm() {
 
   const handleSubmit = () => {
     create.mutate(
-      { title, description, difficulty, tags },
+      { 
+        title, 
+        description, 
+        difficulty, 
+        tags, 
+        visibility, 
+        max_attempts: maxAttempts, 
+        quiz_mode: quizMode 
+      },
       {
         onSuccess: (data: any) => {
           // data.slug 返回自后端
@@ -77,6 +91,57 @@ export default function QuizForm() {
             )
           }
         />
+      </div>
+
+      {/* Visibility Setting */}
+      <div>
+        <Label className="text-base font-medium">Visibility</Label>
+        <RadioGroup 
+          value={visibility} 
+          onValueChange={(value: 'public' | 'private') => setVisibility(value)}
+          className="mt-2"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="public" id="public" />
+            <Label htmlFor="public">Public - Anyone can see and attempt this quiz</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="private" id="private" />
+            <Label htmlFor="private">Private - Only you and invited users can access</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Max Attempts */}
+      <div>
+        <Label className="block mb-2 font-medium">Maximum Attempts</Label>
+        <Select value={maxAttempts.toString()} onValueChange={(value) => setMaxAttempts(Number(value))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select max attempts" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">1 attempt</SelectItem>
+            <SelectItem value="2">2 attempts</SelectItem>
+            <SelectItem value="3">3 attempts</SelectItem>
+            <SelectItem value="5">5 attempts</SelectItem>
+            <SelectItem value="10">10 attempts</SelectItem>
+            <SelectItem value="999">Unlimited</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Quiz Mode */}
+      <div>
+        <Label className="block mb-2 font-medium">Quiz Mode</Label>
+        <Select value={quizMode} onValueChange={(value: 'practice' | 'strict') => setQuizMode(value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select quiz mode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="practice">Practice - Relaxed mode with hints</SelectItem>
+            <SelectItem value="strict">Strict - Exam-like conditions</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Button

@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 import { apiGet, apiSend, apiUploadFile } from '@/lib/api-config'
 import { attachmentsApi } from '@/lib/api'
+import { uploadToMegaClient, testMegaConnectionClient } from '@/lib/mega-client'
 
 // Fetch attachments by owner
 export function useAttachments(ownerId?: number) {
@@ -19,8 +20,85 @@ export function useAttachments(ownerId?: number) {
   })
 }
 
-// Upload attachment
+// Fetch current user's storage attachments (personal attachments)
+// Note: This needs to be used with a user profile ID to filter correctly
+export function useUserStorageAttachments(userId?: number) {
+  return useQuery({
+    queryKey: ['userStorageAttachments', userId],
+    queryFn: async () => {
+      if (!userId) {
+        return [] // Return empty array if no user ID provided
+      }
+      // Fetch user's own attachments by owner_id
+      return apiGet<CourseAttachment[]>(attachmentsApi.listByOwner(userId))
+    },
+    enabled: !!userId // Only fetch when userId is available
+  })
+}
+
+// Upload attachment using client-side MEGA upload
 export function useUploadAttachment() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ 
+      title, 
+      file, 
+      onProgress 
+    }: {
+      title: string
+      file: File
+      onProgress?: (progress: number) => void
+    }) => {
+      // Step 1: Upload file to MEGA (client-side, bypasses Next.js limits)
+      onProgress?.(5)
+      
+      const uploadResult = await uploadToMegaClient(file, {
+        onProgress: (megaProgress) => {
+          // Map MEGA progress to 5-90% of total progress
+          const mappedProgress = 5 + (megaProgress * 0.85)
+          onProgress?.(mappedProgress)
+        }
+      })
+
+      onProgress?.(95)
+
+      // Step 2: Save metadata to database
+      const response = await fetch(attachmentsApi.saveMetadata, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          url: uploadResult.url,
+          size: uploadResult.size,
+          type: uploadResult.type
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save attachment metadata')
+      }
+
+      onProgress?.(100)
+      return response.json() as Promise<CourseAttachment>
+    },
+    onSuccess: (data) => {
+      toast.success('File uploaded successfully!')
+      // Invalidate and refetch attachments
+      queryClient.invalidateQueries({ queryKey: ['attachments'] })
+      queryClient.invalidateQueries({ queryKey: ['attachments', data.owner_id] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Upload failed')
+    }
+  })
+}
+
+// Legacy upload function for backward compatibility (uses original API route)
+export function useUploadAttachmentLegacy() {
   const queryClient = useQueryClient()
   
   return useMutation({
@@ -112,6 +190,25 @@ export function useDeleteAttachment() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Delete failed')
+    }
+  })
+}
+
+// Test MEGA connection (client-side)
+export function useTestMegaConnection() {
+  return useMutation({
+    mutationFn: async () => {
+      return testMegaConnectionClient()
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success(`MEGA connection test successful: ${result.message}`)
+      } else {
+        toast.error(`MEGA connection test failed: ${result.message}`)
+      }
+    },
+    onError: (error) => {
+      toast.error(`MEGA connection test error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   })
 }

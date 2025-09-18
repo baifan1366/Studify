@@ -108,7 +108,7 @@ export default function NotificationSettings() {
       </div>
 
       {/* Push Notifications Status */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
@@ -145,7 +145,7 @@ export default function NotificationSettings() {
       </Card>
 
       {/* General Settings */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
@@ -193,7 +193,7 @@ export default function NotificationSettings() {
       </Card>
 
       {/* Content-Specific Settings */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Content Notifications</CardTitle>
           <CardDescription>
@@ -286,7 +286,7 @@ export default function NotificationSettings() {
       </Card>
 
       {/* Marketing */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Marketing & Updates</CardTitle>
           <CardDescription>

@@ -36,6 +36,11 @@ export default function ProfileContent() {
   const userEmail = user?.email || '';
   const userName = userDisplayName || userEmail?.split('@')[0] || 'Unknown User';
   const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
+  
+  // Get interests from profile preferences
+  const userInterests = profile?.preferences?.interests || user?.user_metadata?.interests;
+  const broadField = userInterests?.broadField;
+  const subFields = userInterests?.subFields || [];
 
   React.useEffect(() => {
     if (profile) {
@@ -455,6 +460,69 @@ export default function ProfileContent() {
                   </div>
                 </div>
               </div>
+
+              {/* Interests Section */}
+              {(broadField || subFields.length > 0) && (
+                <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                    <motion.div
+                      className="absolute -top-4 -right-4 w-16 h-16 bg-purple-500/30 rounded-full blur-xl"
+                      animate={{
+                        scale: [1, 1.3, 1],
+                        opacity: [0.3, 0.7, 0.3],
+                      }}
+                      transition={{
+                        duration: 6,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: 2
+                      }}
+                    />
+                  </div>
+
+                  <div className="relative z-10">
+                    <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                      <Award size={20} />
+                      {t('interests')} {/* You may need to add this to translations */}
+                    </h3>
+
+                    <div className="space-y-4">
+                      {broadField && (
+                        <div>
+                          <label className="block text-sm font-medium text-white/80 mb-2">
+                            {t('main_interest')} {/* You may need to add this to translations */}
+                          </label>
+                          <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
+                            <span className="inline-block px-3 py-1 bg-blue-500/30 rounded-full text-sm font-medium text-white">
+                              {broadField}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {subFields.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-white/80 mb-2">
+                            {t('specific_interests')} {/* You may need to add this to translations */}
+                          </label>
+                          <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
+                            <div className="flex flex-wrap gap-2">
+                              {subFields.map((interest: string, index: number) => (
+                                <span
+                                  key={index}
+                                  className="inline-block px-3 py-1 bg-green-500/30 rounded-full text-sm font-medium text-white"
+                                >
+                                  {interest}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Quick Actions */}
               <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6 mb-8">

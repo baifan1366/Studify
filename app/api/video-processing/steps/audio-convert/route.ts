@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { createServerClient } from "@/utils/supabase/server";
 import { qstashClient } from "@/utils/qstash/qstash";
+import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { v2 as cloudinary } from "cloudinary";
 import { cloudinaryManager } from "@/lib/cloudinary-manager";
 import { z } from "zod";
@@ -76,27 +77,34 @@ async function convertVideoToAudio(compressedVideoUrl: string, attachmentPublicI
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string, audioUrl: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
   
   console.log('Queueing transcription step for queue:', queueId);
   
   try {
-    const qstashResponse = await qstashClient.publish({
-      url: transcribeEndpoint,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const queueManager = getQueueManager();
+    const queueName = `video-processing-${userId}`;
+    
+    // Ensure the queue exists
+    await queueManager.ensureQueue(queueName, 1);
+    
+    // Enqueue the next step
+    const qstashResponse = await queueManager.enqueue(
+      queueName,
+      transcribeEndpoint,
+      {
         queue_id: queueId,
         attachment_id: attachmentId,
         user_id: userId,
         audio_url: audioUrl,
         timestamp: new Date().toISOString(),
-      }),
-      retries: 3, // More retries for Whisper API
-      delay: "30s", // Longer delay for server wake-up
-    });
+      },
+      {
+        retries: 3, // More retries for Whisper API
+        delay: "30s", // Longer delay for server wake-up
+      }
+    );
 
     console.log('Transcription job queued:', qstashResponse.messageId);
     return qstashResponse.messageId;

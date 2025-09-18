@@ -20,6 +20,22 @@ export function useAttachments(ownerId?: number) {
   })
 }
 
+// Fetch current user's storage attachments (personal attachments)
+// Note: This needs to be used with a user profile ID to filter correctly
+export function useUserStorageAttachments(userId?: number) {
+  return useQuery({
+    queryKey: ['userStorageAttachments', userId],
+    queryFn: async () => {
+      if (!userId) {
+        return [] // Return empty array if no user ID provided
+      }
+      // Fetch user's own attachments by owner_id
+      return apiGet<CourseAttachment[]>(attachmentsApi.listByOwner(userId))
+    },
+    enabled: !!userId // Only fetch when userId is available
+  })
+}
+
 // Upload attachment using client-side MEGA upload
 export function useUploadAttachment() {
   const queryClient = useQueryClient()

@@ -24,6 +24,7 @@ import { useUser } from '@/hooks/profile/use-user';
 import { useEnrolledCourseStatus } from '@/hooks/course/use-enrolled-courses';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useFormat } from '@/hooks/use-format';
 import { Button } from '@/components/ui/button';
 
 interface CourseDetailContentProps {
@@ -35,6 +36,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   const { data: userData, isLoading: userLoading } = useUser();
   const user = userData || null;
   const t = useTranslations('CourseDetailContent');
+  const { formatPrice } = useFormat();
 
   const { data: course, isLoading, refetch: refetchCourse } = useCourseBySlug(courseSlug);
   const { toast } = useToast();
@@ -164,8 +166,8 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
     );
   }
 
-  const price = course.price_cents ? `$${(course.price_cents / 100).toFixed(2)}` : t('free');
   const isFree = !course.price_cents || course.price_cents === 0;
+  const price = formatPrice(course.price_cents || 0, course.currency || 'USD', isFree);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

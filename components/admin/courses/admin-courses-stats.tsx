@@ -17,8 +17,10 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { useAdminCourseAnalytics } from '@/hooks/admin/use-admin-courses';
+import { useFormat } from '@/hooks/use-format';
 
 export default function AdminCoursesStats() {
+  const { formatNumber } = useFormat();
   const { data: analytics, isLoading, error } = useAdminCourseAnalytics(30);
 
   if (isLoading) {
@@ -125,7 +127,7 @@ export default function AdminCoursesStats() {
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Total Revenue</span>
                 <span className="font-medium">
-                  ${analytics.overview.totalRevenue.toFixed(2)}
+                  ${formatNumber(analytics.overview.totalRevenue, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -136,7 +138,7 @@ export default function AdminCoursesStats() {
                 <span className="text-sm text-muted-foreground">Avg. per Transaction</span>
                 <span className="font-medium">
                   ${analytics.overview.totalTransactions > 0 
-                    ? (analytics.overview.totalRevenue / analytics.overview.totalTransactions).toFixed(2)
+                    ? formatNumber(analytics.overview.totalRevenue / analytics.overview.totalTransactions, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : '0.00'
                   }
                 </span>
@@ -167,7 +169,7 @@ export default function AdminCoursesStats() {
                 <span className="text-sm text-muted-foreground">Completion Rate</span>
                 <span className="font-medium">
                   {analytics.overview.totalEnrollments > 0
-                    ? ((analytics.overview.completedEnrollments / analytics.overview.totalEnrollments) * 100).toFixed(1)
+                    ? formatNumber((analytics.overview.completedEnrollments / analytics.overview.totalEnrollments) * 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                     : '0'
                   }%
                 </span>
@@ -204,7 +206,7 @@ export default function AdminCoursesStats() {
                   <div className="text-right">
                     <p className="text-sm font-medium">{course.total_students} students</p>
                     <p className="text-xs text-muted-foreground">
-                      ⭐ {course.average_rating ? course.average_rating.toFixed(1) : 'N/A'} • {course.total_lessons} lessons
+                      ⭐ {course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'} • {course.total_lessons} lessons
                     </p>
                   </div>
                 </div>

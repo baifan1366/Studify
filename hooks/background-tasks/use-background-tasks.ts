@@ -9,12 +9,16 @@ export const useBackgroundTasks = () => {
   ) => {
     const taskId = `video_${attachmentId}_${Date.now()}`
     
-    // Show initial toast
+    // Show initial toast with cancel option
     toast.loading(
       `🎥 Processing: ${title}`,
       {
         id: taskId,
         description: 'AI video analysis in progress - you can continue working',
+        action: {
+          label: 'Cancel',
+          onClick: () => cancelVideoProcessing(taskId, queueId, title)
+        }
       }
     )
     
@@ -65,14 +69,31 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
         throw new Error(data.error || 'Failed to check status')
       }
       
-      const progress = Math.min((attempts / maxAttempts) * 90, 90) // Simulate progress up to 90%
+      // Use real progress from queue status
+      const progress = data.progress_percentage || 0
+      const currentStep = data.current_step || 'starting'
       
-      // Update toast with progress
+      // Map step names to user-friendly labels
+      const stepLabels = {
+        'compress': '🎬 Compressing video',
+        'audio_convert': '🎵 Converting audio', 
+        'transcribe': '📝 Generating transcript',
+        'embed': '🧠 Creating AI embeddings',
+        'completed': '✅ Finalizing'
+      }
+      
+      const stepLabel = stepLabels[currentStep as keyof typeof stepLabels] || '⚙️ Processing'
+      
+      // Update toast with real progress and current step
       toast.loading(
-        `🎥 Processing: ${title} (${progress.toFixed(0)}%)`,
+        `${stepLabel}: ${title} (${progress}%)`,
         {
           id: taskId,
-          description: data.message || 'AI analysis in progress - you can continue working'
+          description: `Queue progress - you can continue working`,
+          action: {
+            label: 'Cancel',
+            onClick: () => cancelVideoProcessing(taskId, queueId, title)
+          }
         }
       )
       
@@ -89,12 +110,25 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
       }
       
       if (data.status === 'failed') {
-        throw new Error(data.error || 'Processing failed')
+        const errorMsg = data.error_message || 'Processing failed'
+        throw new Error(errorMsg)
+      }
+      
+      if (data.status === 'cancelled') {
+        toast.info(
+          `⏹️ Processing cancelled: ${title}`,
+          {
+            id: taskId,
+            description: 'Video processing was cancelled',
+            duration: 3000
+          }
+        )
+        return
       }
       
       attempts++
       if (attempts < maxAttempts) {
-        setTimeout(checkProgress, 1000)
+        setTimeout(checkProgress, 2000) // Check every 2 seconds for better UX
       } else {
         throw new Error('Processing timeout - please try again later')
       }
@@ -120,7 +154,7 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
 
 // Monitor embedding generation progress with real-time toast updates
 const monitorEmbeddingGeneration = async (taskId: string, attachmentId: number, title: string) => {
-  const maxAttempts = 60 // 1 minute with 1-second intervals
+  const maxAttempts = 60 // 1 minute with 2-second intervals
   let attempts = 0
   
   const checkProgress = async () => {
@@ -128,11 +162,12 @@ const monitorEmbeddingGeneration = async (taskId: string, attachmentId: number, 
       const response = await fetch(`/api/embeddings/video-embeddings/attachment/${attachmentId}`)
       const data = await response.json()
       
-      const progress = Math.min((attempts / maxAttempts) * 100, 95)
+      // Calculate estimated progress based on time elapsed
+      const progress = Math.min((attempts / maxAttempts) * 95, 95)
       
       // Update toast with progress
       toast.loading(
-        `🧠 Generating embeddings: ${title} (${progress.toFixed(0)}%)`,
+        `🧠 Generating AI embeddings: ${title} (${progress.toFixed(0)}%)`,
         {
           id: taskId,
           description: 'Preparing for AI search - you can continue working'
@@ -153,7 +188,7 @@ const monitorEmbeddingGeneration = async (taskId: string, attachmentId: number, 
       
       attempts++
       if (attempts < maxAttempts) {
-        setTimeout(checkProgress, 1000)
+        setTimeout(checkProgress, 2000) // Check every 2 seconds
       } else {
         // Still mark as completed since embeddings might be processed later
         toast.success(
@@ -183,4 +218,36 @@ const monitorEmbeddingGeneration = async (taskId: string, attachmentId: number, 
   }
   
   checkProgress()
+}
+
+// Cancel video processing
+const cancelVideoProcessing = async (taskId: string, queueId: string, title: string) => {
+  try {
+    const response = await fetch(`/api/video-processing/status/${queueId}`, {
+      method: 'DELETE'
+    })
+    
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to cancel processing')
+    }
+    
+    toast.info(
+      `⏹️ Processing cancelled: ${title}`,
+      {
+        id: taskId,
+        description: 'Video processing has been cancelled',
+        duration: 3000
+      }
+    )
+  } catch (error) {
+    toast.error(
+      `❌ Failed to cancel: ${title}`,
+      {
+        id: taskId,
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        duration: 5000
+      }
+    )
+  }
 }

@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
                            /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname);
   const isTestOrPublic = pathname === "/" || pathname.startsWith("/test");
   // QStash webhook endpoints (bypass auth for external webhooks)
-  const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor");
+  const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor") || pathname.includes("/api/currency");
   // Stripe webhook endpoints (bypass auth for external webhooks)
   const isStripeWebhook = pathname.includes("/api/course/webhook") || 
                           pathname.includes("/course/webhook") || 

@@ -5,7 +5,7 @@ export interface CommunityQuiz {
   id: number;
   public_id?: string;
   slug: string; // <- 必须有
-  creator_id?: string;
+  author_id?: string;
   title: string;
   description?: string;
   tags?: (string | Hashtag)[];

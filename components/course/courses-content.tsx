@@ -12,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatCurrency } from '@/lib/formatters';
+import { useCurrencies } from '@/hooks/currency/use-currencies';
+import { convertAndFormatPrice, getSupportedCurrencies } from '@/lib/currency-converter';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +26,7 @@ export default function CoursesContent() {
   const { data: courses, isLoading } = useCourses();
   const userId = user?.profile?.id || 0;
   const { data: enrolledCourses } = useEnrolledCoursesByUserId(userId as number);
+  const { data: currencies, isLoading: currenciesLoading } = useCurrencies();
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
   const [isBuyingNow, setIsBuyingNow] = useState(false);
@@ -87,7 +90,7 @@ export default function CoursesContent() {
         durationMinutes: c.total_duration_minutes || 0,
         students: c.total_students ?? 0,
         rating: c.average_rating ?? 0,
-        price: c.price_cents ? formatCurrency(c.price_cents / 100, currency) : 'Free',
+        price: c.price_cents && currencies ? convertAndFormatPrice(c.price_cents, currency, currencies, locale) : (c.price_cents ? formatCurrency(c.price_cents / 100, locale, currency) : 'Free'),
         priceCents: c.price_cents || 0,
         isFree: !c.price_cents || c.price_cents === 0,
         points: Math.max(100, Math.floor((c.price_cents || 0) / 10)), // Calculate points based on price
@@ -106,7 +109,7 @@ export default function CoursesContent() {
         ][idx % 6],
       };
     });
-  }, [courses, currency, enrolledCourseIds]);
+  }, [courses, currency, enrolledCourseIds, currencies, locale]);
 
   const handleBuyNow = async (courseId: string | number) => {
     setIsBuyingNow(true);
@@ -256,20 +259,7 @@ export default function CoursesContent() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{t('change_currency')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {[
-              { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-              { code: 'USD', symbol: '$', name: 'US Dollar' },
-              { code: 'EUR', symbol: '€', name: 'Euro' },
-              { code: 'GBP', symbol: '£', name: 'British Pound' },
-              { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-              { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
-              { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-              { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
-              { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
-              { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-              { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-              { code: 'KRW', symbol: '₩', name: 'Korean Won' },
-            ].map((curr) => (
+            {currencies && getSupportedCurrencies(currencies).map((curr) => (
               <DropdownMenuItem 
                 key={curr.code}
                 onClick={() => handleCurrencyChange(curr.code)}
@@ -477,7 +467,7 @@ export default function CoursesContent() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {isLoading
+        {(isLoading || currenciesLoading)
           ? [...Array(8)].map((_, index) => (
               <div
                 key={index}

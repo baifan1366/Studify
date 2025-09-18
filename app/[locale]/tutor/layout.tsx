@@ -7,7 +7,9 @@ export default async function TutorLayout({
 }) {
   return (
     <LayoutWrapper>
-      {children}
+      <div className="p-4">
+        {children}
+      </div>
     </LayoutWrapper>
   );
 }

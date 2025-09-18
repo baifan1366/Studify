@@ -23,6 +23,8 @@ export const studentsApi = {
   search: (query: string) =>
     `/api/students/search?q=${encodeURIComponent(query)}`,
   progress: (id: number) => `/api/students/${id}/progress`,
+  getByCourseOrUserId: (courseId?: number, userId?: number) => `/api/students?course_id=${courseId}&user_id=${userId}`,
+  updateEnrollmentStatus: (studentId: number, courseId: number) => `/api/students/${studentId}/${courseId}`,
 } as const;
 
 // Courses API endpoints
@@ -374,7 +376,7 @@ export const adminApi = {
   approveCourse: (courseId: string, notes?: string) => 
     api.post(`/api/admin/courses/${courseId}/approve`, { notes }),
   rejectCourse: (courseId: string, reason: string) => 
-    api.put(`/api/admin/courses/${courseId}/approve`, { reason }),
+    api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
 } as const;
@@ -403,6 +405,15 @@ export const api = {
   put: async (url: string, data?: any) => {
     const response = await fetch(url, {
       method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  patch: async (url: string, data?: any) => {
+    const response = await fetch(url, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: data ? JSON.stringify(data) : undefined,
     });

@@ -59,15 +59,67 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
           <Button 
             size="lg"
             disabled={isNavigating}
-            onClick={() => {
-              if (!isNavigating) {
-                setIsNavigating(true);
+            onClick={async () => {
+              if (isNavigating) return;
+              setIsNavigating(true);
+              try {
+                // 1) Check current attempt and session
+                let attemptId: number | null = null;
+                let sessionPublicId: string | null = null;
+
+                const cur = await fetch(`/api/community/quizzes/${quiz.slug}/current-attempt`);
+                if (cur.ok) {
+                  const data = await cur.json();
+                  if (data?.hasCurrentAttempt) {
+                    attemptId = data.currentAttempt?.id ?? null;
+                    sessionPublicId = data.session?.public_id ?? null;
+                  }
+                }
+
+                // 2) Create attempt if missing
+                if (!attemptId) {
+                  const res = await fetch(`/api/community/quizzes/${quiz.slug}/attempts`, {
+                    method: 'POST',
+                  });
+                  if (!res.ok) throw new Error('Failed to create attempt');
+                  const attempt = await res.json();
+                  attemptId = attempt?.id ?? null;
+                }
+
+                // 3) Create session if missing
+                if (!sessionPublicId && attemptId) {
+                  const sres = await fetch(`/api/community/quizzes/${quiz.slug}/attempts/${attemptId}/session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      browser_info: {
+                        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+                      }
+                    })
+                  });
+                  if (!sres.ok) throw new Error('Failed to create session');
+                  const s = await sres.json();
+                  sessionPublicId = s?.public_id ?? null;
+                }
+
+                if (sessionPublicId) {
+                  router.push(`/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`);
+                } else {
+                  // Fallback to guarded attempt page
+                  router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                }
+              } catch (e) {
+                console.error(e);
                 router.push(`/community/quizzes/${quiz.slug}/attempt`);
+              } finally {
+                setIsNavigating(false);
               }
             }}
           >
             <Play className="h-5 w-5 mr-2" />
-            {isNavigating ? "Starting..." : (isAuthor ? "Preview Quiz" : "Attempt Quiz")}
+            {isNavigating ? "Starting..." : 
+             attemptStatus?.hasInProgressAttempt ? "Continue Quiz" :
+             (isAuthor ? "Preview Quiz" : "Start Quiz")}
           </Button>
         ) : (
           <Button size="lg" disabled>

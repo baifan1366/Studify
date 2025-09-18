@@ -17,7 +17,7 @@ export async function POST(
     // 1. 找 attempt
     const { data: attempt, error: attemptErr } = await supabase
       .from("community_quiz_attempt")
-      .select("id, user_id, quiz_id")
+      .select("id, user_id, quiz_id, status")
       .eq("id", attemptId)
       .maybeSingle();
 
@@ -27,11 +27,16 @@ export async function POST(
     if (attempt.user_id !== userId) {
       return NextResponse.json({ error: "Not your attempt" }, { status: 403 });
     }
+    
+    // 检查attempt状态
+    if (attempt.status !== 'in_progress') {
+      return NextResponse.json({ error: "Attempt is not in progress" }, { status: 400 });
+    }
 
     // 2. 找所有答案
     const { data: answers, error: ansErr } = await supabase
       .from("community_quiz_attempt_answer")
-      .select("id, is_correct")
+      .select("id, is_correct, question_id")
       .eq("attempt_id", attempt.id);
 
     if (ansErr) {
@@ -40,13 +45,16 @@ export async function POST(
 
     const total = answers?.length || 0;
     const correct = answers?.filter((a) => a.is_correct).length || 0;
+    
+    // 计算分数 (按百分制)
+    const score = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-    // 3. 更新 attempt（打上成绩标记）
+    // 3. 更新 attempt（标记为已提交并记录分数）
     const { error: updErr } = await supabase
       .from("community_quiz_attempt")
       .update({
-        is_correct: total > 0 && correct === total, // 全部对才算整体正确
-        answers: [], // 不再维护 answers，这里只是为了避免 schema 报错
+        status: 'submitted',
+        score: score
       })
       .eq("id", attempt.id);
 
@@ -54,7 +62,12 @@ export async function POST(
       return NextResponse.json({ error: updErr.message }, { status: 500 });
     }
 
-    return NextResponse.json({ total, correct }, { status: 200 });
+    return NextResponse.json({ 
+      total, 
+      correct, 
+      score,
+      percentage: score
+    }, { status: 200 });
   } catch (err: any) {
     console.error("Complete attempt error:", err);
     return NextResponse.json(

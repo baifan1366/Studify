@@ -30,9 +30,7 @@ export function usePurchaseCourse() {
       const baseUrl = window.location.origin;
       const successUrl = data.successUrl || `${baseUrl}/${locale}/courses/{courseSlug}?success=true`;
       const cancelUrl = data.cancelUrl || `${baseUrl}/${locale}/courses/{courseSlug}`;
-      
-      console.log('Purchase URLs:', { successUrl, cancelUrl, locale, baseUrl });
-      
+            
       return apiSend<PurchaseCourseResponse, PurchaseCourseData>({
         url: '/api/course/order',
         method: 'POST',

@@ -9,7 +9,6 @@ import { headers } from "next/headers";
  */
 async function handleClassroomFlow(supabase: any, course: any, userId: number): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(`[ClassroomFlow] Starting classroom flow for user ${userId}, course ${course.slug}`);
     
     // Check if classroom exists for this course slug
     const { data: existingClassroom, error: classroomError } = await supabase
@@ -26,7 +25,6 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number): 
     let classroomId;
 
     if (!existingClassroom) {
-      console.log(`[ClassroomFlow] Creating new classroom for course ${course.slug}`);
       // Create new classroom if doesn't exist
       const { data: newClassroom, error: createError } = await supabase
         .from('classroom')
@@ -52,10 +50,8 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number): 
       }
       
       classroomId = newClassroom.id;
-      console.log(`[ClassroomFlow] Created classroom with ID ${classroomId}`);
     } else {
       classroomId = existingClassroom.id;
-      console.log(`[ClassroomFlow] Using existing classroom with ID ${classroomId}`);
     }
 
     // Check if user is already a member
@@ -72,7 +68,6 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number): 
     }
 
     if (!existingMembership) {
-      console.log(`[ClassroomFlow] Adding user ${userId} to classroom ${classroomId}`);
       const { error: joinError } = await supabase
         .from('classroom_member')
         .insert({
@@ -86,12 +81,8 @@ async function handleClassroomFlow(supabase: any, course: any, userId: number): 
         console.error('[ClassroomFlow] Failed to join classroom:', joinError);
         return { success: false, error: `Failed to join classroom: ${joinError.message}` };
       }
-      console.log(`[ClassroomFlow] Successfully joined user ${userId} to classroom ${classroomId}`);
-    } else {
-      console.log(`[ClassroomFlow] User ${userId} is already a member of classroom ${classroomId}`);
-    }
+    } 
 
-    console.log(`[ClassroomFlow] Classroom flow completed successfully for user ${userId}`);
     return { success: true };
   } catch (error) {
     console.error('[ClassroomFlow] Unexpected error in classroom flow:', error);
@@ -109,15 +100,10 @@ function generateClassCode(): string {
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
-  console.log('[Webhook] Received Stripe webhook request');
   
   try {
     const body = await request.text();
     const signature = (await headers()).get("stripe-signature");
-
-    console.log('[Webhook] Body length:', body.length);
-    console.log('[Webhook] Has signature:', !!signature);
-    console.log('[Webhook] Webhook secret configured:', !!webhookSecret);
 
     if (!signature) {
       console.error('[Webhook] Missing Stripe signature header');
@@ -132,7 +118,6 @@ export async function POST(request: NextRequest) {
     let event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-      console.log('[Webhook] Event type:', event.type);
     } catch (err) {
       console.error("[Webhook] Signature verification failed:", err);
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
@@ -142,7 +127,6 @@ export async function POST(request: NextRequest) {
 
     switch (event.type) {
       case "checkout.session.completed": {
-        console.log('[Webhook] Processing checkout.session.completed');
         const session = event.data.object;
         
         if (!session.metadata) {
@@ -151,7 +135,6 @@ export async function POST(request: NextRequest) {
         }
         
         const { orderId, courseId, userId } = session.metadata;
-        console.log('[Webhook] Session metadata:', { orderId, courseId, userId });
 
         // Get order details
         const { data: order, error: orderError } = await supabase
@@ -194,7 +177,6 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (course && user) {
-          console.log('[Webhook] Creating enrollment for user:', user.id, 'course:', course.id);
           
           // Enroll user in course
           const { error: enrollmentError } = await supabase
@@ -209,15 +191,12 @@ export async function POST(request: NextRequest) {
           if (enrollmentError) {
             console.error("[Webhook] Failed to enroll user:", enrollmentError);
           } else {
-            console.log('[Webhook] Enrollment successful, handling classroom flow');
             // After enrollment, handle classroom creation/joining as per COURSE.md L15-20
             const classroomResult = await handleClassroomFlow(supabase, course, user.id);
             if (!classroomResult.success) {
               console.error('[Webhook] Classroom flow failed:', classroomResult.error);
               // Log error but don't fail the entire webhook - enrollment was successful
-            } else {
-              console.log('[Webhook] Classroom flow completed successfully');
-            }
+            } 
             let groupPublicId = course.community_group_public_id;
 
             if (!groupPublicId) {
@@ -310,7 +289,6 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
-    console.log('[Webhook] Successfully processed webhook event');
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("[Webhook] Webhook error:", error);

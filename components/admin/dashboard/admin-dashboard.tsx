@@ -33,7 +33,7 @@ interface StatsCardProps {
 
 function StatsCard({ title, value, description, icon: Icon, trend }: StatsCardProps) {
   return (
-    <Card>
+    <Card className="bg-transparent p-2">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -161,7 +161,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Role Distribution */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>User Role Distribution</CardTitle>
           <CardDescription>
@@ -183,7 +183,7 @@ export function AdminDashboard() {
       </Card>
 
       {/* Recent Activity */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Recent Admin Activity</CardTitle>
           <CardDescription>

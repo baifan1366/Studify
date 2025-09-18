@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useUpdateStudentStatus } from '@/hooks/students/use-student';
+import { useUpdateStudentStatus, useEnrollmentById } from '@/hooks/students/use-student';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,7 @@ interface EditStudentStatusProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentId: string;
+  courseId?: string;
   onSave?: (status: EnrollmentStatus) => void;
 }
 
@@ -113,7 +114,8 @@ const statusConfig: Record<EnrollmentStatus, {
 export default function EditStudentStatus({ 
   open,
   onOpenChange,
-  studentId, 
+  studentId,
+  courseId,
   onSave 
 }: EditStudentStatusProps) {
   const t = useTranslations('EditStudentStatus');
@@ -121,111 +123,26 @@ export default function EditStudentStatus({
   const { mutateAsync: updateStatus, isPending } = useUpdateStudentStatus();
 
   // State management
-  const [student, setStudent] = useState<StudentWithProfile | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<EnrollmentStatus>('active');
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Mock student data - replace with actual API call
+  // Fetch enrollment data using real API
+  const { 
+    data: student, 
+    isLoading, 
+    error 
+  } = useEnrollmentById(
+    studentId ? parseInt(studentId) : 0,
+    courseId ? parseInt(courseId) : 0
+  );
+
+  // Initialize selected status when student data loads
   useEffect(() => {
-    if (!open || !studentId) {
-      return;
+    if (student && student.status) {
+      setSelectedStatus(student.status);
     }
-
-    const fetchStudent = async () => {
-      try {
-        setIsLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockStudent: StudentWithProfile = {
-          id: Number(studentId),
-          public_id: `pub_${studentId}`,
-          course_id: 1,
-          user_id: 123,
-          role: 'student',
-          status: 'active',
-          started_at: '2024-01-15T00:00:00Z',
-          created_at: '2024-01-15T00:00:00Z',
-          updated_at: '2024-01-15T00:00:00Z',
-          progress: 75,
-          student_profile: {
-            id: 123,
-            public_id: 'prof_123',
-            user_id: 'user_123',
-            display_name: 'John Doe',
-            full_name: 'John Doe',
-            email: 'john.doe@example.com',
-            role: 'student',
-            avatar_url: null,
-            bio: null,
-            timezone: 'UTC',
-            status: 'active',
-            banned_reason: null,
-            banned_at: null,
-            points: 0,
-            onboarded: true,
-            onboard_step: 0,
-            is_deleted: false,
-            preferences: '{}',
-            theme: 'system',
-            language: 'en',
-            notification_settings: '{}',
-            privacy_settings: '{}',
-            two_factor_enabled: false,
-            email_verified: true,
-            profile_completion: 100,
-            created_at: '2024-01-15T00:00:00Z',
-            updated_at: '2024-01-15T00:00:00Z',
-            last_login: '2024-09-17T00:00:00Z',
-            deleted_at: null
-          },
-          course: {
-            id: 1,
-            public_id: 'course_123',
-            owner_id: 1,
-            title: 'Advanced React Development',
-            description: 'Learn advanced React concepts',
-            slug: 'advanced-react-development',
-            visibility: 'public',
-            price_cents: 9999,
-            currency: 'USD',
-            tags: ['react', 'javascript'],
-            is_deleted: false,
-            created_at: '2024-01-15T00:00:00Z',
-            updated_at: '2024-01-15T00:00:00Z',
-            level: 'intermediate',
-            category: 'Programming',
-            language: 'en',
-            total_lessons: 20,
-            total_duration_minutes: 1200,
-            requirements: ['Basic JavaScript knowledge'],
-            learning_objectives: ['Master React hooks', 'Build complex applications'],
-            average_rating: 4.5,
-            total_students: 150,
-            is_free: false,
-            auto_create_classroom: true,
-            auto_create_community: true,
-            status: 'active'
-          }
-        };
-        
-        setStudent(mockStudent);
-        setSelectedStatus(mockStudent.status);
-      } catch (error) {
-        toast({
-          title: t('error'),
-          description: t('failed_to_load_student'),
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStudent();
-  }, [open, studentId, t, toast]);
+  }, [student]);
 
   // Track changes
   useEffect(() => {
@@ -256,20 +173,11 @@ export default function EditStudentStatus({
     try {
       await updateStatus({
         courseId: student.course_id,
-        studentId: student.id,
+        studentId: student.user_id,  // Use user_id instead of enrollment id
         status: selectedStatus
       });
 
-      toast({
-        title: t('status_updated'),
-        description: t('status_updated_desc', { 
-          name: student.student_profile?.display_name || student.student_profile?.full_name || 'Student',
-          status: t(`status_${selectedStatus}`)
-        }),
-      });
-
-      // Update local state
-      setStudent(prev => prev ? { ...prev, status: selectedStatus } : null);
+      // Reset local state
       setHasChanges(false);
       
       // Callback for parent component
@@ -309,10 +217,8 @@ export default function EditStudentStatus({
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      setStudent(null);
       setSelectedStatus('active');
       setHasChanges(false);
-      setIsLoading(true);
     }
   }, [open]);
 
@@ -354,15 +260,20 @@ export default function EditStudentStatus({
           )}
 
           {/* Error state */}
-          {!isLoading && !student && (
+          {!isLoading && (error || !student) && (
             <div className="flex flex-col items-center justify-center py-12">
               <XCircle size={48} className="text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                {t('student_not_found')}
+                {error ? t('error_loading_student') : t('student_not_found')}
               </h3>
               <p className="text-muted-foreground text-center mb-6">
-                {t('student_not_found_desc')}
+                {error ? t('error_loading_student_desc') : t('student_not_found_desc')}
               </p>
+              {error && (
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  {t('retry')}
+                </Button>
+              )}
             </div>
           )}
 
@@ -370,7 +281,7 @@ export default function EditStudentStatus({
           {!isLoading && student && (
             <div className="space-y-6">
               {/* Student Profile Card */}
-              <Card>
+              <Card className="bg-transparent p-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User size={20} />
@@ -452,7 +363,7 @@ export default function EditStudentStatus({
               </Card>
 
               {/* Status Change Section */}
-              <Card>
+              <Card className="bg-transparent p-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <RotateCcw size={20} />
@@ -541,25 +452,6 @@ export default function EditStudentStatus({
             </Button>
             
             <Button 
-              variant="outline"
-              onClick={handleReset}
-              disabled={!hasChanges}
-              className="flex items-center gap-2"
-            >
-              <RotateCcw size={16} />
-              {t('reset_changes')}
-            </Button>
-            
-            <Button 
-              variant="ghost"
-              onClick={handleCancel}
-              className="flex items-center gap-2"
-            >
-              <XCircle size={16} />
-              {t('cancel')}
-            </Button>
-            
-            <Button 
               onClick={handleSave}
               disabled={!hasChanges || isPending}
               className="flex items-center gap-2"
@@ -576,8 +468,8 @@ export default function EditStudentStatus({
                 </>
               )}
             </Button>
-            </DialogFooter>
-          )}
+          </DialogFooter>
+        )}
         </DialogContent>
       </Dialog>
 

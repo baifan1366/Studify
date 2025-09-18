@@ -148,7 +148,7 @@ export default function AdminReportsList() {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </CardContent>
@@ -158,7 +158,7 @@ export default function AdminReportsList() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
@@ -180,7 +180,7 @@ export default function AdminReportsList() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
@@ -249,7 +249,7 @@ export default function AdminReportsList() {
       </Card>
 
       {/* Reports Table */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Reports ({reportsData?.pagination.total || 0})</CardTitle>
           <CardDescription>

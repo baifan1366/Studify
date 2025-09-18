@@ -133,7 +133,7 @@ export default function PermissionManager({
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Shield className="h-5 w-5" />

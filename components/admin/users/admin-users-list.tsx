@@ -143,7 +143,7 @@ export function AdminUsersList() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="pt-6">
           <div className="text-center text-red-600">
             Failed to load users: {error.message}
@@ -200,7 +200,7 @@ export function AdminUsersList() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Filter className="h-5 w-5 mr-2" />
@@ -255,7 +255,7 @@ export function AdminUsersList() {
       </Card>
 
       {/* Users Table */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Users ({data?.pagination.total || 0})</CardTitle>
           <CardDescription>

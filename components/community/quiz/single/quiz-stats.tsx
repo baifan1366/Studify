@@ -53,7 +53,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
   return (
     <div className="space-y-6">
       {/* Quiz Overview */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
@@ -105,7 +105,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
       </Card>
 
       {/* Quiz Details */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Quiz Details</CardTitle>
         </CardHeader>

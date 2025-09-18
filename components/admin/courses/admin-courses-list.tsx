@@ -149,7 +149,7 @@ export default function AdminCoursesList() {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </CardContent>
@@ -159,7 +159,7 @@ export default function AdminCoursesList() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <BookOpen className="h-8 w-8 text-destructive mx-auto mb-2" />
@@ -181,7 +181,7 @@ export default function AdminCoursesList() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function AdminCoursesList() {
       </Card>
 
       {/* Courses Table */}
-      <Card>
+      <Card className="bg-transparent p-2">
         <CardHeader>
           <CardTitle>Courses ({coursesData?.pagination.total || 0})</CardTitle>
           <CardDescription>

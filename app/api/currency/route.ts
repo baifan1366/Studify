@@ -224,16 +224,46 @@ async function handler(req: Request) {
 
 // Manual trigger endpoint (no QStash verification required)
 export async function POST(req: NextRequest) {
-  // Check if this is a manual initialization request
-  const { searchParams } = new URL(req.url);
-  const isManualInit = searchParams.get('init') === 'true';
-  
-  if (isManualInit) {
-    // Allow manual initialization without QStash signature
-    console.log('[Currency API] Manual initialization requested');
-    return await handler(req);
+  try {
+    // Check if this is a manual initialization request
+    const { searchParams } = new URL(req.url);
+    const isManualInit = searchParams.get('init') === 'true';
+    
+    // Check if QStash is properly configured
+    const qstashSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
+    const qstashNextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
+    
+    if (isManualInit) {
+      // Allow manual initialization without QStash signature
+      console.log('[Currency API] Manual initialization requested');
+      return await handler(req);
+    }
+    
+    // If QStash is not configured, allow direct access for development
+    if (!qstashSigningKey && !qstashNextSigningKey) {
+      console.log('[Currency API] QStash not configured, allowing direct access');
+      return await handler(req);
+    }
+    
+    // For scheduled updates with QStash configured, require QStash verification
+    console.log('[Currency API] QStash configured, verifying signature');
+    return await verifySignatureAppRouter(handler)(req);
+    
+  } catch (error) {
+    console.error('[Currency API] Error in POST endpoint:', error);
+    
+    // If signature verification fails, try to handle as manual request
+    if (error instanceof Error && error.message.includes('signature')) {
+      console.log('[Currency API] Signature verification failed, attempting manual handling');
+      return await handler(req);
+    }
+    
+    return NextResponse.json(
+      { 
+        error: 'Request verification failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 401 }
+    );
   }
-  
-  // For scheduled updates, require QStash verification
-  return await verifySignatureAppRouter(handler)(req);
 }

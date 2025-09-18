@@ -31,7 +31,8 @@ import {
   SortAsc,
   SortDesc,
   Grid,
-  List
+  List,
+  Settings
 } from 'lucide-react';
 import { Course } from '@/interface/courses/course-interface';
 import { Enrollment } from '@/interface/courses/enrollment-interface';
@@ -55,15 +56,20 @@ interface CourseWithStudentCount extends Course {
 export default function StudentList() {
   const t = useTranslations('student');
   const { data: user } = useUser();
-  const { data: courses, isLoading: coursesLoading } = useCourses();
-  const { data: enrollments, isLoading: enrollmentsLoading } = useEnrolledStudent();
+  const userId = user?.profile?.id || "";
+  
+  // Get all courses created by this tutor
+  const { data: courses, isLoading: coursesLoading } = useCourses(Number(userId));
+  
+  // Get course IDs to fetch students for
+  const courseIds = courses?.map(course => course.id) || [];
+  
+  // Get all students enrolled in any courses (we'll filter to tutor's courses later)
+  const { data: allStudents, isLoading: studentsLoading } = useEnrolledStudent();
   
   // Dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
-
-  const userId = user?.profile?.id || "";
-  const { data: students, isLoading: studentsLoading } = useEnrolledStudent(undefined, Number(userId));
   
   // State management
   const [viewMode, setViewMode] = useState<ViewMode>('courses');
@@ -75,19 +81,28 @@ export default function StudentList() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const isLoading = coursesLoading || studentsLoading || enrollmentsLoading;
+  const isLoading = coursesLoading || studentsLoading;
 
-  // Process actual enrollment data
-  const enhancedStudents: EnhancedEnrollment[] = useMemo(() => {
-    if (!students || !Array.isArray(students)) return [];
+  // Filter students to only those enrolled in tutor's courses
+  const tutorStudents = useMemo(() => {
+    if (!allStudents || !Array.isArray(allStudents) || !courseIds.length) return [];
     
-    return students.map((enrollment: Enrollment) => ({
+    return allStudents.filter((enrollment: Enrollment) => 
+      courseIds.includes(enrollment.course_id)
+    );
+  }, [allStudents, courseIds]);
+  
+  // Process actual enrollment data for tutor's students only
+  const enhancedStudents: EnhancedEnrollment[] = useMemo(() => {
+    if (!tutorStudents || !Array.isArray(tutorStudents)) return [];
+    
+    return tutorStudents.map((enrollment: Enrollment) => ({
       ...enrollment,
       progress: Math.floor(Math.random() * 100) // TODO: Replace with actual progress calculation
     } as EnhancedEnrollment));
-  }, [students]);
+  }, [tutorStudents]);
 
-  // Process courses with student counts
+  // Process courses with student counts (only tutor's courses)
   const coursesWithCounts = useMemo((): CourseWithStudentCount[] => {
     if (!courses || !Array.isArray(courses)) return [];
     
@@ -160,7 +175,7 @@ export default function StudentList() {
       }
 
       // Course filter for students view
-      if (selectedCourse) {
+      if (selectedCourse && selectedCourse !== 'all') {
         studentData = studentData.filter((enrollment) => 
           enrollment.course_id === Number(selectedCourse)
         );
@@ -281,68 +296,80 @@ export default function StudentList() {
           </div>
         </div>
 
-        {/* Filters and Search */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Filter size={20} />
-              {t('filters')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-                <Input
-                  placeholder={t('search_placeholder')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
+            <Input
+              placeholder={t('search_placeholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Filters Dropdown */}
+          <Select value="filters" onValueChange={() => {}}>
+            <SelectTrigger className="w-[200px]">
+              <div className="flex items-center gap-2">
+                <Settings size={16} />
+                <span>{t('filters')}</span>
               </div>
+            </SelectTrigger>
+            <SelectContent className="w-[300px]">
+              <div className="p-4 space-y-4">
+                {/* Course Filter (for students view) */}
+                {viewMode === 'students' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('course_filter')}</label>
+                    <Select value={selectedCourse || 'all'} onValueChange={(value) => setSelectedCourse(value === 'all' ? null : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('select_course')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('all_courses')}</SelectItem>
+                        {coursesWithCounts.map((course) => (
+                          <SelectItem key={course.id} value={course.id.toString()}>
+                            {course.title} ({course.studentsCount} {t('students')})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-              {/* Course Filter (for students view) */}
-              {viewMode === 'students' && (
-                <Select value={selectedCourse || ''} onValueChange={setSelectedCourse}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('select_course')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">{t('all_courses')}</SelectItem>
-                    {coursesWithCounts.map((course) => (
-                      <SelectItem key={course.id} value={course.id.toString()}>
-                        {course.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+                {/* Sort By */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('sort_by')}</label>
+                  <Select value={sortBy} onValueChange={(value: SortBy) => setSortBy(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">{t('sort_by_name')}</SelectItem>
+                      <SelectItem value="date">{t('sort_by_date')}</SelectItem>
+                      <SelectItem value="progress">{t('sort_by_progress')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Sort By */}
-              <Select value={sortBy} onValueChange={(value: SortBy) => setSortBy(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">{t('sort_by_name')}</SelectItem>
-                  <SelectItem value="date">{t('sort_by_date')}</SelectItem>
-                  <SelectItem value="progress">{t('sort_by_progress')}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Sort Order */}
-              <Button
-                variant="outline"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="flex items-center gap-2"
-              >
-                {sortOrder === 'asc' ? <SortAsc size={16} /> : <SortDesc size={16} />}
-                {sortOrder === 'asc' ? t('ascending') : t('descending')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Sort Order */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('sort_order')}</label>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="w-full flex items-center justify-between"
+                  >
+                    <span>{sortOrder === 'asc' ? t('ascending') : t('descending')}</span>
+                    {sortOrder === 'asc' ? <SortAsc size={16} /> : <SortDesc size={16} />}
+                  </Button>
+                </div>
+              </div>
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Main Content */}
         {viewMode === 'courses' ? (

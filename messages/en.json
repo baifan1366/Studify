@@ -2198,6 +2198,25 @@
     "reschedule_announcement_desc": "Modify the scheduled time for this announcement",
     "schedule_announcement_desc": "Set when this announcement should be sent to users"
   },
+  "MyCoursesContent": {
+    "page_title": "My Learning",
+    "page_subtitle": "Your personal space to continue your learning journey.",
+    "untitled_course": "Untitled Course",
+    "self_paced": "Self-paced",
+    "beginner": "Beginner",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+    "progress": "Progress",
+    "continue_button": "Continue",
+    "start_button": "Start",
+    "view_details": "View Details",
+    "error_loading": "Error Loading Courses",
+    "error_message": "There was an error loading your courses. Please try again later.",
+    "retry_button": "Retry",
+    "no_courses_title": "No Courses Enrolled",
+    "no_courses_message": "You haven't enrolled in any courses yet. Browse our catalog to get started!",
+    "browse_courses": "Browse Courses"
+  },
   "CourseActions": {
     "open_menu": "Open Menu",
     "view": "View",

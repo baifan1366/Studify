@@ -57,7 +57,6 @@ import {
   MoreHorizontal,
   RefreshCw,
   Loader2,
-  X,
   EllipsisVertical,
   Music,
   Download,
@@ -66,7 +65,7 @@ import {
   Settings
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment, useTestMegaConnection } from '@/hooks/course/use-attachments'
+import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAttachment } from '@/hooks/course/use-attachments'
 import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-tasks'
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
@@ -114,7 +113,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
   const startVideoProcessingMutation = useStartVideoProcessing()
-  const testMegaConnection = useTestMegaConnection()
   const { startVideoProcessingTask, startEmbeddingTask } = useBackgroundTasks()
 
   const formatFileSize = (bytes: number | null) => {
@@ -129,16 +127,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      // No more size limit with client-side upload!
-      const fileSizeMB = selectedFile.size / 1024 / 1024
-      
-      if (fileSizeMB > 4) {
-        toast.info(
-          `Large file detected (${fileSizeMB.toFixed(1)}MB). Using direct MEGA upload to bypass Vercel limits.`,
-          { duration: 5000 }
-        )
-      }
-      
       setFile(selectedFile)
       setUploadProgress(0)
     }
@@ -226,9 +214,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     }
   }
 
-  const handleTestConnection = () => {
-    testMegaConnection.mutate()
-  }
 
   const handlePreview = (attachment: CourseAttachment) => {
     if (!attachment.url) {
@@ -364,7 +349,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       {t('upload_title')}
                     </CardTitle>
                     <CardDescription>
-                      {t('upload_description')} - Now supports unlimited file sizes via MEGA!
+                      {t('upload_description')}
                     </CardDescription>
                   </div>
                 </CardHeader>
@@ -407,13 +392,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                           <p className="text-sm text-muted-foreground">
                             {t('selected')}: {file.name} ({formatFileSize(file.size)})
                           </p>
-                          {file.size > 4 * 1024 * 1024 && (
-                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                              <p className="text-sm text-blue-700 dark:text-blue-300">
-                                🚀 Large file detected! Using direct MEGA upload (bypasses Vercel 4MB limit)
-                              </p>
-                            </div>
-                          )}
                           {uploadMutation.isPending && uploadProgress > 0 && (
                             <div className="space-y-1">
                               <div className="flex justify-between text-xs text-muted-foreground">
@@ -430,24 +408,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                           )}
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        Files larger than 4MB automatically use direct MEGA upload to bypass Vercel limits
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleTestConnection}
-                        disabled={testMegaConnection.isPending}
-                        className="mt-2"
-                      >
-                        {testMegaConnection.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                        )}
-                        Test MEGA Connection
-                      </Button>
                     </div>
 
                     <Button 
@@ -463,7 +423,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                       ) : (
                         <>
                           <Upload className="h-4 w-4 mr-2" />
-                          {file && file.size > 4 * 1024 * 1024 ? 'Upload Large File (MEGA)' : t('upload_button')}
+                          {t('upload_button')}
                         </>
                       )}
                     </Button>

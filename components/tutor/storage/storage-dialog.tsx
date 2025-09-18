@@ -107,9 +107,6 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   
   // Client-side upload state
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [megaCredentials, setMegaCredentials] = useState({ email: '', password: '' })
-  const [showCredentials, setShowCredentials] = useState(false)
-  const [credentialsError, setCredentialsError] = useState<string | null>(null)
 
   // Hooks
   const { data: attachments = [], isLoading, refetch } = useAttachments(ownerId)
@@ -137,13 +134,9 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       
       if (fileSizeMB > 4) {
         toast.info(
-          `Large file detected (${fileSizeMB.toFixed(1)}MB). Using direct MEGA upload to bypass Next.js limits.`,
+          `Large file detected (${fileSizeMB.toFixed(1)}MB). Using direct MEGA upload to bypass Vercel limits.`,
           { duration: 5000 }
         )
-        // Show credentials input for large files if not already set via env
-        if (!process.env.NEXT_PUBLIC_MEGA_EMAIL && !megaCredentials.email) {
-          setShowCredentials(true)
-        }
       }
       
       setFile(selectedFile)
@@ -174,21 +167,10 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
     setTitleError(null)
     setUploadProgress(0)
     
-    // Validate MEGA credentials for large files if needed
-    const fileSizeMB = file.size / 1024 / 1024
-    const needsCredentials = fileSizeMB > 4 && !process.env.NEXT_PUBLIC_MEGA_EMAIL
-    
-    if (needsCredentials && (!megaCredentials.email || !megaCredentials.password)) {
-      setCredentialsError('MEGA credentials are required for large file uploads')
-      setShowCredentials(true)
-      return
-    }
-    
     try {
       const uploadResult = await uploadMutation.mutateAsync({
         title: title.trim(),
         file,
-        credentials: needsCredentials ? megaCredentials : undefined,
         onProgress: (progress) => {
           setUploadProgress(progress)
         }
@@ -245,13 +227,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   }
 
   const handleTestConnection = () => {
-    if (!megaCredentials.email || !megaCredentials.password) {
-      setCredentialsError('Please enter both email and password to test connection')
-      return
-    }
-    
-    setCredentialsError(null)
-    testMegaConnection.mutate(megaCredentials)
+    testMegaConnection.mutate()
   }
 
   const handlePreview = (attachment: CourseAttachment) => {
@@ -382,26 +358,14 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
             <TabsContent value="upload" className="mt-6">
               <Card className="bg-transparent">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Upload className="h-5 w-5" />
-                        {t('upload_title')}
-                      </CardTitle>
-                      <CardDescription>
-                        {t('upload_description')} - Now supports unlimited file sizes!
-                      </CardDescription>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCredentials(!showCredentials)}
-                      disabled={uploadMutation.isPending}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      MEGA Settings
-                    </Button>
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Upload className="h-5 w-5" />
+                      {t('upload_title')}
+                    </CardTitle>
+                    <CardDescription>
+                      {t('upload_description')} - Now supports unlimited file sizes via MEGA!
+                    </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -446,7 +410,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                           {file.size > 4 * 1024 * 1024 && (
                             <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
                               <p className="text-sm text-blue-700 dark:text-blue-300">
-                                🚀 Large file detected! Using direct MEGA upload (no size limits)
+                                🚀 Large file detected! Using direct MEGA upload (bypasses Vercel 4MB limit)
                               </p>
                             </div>
                           )}
@@ -467,81 +431,24 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
                         </div>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Files larger than 4MB use direct MEGA upload (no size limits)
+                        Files larger than 4MB automatically use direct MEGA upload to bypass Vercel limits
                       </p>
-                    </div>
-
-                    {/* MEGA Credentials Section */}
-                    {showCredentials && (
-                      <div className="space-y-4 p-4 border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-orange-800 dark:text-orange-200">MEGA Credentials Required</h4>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setShowCredentials(false)}
-                            disabled={uploadMutation.isPending}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <p className="text-sm text-orange-700 dark:text-orange-300">
-                          Large files require MEGA credentials for direct upload. {process.env.NEXT_PUBLIC_MEGA_EMAIL ? 
-                            'Using environment variables.' : 
-                            'No environment variables detected - please enter credentials below.'
-                          }
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="mega-email">MEGA Email</Label>
-                            <Input
-                              id="mega-email"
-                              type="email"
-                              placeholder="your-email@example.com"
-                              value={megaCredentials.email}
-                              onChange={(e) => {
-                                setMegaCredentials(prev => ({ ...prev, email: e.target.value }))
-                                if (credentialsError) setCredentialsError(null)
-                              }}
-                              disabled={uploadMutation.isPending}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="mega-password">MEGA Password</Label>
-                            <Input
-                              id="mega-password"
-                              type="password"
-                              placeholder="Your MEGA password"
-                              value={megaCredentials.password}
-                              onChange={(e) => {
-                                setMegaCredentials(prev => ({ ...prev, password: e.target.value }))
-                                if (credentialsError) setCredentialsError(null)
-                              }}
-                              disabled={uploadMutation.isPending}
-                            />
-                          </div>
-                        </div>
-                        {credentialsError && (
-                          <p className="text-sm text-red-600 dark:text-red-400">{credentialsError}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTestConnection}
+                        disabled={testMegaConnection.isPending}
+                        className="mt-2"
+                      >
+                        {testMegaConnection.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleTestConnection}
-                            disabled={testMegaConnection.isPending || !megaCredentials.email || !megaCredentials.password}
-                          >
-                            {testMegaConnection.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                            )}
-                            Test Connection
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                        Test MEGA Connection
+                      </Button>
+                    </div>
 
                     <Button 
                       type="submit" 

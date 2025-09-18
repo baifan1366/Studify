@@ -28,20 +28,16 @@ export function useUploadAttachment() {
     mutationFn: async ({ 
       title, 
       file, 
-      credentials,
       onProgress 
     }: {
       title: string
       file: File
-      credentials?: { email: string; password: string }
       onProgress?: (progress: number) => void
     }) => {
       // Step 1: Upload file to MEGA (client-side, bypasses Next.js limits)
       onProgress?.(5)
       
       const uploadResult = await uploadToMegaClient(file, {
-        email: credentials?.email,
-        password: credentials?.password,
         onProgress: (megaProgress) => {
           // Map MEGA progress to 5-90% of total progress
           const mappedProgress = 5 + (megaProgress * 0.85)
@@ -185,8 +181,8 @@ export function useDeleteAttachment() {
 // Test MEGA connection (client-side)
 export function useTestMegaConnection() {
   return useMutation({
-    mutationFn: async (credentials?: { email: string; password: string }) => {
-      return testMegaConnectionClient(credentials?.email, credentials?.password)
+    mutationFn: async () => {
+      return testMegaConnectionClient()
     },
     onSuccess: (result) => {
       if (result.success) {

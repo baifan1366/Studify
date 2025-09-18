@@ -109,7 +109,7 @@ async function compressVideo(attachment: any): Promise<{ compressed_url: string;
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const audioConvertEndpoint = `${baseUrl}/api/video-processing/steps/audio-convert`;
   
   console.log('Queueing audio conversion step for queue:', queueId);

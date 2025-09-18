@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     await client.rpc('initialize_video_processing_steps', { queue_id_param: newQueue.id });
 
     // 7. Queue the first step (compression) with QStash
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/';
     const compressionEndpoint = `${baseUrl}/api/video-processing/steps/compress`;
 
     console.log('Queueing video compression for attachment:', attachment_id);

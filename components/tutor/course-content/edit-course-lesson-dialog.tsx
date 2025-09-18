@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { cn } from '@/lib/utils'
 import { courseLessonSchema } from '@/lib/validations/course-lesson'
 import { useUpdateLesson } from '@/hooks/course/use-course-lesson'
-import { useAttachments } from '@/hooks/course/use-attachments'
+import { useAttachments, useUserStorageAttachments } from '@/hooks/course/use-attachments'
 import { Lesson } from '@/interface/courses/lesson-interface'
 import {
   Dialog,
@@ -36,8 +36,12 @@ import {
   File,
   Eye,
   Circle,
-  Star
+  Star,
+  HardDrive
 } from 'lucide-react'
+import { StorageDialog } from '@/components/tutor/storage/storage-dialog'
+import { useUser } from '@/hooks/profile/use-user'
+import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 
 interface EditCourseLessonDialogProps {
   open: boolean
@@ -72,6 +76,10 @@ export function EditCourseLessonDialog({
   // Hooks
   const updateLessonMutation = useUpdateLesson()
   const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(courseId)
+  const { data: userData } = useUser()
+  const userProfileId = userData?.profile?.id ? parseInt(userData.profile.id) : undefined
+  const { data: storageAttachments = [], isLoading: storageLoading } = useUserStorageAttachments(userProfileId)
+  const startVideoProcessingMutation = useStartVideoProcessing()
 
   // Initialize form when lesson changes
   useEffect(() => {
@@ -83,7 +91,8 @@ export function EditCourseLessonDialog({
       if (lesson.attachments && lesson.attachments.length > 0) {
         // Lesson has attachments - find matching attachment and set selection
         const attachmentId = lesson.attachments[0] // Take first attachment
-        const matchingAttachment = attachments.find(att => att.id === attachmentId)
+        const allAttachments = [...attachments, ...storageAttachments]
+        const matchingAttachment = allAttachments.find(att => att.id === attachmentId)
         if (matchingAttachment) {
           setContentUrl(matchingAttachment.url || `attachment-${attachmentId}`)
           setSelectedAttachments(lesson.attachments)
@@ -107,7 +116,7 @@ export function EditCourseLessonDialog({
       setDurationSec(lesson.duration_sec)
       setErrors({})
     }
-  }, [lesson, attachments])
+  }, [lesson, attachments, storageAttachments])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -132,7 +141,8 @@ export function EditCourseLessonDialog({
         finalContentUrl = undefined
       } else {
         // Selected attachment - extract attachment ID and save to attachments array
-        const selectedAttachment = attachments.find(att => 
+        const allAttachments = [...attachments, ...storageAttachments]
+        const selectedAttachment = allAttachments.find(att => 
           att.url === contentUrl || `attachment-${att.id}` === contentUrl
         )
         if (selectedAttachment) {
@@ -167,6 +177,33 @@ export function EditCourseLessonDialog({
           duration_sec: validatedData.duration_sec
         }
       })
+
+      // Check if we selected a video attachment and trigger video processing
+      if (finalAttachments.length > 0) {
+        const allAttachments = [...attachments, ...storageAttachments];
+        const selectedAttachment = allAttachments.find(att => 
+          finalAttachments.includes(att.id)
+        );
+        
+        // Only process if it's a newly selected video attachment (not already processed)
+        if (selectedAttachment && selectedAttachment.type === 'video') {
+          // Check if the attachment was changed (different from original lesson attachments)
+          const wasAttachmentChanged = !lesson.attachments || 
+            lesson.attachments.length === 0 || 
+            !lesson.attachments.includes(selectedAttachment.id);
+            
+          if (wasAttachmentChanged) {
+            try {
+              console.log('Starting video processing for newly selected attachment:', selectedAttachment.id);
+              await startVideoProcessingMutation.mutateAsync(selectedAttachment.id);
+            } catch (error) {
+              console.error('Failed to start video processing:', error);
+              // Don't show error to user as the lesson was updated successfully
+              // The video processing can be retried later
+            }
+          }
+        }
+      }
 
       toast({
         title: gridT('success'),
@@ -209,7 +246,8 @@ export function EditCourseLessonDialog({
     } else {
       setManualUrl('')
       // Extract attachment ID if it's an attachment selection
-      const selectedAttachment = attachments.find(att => 
+      const allAttachments = [...attachments, ...storageAttachments]
+      const selectedAttachment = allAttachments.find(att => 
         att.url === value || `attachment-${att.id}` === value
       )
       if (selectedAttachment) {
@@ -373,51 +411,99 @@ export function EditCourseLessonDialog({
                       <Link className="h-4 w-4" />
                       {t('content_url_label')}
                     </Label>
-                    <Select 
-                      value={contentUrl} 
-                      onValueChange={handleAttachmentChange}
-                    >
-                      <SelectTrigger className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
-                        <SelectValue placeholder={gridT('selectAttachment')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {attachmentsLoading ? (
-                          <SelectItem value="loading" disabled>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                              {gridT('loading_attachments')}
-                            </div>
-                          </SelectItem>
-                        ) : attachments.length === 0 ? (
-                          <SelectItem value="no-attachments" disabled>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <File className="h-4 w-4" />
-                              {gridT('no_attachments_available')}
-                            </div>
-                          </SelectItem>
-                        ) : (
-                          <>
-                            <SelectItem value="manual-url">
-                              <div className="flex items-center gap-2">
-                                <Link className="h-4 w-4" />
-                                {gridT('no_attachment_manual_url')}
+                    <div className="flex gap-2">
+                      <Select 
+                        value={contentUrl} 
+                        onValueChange={handleAttachmentChange}
+                      >
+                        <SelectTrigger className="h-12 bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all flex-1">
+                          <SelectValue placeholder={gridT('selectAttachment')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(attachmentsLoading || storageLoading) ? (
+                            <SelectItem value="loading" disabled>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                                {gridT('loading_attachments')}
                               </div>
                             </SelectItem>
-                            {attachments.map((attachment) => (
-                              <SelectItem key={attachment.id} value={attachment.url || `attachment-${attachment.id}`}>
+                          ) : (attachments.length === 0 && storageAttachments.length === 0) ? (
+                            <SelectItem value="no-attachments" disabled>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <File className="h-4 w-4" />
+                                {gridT('no_attachments_available')}
+                              </div>
+                            </SelectItem>
+                          ) : (
+                            <>
+                              <SelectItem value="manual-url">
                                 <div className="flex items-center gap-2">
-                                  <File className="h-4 w-4" />
-                                  <span className="truncate">{attachment.title}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
-                                  </span>
+                                  <Link className="h-4 w-4" />
+                                  {gridT('no_attachment_manual_url')}
                                 </div>
                               </SelectItem>
-                            ))}
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
+                              {storageAttachments.length > 0 && (
+                                <>
+                                  <SelectItem disabled value="storage-header">
+                                    <div className="flex items-center gap-2 font-semibold text-primary">
+                                      <HardDrive className="h-4 w-4" />
+                                      My Storage
+                                    </div>
+                                  </SelectItem>
+                                  {storageAttachments.map((attachment) => (
+                                    <SelectItem key={`storage-${attachment.id}`} value={attachment.url || `attachment-${attachment.id}`}>
+                                      <div className="flex items-center gap-2 pl-4">
+                                        <File className="h-4 w-4" />
+                                        <span className="truncate">{attachment.title}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </>
+                              )}
+                              {attachments.length > 0 && (
+                                <>
+                                  <SelectItem disabled value="course-header">
+                                    <div className="flex items-center gap-2 font-semibold text-primary">
+                                      <FileText className="h-4 w-4" />
+                                      Course Files
+                                    </div>
+                                  </SelectItem>
+                                  {attachments.map((attachment) => (
+                                    <SelectItem key={`course-${attachment.id}`} value={attachment.url || `attachment-${attachment.id}`}>
+                                      <div className="flex items-center gap-2 pl-4">
+                                        <File className="h-4 w-4" />
+                                        <span className="truncate">{attachment.title}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </>
+                              )}
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Storage Dialog Button */}
+                      {userData?.profile?.id && (
+                        <StorageDialog ownerId={parseInt(userData.profile.id)}>
+                          <Button 
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-12 px-3"
+                            title="Open Storage"
+                          >
+                            <HardDrive className="h-4 w-4" />
+                          </Button>
+                        </StorageDialog>
+                      )}
+                    </div>
                     {errors.content_url && <span className="text-xs text-destructive mt-1">{errors.content_url}</span>}
                     
                     {/* Manual URL input when manual-url is selected */}

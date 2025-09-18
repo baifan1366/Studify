@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import MegaImage from '@/components/attachment/mega-blob-image';
 
 export default function CoursesContent() {
   const { data: user } = useUser();
@@ -500,11 +501,23 @@ export default function CoursesContent() {
                     className={`w-full h-36 bg-gradient-to-r ${course.color} flex items-center justify-center`}
                   >
                     {course.thumbnailUrl ? (
-                      <img
-                        src={course.thumbnailUrl}
-                        alt={course.title}
-                        className="w-full h-full object-cover"
-                      />
+                      // Check if it's a MEGA URL
+                      course.thumbnailUrl.includes('mega.nz') ? (
+                        <MegaImage
+                          megaUrl={course.thumbnailUrl}
+                          alt={course.title}
+                          className="w-full h-full object-cover"
+                          onError={(error) => {
+                            console.error('Failed to load MEGA course thumbnail:', error);
+                          }}
+                        />
+                      ) : (
+                        <img
+                          src={course.thumbnailUrl}
+                          alt={course.title}
+                          className="w-full h-full object-cover"
+                        />
+                      )
                     ) : (
                       <BookOpen size={48} className="text-black/80 dark:text-white/80" />
                     )}

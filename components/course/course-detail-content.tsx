@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { 
   BookOpen, 
@@ -16,19 +16,116 @@ import {
   Target,
   Brain,
   ShoppingCart,
-  Globe
+  Globe,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
 import { useEnrolledCourseStatus } from '@/hooks/course/use-enrolled-courses';
+import { useEnrolledStudentByCourse } from '@/hooks/students/use-student';
+import { useModuleByCourseId } from '@/hooks/course/use-course-module';
+import { useLessonByCourseModuleId } from '@/hooks/course/use-course-lesson';
+import { Enrollment } from '@/interface/courses/enrollment-interface';
+import { ModuleWithLessons } from '@/interface/courses/module-interface';
+import { Lesson } from '@/interface/courses/lesson-interface';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useFormat } from '@/hooks/use-format';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import MegaImage from '@/components/attachment/mega-blob-image';
 
 interface CourseDetailContentProps {
   courseSlug: string;
+}
+
+// Component for handling module lessons with dedicated hook
+interface ModuleLessonsProps {
+  courseId: number;
+  module: ModuleWithLessons;
+  isExpanded: boolean;
+  onToggle: () => void;
+  t: (key: string) => string;
+}
+
+function ModuleLessons({ courseId, module, isExpanded, onToggle, t }: ModuleLessonsProps) {
+  // Fetch lessons for this specific module using dedicated hook
+  const { data: moduleLessons, isLoading: lessonsLoading } = useLessonByCourseModuleId(
+    courseId,
+    module.id
+  );
+
+  // Calculate total module duration
+  const totalDuration = moduleLessons?.reduce((total, lesson) => {
+    return total + (lesson.duration_sec || 0);
+  }, 0) || 0;
+
+  const lessonCount = moduleLessons?.length || 0;
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full p-4 bg-muted/30 hover:bg-muted/50 transition-colors flex items-center justify-between gap-3"
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
+          <h3 className="text-base lg:text-lg font-semibold text-foreground truncate">
+            {module.title}
+          </h3>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-sm text-muted-foreground">
+            {lessonCount} {lessonCount === 1 ? t('lesson') : t('lessons')}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {Math.ceil(totalDuration / 60)} {t('min')}
+          </span>
+          {isExpanded ? (
+            <ChevronDown size={20} className="text-muted-foreground" />
+          ) : (
+            <ChevronRight size={20} className="text-muted-foreground" />
+          )}
+        </div>
+      </button>
+      
+      {isExpanded && (
+        <div className="divide-y divide-border">
+          {lessonsLoading ? (
+            <div className="p-4 space-y-2">
+              {[1, 2].map((index) => (
+                <Skeleton key={index} className="h-8 w-full" />
+              ))}
+            </div>
+          ) : moduleLessons && moduleLessons.length > 0 ? (
+            moduleLessons.map((lesson: Lesson, lessonIndex: number) => (
+              <div key={lesson.id} className="p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Play size={16} className="text-muted-foreground flex-shrink-0" />
+                  <span className="text-foreground text-sm lg:text-base truncate">
+                    {lesson.title}
+                  </span>
+                  {lesson.kind && (
+                    <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full flex-shrink-0">
+                      {lesson.kind}
+                    </span>
+                  )}
+                </div>
+                <span className="text-muted-foreground text-sm flex-shrink-0">
+                  {lesson.duration_sec ? Math.ceil(lesson.duration_sec / 60) : 0} {t('min')}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="p-4 text-muted-foreground text-center">
+              {t('lessons_coming_soon')}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function CourseDetailContent({ courseSlug }: CourseDetailContentProps) {  
@@ -37,6 +134,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   const user = userData || null;
   const t = useTranslations('CourseDetailContent');
   const { formatPrice } = useFormat();
+  const router = useRouter();
 
   const { data: course, isLoading, refetch: refetchCourse } = useCourseBySlug(courseSlug);
   const { toast } = useToast();
@@ -53,6 +151,42 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
   );
   // Only consider enrolled if we have valid user, course, and actual enrollment data with records
   const isEnrolled = !!(userId && courseId && enrollmentData && Array.isArray(enrollmentData) && enrollmentData.length > 0);
+
+  // Get enrollments for this specific course to calculate real student count
+  const { data: courseEnrollments } = useEnrolledStudentByCourse(Number(courseId) || 0);
+  
+  // Get course modules using dedicated hook
+  const { data: courseModules, isLoading: modulesLoading } = useModuleByCourseId(Number(courseId) || 0);
+  
+  // State for managing module collapse/expand
+  const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
+  
+  // State for managing Show More/Show Less functionality
+  const [showAllObjectives, setShowAllObjectives] = useState(false);
+  const [showAllRequirements, setShowAllRequirements] = useState(false);
+  
+  // Toggle module expansion
+  const toggleModule = (moduleId: number) => {
+    const newExpanded = new Set(expandedModules);
+    if (newExpanded.has(moduleId)) {
+      newExpanded.delete(moduleId);
+    } else {
+      newExpanded.add(moduleId);
+    }
+    setExpandedModules(newExpanded);
+  };
+  
+  // Calculate actual enrolled student count for this course
+  const actualStudentCount = useMemo(() => {
+    if (!courseEnrollments || !courseId) return course?.total_students || 0;
+    
+    // Count students enrolled in this specific course with active or completed status
+    const count = courseEnrollments.filter((enrollment: Enrollment) => 
+      ['active', 'completed'].includes(enrollment.status)
+    ).length;
+    
+    return count;
+  }, [courseEnrollments, courseId, course?.total_students]);
 
   // Handle success parameter from payment completion
   useEffect(() => {
@@ -203,7 +337,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                 <div className="flex items-center gap-2">
                   <Users size={18} className="text-primary" />
                   <span className="text-sm lg:text-base">
-                    {course.total_students || 0} {t('students')}
+                    {actualStudentCount} {t('students')}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -222,8 +356,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                   <Button
                     onClick={handleEnrollNow}
                     disabled={purchaseCourse.isPending}
-                    size="lg"
-                    className="flex items-center gap-2 font-semibold"
+                    variant="default"
                   >
                     {purchaseCourse.isPending ? (
                       <>
@@ -244,10 +377,19 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                   </Button>
                 )}
                 {isEnrolled && (
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
-                    <CheckCircle size={20} />
-                    {t('already_enrolled')}
-                  </div>
+                  <>
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
+                      <CheckCircle size={20} />
+                      {t('already_enrolled')}
+                    </div>
+                    <Button
+                      onClick={() => router.push(`/courses/${courseSlug}/learn`)}
+                      variant="default"
+                    >
+                      <Play size={20} />
+                      {t('start_now')}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -255,11 +397,26 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
             <div className="order-first lg:order-last">
               <div className="aspect-video bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl flex items-center justify-center border border-border overflow-hidden">
                 {course.thumbnail_url ? (
-                  <img
-                    src={course.thumbnail_url}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
+                  // Check if it's a MEGA URL
+                  course.thumbnail_url.includes('mega.nz') ? (
+                    <MegaImage
+                      megaUrl={course.thumbnail_url}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                      onError={(error) => {
+                        console.error('Failed to load MEGA thumbnail:', error);
+                        // Could show fallback UI here
+                      }}
+                    />
+                  ) : (
+                    <Image
+                      src={course.thumbnail_url}
+                      alt={course.title}
+                      width={400}
+                      height={250}
+                      className="w-full h-full object-cover"
+                    />
+                  )
                 ) : (
                   <div className="text-center">
                     <Play size={48} className="text-muted-foreground mx-auto mb-4" />
@@ -280,20 +437,32 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                 <Target size={24} className="text-primary" />
                 {t('what_youll_learn')}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {course.learning_objectives?.map((objective, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <CheckCircle size={18} className="text-green-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-muted-foreground text-sm lg:text-base line-clamp-2">
-                      {objective}
-                    </span>
-                  </div>
-                )) || (
-                  <div className="col-span-2 text-muted-foreground">
+              <div className="grid gap-4">
+                {course.learning_objectives && course.learning_objectives.length > 0 ? (
+                  course.learning_objectives
+                    .slice(0, showAllObjectives ? undefined : 5)
+                    .map((objective, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <CheckCircle size={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-muted-foreground text-sm lg:text-base leading-relaxed">
+                          {objective}
+                        </span>
+                      </div>
+                    ))
+                ) : (
+                  <div className="text-muted-foreground">
                     {t('learning_objectives_soon')}
                   </div>
                 )}
               </div>
+              {course.learning_objectives && course.learning_objectives.length > 5 && (
+                <button
+                  onClick={() => setShowAllObjectives(!showAllObjectives)}
+                  className="mt-4 text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+                >
+                  {showAllObjectives ? t('show_less') : t('show_more')} ({course.learning_objectives.length - 5} more)
+                </button>
+              )}
             </div>
 
             {/* Course Content */}
@@ -303,34 +472,24 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                 {t('course_content')}
               </h2>
               <div className="space-y-4">
-                {course.modules?.map((module, moduleIndex) => (
-                  <div key={module.id} className="border border-border rounded-lg overflow-hidden">
-                    <div className="p-4 bg-muted/30">
-                      <h3 className="text-base lg:text-lg font-semibold text-foreground truncate">
-                        {t('module')} {moduleIndex + 1}: {module.title}
-                      </h3>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {module.lessons?.map((lesson, lessonIndex) => (
-                        <div key={lesson.id} className="p-4 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <Play size={16} className="text-muted-foreground flex-shrink-0" />
-                            <span className="text-foreground text-sm lg:text-base truncate">
-                              {lesson.title}
-                            </span>
-                          </div>
-                          <span className="text-muted-foreground text-sm flex-shrink-0">
-                            {lesson.duration_sec ? Math.ceil(lesson.duration_sec / 60) : 0} {t('min')}
-                          </span>
-                        </div>
-                      )) || (
-                        <div className="p-4 text-muted-foreground text-center">
-                          {t('lessons_coming_soon')}
-                        </div>
-                      )}
-                    </div>
+                {modulesLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((index) => (
+                      <Skeleton key={index} className="h-20 w-full rounded-lg" />
+                    ))}
                   </div>
-                )) || (
+                ) : courseModules && Array.isArray(courseModules) && courseModules.length > 0 ? (
+                  courseModules.map((module: ModuleWithLessons, moduleIndex: number) => (
+                    <ModuleLessons
+                      key={module.id}
+                      courseId={Number(courseId) || 0}
+                      module={module}
+                      isExpanded={expandedModules.has(module.id)}
+                      onToggle={() => toggleModule(module.id)}
+                      t={t}
+                    />
+                  ))
+                ) : (
                   <div className="text-muted-foreground text-center py-8">
                     {t('course_modules_soon')}
                   </div>
@@ -345,15 +504,25 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                   {t('requirements')}
                 </h2>
                 <ul className="space-y-3">
-                  {course.requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      <span className="text-muted-foreground text-sm lg:text-base leading-relaxed">
-                        {requirement}
-                      </span>
-                    </li>
-                  ))}
+                  {course.requirements
+                    .slice(0, showAllRequirements ? undefined : 4)
+                    .map((requirement, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
+                        <span className="text-muted-foreground text-sm lg:text-base leading-relaxed">
+                          {requirement}
+                        </span>
+                      </li>
+                    ))}
                 </ul>
+                {course.requirements.length > 4 && (
+                  <button
+                    onClick={() => setShowAllRequirements(!showAllRequirements)}
+                    className="mt-4 text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+                  >
+                    {showAllRequirements ? t('show_less') : t('show_more')} ({course.requirements.length - 4} more)
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -371,7 +540,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                     {t('students')}
                   </span>
                   <span className="text-foreground font-semibold">
-                    {course.total_students || 0}
+                    {actualStudentCount}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

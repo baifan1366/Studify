@@ -712,6 +712,11 @@
     "subtitle": "Explore courses, track progress, and enhance your learning experience"
   },
   "CourseDetailContent": {
+    "lesson": "Lesson",
+    "lessons": "Lessons",
+    "show_more": "Show More",
+    "show_less": "Show Less",
+    "start_now": "Start Now",
     "payment_successful": "Payment Successful!",
     "enrollment_success_desc": "You have successfully enrolled in {title}",
     "error": "Error",
@@ -728,7 +733,7 @@
     "minutes": "minutes",
     "students": "Students",
     "processing": "Processing...",
-    "enroll_free": "Enroll Free",
+    "enroll_free": "Buy Now",
     "buy_now": "Buy Now",
     "already_enrolled": "Already Enrolled",
     "course_preview": "Course Preview",

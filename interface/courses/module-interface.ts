@@ -9,3 +9,14 @@ export interface Module {
   updated_at: string;
   deleted_at?: string;
 }
+
+export interface ModuleWithLessons extends Module {
+  lessons?: Array<{
+    id: number;
+    public_id: string;
+    title: string;
+    kind: 'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard';
+    content_url?: string;
+    duration_sec?: number;
+  }>;
+}

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { coursesApi } from '@/lib/api';
 import { apiGet, apiSend } from '@/lib/api-config';
+import { Lesson } from '@/interface/courses/lesson-interface';
 
 // ✅ Fetch lesson by ID
 export function useLessonById(courseId: number, moduleId: number, lessonId: number) {
@@ -14,7 +15,7 @@ export function useLessonById(courseId: number, moduleId: number, lessonId: numb
 
 // ✅ Fetch all lessons in a module
 export function useLessonByCourseModuleId(courseId: number, moduleId: number) {
-  return useQuery({
+  return useQuery<Lesson[]>({
     queryKey: ['course-lessons', courseId, moduleId],
     queryFn: async () =>
       apiGet(coursesApi.getLessonByCourseModuleId(courseId, moduleId)), 

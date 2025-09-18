@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useUser } from '@/hooks/profile/use-user';
 import { BookOpen, Clock, Users, Star } from 'lucide-react';
@@ -32,6 +32,30 @@ interface EnrichedEnrollment {
     public_id: string;
   };
   progress: number;
+}
+
+// UI course type for better type safety
+interface UICourse {
+  id: string;
+  courseId: string;
+  course: {
+    title: string;
+    slug: string;
+    total_duration_minutes?: number;
+    total_students?: number;
+    average_rating?: number;
+    thumbnail_url?: string | null;
+    level?: 'beginner' | 'intermediate' | 'advanced';
+    public_id: string;
+  };
+  title: string;
+  duration: string;
+  students: number;
+  rating: number;
+  level: string;
+  progress: number;
+  color: string;
+  thumbnail: string | null;
 }
 
 // Type guard function to check if an enrollment is enriched
@@ -138,13 +162,18 @@ export default function MyCoursesContent() {
   const router = useRouter();
   const { toast } = useToast();
   const userId = user?.profile?.id ? parseInt(user.profile.id) : null;
+  
+  // State to hold the transformed UI courses data
+  const [uiCourses, setUiCourses] = useState<UICourse[]>([]);
+  
   // Get enrolled courses for the current user
   const { data: enrollments, isLoading, error, refetch } = useEnrolledCoursesByUserId(userId!);
 
-  // Memoize the courses data transformation
-  const uiCourses = useMemo(() => {
+  // Transform courses data when enrollments change
+  useEffect(() => {
     if (!enrollments || !Array.isArray(enrollments)) {
-      return [];
+      setUiCourses([]);
+      return;
     }
     
     // First filter valid enrollments
@@ -185,7 +214,7 @@ export default function MyCoursesContent() {
       };
     });
     
-    return processed;
+    setUiCourses(processed);
   }, [enrollments]);
 
   // Handle loading state
@@ -204,11 +233,11 @@ export default function MyCoursesContent() {
   }
 
   const handleContinueCourse = (courseId: string) => {
-    router.push(`./learn/${courseId}`);
+    router.push(`/learn/${courseId}`);
   };
 
   const handleCourseDetails = (courseSlug: string) => {
-    router.push(`./courses/${courseSlug}`);
+    router.push(`/courses/${courseSlug}`);
   };
 
   const t = useTranslations('MyCoursesContent');

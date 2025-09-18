@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 
 // Currency list with all required information
 const SUPPORTED_CURRENCIES = [
@@ -49,7 +50,7 @@ export async function GET() {
 }
 
 // POST - Update exchange rates from exchangerate.host
-export async function POST(request: NextRequest) {
+async function handler(req: Request) {
   try {
     console.log('[Currency API] Starting exchange rate update...');
     
@@ -190,3 +191,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = verifySignatureAppRouter(handler);

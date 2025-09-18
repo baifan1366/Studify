@@ -39,11 +39,13 @@ export async function middleware(request: NextRequest) {
     /\/(?:[a-zA-Z-]+)?\/(sign-in|verify-email)$/.test(pathname) ||
     /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/sign-up$/.test(pathname);
   // Onboarding pages (allow access without onboarding check)
+  // This includes both /onboarding routes and role-based landing pages like /en/student
   const isOnboardingPage = /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/onboarding/.test(pathname) || 
-                           /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname);
+                           /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname) ||
+                           /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)(?:\/)?$/.test(pathname);
   const isTestOrPublic = pathname === "/" || pathname.startsWith("/test");
   // QStash webhook endpoints (bypass auth for external webhooks)
-  const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor") || pathname.includes("/api/currency");
+  const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor") || pathname.includes("/api/currency")|| pathname.includes("/api/video-processing/steps");
   // Stripe webhook endpoints (bypass auth for external webhooks)
   const isStripeWebhook = pathname.includes("/api/course/webhook") || 
                           pathname.includes("/course/webhook") || 

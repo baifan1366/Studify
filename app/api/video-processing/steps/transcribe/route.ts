@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { qstashClient } from "@/utils/qstash/qstash";
+import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { sendVideoProcessingNotification } from "@/lib/video-processing/notification-service";
 import { z } from "zod";
 
@@ -108,27 +109,34 @@ async function transcribeWithWhisper(audioBlob: Blob, retryCount: number = 0): P
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string, transcriptionText: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const embedEndpoint = `${baseUrl}/api/video-processing/steps/embed`;
   
   console.log('Queueing embedding step for queue:', queueId);
   
   try {
-    const qstashResponse = await qstashClient.publish({
-      url: embedEndpoint,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const queueManager = getQueueManager();
+    const queueName = `video-processing-${userId}`;
+    
+    // Ensure the queue exists
+    await queueManager.ensureQueue(queueName, 1);
+    
+    // Enqueue the next step
+    const qstashResponse = await queueManager.enqueue(
+      queueName,
+      embedEndpoint,
+      {
         queue_id: queueId,
         attachment_id: attachmentId,
         user_id: userId,
         transcription_text: transcriptionText,
         timestamp: new Date().toISOString(),
-      }),
-      retries: 3, // More retries for embedding API
-      delay: "30s", // Longer delay for server wake-up
-    });
+      },
+      {
+        retries: 3, // More retries for embedding API
+        delay: "30s", // Longer delay for server wake-up
+      }
+    );
 
     console.log('Embedding job queued:', qstashResponse.messageId);
     return qstashResponse.messageId;
@@ -139,37 +147,40 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
 }
 
 async function scheduleRetry(queueId: number, attachmentId: number, userId: string, audioUrl: string, retryCount: number) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
   
-  // Calculate delay: 1 minute * retry_count (1min, 2min, 3min)
-  const delayMinutes = retryCount;
-  const delaySeconds = delayMinutes * 60;
-  
+  const delayMinutes = Math.min(1 * Math.pow(2, retryCount), 5); // Exponential backoff: 1, 2, 4, 5 minutes max
   console.log(`Scheduling transcription retry ${retryCount} in ${delayMinutes} minutes for queue:`, queueId);
   
   try {
-    const qstashResponse = await qstashClient.publish({
-      url: transcribeEndpoint,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const queueManager = getQueueManager();
+    const queueName = `video-processing-${userId}`;
+    
+    // Ensure the queue exists
+    await queueManager.ensureQueue(queueName, 1);
+    
+    // Enqueue the retry
+    const qstashResponse = await queueManager.enqueue(
+      queueName,
+      transcribeEndpoint,
+      {
         queue_id: queueId,
         attachment_id: attachmentId,
         user_id: userId,
         audio_url: audioUrl,
+        retry_count: retryCount,
         timestamp: new Date().toISOString(),
-        retry_attempt: retryCount,
-      }),
-      delay: delaySeconds,
-      retries: 0, // No additional retries, we handle it manually
-    });
+      },
+      {
+        delay: `${delayMinutes}m`, // Delay in minutes
+      }
+    );
 
     console.log(`Transcription retry ${retryCount} scheduled:`, qstashResponse.messageId);
     return qstashResponse.messageId;
   } catch (error: any) {
-    console.error('Failed to schedule retry:', error);
+    console.error('Failed to schedule transcription retry:', error);
     throw error;
   }
 }

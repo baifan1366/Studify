@@ -181,25 +181,50 @@ async function getShareLink(uploadedFile: any, retryCount = 0): Promise<string> 
 }
 
 /**
- * Client-side upload to MEGA with environment variables from client
- * Note: You should set NEXT_PUBLIC_MEGA_EMAIL and NEXT_PUBLIC_MEGA_PASSWORD
- * or pass credentials as parameters for security
+ * Fetch MEGA credentials from secure API endpoint
+ */
+async function getMegaCredentials(): Promise<{ email: string; password: string }> {
+  try {
+    const response = await fetch('/api/mega/credentials', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Failed to get MEGA credentials')
+    }
+
+    const credentials = await response.json()
+    return credentials
+  } catch (error) {
+    console.error('Failed to fetch MEGA credentials:', error)
+    throw new Error('Unable to get storage credentials. Please try again.')
+  }
+}
+
+/**
+ * Client-side upload to MEGA using server-provided credentials
+ * Credentials are fetched securely from server environment variables
  */
 export async function uploadToMegaClient(
   file: File, 
   options?: {
-    email?: string
-    password?: string
     onProgress?: (progress: number) => void
   }
 ): Promise<ClientUploadResult> {
-  // Get credentials from environment variables or options
-  const email = options?.email || process.env.NEXT_PUBLIC_MEGA_EMAIL
-  const password = options?.password || process.env.NEXT_PUBLIC_MEGA_PASSWORD
-
-  // Validate environment variables
-  if (!email || !password) {
-    throw new Error('MEGA credentials not found. Please provide email and password or set environment variables.')
+  // Get credentials from secure API endpoint
+  let email: string
+  let password: string
+  
+  try {
+    const credentials = await getMegaCredentials()
+    email = credentials.email
+    password = credentials.password
+  } catch (error) {
+    throw new Error(`Failed to get storage credentials: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 
   // Validate credentials format
@@ -275,25 +300,27 @@ export async function uploadToMegaClient(
 }
 
 /**
- * Test MEGA connection from client-side
+ * Test MEGA connection from client-side using server credentials
  */
-export async function testMegaConnectionClient(email?: string, password?: string): Promise<{ success: boolean; message: string }> {
-  const megaEmail = email || process.env.NEXT_PUBLIC_MEGA_EMAIL
-  const megaPassword = password || process.env.NEXT_PUBLIC_MEGA_PASSWORD
-
-  if (!megaEmail || !megaPassword) {
-    return {
-      success: false,
-      message: 'MEGA credentials not found'
-    }
-  }
-
+export async function testMegaConnectionClient(): Promise<{ success: boolean; message: string }> {
   try {
-    validateCredentials(megaEmail, megaPassword)
-    const storage = await createMegaStorage(megaEmail, megaPassword)
+    // Get credentials from secure API endpoint
+    const credentials = await getMegaCredentials()
+    
+    validateCredentials(credentials.email, credentials.password)
+    const storage = await createMegaStorage(credentials.email, credentials.password)
     
     // Test basic functionality
     const info = await storage.getAccountInfo?.() || { type: 'unknown' }
+    
+    // Clean up storage connection
+    if (storage && typeof storage.close === 'function') {
+      try {
+        storage.close()
+      } catch (cleanupError) {
+        console.warn('Failed to clean up MEGA storage connection:', cleanupError)
+      }
+    }
     
     return {
       success: true,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { createServerClient } from "@/utils/supabase/server";
 import { qstashClient } from "@/utils/qstash/qstash";
+import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { Storage, File } from "megajs";
 import { v2 as cloudinary } from "cloudinary";
 import { cloudinaryManager } from "@/lib/cloudinary-manager";
@@ -108,26 +109,33 @@ async function compressVideo(attachment: any): Promise<{ compressed_url: string;
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const audioConvertEndpoint = `${baseUrl}/api/video-processing/steps/audio-convert`;
   
   console.log('Queueing audio conversion step for queue:', queueId);
   
   try {
-    const qstashResponse = await qstashClient.publish({
-      url: audioConvertEndpoint,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const queueManager = getQueueManager();
+    const queueName = `video-processing-${userId}`;
+    
+    // Ensure the queue exists
+    await queueManager.ensureQueue(queueName, 1);
+    
+    // Enqueue the next step
+    const qstashResponse = await queueManager.enqueue(
+      queueName,
+      audioConvertEndpoint,
+      {
         queue_id: queueId,
         attachment_id: attachmentId,
         user_id: userId,
         timestamp: new Date().toISOString(),
-      }),
-      retries: 2,
-      delay: "5s",
-    });
+      },
+      {
+        retries: 2,
+        delay: "5s",
+      }
+    );
 
     console.log('Audio conversion job queued:', qstashResponse.messageId);
     return qstashResponse.messageId;

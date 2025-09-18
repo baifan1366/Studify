@@ -20,6 +20,22 @@ export function useAttachments(ownerId?: number) {
   })
 }
 
+// Fetch current user's storage attachments (personal attachments)
+// Note: This needs to be used with a user profile ID to filter correctly
+export function useUserStorageAttachments(userId?: number) {
+  return useQuery({
+    queryKey: ['userStorageAttachments', userId],
+    queryFn: async () => {
+      if (!userId) {
+        return [] // Return empty array if no user ID provided
+      }
+      // Fetch user's own attachments by owner_id
+      return apiGet<CourseAttachment[]>(attachmentsApi.listByOwner(userId))
+    },
+    enabled: !!userId // Only fetch when userId is available
+  })
+}
+
 // Upload attachment using client-side MEGA upload
 export function useUploadAttachment() {
   const queryClient = useQueryClient()
@@ -28,20 +44,16 @@ export function useUploadAttachment() {
     mutationFn: async ({ 
       title, 
       file, 
-      credentials,
       onProgress 
     }: {
       title: string
       file: File
-      credentials?: { email: string; password: string }
       onProgress?: (progress: number) => void
     }) => {
       // Step 1: Upload file to MEGA (client-side, bypasses Next.js limits)
       onProgress?.(5)
       
       const uploadResult = await uploadToMegaClient(file, {
-        email: credentials?.email,
-        password: credentials?.password,
         onProgress: (megaProgress) => {
           // Map MEGA progress to 5-90% of total progress
           const mappedProgress = 5 + (megaProgress * 0.85)
@@ -185,8 +197,8 @@ export function useDeleteAttachment() {
 // Test MEGA connection (client-side)
 export function useTestMegaConnection() {
   return useMutation({
-    mutationFn: async (credentials?: { email: string; password: string }) => {
-      return testMegaConnectionClient(credentials?.email, credentials?.password)
+    mutationFn: async () => {
+      return testMegaConnectionClient()
     },
     onSuccess: (result) => {
       if (result.success) {

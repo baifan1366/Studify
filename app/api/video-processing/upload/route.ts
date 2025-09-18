@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 import { qstashClient } from "@/utils/qstash/qstash";
+import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { sendVideoProcessingNotification } from "@/lib/video-processing/notification-service";
 import { z } from "zod";
 
@@ -109,28 +110,45 @@ export async function POST(req: Request) {
     await client.rpc('initialize_video_processing_steps', { queue_id_param: newQueue.id });
 
     // 7. Queue the first step (compression) with QStash
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/';
     const compressionEndpoint = `${baseUrl}/api/video-processing/steps/compress`;
 
     console.log('Queueing video compression for attachment:', attachment_id);
     console.log('Compression endpoint:', compressionEndpoint);
 
+    // Validate QStash token before attempting to use it
+    const qstashToken = process.env.QSTASH_TOKEN;
+    if (!qstashToken) {
+      console.error('QSTASH_TOKEN environment variable not set');
+      return NextResponse.json({
+        error: "Failed to start video processing",
+        details: "QStash service unavailable - token not configured",
+      }, { status: 503 });
+    }
+
     try {
-      const qstashResponse = await qstashClient.publish({
-        url: compressionEndpoint,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      // Use QStash queue manager for better video processing
+      const queueManager = getQueueManager();
+      const queueName = `video-processing-${authResult.payload.sub}`;
+      
+      // Ensure the queue exists with proper parallelism (1 video at a time per user)
+      await queueManager.ensureQueue(queueName, 1);
+
+      // Enqueue the video processing job
+      const qstashResponse = await queueManager.enqueue(
+        queueName,
+        compressionEndpoint,
+        {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
           user_id: authResult.payload.sub,
           timestamp: new Date().toISOString(),
-        }),
-        // QStash retry configuration
-        retries: 2, // Initial retries for network issues
-        delay: "10s", // Initial delay
-      });
+        },
+        {
+          retries: 3,
+          delay: '10s'
+        }
+      );
 
       // Update queue with QStash message ID
       await client
@@ -155,6 +173,12 @@ export async function POST(req: Request) {
 
     } catch (qstashError: any) {
       console.error('Failed to queue compression job:', qstashError);
+      console.error('QStash error details:', {
+        name: qstashError.name,
+        message: qstashError.message,
+        status: qstashError.status,
+        response: qstashError.response
+      });
       
       // Mark queue as failed
       await client
@@ -162,13 +186,24 @@ export async function POST(req: Request) {
         .update({ 
           status: 'failed',
           error_message: 'Failed to queue compression job',
-          error_details: { qstash_error: qstashError.message }
+          error_details: { 
+            qstash_error: qstashError.message,
+            qstash_status: qstashError.status,
+            token_format: qstashToken.startsWith('eyJ') ? 'invalid_base64_credentials' : 'unknown'
+          }
         })
         .eq("id", newQueue.id);
 
       return NextResponse.json({
         error: "Failed to start video processing",
-        details: "QStash service unavailable",
+        details: qstashError.status === 401 || qstashError.status === 403 
+          ? "QStash authentication failed - invalid token" 
+          : "QStash service unavailable",
+        debug_info: {
+          token_issue: qstashToken.startsWith('eyJ') ? 'Token appears to be base64 credentials instead of QStash token' : null,
+          error_status: qstashError.status,
+          suggestion: 'Get the correct QStash token from Upstash console'
+        }
       }, { status: 503 });
     }
 

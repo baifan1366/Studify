@@ -23,7 +23,12 @@ export const studentsApi = {
   search: (query: string) =>
     `/api/students/search?q=${encodeURIComponent(query)}`,
   progress: (id: number) => `/api/students/${id}/progress`,
-  getByCourseOrUserId: (courseId?: number, userId?: number) => `/api/students?course_id=${courseId}&user_id=${userId}`,
+  getByCourseOrUserId: (courseId?: number, userId?: number) => {
+    const params = new URLSearchParams();
+    if (courseId !== undefined) params.set('course_id', courseId.toString());
+    if (userId !== undefined) params.set('user_id', userId.toString());
+    return `/api/students?${params.toString()}`;
+  },
   updateEnrollmentStatus: (studentId: number, courseId: number) => `/api/students/${studentId}/${courseId}`,
 } as const;
 

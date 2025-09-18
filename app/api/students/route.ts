@@ -9,11 +9,19 @@ export async function GET(req: Request) {
     const course_id = searchParams.get('course_id');
     const user_id = searchParams.get('user_id');
 
-    if(course_id) {
+    // Validate and parse parameters
+    const courseIdNum = course_id ? parseInt(course_id) : null;
+    const userIdNum = user_id ? parseInt(user_id) : null;
+
+    if (courseIdNum && !isNaN(courseIdNum)) {
       const {data, error} = await client
         .from("course_enrollment")
-        .select("*")
-        .eq("course_id", parseInt(course_id))
+        .select(`
+          *,
+          student_profile:profiles!course_enrollment_user_id_fkey(*),
+          course:courses!course_enrollment_course_id_fkey(*)
+        `)
+        .eq("course_id", courseIdNum)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -22,11 +30,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ data });
     }
 
-    if (user_id) {
+    if (userIdNum && !isNaN(userIdNum)) {
       const { data, error } = await client
         .from("course_enrollment")
-        .select("*")
-        .eq("user_id", parseInt(user_id))
+        .select(`
+          *,
+          student_profile:profiles!course_enrollment_user_id_fkey(*),
+          course:courses!course_enrollment_course_id_fkey(*)
+        `)
+        .eq("user_id", userIdNum)
         .order("created_at", { ascending: false });
 
         if (error) {
@@ -37,7 +49,11 @@ export async function GET(req: Request) {
 
     const { data, error } = await client
         .from("course_enrollment")
-        .select("*")
+        .select(`
+          *,
+          student_profile:profiles!course_enrollment_user_id_fkey(*),
+          course:courses!course_enrollment_course_id_fkey(*)
+        `)
         .order("created_at", { ascending: false });
 
     if (error) {

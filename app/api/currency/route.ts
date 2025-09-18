@@ -50,7 +50,7 @@ export async function GET() {
 }
 
 // POST - Update exchange rates from exchangerate.host
-async function handler(req: Request) {
+async function handler(req: NextRequest) {
   try {
     console.log('[Currency API] Starting exchange rate update...');
     
@@ -222,48 +222,37 @@ async function handler(req: Request) {
   }
 }
 
-// Manual trigger endpoint (no QStash verification required)
-export async function POST(req: NextRequest) {
+// QStash signature verification for security
+// In development, signature verification is optional for local testing
+if (!process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.NODE_ENV === 'production') {
+  console.warn('[Currency API] QSTASH_CURRENT_SIGNING_KEY is missing in production - signature verification disabled');
+}
+
+// Enhanced handler with better error handling for signature verification
+async function enhancedHandler(request: NextRequest) {
   try {
-    // Check if this is a manual initialization request
-    const { searchParams } = new URL(req.url);
-    const isManualInit = searchParams.get('init') === 'true';
-    
-    // Check if QStash is properly configured
-    const qstashSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
-    const qstashNextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
-    
-    if (isManualInit) {
-      // Allow manual initialization without QStash signature
-      console.log('[Currency API] Manual initialization requested');
-      return await handler(req);
-    }
-    
-    // If QStash is not configured, allow direct access for development
-    if (!qstashSigningKey && !qstashNextSigningKey) {
-      console.log('[Currency API] QStash not configured, allowing direct access');
-      return await handler(req);
-    }
-    
-    // For scheduled updates with QStash configured, require QStash verification
-    console.log('[Currency API] QStash configured, verifying signature');
-    return await verifySignatureAppRouter(handler)(req);
-    
+    // Log request details for debugging
+    console.log('[Currency API] Request details:', {
+      method: request.method,
+      url: request.url,
+      hasSigningKey: !!process.env.QSTASH_CURRENT_SIGNING_KEY,
+      nodeEnv: process.env.NODE_ENV
+    });
+
+    return await handler(request);
   } catch (error) {
-    console.error('[Currency API] Error in POST endpoint:', error);
-    
-    // If signature verification fails, try to handle as manual request
-    if (error instanceof Error && error.message.includes('signature')) {
-      console.log('[Currency API] Signature verification failed, attempting manual handling');
-      return await handler(req);
-    }
-    
+    console.error('[Currency API] Handler error:', error);
     return NextResponse.json(
       { 
-        error: 'Request verification failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Handler error', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
       },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }
+
+// For local development or missing signing key, bypass signature verification
+export const POST = (process.env.NODE_ENV === 'development' || !process.env.QSTASH_CURRENT_SIGNING_KEY)
+  ? enhancedHandler
+  : verifySignatureAppRouter(enhancedHandler);

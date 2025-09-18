@@ -3,12 +3,23 @@ import { createServerClient } from "@/utils/supabase/server";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ studentId: number, courseId: number }> }
+  { params }: { params: Promise<{ studentId: string, courseId: string }> }
 ) {
   try {
     const body = await req.json();
     const client = await createServerClient();
-    const { courseId, studentId } = await params;
+    const { courseId: courseIdStr, studentId: studentIdStr } = await params;
+    
+    // Parse string parameters to numbers
+    const courseId = parseInt(courseIdStr);
+    const studentId = parseInt(studentIdStr);
+    
+    // Validate that the parameters are valid numbers
+    if (isNaN(courseId) || isNaN(studentId)) {
+      return NextResponse.json({ 
+        error: "Invalid studentId or courseId. Must be valid numbers." 
+      }, { status: 400 });
+    }
 
     const { status } = body;
 

@@ -1237,8 +1237,8 @@
     "is_free": "This is a free course",
     "price": "Price (cents)",
     "currency": "Currency",
-    "auto_create_classroom": "Auto|create classroom",
-    "auto_create_community": "Auto|create community",
+    "auto_create_classroom": "Auto create classroom",
+    "auto_create_community": "Auto create community",
     "certificate_template": "Certificate Template",
     "errors": {
       "not_logged_in": "You must be logged in to create a course.",

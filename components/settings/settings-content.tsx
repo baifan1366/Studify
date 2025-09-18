@@ -29,7 +29,9 @@ import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
+import { useFontSize } from '@/context/font-size-context';
 import AnimatedBackground from '@/components/ui/animated-background';
+import { FontSizeDemo } from './font-size-demo';
 
 type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'data';
 
@@ -39,6 +41,7 @@ export default function SettingsContent() {
   const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
   const updateSettingsMutation = useUpdateSettings();
   const { toast } = useToast();
+  const { fontSize, setFontSize } = useFontSize();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [settings, setSettings] = useState({
     // Account settings
@@ -61,7 +64,6 @@ export default function SettingsContent() {
     // Appearance settings
     theme: 'system',
     language: 'en',
-    fontSize: 'medium',
     animations: true,
     
     // Data settings
@@ -374,22 +376,49 @@ export default function SettingsContent() {
 
               <div className="p-4 bg-white/10 rounded-lg">
                 <div className="font-medium text-white mb-3">{t('font_size')}</div>
-                <div className="grid grid-cols-3 gap-3">
-                  {['small', 'medium', 'large'].map((size) => (
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { value: 'small', label: t('small'), preview: 'Aa' },
+                    { value: 'medium', label: t('medium'), preview: 'Aa' },
+                    { value: 'large', label: t('large'), preview: 'Aa' },
+                    { value: 'extra-large', label: t('extra_large'), preview: 'Aa' }
+                  ].map((size) => (
                     <motion.button
-                      key={size}
-                      onClick={() => handleSettingChange('fontSize', size)}
-                      className={`p-3 rounded-lg border-2 transition-colors capitalize ${
-                        settings.fontSize === size 
+                      key={size.value}
+                      onClick={() => {
+                        setFontSize(size.value as any);
+                        toast({
+                          title: t('font_size_updated'),
+                          description: t('font_size_updated_desc'),
+                        });
+                      }}
+                      className={`p-3 rounded-lg border-2 transition-colors ${
+                        fontSize === size.value 
                           ? 'border-blue-500 bg-blue-500/20' 
                           : 'border-white/20 bg-white/5 hover:bg-white/10'
                       }`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span className="text-white">{t(size)}</span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span 
+                          className="text-white font-medium"
+                          style={{ 
+                            fontSize: size.value === 'small' ? '0.75rem' : 
+                                      size.value === 'medium' ? '1rem' : 
+                                      size.value === 'large' ? '1.25rem' : '1.5rem' 
+                          }}
+                        >
+                          {size.preview}
+                        </span>
+                        <span className="text-xs text-white/70">{size.label}</span>
+                      </div>
                     </motion.button>
                   ))}
+                </div>
+                <div className="mt-4">
+                  <h5 className="text-sm font-medium text-white mb-2">{t('font_size_preview')}:</h5>
+                  <FontSizeDemo />
                 </div>
               </div>
 

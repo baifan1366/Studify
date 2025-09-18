@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPostFormData } from "@/lib/api-config";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { uploadToMegaClient } from "@/lib/mega-client";
+import { createClient } from '@supabase/supabase-js';
 
 export interface ClassroomAttachment {
   id: number;
@@ -13,52 +13,169 @@ export interface ClassroomAttachment {
   mime_type: string;
   size_bytes: number;
   created_at: string;
+  visibility: 'public' | 'private';
+  bucket: string;
+  path: string;
+  custom_message?: string; // Optional custom message from user
   profiles: {
     display_name: string;
     avatar_url?: string;
   };
 }
 
+interface UploadOptions {
+  contextType?: 'submission' | 'post' | 'comment' | 'material' | 'announcement' | 'chat';
+  onProgress?: (progress: number) => void;
+  signal?: AbortSignal; // 用于取消上传
+  customMessage?: string; // Custom message from user
+}
+
 /**
- * Hook for managing classroom attachments
+ * Determine visibility based on context type
+ * Public: material, announcement - accessible to all classroom members
+ * Private: submission, post, comment, chat - requires signed URLs
  */
-export function useAttachments(classroomSlug: string | undefined) {
+function getVisibilityFromContextType(contextType: string): 'public' | 'private' {
+  const publicContexts = ['material', 'announcement'];
+  return publicContexts.includes(contextType) ? 'public' : 'private';
+}
+
+// Initialize Supabase client for direct database access
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+/**
+ * Hook for uploading files via client-side MEGA upload
+ */
+export function useUploadFile(classroomSlug: string | undefined) {
   const queryClient = useQueryClient();
 
-  // Fetch attachments
-  const {
-    data: attachments = [],
-    isLoading,
-    error,
-    refetch
-  } = useQuery<ClassroomAttachment[]>({
-    queryKey: ["classroom", classroomSlug, "attachments"],
-    queryFn: () => apiGet<ClassroomAttachment[]>(`/api/classroom/${classroomSlug}/attachments`),
-    enabled: !!classroomSlug,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-    refetchOnWindowFocus: false,
-  });
+  const mutation = useMutation({
+    mutationFn: async ({
+      file,
+      options,
+    }: {
+      file: File;
+      options?: UploadOptions;
+    }) => {
+      if (!classroomSlug) {
+        throw new Error("Classroom slug is missing");
+      }
 
-  // Upload attachment mutation
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      console.log('Starting upload process for file:', file.name);
+      const contextType = options?.contextType || 'chat';
+      const visibility = getVisibilityFromContextType(contextType);
       
-      // Upload file directly via API (API will handle storage)
-      const formData = new FormData();
-      formData.append('file', file);
+      // Check if MEGA credentials are available
+      const hasMegaCredentials = 
+        process.env.NEXT_PUBLIC_MEGA_EMAIL && 
+        process.env.NEXT_PUBLIC_MEGA_PASSWORD;
+
+      console.log('🔍 MEGA Configuration Check:', {
+        hasMegaCredentials,
+        email: process.env.NEXT_PUBLIC_MEGA_EMAIL ? '***configured***' : 'missing',
+        password: process.env.NEXT_PUBLIC_MEGA_PASSWORD ? '***configured***' : 'missing'
+      });
+
+      if (!hasMegaCredentials) {
+        console.warn('MEGA credentials not found. Falling back to API upload with 4MB limit.');
+        
+        // Fallback to original API upload
+        const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(`File size exceeds 4MB limit. Please set up MEGA credentials for unlimited uploads. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        }
+
+        // Use FormData for API upload
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('contextType', contextType);
+        formData.append('visibility', visibility);
+        
+        // Add custom message to FormData if provided
+        if (options?.customMessage) {
+          formData.append('customMessage', options.customMessage);
+          console.log('📝 Adding custom message to FormData:', options.customMessage);
+        }
+        
+        const response = await fetch(`/api/classroom/${classroomSlug}/attachments`, {
+          method: 'POST',
+          body: formData,
+          signal: options?.signal,
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+          throw new Error(errorData.error || `Upload failed: ${response.status}`);
+        }
+        
+        const attachment = await response.json();
+        options?.onProgress?.(100);
+        console.log('✅ File uploaded successfully via API fallback');
+        return attachment as ClassroomAttachment;
+      }
+
+      // MEGA upload path
+      console.log(`Uploading file "${file.name}" (${(file.size / 1024 / 1024).toFixed(2)} MB) via MEGA client...`);
       
-      console.log('Uploading file via API...');
-      const result = await apiPostFormData<ClassroomAttachment>(
-        `/api/classroom/${classroomSlug}/attachments`,
-        formData
-      );
-      console.log('Upload result:', result);
+      options?.onProgress?.(5);
+
+      // Step 1: Upload file to MEGA using client-side upload
+      const megaResult = await uploadToMegaClient(file, {
+        onProgress: (progress) => {
+          // Map MEGA progress (0-100) to our progress (5-80)
+          const mappedProgress = 5 + (progress * 0.75);
+          options?.onProgress?.(mappedProgress);
+        }
+      });
+
+      options?.onProgress?.(85);
+
+      // Step 2: Create attachment record in database via API
+      const attachmentData = {
+        file_name: file.name,
+        mime_type: megaResult.type,
+        size_bytes: megaResult.size,
+        file_url: megaResult.url,
+        context_type: contextType,
+        visibility: visibility,
+        bucket: 'mega-storage', // Using MEGA as storage provider
+        path: `mega://${file.name}`, // MEGA path identifier
+        custom_message: options?.customMessage // Pass custom message to API
+      };
+
+      console.log('🚀 Sending attachment data to API:', {
+        file_name: attachmentData.file_name,
+        custom_message: attachmentData.custom_message,
+        custom_message_type: typeof attachmentData.custom_message,
+        custom_message_length: attachmentData.custom_message?.length,
+        has_custom_message: !!attachmentData.custom_message,
+        options_customMessage: options?.customMessage
+      });
+
+      const response = await fetch(`/api/classroom/${classroomSlug}/attachments/metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(attachmentData),
+        signal: options?.signal,
+      });
       
-      return result;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to save attachment metadata' }));
+        throw new Error(errorData.error || `Failed to save attachment: ${response.status}`);
+      }
+      
+      const attachment = await response.json();
+      
+      options?.onProgress?.(100);
+      console.log('✅ File uploaded successfully via MEGA client');
+
+      return attachment as ClassroomAttachment;
     },
     onSuccess: (newAttachment) => {
-      // Update the cache with the new attachment
       queryClient.setQueryData(
         ["classroom", classroomSlug, "attachments"],
         (old: ClassroomAttachment[] = []) => [newAttachment, ...old]
@@ -66,85 +183,89 @@ export function useAttachments(classroomSlug: string | undefined) {
       toast.success(`File "${newAttachment.file_name}" uploaded successfully`);
     },
     onError: (error: any) => {
-      console.error('Upload error:', error);
-      const message = error?.response?.data?.error || error?.message || 'Failed to upload file';
-      toast.error(message);
+      if (error.name === "AbortError") {
+        toast.warning("Upload cancelled");
+      } else {
+        toast.error(error.message || "Upload failed");
+      }
     },
   });
 
-  // Upload file function
-  const uploadFile = async (file: File): Promise<ClassroomAttachment> => {
-    console.log('uploadFile called with classroomSlug:', classroomSlug);
-    if (!classroomSlug) {
-      console.error('classroomSlug is missing:', { classroomSlug });
-      toast.error('Classroom not found');
-      throw new Error('Classroom not found');
-    }
+  /**
+   * 上传文件函数
+   */
+  const uploadFile = (
+    file: File,
+    options?: UploadOptions
+  ): { promise: Promise<ClassroomAttachment>; cancel: () => void } => {
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-    // Validate file size (100MB limit for Mega)
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxSize) {
-      toast.error('File too large. Maximum size is 100MB.');
-      throw new Error('File too large. Maximum size is 100MB.');
-    }
+    const promise = mutation.mutateAsync({ file, options: { ...options, signal } });
 
-    // Validate file type (basic validation)
-    const allowedTypes = [
-      'image/', 'video/', 'audio/', 'application/pdf', 
-      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/', 'application/zip', 'application/x-rar-compressed'
-    ];
-
-    const isAllowedType = allowedTypes.some(type => file.type.startsWith(type));
-    if (!isAllowedType) {
-      toast.error('File type not supported');
-      throw new Error('File type not supported');
-    }
-
-    try {
-      const result = await uploadMutation.mutateAsync(file);
-      console.log('Upload mutation result:', result);
-      return result;
-    } catch (error) {
-      console.error('Upload mutation failed:', error);
-      throw error;
-    }
+    return {
+      promise,
+      cancel: () => controller.abort(),
+    };
   };
 
-  // Format file size
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  return { uploadFile, isUploading: mutation.isPending };
+}
 
-  // Get file icon based on mime type
-  const getFileIcon = (mimeType: string): string => {
-    if (mimeType.startsWith('image/')) return '🖼️';
-    if (mimeType.startsWith('video/')) return '🎥';
-    if (mimeType.startsWith('audio/')) return '🎵';
-    if (mimeType.includes('pdf')) return '📄';
-    if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊';
-    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '📽️';
-    if (mimeType.startsWith('text/')) return '📄';
-    if (mimeType.includes('zip') || mimeType.includes('rar')) return '📦';
-    return '📎';
-  };
+/**
+ * Utility function to format file size in human readable format
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
+/**
+ * Utility function to get file icon based on mime type
+ */
+export function getFileIcon(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return '🖼️';
+  if (mimeType.startsWith('video/')) return '🎥';
+  if (mimeType.startsWith('audio/')) return '🎵';
+  if (mimeType.includes('pdf')) return '📄';
+  if (mimeType.includes('word') || mimeType.includes('doc')) return '📝';
+  if (mimeType.includes('excel') || mimeType.includes('sheet')) return '📊';
+  if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '📋';
+  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) return '🗜️';
+  return '📎';
+}
+
+/**
+ * Main hook that combines MEGA client-side upload with API fallback functionality
+ * Features:
+ * - MEGA Upload (when credentials available): No file size limit, direct client-side upload
+ * - API Fallback (when MEGA not configured): 4MB limit, server-side upload
+ * - Auto-select visibility based on context_type (public: material/announcement, private: others)
+ * - Progress tracking and cancellation support
+ * - Automatic fallback with user-friendly error messages
+ * 
+ * Setup MEGA (Optional):
+ * Add to .env.local:
+ * NEXT_PUBLIC_MEGA_EMAIL=your-email@example.com
+ * NEXT_PUBLIC_MEGA_PASSWORD=your-password
+ * 
+ * Usage:
+ * const { uploadFile } = useAttachments(classroomSlug);
+ * const result = uploadFile(file, { contextType: 'material' }); // → MEGA or API upload
+ * const result = uploadFile(file, { contextType: 'chat' }); // → MEGA or API upload
+ */
+export function useAttachments(classroomSlug: string | undefined) {
+  const { uploadFile, isUploading } = useUploadFile(classroomSlug);
+  
   return {
-    attachments,
-    isLoading,
-    error,
-    refetch,
     uploadFile,
-    isUploading: uploadMutation.isPending,
-    uploadProgress: uploadMutation.isPending ? 50 : 0, // Simple progress indicator
+    isUploading,
     formatFileSize,
-    getFileIcon,
+    getFileIcon
   };
 }

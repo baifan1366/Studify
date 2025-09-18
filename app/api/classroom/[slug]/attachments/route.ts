@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+export const runtime = 'nodejs';
 
 // GET - List attachments for a classroom
 export async function GET(
@@ -62,12 +63,14 @@ export async function GET(
         mime_type,
         size_bytes,
         created_at,
+        visibility,
+        bucket,
+        path,
         profiles!classroom_attachments_owner_id_fkey (
           display_name,
           avatar_url
         )
       `)
-      .eq('context_type', 'classroom')
       .eq('context_id', classroom.id)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false });
@@ -145,10 +148,13 @@ export async function POST(
 
     console.log('User membership verified:', membership.id);
 
-    // Parse form data - expecting actual file
+    // Parse form data - expecting actual file and metadata
     const formData = await request.formData();
     console.log('FormData keys:', Array.from(formData.keys()));
     const file = formData.get('file') as File;
+    const contextType = formData.get('contextType') as string || 'chat';
+    const visibility = formData.get('visibility') as string || 'private';
+    const customMessage = formData.get('customMessage') as string || null;
 
     if (!file) {
       console.error('No file in formData');
@@ -158,7 +164,11 @@ export async function POST(
     console.log('File received:', {
       name: file.name,
       type: file.type,
-      size: file.size
+      size: file.size,
+      contextType,
+      visibility,
+      customMessage,
+      hasCustomMessage: !!customMessage
     });
 
     // Validate file size (100MB limit)
@@ -184,98 +194,66 @@ export async function POST(
     // Generate unique filename
     const fileExtension = file.name.split('.').pop();
     const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+    // Upload to a bucket with visibility-based path
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // First, let's try to create a bucket if none exists
-    const bucketName = 'classroom-files';
-    let uploadData: any = null;
-    let uploadError: any = null;
-    
-    console.log('Attempting to upload file to Supabase Storage...');
-    
-    // Check if bucket exists
-    const { data: buckets } = await supabase.storage.listBuckets();
-    console.log('Available buckets:', buckets?.map(b => b.name));
-    
-    const bucketExists = buckets?.some(b => b.name === bucketName);
-    
-    if (!bucketExists) {
-      console.log(`Creating bucket: ${bucketName}`);
-      const { error: createError } = await supabase.storage.createBucket(bucketName, {
-        public: true,
-        allowedMimeTypes: undefined,
-        fileSizeLimit: 104857600 // 100MB
-      });
-      
-      if (createError) {
-        console.error('Failed to create bucket:', createError);
-        // Try to use the first available bucket
-        if (buckets && buckets.length > 0) {
-          console.log(`Using existing bucket: ${buckets[0].name}`);
-        }
-      } else {
-        console.log(`Successfully created bucket: ${bucketName}`);
-      }
-    }
-    
-    // Now try to upload to the bucket
-    const targetBucket = bucketExists || !buckets?.length ? bucketName : buckets[0].name;
-    console.log(`Uploading to bucket: ${targetBucket}, Path:`, `classrooms/${classroom.id}/${uniqueFilename}`);
-    
-    const result = await supabase.storage
-      .from(targetBucket)
-      .upload(`classrooms/${classroom.id}/${uniqueFilename}`, file, {
+    const BUCKET = 'classroom-attachment';
+    const objectPath = `${visibility}/classrooms/${classroom.id}/${uniqueFilename}`;
+
+    console.log('Uploading to bucket:', BUCKET, 'Path:', objectPath);
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(objectPath, buffer, {
         cacheControl: '3600',
-        upsert: false
+        upsert: false,
+        contentType: file.type,
       });
 
-    if (!result.error) {
-      uploadData = result.data;
-      console.log(`Successfully uploaded to bucket: ${targetBucket}`);
-    } else {
-      uploadError = result.error;
-      console.log(`Failed to upload:`, result.error.message);
-    }
-    
-    const successfulBucket = targetBucket;
-
-    if (!uploadData) {
-      console.error('All storage buckets failed. Last error:', uploadError);
-      
-      // Try to create bucket if it doesn't exist
-      if (uploadError?.message?.includes('bucket') || (uploadError as any)?.statusCode === 404) {
-        return NextResponse.json({ 
-          error: 'Failed to create or access storage bucket. Please check Supabase Storage configuration.',
-          details: uploadError.message,
-          tried_bucket: targetBucket
-        }, { status: 500 });
-      }
-      
-      return NextResponse.json({ 
-        error: 'Failed to upload file', 
-        details: uploadError?.message || 'All storage buckets failed'
-      }, { status: 500 });
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return NextResponse.json({ error: 'Upload failed', details: uploadError.message }, { status: 500 });
     }
 
-    console.log('File uploaded successfully to bucket:', successfulBucket);
+    console.log('File uploaded successfully to bucket:', BUCKET);
     console.log('Upload data:', uploadData);
 
-    // Get public URL using the successful bucket
-    const { data: { publicUrl } } = supabase.storage
-      .from(successfulBucket)
-      .getPublicUrl(uploadData.path);
-
-    // Save attachment record to database
+    // First insert without file_url to get the ID
     const { data: attachment, error: attachmentError } = await supabase
       .from('classroom_attachments')
       .insert({
         owner_id: profile.id,
-        context_type: 'classroom',
+        context_type: contextType,
         context_id: classroom.id,
-        file_url: publicUrl,
+        file_url: '', // Will be updated after we get the ID
         file_name: file.name,
         mime_type: file.type,
-        size_bytes: file.size
+        size_bytes: file.size,
+        visibility: visibility,
+        bucket: BUCKET,
+        path: objectPath
       })
+      .select('id')
+      .single();
+
+    if (attachmentError) {
+      console.error('Error saving attachment to database:', attachmentError);
+      // Clean up uploaded file
+      await supabase.storage.from(BUCKET).remove([objectPath]);
+      return NextResponse.json({ 
+        error: 'Failed to save attachment record', 
+        details: attachmentError.message 
+      }, { status: 500 });
+    }
+
+    // Update with permanent-looking URL based on the actual ID
+    const permanentUrl = `/api/attachment/${attachment.id}-${Math.random().toString(36).substring(2)}`;
+    
+    const { data: updatedAttachment, error: updateError } = await supabase
+      .from('classroom_attachments')
+      .update({ file_url: permanentUrl })
+      .eq('id', attachment.id)
       .select(`
         id,
         public_id,
@@ -284,6 +262,9 @@ export async function POST(
         mime_type,
         size_bytes,
         created_at,
+        visibility,
+        bucket,
+        path,
         profiles!classroom_attachments_owner_id_fkey (
           display_name,
           avatar_url
@@ -291,26 +272,109 @@ export async function POST(
       `)
       .single();
 
-    if (attachmentError) {
-      console.error('Error saving attachment to database:', attachmentError);
-      console.error('Attachment error details:', {
-        message: attachmentError.message,
-        details: attachmentError.details,
-        hint: attachmentError.hint,
-        code: attachmentError.code
-      });
-      
-      // Clean up uploaded file from Supabase Storage
-      await supabase.storage.from(successfulBucket).remove([uploadData.path]);
-      
+    if (updateError) {
+      console.error('Error updating attachment URL:', updateError);
       return NextResponse.json({ 
-        error: 'Failed to save attachment record', 
-        details: attachmentError.message 
+        error: 'Failed to update attachment URL'
       }, { status: 500 });
     }
 
-    console.log('Successfully saved attachment:', attachment);
-    return NextResponse.json(attachment);
+    console.log('Successfully saved attachment with permanent URL:', updatedAttachment);
+
+    // Also create a chat message for this attachment
+    // First, get or create a live session for this classroom
+    let activeSession = null;
+    
+    // Try to get existing active session
+    const { data: existingSession } = await supabase
+      .from('classroom_live_session')
+      .select('id')
+      .eq('classroom_id', classroom.id)
+      .eq('status', 'live')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existingSession) {
+      activeSession = existingSession;
+      console.log('Using existing active session:', existingSession.id);
+    } else {
+      // No active session found, create a new one
+      console.log('No active session found, creating new session for classroom:', classroom.id);
+      
+      const { data: newSession, error: sessionError } = await supabase
+        .from('classroom_live_session')
+        .insert({
+          classroom_id: classroom.id,
+          title: 'General Chat Session',
+          host_id: profile.id, // Required field
+          starts_at: new Date().toISOString(), // Correct field name
+          status: 'live', // Set status to live
+          created_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (sessionError) {
+        console.error('Error creating new session:', sessionError);
+        console.error('Session creation failed, cannot create chat message');
+      } else {
+        activeSession = newSession;
+        console.log('Created new session:', newSession.id);
+      }
+    }
+
+    if (activeSession) {
+      // Create a chat message for the attachment using custom message or filename
+      let attachmentMessage;
+      if (customMessage && customMessage.trim().length > 0) {
+        attachmentMessage = customMessage.trim();
+        console.log('✅ Using custom message for fallback API:', attachmentMessage);
+      } else {
+        attachmentMessage = file.name;
+        console.log('⚠️ No custom message for fallback API, using filename:', attachmentMessage);
+      }
+      
+      console.log('Creating chat message with session_id:', activeSession.id, 'and attachment_id:', updatedAttachment.id);
+      
+      const { error: messageError } = await supabase
+        .from('classroom_chat_message')
+        .insert({
+          session_id: activeSession.id,
+          sender_id: profile.id,
+          message: attachmentMessage,
+          attachment_id: updatedAttachment.id,
+          created_at: new Date().toISOString()
+        });
+
+      if (messageError) {
+        console.error('Error creating chat message for attachment:', messageError);
+        console.error('Message error details:', JSON.stringify(messageError, null, 2));
+        
+        // Log the exact insert data being attempted
+        console.error('Attempted insert data:', {
+          session_id: activeSession.id,
+          sender_id: profile.id,
+          message: attachmentMessage,
+          created_at: new Date().toISOString()
+        });
+
+        // Check if the session actually exists
+        const { data: sessionCheck } = await supabase
+          .from('classroom_live_session')
+          .select('id')
+          .eq('id', activeSession.id)
+          .single();
+          
+        console.error('Session exists check:', sessionCheck ? 'YES' : 'NO');
+      } else {
+        console.log('✅ Chat message created successfully for attachment ID:', updatedAttachment.id);
+      }
+    } else {
+      console.error('❌ Could not get or create active session for classroom:', classroom.id);
+    }
+
+    return NextResponse.json(updatedAttachment);
 
   } catch (error: any) {
     console.error('Error in POST /api/classroom/[slug]/attachments:', error);

@@ -80,8 +80,27 @@ function GeneralChatTab({
 
   // Convert hook messages to ChatPanel format
   const convertedMessages = messages.map((msg: HookChatMessage) => ({
-    ...msg,
-    userAvatar: msg.userAvatar || undefined
+    id: msg.id,
+    userId: msg.userId,
+    userName: msg.userName,
+    userAvatar: msg.userAvatar || undefined,
+    content: msg.content,
+    timestamp: msg.timestamp,
+    type: msg.type,
+    // Convert ChatAttachment to ClassroomAttachment format if exists
+    attachment: msg.attachment ? {
+      id: msg.attachment.id,
+      public_id: msg.attachment.public_id,
+      file_url: msg.attachment.file_url,
+      file_name: msg.attachment.file_name,
+      mime_type: msg.attachment.mime_type,
+      size_bytes: msg.attachment.size_bytes,
+      created_at: msg.attachment.created_at,
+      visibility: msg.attachment.visibility,
+      bucket: msg.attachment.bucket,
+      path: msg.attachment.path,
+      profiles: msg.attachment.profiles
+    } : undefined
   }));
 
   return (

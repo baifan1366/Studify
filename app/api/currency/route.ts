@@ -2,20 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 
-// Currency list with all required information
+// Currency list with all required information and fallback rates
 const SUPPORTED_CURRENCIES = [
-  { code: 'USD', name: 'US Dollar', country: 'United States', symbol: '$' },
-  { code: 'MYR', name: 'Malaysian Ringgit', country: 'Malaysia', symbol: 'RM' },
-  { code: 'EUR', name: 'Euro', country: 'European Union', symbol: '€' },
-  { code: 'GBP', name: 'British Pound Sterling', country: 'United Kingdom', symbol: '£' },
-  { code: 'SGD', name: 'Singapore Dollar', country: 'Singapore', symbol: 'S$' },
-  { code: 'PHP', name: 'Philippine Peso', country: 'Philippines', symbol: '₱' },
-  { code: 'THB', name: 'Thai Baht', country: 'Thailand', symbol: '฿' },
-  { code: 'IDR', name: 'Indonesian Rupiah', country: 'Indonesia', symbol: 'Rp' },
-  { code: 'VND', name: 'Vietnamese Dong', country: 'Vietnam', symbol: '₫' },
-  { code: 'CNY', name: 'Chinese Yuan', country: 'China', symbol: '¥' },
-  { code: 'JPY', name: 'Japanese Yen', country: 'Japan', symbol: '¥' },
-  { code: 'KRW', name: 'South Korean Won', country: 'South Korea', symbol: '₩' },
+  { code: 'USD', name: 'US Dollar', country: 'United States', symbol: '$', fallbackRate: 1.0 },
+  { code: 'MYR', name: 'Malaysian Ringgit', country: 'Malaysia', symbol: 'RM', fallbackRate: 4.70 },
+  { code: 'EUR', name: 'Euro', country: 'European Union', symbol: '€', fallbackRate: 0.92 },
+  { code: 'GBP', name: 'British Pound Sterling', country: 'United Kingdom', symbol: '£', fallbackRate: 0.79 },
+  { code: 'SGD', name: 'Singapore Dollar', country: 'Singapore', symbol: 'S$', fallbackRate: 1.35 },
+  { code: 'PHP', name: 'Philippine Peso', country: 'Philippines', symbol: '₱', fallbackRate: 56.50 },
+  { code: 'THB', name: 'Thai Baht', country: 'Thailand', symbol: '฿', fallbackRate: 36.80 },
+  { code: 'IDR', name: 'Indonesian Rupiah', country: 'Indonesia', symbol: 'Rp', fallbackRate: 15420 },
+  { code: 'VND', name: 'Vietnamese Dong', country: 'Vietnam', symbol: '₫', fallbackRate: 24500 },
+  { code: 'CNY', name: 'Chinese Yuan', country: 'China', symbol: '¥', fallbackRate: 7.25 },
+  { code: 'JPY', name: 'Japanese Yen', country: 'Japan', symbol: '¥', fallbackRate: 149.50 },
+  { code: 'KRW', name: 'South Korean Won', country: 'South Korea', symbol: '₩', fallbackRate: 1340 },
 ];
 
 // GET - Fetch all currencies from database
@@ -82,32 +82,60 @@ async function handler(req: Request) {
     const isFirstDay = !existingCurrencies || existingCurrencies.length === 0;
     console.log(`[Currency API] First day check: ${isFirstDay ? 'TRUE - Creating records' : 'FALSE - Updating records'}`);
 
-    // Fetch exchange rates from exchangerate.host
-    const symbols = SUPPORTED_CURRENCIES.map(c => c.code).join(',');
-    const exchangeRateUrl = `https://api.exchangerate.host/latest?access_key=${apiKey}&base=USD&symbols=${symbols}&format=1`;
-    
-    console.log('[Currency API] Fetching rates from exchangerate.host...');
-    const response = await fetch(exchangeRateUrl);
-    
-    if (!response.ok) {
-      console.error('[Currency API] Exchange rate API error:', response.status, response.statusText);
-      return NextResponse.json(
-        { error: `Exchange rate API error: ${response.status}` },
-        { status: 500 }
-      );
+    // Try to fetch exchange rates from exchangerate.host using live endpoint
+    let rates: { [key: string]: number } = {};
+    let usingFallbackRates = false;
+
+    if (apiKey) {
+      try {
+        const symbols = SUPPORTED_CURRENCIES.map(c => c.code).join(',');
+        const exchangeRateUrl = `http://api.exchangerate.host/live?access_key=${apiKey}&currencies=${symbols}&source=USD&format=1`;
+        
+        console.log('[Currency API] Fetching rates from exchangerate.host...');
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const response = await fetch(exchangeRateUrl, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success && data.quotes) {
+            // Convert live quotes to rates format (quotes like USDMYR, USDEUR to direct rates)
+            Object.entries(data.quotes).forEach(([pair, rate]) => {
+              // Extract currency code from pair (e.g., USDMYR -> MYR)
+              const currency = pair.slice(3); // Remove 'USD' prefix
+              rates[currency] = rate as number;
+            });
+            rates['USD'] = 1.0; // USD base rate
+            console.log('[Currency API] Successfully fetched live exchange rates');
+          } else {
+            throw new Error(`API returned error: ${data.error?.info || 'Unknown error'}`);
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        console.warn('[Currency API] Failed to fetch live rates, using fallback rates:', error);
+        usingFallbackRates = true;
+      }
+    } else {
+      console.warn('[Currency API] No API key provided, using fallback rates');
+      usingFallbackRates = true;
     }
 
-    const data = await response.json();
-    
-    if (!data.success) {
-      console.error('[Currency API] Exchange rate API returned error:', data.error);
-      return NextResponse.json(
-        { error: 'Exchange rate API error: ' + (data.error?.info || 'Unknown error') },
-        { status: 500 }
-      );
+    // Use fallback rates if API failed or no API key
+    if (usingFallbackRates) {
+      SUPPORTED_CURRENCIES.forEach(currency => {
+        rates[currency.code] = currency.fallbackRate;
+      });
+      console.log('[Currency API] Using fallback exchange rates');
     }
-
-    console.log('[Currency API] Successfully fetched exchange rates');
 
     if (isFirstDay) {
       // First day: Create all currency records
@@ -118,7 +146,7 @@ async function handler(req: Request) {
         name: currency.name,
         country: currency.country,
         symbol: currency.symbol,
-        rate_to_usd: currency.code === 'USD' ? 1.0 : (data.rates[currency.code] || 1.0)
+        rate_to_usd: currency.code === 'USD' ? 1.0 : (rates[currency.code] || 1.0)
       }));
 
       const { data: insertedCurrencies, error: insertError } = await supabase
@@ -141,7 +169,8 @@ async function handler(req: Request) {
         message: 'Currency records created successfully',
         action: 'created',
         count: insertedCurrencies.length,
-        rates: data.rates
+        rates: rates,
+        usingFallbackRates
       });
 
     } else {
@@ -149,7 +178,7 @@ async function handler(req: Request) {
       console.log('[Currency API] Updating existing currency rates...');
       
       const updatePromises = SUPPORTED_CURRENCIES.map(async (currency) => {
-        const newRate = currency.code === 'USD' ? 1.0 : (data.rates[currency.code] || 1.0);
+        const newRate = currency.code === 'USD' ? 1.0 : (rates[currency.code] || 1.0);
         
         const { error } = await supabase
           .from('currencies')
@@ -175,8 +204,9 @@ async function handler(req: Request) {
         message: 'Currency rates updated successfully',
         action: 'updated',
         count: updatedRates.length,
-        rates: data.rates,
-        updatedRates
+        rates: rates,
+        updatedRates,
+        usingFallbackRates
       });
     }
 
@@ -192,4 +222,18 @@ async function handler(req: Request) {
   }
 }
 
-export const POST = verifySignatureAppRouter(handler);
+// Manual trigger endpoint (no QStash verification required)
+export async function POST(req: NextRequest) {
+  // Check if this is a manual initialization request
+  const { searchParams } = new URL(req.url);
+  const isManualInit = searchParams.get('init') === 'true';
+  
+  if (isManualInit) {
+    // Allow manual initialization without QStash signature
+    console.log('[Currency API] Manual initialization requested');
+    return await handler(req);
+  }
+  
+  // For scheduled updates, require QStash verification
+  return await verifySignatureAppRouter(handler)(req);
+}

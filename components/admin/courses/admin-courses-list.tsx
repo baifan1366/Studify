@@ -66,6 +66,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAdminCourses, useUpdateCourse, useDeleteCourse, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
+import { useFormat } from '@/hooks/use-format';
 import type { AdminCourse, AdminCourseFilters } from '@/interface/admin/admin-interface';
 
 const statusColors = {
@@ -93,6 +94,7 @@ export default function AdminCoursesList() {
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
+  const { formatNumber } = useFormat();
   const { data: coursesData, isLoading, error } = useAdminCourses(filters);
   const updateCourse = useUpdateCourse();
   const deleteCourse = useDeleteCourse();
@@ -367,7 +369,7 @@ export default function AdminCoursesList() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{course.average_rating.toFixed(1)}</span>
+                          <span className="text-sm">{course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'}</span>
                         </div>
                       </TableCell>
                       <TableCell>

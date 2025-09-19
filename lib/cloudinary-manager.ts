@@ -60,6 +60,41 @@ export class CloudinaryManager {
         apiKey: process.env.CLOUDINARY_API_KEY_3,
         apiSecret: process.env.CLOUDINARY_API_SECRET_3,
       },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_4,
+        apiKey: process.env.CLOUDINARY_API_KEY_4,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_4,
+      },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_5,
+        apiKey: process.env.CLOUDINARY_API_KEY_5,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_5,
+      },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_6,
+        apiKey: process.env.CLOUDINARY_API_KEY_6,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_6,
+      },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_7,
+        apiKey: process.env.CLOUDINARY_API_KEY_7,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_7,
+      },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_8,
+        apiKey: process.env.CLOUDINARY_API_KEY_8,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_8,
+      },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_9,
+        apiKey: process.env.CLOUDINARY_API_KEY_9,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_9,
+      },
+      {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME_10,
+        apiKey: process.env.CLOUDINARY_API_KEY_10,
+        apiSecret: process.env.CLOUDINARY_API_SECRET_10,
+      }
     ];
 
     this.accounts = accountConfigs

@@ -145,7 +145,7 @@ export async function POST(req: Request) {
         payload: {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
-          user_id: profile.id,
+          user_id: authResult.payload.sub, // Use the UUID from auth, not profile.id
           timestamp: new Date().toISOString(),
         }
       });
@@ -167,7 +167,7 @@ export async function POST(req: Request) {
         {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
-          user_id: profile.id,
+          user_id: authResult.payload.sub, // Use the UUID from auth, not profile.id
           timestamp: new Date().toISOString(),
         },
         {

@@ -11,7 +11,7 @@ import { z } from "zod";
 const EmbedJobSchema = z.object({
   queue_id: z.number().int().positive("Invalid queue ID"),
   attachment_id: z.number().int().positive("Invalid attachment ID"),
-  user_id: z.number().int().positive("Invalid user ID"), // Changed to number for profile ID
+  user_id: z.string().uuid("Invalid user ID"), // Use UUID format for consistency
   transcription_text: z.string().min(1, "Transcription text is required"),
   timestamp: z.string().optional(),
   retry_attempt: z.number().int().min(0).default(0),
@@ -27,7 +27,7 @@ const EMBED_RETRY_CONFIG = {
 async function scheduleRetry(
   queueId: number, 
   attachmentId: number, 
-  userId: number, 
+  userId: string, 
   transcriptionText: string, 
   retryCount: number
 ): Promise<string> {
@@ -313,7 +313,7 @@ export async function POST(req: Request) {
         });
 
         // 7. Send completion notification
-        await sendVideoProcessingNotification(user_id.toString(), {
+        await sendVideoProcessingNotification(user_id, {
           attachment_id,
           queue_id,
           attachment_title: `Video ${attachment_id}`,

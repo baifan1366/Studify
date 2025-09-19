@@ -150,8 +150,7 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 5, // 增加到5次重试，与后续步骤一致
-          delay: '30s' // 增加到30秒延迟，给服务更多启动时间
+          retries: 5 // Queue processing timing managed by QStash internally
         }
       );
 

@@ -207,8 +207,7 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 3, // More retries for embedding API
-        delay: "30s", // Longer delay for server wake-up
+        retries: 3 // Queue timing managed by QStash internally
       }
     );
 
@@ -259,7 +258,7 @@ async function scheduleRetry(
         timestamp: new Date().toISOString(),
       },
       {
-        delay: `${delaySeconds}s`, // Delay in seconds
+        retries: 0 // Manual retry scheduling, no additional retries
       }
     );
 

@@ -132,8 +132,7 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 4, // 增加到4次重试
-        delay: "20s", // 增加到20秒延迟，给Cloudinary更多时间
+        retries: 4 // Queue timing managed by QStash internally
       }
     );
 

@@ -92,8 +92,7 @@ async function scheduleRetry(queueId: number, attachmentId: number, userId: stri
         retry_attempt: retryCount,
       },
       {
-        delay: `${delaySeconds}s`, // 使用秒为单位，更精确的控制
-        retries: 0, // No additional retries, we handle it manually
+        retries: 0 // Manual retry scheduling, no additional retries
       }
     );
 

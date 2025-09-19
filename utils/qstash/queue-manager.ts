@@ -51,6 +51,9 @@ export class QStashQueueManager {
   /**
    * Enqueue a message to a specific queue
    * According to QStash API: POST /v2/enqueue/{queueName}/{destination}
+   * 
+   * Note: delay parameter is ignored for queue enqueue operations.
+   * Queue timing is managed by QStash based on parallelism and internal scheduling.
    */
   async enqueue(
     queueName: string, 
@@ -93,10 +96,9 @@ export class QStashQueueManager {
         ...headers,
       };
 
-      // Add delay if specified
-      if (delay) {
-        requestHeaders['Upstash-Delay'] = delay;
-      }
+      // Note: Upstash-Delay is not supported with /v2/enqueue endpoint for queues
+      // Queue processing is managed by QStash internally based on parallelism settings
+      // If delay is needed, consider using /v2/publish endpoint instead
 
       // Add callback if specified
       if (callback) {

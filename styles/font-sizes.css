@@ -1,0 +1,127 @@
+/* Font Size System CSS */
+
+/* Base font sizes */
+.font-size-small {
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.825rem;   /* 13.2px */
+  --text-base: 0.875rem; /* 14px */
+  --text-lg: 1rem;       /* 16px */
+  --text-xl: 1.125rem;   /* 18px */
+  --text-2xl: 1.25rem;   /* 20px */
+  --text-3xl: 1.5rem;    /* 24px */
+  --text-4xl: 1.875rem;  /* 30px */
+}
+
+.font-size-medium {
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  --text-4xl: 2.25rem;   /* 36px */
+}
+
+.font-size-large {
+  --text-xs: 0.875rem;   /* 14px */
+  --text-sm: 1rem;       /* 16px */
+  --text-base: 1.125rem; /* 18px */
+  --text-lg: 1.25rem;    /* 20px */
+  --text-xl: 1.375rem;   /* 22px */
+  --text-2xl: 1.625rem;  /* 26px */
+  --text-3xl: 2rem;      /* 32px */
+  --text-4xl: 2.5rem;    /* 40px */
+}
+
+.font-size-extra-large {
+  --text-xs: 1rem;       /* 16px */
+  --text-sm: 1.125rem;   /* 18px */
+  --text-base: 1.25rem;  /* 20px */
+  --text-lg: 1.375rem;   /* 22px */
+  --text-xl: 1.5rem;     /* 24px */
+  --text-2xl: 1.75rem;   /* 28px */
+  --text-3xl: 2.25rem;   /* 36px */
+  --text-4xl: 2.75rem;   /* 44px */
+}
+
+/* Utility classes that use CSS variables */
+.text-responsive-xs { font-size: var(--text-xs) !important; }
+.text-responsive-sm { font-size: var(--text-sm) !important; }
+.text-responsive-base { font-size: var(--text-base) !important; }
+.text-responsive-lg { font-size: var(--text-lg) !important; }
+.text-responsive-xl { font-size: var(--text-xl) !important; }
+.text-responsive-2xl { font-size: var(--text-2xl) !important; }
+.text-responsive-3xl { font-size: var(--text-3xl) !important; }
+.text-responsive-4xl { font-size: var(--text-4xl) !important; }
+
+/* Apply to common elements */
+.font-size-small body,
+.font-size-small .prose,
+.font-size-small p,
+.font-size-small div {
+  font-size: var(--text-sm);
+}
+
+.font-size-medium body,
+.font-size-medium .prose,
+.font-size-medium p,
+.font-size-medium div {
+  font-size: var(--text-base);
+}
+
+.font-size-large body,
+.font-size-large .prose,
+.font-size-large p,
+.font-size-large div {
+  font-size: var(--text-lg);
+}
+
+.font-size-extra-large body,
+.font-size-extra-large .prose,
+.font-size-extra-large p,
+.font-size-extra-large div {
+  font-size: var(--text-xl);
+}
+
+/* Heading adjustments */
+.font-size-small h1 { font-size: var(--text-2xl); }
+.font-size-small h2 { font-size: var(--text-xl); }
+.font-size-small h3 { font-size: var(--text-lg); }
+.font-size-small h4 { font-size: var(--text-base); }
+.font-size-small h5 { font-size: var(--text-sm); }
+.font-size-small h6 { font-size: var(--text-xs); }
+
+.font-size-medium h1 { font-size: var(--text-3xl); }
+.font-size-medium h2 { font-size: var(--text-2xl); }
+.font-size-medium h3 { font-size: var(--text-xl); }
+.font-size-medium h4 { font-size: var(--text-lg); }
+.font-size-medium h5 { font-size: var(--text-base); }
+.font-size-medium h6 { font-size: var(--text-sm); }
+
+.font-size-large h1 { font-size: var(--text-4xl); }
+.font-size-large h2 { font-size: var(--text-3xl); }
+.font-size-large h3 { font-size: var(--text-2xl); }
+.font-size-large h4 { font-size: var(--text-xl); }
+.font-size-large h5 { font-size: var(--text-lg); }
+.font-size-large h6 { font-size: var(--text-base); }
+
+.font-size-extra-large h1 { font-size: var(--text-4xl); }
+.font-size-extra-large h2 { font-size: var(--text-3xl); }
+.font-size-extra-large h3 { font-size: var(--text-2xl); }
+.font-size-extra-large h4 { font-size: var(--text-xl); }
+.font-size-extra-large h5 { font-size: var(--text-lg); }
+.font-size-extra-large h6 { font-size: var(--text-base); }
+
+/* Button adjustments */
+.font-size-small button,
+.font-size-small .btn { font-size: var(--text-sm); }
+
+.font-size-medium button,
+.font-size-medium .btn { font-size: var(--text-base); }
+
+.font-size-large button,
+.font-size-large .btn { font-size: var(--text-lg); }
+
+.font-size-extra-large button,
+.font-size-extra-large .btn { font-size: var(--text-xl); }

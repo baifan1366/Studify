@@ -43,10 +43,10 @@ export async function GET(
       hasPermission = !!permission;
     }
 
-    // 获取用户的尝试次数
-    const { data: attempts, error: attemptsErr } = await supabase
+    // 获取用户的尝试次数 (包括所有状态用于分析)
+    const { data: allAttempts, error: attemptsErr } = await supabase
       .from("community_quiz_attempt")
-      .select("id")
+      .select("id, status")
       .eq("quiz_id", quiz.id)
       .eq("user_id", userId);
 
@@ -54,7 +54,11 @@ export async function GET(
       return NextResponse.json({ error: attemptsErr.message }, { status: 500 });
     }
 
-    const attemptCount = attempts?.length || 0;
+    // 分类统计尝试次数
+    const allAttemptsCount = allAttempts?.length || 0;
+    const completedAttempts = allAttempts?.filter(a => a.status === 'submitted' || a.status === 'graded') || [];
+    const inProgressAttempts = allAttempts?.filter(a => a.status === 'in_progress') || [];
+    const attemptCount = completedAttempts.length; // 用于限制检查的是已完成的尝试
     
     // 检查用户权限等级
     let userPermission = null;
@@ -93,12 +97,15 @@ export async function GET(
     }
 
     return NextResponse.json({
-      attemptCount,
+      attemptCount, // 已完成的尝试次数
+      allAttemptsCount, // 所有尝试次数
+      inProgressCount: inProgressAttempts.length, // 进行中的尝试数
       maxAttempts: quiz.max_attempts,
       canAttempt,
       accessReason,
       isAuthor,
       userPermission,
+      hasInProgressAttempt: inProgressAttempts.length > 0,
       quiz: {
         max_attempts: quiz.max_attempts,
         visibility: quiz.visibility,

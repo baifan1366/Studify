@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../styles/font-sizes.css";
 
 /* ========================= */
 /* 1. Geist Font Integration */

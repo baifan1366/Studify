@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Send, X, Paperclip, Smile, ChevronDown, Upload, File, Download, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAttachments, ClassroomAttachment } from '@/hooks/classroom/use-attachments';
+import { createClient } from '@supabase/supabase-js';
+import { playNotificationSound } from '@/utils/notification/sound-manager';
+import { AttachmentViewer } from '@/components/classroom/attachment-viewer';
+// Initialize Supabase client for Realtime
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // File type utility functions
 function isImage(mime: string): boolean {
@@ -147,111 +155,19 @@ function ChatMessageItem({ message, isCurrentUser }: { message: ChatMessage; isC
               : 'bg-gray-100/5 dark:bg-gray-100/5 text-gray-900 dark:text-gray-100 rounded-bl-md'
           }`}
         >
-          {message.content && (
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          {/* Attachment rendering first */}
+          {message.attachment && (
+            <div className={message.content && !message.content.startsWith('📎 Shared:') ? 'mb-2' : ''}>
+              <AttachmentViewer 
+                attachment={message.attachment} 
+                showDownloadButton={true}
+              />
+            </div>
           )}
           
-          {/* Attachment rendering */}
-          {message.attachment && (
-            <div className="mt-2 bg-black/10 rounded-lg overflow-hidden relative group">
-              {/* Download button - top right corner */}
-              <div className="flex items-center justify-between bg-black/50 text-white text-xs px-2 py-1">
-                <span className="truncate">{message.attachment.file_name}</span>
-                <button
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = message.attachment!.file_url;
-                    link.download = message.attachment!.file_name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="ml-2 p-1 hover:bg-white/20 rounded"
-                >
-                  <Download className="w-3 h-3" />
-                </button>
-              </div>
-
-
-              {/* Image display */}
-              {isImage(message.attachment.mime_type) && (
-                <div className="relative">
-                  <img
-                    src={message.attachment.file_url}
-                    alt={message.attachment.file_name}
-                    className="max-w-full max-h-64 object-contain rounded-lg cursor-pointer"
-                    onClick={() => window.open(message.attachment!.file_url, '_blank')}
-                  />
-                  <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                    {message.attachment.file_name}
-                  </div>
-                </div>
-              )}
-
-              {/* Video display */}
-              {isVideo(message.attachment.mime_type) && (
-                <div className="relative">
-                  <video
-                    controls
-                    className="max-w-full max-h-64 rounded-lg"
-                    preload="metadata"
-                  >
-                    <source src={message.attachment.file_url} type={message.attachment.mime_type} />
-                    Your browser does not support the video tag.
-                  </video>
-                  <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                    {message.attachment.file_name}
-                  </div>
-                </div>
-              )}
-
-              {/* Audio display */}
-              {isAudio(message.attachment.mime_type) && (
-                <div className="p-3">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Play className="w-4 h-4" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{message.attachment.file_name}</div>
-                      <div className="text-xs opacity-70">
-                        {(message.attachment.size_bytes / (1024 * 1024)).toFixed(2)} MB
-                      </div>
-                    </div>
-                  </div>
-                  <audio
-                    controls
-                    className="w-full"
-                    preload="metadata"
-                  >
-                    <source src={message.attachment.file_url} type={message.attachment.mime_type} />
-                    Your browser does not support the audio tag.
-                  </audio>
-                </div>
-              )}
-
-              {/* Other file types */}
-              {!isImage(message.attachment.mime_type) && 
-               !isVideo(message.attachment.mime_type) && 
-               !isAudio(message.attachment.mime_type) && (
-                <div className="p-3">
-                  <div className="flex items-center space-x-2">
-                    <File className="w-4 h-4" />
-                    <div className="flex-1 min-w-0">
-                      <a 
-                        href={message.attachment.file_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline truncate block"
-                      >
-                        {message.attachment.file_name}
-                      </a>
-                      <div className="text-xs opacity-70">
-                        {(message.attachment.size_bytes / (1024 * 1024)).toFixed(2)} MB
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* User message content below attachment (exclude default attachment messages) */}
+          {message.content && !message.content.startsWith('📎 Shared:') && (
+            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           )}
           
           <div className={`text-xs mt-1 ${isCurrentUser ? 'text-primary-foreground/70' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -280,6 +196,7 @@ export function ChatPanel({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -287,7 +204,174 @@ export function ChatPanel({
   // Use attachments hook
   const { uploadFile, isUploading, formatFileSize, getFileIcon } = useAttachments(classroomSlug);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Get classroom ID from slug (you'll need to pass this as a prop or fetch it)
+  const [classroomId, setClassroomId] = useState<number | null>(null);
+  
+  // Fetch classroom ID from slug
+  useEffect(() => {
+    const fetchClassroomId = async () => {
+      if (!classroomSlug) return;
+      
+      try {
+        console.log('Fetching classroom ID for slug:', classroomSlug);
+        const response = await fetch(`/api/classroom/${classroomSlug}`);
+        
+        if (!response.ok) {
+          console.error('Classroom API error:', response.status, response.statusText);
+          if (response.status === 404) {
+            console.error('Classroom not found - check slug:', classroomSlug);
+          }
+          return;
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Response is not JSON:', contentType);
+          const text = await response.text();
+          console.error('Response text:', text.substring(0, 200));
+          return;
+        }
+        
+        const data = await response.json();
+        console.log('Classroom data received:', data);
+        
+        if (data && data.id) {
+          setClassroomId(data.id);
+          console.log('Set classroom ID:', data.id);
+        } else {
+          console.error('No classroom ID in response:', data);
+        }
+      } catch (error) {
+        console.error('Error fetching classroom ID:', error);
+      }
+    };
+    
+    fetchClassroomId();
+  }, [classroomSlug || '']);
+
+  // Setup Realtime subscription for chat messages
+  useEffect(() => {
+    if (!classroomId || !classroomSlug) {
+      console.log('Skipping Realtime setup - missing classroomId or slug:', { classroomId, classroomSlug });
+      return;
+    }
+
+    console.log('Setting up Realtime subscription for classroom:', classroomId);
+
+    // Subscribe to chat messages
+    const chatChannel = supabase
+      .channel(`classroom-chat:${classroomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'classroom_chat_message',
+          // Don't filter by session_id in Realtime, filter in the callback instead
+        },
+        async (payload) => {
+          console.log('New chat message received via Realtime!', payload.new);
+          
+          try {
+            let attachment = undefined;
+            
+            // Check if this message has attachment_id field
+            if (payload.new.attachment_id) {
+              console.log('Message has attachment_id:', payload.new.attachment_id);
+              
+              // Fetch the complete attachment information
+              try {
+                const response = await fetch(`/api/classroom/${classroomSlug}/attachments`);
+                if (response.ok) {
+                  const attachments = await response.json();
+                  attachment = attachments.find((att: any) => att.id === payload.new.attachment_id);
+                  
+                  if (attachment) {
+                    console.log('✅ Found complete attachment info:', attachment.file_name);
+                    console.log('📥 File URL for download:', attachment.file_url);
+                  } else {
+                    console.warn('⚠️ Attachment not found in attachments list:', payload.new.attachment_id);
+                    // Create a fallback attachment with basic info
+                    const fileNameMatch = payload.new.message?.match(/(.+)/);
+                    const fileName = fileNameMatch ? fileNameMatch[1] : 'Unknown File';
+                    
+                    attachment = {
+                      id: payload.new.attachment_id,
+                      file_name: fileName,
+                      mime_type: 'application/octet-stream',
+                      size_bytes: 0,
+                      file_url: `/api/attachment/${payload.new.attachment_id}-fallback`, // Use our permanent link system
+                      public_id: '',
+                      created_at: payload.new.created_at,
+                      visibility: 'private' as 'public' | 'private',
+                      bucket: 'classroom-attachment',
+                      path: 'unknown',
+                      profiles: {
+                        display_name: 'User',
+                        avatar_url: undefined
+                      }
+                    };
+                  }
+                } else {
+                  console.error('Failed to fetch attachments:', response.status);
+                }
+              } catch (error) {
+                console.error('Error fetching attachment details:', error);
+              }
+            }
+            
+            // Simple user name - we'll improve this later
+            const userName = `User ${payload.new.sender_id}`;
+            
+            // Transform the database message to ChatMessage format
+            const newMessage: ChatMessage = {
+              id: payload.new.public_id || payload.new.id.toString(),
+              userId: payload.new.sender_id.toString(),
+              userName,
+              userAvatar: undefined,
+              content: payload.new.message,
+              timestamp: new Date(payload.new.created_at),
+              type: 'user',
+              attachment
+            };
+            
+            console.log('📨 Adding new realtime message with attachment:', !!attachment);
+            
+            // Add the new message to the realtime messages if not already exists
+            setRealtimeMessages(prev => {
+              const exists = prev.some(msg => msg.id === newMessage.id);
+              if (exists) {
+                return prev; // Don't add duplicate
+              }
+              return [...prev, newMessage];
+            });
+            
+            // Play notification sound if it's from another user
+            if (payload.new.sender_id.toString() !== currentUserId) {
+              handlePlayNotificationSound();
+            }
+          } catch (error) {
+            console.error('Error processing realtime message:', error);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      console.log('Cleaning up Realtime subscriptions');
+      supabase.removeChannel(chatChannel);
+    };
+  }, [classroomId, classroomSlug || '', currentUserId || '']);
+
+  // Play notification sound using the improved sound manager
+  const handlePlayNotificationSound = () => {
+    playNotificationSound().catch(error => {
+      // Errors are already handled in the sound manager
+      console.debug('Notification sound failed:', error.message);
+    });
+  };
+
   const scrollToBottom = () => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement;
     if (viewport) {
@@ -300,6 +384,42 @@ export function ChatPanel({
     }
   };
 
+  // Deduplicate messages to avoid duplicate keys
+  const allMessages = useMemo(() => {
+    const messageMap = new Map<string, ChatMessage>();
+    
+    // Add database messages first
+    messages.forEach(msg => {
+      messageMap.set(msg.id, msg);
+    });
+    
+    // Add realtime messages, potentially overwriting database messages with the same ID
+    realtimeMessages.forEach(msg => {
+      messageMap.set(msg.id, msg);
+    });
+    
+    // Convert back to array and sort by timestamp
+    return Array.from(messageMap.values()).sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }, [messages, realtimeMessages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, realtimeMessages]);
+
+  // Clear realtime messages when database messages are updated
+  // This prevents duplication when messages are refetched
+  useEffect(() => {
+    if (messages.length > 0) {
+      setRealtimeMessages(prev => 
+        prev.filter(realtimeMsg => 
+          !messages.some(dbMsg => dbMsg.id === realtimeMsg.id)
+        )
+      );
+    }
+  }, [messages]);
+
   // Check if scroll button should be visible
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
@@ -308,13 +428,10 @@ export function ChatPanel({
     if (viewport) {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollButton(!isNearBottom && messages.length > 5);
+      setShowScrollButton(!isNearBottom && allMessages.length > 5);
     }
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   // Handle send message
   const handleSendMessage = async () => {
@@ -323,7 +440,19 @@ export function ChatPanel({
       let uploadedFile = null;
       if (selectedFile) {
         try {
-          uploadedFile = await uploadFile(selectedFile);
+          console.log('📤 Uploading file with custom message:', {
+            fileName: selectedFile.name,
+            customMessage: trimmedValue || undefined,
+            trimmedValue,
+            trimmedValueLength: trimmedValue?.length,
+            hasCustomMessage: !!(trimmedValue || undefined)
+          });
+          
+          const uploadResult = uploadFile(selectedFile, { 
+            contextType: 'chat',
+            customMessage: trimmedValue || undefined // Pass user message to upload
+          });
+          uploadedFile = await uploadResult.promise;
           console.log('uploadedFile:', uploadedFile);
         } catch (error) {
           console.error('Failed to upload file:', error);
@@ -331,8 +460,10 @@ export function ChatPanel({
         }
       }
     
-      // 允许 message + attachment 同时发送
-      onSendMessage(trimmedValue, uploadedFile || undefined);
+      // Only send standalone message if no file was uploaded (message was handled by attachment upload)
+      if (!selectedFile && trimmedValue) {
+        onSendMessage(trimmedValue, uploadedFile || undefined);
+      }
     
       setInputValue('');
       setSelectedFile(null);
@@ -439,7 +570,7 @@ export function ChatPanel({
             }
           `}</style>
           <AnimatePresence>
-            {messages.map((message) => (
+            {allMessages.map((message) => (
               <ChatMessageItem
                 key={message.id}
                 message={message}
@@ -507,7 +638,10 @@ export function ChatPanel({
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{selectedFile.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    {selectedFile.size < 1024 * 1024 
+                      ? (selectedFile.size / 1024).toFixed(1) + ' KB'
+                      : (selectedFile.size / (1024 * 1024)).toFixed(1) + ' MB'
+                    }
                   </div>
                 </div>
                 

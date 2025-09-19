@@ -175,10 +175,47 @@ export const useUserAttemptStatus = (quizSlug: string) => {
     accessReason: string;
     isAuthor: boolean;
     userPermission: 'view' | 'attempt' | 'edit' | null;
+    hasInProgressAttempt: boolean;
     quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility' | 'quiz_mode'>;
   }, Error>({
     queryKey: ["userAttemptStatus", quizSlug],
     queryFn: () => apiGet(QUIZ_API.userAttempts(quizSlug)),
     staleTime: 1000 * 30, // 30秒缓存
+  });
+};
+
+// 获取当前进行中的 attempt
+export const useCurrentAttempt = (quizSlug: string) => {
+  return useQuery<{
+    hasCurrentAttempt: boolean;
+    currentAttempt: {
+      id: number;
+      status: string;
+      created_at: string;
+      score: number;
+      progress: {
+        answered: number;
+        total: number;
+        correct: number;
+        percentage: number;
+        current_question_index: number;
+      };
+    } | null;
+    session: {
+      id: number;
+      session_token: string;
+      status: string;
+      time_limit_minutes: number | null;
+      time_spent_seconds: number;
+      current_question_index: number;
+      remaining_seconds: number | null;
+      is_expired: boolean;
+      started_at: string;
+      last_activity_at: string;
+    } | null;
+  }, Error>({
+    queryKey: ["currentAttempt", quizSlug],
+    queryFn: () => apiGet(`/api/community/quizzes/${quizSlug}/current-attempt`),
+    staleTime: 1000 * 10, // 10秒缓存
   });
 };

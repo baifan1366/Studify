@@ -22,6 +22,24 @@ export interface ChatMessage {
   author_role: string; // Added author_role
 }
 
+// Attachment interface for chat messages
+export interface ChatAttachment {
+  id: number;
+  public_id: string;
+  file_url: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+  visibility: 'public' | 'private';
+  bucket: string;
+  path: string;
+  profiles: {
+    display_name: string;
+    avatar_url?: string;
+  };
+}
+
 // Chat message interface for hooks - simplified format
 export interface HookChatMessage {
   id: string;
@@ -31,6 +49,7 @@ export interface HookChatMessage {
   content: string;
   timestamp: Date;
   type: 'user' | 'system';
+  attachment?: ChatAttachment;
 }
 
 // Response from chat API

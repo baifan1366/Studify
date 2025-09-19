@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useUser } from '@/hooks/profile/use-user';
 import { BookOpen, Clock, Users, Star } from 'lucide-react';
@@ -32,6 +32,30 @@ interface EnrichedEnrollment {
     public_id: string;
   };
   progress: number;
+}
+
+// UI course type for better type safety
+interface UICourse {
+  id: string;
+  courseId: string;
+  course: {
+    title: string;
+    slug: string;
+    total_duration_minutes?: number;
+    total_students?: number;
+    average_rating?: number;
+    thumbnail_url?: string | null;
+    level?: 'beginner' | 'intermediate' | 'advanced';
+    public_id: string;
+  };
+  title: string;
+  duration: string;
+  students: number;
+  rating: number;
+  level: string;
+  progress: number;
+  color: string;
+  thumbnail: string | null;
 }
 
 // Type guard function to check if an enrollment is enriched
@@ -99,8 +123,7 @@ function LoadingState() {
 }
 
 // A separate component for the error state
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-  const t = useTranslations('MyCoursesContent');
+function ErrorState({ onRetry, t }: { onRetry: () => void; t: (key: string) => string }) {
   return (
     <div className="text-center py-12">
       <h2 className="text-2xl font-bold text-red-500 mb-4">{t('error_loading')}</h2>
@@ -117,8 +140,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 // A separate component for the empty state
-function EmptyState({ onBrowseCourses }: { onBrowseCourses: () => void }) {
-  const t = useTranslations('MyCoursesContent');
+function EmptyState({ onBrowseCourses, t }: { onBrowseCourses: () => void; t: (key: string) => string }) {
   return (
     <div className="text-center py-12">
       <h2 className="text-2xl font-bold text-white mb-4">{t('no_courses_title')}</h2>
@@ -137,14 +159,20 @@ export default function MyCoursesContent() {
   const { data: user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('MyCoursesContent');
   const userId = user?.profile?.id ? parseInt(user.profile.id) : null;
+  
+  // State to hold the transformed UI courses data
+  const [uiCourses, setUiCourses] = useState<UICourse[]>([]);
+  
   // Get enrolled courses for the current user
   const { data: enrollments, isLoading, error, refetch } = useEnrolledCoursesByUserId(userId!);
 
-  // Memoize the courses data transformation
-  const uiCourses = useMemo(() => {
+  // Transform courses data when enrollments change
+  useEffect(() => {
     if (!enrollments || !Array.isArray(enrollments)) {
-      return [];
+      setUiCourses([]);
+      return;
     }
     
     // First filter valid enrollments
@@ -185,7 +213,7 @@ export default function MyCoursesContent() {
       };
     });
     
-    return processed;
+    setUiCourses(processed);
   }, [enrollments]);
 
   // Handle loading state
@@ -195,23 +223,22 @@ export default function MyCoursesContent() {
 
   // Handle error state
   if (error) {
-    return <ErrorState onRetry={() => refetch()} />;
+    return <ErrorState onRetry={() => refetch()} t={t} />;
   }
 
   // Handle empty state
   if (!enrollments || enrollments.length === 0) {
-    return <EmptyState onBrowseCourses={() => router.push('/courses')} />;
+    return <EmptyState onBrowseCourses={() => router.push('/courses')} t={t} />;
   }
 
   const handleContinueCourse = (courseId: string) => {
-    router.push(`./learn/${courseId}`);
+    router.push(`/learn/${courseId}`);
   };
 
   const handleCourseDetails = (courseSlug: string) => {
-    router.push(`./courses/${courseSlug}`);
+    router.push(`/courses/${courseSlug}`);
   };
 
-  const t = useTranslations('MyCoursesContent');
   return (
     <>
       <div className="text-center">

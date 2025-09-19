@@ -75,6 +75,16 @@ export class QStashQueueManager {
     } = options;
 
     try {
+      // Validate and log target URL for debugging
+      console.log(`🔍 [QStash] Target URL validation:`, {
+        original: targetUrl,
+        length: targetUrl.length,
+        starts_with_https: targetUrl.startsWith('https://'),
+        starts_with_http: targetUrl.startsWith('http://'),
+        contains_double_slash: targetUrl.includes('//api'),
+        url_pattern: targetUrl.match(/^https?:\/\/[^\/]+\/.*/)
+      });
+
       const requestHeaders: Record<string, string> = {
         'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json',
@@ -99,7 +109,7 @@ export class QStashQueueManager {
       }
 
       const response = await fetch(
-        `${this.baseUrl}/v2/enqueue/${queueName}/${encodeURIComponent(targetUrl)}`,
+        `${this.baseUrl}/v2/enqueue/${queueName}/${targetUrl}`,
         {
           method: 'POST',
           headers: requestHeaders,

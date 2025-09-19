@@ -183,7 +183,7 @@ async function transcribeWithWhisper(
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string, transcriptionText: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
   const embedEndpoint = `${baseUrl}/api/video-processing/steps/embed`;
   
   console.log('Queueing embedding step for queue:', queueId);
@@ -228,7 +228,7 @@ async function scheduleRetry(
   retryCount: number,
   isWarmupRetry: boolean = false
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
   const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
   
   // Use configured delays or exponential backoff

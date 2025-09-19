@@ -77,7 +77,7 @@ async function convertVideoToAudio(compressedVideoUrl: string, attachmentPublicI
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string, audioUrl: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
   const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
   
   console.log('Queueing transcription step for queue:', queueId);

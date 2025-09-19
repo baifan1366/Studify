@@ -12,28 +12,18 @@ const VideoUploadSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`🚀 [${requestId}] Video processing upload request started`);
-  
   try {
     // Authorize the request - require tutor role
-    console.log(`🔐 [${requestId}] Authorizing tutor role...`);
     const authResult = await authorize('tutor');
     if (authResult instanceof NextResponse) {
-      console.log(`❌ [${requestId}] Authorization failed`);
       return authResult;
     }
-    console.log(`✅ [${requestId}] Authorization successful for user: ${authResult.payload.sub}`);
 
     // Parse and validate request body
-    console.log(`📝 [${requestId}] Parsing request body...`);
     const body = await req.json();
-    console.log(`📋 [${requestId}] Request body:`, body);
-    
     const validation = VideoUploadSchema.safeParse(body);
     
     if (!validation.success) {
-      console.log(`❌ [${requestId}] Request validation failed:`, validation.error.errors);
       return NextResponse.json(
         { 
           error: "Invalid request body", 
@@ -44,13 +34,9 @@ export async function POST(req: Request) {
     }
 
     const { attachment_id } = validation.data;
-    console.log(`📎 [${requestId}] Processing attachment ID: ${attachment_id}`);
-    
-    console.log(`🗄️ [${requestId}] Creating Supabase client...`);
     const client = await createServerClient();
 
     // 1. Get user's profile ID
-    console.log(`👤 [${requestId}] Fetching user profile...`);
     const { data: profile, error: profileError } = await client
       .from("profiles")
       .select("id")
@@ -58,10 +44,8 @@ export async function POST(req: Request) {
       .single();
 
     if (profileError || !profile) {
-      console.log(`❌ [${requestId}] Profile not found:`, profileError);
       return NextResponse.json({ error: "User profile not found" }, { status: 404 });
     }
-    console.log(`✅ [${requestId}] Profile found: ${profile.id}`);
 
     // 2. Verify attachment exists and user has access
     const { data: attachment, error: attachmentError } = await client
@@ -126,73 +110,50 @@ export async function POST(req: Request) {
     await client.rpc('initialize_video_processing_steps', { queue_id_param: newQueue.id });
 
     // 7. Queue the first step (compression) with QStash
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/';
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app').replace(/\/$/, '');
     const compressionEndpoint = `${baseUrl}/api/video-processing/steps/compress`;
 
-    console.log('Queueing video compression for attachment:', attachment_id);
-    console.log('Compression endpoint:', compressionEndpoint);
+    console.log('🚀 [req_' + Date.now() + '] Video compression queue setup');
+    console.log('🔗 [req_' + Date.now() + '] URL construction debug:', {
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      baseUrl: baseUrl,
+      finalEndpoint: compressionEndpoint,
+      hasDoubleSlash: compressionEndpoint.includes('//api/')
+    });
 
     // Validate QStash token before attempting to use it
-    console.log(`🔑 [${requestId}] Validating QStash configuration...`);
     const qstashToken = process.env.QSTASH_TOKEN;
-    const qstashUrl = process.env.QSTASH_URL;
-    
     if (!qstashToken) {
-      console.error(`❌ [${requestId}] QSTASH_TOKEN environment variable not set`);
+      console.error('QSTASH_TOKEN environment variable not set');
       return NextResponse.json({
         error: "Failed to start video processing",
         details: "QStash service unavailable - token not configured",
       }, { status: 503 });
     }
 
-    console.log(`🔧 [${requestId}] QStash Configuration:`, {
-      url: qstashUrl || 'https://qstash.upstash.io (default)',
-      token_length: qstashToken.length,
-      token_prefix: qstashToken.substring(0, 10) + '...',
-      token_format: qstashToken.startsWith('eyJ') ? 'base64_encoded' : 'unknown',
-      endpoint: compressionEndpoint
-    });
-
     try {
       // Use QStash queue manager for better video processing
-      console.log(`📦 [${requestId}] Initializing QStash queue manager...`);
       const queueManager = getQueueManager();
       const queueName = `video-processing-${authResult.payload.sub}`;
       
-      console.log(`📋 [${requestId}] Queue name: ${queueName}`);
-      
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
-      console.log(`🔨 [${requestId}] Creating/ensuring queue exists...`);
-      const queueResult = await queueManager.ensureQueue(queueName, 1);
-      console.log(`✅ [${requestId}] Queue operation result: ${queueResult}`);
+      await queueManager.ensureQueue(queueName, 1);
 
       // Enqueue the video processing job with improved retry configuration
-      console.log(`📤 [${requestId}] Enqueuing video processing job...`);
-      const payload = {
-        queue_id: newQueue.id,
-        attachment_id: attachment_id,
-        user_id: authResult.payload.sub,
-        timestamp: new Date().toISOString(),
-      };
-      const options = {
-        retries: 5, // 增加到5次重试，与后续步骤一致
-        delay: '30s' // 增加到30秒延迟，给服务更多启动时间
-      };
-      
-      console.log(`📋 [${requestId}] Enqueue payload:`, payload);
-      console.log(`⚙️ [${requestId}] Enqueue options:`, options);
-      
       const qstashResponse = await queueManager.enqueue(
         queueName,
         compressionEndpoint,
-        payload,
-        options
+        {
+          queue_id: newQueue.id,
+          attachment_id: attachment_id,
+          user_id: authResult.payload.sub,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          retries: 5, // 增加到5次重试，与后续步骤一致
+          delay: '30s' // 增加到30秒延迟，给服务更多启动时间
+        }
       );
-      
-      console.log(`✅ [${requestId}] QStash job enqueued successfully:`, {
-        messageId: qstashResponse.messageId,
-        response: qstashResponse
-      });
 
       // Update queue with QStash message ID
       await client
@@ -216,43 +177,14 @@ export async function POST(req: Request) {
       });
 
     } catch (qstashError: any) {
-      console.error(`❌ [${requestId}] Failed to queue compression job:`, qstashError);
-      console.error(`🔍 [${requestId}] QStash error details:`, {
+      console.error('Failed to queue compression job:', qstashError);
+      console.error('QStash error details:', {
         name: qstashError.name,
         message: qstashError.message,
         status: qstashError.status,
-        response: qstashError.response,
-        cause: qstashError.cause,
-        stack: qstashError.stack?.substring(0, 500),
-        constructor: qstashError.constructor?.name
+        response: qstashError.response
       });
       
-      // Additional debugging for network issues
-      if (qstashError.message?.includes('fetch')) {
-        console.error(`🌐 [${requestId}] Network connectivity issue detected`);
-      }
-      if (qstashError.message?.includes('timeout')) {
-        console.error(`⏱️ [${requestId}] Timeout issue detected`);
-      }
-      if (qstashError.status === 401 || qstashError.status === 403) {
-        console.error(`🔐 [${requestId}] Authentication issue detected - check token`);
-      }
-      if (qstashError.status === 503) {
-        console.error(`🚫 [${requestId}] Service unavailable - QStash may be down or overloaded`);
-      }
-      if (qstashError.status === 429) {
-        console.error(`🚦 [${requestId}] Rate limit exceeded`);
-      }
-      
-      // Log environment for debugging
-      console.error(`🔧 [${requestId}] Environment debug:`, {
-        NODE_ENV: process.env.NODE_ENV,
-        VERCEL_ENV: process.env.VERCEL_ENV,
-        QSTASH_URL: process.env.QSTASH_URL,
-        token_configured: !!process.env.QSTASH_TOKEN,
-        site_url: process.env.NEXT_PUBLIC_SITE_URL
-      });
-
       // Mark queue as failed
       await client
         .from("video_processing_queue")
@@ -262,7 +194,9 @@ export async function POST(req: Request) {
           error_details: { 
             qstash_error: qstashError.message,
             qstash_status: qstashError.status,
-            token_format: qstashToken.startsWith('eyJ') ? 'valid_base64_token' : 'unknown_format'
+            token_format: qstashToken.startsWith('eyJ') ? 'base64_encoded' : 'unknown',
+            endpoint_url: compressionEndpoint,
+            base_url: baseUrl
           }
         })
         .eq("id", newQueue.id);
@@ -272,8 +206,6 @@ export async function POST(req: Request) {
       }, { status: 500 });
     }
 
-    console.log(`🎉 [${requestId}] Video processing started successfully for queue: ${newQueue.public_id}`);
-    
     return NextResponse.json({
       message: "Video processing started successfully",
       queue_id: newQueue.public_id,
@@ -290,18 +222,11 @@ export async function POST(req: Request) {
     }, { status: 202 });
 
   } catch (error: any) {
-    console.error(`💥 [${requestId}] Video processing upload error:`, error);
-    console.error(`🔍 [${requestId}] Error details:`, {
-      name: error.name,
-      message: error.message,
-      stack: error.stack?.substring(0, 1000),
-      constructor: error.constructor?.name
-    });
+    console.error('Video processing upload error:', error);
     
     return NextResponse.json({
       error: "Internal server error",
       details: error.message,
-      request_id: requestId
     }, { status: 500 });
   }
 }

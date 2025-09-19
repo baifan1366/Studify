@@ -63,7 +63,7 @@ async function generateDualEmbeddings(text: string, retryCount: number = 0): Pro
 }
 
 async function scheduleRetry(queueId: number, attachmentId: number, userId: string, transcriptionText: string, retryCount: number) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
   const embedEndpoint = `${baseUrl}/api/video-processing/steps/embed`;
   
   // Use configured delays for progressive backoff
@@ -107,7 +107,7 @@ async function scheduleRetry(queueId: number, attachmentId: number, userId: stri
 
 async function sendCompletionNotification(userId: string, attachmentId: number, queueId: number) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
     const notificationEndpoint = `${baseUrl}/api/notifications`;
     
     await fetch(notificationEndpoint, {

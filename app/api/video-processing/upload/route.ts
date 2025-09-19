@@ -47,6 +47,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User profile not found" }, { status: 404 });
     }
 
+    console.log('🔍 Profile debug info:', {
+      auth_user_id: authResult.payload.sub,
+      profile_id: profile.id,
+      profile_id_type: typeof profile.id
+    });
+
     // 2. Verify attachment exists and user has access
     const { data: attachment, error: attachmentError } = await client
       .from("course_attachments")
@@ -146,7 +152,7 @@ export async function POST(req: Request) {
         {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
-          user_id: authResult.payload.sub,
+          user_id: profile.id,
           timestamp: new Date().toISOString(),
         },
         {
@@ -166,7 +172,7 @@ export async function POST(req: Request) {
       console.log('QStash compression job published:', qstashResponse.messageId);
 
       // Send notification that processing has started
-      await sendVideoProcessingNotification(authResult.payload.sub, {
+      await sendVideoProcessingNotification(profile.id.toString(), {
         attachment_id: attachment_id,
         queue_id: newQueue.id,
         attachment_title: attachment.title,

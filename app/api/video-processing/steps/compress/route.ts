@@ -227,13 +227,24 @@ async function handler(req: Request) {
     }
 
     // 5. Update attachment with compressed video URL
-    await client
+    const { error: updateError } = await client
       .from('course_attachments')
       .update({ 
         cloudinary_compressed: compressionResult.compressed_url,
         compressed_size: compressionResult.compressed_size
       })
       .eq('id', attachment_id);
+
+    if (updateError) {
+      console.error('Failed to update attachment with compressed URL:', updateError);
+      throw new Error(`Failed to update attachment: ${updateError.message}`);
+    }
+    
+    console.log('✅ Successfully updated attachment with compressed URL:', {
+      attachment_id,
+      compressed_url: compressionResult.compressed_url,
+      compressed_size: compressionResult.compressed_size
+    });
 
     // 6. Complete the compression step
     await client.rpc('complete_processing_step', {

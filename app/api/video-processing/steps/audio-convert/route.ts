@@ -173,6 +173,13 @@ async function handler(req: Request) {
       throw new Error(`Attachment not found: ${attachmentError?.message}`);
     }
 
+    console.log('🔍 Attachment details for audio conversion:', {
+      attachment_id,
+      cloudinary_compressed: attachment.cloudinary_compressed,
+      compressed_size: attachment.compressed_size,
+      original_url: attachment.cloudinary_url
+    });
+
     if (!attachment.cloudinary_compressed) {
       throw new Error('Compressed video URL not found. Compression step may have failed.');
     }

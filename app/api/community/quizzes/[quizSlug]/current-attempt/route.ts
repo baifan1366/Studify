@@ -31,15 +31,22 @@ export async function GET(
 
     // 检查private quiz的访问权限
     if (quiz.visibility === 'private' && !isAuthor) {
-      const { data: permission } = await supabase
+      const { data: perms } = await supabase
         .from("community_quiz_permission")
         .select("permission_type")
         .eq("quiz_id", quiz.id)
-        .eq("user_id", userId)
-        .in("permission_type", ["attempt", "edit"])
-        .maybeSingle();
-      
-      if (!permission) {
+        .eq("user_id", userId);
+
+      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
+      let best: 'view'|'attempt'|'edit'|null = null;
+      if (perms && perms.length > 0) {
+        for (const p of perms) {
+          const t = p.permission_type as 'view'|'attempt'|'edit';
+          if (!best || order[t] > order[best]) best = t;
+        }
+      }
+
+      if (!best || (best !== 'attempt' && best !== 'edit')) {
         return NextResponse.json(
           { error: "You don't have permission to access this private quiz" },
           { status: 403 }

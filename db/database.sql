@@ -1127,8 +1127,11 @@ create table if not exists community_quiz_permission (
   granted_by uuid not null references auth.users(id),
   expires_at timestamptz,
   created_at timestamptz not null default now(),
-  unique(quiz_id, user_id, permission_type)
 );
+
+-- Add unique index on (quiz_id, user_id)
+create unique index if not exists uq_cqp_quiz_user
+on community_quiz_permission (quiz_id, user_id);
 
 create table if not exists community_quiz_invite_token (
   id bigserial primary key,
@@ -1560,6 +1563,9 @@ COMMENT ON COLUMN community_quiz_session.time_spent_seconds IS 'Total time spent
 COMMENT ON COLUMN community_quiz_session.current_question_index IS 'Current question index (0-based) for progress tracking';
 COMMENT ON COLUMN community_quiz_session.browser_info IS 'Browser and client information for session validation';
 
+-- =========================
+-- Currency System
+-- =========================
 CREATE TABLE currencies (
     id bigserial PRIMARY KEY,
     code CHAR(3) UNIQUE NOT NULL,

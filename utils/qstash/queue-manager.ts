@@ -33,17 +33,15 @@ export class QStashQueueManager {
       if (!response.ok) {
         const errorText = await response.text();
         
-        // Check if queue already exists (200 response means upsert successful)
-        if (response.status === 200) {
-          return 'updated';
-        } else if (response.status === 412) {
+        if (response.status === 412) {
           throw new Error('Queue limit reached - upgrade your QStash plan');
         } else {
           throw new Error(`Failed to create queue: ${response.status} - ${errorText}`);
         }
       }
 
-      return 'created';
+      // 200 response means upsert successful (created or updated)
+      return 'success';
     } catch (error) {
       console.error('Queue creation error:', error);
       throw error;

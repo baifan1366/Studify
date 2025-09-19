@@ -170,6 +170,10 @@ async function handler(req: Request) {
       .single();
 
     if (attachmentError || !attachment) {
+      console.error('❌ Attachment not found:', {
+        attachment_id,
+        error: attachmentError?.message
+      });
       throw new Error(`Attachment not found: ${attachmentError?.message}`);
     }
 
@@ -177,11 +181,38 @@ async function handler(req: Request) {
       attachment_id,
       cloudinary_compressed: attachment.cloudinary_compressed,
       compressed_size: attachment.compressed_size,
-      original_url: attachment.cloudinary_url
+      original_url: attachment.cloudinary_url,
+      public_id: attachment.public_id
     });
 
+    // Check if compressed video URL exists
     if (!attachment.cloudinary_compressed) {
-      throw new Error('Compressed video URL not found. Compression step may have failed.');
+      console.error('❌ Compressed video URL missing:', {
+        attachment_id,
+        queue_id,
+        hasOriginalUrl: !!attachment.cloudinary_url,
+        hasPublicId: !!attachment.public_id
+      });
+
+      // Check if compression step completed successfully
+      const { data: compressionStep, error: stepError } = await client
+        .from("video_processing_steps")
+        .select("status, completed_at, error_message, output_data")
+        .eq("queue_id", queue_id)
+        .eq("step_name", "compress")
+        .single();
+
+      console.log('🔍 Compression step status:', {
+        compressionStep,
+        stepError: stepError?.message
+      });
+
+      // If compression step completed but URL is missing, it's a data inconsistency
+      if (compressionStep?.status === 'completed') {
+        throw new Error(`Data inconsistency: Compression step completed but compressed URL not saved. Step output: ${JSON.stringify(compressionStep.output_data)}`);
+      } else {
+        throw new Error(`Compressed video URL not found. Compression step status: ${compressionStep?.status || 'unknown'}. Error: ${compressionStep?.error_message || 'none'}`);
+      }
     }
 
     // 4. Convert video to audio

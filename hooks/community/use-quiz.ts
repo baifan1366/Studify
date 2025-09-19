@@ -14,6 +14,7 @@ const QUIZ_API = {
     `/api/community/quizzes/${quizSlug}/attempts`,
   quizLikes: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/likes`,
   userAttempts: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/user-attempts`,
+  attemptScore: (attemptId: number) => `/api/community/quizzes/attempts/${attemptId}/score`,
 };
 
 // ✅ 所有 quiz 列表
@@ -159,7 +160,7 @@ export const useSubmitAnswer = (quizSlug: string, attemptId: number) => {
 export const useCompleteAttempt = (quizSlug: string, attemptId: number) => {
   return useMutation({
     mutationFn: () =>
-      apiSend<{ total: number; correct: number }>({
+      apiSend<{ total: number; correct: number; score: number; percentage: number }>({
         url: `${QUIZ_API.quizAttempts(quizSlug)}/${attemptId}/complete`,
         method: "POST",
       }),
@@ -217,5 +218,20 @@ export const useCurrentAttempt = (quizSlug: string) => {
     queryKey: ["currentAttempt", quizSlug],
     queryFn: () => apiGet(`/api/community/quizzes/${quizSlug}/current-attempt`),
     staleTime: 1000 * 10, // 10秒缓存
+  });
+};
+
+// ✅ 获取测验分数 - 根据 attemptId 计算答对题目的总数
+export const useQuizScore = (attemptId: number | null) => {
+  return useQuery<{ score: number }, Error>({
+    queryKey: ["quizScore", attemptId],
+    queryFn: () => {
+      if (!attemptId) {
+        throw new Error("Attempt ID is required");
+      }
+      return apiGet<{ score: number }>(QUIZ_API.attemptScore(attemptId));
+    },
+    enabled: !!attemptId, // 只有当 attemptId 存在时才执行查询
+    staleTime: 1000 * 60 * 2, // 2分钟缓存
   });
 };

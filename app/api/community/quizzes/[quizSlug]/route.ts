@@ -32,6 +32,7 @@ export async function GET(
         max_attempts, 
         visibility, 
         quiz_mode,
+        time_limit_minutes,
         author_id,
         created_at
       `)

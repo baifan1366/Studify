@@ -35,7 +35,7 @@ export async function GET(
       .from("video_processing_steps")
       .select("*")
       .eq("queue_id", queueIdNum)
-      .order("step_order");
+      .order("created_at");
 
     // Get attachment details
     const { data: attachment, error: attachmentError } = await client
@@ -75,12 +75,13 @@ export async function GET(
         steps?.map(step => ({
           step_name: step.step_name,
           status: step.status,
-          step_order: step.step_order,
           retry_count: step.retry_count,
           started_at: step.started_at,
           completed_at: step.completed_at,
           error_message: step.error_message,
-          output_data: step.output_data
+          output_data: step.output_data,
+          created_at: step.created_at,
+          updated_at: step.updated_at
         })) || [],
       step_summary: {
         total_steps: steps?.length || 0,

@@ -185,40 +185,69 @@ async function handler(req: Request) {
       public_id: attachment.public_id
     });
 
-    // Check if compressed video URL exists
-    if (!attachment.cloudinary_compressed) {
-      console.error('❌ Compressed video URL missing:', {
-        attachment_id,
-        queue_id,
-        hasOriginalUrl: !!attachment.cloudinary_url,
-        hasPublicId: !!attachment.public_id
-      });
+    // Determine which video URL to use for audio conversion
+    let videoUrlToUse: string;
+    let videoSource: string;
 
-      // Check if compression step completed successfully
-      const { data: compressionStep, error: stepError } = await client
+    if (attachment.cloudinary_compressed) {
+      videoUrlToUse = attachment.cloudinary_compressed;
+      videoSource = 'compressed';
+      console.log('✅ Using compressed video URL for audio conversion');
+    } else if (attachment.cloudinary_url) {
+      videoUrlToUse = attachment.cloudinary_url;
+      videoSource = 'original';
+      console.warn('⚠️ Compressed video URL missing, using original video URL');
+      
+      // Check compression step status for debugging
+      const { data: compressionStep } = await client
         .from("video_processing_steps")
-        .select("status, completed_at, error_message, output_data")
+        .select("status, error_message, output_data")
         .eq("queue_id", queue_id)
         .eq("step_name", "compress")
         .single();
 
       console.log('🔍 Compression step status:', {
-        compressionStep,
-        stepError: stepError?.message
+        status: compressionStep?.status,
+        error: compressionStep?.error_message,
+        hasOutputData: !!compressionStep?.output_data
       });
 
-      // If compression step completed but URL is missing, it's a data inconsistency
-      if (compressionStep?.status === 'completed') {
-        throw new Error(`Data inconsistency: Compression step completed but compressed URL not saved. Step output: ${JSON.stringify(compressionStep.output_data)}`);
-      } else {
-        throw new Error(`Compressed video URL not found. Compression step status: ${compressionStep?.status || 'unknown'}. Error: ${compressionStep?.error_message || 'none'}`);
+      // Try to recover compressed URL from step output data
+      if (compressionStep?.output_data?.compressed_url) {
+        console.log('🔄 Found compressed URL in step output data, updating attachment...');
+        await client
+          .from('course_attachments')
+          .update({ 
+            cloudinary_compressed: compressionStep.output_data.compressed_url,
+            compressed_size: compressionStep.output_data.compressed_size
+          })
+          .eq('id', attachment_id);
+        
+        videoUrlToUse = compressionStep.output_data.compressed_url;
+        videoSource = 'recovered_compressed';
+        console.log('✅ Recovered and using compressed URL');
       }
+    } else {
+      throw new Error('No video URL available (neither compressed nor original)');
     }
+
+    console.log('🎥 Video conversion details:', {
+      attachment_id,
+      video_source: videoSource,
+      video_url: videoUrlToUse,
+      public_id: attachment.public_id
+    });
 
     // 4. Convert video to audio
     let audioResult: { audio_url: string; audio_size: number };
     try {
-      audioResult = await convertVideoToAudio(attachment.cloudinary_compressed, attachment.public_id);
+      console.log('🔄 Starting audio conversion...');
+      audioResult = await convertVideoToAudio(videoUrlToUse, attachment.public_id);
+      console.log('✅ Audio conversion completed:', {
+        audio_url: audioResult.audio_url,
+        audio_size: audioResult.audio_size,
+        source_video: videoSource
+      });
     } catch (conversionError: any) {
       console.error('Audio conversion failed:', conversionError.message);
       

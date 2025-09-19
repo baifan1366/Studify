@@ -3,6 +3,7 @@ import { createServerClient } from "@/utils/supabase/server";
 import { qstashClient } from "@/utils/qstash/qstash";
 import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { sendVideoProcessingNotification } from "@/lib/video-processing/notification-service";
+import { generateDualEmbeddingWithWakeup } from "@/lib/langChain/embedding";
 import { z } from "zod";
 
 // Validation schema for QStash job payload
@@ -12,126 +13,64 @@ const EmbedJobSchema = z.object({
   user_id: z.string().uuid("Invalid user ID"),
   transcription_text: z.string().min(1, "Transcription text is required"),
   timestamp: z.string().optional(),
+  retry_attempt: z.number().int().min(0).default(0),
 });
 
+// Configuration for retries
+const EMBED_RETRY_CONFIG = {
+  MAX_RETRIES: 5, // 增加到5次，与transcribe一致
+  RETRY_DELAYS: [30, 60, 120, 180, 300], // 重试延迟（秒）: 30s, 1m, 2m, 3m, 5m
+};
+
+// Using the new smart embedding generation with wake-up logic
 async function generateDualEmbeddings(text: string, retryCount: number = 0): Promise<{ 
   e5_embedding?: number[]; 
   bge_embedding?: number[];
   has_e5: boolean;
   has_bge: boolean;
+  wake_up_summary?: string;
 }> {
-  const embeddingApis = [
-    {
-      url: process.env.BGE_HG_EMBEDDING_SERVER_API_URL,
-      model: 'BAAI/bge-m3',
-      name: 'BGE-M3',
-      dimensions: 1024,
-      type: 'bge'
-    },
-    {
-      url: process.env.E5_HG_EMBEDDING_SERVER_API_URL,
-      model: 'intfloat/e5-small',
-      name: 'E5-Small',
-      dimensions: 384,
-      type: 'e5'
-    }
-  ];
+  console.log(`Starting smart dual embedding generation (attempt ${retryCount + 1})`);
+  console.log('Text length:', text.length, 'characters');
 
-  const results = {
-    e5_embedding: undefined as number[] | undefined,
-    bge_embedding: undefined as number[] | undefined,
-    has_e5: false,
-    has_bge: false
-  };
+  try {
+    // Use the new smart dual embedding function with wake-up logic
+    const result = await generateDualEmbeddingWithWakeup(text);
+    
+    const response = {
+      e5_embedding: result.e5_embedding,
+      bge_embedding: result.bge_embedding,
+      has_e5: result.e5_success,
+      has_bge: result.bge_success,
+      wake_up_summary: `E5: ${result.e5_success ? 'SUCCESS' : 'FAILED'}${result.e5_was_sleeping ? ' (was sleeping)' : ''}, BGE: ${result.bge_success ? 'SUCCESS' : 'FAILED'}${result.bge_was_sleeping ? ' (was sleeping)' : ''}`
+    };
 
-  // Try to generate both embeddings
-  for (const api of embeddingApis) {
-    if (!api.url) {
-      console.log(`${api.name} API URL not configured, skipping...`);
-      continue;
+    console.log('Smart dual embedding completed:', response.wake_up_summary);
+    
+    // Check if we got at least one embedding
+    if (!response.has_e5 && !response.has_bge) {
+      throw new Error('SERVER_SLEEPING:All embedding servers failed after wake-up attempts');
     }
 
-    console.log(`Attempting embedding generation with ${api.name} (attempt ${retryCount + 1}):`, api.url);
-    console.log('Text length:', text.length, 'characters');
-
-    try {
-      const response = await fetch(`${api.url}/embed`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: text
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log(`${api.name} API error (${response.status}):`, errorText);
-        
-        // Check if it's a server wake-up issue (503, 502, or connection errors)
-        if (response.status === 503 || response.status === 502 || response.status === 504) {
-          console.log(`${api.name} server is sleeping, will continue with other APIs...`);
-          continue; // Try other APIs
-        }
-        
-        console.error(`${api.name} API error (${response.status}): ${errorText}`);
-        continue; // Try other APIs
-      }
-
-      const result = await response.json();
-      console.log(`${api.name} API response received:`, {
-        hasEmbedding: !!(result.embedding || result.data?.[0]?.embedding),
-        embeddingLength: (result.embedding || result.data?.[0]?.embedding)?.length || 0,
-      });
-
-      const embedding = result.embedding || result.data?.[0]?.embedding;
-      if (!embedding) {
-        console.error(`No embedding vector received from ${api.name}`);
-        continue;
-      }
-
-      // Store the embedding based on type
-      if (api.type === 'e5') {
-        results.e5_embedding = embedding;
-        results.has_e5 = true;
-        console.log(`✅ E5-Small embedding generated successfully (${embedding.length} dimensions)`);
-      } else if (api.type === 'bge') {
-        results.bge_embedding = embedding;
-        results.has_bge = true;
-        console.log(`✅ BGE-M3 embedding generated successfully (${embedding.length} dimensions)`);
-      }
-
-    } catch (error: any) {
-      console.error(`${api.name} API error:`, error.message);
-      
-      // Check if it's a server sleeping issue
-      if (error.message.includes('ECONNREFUSED') || 
-          error.message.includes('fetch failed') ||
-          error.message.includes('SERVER_SLEEPING')) {
-        console.log(`${api.name} server appears to be sleeping, continuing with other APIs...`);
-      }
-      continue; // Try other APIs
-    }
+    return response;
+    
+  } catch (error: any) {
+    console.error('Smart dual embedding generation failed:', error.message);
+    
+    // If the smart function failed, it means both servers are really problematic
+    throw new Error(`SERVER_SLEEPING:${error.message}`);
   }
-
-  // Check if we got at least one embedding
-  if (!results.has_e5 && !results.has_bge) {
-    throw new Error('SERVER_SLEEPING:All embedding servers are sleeping or unreachable');
-  }
-
-  console.log(`Embedding generation summary: E5=${results.has_e5}, BGE=${results.has_bge}`);
-  return results;
 }
 
 async function scheduleRetry(queueId: number, attachmentId: number, userId: string, transcriptionText: string, retryCount: number) {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
   const embedEndpoint = `${baseUrl}/api/video-processing/steps/embed`;
   
-  // Calculate delay: 1 minute * retry_count (1min, 2min, 3min)
-  const delayMinutes = retryCount;
+  // Use configured delays for progressive backoff
+  const delaySeconds = EMBED_RETRY_CONFIG.RETRY_DELAYS[retryCount - 1] || 
+                        EMBED_RETRY_CONFIG.RETRY_DELAYS[EMBED_RETRY_CONFIG.RETRY_DELAYS.length - 1];
   
-  console.log(`Scheduling embedding retry ${retryCount} in ${delayMinutes} minutes for queue:`, queueId);
+  console.log(`🔄 Scheduling embedding retry ${retryCount} in ${delaySeconds} seconds for queue:`, queueId);
   
   try {
     const queueManager = getQueueManager();
@@ -153,7 +92,7 @@ async function scheduleRetry(queueId: number, attachmentId: number, userId: stri
         retry_attempt: retryCount,
       },
       {
-        delay: `${delayMinutes}m`,
+        delay: `${delaySeconds}s`, // 使用秒为单位，更精确的控制
         retries: 0, // No additional retries, we handle it manually
       }
     );
@@ -215,8 +154,7 @@ async function handler(req: Request) {
       );
     }
 
-    const { queue_id, attachment_id, user_id, transcription_text, timestamp } = validation.data;
-    const retryAttempt = (body as any).retry_attempt || 0;
+    const { queue_id, attachment_id, user_id, transcription_text, timestamp, retry_attempt } = validation.data;
     const client = await createServerClient();
     
     console.log('Processing embedding generation for:', {
@@ -225,7 +163,7 @@ async function handler(req: Request) {
       user_id,
       text_length: transcription_text.length,
       timestamp,
-      retry_attempt: retryAttempt,
+      retry_attempt,
     });
 
     // 1. Get current queue status and retry count
@@ -245,7 +183,7 @@ async function handler(req: Request) {
       .update({
         status: 'processing',
         started_at: new Date().toISOString(),
-        retry_count: retryAttempt
+        retry_count: retry_attempt
       })
       .eq("queue_id", queue_id)
       .eq("step_name", "embed");
@@ -260,51 +198,57 @@ async function handler(req: Request) {
       })
       .eq("id", queue_id);
 
-    // 4. Generate dual embeddings
+    // 4. Generate dual embeddings with smart wake-up logic
     let embeddingResult: { 
       e5_embedding?: number[]; 
       bge_embedding?: number[];
       has_e5: boolean;
       has_bge: boolean;
+      wake_up_summary?: string;
     };
     try {
-      embeddingResult = await generateDualEmbeddings(transcription_text, retryAttempt);
+      console.log('🚀 Starting smart dual embedding generation...');
+      embeddingResult = await generateDualEmbeddings(transcription_text, retry_attempt);
       
     } catch (embeddingError: any) {
       console.error('Embedding generation failed:', embeddingError.message);
       
       // Check if it's a server sleeping issue and we can retry
       const isServerSleeping = embeddingError.message.includes('SERVER_SLEEPING');
-      const canRetry = queueData.retry_count < queueData.max_retries;
+      const canRetry = retry_attempt < EMBED_RETRY_CONFIG.MAX_RETRIES;
       
       if (isServerSleeping && canRetry) {
-        console.log(`Embedding servers are sleeping, scheduling retry ${queueData.retry_count + 1}/${queueData.max_retries}`);
+        const nextRetryCount = retry_attempt + 1;
+        console.log(`🔄 Embedding servers are sleeping, scheduling retry ${nextRetryCount}/${EMBED_RETRY_CONFIG.MAX_RETRIES}`);
         
         // Update queue retry count
         await client
           .from("video_processing_queue")
           .update({
             status: 'retrying',
-            retry_count: queueData.retry_count + 1,
-            error_message: 'Embedding servers are sleeping, retrying...',
+            retry_count: nextRetryCount,
+            error_message: `Embedding servers are sleeping, retrying... (${nextRetryCount}/${EMBED_RETRY_CONFIG.MAX_RETRIES})`,
             last_error_at: new Date().toISOString()
           })
           .eq("id", queue_id);
 
         // Schedule retry
         try {
-          const retryMessageId = await scheduleRetry(queue_id, attachment_id, user_id, transcription_text, queueData.retry_count + 1);
+          const retryMessageId = await scheduleRetry(queue_id, attachment_id, user_id, transcription_text, nextRetryCount);
           
           await client
             .from("video_processing_queue")
             .update({ qstash_message_id: retryMessageId })
             .eq("id", queue_id);
 
+          const delaySeconds = EMBED_RETRY_CONFIG.RETRY_DELAYS[nextRetryCount - 1] || 
+                                EMBED_RETRY_CONFIG.RETRY_DELAYS[EMBED_RETRY_CONFIG.RETRY_DELAYS.length - 1];
+          
           return NextResponse.json({
             message: "Embedding servers are sleeping, retry scheduled",
-            retry_count: queueData.retry_count + 1,
-            max_retries: queueData.max_retries,
-            next_retry_in_minutes: queueData.retry_count + 1,
+            retry_count: nextRetryCount,
+            max_retries: EMBED_RETRY_CONFIG.MAX_RETRIES,
+            next_retry_in_seconds: delaySeconds,
           }, { status: 202 });
           
         } catch (scheduleError: any) {
@@ -332,7 +276,7 @@ async function handler(req: Request) {
           error_details_param: { 
             step: 'embedding_generation', 
             error: embeddingError.message,
-            retry_count: queueData.retry_count,
+            retry_count: retry_attempt,
             max_retries_exceeded: !canRetry
           }
         });
@@ -341,8 +285,8 @@ async function handler(req: Request) {
           error: "Embedding generation failed",
           details: embeddingError.message,
           retryable: false,
-          retry_count: queueData.retry_count,
-          max_retries: queueData.max_retries,
+          retry_count: retry_attempt,
+          max_retries: EMBED_RETRY_CONFIG.MAX_RETRIES,
         }, { status: canRetry ? 500 : 422 });
       }
     }
@@ -367,7 +311,8 @@ async function handler(req: Request) {
       sentence_count: sentenceCount,
       word_count: wordCount,
       token_count: tokenCount,
-      embedding_model: embeddingResult.has_bge ? 'BAAI/bge-m3' : 'intfloat/e5-small', // Primary model
+      embedding_model: embeddingResult.has_bge && embeddingResult.has_e5 ? 'dual:BAAI/bge-m3+intfloat/e5-small' : 
+        embeddingResult.has_bge ? 'BAAI/bge-m3' : 'intfloat/e5-small', // Primary model
       language: 'auto',
       status: 'completed',
       is_deleted: false
@@ -410,10 +355,11 @@ async function handler(req: Request) {
           e5: embeddingResult.has_e5,
           bge: embeddingResult.has_bge
         },
+        wake_up_summary: embeddingResult.wake_up_summary,
         text_length: transcription_text.length,
         word_count: wordCount,
         sentence_count: sentenceCount,
-        retry_count: retryAttempt
+        retry_count: retry_attempt
       }
     });
 
@@ -440,7 +386,7 @@ async function handler(req: Request) {
       embedding_id: savedEmbedding.id,
       status: "completed",
       final_step: true,
-      retry_count: retryAttempt,
+      retry_count: retry_attempt,
       completedAt: new Date().toISOString()
     }, { status: 200 });
 

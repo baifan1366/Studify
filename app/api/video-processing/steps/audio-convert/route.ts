@@ -101,8 +101,8 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 3, // More retries for Whisper API
-        delay: "30s", // Longer delay for server wake-up
+        retries: 5, // 增加到5次重试，匹配transcribe的重试次数
+        delay: "30s", // 保持30秒延迟用于HuggingFace服务器唤醒
       }
     );
 

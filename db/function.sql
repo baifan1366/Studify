@@ -318,10 +318,11 @@ BEGIN
 END;
 $$;
 
--- Function to complete embedding processing
-CREATE OR REPLACE FUNCTION complete_embedding(
+-- Function to complete dual embedding processing
+CREATE OR REPLACE FUNCTION complete_dual_embedding(
   p_queue_id bigint,
-  p_embedding vector(384),
+  p_e5_embedding vector(384) DEFAULT NULL,
+  p_bge_embedding vector(1024) DEFAULT NULL,
   p_token_count int DEFAULT NULL
 )
 RETURNS boolean
@@ -336,27 +337,59 @@ BEGIN
     RETURN false;
   END IF;
   
+  -- At least one embedding must be provided
+  IF p_e5_embedding IS NULL AND p_bge_embedding IS NULL THEN
+    RETURN false;
+  END IF;
+  
   INSERT INTO embeddings (
-    content_type, content_id, content_hash, embedding, content_text,
-    token_count, status, created_at, updated_at
+    content_type, content_id, content_hash, 
+    embedding, embedding_e5_small, embedding_bge_m3,
+    has_e5_embedding, has_bge_embedding,
+    content_text, token_count, status, 
+    embedding_created_at, embedding_updated_at,
+    created_at, updated_at
   ) VALUES (
     queue_record.content_type, queue_record.content_id, queue_record.content_hash,
-    p_embedding, queue_record.content_text, p_token_count, 'completed', now(), now()
+    p_e5_embedding, p_e5_embedding, p_bge_embedding, -- Use E5 for legacy compatibility
+    (p_e5_embedding IS NOT NULL), (p_bge_embedding IS NOT NULL),
+    queue_record.content_text, p_token_count, 'completed',
+    now(), now(), now(), now()
   )
   ON CONFLICT (content_type, content_id)
   DO UPDATE SET
     content_hash = EXCLUDED.content_hash,
     embedding = EXCLUDED.embedding,
+    embedding_e5_small = EXCLUDED.embedding_e5_small,
+    embedding_bge_m3 = EXCLUDED.embedding_bge_m3,
+    has_e5_embedding = EXCLUDED.has_e5_embedding,
+    has_bge_embedding = EXCLUDED.has_bge_embedding,
     content_text = EXCLUDED.content_text,
     token_count = EXCLUDED.token_count,
     status = 'completed',
     error_message = NULL,
+    embedding_updated_at = now(),
     updated_at = now(),
     is_deleted = false;
   
   DELETE FROM embedding_queue WHERE id = p_queue_id;
   
   RETURN true;
+END;
+$$;
+
+-- Function to complete single embedding processing (legacy support)
+CREATE OR REPLACE FUNCTION complete_embedding(
+  p_queue_id bigint,
+  p_embedding vector(384),
+  p_token_count int DEFAULT NULL
+)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Use the dual embedding function with only E5 embedding
+  RETURN complete_dual_embedding(p_queue_id, p_embedding, NULL, p_token_count);
 END;
 $$;
 
@@ -396,7 +429,7 @@ BEGIN
 END;
 $$;
 
--- Function for semantic search
+-- Function for legacy semantic search (backward compatibility)
 CREATE OR REPLACE FUNCTION semantic_search(
   p_query_embedding vector(384),
   p_content_types text[] DEFAULT NULL,
@@ -418,9 +451,9 @@ DECLARE
 BEGIN
   IF p_user_id IS NOT NULL THEN
     INSERT INTO embedding_searches (
-      user_id, query_embedding, content_types, similarity_threshold, max_results
+      user_id, query_embedding, content_types, similarity_threshold, max_results, search_type
     ) VALUES (
-      p_user_id, p_query_embedding, p_content_types, p_similarity_threshold, p_max_results
+      p_user_id, p_query_embedding, p_content_types, p_similarity_threshold, p_max_results, 'e5_only'
     ) RETURNING id INTO search_id;
   END IF;
   
@@ -429,19 +462,22 @@ BEGIN
     e.content_type,
     e.content_id,
     e.content_text,
-    (1 - (e.embedding <=> p_query_embedding))::numeric AS similarity,
+    (1 - (COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding))::numeric AS similarity,
     jsonb_build_object(
       'created_at', e.created_at,
       'updated_at', e.updated_at,
       'token_count', e.token_count,
-      'embedding_model', e.embedding_model
+      'embedding_model', COALESCE(e.embedding_e5_model, e.embedding_model),
+      'has_e5_embedding', COALESCE(e.has_e5_embedding, true),
+      'has_bge_embedding', COALESCE(e.has_bge_embedding, false)
     ) AS metadata
   FROM embeddings e
   WHERE e.status = 'completed'
     AND e.is_deleted = false
+    AND (COALESCE(e.has_e5_embedding, true) = true OR e.embedding IS NOT NULL)
     AND (p_content_types IS NULL OR e.content_type = ANY(p_content_types))
-    AND (1 - (e.embedding <=> p_query_embedding)) >= p_similarity_threshold
-  ORDER BY e.embedding <=> p_query_embedding
+    AND (1 - (COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding)) >= p_similarity_threshold
+  ORDER BY COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding
   LIMIT p_max_results;
   
   IF p_user_id IS NOT NULL AND search_id IS NOT NULL THEN
@@ -450,8 +486,9 @@ BEGIN
       SELECT COUNT(*) FROM embeddings e
       WHERE e.status = 'completed'
         AND e.is_deleted = false
+        AND (COALESCE(e.has_e5_embedding, true) = true OR e.embedding IS NOT NULL)
         AND (p_content_types IS NULL OR e.content_type = ANY(p_content_types))
-        AND (1 - (e.embedding <=> p_query_embedding)) >= p_similarity_threshold
+        AND (1 - (COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding)) >= p_similarity_threshold
     )
     WHERE id = search_id;
   END IF;
@@ -512,6 +549,144 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to update individual embedding (E5 or BGE)
+CREATE OR REPLACE FUNCTION update_individual_embedding(
+  p_content_type text,
+  p_content_id bigint,
+  p_embedding_type text, -- 'e5' or 'bge'
+  p_embedding_vector text, -- JSON array string
+  p_token_count int DEFAULT NULL
+)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  vector_data vector;
+BEGIN
+  -- Validate embedding type
+  IF p_embedding_type NOT IN ('e5', 'bge') THEN
+    RAISE EXCEPTION 'Invalid embedding type. Must be e5 or bge';
+  END IF;
+
+  -- Convert JSON string to vector
+  vector_data := p_embedding_vector::vector;
+
+  -- Update the appropriate embedding column
+  IF p_embedding_type = 'e5' THEN
+    UPDATE embeddings 
+    SET 
+      embedding_e5_small = vector_data,
+      embedding = vector_data, -- Update legacy column too
+      has_e5_embedding = true,
+      token_count = COALESCE(p_token_count, token_count),
+      embedding_updated_at = now(),
+      updated_at = now()
+    WHERE content_type = p_content_type AND content_id = p_content_id;
+  ELSE -- bge
+    UPDATE embeddings 
+    SET 
+      embedding_bge_m3 = vector_data,
+      has_bge_embedding = true,
+      token_count = COALESCE(p_token_count, token_count),
+      embedding_updated_at = now(),
+      updated_at = now()
+    WHERE content_type = p_content_type AND content_id = p_content_id;
+  END IF;
+
+  RETURN FOUND;
+END;
+$$;
+
+-- Function to backfill missing embeddings
+CREATE OR REPLACE FUNCTION backfill_missing_embeddings(
+  p_content_type text DEFAULT NULL,
+  p_embedding_type text DEFAULT 'bge', -- 'e5', 'bge', or 'both'
+  p_limit int DEFAULT 50
+)
+RETURNS TABLE(
+  content_type text,
+  content_id bigint,
+  content_text text,
+  missing_types text[]
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    e.content_type,
+    e.content_id,
+    e.content_text,
+    CASE 
+      WHEN NOT COALESCE(e.has_e5_embedding, false) AND NOT COALESCE(e.has_bge_embedding, false) THEN ARRAY['e5', 'bge']
+      WHEN NOT COALESCE(e.has_e5_embedding, false) THEN ARRAY['e5']
+      WHEN NOT COALESCE(e.has_bge_embedding, false) THEN ARRAY['bge']
+      ELSE ARRAY[]::text[]
+    END as missing_types
+  FROM embeddings e
+  WHERE 
+    e.status = 'completed'
+    AND e.is_deleted = false
+    AND (p_content_type IS NULL OR e.content_type = p_content_type)
+    AND (
+      CASE p_embedding_type
+        WHEN 'e5' THEN NOT COALESCE(e.has_e5_embedding, false)
+        WHEN 'bge' THEN NOT COALESCE(e.has_bge_embedding, false)
+        WHEN 'both' THEN (NOT COALESCE(e.has_e5_embedding, false) OR NOT COALESCE(e.has_bge_embedding, false))
+        ELSE false
+      END
+    )
+  ORDER BY e.created_at DESC
+  LIMIT p_limit;
+END;
+$$;
+
+-- Function to get embedding coverage statistics
+CREATE OR REPLACE FUNCTION get_embedding_coverage(
+  p_content_type text DEFAULT NULL
+)
+RETURNS TABLE(
+  content_type text,
+  total_count bigint,
+  e5_count bigint,
+  bge_count bigint,
+  dual_count bigint,
+  e5_coverage_percent numeric,
+  bge_coverage_percent numeric,
+  dual_coverage_percent numeric
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    e.content_type,
+    COUNT(*) as total_count,
+    COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false)) as e5_count,
+    COUNT(*) FILTER (WHERE COALESCE(e.has_bge_embedding, false)) as bge_count,
+    COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false) AND COALESCE(e.has_bge_embedding, false)) as dual_count,
+    ROUND(
+      (COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false))::numeric / 
+       NULLIF(COUNT(*), 0)::numeric) * 100, 2
+    ) as e5_coverage_percent,
+    ROUND(
+      (COUNT(*) FILTER (WHERE COALESCE(e.has_bge_embedding, false))::numeric / 
+       NULLIF(COUNT(*), 0)::numeric) * 100, 2
+    ) as bge_coverage_percent,
+    ROUND(
+      (COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false) AND COALESCE(e.has_bge_embedding, false))::numeric / 
+       NULLIF(COUNT(*), 0)::numeric) * 100, 2
+    ) as dual_coverage_percent
+  FROM embeddings e
+  WHERE 
+    e.status = 'completed'
+    AND e.is_deleted = false
+    AND (p_content_type IS NULL OR e.content_type = p_content_type)
+  GROUP BY e.content_type
+  ORDER BY e.content_type;
+END;
+$$;
 
 -- =========================
 -- Embedding System Triggers

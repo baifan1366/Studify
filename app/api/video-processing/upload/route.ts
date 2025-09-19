@@ -134,7 +134,7 @@ export async function POST(req: Request) {
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
       await queueManager.ensureQueue(queueName, 1);
 
-      // Enqueue the video processing job
+      // Enqueue the video processing job with improved retry configuration
       const qstashResponse = await queueManager.enqueue(
         queueName,
         compressionEndpoint,
@@ -145,8 +145,8 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 3,
-          delay: '10s'
+          retries: 5, // 增加到5次重试，与后续步骤一致
+          delay: '30s' // 增加到30秒延迟，给服务更多启动时间
         }
       );
 

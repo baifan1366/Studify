@@ -121,7 +121,7 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
     
-    // Enqueue the next step
+    // Enqueue the next step with better retry configuration
     const qstashResponse = await queueManager.enqueue(
       queueName,
       audioConvertEndpoint,
@@ -132,8 +132,8 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 2,
-        delay: "5s",
+        retries: 4, // 增加到4次重试
+        delay: "20s", // 增加到20秒延迟，给Cloudinary更多时间
       }
     );
 

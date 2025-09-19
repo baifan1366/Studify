@@ -98,7 +98,24 @@ export async function GET(
         session_id,
         message,
         created_at,
-        sender_id
+        sender_id,
+        attachment_id,
+        classroom_attachments!classroom_chat_message_attachment_id_fkey (
+          id,
+          public_id,
+          file_url,
+          file_name,
+          mime_type,
+          size_bytes,
+          created_at,
+          visibility,
+          bucket,
+          path,
+          profiles!classroom_attachments_owner_id_fkey (
+            display_name,
+            avatar_url
+          )
+        )
       `)
       .in('session_id', sessionIds)
       .eq('is_deleted', false)
@@ -163,6 +180,29 @@ export async function GET(
     const transformedMessages = messages?.map(msg => {
       const profile = profileMap.get(msg.sender_id);
       const isCurrentUser = msg.sender_id === currentUserProfile.data?.id;
+      
+      // Transform attachment data if exists
+      let attachment = undefined;
+      if (msg.classroom_attachments) {
+        const attachmentData = msg.classroom_attachments as any; // Type assertion to handle Supabase join
+        attachment = {
+          id: attachmentData.id,
+          public_id: attachmentData.public_id,
+          file_url: attachmentData.file_url,
+          file_name: attachmentData.file_name,
+          mime_type: attachmentData.mime_type,
+          size_bytes: attachmentData.size_bytes,
+          created_at: attachmentData.created_at,
+          visibility: attachmentData.visibility,
+          bucket: attachmentData.bucket,
+          path: attachmentData.path,
+          profiles: {
+            display_name: attachmentData.profiles?.display_name || 'Unknown User',
+            avatar_url: attachmentData.profiles?.avatar_url || undefined
+          }
+        };
+      }
+      
       return {
         id: msg.public_id,
         userId: isCurrentUser ? currentUserProfile.data?.user_id || '' : profile?.id?.toString() || '',
@@ -170,7 +210,8 @@ export async function GET(
         userAvatar: profile?.avatar_url || null,
         content: msg.message,
         timestamp: new Date(msg.created_at),
-        type: 'text' as const
+        type: 'user' as const,
+        attachment: attachment
       };
     }) || [];
 

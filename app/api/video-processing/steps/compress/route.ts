@@ -109,7 +109,7 @@ async function compressVideo(attachment: any): Promise<{ compressed_url: string;
 }
 
 async function queueNextStep(queueId: number, attachmentId: number, userId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
   const audioConvertEndpoint = `${baseUrl}/api/video-processing/steps/audio-convert`;
   
   console.log('Queueing audio conversion step for queue:', queueId);
@@ -121,7 +121,7 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
     
-    // Enqueue the next step
+    // Enqueue the next step with better retry configuration
     const qstashResponse = await queueManager.enqueue(
       queueName,
       audioConvertEndpoint,
@@ -132,8 +132,7 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 2,
-        delay: "5s",
+        retries: 3 // Maximum allowed by QStash quota
       }
     );
 
@@ -147,7 +146,12 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
 
 async function handler(req: Request) {
   try {
-    console.log('Processing video compression job...');
+    console.log('🎬 Video compression step started');
+    console.log('📊 Request details:', {
+      method: req.method,
+      url: req.url,
+      timestamp: new Date().toISOString()
+    });
 
     // Parse and validate the QStash job payload
     const body = await req.json();
@@ -167,7 +171,7 @@ async function handler(req: Request) {
     const { queue_id, attachment_id, user_id, timestamp } = validation.data;
     const client = await createServerClient();
     
-    console.log('Processing compression for:', {
+    console.log('📋 Processing compression for:', {
       queue_id,
       attachment_id,
       user_id,
@@ -175,7 +179,8 @@ async function handler(req: Request) {
     });
 
     // 1. Update step status to processing
-    await client
+    console.log('📝 Updating step status to processing...');
+    const { error: stepUpdateError } = await client
       .from("video_processing_steps")
       .update({
         status: 'processing',
@@ -184,8 +189,14 @@ async function handler(req: Request) {
       .eq("queue_id", queue_id)
       .eq("step_name", "compress");
 
+    if (stepUpdateError) {
+      console.error('❌ Failed to update step status:', stepUpdateError);
+      throw new Error(`Failed to update step status: ${stepUpdateError.message}`);
+    }
+
     // 2. Update queue status
-    await client
+    console.log('📝 Updating queue status...');
+    const { error: queueUpdateError } = await client
       .from("video_processing_queue")
       .update({
         status: 'processing',
@@ -193,6 +204,13 @@ async function handler(req: Request) {
         progress_percentage: 10
       })
       .eq("id", queue_id);
+
+    if (queueUpdateError) {
+      console.error('❌ Failed to update queue status:', queueUpdateError);
+      throw new Error(`Failed to update queue status: ${queueUpdateError.message}`);
+    }
+
+    console.log('✅ Successfully updated database status');
 
     // 3. Get attachment details
     const { data: attachment, error: attachmentError } = await client
@@ -206,9 +224,28 @@ async function handler(req: Request) {
     }
 
     // 4. Compress the video
+    console.log('🎥 Starting video compression...');
+    console.log('📄 Attachment details:', {
+      id: attachment.id,
+      title: attachment.title,
+      file_size: attachment.file_size,
+      cloudinary_url: attachment.cloudinary_url,
+      public_id: attachment.public_id
+    });
+
     let compressionResult: { compressed_url: string; compressed_size: number };
     try {
+      const compressionStart = Date.now();
       compressionResult = await compressVideo(attachment);
+      const compressionTime = Date.now() - compressionStart;
+      
+      console.log('✅ Video compression completed:', {
+        duration: `${compressionTime}ms`,
+        original_size: attachment.file_size,
+        compressed_size: compressionResult.compressed_size,
+        compression_ratio: `${Math.round((1 - compressionResult.compressed_size / attachment.file_size) * 100)}%`,
+        compressed_url: compressionResult.compressed_url
+      });
     } catch (compressionError: any) {
       console.error('Video compression failed:', compressionError.message);
       
@@ -228,13 +265,24 @@ async function handler(req: Request) {
     }
 
     // 5. Update attachment with compressed video URL
-    await client
+    const { error: updateError } = await client
       .from('course_attachments')
       .update({ 
         cloudinary_compressed: compressionResult.compressed_url,
         compressed_size: compressionResult.compressed_size
       })
       .eq('id', attachment_id);
+
+    if (updateError) {
+      console.error('Failed to update attachment with compressed URL:', updateError);
+      throw new Error(`Failed to update attachment: ${updateError.message}`);
+    }
+    
+    console.log('✅ Successfully updated attachment with compressed URL:', {
+      attachment_id,
+      compressed_url: compressionResult.compressed_url,
+      compressed_size: compressionResult.compressed_size
+    });
 
     // 6. Complete the compression step
     await client.rpc('complete_processing_step', {

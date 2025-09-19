@@ -1315,11 +1315,11 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
 
       {/* --- Camera 独立容器 --- */}
       <motion.div 
-        className={`${sizeClasses[size]} relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800`}
+        className={`${sizeClasses[size]} relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex`}
         whileHover={{ scale: 1.02 }}
         transition={{ duration: 0.2 }}
       >
-        {cameraTrackRef ? (
+        {cameraTrackRef && cameraTrackRef.publication?.track && !cameraTrackRef.publication?.isMuted ? (
           <div className="relative w-full aspect-video">
             <VideoTrack
               trackRef={cameraTrackRef}
@@ -1328,22 +1328,29 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
           </div>
 
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 z-10 bg-gradient-to-br from-slate-700 to-slate-800">
             <VideoOff className="w-8 h-8 mb-2" />
-            <span>No Camera</span>
+            <span className="text-sm">No Camera</span>
           </div>
         )}
 
         {/* Overlay */}
-        <div className="absolute top-3 left-3 flex items-center space-x-2 z-10">
+        <div className="absolute top-3 left-3 flex items-center space-x-2 z-20">
           {isLocal && (
             <div className="bg-yellow-400/20 text-yellow-300 px-2 py-1 rounded-full text-xs font-medium border border-yellow-400/30">
               You
             </div>
           )}
+          {/* Camera status indicator */}
+          {isLocal && (!cameraTrackRef || !cameraTrackRef.publication?.track || cameraTrackRef.publication?.isMuted) && (
+            <div className="bg-red-500/20 text-red-300 px-2 py-1 rounded-full text-xs font-medium border border-red-500/30 flex items-center space-x-1">
+              <VideoOff className="w-3 h-3" />
+              <span>Camera Off</span>
+            </div>
+          )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3 z-10">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3 z-20">
           <div className="text-white font-medium text-sm truncate">{participantName}</div>
           <div className="text-slate-300 text-xs capitalize">{role}</div>
         </div>

@@ -1,0 +1,15 @@
+torch
+transformers
+xgboost
+pandas
+numpy
+tqdm
+pathlib
+scipy
+sentencepiece
+protobuf
+accelerate
+scikit-learn
+fastapi
+uvicorn
+gradio

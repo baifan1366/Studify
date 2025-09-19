@@ -5,6 +5,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/components/auth-provider";
 import { ReactQueryProvider } from "@/components/providers/react-query-provider";
+import { FontSizeProvider } from "@/context/font-size-context";
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -31,7 +32,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ReactQueryProvider>
       <NextIntlClientProvider locale={locale} messages={messages}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <FontSizeProvider>{children}</FontSizeProvider>
+        </AuthProvider>
       </NextIntlClientProvider>
     </ReactQueryProvider>
   );

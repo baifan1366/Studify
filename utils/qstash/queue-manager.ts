@@ -33,17 +33,15 @@ export class QStashQueueManager {
       if (!response.ok) {
         const errorText = await response.text();
         
-        // Check if queue already exists (200 response means upsert successful)
-        if (response.status === 200) {
-          return 'updated';
-        } else if (response.status === 412) {
+        if (response.status === 412) {
           throw new Error('Queue limit reached - upgrade your QStash plan');
         } else {
           throw new Error(`Failed to create queue: ${response.status} - ${errorText}`);
         }
       }
 
-      return 'created';
+      // 200 response means upsert successful (created or updated)
+      return 'success';
     } catch (error) {
       console.error('Queue creation error:', error);
       throw error;
@@ -53,6 +51,9 @@ export class QStashQueueManager {
   /**
    * Enqueue a message to a specific queue
    * According to QStash API: POST /v2/enqueue/{queueName}/{destination}
+   * 
+   * Note: delay parameter is ignored for queue enqueue operations.
+   * Queue timing is managed by QStash based on parallelism and internal scheduling.
    */
   async enqueue(
     queueName: string, 
@@ -77,6 +78,16 @@ export class QStashQueueManager {
     } = options;
 
     try {
+      // Validate and log target URL for debugging
+      console.log(`🔍 [QStash] Target URL validation:`, {
+        original: targetUrl,
+        length: targetUrl.length,
+        starts_with_https: targetUrl.startsWith('https://'),
+        starts_with_http: targetUrl.startsWith('http://'),
+        contains_double_slash: targetUrl.includes('//api'),
+        url_pattern: targetUrl.match(/^https?:\/\/[^\/]+\/.*/)
+      });
+
       const requestHeaders: Record<string, string> = {
         'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json',
@@ -85,10 +96,9 @@ export class QStashQueueManager {
         ...headers,
       };
 
-      // Add delay if specified
-      if (delay) {
-        requestHeaders['Upstash-Delay'] = delay;
-      }
+      // Note: Upstash-Delay is not supported with /v2/enqueue endpoint for queues
+      // Queue processing is managed by QStash internally based on parallelism settings
+      // If delay is needed, consider using /v2/publish endpoint instead
 
       // Add callback if specified
       if (callback) {
@@ -101,7 +111,7 @@ export class QStashQueueManager {
       }
 
       const response = await fetch(
-        `${this.baseUrl}/v2/enqueue/${queueName}/${encodeURIComponent(targetUrl)}`,
+        `${this.baseUrl}/v2/enqueue/${queueName}/${targetUrl}`,
         {
           method: 'POST',
           headers: requestHeaders,

@@ -99,7 +99,7 @@ export async function GET(
       .in("comment_id", commentPublicIds),
   ]);
 
-  // Group reactions by comment ID
+  // Group reactions by comment ID from database
   const reactionsByComment = (reactionsResponse.data || []).reduce(
     (acc: Record<number, Record<string, number>>, reaction) => {
       if (!acc[reaction.target_id]) {
@@ -111,6 +111,29 @@ export async function GET(
     },
     {}
   );
+
+  // Get Redis reactions for real-time data
+  try {
+    const redis = (await import("@/utils/redis/redis")).default;
+    
+    // Get Redis reactions for all comments
+    for (const commentId of commentIds) {
+      const redisKey = `comment:${commentId}:reactions`;
+      const redisReactions: Record<string, string> = await redis.hgetall(redisKey) || {};
+      
+      // Add Redis reactions to the comment
+      Object.entries(redisReactions).forEach(([userId, emoji]) => {
+        if (!reactionsByComment[commentId]) {
+          reactionsByComment[commentId] = {};
+        }
+        if (typeof emoji === 'string') {
+          reactionsByComment[commentId][emoji] = (reactionsByComment[commentId][emoji] || 0) + 1;
+        }
+      });
+    }
+  } catch (redisError) {
+    console.warn("Failed to get Redis reactions for comments:", redisError);
+  }
 
   // Group files
   const filesByComment = (filesResponse.data || []).reduce(

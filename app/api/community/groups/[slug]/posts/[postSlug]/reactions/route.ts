@@ -116,9 +116,12 @@ export async function POST(
     .eq("emoji", emoji)
     .single();
 
+  // Create Redis key based on target type
+  const redisKey = `${target_type}:${targetId}:reactions`;
+
   if (existingReaction) {
     // Remove existing reaction (toggle off) delete in redis
-    await redis.hdel(`post:${targetId}:reactions`, profileId.toString());
+    await redis.hdel(redisKey, profileId.toString());
 
     //send to qstash
     await getQStashQueue().queueEmbedding("reaction", targetId, 5);
@@ -136,7 +139,7 @@ export async function POST(
     });
   } else {
     // Add new reaction
-    await redis.hset(`post:${targetId}:reactions`, {
+    await redis.hset(redisKey, {
       [profileId]: emoji,
     });
 

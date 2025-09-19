@@ -138,14 +138,29 @@ export async function POST(req: Request) {
     }
 
     try {
+      console.log('🚀 Starting QStash job creation...');
+      console.log('📋 QStash job details:', {
+        queueName: `video-processing-${authResult.payload.sub}`,
+        endpoint: compressionEndpoint,
+        payload: {
+          queue_id: newQueue.id,
+          attachment_id: attachment_id,
+          user_id: profile.id,
+          timestamp: new Date().toISOString(),
+        }
+      });
+
       // Use QStash queue manager for better video processing
       const queueManager = getQueueManager();
       const queueName = `video-processing-${authResult.payload.sub}`;
       
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
+      console.log('📦 Ensuring queue exists:', queueName);
       await queueManager.ensureQueue(queueName, 1);
+      console.log('✅ Queue ensured successfully');
 
       // Enqueue the video processing job with improved retry configuration
+      console.log('📤 Enqueuing job to QStash...');
       const qstashResponse = await queueManager.enqueue(
         queueName,
         compressionEndpoint,
@@ -160,7 +175,10 @@ export async function POST(req: Request) {
         }
       );
 
+      console.log('✅ QStash enqueue response:', qstashResponse);
+
       // Update queue with QStash message ID
+      console.log('💾 Updating database with QStash message ID...');
       await client
         .from("video_processing_queue")
         .update({ 
@@ -169,7 +187,7 @@ export async function POST(req: Request) {
         })
         .eq("id", newQueue.id);
 
-      console.log('QStash compression job published:', qstashResponse.messageId);
+      console.log('✅ QStash compression job published:', qstashResponse.messageId);
 
       // Send notification that processing has started
       await sendVideoProcessingNotification(profile.id.toString(), {

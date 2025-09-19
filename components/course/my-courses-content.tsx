@@ -231,8 +231,8 @@ export default function MyCoursesContent() {
     return <EmptyState onBrowseCourses={() => router.push('/courses')} t={t} />;
   }
 
-  const handleContinueCourse = (courseId: string) => {
-    router.push(`/learn/${courseId}`);
+  const handleContinueCourse = (courseSlug: string) => {
+    router.push(`/courses/${courseSlug}/learn`);
   };
 
   const handleCourseDetails = (courseSlug: string) => {

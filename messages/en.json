@@ -1796,10 +1796,10 @@
     "cancel_button": "Cancel"
   },
   "CoursePage": {
-    "metadata_title": "Course | Studify",
+    "metadata_title": "{{courseSlug}} | Course | Studify",
     "metadata_description": "Learn with interactive courses, track your progress, and master new skills",
     "metadata_keywords": "course,learning,education,online course,skill development",
-    "og_title": "Course | Studify",
+    "og_title": "{{courseSlug}} | Course | Studify",
     "og_description": "Interactive learning experience with progress tracking and skill development"
   },
   "CourseStatusErrors": {
@@ -2231,5 +2231,64 @@
     "view": "View",
     "edit": "Edit",
     "delete": "Delete"
+  },
+  "CourseLearningPage": {
+    "metadata_title": "{courseSlug} | Learn | Studify",
+    "metadata_description": "Learn with interactive courses, track your progress, and master new skills",
+    "og_title": "{courseSlug} | Learn | Studify",
+    "og_description": "Interactive learning experience with progress tracking and skill development",
+    "metadata_keywords": "course,learning,education,online course,skill development"
+  },
+  "KnowledgeGraph": {
+    "title": "Knowledge Graph",
+    "loading": "Loading knowledge graph...",
+    "empty_message": "The knowledge graph for this course is being built.",
+    "error": "Failed to load knowledge graph"
+  },
+  "Quiz": {
+    "loading": "Loading quiz...",
+    "no_quiz_title": "No Quiz Available",
+    "no_quiz_message": "This lesson doesn't have a quiz yet.",
+    "answer_submitted": "Answer Submitted",
+    "answer_submitted_desc": "Your answer has been recorded.",
+    "error": "Error",
+    "submit_error": "Failed to submit answer. Please try again.",
+    "quiz_complete": "Quiz Complete!",
+    "quiz_complete_desc": "Great job completing the quiz!",
+    "select_lesson_title": "Select a Lesson",
+    "select_lesson_message": "Choose a lesson to view its quiz content."
+  },
+  "QuestionDialog": {
+    "title": "Ask a Question",
+    "question_placeholder": "What would you like to know?",
+    "submit": "Submit Question",
+    "loading": "Submitting...",
+    "success_title": "Question Submitted",
+    "success_desc": "Your question has been submitted successfully. We'll get back to you soon.",
+    "error_title": "Submission Failed",
+    "error_desc": "Failed to submit your question. Please try again."
+  },
+  "CourseContent": {
+    "title": "Course Content",
+    "completed_count": "completed",
+    "progress_percentage": "Complete",
+    "expand_module": "Expand module",
+    "collapse_module": "Collapse module",
+    "lesson_duration": "min",
+    "no_lessons": "No lessons available",
+    "loading_modules": "Loading course modules...",
+    "module_lessons_count": "Module {module} has {count} lessons"
+  },
+  "LessonNavigation": {
+    "previous_lesson": "Previous Lesson",
+    "next_lesson": "Next Lesson",
+    "lesson_of": "Lesson {current} of {total}",
+    "duration": "Duration: {minutes} min",
+    "mark_complete": "Mark Complete",
+    "lesson_completed": "Lesson Complete!",
+    "module_lessons_count": "Module {module} has {count} lessons",
+    "lesson_completed_desc": "Great job! You can now move to the next lesson.",
+    "course_completed": "🎉 Course Completed!",
+    "course_completed_desc": "Congratulations! You have successfully completed this course."
   }
 }

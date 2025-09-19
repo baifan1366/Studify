@@ -132,7 +132,7 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 4 // Queue timing managed by QStash internally
+        retries: 3 // Maximum allowed by QStash quota
       }
     );
 

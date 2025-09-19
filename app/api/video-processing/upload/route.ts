@@ -150,7 +150,7 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 5 // Queue processing timing managed by QStash internally
+          retries: 3 // Maximum allowed by QStash quota
         }
       );
 

@@ -20,9 +20,23 @@ import { useTranslations } from "next-intl";
 import { Post } from "@/interface/community/post-interface";
 import Link from "next/link";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
+import { useToggleReaction } from "@/hooks/community/use-reactions";
 
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
+  const toggleReactionMutation = useToggleReaction(post.group?.slug || '', post.slug || '');
+
+  const handleReaction = (emoji: string) => {
+    if (!post.group?.slug || !post.slug) return;
+    
+    toggleReactionMutation.mutate({
+      groupSlug: post.group.slug,
+      postSlug: post.slug,
+      emoji,
+      target_type: "post",
+      target_id: post.id.toString(),
+    });
+  };
 
   const formatTimeAgo = (date: string | Date) => {
     const now = new Date();
@@ -121,6 +135,8 @@ export default function PostCard({ post }: { post: Post }) {
               variant="ghost"
               size="sm"
               className="hover:bg-white/10 hover:text-white px-2"
+              onClick={() => handleReaction("👍")}
+              disabled={toggleReactionMutation.isPending}
             >
               <ThumbsUp className="mr-1 h-4 w-4" />
               <span className="text-xs">{post.reactions?.["👍"] || 0}</span>
@@ -129,6 +145,8 @@ export default function PostCard({ post }: { post: Post }) {
               variant="ghost"
               size="sm"
               className="hover:bg-white/10 hover:text-white px-2"
+              onClick={() => handleReaction("❤️")}
+              disabled={toggleReactionMutation.isPending}
             >
               <Heart className="mr-1 h-4 w-4" />
               <span className="text-xs">{post.reactions?.["❤️"] || 0}</span>

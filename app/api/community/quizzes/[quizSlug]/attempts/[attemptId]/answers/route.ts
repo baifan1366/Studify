@@ -23,7 +23,7 @@ export async function POST(
     // 1. 检查 attempt 是否存在并且属于这个用户
     const { data: attempt, error: attemptErr } = await supabase
       .from("community_quiz_attempt")
-      .select("id, user_id, quiz_id")
+      .select("id, user_id, quiz_id, status")
       .eq("id", attemptId)
       .maybeSingle();
 
@@ -32,6 +32,11 @@ export async function POST(
     }
     if (attempt.user_id !== userId) {
       return NextResponse.json({ error: "Not your attempt" }, { status: 403 });
+    }
+    
+    // 检查attempt状态
+    if (attempt.status !== 'in_progress') {
+      return NextResponse.json({ error: "Attempt is not in progress" }, { status: 400 });
     }
 
     // 2. 找到对应的 question（用 public_id + quiz_id 双重约束）

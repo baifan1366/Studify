@@ -1056,6 +1056,7 @@ create table if not exists community_quiz (
   max_attempts int not null default 1,
   visibility text check (visibility in ('public','private')) default 'public',
   quiz_mode text check (quiz_mode in ('practice', 'strict')) default 'practice',
+  time_limit_minutes int,
   is_deleted boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -1077,8 +1078,8 @@ create table if not exists community_quiz_attempt (
   id bigserial primary key,
   quiz_id bigint not null references community_quiz(id),
   user_id uuid not null references auth.users(id),
-  answers text[], -- 用户提交答案
-  is_correct boolean,
+  status text not null default 'not_started' check (status in ('not_started', 'in_progress', 'submitted', 'graded')),
+  score int not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -1088,6 +1089,38 @@ create table if not exists community_quiz_attempt_answer (
   question_id bigint not null references community_quiz_question(id),
   user_answer text[],   -- 存储用户选的选项索引，或填空的文本
   is_correct boolean
+);
+
+-- 2. Create community_quiz_attempt_session table
+CREATE TABLE IF NOT EXISTS community_quiz_attempt_session (
+  id bigserial primary key,
+  public_id uuid not null default uuid_generate_v4(),
+  attempt_id bigint not null references community_quiz_attempt(id) on delete cascade,
+  quiz_id bigint not null references community_quiz(id),
+  user_id uuid not null references auth.users(id),
+  session_token varchar(255) not null unique,
+  status varchar(20) not null default 'active' check (status in ('active', 'expired', 'completed')),
+  
+  -- Time tracking
+  time_limit_minutes integer,
+  time_spent_seconds integer not null default 0,
+  started_at timestamptz not null default now(),
+  last_activity_at timestamptz not null default now(),
+  expires_at timestamptz,
+  
+  -- Progress tracking
+  current_question_index integer not null default 0,
+  total_questions integer not null,
+  
+  -- Metadata
+  browser_info jsonb,
+  ip_address inet,
+  
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  
+  -- Constraints
+  unique(attempt_id)
 );
 
 create table if not exists community_quiz_permission (
@@ -1425,6 +1458,111 @@ CREATE TABLE IF NOT EXISTS video_embeddings (
   updated_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz
 );
+
+
+-- =========================
+-- Quiz System Indexes
+-- =========================
+
+-- Quiz attempt status indexes
+CREATE INDEX IF NOT EXISTS idx_community_quiz_attempt_status 
+ON community_quiz_attempt(quiz_id, user_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_community_quiz_attempt_user_quiz 
+ON community_quiz_attempt(user_id, quiz_id, created_at DESC);
+
+-- Quiz session indexes
+CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_session_user_active
+ON community_quiz_session(user_id, quiz_id)
+WHERE status = 'active';
+
+CREATE INDEX IF NOT EXISTS idx_quiz_session_user_quiz 
+ON community_quiz_session(user_id, quiz_id);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_session_status 
+ON community_quiz_session(status);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_session_expires 
+ON community_quiz_session(expires_at) WHERE expires_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_quiz_session_token 
+ON community_quiz_session(session_token);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_session_activity 
+ON community_quiz_session(last_activity_at);
+
+-- =========================
+-- Quiz System Functions
+-- =========================
+
+-- Function to automatically expire old sessions
+CREATE OR REPLACE FUNCTION expire_old_quiz_sessions()
+RETURNS void AS $$
+BEGIN
+  UPDATE community_quiz_session 
+  SET status = 'expired', updated_at = now()
+  WHERE status = 'active' 
+    AND expires_at IS NOT NULL 
+    AND expires_at < now();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to clean up abandoned sessions
+CREATE OR REPLACE FUNCTION cleanup_abandoned_quiz_sessions()
+RETURNS void AS $$
+BEGIN
+  -- Mark sessions as expired if no activity for more than 2 hours
+  UPDATE community_quiz_session 
+  SET status = 'expired', updated_at = now()
+  WHERE status = 'active' 
+    AND last_activity_at < now() - interval '2 hours';
+    
+  -- Optionally delete very old expired sessions (older than 30 days)
+  DELETE FROM community_quiz_session 
+  WHERE status IN ('expired', 'completed') 
+    AND updated_at < now() - interval '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update updated_at timestamp for quiz sessions
+CREATE OR REPLACE FUNCTION update_quiz_session_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================
+-- Quiz System Triggers
+-- =========================
+
+-- Trigger to update updated_at timestamp on quiz session updates
+CREATE TRIGGER trigger_update_quiz_session_updated_at
+  BEFORE UPDATE ON community_quiz_session
+  FOR EACH ROW
+  EXECUTE FUNCTION update_quiz_session_updated_at();
+
+-- =========================
+-- Quiz System Comments
+-- =========================
+
+-- Table comments
+COMMENT ON TABLE community_quiz_session IS 'Manages active quiz sessions with time tracking and progress persistence';
+
+-- Column comments for community_quiz_attempt
+COMMENT ON COLUMN community_quiz_attempt.status IS 'Attempt status: in_progress (ongoing), completed (finished), abandoned (left incomplete)';
+
+-- Column comments for community_quiz
+COMMENT ON COLUMN community_quiz.time_limit_minutes IS 'Quiz total time limit in minutes, null means unlimited';
+
+-- Column comments for community_quiz_session
+COMMENT ON COLUMN community_quiz_session.session_token IS 'Unique token for session validation and security';
+COMMENT ON COLUMN community_quiz_session.status IS 'Session status: active (ongoing), paused (temporarily stopped), expired (timed out), completed (finished)';
+COMMENT ON COLUMN community_quiz_session.time_limit_minutes IS 'Total time limit for this session in minutes, copied from quiz settings';
+COMMENT ON COLUMN community_quiz_session.time_spent_seconds IS 'Total time spent in this session in seconds';
+COMMENT ON COLUMN community_quiz_session.current_question_index IS 'Current question index (0-based) for progress tracking';
+COMMENT ON COLUMN community_quiz_session.browser_info IS 'Browser and client information for session validation';
 
 CREATE TABLE currencies (
     id bigserial PRIMARY KEY,

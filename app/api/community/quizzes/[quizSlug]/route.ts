@@ -77,11 +77,12 @@ export async function GET(
       .select("*", { count: "exact", head: true })
       .eq("quiz_id", quiz.id);
 
-    // 获取quiz的尝试次数统计
+    // 获取quiz的尝试次数统计 (只计算已完成的)
     const { count: attemptCount } = await supabase
       .from("community_quiz_attempt")
       .select("*", { count: "exact", head: true })
-      .eq("quiz_id", quiz.id);
+      .eq("quiz_id", quiz.id)
+      .in("status", ["submitted", "graded"]);
 
     // 获取quiz的点赞数
     const { count: likeCount } = await supabase
@@ -95,12 +96,15 @@ export async function GET(
       .select(`
         id,
         user_id,
-        is_correct,
+        score,
+        status,
         created_at,
         profiles!inner(display_name, avatar_url)
       `)
       .eq("quiz_id", quiz.id)
-      .eq("is_correct", true)
+      .in("status", ["submitted", "graded"])
+      .gte("score", 80) // 只显示80分以上的成绩
+      .order("score", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -122,6 +126,8 @@ export async function GET(
           user_id: attempt.user_id,
           display_name: profile?.display_name || 'Anonymous',
           avatar_url: profile?.avatar_url || null,
+          score: attempt.score,
+          status: attempt.status,
           completed_at: attempt.created_at
         };
       }) || []

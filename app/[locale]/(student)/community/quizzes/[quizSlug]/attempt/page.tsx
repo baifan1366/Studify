@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -15,6 +15,9 @@ import {
   useSubmitAnswer,
   useCompleteAttempt,
 } from "@/hooks/community/use-quiz";
+import { useQuizSession } from "@/hooks/community/use-quiz-session";
+import QuizTimer from "@/components/community/quiz/quiz-timer";
+import QuizDebugPanel from "@/components/community/quiz/quiz-debug-panel";
 
 const optionStyles = [
   {
@@ -38,17 +41,20 @@ const optionStyles = [
 export default function QuizAttemptPage() {
   const { quizSlug } = useParams<{ quizSlug: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // 状态
   const [attemptId, setAttemptId] = useState<number | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30);
   const [textAnswer, setTextAnswer] = useState("");
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingAttempt, setIsCreatingAttempt] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [needsSessionParam, setNeedsSessionParam] = useState<boolean>(false);
+  const [isNavigatingToSession, setIsNavigatingToSession] = useState<boolean>(false);
 
   // Hooks
   const { data: questions, isLoading } = useQuizQuestions(quizSlug);
@@ -61,38 +67,170 @@ export default function QuizAttemptPage() {
     quizSlug,
     attemptId ?? -1
   );
+  
+  // Session 管理
+  const { 
+    session, 
+    remainingTime, 
+    isExpired: sessionExpired, 
+    startSession, 
+    updateSession,
+    getSession 
+  } = useQuizSession(quizSlug);
 
-  // 初始化 attempt
+  // 初始化 attempt 和 session
+  const attemptCreatedRef = useRef(false);
+  
   useEffect(() => {
-    if (!attemptId && !isCreatingAttempt && !error) {
+    const initializeQuiz = async () => {
+      if (isInitialized || isCreatingAttempt || error || attemptCreatedRef.current) {
+        return;
+      }
+
+      attemptCreatedRef.current = true;
       setIsCreatingAttempt(true);
-      createAttempt()
-        .then((data) => {
-          setAttemptId(data.id);
-          setError(null);
-        })
-        .catch((err) => {
-          console.error("Failed to create attempt:", err);
-          setError(err.message || "Failed to start quiz. You may have reached the maximum number of attempts.");
-        })
-        .finally(() => {
-          setIsCreatingAttempt(false);
-        });
-    }
-  }, [attemptId, createAttempt, isCreatingAttempt, error]);
 
-  // 倒计时
+      try {
+        const sessionParam = searchParams.get('session');
+        if (sessionParam) {
+          // 通过 public_id 获取 session 和 attemptId
+          const res = await fetch(`/api/community/quizzes/${quizSlug}/attempts/session/${sessionParam}`);
+          if (!res.ok) {
+            setNeedsSessionParam(true); // 无效session，回到守卫界面
+            setIsInitialized(true);
+            return;
+          }
+          const data = await res.json();
+          const aId = data?.session?.attempt_id || data?.attempt?.id;
+          if (!aId) {
+            setNeedsSessionParam(true);
+            setIsInitialized(true);
+            return;
+          }
+          setAttemptId(aId);
+          // 完整补水并启动心跳
+          const s = await getSession(aId);
+          const idx = s?.current_question_index ?? 0;
+          setCurrentQuestionIndex(idx);
+        } else {
+          // 没有 session 参数：不自动创建，进入守卫模式
+          setNeedsSessionParam(true);
+        }
+
+        setError(null);
+        setIsInitialized(true);
+      } catch (err: any) {
+        console.error("Failed to initialize quiz:", err);
+        setError(err.message || "Failed to start quiz. You may have reached the maximum number of attempts.");
+        attemptCreatedRef.current = false; // 重置以允许重试
+      } finally {
+        setIsCreatingAttempt(false);
+      }
+    };
+
+    initializeQuiz();
+  }, [searchParams]); // 依赖searchParams，确保带session参数时可补水
+
+  // 监听 session 过期
   useEffect(() => {
-    if (isAnswered) return;
-    if (timeLeft === 0) {
-      setIsAnswered(true);
-      return;
+    if (sessionExpired && attemptId) {
+      alert("时间到！Quiz 已自动提交。");
+      router.push(`/community/quizzes/${quizSlug}`);
     }
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft, isAnswered]);
+  }, [sessionExpired, attemptId, router, quizSlug]);
+
+  // 当页面从 bfcache 恢复（pageshow persisted）或标签页可见性变化时，重新补水 session（解决刷新/前进/后退 timer 丢失）
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if ((e as any).persisted && attemptId) {
+        getSession(attemptId).catch(() => {});
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && attemptId) {
+        getSession(attemptId).catch(() => {});
+      }
+    };
+    window.addEventListener('pageshow', onPageShow as any);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow as any);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [attemptId, getSession]);
+
+  // 同步 session 中的题目索引到本地状态
+  useEffect(() => {
+    if (session && session.current_question_index !== currentQuestionIndex) {
+      console.log("Syncing question index from session:", session.current_question_index, "to local:", currentQuestionIndex);
+      setCurrentQuestionIndex(session.current_question_index);
+    }
+  }, [session?.current_question_index]);
+
+  // 点击开始或继续：创建/获取 attempt+session，并带 public_id 导航
+  const navigateWithSession = async () => {
+    try {
+      setIsNavigatingToSession(true);
+      // 尝试获取当前 attempt
+      const res = await fetch(`/api/community/quizzes/${quizSlug}/current-attempt`);
+      let aId: number | null = null;
+      let sessPublicId: string | null = null;
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.hasCurrentAttempt) {
+          aId = data.currentAttempt.id;
+          if (data.session?.public_id) {
+            sessPublicId = data.session.public_id;
+          }
+        }
+      }
+
+      // 如果没有 attempt，创建一个
+      if (!aId) {
+        const newAttempt = await createAttempt();
+        aId = newAttempt.id;
+      }
+
+      // 如果没有 session，创建一个
+      if (!sessPublicId && aId) {
+        const s = await startSession(aId);
+        sessPublicId = s.public_id || null;
+      }
+
+      if (sessPublicId) {
+        router.replace(`/community/quizzes/${quizSlug}/attempt?session=${sessPublicId}`);
+      } else {
+        throw new Error("Failed to obtain session identifier");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("无法开始/继续当前测验，请稍后再试");
+    } finally {
+      setIsNavigatingToSession(false);
+    }
+  };
+
+  // 守卫界面：当无 session 参数时，避免自动创建，要求点击按钮开始/继续
+  if (needsSessionParam) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        <Card className="max-w-lg w-full p-6 text-center">
+          <h2 className="text-xl font-bold mb-2">Enter Quiz Session</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            为了避免误触导致的重复作答，请通过按钮进入会话。我们会创建或恢复你的测验会话，并在 URL 上追加会话标识。
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Button onClick={navigateWithSession} disabled={isNavigatingToSession}>
+              {isNavigatingToSession ? "Processing..." : "Start / Continue"}
+            </Button>
+            <Button variant="ghost" onClick={() => router.push(`/community/quizzes/${quizSlug}`)}>
+              Back to Quiz
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -115,6 +253,7 @@ export default function QuizAttemptPage() {
               onClick={() => {
                 setError(null);
                 setAttemptId(null);
+                attemptCreatedRef.current = false; // 重置ref以允许重新创建
               }}
               variant="default"
             >
@@ -164,45 +303,62 @@ export default function QuizAttemptPage() {
   const handleNextQuestion = async () => {
     if (!attemptId) return;
 
-    // 提交答案
-    if (
-      currentQuestion.question_type === "single_choice" &&
-      selectedAnswer !== null
-    ) {
-      await submitAnswer({
-        question_id: currentQuestion.public_id,
-        user_answer: [selectedAnswer.toString()],
-      });
-    } else if (
-      currentQuestion.question_type === "multiple_choice" &&
-      selectedAnswers.length > 0
-    ) {
-      await submitAnswer({
-        question_id: currentQuestion.public_id,
-        user_answer: selectedAnswers.map((i) => i.toString()),
-      });
-    } else if (
-      currentQuestion.question_type === "fill_in_blank" &&
-      textAnswer.trim() !== ""
-    ) {
-      await submitAnswer({
-        question_id: currentQuestion.public_id,
-        user_answer: [textAnswer.trim()],
-      });
-    }
+    try {
+      // 提交答案
+      if (
+        currentQuestion.question_type === "single_choice" &&
+        selectedAnswer !== null
+      ) {
+        await submitAnswer({
+          question_id: currentQuestion.public_id,
+          user_answer: [selectedAnswer.toString()],
+        });
+      } else if (
+        currentQuestion.question_type === "multiple_choice" &&
+        selectedAnswers.length > 0
+      ) {
+        await submitAnswer({
+          question_id: currentQuestion.public_id,
+          user_answer: selectedAnswers.map((i) => i.toString()),
+        });
+      } else if (
+        currentQuestion.question_type === "fill_in_blank" &&
+        textAnswer.trim() !== ""
+      ) {
+        await submitAnswer({
+          question_id: currentQuestion.public_id,
+          user_answer: [textAnswer.trim()],
+        });
+      }
 
-    // 下一题或结束
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
-      setSelectedAnswers([]);
-      setTextAnswer("");
-      setTimeLeft(30);
-      setIsAnswered(false); // ✅ 每次强制重置
-    } else {
-      const result = await completeAttempt();
-      alert(`Quiz Finished! You got ${result.correct}/${result.total} correct`);
-      router.push(`/community/quizzes/${quizSlug}`);
+      // 下一题或结束
+      if (currentQuestionIndex < questions.length - 1) {
+        const nextIndex = currentQuestionIndex + 1;
+        
+        // 先更新 session（确保服务器端状态同步）
+        if (session && updateSession) {
+          await updateSession(attemptId, {
+            current_question_index: nextIndex
+          });
+        }
+        
+        // 再更新本地状态
+        setCurrentQuestionIndex(nextIndex);
+        setSelectedAnswer(null);
+        setSelectedAnswers([]);
+        setTextAnswer("");
+        setIsAnswered(false);
+        
+        console.log("Advanced to question:", nextIndex);
+      } else {
+        // 完成 quiz
+        const result = await completeAttempt();
+        alert(`Quiz Finished! You got ${result.correct}/${result.total} correct`);
+        router.push(`/community/quizzes/${quizSlug}`);
+      }
+    } catch (error) {
+      console.error("Error in handleNextQuestion:", error);
+      alert("提交答案时出错，请重试");
     }
   };
 
@@ -221,10 +377,14 @@ export default function QuizAttemptPage() {
               <X className="h-6 w-6" />
             </Button>
             <Progress value={progress} className="w-full bg-gray-700" />
-            <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-lg flex-shrink-0">
-              <Timer className="h-5 w-5 text-yellow-400" />
-              <span className="font-bold text-lg">{timeLeft}</span>
-            </div>
+            
+            {/* Quiz Timer - 显示整个 quiz 的剩余时间 */}
+            <QuizTimer 
+              remainingSeconds={remainingTime}
+              isExpired={sessionExpired}
+              size="md"
+              className="flex-shrink-0"
+            />
           </div>
         </header>
 
@@ -385,6 +545,15 @@ export default function QuizAttemptPage() {
           )}
         </footer>
       </div>
+      
+      {/* Debug Panel (开发环境) */}
+      <QuizDebugPanel
+        attemptId={attemptId}
+        currentQuestionIndex={currentQuestionIndex}
+        session={session}
+        remainingTime={remainingTime}
+        isExpired={sessionExpired}
+      />
     </div>
   );
 }

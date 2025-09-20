@@ -1,3 +1,12 @@
+/**
+ * QStash Queue Manager for Video Processing
+ * 
+ * Simplified video processing flow:
+ * 1. upload → transcribe → embed
+ * 
+ * No longer requires intermediate compression or audio conversion steps.
+ * Videos are processed directly for transcription.
+ */
 export class QStashQueueManager {
   private token: string;
   private baseUrl: string;
@@ -18,14 +27,48 @@ export class QStashQueueManager {
    */
   async ensureQueue(queueName: string, parallelism: number = 1) {
     try {
-      const response = await fetch(`${this.baseUrl}/v2/queues/`, {
+      // First try to get the queue to see if it exists
+      try {
+        const getResponse = await fetch(`${this.baseUrl}/v2/queues/${queueName}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+          },
+        });
+        
+        if (getResponse.ok) {
+          console.log(`Queue ${queueName} already exists`);
+          // Queue exists, update parallelism if needed
+          const response = await fetch(`${this.baseUrl}/v2/queues/${queueName}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              parallelism,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.warn(`Failed to update queue parallelism: ${errorText}`);
+          }
+          return 'exists';
+        }
+      } catch (e) {
+        // Queue doesn't exist, continue to create
+      }
+      
+      // Create new queue
+      const response = await fetch(`${this.baseUrl}/v2/queues`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          queueName,
+          name: queueName,
           parallelism,
         }),
       });
@@ -51,6 +94,10 @@ export class QStashQueueManager {
   /**
    * Enqueue a message to a specific queue
    * According to QStash API: POST /v2/enqueue/{queueName}/{destination}
+   * 
+   * Used for video processing steps:
+   * - transcribe: Direct video transcription with Whisper API
+   * - embed: Generate AI embeddings from transcription text
    * 
    * Note: delay parameter is ignored for queue enqueue operations.
    * Queue timing is managed by QStash based on parallelism and internal scheduling.

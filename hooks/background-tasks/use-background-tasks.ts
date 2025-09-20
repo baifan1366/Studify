@@ -75,12 +75,10 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
       
       // Map step names to user-friendly labels
       const stepLabels = {
-        'compress': '🎬 Compressing video',
-        'audio_convert': '🎵 Converting audio', 
         'transcribe': '📝 Generating transcript',
         'embed': '🧠 Creating AI embeddings',
         'completed': '✅ Finalizing'
-      }
+      };
       
       const stepLabel = stepLabels[currentStep as keyof typeof stepLabels] || '⚙️ Processing'
       

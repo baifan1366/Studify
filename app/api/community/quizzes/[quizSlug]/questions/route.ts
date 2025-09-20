@@ -56,15 +56,14 @@ export async function GET(
     const isAuthor = quiz.author_id === userId;
     
     if (!isAuthor) {
-      // 检查用户是否有权限
-      const { data: permission } = await supabase
+      // 检查用户是否有至少一种权限，支持历史重复行
+      const { data: perms } = await supabase
         .from("community_quiz_permission")
         .select("permission_type")
         .eq("quiz_id", quiz.id)
-        .eq("user_id", userId)
-        .maybeSingle();
-      
-      if (!permission) {
+        .eq("user_id", userId);
+      const hasAny = Array.isArray(perms) && perms.length > 0;
+      if (!hasAny) {
         return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
       }
     }

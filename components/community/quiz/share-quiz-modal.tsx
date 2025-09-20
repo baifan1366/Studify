@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,7 @@ interface ShareQuizModalProps {
   quizSlug: string;
   quizTitle: string;
   isAuthor: boolean;
+  visibility: 'public' | 'private';
   children: React.ReactNode;
 }
 
@@ -48,6 +49,7 @@ export default function ShareQuizModal({
   quizSlug, 
   quizTitle, 
   isAuthor, 
+  visibility,
   children 
 }: ShareQuizModalProps) {
   const [open, setOpen] = useState(false);
@@ -154,11 +156,66 @@ export default function ShareQuizModal({
     }
   };
 
+  // 撤销邀请链接
+  const revokeInviteLink = async (token: string) => {
+    try {
+      await apiSend<{ success: boolean }>({
+        url: `/api/community/quizzes/${quizSlug}/share?token=${token}`,
+        method: 'DELETE',
+      });
+      toast.success('Invite link revoked');
+      await fetchInviteLinks();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to revoke link');
+    }
+  };
+
+  // 公开测验分享链接
+  const publicShareUrl = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/community/quizzes/${quizSlug}`;
+    }
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    return `${base}/community/quizzes/${quizSlug}`;
+  }, [quizSlug]);
+
   // 如果不是作者且没有传入children，则不显示
   if (!isAuthor && !children) {
     return null;
   }
 
+  // 如果是公开测验，显示简化的分享 Modal
+  if (visibility === 'public') {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          {children}
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share this public quiz
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              This is a public quiz. Anyone with the link can view and participate.
+            </div>
+            <div className="flex items-center gap-2">
+              <Input value={publicShareUrl} readOnly className="text-sm" />
+              <Button size="sm" variant="outline" onClick={() => copyToClipboard(publicShareUrl)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // 私有测验显示完整的 modal
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -289,6 +346,14 @@ export default function ShareQuizModal({
                         onClick={() => copyToClipboard(link.invite_link)}
                       >
                         <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => revokeInviteLink(link.token)}
+                        title="Revoke link"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
 

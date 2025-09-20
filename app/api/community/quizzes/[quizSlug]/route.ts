@@ -32,6 +32,7 @@ export async function GET(
         max_attempts, 
         visibility, 
         quiz_mode,
+        time_limit_minutes,
         author_id,
         created_at
       `)
@@ -47,15 +48,14 @@ export async function GET(
       const isAuthor = quiz.author_id === userId;
       
       if (!isAuthor) {
-        // 检查用户是否有权限
-        const { data: permission } = await supabase
+        // 检查用户是否至少拥有一种权限；避免 maybeSingle 在重复行时报错
+        const { data: perms } = await supabase
           .from("community_quiz_permission")
           .select("permission_type")
           .eq("quiz_id", quiz.id)
-          .eq("user_id", userId)
-          .maybeSingle();
+          .eq("user_id", userId);
         
-        if (!permission) {
+        if (!perms || perms.length === 0) {
           return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
         }
       }

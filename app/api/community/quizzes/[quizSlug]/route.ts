@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-// C:\Users\jiaxu\Studify\app\api\community\quizzes\[quizSlug]\route.ts
 
 export async function GET(
   req: Request,

@@ -20,7 +20,9 @@ const EmbedJobSchema = z.object({
 // Configuration for retries
 const EMBED_RETRY_CONFIG = {
   MAX_RETRIES: 3, // Limited to 3 by QStash quota
-  RETRY_DELAYS: [30, 60, 120], // Progressive delays in seconds: 30s, 1m, 2m
+  RETRY_DELAYS: [15, 30, 60], // 更快的重试: 15s, 30s, 1m
+  BATCH_SIZE: 5, // 批量处理片段，提高效率
+  CONCURRENT_LIMIT: 3, // 并发处理限制
 };
 
 // Schedule retry function

@@ -19,10 +19,10 @@ const TranscribeJobSchema = z.object({
 // Configuration for retries and timeouts
 const RETRY_CONFIG = {
   MAX_RETRIES: 3, // Limited to 3 by QStash quota
-  WARMUP_TIMEOUT: 30000, // 30秒预热超时
+  WARMUP_TIMEOUT: 45000, // 增加到45秒预热超时
   PROCESSING_TIMEOUT: 600000, // 10分钟处理超时
-  COLD_START_WAIT: 5000, // 冷启动后等待5秒
-  RETRY_DELAYS: [30, 60, 120], // 重试延迟（秒）: 30s, 1m, 2m
+  COLD_START_WAIT: 2000, // 减少到2秒等待时间
+  RETRY_DELAYS: [15, 30, 60], // 更快的重试: 15s, 30s, 1m
 };
 
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {
@@ -405,10 +405,18 @@ async function handler(req: Request) {
     try {
       // If this is the first attempt and not a warmup retry, try to warmup the server first
       if (retry_count === 0 && !is_warmup_retry) {
-        const warmupSuccess = await warmupWhisperServer();
+        console.log('🔥 Starting server warmup in parallel with audio processing...');
+        
+        // 并行执行预热，不等待结果
+        const warmupPromise = warmupWhisperServer().catch(() => false);
+        
+        // 给服务器一些时间启动，但不要等太久
+        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.COLD_START_WAIT));
+        
+        const warmupSuccess = await warmupPromise;
         
         if (!warmupSuccess) {
-          console.log('🔥 Server appears to be sleeping, waiting for it to wake up...');
+          console.log('🔥 Server appears to be sleeping, scheduling quick retry...');
           
           // Schedule a quick retry after warmup
           const retryMessageId = await scheduleRetry(
@@ -431,14 +439,13 @@ async function handler(req: Request) {
             .eq("id", queue_id);
 
           return NextResponse.json({
-            message: "Warming up Whisper server, will retry in 10 seconds",
+            message: "Warming up Whisper server, will retry in 15 seconds",
             retry_count: 1,
             is_warmup_retry: true
           });
         }
         
-        // Wait a bit after warmup before actual transcription
-        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.COLD_START_WAIT));
+        console.log('✅ Server warmup successful, proceeding with transcription');
       }
       
       // Try transcription

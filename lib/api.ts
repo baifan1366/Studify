@@ -383,6 +383,64 @@ export const adminApi = {
     api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
+  
+  // AI Management
+  ai: {
+    getContentGeneration: (days: number) => 
+      api.get(`/api/admin/ai/content-generation?days=${days}`),
+    performGenerationAction: (data: any) => 
+      api.post('/api/admin/ai/content-generation', data),
+    getEmbeddingQueue: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/ai/embedding-queue?${queryParams}`);
+    },
+    performEmbeddingAction: (data: any) => 
+      api.post('/api/admin/ai/embedding-queue', data),
+    deleteEmbeddingQueue: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.delete(`/api/admin/ai/embedding-queue?${queryParams}`);
+    },
+    getRecommendations: (days: number) => 
+      api.get(`/api/admin/ai/recommendation?days=${days}`),
+    performRecommendationAction: (data: any) => 
+      api.post('/api/admin/ai/recommendation', data),
+    getModeration: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/ai/moderation?${queryParams}`);
+    },
+    performModerationAction: (data: any) => 
+      api.post('/api/admin/ai/moderation', data)
+  },
+  
+  // System Maintenance
+  maintenance: {
+    getSystemHealth: () => 
+      api.get('/api/admin/maintenance/system-health'),
+    performHealthAction: (data: any) => 
+      api.post('/api/admin/maintenance/system-health', data),
+    getQueueMonitor: (type: string) => 
+      api.get(`/api/admin/maintenance/queue-monitor?type=${type}`),
+    performQueueAction: (data: any) => 
+      api.post('/api/admin/maintenance/queue-monitor', data),
+    getCache: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/maintenance/cache?${queryParams}`);
+    },
+    performCacheAction: (data: any) => 
+      api.post('/api/admin/maintenance/cache', data),
+    deleteCache: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.delete(`/api/admin/maintenance/cache?${queryParams}`);
+    },
+    getFeatureFlags: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/maintenance/feature-flags?${queryParams}`);
+    },
+    performFeatureFlagAction: (data: any) => 
+      api.post('/api/admin/maintenance/feature-flags', data),
+    deleteFeatureFlag: (flag: string) => 
+      api.delete(`/api/admin/maintenance/feature-flags?flag=${flag}`)
+  }
 } as const;
 
 // Recommendations API endpoints
@@ -561,3 +619,4 @@ export const videoEmbeddingsApi = {
   update: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
   delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
 } as const;
+

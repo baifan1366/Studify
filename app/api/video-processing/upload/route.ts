@@ -176,7 +176,7 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 5 // More retries for transcription since it may need server warmup
+          retries: 3 // Maximum retries allowed by QStash quota
         }
       );
 

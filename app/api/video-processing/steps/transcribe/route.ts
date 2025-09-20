@@ -18,11 +18,11 @@ const TranscribeJobSchema = z.object({
 
 // Configuration for retries and timeouts
 const RETRY_CONFIG = {
-  MAX_RETRIES: 5, // 增加到5次重试
+  MAX_RETRIES: 3, // Limited to 3 by QStash quota
   WARMUP_TIMEOUT: 30000, // 30秒预热超时
   PROCESSING_TIMEOUT: 600000, // 10分钟处理超时
   COLD_START_WAIT: 5000, // 冷启动后等待5秒
-  RETRY_DELAYS: [30, 60, 120, 180, 300], // 重试延迟（秒）: 30s, 1m, 2m, 3m, 5m
+  RETRY_DELAYS: [30, 60, 120], // 重试延迟（秒）: 30s, 1m, 2m
 };
 
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {

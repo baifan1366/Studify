@@ -116,7 +116,7 @@ export class QStashQueueManager {
     } = {}
   ) {
     const { 
-      retries = 3, 
+      retries = 3, // QStash quota limit
       delay = '10s', 
       method = 'POST',
       headers = {},

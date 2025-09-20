@@ -190,7 +190,7 @@ export async function POST(req: Request) {
       console.log('✅ QStash compression job published:', qstashResponse.messageId);
 
       // Send notification that processing has started
-      await sendVideoProcessingNotification(profile.id.toString(), {
+      await sendVideoProcessingNotification(authResult.payload.sub, {
         attachment_id: attachment_id,
         queue_id: newQueue.id,
         attachment_title: attachment.title,

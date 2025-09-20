@@ -1,8 +1,119 @@
 -- =========================
--- QStash Integration Functions
+-- CONSOLIDATED DATABASE FUNCTIONS
 -- =========================
 
--- Function to queue content for embedding via QStash
+-- =========================
+-- UTILITY FUNCTIONS
+-- =========================
+
+-- Function to generate slugs from text
+CREATE OR REPLACE FUNCTION generate_slug(input_text text)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN lower(
+    regexp_replace(
+      regexp_replace(
+        trim(input_text),
+        '[^a-zA-Z0-9\s-]', '', 'g'  -- Remove special characters
+      ),
+      '\s+', '-', 'g'  -- Replace spaces with hyphens
+    )
+  );
+END;
+$$;
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- =========================
+-- PROFILE FUNCTIONS
+-- =========================
+
+-- Function to calculate profile completion percentage
+CREATE OR REPLACE FUNCTION calculate_profile_completion(profile_row profiles)
+RETURNS int
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  completion_score int := 0;
+  total_fields int := 10; -- Total number of fields we consider
+BEGIN
+  -- Basic profile fields (5 points each)
+  IF profile_row.display_name IS NOT NULL AND LENGTH(profile_row.display_name) > 0 THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  IF profile_row.full_name IS NOT NULL AND LENGTH(profile_row.full_name) > 0 THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  IF profile_row.email IS NOT NULL AND LENGTH(profile_row.email) > 0 THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  IF profile_row.bio IS NOT NULL AND LENGTH(profile_row.bio) > 0 THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  IF profile_row.avatar_url IS NOT NULL AND LENGTH(profile_row.avatar_url) > 0 THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  -- Advanced fields (10 points each)
+  IF profile_row.preferences IS NOT NULL AND jsonb_typeof(profile_row.preferences) = 'object' 
+     AND profile_row.preferences != '{}'::jsonb THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  -- Onboarding completion
+  IF profile_row.onboarded = true THEN
+    completion_score := completion_score + 20;
+  END IF;
+  
+  -- Email verification
+  IF profile_row.email_verified = true THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  -- Two factor enabled
+  IF profile_row.two_factor_enabled = true THEN
+    completion_score := completion_score + 10;
+  END IF;
+  
+  RETURN completion_score;
+END;
+$$;
+
+-- Function to update profile completion
+CREATE OR REPLACE FUNCTION update_profile_completion()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_completion int;
+BEGIN
+  new_completion := calculate_profile_completion(NEW);
+  NEW.profile_completion := new_completion;
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+-- =========================
+-- EMBEDDING FUNCTIONS (From function.sql and migrations)
+-- =========================
+
+-- Function to queue content for embedding using QStash
 CREATE OR REPLACE FUNCTION queue_for_embedding_qstash(
   p_content_type text,
   p_content_id bigint,
@@ -13,10 +124,9 @@ AS $$
 DECLARE
   webhook_url text;
   payload jsonb;
-  response text;
 BEGIN
   -- Validate content type for embedding
-  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson') THEN
+  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson', 'comment', 'auth_user') THEN
     RAISE NOTICE 'Invalid content type for embedding: %', p_content_type;
     RETURN false;
   END IF;
@@ -38,10 +148,6 @@ BEGIN
   -- Log the embedding queue request
   RAISE NOTICE 'Queueing % % for embedding with priority %', p_content_type, p_content_id, p_priority;
   
-  -- Use pg_net extension to make HTTP request to QStash
-  -- Note: This requires pg_net extension and proper QStash configuration
-  -- For now, we'll fall back to database queue if QStash is not available
-  
   -- Fallback to database queue
   RETURN queue_for_embedding(p_content_type, p_content_id, p_priority);
   
@@ -52,225 +158,32 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- =========================
--- Course System Functions and Triggers
--- =========================
-
--- Create triggers for automatic slug generation
-create or replace function generate_course_slug()
-returns trigger as $$
-begin
-  if new.slug is null then
-    new.slug := lower(regexp_replace(new.title, '[^a-zA-Z0-9\s]', '', 'g'));
-    new.slug := regexp_replace(new.slug, '\s+', '-', 'g');
-    new.slug := new.slug || '-' || substring(new.public_id::text from 1 for 8);
-  end if;
-  return new;
-end;
-$$ language plpgsql;
-
-create or replace function generate_lesson_slug()
-returns trigger as $$
-begin
-  if new.slug is null then
-    new.slug := lower(regexp_replace(new.title, '[^a-zA-Z0-9\s]', '', 'g'));
-    new.slug := regexp_replace(new.slug, '\s+', '-', 'g');
-    new.slug := new.slug || '-' || substring(new.public_id::text from 1 for 8);
-  end if;
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists course_slug_trigger on course;
-create trigger course_slug_trigger
-  before insert or update on course
-  for each row execute function generate_course_slug();
-
-drop trigger if exists lesson_slug_trigger on course_lesson;
-create trigger lesson_slug_trigger
-  before insert or update on course_lesson
-  for each row execute function generate_lesson_slug();
-
-drop trigger if exists course_enrollment_resources_trigger on course_enrollment;
-create trigger course_enrollment_resources_trigger
-  after insert on course_enrollment
-  for each row execute function create_course_resources();
-
--- Function to update mistake_book when quiz is failed
-create or replace function handle_quiz_mistake()
-returns trigger as $$
-begin
-  -- If answer is incorrect, add to mistake book
-  if not new.is_correct then
-    insert into mistake_book (
-      user_id, 
-      course_question_id, 
-      course_id, 
-      lesson_id, 
-      mistake_content, 
-      source_type
-    ) 
-    select 
-      new.user_id,
-      new.question_id,
-      cl.course_id,
-      new.lesson_id,
-      cqq.question_text || ' - Incorrect answer: ' || new.user_answer::text,
-      'course_quiz'
-    from course_quiz_question cqq
-    join course_lesson cl on cqq.lesson_id = cl.id
-    where cqq.id = new.question_id;
-  end if;
-  
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists quiz_mistake_trigger on course_quiz_submission;
-create trigger quiz_mistake_trigger
-  after insert on course_quiz_submission
-  for each row execute function handle_quiz_mistake();
-
--- =========================
--- Embedding System Functions
--- =========================
-
--- Function to extract searchable text from different content types
-CREATE OR REPLACE FUNCTION extract_content_text(content_type text, content_id bigint)
-RETURNS text
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  result_text text := '';
-  profile_record profiles%ROWTYPE;
-  course_record course%ROWTYPE;
-  post_record community_post%ROWTYPE;
-  comment_record community_comment%ROWTYPE;
-  lesson_record course_lesson%ROWTYPE;
-  auth_record auth.users%ROWTYPE;
-BEGIN
-  CASE content_type
-    WHEN 'profile' THEN
-      SELECT * INTO profile_record FROM profiles WHERE id = content_id AND is_deleted = false;
-      IF FOUND THEN
-        result_text := COALESCE(profile_record.display_name, '') || ' ' || 
-                      COALESCE(profile_record.full_name, '') || ' ' || 
-                      COALESCE(profile_record.bio, '') || ' ' || 
-                      COALESCE(profile_record.role, '') || ' ' ||
-                      COALESCE(profile_record.preferences->>'onboarding', '') || ' ' ||
-                      COALESCE(profile_record.preferences->'interests'->>'broadField', '') || ' ' ||
-                      COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(profile_record.preferences->'interests'->'subFields')), ' '), '') || ' ' ||
-                      COALESCE(profile_record.timezone, '');
-      END IF;
-      
-    WHEN 'course' THEN
-      SELECT * INTO course_record FROM course WHERE id = content_id AND is_deleted = false;
-      IF FOUND THEN
-        result_text := COALESCE(course_record.title, '') || ' ' || 
-                      COALESCE(course_record.description, '') || ' ' || 
-                      COALESCE(course_record.category, '') || ' ' ||
-                      COALESCE(array_to_string(course_record.tags, ' '), '') || ' ' ||
-                      COALESCE(array_to_string(course_record.requirements, ' '), '') || ' ' ||
-                      COALESCE(array_to_string(course_record.learning_objectives, ' '), '');
-      END IF;
-      
-    WHEN 'post' THEN
-      SELECT * INTO post_record FROM community_post WHERE id = content_id AND is_deleted = false;
-      IF FOUND THEN
-        result_text := COALESCE(post_record.title, '') || ' ' || 
-                      COALESCE(post_record.body, '');
-      END IF;
-      
-    WHEN 'comment' THEN
-      SELECT * INTO comment_record FROM community_comment WHERE id = content_id AND is_deleted = false;
-      IF FOUND THEN
-        result_text := COALESCE(comment_record.body, '');
-      END IF;
-      
-    WHEN 'lesson' THEN
-      SELECT * INTO lesson_record FROM course_lesson WHERE id = content_id AND is_deleted = false;
-      IF FOUND THEN
-        result_text := COALESCE(lesson_record.title, '') || ' ' || 
-                      COALESCE(lesson_record.description, '') || ' ' ||
-                      COALESCE(lesson_record.transcript, '');
-      END IF;
-      
-    WHEN 'auth_user' THEN
-      SELECT * INTO auth_record FROM auth.users WHERE id::text = content_id::text;
-      IF FOUND THEN
-        result_text := COALESCE(auth_record.email, '') || ' ' || 
-                      COALESCE(auth_record.raw_user_meta_data->>'full_name', '') || ' ' ||
-                      COALESCE(auth_record.raw_user_meta_data->>'display_name', '');
-      END IF;
-      
-    ELSE
-      RAISE EXCEPTION 'Unknown content_type: %', content_type;
-  END CASE;
-  
-  result_text := TRIM(regexp_replace(result_text, '\s+', ' ', 'g'));
-  
-  IF result_text IS NULL OR result_text = '' THEN
-    result_text := '';
-  END IF;
-  
-  RETURN result_text;
-END;
-$$;
-
--- Function to generate content hash
-CREATE OR REPLACE FUNCTION generate_content_hash(content_text text)
-RETURNS text
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  RETURN encode(digest(content_text, 'sha256'), 'hex');
-END;
-$$;
-
--- Function to queue content for embedding
+-- Function to queue content for embedding (fallback)
 CREATE OR REPLACE FUNCTION queue_for_embedding(
   p_content_type text,
   p_content_id bigint,
   p_priority int DEFAULT 5
-)
-RETURNS boolean
+) RETURNS boolean
 LANGUAGE plpgsql
 AS $$
 DECLARE
   content_text text;
   content_hash text;
-  existing_hash text;
 BEGIN
+  -- Extract content text
   content_text := extract_content_text(p_content_type, p_content_id);
   
-  IF content_text = '' THEN
+  IF content_text IS NULL OR LENGTH(trim(content_text)) = 0 THEN
+    RAISE NOTICE 'No content found for % %', p_content_type, p_content_id;
     RETURN false;
   END IF;
   
-  content_hash := generate_content_hash(content_text);
+  -- Generate content hash
+  content_hash := encode(digest(content_text, 'sha256'), 'hex');
   
-  SELECT e.content_hash INTO existing_hash
-  FROM embeddings e
-  WHERE e.content_type = p_content_type 
-    AND e.content_id = p_content_id 
-    AND e.status = 'completed'
-    AND e.is_deleted = false;
-  
-  IF existing_hash = content_hash THEN
-    RETURN false;
-  END IF;
-  
-  UPDATE embeddings 
-  SET status = 'outdated', updated_at = now()
-  WHERE content_type = p_content_type 
-    AND content_id = p_content_id 
-    AND status = 'completed';
-  
-  INSERT INTO embedding_queue (
-    content_type, content_id, content_text, content_hash, priority
-  ) VALUES (
-    p_content_type, p_content_id, content_text, content_hash, p_priority
-  )
+  -- Insert or update embedding queue
+  INSERT INTO embedding_queue (content_type, content_id, content_text, content_hash, priority)
+  VALUES (p_content_type, p_content_id, content_text, content_hash, p_priority)
   ON CONFLICT (content_type, content_id) 
   DO UPDATE SET
     content_text = EXCLUDED.content_text,
@@ -278,820 +191,1185 @@ BEGIN
     priority = EXCLUDED.priority,
     status = 'queued',
     retry_count = 0,
-    error_message = NULL,
     updated_at = now();
-  
+    
   RETURN true;
+  
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Failed to queue embedding for % %: %', p_content_type, p_content_id, SQLERRM;
+  RETURN false;
 END;
 $$;
 
--- Function to get next batch for processing
-CREATE OR REPLACE FUNCTION get_embedding_batch(batch_size int DEFAULT 10)
-RETURNS TABLE(
-  id bigint,
+-- Function to extract content text for embedding
+CREATE OR REPLACE FUNCTION extract_content_text(
+  p_content_type text,
+  p_content_id bigint
+) RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  result_text text := '';
+  temp_text text;
+  profile_data record;
+  course_data record;
+  post_data record;
+  comment_data record;
+  lesson_data record;
+  auth_user_data record;
+BEGIN
+  CASE p_content_type
+    WHEN 'profile' THEN
+      SELECT p.display_name, p.full_name, p.bio, p.role, p.timezone, p.preferences
+      INTO profile_data
+      FROM profiles p 
+      WHERE p.id = p_content_id AND p.is_deleted = false;
+      
+      IF FOUND THEN
+        result_text := COALESCE(profile_data.display_name, '') || ' ' ||
+                      COALESCE(profile_data.full_name, '') || ' ' ||
+                      COALESCE(profile_data.bio, '') || ' ' ||
+                      COALESCE(profile_data.role, '') || ' ' ||
+                      COALESCE(profile_data.timezone, '');
+                      
+        -- Extract preferences data for better searchability
+        IF profile_data.preferences IS NOT NULL THEN
+          -- Extract onboarding data
+          IF profile_data.preferences ? 'onboarding' THEN
+            temp_text := profile_data.preferences->>'onboarding';
+            IF temp_text IS NOT NULL THEN
+              result_text := result_text || ' ' || temp_text;
+            END IF;
+          END IF;
+          
+          -- Extract interests data
+          IF profile_data.preferences ? 'interests' THEN
+            IF profile_data.preferences->'interests' ? 'broadField' THEN
+              result_text := result_text || ' ' || (profile_data.preferences->'interests'->>'broadField');
+            END IF;
+            
+            IF profile_data.preferences->'interests' ? 'subFields' THEN
+              SELECT string_agg(value::text, ' ') INTO temp_text
+              FROM jsonb_array_elements_text(profile_data.preferences->'interests'->'subFields');
+              IF temp_text IS NOT NULL THEN
+                result_text := result_text || ' ' || temp_text;
+              END IF;
+            END IF;
+          END IF;
+        END IF;
+      END IF;
+      
+    WHEN 'course' THEN
+      SELECT c.title, c.description, c.requirements, c.learning_objectives, c.category, c.tags
+      INTO course_data
+      FROM course c 
+      WHERE c.id = p_content_id AND c.is_deleted = false;
+      
+      IF FOUND THEN
+        result_text := COALESCE(course_data.title, '') || ' ' ||
+                      COALESCE(course_data.description, '') || ' ' ||
+                      COALESCE(course_data.category, '') || ' ' ||
+                      COALESCE(array_to_string(course_data.requirements, ' '), '') || ' ' ||
+                      COALESCE(array_to_string(course_data.learning_objectives, ' '), '') || ' ' ||
+                      COALESCE(array_to_string(course_data.tags, ' '), '');
+      END IF;
+      
+    WHEN 'post' THEN
+      SELECT cp.title, cp.body
+      INTO post_data
+      FROM community_post cp 
+      WHERE cp.id = p_content_id AND cp.is_deleted = false;
+      
+      IF FOUND THEN
+        result_text := COALESCE(post_data.title, '') || ' ' || COALESCE(post_data.body, '');
+      END IF;
+      
+    WHEN 'comment' THEN
+      SELECT cc.body
+      INTO comment_data
+      FROM community_comment cc 
+      WHERE cc.id = p_content_id AND cc.is_deleted = false;
+      
+      IF FOUND THEN
+        result_text := COALESCE(comment_data.body, '');
+      END IF;
+      
+    WHEN 'lesson' THEN
+      SELECT cl.title, cl.description, cl.transcript
+      INTO lesson_data
+      FROM course_lesson cl 
+      WHERE cl.id = p_content_id AND cl.is_deleted = false;
+      
+      IF FOUND THEN
+        result_text := COALESCE(lesson_data.title, '') || ' ' ||
+                      COALESCE(lesson_data.description, '') || ' ' ||
+                      COALESCE(lesson_data.transcript, '');
+      END IF;
+      
+    WHEN 'auth_user' THEN
+      -- Convert UUID to bigint for auth.users compatibility
+      SELECT au.email, au.raw_user_meta_data, au.user_metadata
+      INTO auth_user_data
+      FROM auth.users au
+      WHERE ('x' || lpad(substring(au.id::text, 1, 16), 16, '0'))::bit(64)::bigint = p_content_id;
+      
+      IF FOUND THEN
+        result_text := COALESCE(auth_user_data.email, '');
+        
+        -- Extract metadata
+        IF auth_user_data.raw_user_meta_data IS NOT NULL THEN
+          SELECT string_agg(value::text, ' ') INTO temp_text
+          FROM jsonb_each_text(auth_user_data.raw_user_meta_data);
+          IF temp_text IS NOT NULL THEN
+            result_text := result_text || ' ' || temp_text;
+          END IF;
+        END IF;
+        
+        IF auth_user_data.user_metadata IS NOT NULL THEN
+          SELECT string_agg(value::text, ' ') INTO temp_text
+          FROM jsonb_each_text(auth_user_data.user_metadata);
+          IF temp_text IS NOT NULL THEN
+            result_text := result_text || ' ' || temp_text;
+          END IF;
+        END IF;
+      END IF;
+      
+    ELSE
+      RAISE NOTICE 'Unknown content type: %', p_content_type;
+      RETURN NULL;
+  END CASE;
+  
+  -- Clean up the result
+  result_text := trim(regexp_replace(result_text, '\s+', ' ', 'g'));
+  
+  RETURN NULLIF(result_text, '');
+  
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Error extracting content for % %: %', p_content_type, p_content_id, SQLERRM;
+  RETURN NULL;
+END;
+$$;
+-- =========================
+-- CONSOLIDATED DATABASE FUNCTIONS (Part 2)
+-- =========================
+
+-- =========================
+-- DUAL EMBEDDING SEARCH FUNCTIONS
+-- =========================
+
+-- Function for E5-Small embedding search (384 dimensions)
+CREATE OR REPLACE FUNCTION search_embeddings_e5(
+  query_embedding vector(384),
+  content_types text[] DEFAULT NULL,
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 10,
+  user_id bigint DEFAULT NULL
+)
+RETURNS TABLE (
   content_type text,
   content_id bigint,
   content_text text,
-  content_hash text
+  similarity float,
+  chunk_type text,
+  hierarchy_level int,
+  word_count int,
+  sentence_count int,
+  created_at timestamptz,
+  embedding_model text
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
   RETURN QUERY
-  UPDATE embedding_queue eq
-  SET 
-    status = 'processing',
-    processing_started_at = now(),
-    updated_at = now()
-  FROM (
-    SELECT eq2.id
-    FROM embedding_queue eq2
-    WHERE eq2.status = 'queued'
-      AND eq2.scheduled_at <= now()
-      AND eq2.retry_count < eq2.max_retries
-    ORDER BY eq2.priority ASC, eq2.created_at ASC
-    LIMIT batch_size
-    FOR UPDATE SKIP LOCKED
-  ) batch
-  WHERE eq.id = batch.id
-  RETURNING eq.id, eq.content_type, eq.content_id, eq.content_text, eq.content_hash;
+  SELECT
+    e.content_type,
+    e.content_id,
+    e.content_text,
+    1 - (e.embedding_e5_small <=> query_embedding) as similarity,
+    e.chunk_type,
+    e.hierarchy_level,
+    e.word_count,
+    e.sentence_count,
+    e.created_at,
+    e.embedding_e5_model as embedding_model
+  FROM embeddings e
+  WHERE 
+    e.has_e5_embedding = true
+    AND e.status = 'completed'
+    AND e.is_deleted = false
+    AND (content_types IS NULL OR e.content_type = ANY(content_types))
+    AND 1 - (e.embedding_e5_small <=> query_embedding) > match_threshold
+  ORDER BY e.embedding_e5_small <=> query_embedding
+  LIMIT match_count;
 END;
 $$;
 
--- Function to complete dual embedding processing
-CREATE OR REPLACE FUNCTION complete_dual_embedding(
-  p_queue_id bigint,
-  p_e5_embedding vector(384) DEFAULT NULL,
-  p_bge_embedding vector(1024) DEFAULT NULL,
-  p_token_count int DEFAULT NULL
+-- Function for BGE-M3 embedding search (1024 dimensions)
+CREATE OR REPLACE FUNCTION search_embeddings_bge(
+  query_embedding vector(1024),
+  content_types text[] DEFAULT NULL,
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 10,
+  user_id bigint DEFAULT NULL
 )
-RETURNS boolean
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  queue_record embedding_queue%ROWTYPE;
-BEGIN
-  SELECT * INTO queue_record FROM embedding_queue WHERE id = p_queue_id;
-  
-  IF NOT FOUND THEN
-    RETURN false;
-  END IF;
-  
-  -- At least one embedding must be provided
-  IF p_e5_embedding IS NULL AND p_bge_embedding IS NULL THEN
-    RETURN false;
-  END IF;
-  
-  INSERT INTO embeddings (
-    content_type, content_id, content_hash, 
-    embedding, embedding_e5_small, embedding_bge_m3,
-    has_e5_embedding, has_bge_embedding,
-    content_text, token_count, status, 
-    embedding_created_at, embedding_updated_at,
-    created_at, updated_at
-  ) VALUES (
-    queue_record.content_type, queue_record.content_id, queue_record.content_hash,
-    p_e5_embedding, p_e5_embedding, p_bge_embedding, -- Use E5 for legacy compatibility
-    (p_e5_embedding IS NOT NULL), (p_bge_embedding IS NOT NULL),
-    queue_record.content_text, p_token_count, 'completed',
-    now(), now(), now(), now()
-  )
-  ON CONFLICT (content_type, content_id)
-  DO UPDATE SET
-    content_hash = EXCLUDED.content_hash,
-    embedding = EXCLUDED.embedding,
-    embedding_e5_small = EXCLUDED.embedding_e5_small,
-    embedding_bge_m3 = EXCLUDED.embedding_bge_m3,
-    has_e5_embedding = EXCLUDED.has_e5_embedding,
-    has_bge_embedding = EXCLUDED.has_bge_embedding,
-    content_text = EXCLUDED.content_text,
-    token_count = EXCLUDED.token_count,
-    status = 'completed',
-    error_message = NULL,
-    embedding_updated_at = now(),
-    updated_at = now(),
-    is_deleted = false;
-  
-  DELETE FROM embedding_queue WHERE id = p_queue_id;
-  
-  RETURN true;
-END;
-$$;
-
--- Function to complete single embedding processing (legacy support)
-CREATE OR REPLACE FUNCTION complete_embedding(
-  p_queue_id bigint,
-  p_embedding vector(384),
-  p_token_count int DEFAULT NULL
-)
-RETURNS boolean
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  -- Use the dual embedding function with only E5 embedding
-  RETURN complete_dual_embedding(p_queue_id, p_embedding, NULL, p_token_count);
-END;
-$$;
-
--- Function to handle embedding failures
-CREATE OR REPLACE FUNCTION fail_embedding(
-  p_queue_id bigint,
-  p_error_message text
-)
-RETURNS boolean
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  queue_record embedding_queue%ROWTYPE;
-BEGIN
-  SELECT * INTO queue_record FROM embedding_queue WHERE id = p_queue_id;
-  
-  IF NOT FOUND THEN
-    RETURN false;
-  END IF;
-  
-  UPDATE embedding_queue
-  SET 
-    retry_count = retry_count + 1,
-    error_message = p_error_message,
-    status = CASE 
-      WHEN retry_count + 1 >= max_retries THEN 'failed'
-      ELSE 'queued'
-    END,
-    scheduled_at = CASE 
-      WHEN retry_count + 1 >= max_retries THEN scheduled_at
-      ELSE now() + (retry_count + 1) * interval '5 minutes'
-    END,
-    updated_at = now()
-  WHERE id = p_queue_id;
-  
-  RETURN true;
-END;
-$$;
-
--- Function for legacy semantic search (backward compatibility)
-CREATE OR REPLACE FUNCTION semantic_search(
-  p_query_embedding vector(384),
-  p_content_types text[] DEFAULT NULL,
-  p_similarity_threshold numeric(3,2) DEFAULT 0.7,
-  p_max_results int DEFAULT 10,
-  p_user_id bigint DEFAULT NULL
-)
-RETURNS TABLE(
+RETURNS TABLE (
   content_type text,
   content_id bigint,
   content_text text,
-  similarity numeric,
-  metadata jsonb
+  similarity float,
+  chunk_type text,
+  hierarchy_level int,
+  word_count int,
+  sentence_count int,
+  created_at timestamptz,
+  embedding_model text
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    e.content_type,
+    e.content_id,
+    e.content_text,
+    1 - (e.embedding_bge_m3 <=> query_embedding) as similarity,
+    e.chunk_type,
+    e.hierarchy_level,
+    e.word_count,
+    e.sentence_count,
+    e.created_at,
+    e.embedding_bge_model as embedding_model
+  FROM embeddings e
+  WHERE 
+    e.has_bge_embedding = true
+    AND e.status = 'completed'
+    AND e.is_deleted = false
+    AND (content_types IS NULL OR e.content_type = ANY(content_types))
+    AND 1 - (e.embedding_bge_m3 <=> query_embedding) > match_threshold
+  ORDER BY e.embedding_bge_m3 <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+
+-- Advanced hybrid search function that combines both embeddings
+CREATE OR REPLACE FUNCTION search_embeddings_hybrid(
+  query_embedding_e5 vector(384) DEFAULT NULL,
+  query_embedding_bge vector(1024) DEFAULT NULL,
+  content_types text[] DEFAULT NULL,
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 10,
+  weight_e5 float DEFAULT 0.4,
+  weight_bge float DEFAULT 0.6,
+  user_id bigint DEFAULT NULL
+)
+RETURNS TABLE (
+  content_type text,
+  content_id bigint,
+  content_text text,
+  similarity float,
+  chunk_type text,
+  hierarchy_level int,
+  word_count int,
+  sentence_count int,
+  created_at timestamptz,
+  embedding_types text,
+  individual_scores jsonb
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
   search_id bigint;
 BEGIN
-  IF p_user_id IS NOT NULL THEN
+  -- Log search if user_id provided
+  IF user_id IS NOT NULL THEN
     INSERT INTO embedding_searches (
-      user_id, query_embedding, content_types, similarity_threshold, max_results, search_type
+      user_id, query_text, query_embedding, query_embedding_bge, 
+      content_types, similarity_threshold, max_results, search_type, embedding_weights
     ) VALUES (
-      p_user_id, p_query_embedding, p_content_types, p_similarity_threshold, p_max_results, 'e5_only'
+      user_id, '', query_embedding_e5, query_embedding_bge,
+      content_types, match_threshold, match_count, 'hybrid',
+      jsonb_build_object('e5', weight_e5, 'bge', weight_bge)
     ) RETURNING id INTO search_id;
   END IF;
-  
+
   RETURN QUERY
+  WITH scored_results AS (
+    SELECT
+      e.content_type,
+      e.content_id,
+      e.content_text,
+      e.chunk_type,
+      e.hierarchy_level,
+      e.word_count,
+      e.sentence_count,
+      e.created_at,
+      -- Calculate individual similarities
+      CASE WHEN e.has_e5_embedding AND query_embedding_e5 IS NOT NULL 
+           THEN 1 - (e.embedding_e5_small <=> query_embedding_e5) 
+           ELSE NULL END as e5_similarity,
+      CASE WHEN e.has_bge_embedding AND query_embedding_bge IS NOT NULL 
+           THEN 1 - (e.embedding_bge_m3 <=> query_embedding_bge) 
+           ELSE NULL END as bge_similarity,
+      -- Calculate combined similarity
+      CASE 
+        WHEN query_embedding_e5 IS NOT NULL AND query_embedding_bge IS NOT NULL 
+             AND e.has_e5_embedding AND e.has_bge_embedding THEN
+          -- Both embeddings available - weighted average
+          (weight_e5 * (1 - (e.embedding_e5_small <=> query_embedding_e5))) +
+          (weight_bge * (1 - (e.embedding_bge_m3 <=> query_embedding_bge)))
+        WHEN query_embedding_e5 IS NOT NULL AND e.has_e5_embedding THEN
+          -- Only E5 available
+          1 - (e.embedding_e5_small <=> query_embedding_e5)
+        WHEN query_embedding_bge IS NOT NULL AND e.has_bge_embedding THEN
+          -- Only BGE available
+          1 - (e.embedding_bge_m3 <=> query_embedding_bge)
+        ELSE 0
+      END as combined_similarity,
+      -- Determine embedding types available
+      CASE 
+        WHEN e.has_e5_embedding AND e.has_bge_embedding THEN 'dual'
+        WHEN e.has_e5_embedding THEN 'e5_only'
+        WHEN e.has_bge_embedding THEN 'bge_only'
+        ELSE 'none'
+      END as embedding_types
+    FROM embeddings e
+    WHERE 
+      e.status = 'completed'
+      AND e.is_deleted = false
+      AND (content_types IS NULL OR e.content_type = ANY(content_types))
+      AND (
+        (query_embedding_e5 IS NOT NULL AND e.has_e5_embedding AND 
+         1 - (e.embedding_e5_small <=> query_embedding_e5) > match_threshold)
+        OR
+        (query_embedding_bge IS NOT NULL AND e.has_bge_embedding AND 
+         1 - (e.embedding_bge_m3 <=> query_embedding_bge) > match_threshold)
+      )
+  )
   SELECT 
-    e.content_type,
-    e.content_id,
-    e.content_text,
-    (1 - (COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding))::numeric AS similarity,
+    sr.content_type,
+    sr.content_id,
+    sr.content_text,
+    sr.combined_similarity as similarity,
+    sr.chunk_type,
+    sr.hierarchy_level,
+    sr.word_count,
+    sr.sentence_count,
+    sr.created_at,
+    sr.embedding_types,
     jsonb_build_object(
-      'created_at', e.created_at,
-      'updated_at', e.updated_at,
-      'token_count', e.token_count,
-      'embedding_model', COALESCE(e.embedding_e5_model, e.embedding_model),
-      'has_e5_embedding', COALESCE(e.has_e5_embedding, true),
-      'has_bge_embedding', COALESCE(e.has_bge_embedding, false)
-    ) AS metadata
-  FROM embeddings e
-  WHERE e.status = 'completed'
-    AND e.is_deleted = false
-    AND (COALESCE(e.has_e5_embedding, true) = true OR e.embedding IS NOT NULL)
-    AND (p_content_types IS NULL OR e.content_type = ANY(p_content_types))
-    AND (1 - (COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding)) >= p_similarity_threshold
-  ORDER BY COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding
-  LIMIT p_max_results;
-  
-  IF p_user_id IS NOT NULL AND search_id IS NOT NULL THEN
-    UPDATE embedding_searches 
-    SET results_count = (
-      SELECT COUNT(*) FROM embeddings e
-      WHERE e.status = 'completed'
-        AND e.is_deleted = false
-        AND (COALESCE(e.has_e5_embedding, true) = true OR e.embedding IS NOT NULL)
-        AND (p_content_types IS NULL OR e.content_type = ANY(p_content_types))
-        AND (1 - (COALESCE(e.embedding_e5_small, e.embedding) <=> p_query_embedding)) >= p_similarity_threshold
-    )
-    WHERE id = search_id;
-  END IF;
+      'e5_similarity', sr.e5_similarity,
+      'bge_similarity', sr.bge_similarity,
+      'combined_similarity', sr.combined_similarity,
+      'weights', jsonb_build_object('e5', weight_e5, 'bge', weight_bge)
+    ) as individual_scores
+  FROM scored_results sr
+  ORDER BY sr.combined_similarity DESC
+  LIMIT match_count;
 END;
 $$;
 
--- Function to update embedding metadata statistics
-CREATE OR REPLACE FUNCTION update_embedding_stats()
-RETURNS TRIGGER AS $$
+-- =========================
+-- VIDEO EMBEDDING SEARCH FUNCTIONS
+-- =========================
+
+-- Function for E5-Small video embedding search
+CREATE OR REPLACE FUNCTION search_video_embeddings_e5(
+  query_embedding vector(384),
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 10
+)
+RETURNS TABLE (
+  id bigint,
+  attachment_id bigint,
+  content_text text,
+  similarity float,
+  chunk_type text,
+  word_count int,
+  sentence_count int,
+  created_at timestamptz
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-  IF NEW.word_count = 0 THEN
-    NEW.word_count = array_length(string_to_array(trim(NEW.content_text), ' '), 1);
-  END IF;
-  
-  IF NEW.sentence_count = 0 THEN
-    NEW.sentence_count = array_length(
-      string_to_array(
-        regexp_replace(NEW.content_text, '[.!?。！？]+', '|', 'g'), 
-        '|'
-      ), 
-      1
-    );
-  END IF;
-  
-  IF NEW.has_code_block IS NULL THEN
-    NEW.has_code_block = NEW.content_text ~ '```[\s\S]*?```|`[^`]+`';
-  END IF;
-  
-  IF NEW.has_table IS NULL THEN
-    NEW.has_table = NEW.content_text ~ '\|.*\||┌.*┐';
-  END IF;
-  
-  IF NEW.has_list IS NULL THEN
-    NEW.has_list = NEW.content_text ~ '^[\s]*[-*+]\s|^[\s]*\d+\.\s';
-  END IF;
-  
-  IF NEW.chunk_type IS NULL THEN
-    IF length(NEW.content_text) < 200 THEN
-      NEW.chunk_type = 'detail';
-      NEW.hierarchy_level = 3;
-    ELSIF length(NEW.content_text) > 800 THEN
-      NEW.chunk_type = 'section';
-      NEW.hierarchy_level = 1;
+  RETURN QUERY
+  SELECT
+    ve.id,
+    ve.attachment_id,
+    ve.content_text,
+    1 - (ve.embedding_e5_small <=> query_embedding) as similarity,
+    ve.chunk_type,
+    ve.word_count,
+    ve.sentence_count,
+    ve.created_at
+  FROM video_embeddings ve
+  WHERE 
+    ve.has_e5_embedding = true
+    AND ve.status = 'completed'
+    AND ve.is_deleted = false
+    AND 1 - (ve.embedding_e5_small <=> query_embedding) > match_threshold
+  ORDER BY ve.embedding_e5_small <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+
+-- Function for BGE-M3 video embedding search
+CREATE OR REPLACE FUNCTION search_video_embeddings_bge(
+  query_embedding vector(1024),
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 10
+)
+RETURNS TABLE (
+  id bigint,
+  attachment_id bigint,
+  content_text text,
+  similarity float,
+  chunk_type text,
+  word_count int,
+  sentence_count int,
+  created_at timestamptz
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    ve.id,
+    ve.attachment_id,
+    ve.content_text,
+    1 - (ve.embedding_bge_m3 <=> query_embedding) as similarity,
+    ve.chunk_type,
+    ve.word_count,
+    ve.sentence_count,
+    ve.created_at
+  FROM video_embeddings ve
+  WHERE 
+    ve.has_bge_embedding = true
+    AND ve.status = 'completed'
+    AND ve.is_deleted = false
+    AND 1 - (ve.embedding_bge_m3 <=> query_embedding) > match_threshold
+  ORDER BY ve.embedding_bge_m3 <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+
+-- Function to search video segments with time-based filtering
+CREATE OR REPLACE FUNCTION search_video_segments_with_time(
+  query_embedding_e5 vector(384) DEFAULT NULL,
+  query_embedding_bge vector(1024) DEFAULT NULL,
+  attachment_ids bigint[] DEFAULT NULL,
+  start_time_min float DEFAULT NULL,
+  start_time_max float DEFAULT NULL,
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 10,
+  include_context boolean DEFAULT false
+) RETURNS TABLE (
+  segment_id bigint,
+  attachment_id bigint,
+  segment_index int,
+  start_time float,
+  end_time float,
+  duration float,
+  content_text text,
+  topic_keywords text[],
+  similarity_e5 float,
+  similarity_bge float,
+  combined_similarity float,
+  context_before text,
+  context_after text
+) LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN QUERY
+  WITH segment_matches AS (
+    SELECT 
+      ve.id,
+      ve.attachment_id,
+      ve.segment_index,
+      ve.segment_start_time,
+      ve.segment_end_time,
+      ve.segment_duration,
+      ve.content_text,
+      ve.topic_keywords,
+      CASE 
+        WHEN query_embedding_e5 IS NOT NULL AND ve.has_e5_embedding 
+        THEN 1 - (ve.embedding_e5_small <=> query_embedding_e5)
+        ELSE 0 
+      END as sim_e5,
+      CASE 
+        WHEN query_embedding_bge IS NOT NULL AND ve.has_bge_embedding 
+        THEN 1 - (ve.embedding_bge_m3 <=> query_embedding_bge)
+        ELSE 0 
+      END as sim_bge
+    FROM video_embeddings ve
+    WHERE 
+      ve.chunk_type = 'segment'
+      AND ve.status = 'completed'
+      AND ve.is_deleted = false
+      AND (attachment_ids IS NULL OR ve.attachment_id = ANY(attachment_ids))
+      AND (start_time_min IS NULL OR ve.segment_start_time >= start_time_min)
+      AND (start_time_max IS NULL OR ve.segment_start_time <= start_time_max)
+  ),
+  ranked_segments AS (
+    SELECT 
+      *,
+      -- Weighted combination of similarities (favor BGE-M3 if available)
+      CASE 
+        WHEN sim_bge > 0 AND sim_e5 > 0 THEN (sim_bge * 0.7 + sim_e5 * 0.3)
+        WHEN sim_bge > 0 THEN sim_bge
+        WHEN sim_e5 > 0 THEN sim_e5
+        ELSE 0
+      END as combined_sim
+    FROM segment_matches
+  )
+  SELECT 
+    rs.id,
+    rs.attachment_id,
+    rs.segment_index,
+    rs.segment_start_time,
+    rs.segment_end_time,
+    rs.segment_duration,
+    rs.content_text,
+    rs.topic_keywords,
+    rs.sim_e5,
+    rs.sim_bge,
+    rs.combined_sim,
+    CASE 
+      WHEN include_context THEN (
+        SELECT ve_prev.content_text 
+        FROM video_embeddings ve_prev 
+        WHERE ve_prev.attachment_id = rs.attachment_id 
+          AND ve_prev.segment_index = rs.segment_index - 1 
+          AND ve_prev.chunk_type = 'segment'
+        LIMIT 1
+      )
+      ELSE NULL 
+    END,
+    CASE 
+      WHEN include_context THEN (
+        SELECT ve_next.content_text 
+        FROM video_embeddings ve_next 
+        WHERE ve_next.attachment_id = rs.attachment_id 
+          AND ve_next.segment_index = rs.segment_index + 1 
+          AND ve_next.chunk_type = 'segment'
+        LIMIT 1
+      )
+      ELSE NULL 
+    END
+  FROM ranked_segments rs
+  WHERE rs.combined_sim >= match_threshold
+  ORDER BY rs.combined_sim DESC
+  LIMIT match_count;
+END;
+$$;
+
+-- =========================
+-- STATISTICS AND UTILITY FUNCTIONS
+-- =========================
+
+-- Function to get comprehensive embedding statistics
+CREATE OR REPLACE FUNCTION get_dual_embedding_statistics()
+RETURNS TABLE (
+  total_embeddings bigint,
+  dual_embeddings bigint,
+  e5_only bigint,
+  bge_only bigint,
+  incomplete bigint,
+  dual_coverage_percent numeric,
+  avg_text_length numeric,
+  avg_word_count numeric,
+  content_type_breakdown jsonb,
+  model_info jsonb
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH stats AS (
+    SELECT
+      COUNT(*) as total_embeddings,
+      COUNT(*) FILTER (WHERE has_e5_embedding AND has_bge_embedding) as dual_embeddings,
+      COUNT(*) FILTER (WHERE has_e5_embedding AND NOT has_bge_embedding) as e5_only,
+      COUNT(*) FILTER (WHERE NOT has_e5_embedding AND has_bge_embedding) as bge_only,
+      COUNT(*) FILTER (WHERE NOT has_e5_embedding AND NOT has_bge_embedding) as incomplete,
+      ROUND(AVG(LENGTH(content_text)), 2) as avg_text_length,
+      ROUND(AVG(word_count), 2) as avg_word_count
+    FROM embeddings e
+    WHERE e.status = 'completed' AND e.is_deleted = false
+  ),
+  content_breakdown AS (
+    SELECT 
+      jsonb_object_agg(
+        content_type,
+        jsonb_build_object(
+          'total', type_count,
+          'dual', dual_count,
+          'e5_only', e5_only_count,
+          'bge_only', bge_only_count
+        )
+      ) as breakdown
+    FROM (
+      SELECT 
+        content_type,
+        COUNT(*) as type_count,
+        COUNT(*) FILTER (WHERE has_e5_embedding AND has_bge_embedding) as dual_count,
+        COUNT(*) FILTER (WHERE has_e5_embedding AND NOT has_bge_embedding) as e5_only_count,
+        COUNT(*) FILTER (WHERE NOT has_e5_embedding AND has_bge_embedding) as bge_only_count
+      FROM embeddings 
+      WHERE status = 'completed' AND is_deleted = false
+      GROUP BY content_type
+    ) t
+  ),
+  model_data AS (
+    SELECT jsonb_build_object(
+      'e5_model', (SELECT DISTINCT embedding_e5_model FROM embeddings WHERE has_e5_embedding LIMIT 1),
+      'bge_model', (SELECT DISTINCT embedding_bge_model FROM embeddings WHERE has_bge_embedding LIMIT 1),
+      'last_updated', (SELECT MAX(embedding_updated_at) FROM embeddings)
+    ) as model_info
+  )
+  SELECT 
+    s.total_embeddings,
+    s.dual_embeddings,
+    s.e5_only,
+    s.bge_only,
+    s.incomplete,
+    ROUND(
+      (s.dual_embeddings::numeric / NULLIF(s.total_embeddings, 0)::numeric) * 100, 2
+    ) as dual_coverage_percent,
+    s.avg_text_length,
+    s.avg_word_count,
+    cb.breakdown as content_type_breakdown,
+    md.model_info
+  FROM stats s, content_breakdown cb, model_data md;
+END;
+$$;
+-- =========================
+-- VIDEO PROCESSING & UTILITY FUNCTIONS (Part 3)
+-- =========================
+
+-- =========================
+-- VIDEO PROCESSING FUNCTIONS
+-- =========================
+
+-- Function to calculate progress percentage based on completed steps
+CREATE OR REPLACE FUNCTION calculate_video_processing_progress(queue_id_param bigint)
+RETURNS INT AS $$
+DECLARE
+    total_steps INT;
+    completed_steps INT;
+    progress INT;
+BEGIN
+    -- Count total and completed steps
+    SELECT COUNT(*) INTO total_steps
+    FROM video_processing_steps
+    WHERE queue_id = queue_id_param;
+    
+    SELECT COUNT(*) INTO completed_steps
+    FROM video_processing_steps
+    WHERE queue_id = queue_id_param AND status = 'completed';
+    
+    -- Calculate progress percentage
+    IF total_steps = 0 THEN
+        progress := 0;
     ELSE
-      NEW.chunk_type = 'paragraph';
-      NEW.hierarchy_level = 2;
+        progress := ROUND((completed_steps::FLOAT / total_steps::FLOAT) * 100);
     END IF;
-  END IF;
-  
-  IF NEW.chunk_language = 'en' AND NEW.content_text ~ '[\u4e00-\u9fff]' THEN
-    IF (length(regexp_replace(NEW.content_text, '[^\u4e00-\u9fff]', '', 'g')) * 1.0 / 
-        length(regexp_replace(NEW.content_text, '\s', '', 'g'))) > 0.3 THEN
-      NEW.chunk_language = 'zh';
-    END IF;
-  END IF;
-  
-  NEW.updated_at = now();
-  RETURN NEW;
+    
+    -- Update the queue record
+    UPDATE video_processing_queue
+    SET progress_percentage = progress,
+        updated_at = now()
+    WHERE id = queue_id_param;
+    
+    RETURN progress;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to update individual embedding (E5 or BGE)
-CREATE OR REPLACE FUNCTION update_individual_embedding(
-  p_content_type text,
-  p_content_id bigint,
+-- Function to initialize processing steps for a new queue item (simplified flow)
+CREATE OR REPLACE FUNCTION initialize_video_processing_steps(queue_id_param bigint)
+RETURNS VOID AS $$
+BEGIN
+    -- Insert required processing steps (simplified: transcribe → embed)
+    INSERT INTO video_processing_steps (queue_id, step_name, status)
+    VALUES 
+        (queue_id_param, 'transcribe', 'pending'),
+        (queue_id_param, 'embed', 'pending');
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get next pending step for a queue item
+CREATE OR REPLACE FUNCTION get_next_processing_step(queue_id_param bigint)
+RETURNS TEXT AS $$
+DECLARE
+    next_step TEXT;
+BEGIN
+    SELECT step_name INTO next_step
+    FROM video_processing_steps
+    WHERE queue_id = queue_id_param 
+    AND status = 'pending'
+    ORDER BY 
+        CASE step_name
+            WHEN 'transcribe' THEN 1
+            WHEN 'embed' THEN 2
+            ELSE 3
+        END
+    LIMIT 1;
+    
+    RETURN next_step;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to mark step as completed and update queue status
+CREATE OR REPLACE FUNCTION complete_processing_step(
+    queue_id_param bigint,
+    step_name_param TEXT,
+    output_data_param JSONB DEFAULT NULL
+)
+RETURNS VOID AS $$
+DECLARE
+    next_step TEXT;
+    current_progress INT;
+BEGIN
+    -- Update the step as completed
+    UPDATE video_processing_steps
+    SET 
+        status = 'completed',
+        completed_at = now(),
+        duration_seconds = EXTRACT(EPOCH FROM (now() - started_at))::INT,
+        output_data = COALESCE(output_data_param, output_data),
+        updated_at = now()
+    WHERE queue_id = queue_id_param AND step_name = step_name_param;
+    
+    -- Calculate and update progress
+    current_progress := calculate_video_processing_progress(queue_id_param);
+    
+    -- Get next step
+    next_step := get_next_processing_step(queue_id_param);
+    
+    -- Update queue status
+    IF next_step IS NULL THEN
+        -- All steps completed
+        UPDATE video_processing_queue
+        SET 
+            current_step = 'completed',
+            status = 'completed',
+            completed_at = now(),
+            progress_percentage = 100,
+            updated_at = now()
+        WHERE id = queue_id_param;
+    ELSE
+        -- Move to next step
+        UPDATE video_processing_queue
+        SET 
+            current_step = next_step,
+            status = 'pending',
+            updated_at = now()
+        WHERE id = queue_id_param;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to handle step failure and retry logic
+CREATE OR REPLACE FUNCTION handle_step_failure(
+    queue_id_param bigint,
+    step_name_param TEXT,
+    error_message_param TEXT,
+    error_details_param JSONB DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    current_retry_count INT;
+    max_retries_allowed INT;
+    should_retry BOOLEAN := FALSE;
+BEGIN
+    -- Get current retry count and max retries
+    SELECT retry_count, max_retries INTO current_retry_count, max_retries_allowed
+    FROM video_processing_queue
+    WHERE id = queue_id_param;
+    
+    -- Update step as failed
+    UPDATE video_processing_steps
+    SET 
+        status = 'failed',
+        error_message = error_message_param,
+        updated_at = now()
+    WHERE queue_id = queue_id_param AND step_name = step_name_param;
+    
+    -- Check if we should retry (increased retries for HuggingFace cold starts)
+    IF current_retry_count < max_retries_allowed THEN
+        should_retry := TRUE;
+        
+        -- Update queue for retry
+        UPDATE video_processing_queue
+        SET 
+            status = 'retrying',
+            retry_count = retry_count + 1,
+            error_message = error_message_param,
+            error_details = error_details_param,
+            last_error_at = now(),
+            updated_at = now()
+        WHERE id = queue_id_param;
+        
+        -- Reset step to pending for retry
+        UPDATE video_processing_steps
+        SET 
+            status = 'pending',
+            retry_count = retry_count + 1,
+            error_message = NULL,
+            updated_at = now()
+        WHERE queue_id = queue_id_param AND step_name = step_name_param;
+        
+    ELSE
+        -- Max retries exceeded, mark as failed
+        UPDATE video_processing_queue
+        SET 
+            current_step = 'failed',
+            status = 'failed',
+            error_message = error_message_param,
+            error_details = error_details_param,
+            last_error_at = now(),
+            updated_at = now()
+        WHERE id = queue_id_param;
+    END IF;
+    
+    RETURN should_retry;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to cancel video processing
+CREATE OR REPLACE FUNCTION cancel_video_processing(queue_id_param bigint)
+RETURNS VOID AS $$
+BEGIN
+    -- Update queue as cancelled
+    UPDATE video_processing_queue
+    SET 
+        current_step = 'cancelled',
+        status = 'cancelled',
+        cancelled_at = now(),
+        updated_at = now()
+    WHERE id = queue_id_param;
+    
+    -- Cancel all pending steps
+    UPDATE video_processing_steps
+    SET 
+        status = 'skipped',
+        updated_at = now()
+    WHERE queue_id = queue_id_param AND status = 'pending';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get segment context (previous and next segments)
+CREATE OR REPLACE FUNCTION get_segment_context(
+  target_segment_id bigint,
+  context_window int DEFAULT 1
+) RETURNS TABLE (
+  segment_id bigint,
+  segment_index int,
+  start_time float,
+  end_time float,
+  content_text text,
+  segment_position text -- 'before', 'current', 'after'
+) LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN QUERY
+  WITH target AS (
+    SELECT ve.attachment_id, ve.segment_index as target_index
+    FROM video_embeddings ve
+    WHERE ve.id = target_segment_id
+  )
+  SELECT 
+    ve.id,
+    ve.segment_index,
+    ve.segment_start_time,
+    ve.segment_end_time,
+    ve.content_text,
+    CASE 
+      WHEN ve.segment_index < t.target_index THEN 'before'
+      WHEN ve.segment_index = t.target_index THEN 'current'
+      ELSE 'after'
+    END as segment_position
+  FROM video_embeddings ve
+  JOIN target t ON ve.attachment_id = t.attachment_id
+  WHERE 
+    ve.chunk_type = 'segment'
+    AND ve.segment_index BETWEEN (t.target_index - context_window) AND (t.target_index + context_window)
+    AND ve.status = 'completed'
+    AND ve.is_deleted = false
+  ORDER BY ve.segment_index;
+END;
+$$;
+
+-- =========================
+-- QUIZ SYSTEM FUNCTIONS
+-- =========================
+
+-- Function to automatically expire old quiz sessions
+CREATE OR REPLACE FUNCTION expire_old_quiz_sessions()
+RETURNS void AS $$
+BEGIN
+  UPDATE community_quiz_attempt_session 
+  SET status = 'expired', updated_at = now()
+  WHERE status = 'active' 
+    AND expires_at IS NOT NULL 
+    AND expires_at < now();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to clean up abandoned quiz sessions
+CREATE OR REPLACE FUNCTION cleanup_abandoned_quiz_sessions()
+RETURNS void AS $$
+BEGIN
+  -- Mark sessions as expired if no activity for more than 2 hours
+  UPDATE community_quiz_attempt_session 
+  SET status = 'expired', updated_at = now()
+  WHERE status = 'active' 
+    AND last_activity_at < now() - interval '2 hours';
+    
+  -- Optionally delete very old expired sessions (older than 30 days)
+  DELETE FROM community_quiz_attempt_session 
+  WHERE status IN ('expired', 'completed') 
+    AND updated_at < now() - interval '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================
+-- NOTIFICATION FUNCTIONS
+-- =========================
+
+-- Function to get user notification preferences
+CREATE OR REPLACE FUNCTION get_user_notification_preferences(p_user_id bigint)
+RETURNS TABLE (
+  category_name text,
+  category_display_name text,
+  push_enabled boolean,
+  email_enabled boolean,
+  in_app_enabled boolean,
+  frequency text
+) LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    nc.name,
+    nc.display_name,
+    COALESCE(unp.push_enabled, nc.default_enabled),
+    COALESCE(unp.email_enabled, nc.default_enabled),
+    COALESCE(unp.in_app_enabled, true),
+    COALESCE(unp.frequency, 'immediate')
+  FROM notification_categories nc
+  LEFT JOIN user_notification_preferences unp ON nc.id = unp.category_id AND unp.user_id = p_user_id
+  WHERE nc.is_deleted = false
+  ORDER BY nc.priority ASC, nc.display_name ASC;
+END;
+$$;
+
+-- =========================
+-- EMBEDDING UTILITY FUNCTIONS
+-- =========================
+
+-- Function to find embeddings that need dual embedding backfill
+CREATE OR REPLACE FUNCTION find_incomplete_dual_embeddings(
+  limit_count int DEFAULT 50,
+  content_type_filter text DEFAULT NULL,
+  priority_missing text DEFAULT 'bge' -- 'e5', 'bge', or 'any'
+)
+RETURNS TABLE (
+  id bigint,
+  content_type text,
+  content_id bigint,
+  content_text text,
+  has_e5_embedding boolean,
+  has_bge_embedding boolean,
+  missing_types text[],
+  priority_score int,
+  created_at timestamptz
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    e.id,
+    e.content_type,
+    e.content_id,
+    e.content_text,
+    e.has_e5_embedding,
+    e.has_bge_embedding,
+    CASE 
+      WHEN NOT e.has_e5_embedding AND NOT e.has_bge_embedding THEN ARRAY['e5', 'bge']
+      WHEN NOT e.has_e5_embedding THEN ARRAY['e5']
+      WHEN NOT e.has_bge_embedding THEN ARRAY['bge']
+      ELSE ARRAY[]::text[]
+    END as missing_types,
+    -- Priority score: dual missing = 3, bge missing = 2, e5 missing = 1
+    CASE 
+      WHEN NOT e.has_e5_embedding AND NOT e.has_bge_embedding THEN 3
+      WHEN NOT e.has_bge_embedding THEN 2
+      WHEN NOT e.has_e5_embedding THEN 1
+      ELSE 0
+    END as priority_score,
+    e.created_at
+  FROM embeddings e
+  WHERE 
+    e.status = 'completed'
+    AND e.is_deleted = false
+    AND (content_type_filter IS NULL OR e.content_type = content_type_filter)
+    AND (
+      CASE priority_missing
+        WHEN 'e5' THEN NOT e.has_e5_embedding
+        WHEN 'bge' THEN NOT e.has_bge_embedding
+        WHEN 'any' THEN (NOT e.has_e5_embedding OR NOT e.has_bge_embedding)
+        ELSE (NOT e.has_e5_embedding OR NOT e.has_bge_embedding)
+      END
+    )
+  ORDER BY 
+    priority_score DESC,
+    e.created_at DESC
+  LIMIT limit_count;
+END;
+$$;
+
+-- Function to update embedding flags after processing
+CREATE OR REPLACE FUNCTION update_embedding_flags(
+  p_embedding_id bigint,
   p_embedding_type text, -- 'e5' or 'bge'
-  p_embedding_vector text, -- JSON array string
-  p_token_count int DEFAULT NULL
+  p_success boolean
 )
 RETURNS boolean
 LANGUAGE plpgsql
 AS $$
-DECLARE
-  vector_data vector;
 BEGIN
-  -- Validate embedding type
-  IF p_embedding_type NOT IN ('e5', 'bge') THEN
-    RAISE EXCEPTION 'Invalid embedding type. Must be e5 or bge';
-  END IF;
-
-  -- Convert JSON string to vector
-  vector_data := p_embedding_vector::vector;
-
-  -- Update the appropriate embedding column
   IF p_embedding_type = 'e5' THEN
     UPDATE embeddings 
     SET 
-      embedding_e5_small = vector_data,
-      embedding = vector_data, -- Update legacy column too
-      has_e5_embedding = true,
-      token_count = COALESCE(p_token_count, token_count),
+      has_e5_embedding = p_success,
       embedding_updated_at = now(),
       updated_at = now()
-    WHERE content_type = p_content_type AND content_id = p_content_id;
-  ELSE -- bge
+    WHERE id = p_embedding_id;
+  ELSIF p_embedding_type = 'bge' THEN
     UPDATE embeddings 
     SET 
-      embedding_bge_m3 = vector_data,
-      has_bge_embedding = true,
-      token_count = COALESCE(p_token_count, token_count),
+      has_bge_embedding = p_success,
       embedding_updated_at = now(),
       updated_at = now()
-    WHERE content_type = p_content_type AND content_id = p_content_id;
+    WHERE id = p_embedding_id;
+  ELSE
+    RETURN false;
   END IF;
-
+  
   RETURN FOUND;
 END;
 $$;
 
--- Function to backfill missing embeddings
-CREATE OR REPLACE FUNCTION backfill_missing_embeddings(
-  p_content_type text DEFAULT NULL,
-  p_embedding_type text DEFAULT 'bge', -- 'e5', 'bge', or 'both'
-  p_limit int DEFAULT 50
-)
-RETURNS TABLE(
-  content_type text,
-  content_id bigint,
-  content_text text,
-  missing_types text[]
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    e.content_type,
-    e.content_id,
-    e.content_text,
-    CASE 
-      WHEN NOT COALESCE(e.has_e5_embedding, false) AND NOT COALESCE(e.has_bge_embedding, false) THEN ARRAY['e5', 'bge']
-      WHEN NOT COALESCE(e.has_e5_embedding, false) THEN ARRAY['e5']
-      WHEN NOT COALESCE(e.has_bge_embedding, false) THEN ARRAY['bge']
-      ELSE ARRAY[]::text[]
-    END as missing_types
-  FROM embeddings e
-  WHERE 
-    e.status = 'completed'
-    AND e.is_deleted = false
-    AND (p_content_type IS NULL OR e.content_type = p_content_type)
-    AND (
-      CASE p_embedding_type
-        WHEN 'e5' THEN NOT COALESCE(e.has_e5_embedding, false)
-        WHEN 'bge' THEN NOT COALESCE(e.has_bge_embedding, false)
-        WHEN 'both' THEN (NOT COALESCE(e.has_e5_embedding, false) OR NOT COALESCE(e.has_bge_embedding, false))
-        ELSE false
-      END
-    )
-  ORDER BY e.created_at DESC
-  LIMIT p_limit;
-END;
-$$;
+-- =========================
+-- CLASSROOM FUNCTIONS
+-- =========================
 
--- Function to get embedding coverage statistics
-CREATE OR REPLACE FUNCTION get_embedding_coverage(
-  p_content_type text DEFAULT NULL
-)
-RETURNS TABLE(
-  content_type text,
-  total_count bigint,
-  e5_count bigint,
-  bge_count bigint,
-  dual_count bigint,
-  e5_coverage_percent numeric,
-  bge_coverage_percent numeric,
-  dual_coverage_percent numeric
-)
+-- Function to generate unique class codes
+CREATE OR REPLACE FUNCTION generate_class_code()
+RETURNS text
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  code_chars text := 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789'; -- Exclude O and 0 for clarity
+  code_length int := 8;
+  new_code text;
+  code_exists boolean;
 BEGIN
-  RETURN QUERY
-  SELECT 
-    e.content_type,
-    COUNT(*) as total_count,
-    COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false)) as e5_count,
-    COUNT(*) FILTER (WHERE COALESCE(e.has_bge_embedding, false)) as bge_count,
-    COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false) AND COALESCE(e.has_bge_embedding, false)) as dual_count,
-    ROUND(
-      (COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false))::numeric / 
-       NULLIF(COUNT(*), 0)::numeric) * 100, 2
-    ) as e5_coverage_percent,
-    ROUND(
-      (COUNT(*) FILTER (WHERE COALESCE(e.has_bge_embedding, false))::numeric / 
-       NULLIF(COUNT(*), 0)::numeric) * 100, 2
-    ) as bge_coverage_percent,
-    ROUND(
-      (COUNT(*) FILTER (WHERE COALESCE(e.has_e5_embedding, false) AND COALESCE(e.has_bge_embedding, false))::numeric / 
-       NULLIF(COUNT(*), 0)::numeric) * 100, 2
-    ) as dual_coverage_percent
-  FROM embeddings e
-  WHERE 
-    e.status = 'completed'
-    AND e.is_deleted = false
-    AND (p_content_type IS NULL OR e.content_type = p_content_type)
-  GROUP BY e.content_type
-  ORDER BY e.content_type;
+  LOOP
+    new_code := '';
+    
+    -- Generate random code
+    FOR i IN 1..code_length LOOP
+      new_code := new_code || substr(code_chars, floor(random() * length(code_chars) + 1)::int, 1);
+    END LOOP;
+    
+    -- Check if code already exists
+    SELECT EXISTS(SELECT 1 FROM classroom WHERE class_code = new_code) INTO code_exists;
+    
+    -- Exit loop if code is unique
+    EXIT WHEN NOT code_exists;
+  END LOOP;
+  
+  RETURN new_code;
 END;
 $$;
 
 -- =========================
--- Embedding System Triggers
+-- STATISTICS VIEWS
 -- =========================
 
--- Trigger for automatic metadata updates
-DROP TRIGGER IF EXISTS trigger_update_embedding_stats ON embeddings;
-CREATE TRIGGER trigger_update_embedding_stats
-  BEFORE INSERT OR UPDATE ON embeddings
-  FOR EACH ROW
-  EXECUTE FUNCTION update_embedding_stats();
+-- Create a view for easy dual embedding statistics
+CREATE OR REPLACE VIEW dual_embedding_stats AS
+SELECT 
+  COUNT(*) as total_embeddings,
+  COUNT(*) FILTER (WHERE has_e5_embedding AND has_bge_embedding) as dual_complete,
+  COUNT(*) FILTER (WHERE has_e5_embedding AND NOT has_bge_embedding) as e5_only,
+  COUNT(*) FILTER (WHERE NOT has_e5_embedding AND has_bge_embedding) as bge_only,
+  COUNT(*) FILTER (WHERE NOT has_e5_embedding AND NOT has_bge_embedding) as no_embeddings,
+  ROUND(
+    (COUNT(*) FILTER (WHERE has_e5_embedding AND has_bge_embedding)::numeric / 
+     NULLIF(COUNT(*), 0)::numeric) * 100, 2
+  ) as dual_coverage_percent,
+  content_type
+FROM embeddings 
+WHERE status = 'completed' AND is_deleted = false
+GROUP BY content_type
+UNION ALL
+SELECT 
+  COUNT(*) as total_embeddings,
+  COUNT(*) FILTER (WHERE has_e5_embedding AND has_bge_embedding) as dual_complete,
+  COUNT(*) FILTER (WHERE has_e5_embedding AND NOT has_bge_embedding) as e5_only,
+  COUNT(*) FILTER (WHERE NOT has_e5_embedding AND has_bge_embedding) as bge_only,
+  COUNT(*) FILTER (WHERE NOT has_e5_embedding AND NOT has_bge_embedding) as no_embeddings,
+  ROUND(
+    (COUNT(*) FILTER (WHERE has_e5_embedding AND has_bge_embedding)::numeric / 
+     NULLIF(COUNT(*), 0)::numeric) * 100, 2
+  ) as dual_coverage_percent,
+  'TOTAL' as content_type
+FROM embeddings 
+WHERE status = 'completed' AND is_deleted = false;
 
--- Trigger function for profiles
-CREATE OR REPLACE FUNCTION trigger_profile_embedding()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (
-    OLD.display_name IS DISTINCT FROM NEW.display_name OR
-    OLD.full_name IS DISTINCT FROM NEW.full_name OR
-    OLD.bio IS DISTINCT FROM NEW.bio OR
-    OLD.role IS DISTINCT FROM NEW.role OR
-    OLD.preferences IS DISTINCT FROM NEW.preferences
-  )) THEN
-    PERFORM queue_for_embedding_qstash('profile', NEW.id, 3);
-  END IF;
-  
-  RETURN NEW;
-END;
-$$;
-
--- Trigger function for courses
-CREATE OR REPLACE FUNCTION trigger_course_embedding()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (
-    OLD.title IS DISTINCT FROM NEW.title OR
-    OLD.description IS DISTINCT FROM NEW.description OR
-    OLD.category IS DISTINCT FROM NEW.category OR
-    OLD.tags IS DISTINCT FROM NEW.tags OR
-    OLD.requirements IS DISTINCT FROM NEW.requirements OR
-    OLD.learning_objectives IS DISTINCT FROM NEW.learning_objectives
-  )) THEN
-    PERFORM queue_for_embedding_qstash('course', NEW.id, 2);
-  END IF;
-  
-  RETURN NEW;
-END;
-$$;
-
--- Trigger function for community posts
-CREATE OR REPLACE FUNCTION trigger_post_embedding()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (
-    OLD.title IS DISTINCT FROM NEW.title OR
-    OLD.body IS DISTINCT FROM NEW.body
-  )) THEN
-    PERFORM queue_for_embedding_qstash('post', NEW.id, 4);
-  END IF;
-  
-  RETURN NEW;
-END;
-$$;
-
--- Trigger function for community comments
-CREATE OR REPLACE FUNCTION trigger_comment_embedding()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (
-    OLD.body IS DISTINCT FROM NEW.body
-  )) THEN
-    PERFORM queue_for_embedding_qstash('comment', NEW.id, 5);
-  END IF;
-  
-  RETURN NEW;
-END;
-$$;
-
--- Trigger function for course lessons
-CREATE OR REPLACE FUNCTION trigger_lesson_embedding()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (
-    OLD.title IS DISTINCT FROM NEW.title OR
-    OLD.description IS DISTINCT FROM NEW.description OR
-    OLD.transcript IS DISTINCT FROM NEW.transcript
-  )) THEN
-    PERFORM queue_for_embedding_qstash('lesson', NEW.id, 3);
-  END IF;
-  
-  RETURN NEW;
-END;
-$$;
-
--- Create embedding triggers
-DROP TRIGGER IF EXISTS profile_embedding_trigger ON profiles;
-CREATE TRIGGER profile_embedding_trigger
-  AFTER INSERT OR UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION trigger_profile_embedding();
-
-DROP TRIGGER IF EXISTS course_embedding_trigger ON course;
-CREATE TRIGGER course_embedding_trigger
-  AFTER INSERT OR UPDATE ON course
-  FOR EACH ROW EXECUTE FUNCTION trigger_course_embedding();
-
-DROP TRIGGER IF EXISTS post_embedding_trigger ON community_post;
-CREATE TRIGGER post_embedding_trigger
-  AFTER INSERT OR UPDATE ON community_post
-  FOR EACH ROW EXECUTE FUNCTION trigger_post_embedding();
-
-DROP TRIGGER IF EXISTS comment_embedding_trigger ON community_comment;
-CREATE TRIGGER comment_embedding_trigger
-  AFTER INSERT OR UPDATE ON community_comment
-  FOR EACH ROW EXECUTE FUNCTION trigger_comment_embedding();
-
-DROP TRIGGER IF EXISTS lesson_embedding_trigger ON course_lesson;
-CREATE TRIGGER lesson_embedding_trigger
-  AFTER INSERT OR UPDATE ON course_lesson
-  FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding();
-
---Post tsvector update function
-create or replace function community_post_tsvector_update() returns trigger as $$
-declare
-  hashtags_text text;
-begin
-  -- 拼接该 post 的所有 hashtags 名称
-  select string_agg(h.name, ' ')
-  into hashtags_text
-  from post_hashtags ph
-  join hashtags h on h.id = ph.hashtag_id
-  where ph.post_id = new.public_id;
-
-  -- 合并 title、body、hashtags 为 search_vector
-  new.search_vector :=
-    setweight(to_tsvector('english', coalesce(new.title, '')), 'A') ||
-    setweight(to_tsvector('english', coalesce(new.body, '')), 'B') ||
-    setweight(to_tsvector('english', coalesce(hashtags_text, '')), 'C');
-
-  return new;
-end;
-$$ language plpgsql;
-
--- Hashtag tsvector update function
-create or replace function hashtags_tsvector_update() returns trigger as $$
-begin
-  new.search_vector := to_tsvector('english', coalesce(new.name, ''));
-  return new;
-end;
-$$ language plpgsql;
-
--- Function to update posts when hashtag name changes
-create or replace function update_posts_on_hashtag_change() returns trigger as $$
-begin
-  update community_post
-  set updated_at = now()  -- 触发 post trigger 更新 search_vector
-  where public_id in (
-    select ph.post_id
-    from post_hashtags ph
-    where ph.hashtag_id = new.id
-  );
-  return new;
-end;
-$$ language plpgsql;
-
--- Function to update post when its hashtag associations change
-create or replace function update_post_on_hashtag_assoc_change() returns trigger as $$
-begin
-  update community_post
-  set updated_at = now()  -- 触发 post trigger 更新 search_vector
-  where public_id = new.post_id;
-  return new;
-end;
-$$ language plpgsql;
-
--- Drop old triggers
-drop trigger if exists trg_update_post_tsvector on community_post;
-drop trigger if exists trg_update_hashtag_tsvector on hashtags;
-drop trigger if exists trg_update_posts_on_hashtag_change on hashtags;
-drop trigger if exists trg_update_post_on_hashtag_assoc_insert on post_hashtags;
-drop trigger if exists trg_update_post_on_hashtag_assoc_delete on post_hashtags;
-
--- Post trigger
-create trigger trg_update_post_tsvector
-before insert or update
-on community_post
-for each row
-execute procedure community_post_tsvector_update();
-
--- Hashtag triggers
-create trigger trg_update_hashtag_tsvector
-before insert or update
-on hashtags
-for each row
-execute procedure hashtags_tsvector_update();
-
-create trigger trg_update_posts_on_hashtag_change
-after update
-on hashtags
-for each row
-execute procedure update_posts_on_hashtag_change();
-
--- post_hashtags triggers
-create trigger trg_update_post_on_hashtag_assoc_insert
-after insert
-on post_hashtags
-for each row
-execute procedure update_post_on_hashtag_assoc_change();
-
-create trigger trg_update_post_on_hashtag_assoc_delete
-after delete
-on post_hashtags
-for each row
-execute procedure update_post_on_hashtag_assoc_change();
-
----------------------------------------
---   community achievement function  --
---------------------------------------- 
-create or replace function unlock_achievement(_user_id bigint, _achievement_id bigint)
-returns boolean as $$
-declare
-  rule_json jsonb;
-  min_count int;
-  ach_type text;
-  emoji_filter text;
-  current_val int;
-begin
-  -- 取成就规则
-  select rule, (rule->>'min')::int, rule->>'type', rule->>'emoji'
-  into rule_json, min_count, ach_type, emoji_filter
-  from community_achievement
-  where id = _achievement_id and is_deleted = false;
-
-  -- 当前进度
-  select current_value
-  into current_val
-  from community_user_achievement
-  where user_id = _user_id and achievement_id = _achievement_id;
-
-  -- 如果还没解锁且达成条件 → 解锁
-  if current_val >= min_count then
-    update community_user_achievement
-    set unlocked = true, unlocked_at = now(), updated_at = now()
-    where user_id = _user_id and achievement_id = _achievement_id
-      and unlocked = false;
-    return true;
-  end if;
-
-  return false;
-end;
-$$ language plpgsql;
-
---AFTER INSERT triggers
---post related
-create or replace function trg_after_post_insert_update_progress()
-returns trigger as $$
-declare
-  ach record;
-begin
-  -- 处理 post_count
-  for ach in
-    select id, rule from community_achievement
-    where (rule->>'type') in ('post_count','distinct_group_post_count')
-      and is_deleted = false
-  loop
-    insert into community_user_achievement(user_id, achievement_id, current_value)
-    values (new.author_id, ach.id, 0)
-    on conflict (user_id, achievement_id) do nothing;
-
-    if (ach.rule->>'type') = 'post_count' then
-      update community_user_achievement
-      set current_value = current_value + 1, updated_at = now()
-      where user_id = new.author_id and achievement_id = ach.id;
-
-    elsif (ach.rule->>'type') = 'distinct_group_post_count' then
-      update community_user_achievement
-      set current_value = (
-        select count(distinct group_id)
-        from community_post
-        where author_id = new.author_id and is_deleted = false
-      ), updated_at = now()
-      where user_id = new.author_id and achievement_id = ach.id;
-    end if;
-
-    perform unlock_achievement(new.author_id, ach.id);
-  end loop;
-
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists trg_after_post_insert on community_post;
-create trigger trg_after_post_insert
-after insert on community_post
-for each row
-execute function trg_after_post_insert_update_progress();
-
-
---comment related
-create or replace function trg_after_comment_insert_update_progress()
-returns trigger as $$
-declare
-  ach record;
-  post_author_id bigint;
-begin
-  -- 先把帖子作者查出来（供后面复用）
-  select author_id into post_author_id from community_post where id = NEW.post_id;
-
-  for ach in
-    select id, rule from community_achievement
-    where (rule->>'type') in ('comment_count','comment_counts')
-      and is_deleted = false
-  loop
-    -- 1) 确保评论者在这项成就上有一条记录（初始化）
-    insert into community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
-    values (NEW.author_id, ach.id, 0, now(), now())
-    on conflict (user_id, achievement_id) do nothing;
-
-    -- 2) comment_count: 给评论者 +1，使用原子 INSERT ... ON CONFLICT DO UPDATE
-    if (ach.rule->>'type') = 'comment_count' then
-      insert into community_user_achievement(user_id, achievement_id, current_value, updated_at)
-      values (NEW.author_id, ach.id, 1, now())
-      on conflict (user_id, achievement_id) do update
-      set current_value = community_user_achievement.current_value + 1,
-          updated_at = now();
-
-    -- 3) comment_counts: 更新“帖子作者”收到的（非作者自己）评论总数
-    elsif (ach.rule->>'type') = 'comment_counts' then
-      -- 只在评论者不是帖子作者时更新（避免作者自评导致置 0）
-      if post_author_id is not null and NEW.author_id != post_author_id then
-        -- 确保帖子作者有行
-        insert into community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
-        values (post_author_id, ach.id, 0, now(), now())
-        on conflict (user_id, achievement_id) do nothing;
-
-        update community_user_achievement
-        set current_value = (
-          select count(*) from community_comment
-          where post_id = NEW.post_id
-            and is_deleted = false
-            and author_id != post_author_id
-        ), updated_at = now()
-        where user_id = post_author_id
-          and achievement_id = ach.id;
-      end if;
-    end if;
-
-    -- 4) 调用解锁函数：对不同规则要传不同的 user_id
-    perform unlock_achievement(
-      case when (ach.rule->>'type') = 'comment_counts' then post_author_id else NEW.author_id end,
-      ach.id
-    );
-  end loop;
-
-  return NEW;
-end;
-$$ language plpgsql;
-
---reaction related
-create or replace function trg_after_reaction_insert_update_progress()
-returns trigger as $$
-declare
-  ach record;
-begin
-  for ach in
-    select id, rule from community_achievement
-    where (rule->>'type') = 'reaction_count'
-      and is_deleted = false
-  loop
-    insert into community_user_achievement(user_id, achievement_id, current_value)
-    values (new.user_id, ach.id, 0)
-    on conflict (user_id, achievement_id) do nothing;
-
-    if (ach.rule->>'emoji') is not null then
-      update community_user_achievement
-      set current_value = current_value + 1, updated_at = now()
-      where user_id = new.user_id
-        and achievement_id = ach.id
-        and new.emoji = (ach.rule->>'emoji');
-    else
-      update community_user_achievement
-      set current_value = current_value + 1, updated_at = now()
-      where user_id = new.user_id
-        and achievement_id = ach.id;
-    end if;
-
-    perform unlock_achievement(new.user_id, ach.id);
-  end loop;
-
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists trg_after_reaction_insert on community_reaction;
-create trigger trg_after_reaction_insert
-after insert on community_reaction
-for each row
-execute function trg_after_reaction_insert_update_progress();
-
+-- Video processing queue status view
+CREATE OR REPLACE VIEW video_processing_queue_status AS
+SELECT 
+    q.id,
+    q.public_id,
+    q.attachment_id,
+    q.user_id,
+    q.current_step,
+    q.status,
+    q.progress_percentage,
+    q.retry_count,
+    q.max_retries,
+    q.error_message,
+    q.created_at,
+    q.updated_at,
+    q.started_at,
+    q.completed_at,
+    q.cancelled_at,
+    a.title as attachment_title,
+    a.type as attachment_type,
+    a.size as attachment_size,
+    p.display_name as user_name,
+    -- Step details
+    (
+        SELECT json_agg(
+            json_build_object(
+                'step_name', s.step_name,
+                'status', s.status,
+                'started_at', s.started_at,
+                'completed_at', s.completed_at,
+                'duration_seconds', s.duration_seconds,
+                'retry_count', s.retry_count,
+                'error_message', s.error_message
+            ) ORDER BY 
+                CASE s.step_name
+                    WHEN 'transcribe' THEN 1
+                    WHEN 'embed' THEN 2
+                    ELSE 3
+                END
+        )
+        FROM video_processing_steps s
+        WHERE s.queue_id = q.id
+    ) as steps
+FROM video_processing_queue q
+LEFT JOIN course_attachments a ON q.attachment_id = a.id
+LEFT JOIN profiles p ON q.user_id = p.user_id;

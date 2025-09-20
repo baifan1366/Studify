@@ -46,13 +46,7 @@ async function downloadAudioFile(audioUrl: string): Promise<Blob> {
 
   const contentType = response.headers.get('content-type') || 'audio/mpeg';
   const arrayBuffer = await response.arrayBuffer();
-  
-  // Validate that we got actual audio/video content, not HTML
-  if (contentType.includes('text/html') || contentType.includes('text/plain') || contentType.includes('application/json')) {
-    const textContent = new TextDecoder().decode(arrayBuffer.slice(0, 200));
-    throw new Error(`Downloaded content appears to be HTML/text/JSON instead of media file. Content-Type: ${contentType}. Content preview: ${textContent.substring(0, 100)}...`);
-  }
-  
+
   // Validate supported media content types
   const isValidMediaType = contentType.includes('audio/') || 
                           contentType.includes('video/') || 

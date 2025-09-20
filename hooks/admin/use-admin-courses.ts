@@ -15,7 +15,8 @@ export function useAdminCourses(filters: AdminCourseFilters = {}) {
   return useQuery({
     queryKey: ['admin', 'courses', filters],
     queryFn: async (): Promise<AdminCoursesResponse> => {
-      return adminApi.getCourses(filters);
+      const response = await adminApi.getCourses(filters);
+      return response.data;
     },
     staleTime: 30000, // 30 seconds
     refetchOnWindowFocus: false,
@@ -27,8 +28,8 @@ export function useAdminCourse(courseId: string) {
   return useQuery({
     queryKey: ['admin', 'courses', courseId],
     queryFn: async (): Promise<AdminCourseDetails> => {
-      const data = await adminApi.getCourse(courseId);
-      return data.course;
+      const response = await adminApi.getCourse(courseId);
+      return response.data.course;
     },
     enabled: !!courseId,
     staleTime: 60000, // 1 minute
@@ -135,7 +136,8 @@ export function useAdminCourseAnalytics(period: number = 30) {
   return useQuery({
     queryKey: ['admin', 'courses', 'analytics', period],
     queryFn: async (): Promise<AdminCourseAnalytics> => {
-      return adminApi.getCourseAnalytics(period);
+      const response = await adminApi.getCourseAnalytics(period);
+      return response.data;
     },
     staleTime: 300000, // 5 minutes
     refetchInterval: 600000, // 10 minutes
@@ -157,10 +159,10 @@ export function useCourseStats() {
       ]);
 
       return {
-        total: data.pagination.total,
-        active: activeCourses.pagination.total,
-        pending: pendingCourses.pagination.total,
-        inactive: inactiveCourses.pagination.total,
+        total: data.data.pagination.total,
+        active: activeCourses.data.pagination.total,
+        pending: pendingCourses.data.pagination.total,
+        inactive: inactiveCourses.data.pagination.total,
       };
     },
     staleTime: 60000, // 1 minute

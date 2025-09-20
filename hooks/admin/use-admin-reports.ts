@@ -15,7 +15,8 @@ export function useAdminReports(filters: AdminReportsFilters = {}) {
   return useQuery({
     queryKey: ['admin', 'reports', filters],
     queryFn: async (): Promise<AdminReportsResponse> => {
-      return adminApi.getReports(filters);
+      const response = await adminApi.getReports(filters);
+      return response.data;
     },
     staleTime: 30000, // 30 seconds
     refetchOnWindowFocus: false,
@@ -27,8 +28,8 @@ export function useAdminReport(reportId: string) {
   return useQuery({
     queryKey: ['admin', 'reports', reportId],
     queryFn: async (): Promise<AdminReportDetails> => {
-      const data = await adminApi.getReport(reportId);
-      return data.report;
+      const response = await adminApi.getReport(reportId);
+      return response.data.report;
     },
     enabled: !!reportId,
     staleTime: 60000, // 1 minute
@@ -101,10 +102,10 @@ export function useReportStats() {
       ]);
 
       return {
-        total: data.pagination.total,
-        open: openReports.pagination.total,
-        reviewing: reviewingReports.pagination.total,
-        resolved: resolvedReports.pagination.total,
+        total: data.data.pagination.total,
+        open: openReports.data.pagination.total,
+        reviewing: reviewingReports.data.pagination.total,
+        resolved: resolvedReports.data.pagination.total,
       };
     },
     staleTime: 60000, // 1 minute

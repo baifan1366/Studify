@@ -78,26 +78,19 @@ export interface AdminAuditEntry {
 export interface AdminAnalytics {
   userStats: {
     total: number;
+    new: number;
     active: number;
     banned: number;
-    newToday: number;
+    roleDistribution: Record<string, number>;
   };
   contentStats: {
-    totalCourses: number;
-    totalPosts: number;
-    totalComments: number;
-    reportsToday: number;
-  };
-  roleDistribution: {
-    admin: number;
-    tutor: number;
-    student: number;
+    courses: number;
+    classrooms: number;
+    communityPosts: number;
+    enrollments: number;
   };
   recentActivity: AdminAuditEntry[];
-  dailyRegistrations: Array<{
-    date: string;
-    count: number;
-  }>;
+  dailyRegistrations: Record<string, number>;
   period: number;
 }
 

@@ -20,7 +20,9 @@ const EmbedJobSchema = z.object({
 // Configuration for retries
 const EMBED_RETRY_CONFIG = {
   MAX_RETRIES: 3, // Limited to 3 by QStash quota
-  RETRY_DELAYS: [30, 60, 120], // Progressive delays in seconds: 30s, 1m, 2m
+  RETRY_DELAYS: [15, 30, 60], // 更快的重试: 15s, 30s, 1m
+  BATCH_SIZE: 5, // 批量处理片段，提高效率
+  CONCURRENT_LIMIT: 3, // 并发处理限制
 };
 
 // Schedule retry function
@@ -112,7 +114,15 @@ export async function POST(req: Request) {
       .single();
 
     if (queueError || !queueData) {
-      throw new Error(`Queue not found: ${queueError?.message}`);
+      console.warn(`⚠️ Queue not found with ID: ${queue_id}. This may be an orphaned QStash message. Skipping processing.`);
+      
+      // Return success to prevent QStash from retrying this orphaned message
+      return NextResponse.json({
+        message: "Queue record not found - orphaned QStash message",
+        queue_id,
+        action: "skipped",
+        reason: "Queue record may have been deleted or never existed"
+      }, { status: 200 });
     }
 
     // 2. Update step and queue status

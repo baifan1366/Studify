@@ -84,7 +84,9 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
   
   try {
     const queueManager = getQueueManager();
-    const queueName = `video-processing-${userId}`;
+    // Use consistent queue naming
+    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const queueName = `video_${userIdHash}`;
     
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);

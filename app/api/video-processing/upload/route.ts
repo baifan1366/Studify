@@ -94,14 +94,15 @@ export async function POST(req: Request) {
       .insert([{
         attachment_id: attachment_id,
         user_id: authResult.payload.sub,
-        current_step: 'compress',
+        current_step: 'transcribe',
         status: 'pending',
         progress_percentage: 0,
         started_at: new Date().toISOString(),
         processing_metadata: {
           original_size: attachment.size,
           original_type: attachment.type,
-          original_title: attachment.title
+          original_title: attachment.title,
+          original_url: attachment.url
         }
       }])
       .select("*")
@@ -115,16 +116,16 @@ export async function POST(req: Request) {
     // 6. Initialize processing steps
     await client.rpc('initialize_video_processing_steps', { queue_id_param: newQueue.id });
 
-    // 7. Queue the first step (compression) with QStash
+    // 7. Queue the first step (transcribe) with QStash
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app').replace(/\/$/, '');
-    const compressionEndpoint = `${baseUrl}/api/video-processing/steps/compress`;
+    const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
 
-    console.log('🚀 [req_' + Date.now() + '] Video compression queue setup');
+    console.log('🚀 [req_' + Date.now() + '] Video transcription queue setup');
     console.log('🔗 [req_' + Date.now() + '] URL construction debug:', {
       NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
       baseUrl: baseUrl,
-      finalEndpoint: compressionEndpoint,
-      hasDoubleSlash: compressionEndpoint.includes('//api/')
+      finalEndpoint: transcribeEndpoint,
+      hasDoubleSlash: transcribeEndpoint.includes('//api/')
     });
 
     // Validate QStash token before attempting to use it
@@ -141,18 +142,21 @@ export async function POST(req: Request) {
       console.log('🚀 Starting QStash job creation...');
       console.log('📋 QStash job details:', {
         queueName: `video-processing-${authResult.payload.sub}`,
-        endpoint: compressionEndpoint,
+        endpoint: transcribeEndpoint,
         payload: {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
           user_id: authResult.payload.sub, // Use the UUID from auth, not profile.id
+          audio_url: attachment.url, // Use the original video URL directly
           timestamp: new Date().toISOString(),
         }
       });
 
       // Use QStash queue manager for better video processing
       const queueManager = getQueueManager();
-      const queueName = `video-processing-${authResult.payload.sub}`;
+      // Use a simpler queue name without UUID to avoid issues
+      const userIdHash = authResult.payload.sub.replace(/-/g, '').substring(0, 12);
+      const queueName = `video_${userIdHash}`;
       
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
       console.log('📦 Ensuring queue exists:', queueName);
@@ -163,15 +167,16 @@ export async function POST(req: Request) {
       console.log('📤 Enqueuing job to QStash...');
       const qstashResponse = await queueManager.enqueue(
         queueName,
-        compressionEndpoint,
+        transcribeEndpoint,
         {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
           user_id: authResult.payload.sub, // Use the UUID from auth, not profile.id
+          audio_url: attachment.url, // Use the original video URL directly
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 3 // Maximum allowed by QStash quota
+          retries: 3 // Maximum retries allowed by QStash quota
         }
       );
 
@@ -187,20 +192,20 @@ export async function POST(req: Request) {
         })
         .eq("id", newQueue.id);
 
-      console.log('✅ QStash compression job published:', qstashResponse.messageId);
+      console.log('✅ QStash transcription job published:', qstashResponse.messageId);
 
       // Send notification that processing has started
-      await sendVideoProcessingNotification(profile.id.toString(), {
+      await sendVideoProcessingNotification(authResult.payload.sub, {
         attachment_id: attachment_id,
         queue_id: newQueue.id,
         attachment_title: attachment.title,
         status: 'started',
-        current_step: 'compress',
+        current_step: 'transcribe',
         progress_percentage: 0
       });
 
     } catch (qstashError: any) {
-      console.error('Failed to queue compression job:', qstashError);
+      console.error('Failed to queue transcription job:', qstashError);
       console.error('QStash error details:', {
         name: qstashError.name,
         message: qstashError.message,
@@ -213,12 +218,12 @@ export async function POST(req: Request) {
         .from("video_processing_queue")
         .update({ 
           status: 'failed',
-          error_message: 'Failed to queue compression job',
+          error_message: 'Failed to queue transcription job',
           error_details: { 
             qstash_error: qstashError.message,
             qstash_status: qstashError.status,
             token_format: qstashToken.startsWith('eyJ') ? 'base64_encoded' : 'unknown',
-            endpoint_url: compressionEndpoint,
+            endpoint_url: transcribeEndpoint,
             base_url: baseUrl
           }
         })
@@ -233,13 +238,11 @@ export async function POST(req: Request) {
       message: "Video processing started successfully",
       queue_id: newQueue.public_id,
       status: "processing",
-      current_step: "compress",
+      current_step: "transcribe",
       progress: 0,
-      estimated_completion_time: "5-10 minutes",
+      estimated_completion_time: "3-5 minutes",
       steps: [
-        { name: "compress", status: "processing", description: "Optimizing video file" },
-        { name: "audio_convert", status: "pending", description: "Converting to audio" },
-        { name: "transcribe", status: "pending", description: "Generating transcript" },
+        { name: "transcribe", status: "processing", description: "Generating transcript from video" },
         { name: "embed", status: "pending", description: "Creating AI embeddings" }
       ]
     }, { status: 202 });

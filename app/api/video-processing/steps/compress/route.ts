@@ -116,7 +116,9 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
   
   try {
     const queueManager = getQueueManager();
-    const queueName = `video-processing-${userId}`;
+    // Use consistent queue naming with upload route
+    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const queueName = `video_${userIdHash}`;
     
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
@@ -361,3 +363,17 @@ async function handler(req: Request) {
 
 // Export the handler with QStash signature verification
 export const POST = verifySignatureAppRouter(handler);
+
+// Also export a GET handler for debugging
+export async function GET(req: Request) {
+  return NextResponse.json({
+    message: "Compress endpoint is available",
+    timestamp: new Date().toISOString(),
+    env_check: {
+      has_qstash_token: !!process.env.QSTASH_TOKEN,
+      has_signing_key: !!process.env.QSTASH_CURRENT_SIGNING_KEY,
+      has_mega_creds: !!process.env.MEGA_EMAIL && !!process.env.MEGA_PASSWORD,
+      has_cloudinary: !!process.env.CLOUDINARY_CLOUD_NAME
+    }
+  });
+}

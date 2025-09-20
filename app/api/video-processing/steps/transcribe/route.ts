@@ -18,20 +18,25 @@ const TranscribeJobSchema = z.object({
 
 // Configuration for retries and timeouts
 const RETRY_CONFIG = {
-  MAX_RETRIES: 5, // 增加到5次重试
+  MAX_RETRIES: 3, // Limited to 3 by QStash quota
   WARMUP_TIMEOUT: 30000, // 30秒预热超时
   PROCESSING_TIMEOUT: 600000, // 10分钟处理超时
   COLD_START_WAIT: 5000, // 冷启动后等待5秒
-  RETRY_DELAYS: [30, 60, 120, 180, 300], // 重试延迟（秒）: 30s, 1m, 2m, 3m, 5m
+  RETRY_DELAYS: [30, 60, 120], // 重试延迟（秒）: 30s, 1m, 2m
 };
 
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {
   console.log('Downloading audio file from:', audioUrl);
   
+  
+  // Supported formats: .wav, .mp3, .m4a, .mp4, .mov, .ogg, .flac, .aac, .webm, .avi
+  // The Whisper API uses ffmpeg internally to convert formats as needed
+  
   const response = await fetch(audioUrl, {
     method: 'GET',
     headers: {
       'User-Agent': 'Studify-Transcription-Service/1.0',
+      'Accept': 'audio/*, video/*, application/octet-stream, audio/wav, audio/mp3, audio/m4a, video/mp4, video/mov, audio/mpeg, audio/ogg, audio/flac, audio/aac, video/webm, video/avi',
     },
   });
 
@@ -42,9 +47,32 @@ async function downloadAudioFile(audioUrl: string): Promise<Blob> {
   const contentType = response.headers.get('content-type') || 'audio/mpeg';
   const arrayBuffer = await response.arrayBuffer();
   
+  // Validate that we got actual audio/video content, not HTML
+  if (contentType.includes('text/html') || contentType.includes('text/plain') || contentType.includes('application/json')) {
+    const textContent = new TextDecoder().decode(arrayBuffer.slice(0, 200));
+    throw new Error(`Downloaded content appears to be HTML/text/JSON instead of media file. Content-Type: ${contentType}. Content preview: ${textContent.substring(0, 100)}...`);
+  }
+  
+  // Validate supported media content types
+  const isValidMediaType = contentType.includes('audio/') || 
+                          contentType.includes('video/') || 
+                          contentType.includes('application/octet-stream') ||
+                          ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/m4a', 'audio/ogg', 'audio/flac', 'audio/aac',
+                           'video/mp4', 'video/mov', 'video/webm', 'video/avi'].some(type => contentType.includes(type));
+  
+  if (!isValidMediaType) {
+    console.warn(`⚠️ Unusual content type detected: ${contentType}, but continuing with processing`);
+  }
+  
+  // Check for minimum file size (audio files are typically larger than 1KB)
+  if (arrayBuffer.byteLength < 1024) {
+    throw new Error(`Downloaded file is too small (${arrayBuffer.byteLength} bytes) to be a valid audio file. This might be an error page or redirect.`);
+  }
+  
   console.log('Audio file downloaded successfully:', {
     size: arrayBuffer.byteLength,
     contentType,
+    isValidSize: arrayBuffer.byteLength >= 1024
   });
 
   return new Blob([arrayBuffer], { type: contentType });
@@ -105,7 +133,8 @@ async function transcribeWithWhisper(
   }
 
   const formData = new FormData();
-  formData.append('file', audioBlob, 'audio.mp3');
+  // Use generic filename - Whisper API auto-detects format via ffmpeg
+  formData.append('file', audioBlob, 'media_file');
 
   const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
   
@@ -190,7 +219,9 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
   
   try {
     const queueManager = getQueueManager();
-    const queueName = `video-processing-${userId}`;
+    // Use consistent queue naming
+    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const queueName = `video_${userIdHash}`;
     
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
@@ -239,7 +270,9 @@ async function scheduleRetry(
   
   try {
     const queueManager = getQueueManager();
-    const queueName = `video-processing-${userId}`;
+    // Use consistent queue naming
+    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const queueName = `video_${userIdHash}`;
     
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
@@ -306,12 +339,21 @@ async function handler(req: Request) {
     const { data: queueData, error: queueError } = await client
       .from("video_processing_queue")
       .select("retry_count, max_retries, status")
-      .eq("id", queue_id)
-      .single();
+      .eq("id", queue_id);
 
-    if (queueError || !queueData) {
-      throw new Error(`Queue not found: ${queueError?.message}`);
+    if (queueError) {
+      throw new Error(`Database error fetching queue: ${queueError.message}`);
     }
+    
+    if (!queueData || queueData.length === 0) {
+      throw new Error(`Queue not found with ID: ${queue_id}`);
+    }
+    
+    if (queueData.length > 1) {
+      console.warn(`Multiple queue entries found for ID: ${queue_id}, using first one`);
+    }
+    
+    const queueRecord = Array.isArray(queueData) ? queueData[0] : queueData;
 
     // 2. Update step status to processing
     await client
@@ -324,13 +366,14 @@ async function handler(req: Request) {
       .eq("queue_id", queue_id)
       .eq("step_name", "transcribe");
 
-    // 3. Update queue status
+      // Update queue status
     await client
       .from("video_processing_queue")
       .update({
         status: 'processing',
         current_step: 'transcribe',
-        progress_percentage: 65
+        progress_percentage: 65,
+        retry_count: retry_count
       })
       .eq("id", queue_id);
 

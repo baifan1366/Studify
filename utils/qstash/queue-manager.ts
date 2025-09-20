@@ -1,3 +1,12 @@
+/**
+ * QStash Queue Manager for Video Processing
+ * 
+ * Simplified video processing flow:
+ * 1. upload → transcribe → embed
+ * 
+ * No longer requires intermediate compression or audio conversion steps.
+ * Videos are processed directly for transcription.
+ */
 export class QStashQueueManager {
   private token: string;
   private baseUrl: string;
@@ -18,14 +27,35 @@ export class QStashQueueManager {
    */
   async ensureQueue(queueName: string, parallelism: number = 1) {
     try {
-      const response = await fetch(`${this.baseUrl}/v2/queues/`, {
+      // First try to get the queue to see if it exists
+      try {
+        const getResponse = await fetch(`${this.baseUrl}/v2/queues/${queueName}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+          },
+        });
+        
+        if (getResponse.ok) {
+          console.log(`Queue ${queueName} already exists`);
+          // Queue exists - QStash doesn't support updating parallelism on existing queues
+          // The queue will keep its original parallelism setting
+          // To change parallelism, you need to delete and recreate the queue
+          return 'exists';
+        }
+      } catch (e) {
+        // Queue doesn't exist, continue to create
+      }
+      
+      // Create new queue
+      const response = await fetch(`${this.baseUrl}/v2/queues`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          queueName,
+          name: queueName,
           parallelism,
         }),
       });
@@ -40,7 +70,8 @@ export class QStashQueueManager {
         }
       }
 
-      // 200 response means upsert successful (created or updated)
+      // 200 response means queue created successfully
+      console.log(`Queue ${queueName} created with parallelism: ${parallelism}`);
       return 'success';
     } catch (error) {
       console.error('Queue creation error:', error);
@@ -51,6 +82,10 @@ export class QStashQueueManager {
   /**
    * Enqueue a message to a specific queue
    * According to QStash API: POST /v2/enqueue/{queueName}/{destination}
+   * 
+   * Used for video processing steps:
+   * - transcribe: Direct video transcription with Whisper API
+   * - embed: Generate AI embeddings from transcription text
    * 
    * Note: delay parameter is ignored for queue enqueue operations.
    * Queue timing is managed by QStash based on parallelism and internal scheduling.
@@ -69,7 +104,7 @@ export class QStashQueueManager {
     } = {}
   ) {
     const { 
-      retries = 3, 
+      retries = 3, // QStash quota limit
       delay = '10s', 
       method = 'POST',
       headers = {},
@@ -110,6 +145,9 @@ export class QStashQueueManager {
         requestHeaders['Upstash-Failure-Callback'] = failureCallback;
       }
 
+      // For QStash v2/enqueue, the URL should not be encoded
+      // QStash expects the URL as part of the path directly
+      
       const response = await fetch(
         `${this.baseUrl}/v2/enqueue/${queueName}/${targetUrl}`,
         {

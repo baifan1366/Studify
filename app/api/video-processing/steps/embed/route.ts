@@ -19,8 +19,8 @@ const EmbedJobSchema = z.object({
 
 // Configuration for retries
 const EMBED_RETRY_CONFIG = {
-  MAX_RETRIES: 5,
-  RETRY_DELAYS: [30, 60, 120, 180, 300], // Progressive delays in seconds
+  MAX_RETRIES: 3, // Limited to 3 by QStash quota
+  RETRY_DELAYS: [30, 60, 120], // Progressive delays in seconds: 30s, 1m, 2m
 };
 
 // Schedule retry function
@@ -42,7 +42,9 @@ async function scheduleRetry(
   
   try {
     const queueManager = getQueueManager();
-    const queueName = `video-processing-${userId}`;
+    // Use consistent queue naming
+    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const queueName = `video_${userIdHash}`;
     
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);

@@ -110,8 +110,6 @@ export async function sendVideoProcessingProgressNotification(
     }
 
     const stepNames: Record<string, string> = {
-      compress: 'Optimizing Video',
-      audio_convert: 'Converting to Audio',
       transcribe: 'Generating Transcript',
       embed: 'Creating AI Embeddings'
     };

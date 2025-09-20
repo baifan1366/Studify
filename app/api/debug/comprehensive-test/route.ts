@@ -144,18 +144,20 @@ export async function GET(req: Request) {
 
     if (response.ok) {
       const events = await response.json();
-      const recentEvents = events.slice(0, 10);
+      // events might be an object with an array property, not an array directly
+      const eventArray = Array.isArray(events) ? events : (events.events || events.cursor?.events || []);
+      const recentEvents = eventArray.slice(0, 10);
       
       // Analyze events
-      const failedEvents = events.filter((e: any) => 
+      const failedEvents = eventArray.filter((e: any) => 
         e.state === 'ERROR' || e.state === 'FAILED'
       );
       
-      const compressEvents = events.filter((e: any) => 
+      const compressEvents = eventArray.filter((e: any) => 
         e.url && e.url.includes('/compress')
       );
 
-      eventsTest.details.total_events = events.length;
+      eventsTest.details.total_events = eventArray.length;
       eventsTest.details.failed_events = failedEvents.length;
       eventsTest.details.compress_related = compressEvents.length;
       

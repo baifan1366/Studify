@@ -15,7 +15,7 @@ export async function GET(req: Request) {
         .select("*")
         .eq("is_deleted", false)
         .eq("owner_id", parseInt(owner_id))
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
       .eq("is_deleted", false)
       .eq("visibility", "public")
       .eq("status", "active")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

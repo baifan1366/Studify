@@ -16,6 +16,7 @@ export function useQuiz({ lessonId }: UseQuizProps) {
   const { data: quizData, isLoading, error } = useQuery({
     queryKey: ['quiz', lessonId],
     queryFn: () => apiGet(`/api/course/quiz?lessonId=${lessonId}`),
+    enabled: Boolean(lessonId), // Only run query when lessonId exists
   });
 
   const submitAnswerMutation = useMutation({

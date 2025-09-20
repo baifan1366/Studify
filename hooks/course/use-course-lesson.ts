@@ -98,3 +98,47 @@ export function useDeleteLesson() {
     },
   });
 }
+
+// ✅ Fetch all lessons across all modules for a course
+export function useAllLessonsByCourseId(courseId: number, modules: any[]) {
+  return useQuery({
+    queryKey: ['all-course-lessons', courseId, modules?.map(m => m.id).sort()],
+    queryFn: async () => {
+      if (!modules || modules.length === 0) {
+        return [];
+      }
+
+      const allModuleLessons: any[] = [];
+      
+      // Fetch lessons for each module
+      for (const module of modules) {
+        try {
+          const lessons = await apiGet(coursesApi.getLessonByCourseModuleId(courseId, module.id)) as Lesson[];
+          
+          lessons.forEach((lesson: any, lessonIndex: number) => {
+            allModuleLessons.push({
+              ...lesson,
+              moduleTitle: module.title,
+              moduleId: module.id,
+              modulePosition: lessonIndex + 1
+            });
+          });
+        } catch (error) {
+          console.error(`Error fetching lessons for module ${module.id}:`, error);
+        }
+      }
+      
+      // Sort by module position first, then by lesson position within module
+      return allModuleLessons.sort((a, b) => {
+        const moduleA = modules.findIndex(m => m.id === a.moduleId);
+        const moduleB = modules.findIndex(m => m.id === b.moduleId);
+        
+        if (moduleA !== moduleB) {
+          return moduleA - moduleB;
+        }
+        return (a.position || 0) - (b.position || 0);
+      });
+    },
+    enabled: Boolean(courseId && modules && modules.length > 0),
+  });
+}

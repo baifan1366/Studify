@@ -2277,16 +2277,17 @@
     "lesson_duration": "min",
     "no_lessons": "No lessons available",
     "loading_modules": "Loading course modules...",
-    "module_lessons_count": "Module {module} has {count} lessons"
+    "module_lessons_count": "lessons"
   },
   "LessonNavigation": {
     "previous_lesson": "Previous Lesson",
     "next_lesson": "Next Lesson",
+    "lesson": "Lesson",
     "lesson_of": "Lesson {current} of {total}",
     "duration": "Duration: {minutes} min",
     "mark_complete": "Mark Complete",
     "lesson_completed": "Lesson Complete!",
-    "module_lessons_count": "Module {module} has {count} lessons",
+    "module_lessons_count": "lessons",
     "lesson_completed_desc": "Great job! You can now move to the next lesson.",
     "course_completed": "🎉 Course Completed!",
     "course_completed_desc": "Congratulations! You have successfully completed this course."

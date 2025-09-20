@@ -340,7 +340,15 @@ async function handler(req: Request) {
     }
     
     if (!queueData || queueData.length === 0) {
-      throw new Error(`Queue not found with ID: ${queue_id}`);
+      console.warn(`⚠️ Queue not found with ID: ${queue_id}. This may be an orphaned QStash message. Skipping processing.`);
+      
+      // Return success to prevent QStash from retrying this orphaned message
+      return NextResponse.json({
+        message: "Queue record not found - orphaned QStash message",
+        queue_id,
+        action: "skipped",
+        reason: "Queue record may have been deleted or never existed"
+      }, { status: 200 });
     }
     
     if (queueData.length > 1) {

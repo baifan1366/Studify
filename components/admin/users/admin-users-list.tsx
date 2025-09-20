@@ -257,9 +257,9 @@ export function AdminUsersList() {
       {/* Users Table */}
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle>Users ({data?.pagination.total || 0})</CardTitle>
+          <CardTitle>Users ({data?.data?.pagination.total || 0})</CardTitle>
           <CardDescription>
-            Showing {data?.users.length || 0} of {data?.pagination.total || 0} users
+            Showing {data?.data?.users.length || 0} of {data?.data?.pagination.total || 0} users
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -283,7 +283,7 @@ export function AdminUsersList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.users.map((user: AdminUser) => (
+                {data?.data?.users.map((user: AdminUser) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div>
@@ -362,16 +362,16 @@ export function AdminUsersList() {
           )}
 
           {/* Pagination */}
-          {data?.pagination && data.pagination.totalPages > 1 && (
+          {data?.data?.pagination && data.data.pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-500">
-                Page {data.pagination.page} of {data.pagination.totalPages}
+                Page {data.data.pagination.page} of {data.data.pagination.totalPages}
               </div>
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={data.pagination.page <= 1}
+                  disabled={data.data.pagination.page <= 1}
                   onClick={() => setFilters(prev => ({ ...prev, page: prev.page! - 1 }))}
                 >
                   Previous
@@ -379,7 +379,7 @@ export function AdminUsersList() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={data.pagination.page >= data.pagination.totalPages}
+                  disabled={data.data.pagination.page >= data.data.pagination.totalPages}
                   onClick={() => setFilters(prev => ({ ...prev, page: prev.page! + 1 }))}
                 >
                   Next

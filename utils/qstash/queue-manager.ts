@@ -38,22 +38,9 @@ export class QStashQueueManager {
         
         if (getResponse.ok) {
           console.log(`Queue ${queueName} already exists`);
-          // Queue exists, update parallelism if needed
-          const response = await fetch(`${this.baseUrl}/v2/queues/${queueName}`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${this.token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              parallelism,
-            }),
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.warn(`Failed to update queue parallelism: ${errorText}`);
-          }
+          // Queue exists - QStash doesn't support updating parallelism on existing queues
+          // The queue will keep its original parallelism setting
+          // To change parallelism, you need to delete and recreate the queue
           return 'exists';
         }
       } catch (e) {
@@ -83,7 +70,8 @@ export class QStashQueueManager {
         }
       }
 
-      // 200 response means upsert successful (created or updated)
+      // 200 response means queue created successfully
+      console.log(`Queue ${queueName} created with parallelism: ${parallelism}`);
       return 'success';
     } catch (error) {
       console.error('Queue creation error:', error);

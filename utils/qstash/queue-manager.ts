@@ -110,6 +110,9 @@ export class QStashQueueManager {
         requestHeaders['Upstash-Failure-Callback'] = failureCallback;
       }
 
+      // For QStash v2/enqueue, the URL should not be encoded
+      // QStash expects the URL as part of the path directly
+      
       const response = await fetch(
         `${this.baseUrl}/v2/enqueue/${queueName}/${targetUrl}`,
         {

@@ -152,7 +152,9 @@ export async function POST(req: Request) {
 
       // Use QStash queue manager for better video processing
       const queueManager = getQueueManager();
-      const queueName = `video-processing-${authResult.payload.sub}`;
+      // Use a simpler queue name without UUID to avoid issues
+      const userIdHash = authResult.payload.sub.replace(/-/g, '').substring(0, 12);
+      const queueName = `video_${userIdHash}`;
       
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
       console.log('📦 Ensuring queue exists:', queueName);

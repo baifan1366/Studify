@@ -2,35 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
-
-export interface AdminAnalytics {
-  userStats: {
-    total: number;
-    new: number;
-    active: number;
-    banned: number;
-    roleDistribution: Record<string, number>;
-  };
-  contentStats: {
-    courses: number;
-    classrooms: number;
-    communityPosts: number;
-    enrollments: number;
-  };
-  recentActivity: Array<{
-    id: number;
-    action: string;
-    subject_type: string;
-    created_at: string;
-    meta: any;
-    profiles?: {
-      display_name?: string;
-      email?: string;
-    };
-  }>;
-  dailyRegistrations: Record<string, number>;
-  period: number;
-}
+import { AdminAnalytics } from '@/interface/admin/admin-interface';
 
 export interface RoleStats {
   roleStats: {

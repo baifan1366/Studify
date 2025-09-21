@@ -109,7 +109,7 @@ export async function GET(
         ])
                 
         // Return binary data directly with proper headers
-        return new NextResponse(fileBuffer, {
+        return new NextResponse(fileBuffer as BodyInit, {
           status: 200,
           headers: {
             'Content-Type': mimeType,

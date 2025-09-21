@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { authorize } from "@/utils/auth/server-guard";
 
 export async function GET(
   req: Request,
@@ -225,3 +226,182 @@ export async function GET(
     );
   }
 }
+
+// Internal helper to handle both PUT and PATCH update logic
+async function handleUpdate(
+  req: Request,
+  paramsPromise: Promise<{ quizSlug: string }>
+) {
+  try {
+    const { quizSlug } = await paramsPromise;
+
+    // Auth: must be logged in
+    const auth = await authorize("student");
+    if (auth instanceof NextResponse) return auth;
+    const { sub: userId } = auth;
+
+    const supabase = await createClient();
+
+    // Fetch quiz basic info
+    const { data: quiz, error: quizErr } = await supabase
+      .from("community_quiz")
+      .select("id, author_id")
+      .eq("slug", quizSlug)
+      .maybeSingle();
+
+    if (quizErr || !quiz) {
+      return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+    }
+
+    // Permission: author or users with 'edit' permission
+    let canEdit = quiz.author_id === userId;
+    if (!canEdit) {
+      const { data: perms } = await supabase
+        .from("community_quiz_permission")
+        .select("permission_type")
+        .eq("quiz_id", quiz.id)
+        .eq("user_id", userId)
+        .limit(5);
+      canEdit = !!(perms && perms.some((p: any) => p.permission_type === "edit"));
+    }
+
+    if (!canEdit) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Parse and validate body (partial update)
+    const body = await req.json().catch(() => ({}));
+    if (body == null || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "slug")) {
+      return NextResponse.json({ error: "Slug cannot be updated" }, { status: 400 });
+    }
+
+    const updates: Record<string, any> = {};
+
+    if (Object.prototype.hasOwnProperty.call(body, "title")) {
+      const title = body.title;
+      if (title != null && (typeof title !== "string" || !title.trim())) {
+        return NextResponse.json({ error: "Invalid title" }, { status: 400 });
+      }
+      updates.title = title?.trim() ?? null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "description")) {
+      const description = body.description;
+      if (description != null && typeof description !== "string") {
+        return NextResponse.json({ error: "Invalid description" }, { status: 400 });
+      }
+      updates.description = description ?? null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "difficulty")) {
+      const difficulty = body.difficulty;
+      if (
+        difficulty != null &&
+        !(typeof difficulty === "number" && difficulty >= 1 && difficulty <= 5)
+      ) {
+        return NextResponse.json({ error: "Invalid difficulty (1-5)" }, { status: 400 });
+      }
+      updates.difficulty = difficulty;
+    }
+
+    // Temporarily disable updating 'tags' field. Incoming 'tags' will be ignored.
+    // if (Object.prototype.hasOwnProperty.call(body, "tags")) {
+    //   const tags = body.tags;
+    //   if (tags != null && !Array.isArray(tags)) {
+    //     return NextResponse.json({ error: "Invalid tags (must be string array)" }, { status: 400 });
+    //   }
+    //   updates.tags = Array.isArray(tags) ? tags.map((t: any) => String(t)) : null;
+    // }
+
+    if (Object.prototype.hasOwnProperty.call(body, "max_attempts")) {
+      const max_attempts = body.max_attempts;
+      if (
+        max_attempts != null &&
+        !(Number.isInteger(max_attempts) && max_attempts >= 1)
+      ) {
+        return NextResponse.json({ error: "Invalid max_attempts (>=1)" }, { status: 400 });
+      }
+      updates.max_attempts = max_attempts;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "visibility")) {
+      const visibility = body.visibility;
+      if (
+        visibility != null &&
+        !["public", "private"].includes(visibility)
+      ) {
+        return NextResponse.json({ error: "Invalid visibility" }, { status: 400 });
+      }
+      updates.visibility = visibility;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "quiz_mode")) {
+      const quiz_mode = body.quiz_mode;
+      if (
+        quiz_mode != null &&
+        !["practice", "strict"].includes(quiz_mode)
+      ) {
+        return NextResponse.json({ error: "Invalid quiz_mode" }, { status: 400 });
+      }
+      updates.quiz_mode = quiz_mode;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "time_limit_minutes")) {
+      const time_limit_minutes = body.time_limit_minutes;
+      if (
+        time_limit_minutes !== null &&
+        time_limit_minutes !== undefined &&
+        !(Number.isInteger(time_limit_minutes) && time_limit_minutes > 0)
+      ) {
+        return NextResponse.json({ error: "Invalid time_limit_minutes (>0 or null)" }, { status: 400 });
+      }
+      updates.time_limit_minutes = time_limit_minutes ?? null;
+    }
+
+    // Ensure there is at least one field to update
+    const hasUpdates = Object.keys(updates).length > 0;
+    if (!hasUpdates) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    const { data: updated, error: updErr } = await supabase
+      .from("community_quiz")
+      .update(updates)
+      .eq("id", quiz.id)
+      .select(
+        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode, time_limit_minutes, author_id, created_at`
+      )
+      .single();
+
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json(updated, { status: 200 });
+  } catch (err: any) {
+    console.error("Update quiz error:", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ quizSlug: string }> }
+) {
+  return handleUpdate(req, params);
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ quizSlug: string }> }
+) {
+  return handleUpdate(req, params);
+}
+

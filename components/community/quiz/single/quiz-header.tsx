@@ -2,18 +2,19 @@ import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, Play, Share2, Lock, Eye, CheckCircle } from "lucide-react";
+import { Heart, Play, Share2, Lock, Eye, CheckCircle, Pencil } from "lucide-react";
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { Hashtag } from "@/interface/community/post-interface";
 import ShareQuizModal from "@/components/community/quiz/share-quiz-modal";
 import { useUser } from "@/hooks/profile/use-user";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const { data: currentUser } = useUser();
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const router = useRouter();
+  const params = useParams();
   const isAuthor = currentUser?.id === quiz.author_id;
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -193,6 +194,20 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
           <Button variant="outline" disabled>
             <Share2 className="h-5 w-5 mr-2" />
             Share
+          </Button>
+        )}
+
+        {/* 编辑入口按钮：作者或具备 edit 权限的用户可见 */}
+        {(isAuthor || attemptStatus?.userPermission === 'edit') && (
+          <Button 
+            variant="outline"
+            onClick={() => {
+              const locale = (params as any)?.locale || 'en';
+              router.push(`/${locale}/community/quizzes/${quiz.slug}/edit`);
+            }}
+          >
+            <Pencil className="h-5 w-5 mr-2" />
+            Edit
           </Button>
         )}
         

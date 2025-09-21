@@ -194,7 +194,6 @@ export function EditCourseLessonDialog({
             
           if (wasAttachmentChanged) {
             try {
-              console.log('Starting video processing for newly selected attachment:', selectedAttachment.id);
               await startVideoProcessingMutation.mutateAsync(selectedAttachment.id);
             } catch (error) {
               console.error('Failed to start video processing:', error);

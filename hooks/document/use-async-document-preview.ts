@@ -64,7 +64,6 @@ export function useAsyncDocumentPreview(attachmentId: number | null, documentTyp
   const queueMutation = useMutation({
     mutationFn: queueDocumentProcessing,
     onSuccess: (data) => {
-      console.log('✅ Document queued for processing:', data.jobId)
       setJobId(data.jobId)
       
       // Start polling if job is not completed
@@ -100,7 +99,6 @@ export function useAsyncDocumentPreview(attachmentId: number | null, documentTyp
       const status = jobStatusQuery.data.status
       
       if (status === 'completed' || status === 'failed') {
-        console.log(`📋 Job ${jobId} finished with status: ${status}`)
         setPollingInterval(false)
       }
     }
@@ -112,8 +110,6 @@ export function useAsyncDocumentPreview(attachmentId: number | null, documentTyp
       console.error('❌ Cannot start processing: No attachment ID')
       return
     }
-
-    console.log('🚀 Starting document processing:', { attachmentId, documentType, priority })
     
     queueMutation.mutate({
       attachmentId,

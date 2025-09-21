@@ -123,7 +123,6 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                 
                 if (selectedAttachment && selectedAttachment.type === 'video') {
                     try {
-                        console.log('Starting video processing for attachment:', selectedAttachment.id);
                         await startVideoProcessingMutation.mutateAsync(selectedAttachment.id);
                     } catch (error) {
                         console.error('Failed to start video processing:', error);

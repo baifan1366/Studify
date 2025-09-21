@@ -1,7 +1,5 @@
-// C:\Users\jiaxu\Studify\components\community\quiz\single\quiz-leaderboard.tsx
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Award } from "lucide-react";
 
 interface LeaderItem {

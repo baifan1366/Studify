@@ -2,7 +2,6 @@
 
 import { DocumentPreview } from '@/components/ui/document-preview';
 import { useTranslations } from 'next-intl';
-import { useState, useEffect, useRef } from 'react';
 
 // Types
 interface MegaDocumentPreviewProps {
@@ -28,33 +27,14 @@ export default function MegaDocumentPreview({
   onError 
 }: MegaDocumentPreviewProps) {
   const t = useTranslations('DocumentPreview')
-  const [key, setKey] = useState(0)
-  const mountedRef = useRef(true)
-  
-  // Reset DocumentPreview when attachmentId changes to prevent controller conflicts
-  useEffect(() => {
-    if (mountedRef.current) {
-      setKey(prev => prev + 1)
-    }
-  }, [attachmentId])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-  
   // Debug logging for development
   if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 MegaDocumentPreview: Rendering with attachmentId:', attachmentId, 'key:', key)
+    console.log('🔧 MegaDocumentPreview: Rendering with attachmentId:', attachmentId)
   }
 
-  // Use key prop to force DocumentPreview remount and prevent controller reuse
   return (
     <DocumentPreview
-      key={`${attachmentId}-${key}`}
+      key={attachmentId} // Simple key based on attachmentId
       fileId={attachmentId.toString()}
       className={className}
       showControls={showControls}

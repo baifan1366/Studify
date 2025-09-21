@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -47,7 +47,8 @@ interface Comment {
 }
 
 interface VideoPlayerProps {
-  src: string;
+  src?: string;
+  attachmentId?: number; // Support MEGA attachment streaming
   title: string;
   poster?: string;
   danmakuMessages?: DanmakuMessage[];
@@ -58,6 +59,7 @@ interface VideoPlayerProps {
 
 export default function BilibiliVideoPlayer({
   src,
+  attachmentId,
   title,
   poster,
   danmakuMessages = [],
@@ -94,6 +96,74 @@ export default function BilibiliVideoPlayer({
 
   // Control visibility timer
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper functions for embed URLs
+  const getYouTubeEmbedUrl = useCallback((url: string): string => {
+    const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/;
+    const match = url.match(regex);
+    return match ? `https://www.youtube.com/embed/${match[1]}` : url;
+  }, []);
+  
+  const getVimeoEmbedUrl = useCallback((url: string): string => {
+    const regex = /vimeo\.com\/(\d+)/;
+    const match = url.match(regex);
+    return match ? `https://player.vimeo.com/video/${match[1]}` : url;
+  }, []);
+
+  // Detect video source type and calculate appropriate source
+  const videoSourceInfo = useMemo(() => {
+    if (attachmentId) {
+      return {
+        src: `/api/attachments/${attachmentId}/stream`,
+        type: 'direct',
+        canPlay: true
+      };
+    }
+    
+    if (!src) {
+      return {
+        src: null,
+        type: 'none',
+        canPlay: false
+      };
+    }
+    
+    // Check if it's a YouTube URL
+    if (src.includes('youtube.com') || src.includes('youtu.be')) {
+      return {
+        src: src,
+        type: 'youtube',
+        canPlay: false, // HTML video can't play YouTube directly
+        embedUrl: getYouTubeEmbedUrl(src)
+      };
+    }
+    
+    // Check if it's a Vimeo URL
+    if (src.includes('vimeo.com')) {
+      return {
+        src: src,
+        type: 'vimeo',
+        canPlay: false, // HTML video can't play Vimeo directly
+        embedUrl: getVimeoEmbedUrl(src)
+      };
+    }
+    
+    // Check if it's a direct video file
+    if (src.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i)) {
+      return {
+        src: src,
+        type: 'direct',
+        canPlay: true
+      };
+    }
+    
+    // Default: assume it's a direct URL and try to play
+    return {
+      src: src,
+      type: 'direct',
+      canPlay: true
+    };
+  }, [attachmentId, src, getYouTubeEmbedUrl, getVimeoEmbedUrl]);
 
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
@@ -311,18 +381,50 @@ export default function BilibiliVideoPlayer({
           }
         }}
       >
-        {/* Video Element */}
-        <video
-          ref={videoRef}
-          src={src}
-          poster={poster}
-          className="w-full h-full object-contain"
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onClick={togglePlay}
-        />
+        {/* Video Content - Handle different video types */}
+        {videoSourceInfo.type === 'youtube' && videoSourceInfo.embedUrl ? (
+          <iframe
+            src={videoSourceInfo.embedUrl}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title={title}
+          />
+        ) : videoSourceInfo.type === 'vimeo' && videoSourceInfo.embedUrl ? (
+          <iframe
+            src={videoSourceInfo.embedUrl}
+            className="w-full h-full"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            title={title}
+          />
+        ) : videoSourceInfo.canPlay && videoSourceInfo.src ? (
+          <video
+            ref={videoRef}
+            src={videoSourceInfo.src}
+            poster={poster}
+            className="w-full h-full object-contain"
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onClick={togglePlay}
+          />
+        ) : (
+          // No video source or unsupported format
+          <div className="w-full h-full flex items-center justify-center bg-gray-900">
+            <div className="text-center text-white/60">
+              <Play size={64} className="mx-auto mb-4" />
+              <p className="text-xl mb-2">No video content available</p>
+              <p className="text-sm">{title}</p>
+              {src && (
+                <p className="text-xs mt-2 opacity-60">
+                  Source: {videoSourceInfo.type === 'youtube' ? 'YouTube' : videoSourceInfo.type === 'vimeo' ? 'Vimeo' : 'Unknown format'}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Danmaku Container */}
         <div
@@ -332,9 +434,9 @@ export default function BilibiliVideoPlayer({
           {renderDanmaku()}
         </div>
 
-        {/* Video Controls Overlay */}
+        {/* Video Controls Overlay - Only show for direct video, not for YouTube/Vimeo */}
         <AnimatePresence>
-          {showControls && (
+          {showControls && videoSourceInfo.type === 'direct' && videoSourceInfo.canPlay && (
             <motion.div
               className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"
               initial={{ opacity: 0 }}
@@ -532,9 +634,19 @@ export default function BilibiliVideoPlayer({
           )}
         </AnimatePresence>
 
-        {/* Danmaku Input */}
+        {/* Simple title overlay for YouTube/Vimeo videos */}
+        {(videoSourceInfo.type === 'youtube' || videoSourceInfo.type === 'vimeo') && (
+          <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+            <h2 className="text-white text-lg font-semibold">{title}</h2>
+            <p className="text-white/80 text-sm">
+              {videoSourceInfo.type === 'youtube' ? 'YouTube Video' : 'Vimeo Video'}
+            </p>
+          </div>
+        )}
+
+        {/* Danmaku Input - Only for direct videos */}
         <AnimatePresence>
-          {showDanmakuInput && (
+          {showDanmakuInput && videoSourceInfo.type === 'direct' && (
             <motion.div
               className="absolute bottom-20 left-4 right-4"
               initial={{ opacity: 0, y: 20 }}
@@ -605,7 +717,9 @@ export default function BilibiliVideoPlayer({
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">评论 {comments.length}</h3>
+                <h3 className="text-lg font-semibold">
+                  评论 {videoSourceInfo.type === 'youtube' || videoSourceInfo.type === 'vimeo' ? '(外部视频)' : comments.length}
+                </h3>
                 <button
                   onClick={() => setShowComments(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -615,34 +729,54 @@ export default function BilibiliVideoPlayer({
                 </button>
               </div>
 
-              {/* Comment Input */}
-              <div className="flex gap-3 mb-6">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                  U
-                </div>
-                <div className="flex-1">
-                  <textarea
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="发一条友善的评论"
-                    className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-blue-500"
-                    rows={3}
-                  />
-                  <div className="flex justify-end mt-2">
-                    <button
-                      onClick={sendComment}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                    >
-                      发布
-                    </button>
+              {/* Comment Input - Only for direct videos */}
+              {videoSourceInfo.type === 'direct' ? (
+                <div className="flex gap-3 mb-6">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                    U
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="发一条友善的评论"
+                      className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-blue-500"
+                      rows={3}
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={sendComment}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                      >
+                        发布
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-6 p-4 bg-gray-100 rounded-lg text-center">
+                  <p className="text-gray-600">
+                    这是一个 {videoSourceInfo.type === 'youtube' ? 'YouTube' : 'Vimeo'} 视频。
+                    请在原平台查看和发表评论。
+                  </p>
+                  {videoSourceInfo.src && (
+                    <a 
+                      href={videoSourceInfo.src} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline mt-2 inline-block"
+                    >
+                      在 {videoSourceInfo.type === 'youtube' ? 'YouTube' : 'Vimeo'} 上观看
+                    </a>
+                  )}
+                </div>
+              )}
 
-              {/* Comments List */}
-              <div className="space-y-4">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
+              {/* Comments List - Only show for direct videos */}
+              {videoSourceInfo.type === 'direct' && (
+                <div className="space-y-4">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
                     <img
                       src={comment.avatar}
                       alt={comment.username}
@@ -691,9 +825,10 @@ export default function BilibiliVideoPlayer({
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

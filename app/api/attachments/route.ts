@@ -49,20 +49,15 @@ export async function POST(request: NextRequest) {
 
     // Get the user's profile ID from the database
     const supabase = await createAttachmentAdminClient()
-    
-    console.log('Looking for profile with user_id:', authResult.payload.sub)
-    
+        
     let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, user_id, display_name')
       .eq('user_id', authResult.payload.sub)
       .single()
 
-    console.log('Profile query result:', { profile, profileError })
-
     // If profile doesn't exist, create one
     if (profileError || !profile) {
-      console.log('Profile not found, creating new profile for user:', authResult.payload.sub)
       
       // Get user info from auth
       const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(authResult.payload.sub)
@@ -96,7 +91,6 @@ export async function POST(request: NextRequest) {
       }
 
       profile = newProfile
-      console.log('Created new profile:', profile)
     }
 
     const profileId = profile.id

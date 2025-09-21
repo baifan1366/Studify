@@ -40,7 +40,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useAttachment } from '@/hooks/course/use-attachments';
-import VideoPlayer from '@/components/ui/video-player';
 import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
 
 interface CourseLearningContentProps {
@@ -436,38 +435,30 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             showControls={true}
           />
         ) : 
-        /* 2. Video with MEGA attachment - use VideoPlayer for streaming */
+        /* 2. Video with MEGA attachment - use BilibiliVideoPlayer with attachment streaming */
         currentLesson?.kind === 'video' && attachment?.url ? (
-          <>
-            <VideoPlayer
-              src={`/api/attachments/${attachment.id}/stream`}
-              className="aspect-video mb-4"
-            />
-            {/* Always show BilibiliVideoPlayer as fallback for video lessons */}
-            <BilibiliVideoPlayer
-              src={currentLesson.content_url}
-              title={currentLesson.title || 'Course Lesson'}
-              poster={course?.thumbnail_url || undefined}
-              danmakuMessages={danmakuMessages}
-              comments={comments}
-              onDanmakuSend={handleDanmakuSend}
-              onCommentSend={handleCommentSend}
-            />
-          </>
+          <BilibiliVideoPlayer
+            attachmentId={attachment.id}
+            src={currentLesson.content_url} // Fallback for external videos
+            title={currentLesson.title || 'Course Lesson'}
+            poster={course?.thumbnail_url || undefined}
+            danmakuMessages={danmakuMessages}
+            comments={comments}
+            onDanmakuSend={handleDanmakuSend}
+            onCommentSend={handleCommentSend}
+          />
         ) : 
         /* 3. Video with YouTube/external link - use BilibiliVideoPlayer */
         currentLesson?.kind === 'video' && currentLesson?.content_url ? (
-          <>
-            <BilibiliVideoPlayer
-              src={currentLesson.content_url}
-              title={currentLesson.title || 'Course Lesson'}
-              poster={course?.thumbnail_url || undefined}
-              danmakuMessages={danmakuMessages}
-              comments={comments}
-              onDanmakuSend={handleDanmakuSend}
-              onCommentSend={handleCommentSend}
-            />
-          </>
+          <BilibiliVideoPlayer
+            src={currentLesson.content_url}
+            title={currentLesson.title || 'Course Lesson'}
+            poster={course?.thumbnail_url || undefined}
+            danmakuMessages={danmakuMessages}
+            comments={comments}
+            onDanmakuSend={handleDanmakuSend}
+            onCommentSend={handleCommentSend}
+          />
         ) : 
         /* Loading states */
         attachmentLoading ? (
@@ -481,47 +472,25 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         ) : 
         /* Error/fallback states */
         currentLesson?.kind === 'video' && attachmentId && !attachment ? (
-          <>
-            <div className="aspect-video bg-gradient-to-br from-red-900 to-black flex items-center justify-center rounded-lg mb-4">
-              <div className="text-center text-white/60">
-                <Play size={64} className="mx-auto mb-4" />
-                <p className="text-xl">Video attachment not found</p>
-                <p className="text-sm mt-2">Attachment ID: {attachmentId}</p>
-                <p className="text-xs mt-1 opacity-80">Falling back to external video</p>
-              </div>
-            </div>
-            {/* Always show BilibiliVideoPlayer as fallback for video lessons */}
-            <BilibiliVideoPlayer
-              src={currentLesson.content_url}
-              title={currentLesson.title || 'Course Lesson'}
-              poster={course?.thumbnail_url || undefined}
-              danmakuMessages={danmakuMessages}
-              comments={comments}
-              onDanmakuSend={handleDanmakuSend}
-              onCommentSend={handleCommentSend}
-            />
-          </>
+          <BilibiliVideoPlayer
+            src={currentLesson.content_url} // Fallback to external video
+            title={currentLesson.title || 'Course Lesson'}
+            poster={course?.thumbnail_url || undefined}
+            danmakuMessages={danmakuMessages}
+            comments={comments}
+            onDanmakuSend={handleDanmakuSend}
+            onCommentSend={handleCommentSend}
+          />
         ) : currentLesson?.kind === 'video' ? (
-          <>
-            <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg mb-4">
-              <div className="text-center text-white/60">
-                <Play size={64} className="mx-auto mb-4" />
-                <p className="text-xl">No video content available</p>
-                <p className="text-sm mt-2">{currentLesson?.title}</p>
-                <p className="text-xs mt-1 opacity-80">Please check if video attachment or external link is provided</p>
-              </div>
-            </div>
-            {/* Always show BilibiliVideoPlayer as fallback for video lessons */}
-            <BilibiliVideoPlayer
-              src={currentLesson?.content_url}
-              title={currentLesson.title || 'Course Lesson'}
-              poster={course?.thumbnail_url || undefined}
-              danmakuMessages={danmakuMessages}
-              comments={comments}
-              onDanmakuSend={handleDanmakuSend}
-              onCommentSend={handleCommentSend}
-            />
-          </>
+          <BilibiliVideoPlayer
+            src={currentLesson?.content_url} // May be empty, will show no content state
+            title={currentLesson.title || 'Course Lesson'}
+            poster={course?.thumbnail_url || undefined}
+            danmakuMessages={danmakuMessages}
+            comments={comments}
+            onDanmakuSend={handleDanmakuSend}
+            onCommentSend={handleCommentSend}
+          />
         ) : (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
@@ -707,7 +676,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               size="sm"
               className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'ai'
-                  ? 'text-orange-500 border-b-orange-500'
+                  ? 'text-orange-500'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >

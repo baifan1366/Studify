@@ -40,17 +40,22 @@ export function DocumentPreview({
   const [error, setError] = useState<string | null>(null)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [isRetrying, setIsRetrying] = useState(false)
 
   // Fetch file data from API
   useEffect(() => {
+    let isActive = true
+    
     const fetchFile = async () => {
       try {
         setLoading(true)
         setError(null)
-        
-        console.log(`🔍 Fetching file data for fileId: ${fileId}`)
-        
+        setIsRetrying(retryCount > 0)
+                
         const apiResponse = await fetch(`/api/preview/${fileId}`)
+        
+        // Check if component is still mounted
+        if (!isActive) return
         
         // Check if response is ok
         if (!apiResponse.ok) {
@@ -76,19 +81,35 @@ export function DocumentPreview({
             mode: 'blob'
           })
           
-          console.log(`📄 Small file loaded:`, { fileName, fileSize, mimeType })
         } else {
           // Large file - JSON response
           const data = await apiResponse.json()
           setResponse(data)
-          console.log(`📄 Large file info:`, data)
         }
         
       } catch (err) {
-        console.error('❌ Failed to fetch file:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load file')
+        if (!isActive) return // Don't set error if component unmounted
+        
+        console.error(`❌ Failed to fetch file (attempt ${retryCount + 1}):`, err)
+        
+        // Handle different error types
+        let errorMessage = 'Failed to load file'
+        if (err instanceof Error) {
+          if (err.message.includes('MEGA')) {
+            errorMessage = `MEGA service error: ${err.message}`
+          } else if (err.message.includes('timeout')) {
+            errorMessage = 'Connection timeout - please try again'
+          } else {
+            errorMessage = err.message
+          }
+        }
+        
+        setError(errorMessage)
       } finally {
-        setLoading(false)
+        if (isActive) {
+          setLoading(false)
+          setIsRetrying(false)
+        }
       }
     }
 
@@ -96,22 +117,15 @@ export function DocumentPreview({
       fetchFile()
     }
 
-    // Cleanup blob URL when component unmounts or fileId changes
+    // Cleanup function
     return () => {
+      isActive = false
       if (blobUrl) {
         URL.revokeObjectURL(blobUrl)
       }
     }
   }, [fileId, retryCount])
 
-  // Cleanup blob URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl)
-      }
-    }
-  }, [blobUrl])
 
   const handleDownload = () => {
     if (onDownload) {
@@ -142,7 +156,14 @@ export function DocumentPreview({
       <div className={`flex items-center justify-center h-96 ${className}`}>
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading preview...</p>
+          <p className="text-muted-foreground">
+            {isRetrying ? `Retrying... (attempt ${retryCount + 1})` : 'Loading preview...'}
+          </p>
+          {isRetrying && (
+            <p className="text-xs text-muted-foreground">
+              Previous attempts failed, trying again...
+            </p>
+          )}
         </div>
       </div>
     )
@@ -160,13 +181,18 @@ export function DocumentPreview({
           </div>
           {showControls && (
             <div className="flex gap-2 justify-center">
-              <Button onClick={() => {
-                setRetryCount(prev => prev + 1)
-                setError(null)
-                setResponse(null)
-                setBlobUrl(null)
-              }} variant="outline" size="sm">
-                Retry {retryCount > 0 && `(${retryCount + 1})`}
+              <Button 
+                onClick={() => {
+                  setRetryCount(prev => prev + 1)
+                  setError(null)
+                  setResponse(null)
+                  setBlobUrl(null)
+                }} 
+                variant="outline" 
+                size="sm"
+                disabled={loading || isRetrying}
+              >
+                {loading || isRetrying ? 'Retrying...' : `Retry${retryCount > 0 ? ` (${retryCount + 1})` : ''}`}
               </Button>
               <Button onClick={handleDownload} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />

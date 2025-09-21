@@ -54,7 +54,6 @@ export async function GET(
 
     // Simplified access check - any authenticated user can access
     // (since you mentioned tutors, admins, and students should all have access)
-    console.log(`📄 File access granted for user ${user.id} to attachment ${fileId}`)
 
     const megaUrl = attachment.url
     if (!megaUrl || (!megaUrl.includes('mega.nz') && !megaUrl.includes('mega.co.nz'))) {
@@ -63,8 +62,6 @@ export async function GET(
         { status: 400 }
       )
     }
-
-    console.log(`🔍 Preview request for file ${fileId}: ${attachment.file_name}`)
 
     // Get MEGA file info first with timeout handling
     let fileInfo
@@ -99,11 +96,8 @@ export async function GET(
     const fileName = fileInfo.name || attachment.file_name || 'document'
     const mimeType = getMimeTypeFromExtension(fileName)
 
-    console.log(`📏 File size: ${(fileSize / 1024 / 1024).toFixed(1)}MB`)
-
     // Check file size and determine strategy
     if (fileSize <= MAX_FILE_SIZE_BYTES) {
-      console.log(`📥 Small file detected, downloading and returning binary...`)
       
       try {
         // Download file as buffer with timeout
@@ -113,9 +107,7 @@ export async function GET(
             setTimeout(() => reject(new Error('Download timeout after 45 seconds')), 45000)
           )
         ])
-        
-        console.log(`✅ File downloaded successfully, returning binary response`)
-        
+                
         // Return binary data directly with proper headers
         return new NextResponse(fileBuffer, {
           status: 200,
@@ -133,9 +125,7 @@ export async function GET(
         // Fallback to large file mode if download fails
       }
     }
-    
-    console.log(`📄 Large file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB), providing download links`)
-    
+        
     // For large files, return JSON with download info
     const response: LargeFileResponse = {
       url: megaUrl,

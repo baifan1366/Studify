@@ -1,5 +1,17 @@
 import { Storage, File as MegaFile } from 'megajs'
 
+// Global connection pool to avoid repeated authentication
+interface MegaConnection {
+  storage: Storage
+  lastUsed: number
+  isValid: boolean
+}
+
+// Connection pool with 5-minute reuse window
+const connectionPool = new Map<string, MegaConnection>()
+const CONNECTION_REUSE_TIME = 5 * 60 * 1000 // 5 minutes
+const MAX_POOL_SIZE = 3
+
 export interface UploadResult {
   url: string
   size: number
@@ -35,58 +47,137 @@ function validateCredentials(email: string, password: string): void {
 }
 
 /**
- * Creates a MEGA storage instance with proper error handling
+ * Get or create a MEGA storage connection with pooling to avoid repeated authentication
  */
-async function createMegaStorage(email: string, password: string, retryCount = 0): Promise<Storage> {
+async function getMegaStorage(email: string, password: string, retryCount = 0): Promise<Storage> {
+  const connectionKey = `${email}:${password.substring(0, 10)}` // Don't log full password
+  const now = Date.now()
+  
+  // Check if we have a valid cached connection
+  const cached = connectionPool.get(connectionKey)
+  if (cached && cached.isValid && (now - cached.lastUsed) < CONNECTION_REUSE_TIME) {
+    cached.lastUsed = now
+    return cached.storage
+  }
+  
+  // Clean up expired connections
+  cleanupConnectionPool()
+  
+  // Create new connection
+  const storage = await createMegaStorageWithRetry(email, password, retryCount)
+  
+  // Cache the connection
+  connectionPool.set(connectionKey, {
+    storage,
+    lastUsed: now,
+    isValid: true
+  })
+  
+  return storage
+}
+
+/**
+ * Clean up expired connections from the pool
+ */
+function cleanupConnectionPool() {
+  const now = Date.now()
+  for (const [key, connection] of connectionPool.entries()) {
+    if (now - connection.lastUsed > CONNECTION_REUSE_TIME || !connection.isValid) {
+      connectionPool.delete(key)
+    }
+  }
+  
+  // Limit pool size
+  if (connectionPool.size > MAX_POOL_SIZE) {
+    const oldest = Array.from(connectionPool.entries())
+      .sort(([,a], [,b]) => a.lastUsed - b.lastUsed)[0]
+    if (oldest) {
+      connectionPool.delete(oldest[0])
+    }
+  }
+}
+
+/**
+ * Creates a MEGA storage instance with enhanced error handling and abort controller
+ */
+async function createMegaStorageWithRetry(email: string, password: string, retryCount = 0): Promise<Storage> {
   const maxRetries = 3
   const baseDelay = 2000 // 2 seconds
   
   try {
-    
     const storage = new Storage({
       email,
       password,
-      // Add timeout and other options for better reliability
       keepalive: false,
       autologin: true
     })
     
-    // Wait for storage to be ready with timeout
-    const readyPromise = storage.ready
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('MEGA authentication timeout after 30 seconds')), 30000)
-    })
+    // Enhanced timeout handling with AbortController
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 20000) // Reduced from 30s to 20s
     
-    await Promise.race([readyPromise, timeoutPromise])
+    try {
+      await new Promise<void>((resolve, reject) => {
+        // Handle abort signal
+        if (controller.signal.aborted) {
+          reject(new Error('Authentication cancelled due to timeout'))
+          return
+        }
+        
+        controller.signal.addEventListener('abort', () => {
+          reject(new Error('Authentication cancelled due to timeout'))
+        })
+        
+        // Wait for storage ready
+        storage.ready
+          .then(() => {
+            clearTimeout(timeoutId)
+            resolve()
+          })
+          .catch(reject)
+      })
+    } catch (error) {
+      clearTimeout(timeoutId)
+      throw error
+    }
     
     return storage
+    
   } catch (error) {
     const megaError = error as MegaError
     console.error(`MEGA authentication failed (attempt ${retryCount + 1}):`, megaError.message)
+    
+    // Mark any cached connections as invalid
+    for (const connection of connectionPool.values()) {
+      connection.isValid = false
+    }
     
     // Check if it's a retryable error
     const isRetryable = 
       megaError.code === -9 || // ENOENT - might be temporary
       megaError.message?.includes('timeout') ||
       megaError.message?.includes('network') ||
-      megaError.message?.includes('connection')
+      megaError.message?.includes('connection') ||
+      megaError.message?.includes('cancelled')
     
     if (isRetryable && retryCount < maxRetries) {
       const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff
       await sleep(delay)
-      return createMegaStorage(email, password, retryCount + 1)
+      return createMegaStorageWithRetry(email, password, retryCount + 1)
     }
     
     // Provide more specific error messages
     if (megaError.code === -9) {
-      throw new Error('MEGA authentication failed: Invalid email or password. Please check your MEGA credentials.')
-    } else if (megaError.message?.includes('timeout')) {
-      throw new Error('MEGA authentication failed: Connection timeout. Please check your internet connection and try again.')
+      throw new Error('MEGA authentication failed: Invalid email or password')
+    } else if (megaError.message?.includes('timeout') || megaError.message?.includes('cancelled')) {
+      throw new Error('MEGA authentication timeout: Server response took too long')
     } else if (megaError.message?.includes('ENOTFOUND')) {
-      throw new Error('MEGA authentication failed: Cannot connect to MEGA servers. Please check your internet connection.')
+      throw new Error('MEGA connection failed: Cannot reach MEGA servers')
     }
     
-    throw new Error(`MEGA authentication failed: ${megaError.message || 'Unknown authentication error'}`)
+    throw new Error(`MEGA authentication failed: ${megaError.message || 'Unknown error'}`)
   }
 }
 
@@ -220,8 +311,8 @@ export async function uploadToMega(file: File): Promise<UploadResult> {
   let storage: Storage | null = null
 
   try {    
-    // Create MEGA storage instance with retry logic
-    storage = await createMegaStorage(email, password)
+    // Get MEGA storage instance with connection pooling
+    storage = await getMegaStorage(email, password)
     
     // Upload file with retry logic
     const uploadedFile = await uploadFileToMega(storage, file)
@@ -266,30 +357,48 @@ export async function uploadToMega(file: File): Promise<UploadResult> {
 }
 
 /**
- * Get MEGA file information without downloading the full file
+ * Get MEGA file information without downloading the full file - Enhanced with better timeout handling
  */
-export async function getMegaFileInfo(megaUrl: string): Promise<MegaFileInfo> {
+export async function getMegaFileInfo(megaUrl: string, retryCount = 0): Promise<MegaFileInfo> {
+  const maxRetries = 2
+  const baseDelay = 1000
+  
   try {
-    console.log('🔍 Getting MEGA file info for:', megaUrl.substring(0, 50) + '...')
     
     // Parse MEGA URL and get file info
     const megaFile = MegaFile.fromURL(megaUrl)
     
-    // Load file attributes to get size and name
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('MEGA file info timeout after 15 seconds'))
-      }, 15000)
-      
-      megaFile.loadAttributes((error) => {
-        clearTimeout(timeout)
-        if (error) {
-          reject(new Error(`Failed to load MEGA file attributes: ${error.message}`))
-        } else {
-          resolve()
+    // Enhanced timeout handling with AbortController
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 12000) // Reduced from 15s to 12s
+    
+    try {
+      await new Promise<void>((resolve, reject) => {
+        // Handle abort signal
+        if (controller.signal.aborted) {
+          reject(new Error('File info request cancelled due to timeout'))
+          return
         }
+        
+        controller.signal.addEventListener('abort', () => {
+          reject(new Error('File info request cancelled due to timeout'))
+        })
+        
+        megaFile.loadAttributes((error) => {
+          clearTimeout(timeoutId)
+          if (error) {
+            reject(new Error(`Failed to load MEGA file attributes: ${error.message}`))
+          } else {
+            resolve()
+          }
+        })
       })
-    })
+    } catch (error) {
+      clearTimeout(timeoutId)
+      throw error
+    }
 
     const fileInfo: MegaFileInfo = {
       name: megaFile.name || 'Unknown',
@@ -298,15 +407,25 @@ export async function getMegaFileInfo(megaUrl: string): Promise<MegaFileInfo> {
       isValid: true
     }
 
-    console.log('📄 MEGA file info:', {
-      name: fileInfo.name,
-      size: `${(fileInfo.size / 1024 / 1024).toFixed(1)}MB`,
-      isValid: fileInfo.isValid
-    })
-
     return fileInfo
+    
   } catch (error) {
-    console.error('❌ Failed to get MEGA file info:', error)
+    console.error(`❌ Failed to get MEGA file info (attempt ${retryCount + 1}):`, error)
+    
+    // Check if it's a retryable error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isRetryable = 
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('cancelled')
+    
+    if (isRetryable && retryCount < maxRetries) {
+      const delay = baseDelay * Math.pow(2, retryCount)
+      await sleep(delay)
+      return getMegaFileInfo(megaUrl, retryCount + 1)
+    }
+    
     return {
       name: 'Unknown',
       size: 0,
@@ -317,11 +436,13 @@ export async function getMegaFileInfo(megaUrl: string): Promise<MegaFileInfo> {
 }
 
 /**
- * Download MEGA file as Buffer (for small files only)
+ * Download MEGA file as Buffer (for small files only) - Enhanced with better error handling
  */
-export async function downloadMegaFile(megaUrl: string, maxSizeBytes: number = 50 * 1024 * 1024): Promise<Buffer> {
+export async function downloadMegaFile(megaUrl: string, maxSizeBytes: number = 50 * 1024 * 1024, retryCount = 0): Promise<Buffer> {
+  const maxRetries = 2
+  const baseDelay = 2000
+  
   try {
-    console.log('📥 Downloading MEGA file:', megaUrl.substring(0, 50) + '...')
     
     // Get file info first to check size
     const fileInfo = await getMegaFileInfo(megaUrl)
@@ -336,39 +457,74 @@ export async function downloadMegaFile(megaUrl: string, maxSizeBytes: number = 5
 
     const megaFile = MegaFile.fromURL(megaUrl)
     
-    // Download file with timeout
-    const chunks: Buffer[] = []
-    const downloadStream = megaFile.download({})
+    // Download file with enhanced timeout and abort handling
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 90000) // Reduced from 2 minutes to 90 seconds
     
-    const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Download timeout after 2 minutes'))
-      }, 120000)
+    try {
+      const chunks: Buffer[] = []
+      const downloadStream = megaFile.download({})
       
-      downloadStream.on('data', (chunk: Buffer) => {
-        chunks.push(chunk)
+      const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
+        // Handle abort signal
+        if (controller.signal.aborted) {
+          reject(new Error('Download cancelled due to timeout'))
+          return
+        }
+        
+        controller.signal.addEventListener('abort', () => {
+          downloadStream.destroy()
+          reject(new Error('Download cancelled due to timeout'))
+        })
+        
+        downloadStream.on('data', (chunk: Buffer) => {
+          chunks.push(chunk)
+        })
+        
+        downloadStream.on('end', () => {
+          clearTimeout(timeoutId)
+          resolve(Buffer.concat(chunks))
+        })
+        
+        downloadStream.on('error', (error: Error) => {
+          clearTimeout(timeoutId)
+          reject(error)
+        })
       })
       
-      downloadStream.on('end', () => {
-        clearTimeout(timeout)
-        resolve(Buffer.concat(chunks))
+      console.log('✅ MEGA file downloaded successfully:', {
+        size: fileBuffer.length,
+        sizeFormatted: `${(fileBuffer.length / 1024 / 1024).toFixed(1)}MB`
       })
-      
-      downloadStream.on('error', (error: Error) => {
-        clearTimeout(timeout)
-        reject(error)
-      })
-    })
 
-    console.log('✅ MEGA file downloaded successfully:', {
-      size: fileBuffer.length,
-      sizeFormatted: `${(fileBuffer.length / 1024 / 1024).toFixed(1)}MB`
-    })
-
-    return fileBuffer
+      return fileBuffer
+      
+    } catch (error) {
+      clearTimeout(timeoutId)
+      throw error
+    }
+    
   } catch (error) {
-    console.error('❌ Failed to download MEGA file:', error)
-    throw new Error(`MEGA download failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    console.error(`❌ Failed to download MEGA file (attempt ${retryCount + 1}):`, error)
+    
+    // Check if it's a retryable error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isRetryable = 
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('cancelled')
+    
+    if (isRetryable && retryCount < maxRetries) {
+      const delay = baseDelay * Math.pow(2, retryCount)
+      console.log(`⏳ Retrying download in ${delay}ms...`)
+      await sleep(delay)
+      return downloadMegaFile(megaUrl, maxSizeBytes, retryCount + 1)
+    }
+    
+    throw new Error(`MEGA download failed: ${errorMessage}`)
   }
 }
 
@@ -388,7 +544,7 @@ export async function testMegaConnection(): Promise<{ success: boolean; message:
 
   try {
     validateCredentials(email, password)
-    const storage = await createMegaStorage(email, password)
+    const storage = await getMegaStorage(email, password)
     
     // Test basic functionality
     const info = await storage.getAccountInfo?.() || { type: 'unknown' }

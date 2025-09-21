@@ -41,7 +41,6 @@ export function PdfRenderer({
     setPdfLoading(false)
     setPageNumber(1)
     setError(null)
-    console.log(`📄 PDF loaded successfully: ${numPages} pages`)
   }
 
   const onDocumentLoadError = (error: Error) => {
@@ -53,7 +52,6 @@ export function PdfRenderer({
   const onDocumentLoadProgress = ({ loaded, total }: { loaded: number; total: number }) => {
     if (total > 0) {
       const progress = Math.round((loaded / total) * 100)
-      console.log(`📊 PDF loading progress: ${progress}%`)
     }
   }
 

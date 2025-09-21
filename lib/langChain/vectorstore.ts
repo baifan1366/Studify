@@ -1,17 +1,36 @@
 import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding, generateBatchEmbeddings, validateEmbedding, preprocessTextForEmbedding } from './embedding';
+import { 
+  generateEmbedding, 
+  generateBatchEmbeddings,
+  generateDualEmbedding,
+  generateDualBatchEmbeddings,
+  validateEmbedding, 
+  validateDualEmbedding,
+  preprocessTextForEmbedding,
+  EmbeddingModel,
+  DualEmbeddingResponse
+} from './embedding';
 import { chunkDocumentSemantically, SemanticChunk, EnhancedChunkMetadata } from './semantic-chunking';
 
-// Database types
+// Database types for dual embedding
 interface EmbeddingRecord {
   id: number;
   public_id: string;
   content_type: string;
   content_id: number;
   content_hash: string;
-  embedding: number[];
+  // Dual embedding fields
+  embedding?: number[]; // Legacy field for backwards compatibility
+  embedding_e5_small?: number[];
+  embedding_bge_m3?: number[];
+  has_e5_embedding?: boolean;
+  has_bge_embedding?: boolean;
+  // Model tracking
+  embedding_model?: string; // Legacy
+  embedding_e5_model?: string;
+  embedding_bge_model?: string;
+  // Content and metadata
   content_text: string;
-  embedding_model: string;
   language: string;
   token_count?: number;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'outdated';
@@ -21,6 +40,8 @@ interface EmbeddingRecord {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+  embedding_created_at?: string;
+  embedding_updated_at?: string;
   // Enhanced metadata fields
   chunk_type?: 'summary' | 'section' | 'paragraph' | 'detail';
   hierarchy_level?: number;
@@ -63,8 +84,31 @@ interface SearchResult {
     created_at: string;
     updated_at: string;
     token_count?: number;
-    embedding_model: string;
+    embedding_model?: string;
+    // Dual embedding metadata
+    embedding_types?: string;
+    individual_scores?: {
+      e5_similarity?: number;
+      bge_similarity?: number;
+      combined_similarity?: number;
+      weights?: { e5: number; bge: number };
+    };
+    has_e5_embedding?: boolean;
+    has_bge_embedding?: boolean;
+    chunk_type?: string;
+    hierarchy_level?: number;
+    word_count?: number;
+    sentence_count?: number;
   };
+}
+
+interface DualSearchOptions {
+  contentTypes?: ContentType[];
+  similarityThreshold?: number;
+  maxResults?: number;
+  userId?: number;
+  searchType?: 'e5_only' | 'bge_only' | 'hybrid';
+  embeddingWeights?: { e5: number; bge: number };
 }
 
 // Content types enum
@@ -131,8 +175,65 @@ export class VectorStore {
     }
   }
 
-  // Process a single embedding with semantic chunking
+  // Process a single embedding with dual embedding support
   async processEmbedding(queueRecord: QueueRecord): Promise<boolean> {
+    try {
+      // Use semantic chunking for better content processing
+      const chunks = await chunkDocumentSemantically(
+        queueRecord.content_text,
+        queueRecord.content_type,
+        queueRecord.content_id.toString()
+      );
+
+      if (chunks.length === 0) {
+        await this.failEmbedding(queueRecord.id, 'No valid chunks generated');
+        return false;
+      }
+
+      // Process each chunk with dual embeddings
+      let successCount = 0;
+      for (const chunk of chunks) {
+        try {
+          // Generate dual embeddings for this chunk
+          const dualResult = await generateDualEmbedding(chunk.content);
+          
+          // Validate embeddings
+          const validation = validateDualEmbedding(dualResult);
+          if (!validation.hasAnyValid) {
+            console.warn(`No valid embeddings for chunk ${chunk.id}`);
+            continue;
+          }
+
+          // Store dual embedding with enhanced metadata
+          const success = await this.storeDualEmbedding(
+            queueRecord,
+            chunk,
+            dualResult
+          );
+
+          if (success) successCount++;
+        } catch (chunkError) {
+          console.error(`Error processing chunk ${chunk.id}:`, chunkError);
+        }
+      }
+
+      // Mark original queue item as completed if at least one chunk succeeded
+      if (successCount > 0) {
+        await this.completeQueueItem(queueRecord.id);
+        return true;
+      } else {
+        await this.failEmbedding(queueRecord.id, 'Failed to process any chunks');
+        return false;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await this.failEmbedding(queueRecord.id, errorMessage);
+      return false;
+    }
+  }
+
+  // Process single embedding (legacy support)
+  async processLegacyEmbedding(queueRecord: QueueRecord): Promise<boolean> {
     try {
       // Use semantic chunking for better content processing
       const chunks = await chunkDocumentSemantically(
@@ -150,11 +251,11 @@ export class VectorStore {
       let successCount = 0;
       for (const chunk of chunks) {
         try {
-          // Generate embedding for this chunk
-          const result = await generateEmbedding(chunk.content);
+          // Generate E5 embedding for this chunk (legacy)
+          const result = await generateEmbedding(chunk.content, 'e5');
           
           // Validate embedding
-          if (!validateEmbedding(result.embedding)) {
+          if (!validateEmbedding(result.embedding, 384, 'e5')) {
             console.warn(`Invalid embedding for chunk ${chunk.id}`);
             continue;
           }
@@ -188,7 +289,60 @@ export class VectorStore {
     }
   }
 
-  // Store embedding with enhanced metadata
+  // Store dual embedding with enhanced metadata
+  private async storeDualEmbedding(
+    queueRecord: QueueRecord,
+    chunk: SemanticChunk,
+    dualResult: DualEmbeddingResponse
+  ): Promise<boolean> {
+    try {
+      const { error } = await this.supabase
+        .from('embeddings')
+        .insert({
+          content_type: queueRecord.content_type,
+          content_id: queueRecord.content_id,
+          content_hash: queueRecord.content_hash,
+          // Dual embeddings
+          embedding_e5_small: dualResult.e5_embedding,
+          embedding_bge_m3: dualResult.bge_embedding,
+          has_e5_embedding: !!dualResult.e5_embedding,
+          has_bge_embedding: !!dualResult.bge_embedding,
+          // Legacy embedding (use E5 if available)
+          embedding: dualResult.e5_embedding,
+          // Content and basic metadata
+          content_text: chunk.content,
+          token_count: dualResult.token_count,
+          status: 'completed',
+          embedding_created_at: new Date().toISOString(),
+          embedding_updated_at: new Date().toISOString(),
+          // Enhanced metadata from semantic chunking
+          chunk_type: chunk.metadata.chunkType,
+          hierarchy_level: chunk.metadata.hierarchyLevel,
+          parent_chunk_id: chunk.metadata.parentChunkId,
+          section_title: chunk.metadata.sectionTitle,
+          semantic_density: chunk.metadata.semanticDensity,
+          key_terms: chunk.metadata.keyTerms,
+          sentence_count: chunk.metadata.sentenceCount,
+          word_count: chunk.metadata.wordCount,
+          has_code_block: chunk.metadata.hasCodeBlock,
+          has_table: chunk.metadata.hasTable,
+          has_list: chunk.metadata.hasList,
+          chunk_language: chunk.metadata.language
+        } as any);
+
+      if (error) {
+        console.error('Error storing dual embedding:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error storing dual embedding:', error);
+      return false;
+    }
+  }
+
+  // Store embedding with enhanced metadata (legacy support)
   private async storeEnhancedEmbedding(
     queueRecord: QueueRecord,
     chunk: SemanticChunk,
@@ -203,9 +357,14 @@ export class VectorStore {
           content_id: queueRecord.content_id,
           content_hash: queueRecord.content_hash,
           embedding,
+          embedding_e5_small: embedding, // Also store in new column
+          has_e5_embedding: true,
+          has_bge_embedding: false,
           content_text: chunk.content,
           token_count: tokenCount,
           status: 'completed',
+          embedding_created_at: new Date().toISOString(),
+          embedding_updated_at: new Date().toISOString(),
           // Enhanced metadata from semantic chunking
           chunk_type: chunk.metadata.chunkType,
           hierarchy_level: chunk.metadata.hierarchyLevel,
@@ -369,7 +528,110 @@ export class VectorStore {
     }
   }
 
-  // Semantic search
+  // Dual embedding semantic search
+  async dualSemanticSearch(
+    queryText: string,
+    options: DualSearchOptions = {}
+  ): Promise<SearchResult[]> {
+    try {
+      const {
+        contentTypes,
+        similarityThreshold = 0.7,
+        maxResults = 10,
+        userId,
+        searchType = 'hybrid',
+        embeddingWeights = { e5: 0.4, bge: 0.6 }
+      } = options;
+
+      // Check search result cache first
+      const { getCachedSearchResults, setCachedSearchResults } = await import('./embedding-cache');
+      const cacheKey = `${queryText}:${JSON.stringify(options)}`;
+      const cachedResults = getCachedSearchResults(cacheKey, {});
+      if (cachedResults) {
+        return cachedResults;
+      }
+
+      const processedQuery = preprocessTextForEmbedding(queryText);
+      let queryEmbeddingE5: number[] | null = null;
+      let queryEmbeddingBGE: number[] | null = null;
+
+      // Generate embeddings based on search type
+      if (searchType === 'e5_only' || searchType === 'hybrid') {
+        const e5Result = await generateEmbedding(processedQuery, 'e5');
+        if (validateEmbedding(e5Result.embedding, 384, 'e5')) {
+          queryEmbeddingE5 = e5Result.embedding;
+        }
+      }
+
+      if (searchType === 'bge_only' || searchType === 'hybrid') {
+        const bgeResult = await generateEmbedding(processedQuery, 'bge');
+        if (validateEmbedding(bgeResult.embedding, 1024, 'bge')) {
+          queryEmbeddingBGE = bgeResult.embedding;
+        }
+      }
+
+      // Ensure we have at least one valid embedding
+      if (!queryEmbeddingE5 && !queryEmbeddingBGE) {
+        throw new Error('Failed to generate any valid query embeddings');
+      }
+
+      // Call the appropriate search function
+      let searchFunction: string;
+      let searchParams: any;
+
+      if (searchType === 'hybrid') {
+        searchFunction = 'search_embeddings_hybrid';
+        searchParams = {
+          query_embedding_e5: queryEmbeddingE5 ? `[${queryEmbeddingE5.join(',')}]` : null,
+          query_embedding_bge: queryEmbeddingBGE ? `[${queryEmbeddingBGE.join(',')}]` : null,
+          content_types: contentTypes || null,
+          match_threshold: similarityThreshold,
+          match_count: maxResults,
+          weight_e5: embeddingWeights.e5,
+          weight_bge: embeddingWeights.bge,
+          user_id: userId || null
+        };
+      } else if (searchType === 'e5_only') {
+        searchFunction = 'search_embeddings_e5';
+        searchParams = {
+          query_embedding: `[${queryEmbeddingE5!.join(',')}]`,
+          content_types: contentTypes || null,
+          match_threshold: similarityThreshold,
+          match_count: maxResults,
+          user_id: userId || null
+        };
+      } else { // bge_only
+        searchFunction = 'search_embeddings_bge';
+        searchParams = {
+          query_embedding: `[${queryEmbeddingBGE!.join(',')}]`,
+          content_types: contentTypes || null,
+          match_threshold: similarityThreshold,
+          match_count: maxResults,
+          user_id: userId || null
+        };
+      }
+
+      // Perform search
+      const { data, error } = await this.supabase.rpc(searchFunction, searchParams);
+
+      if (error) {
+        console.error(`Error performing ${searchType} search:`, error);
+        return [];
+      }
+
+      const results = data || [];
+      
+      // Cache the search results
+      setCachedSearchResults(cacheKey, {}, results);
+      
+      return results;
+    } catch (error) {
+      console.error('Error in dual semantic search:', error);
+      return [];
+    }
+  }
+
+  // Legacy semantic search (backward compatibility)
   async semanticSearch(
     queryText: string,
     options: {
@@ -379,56 +641,13 @@ export class VectorStore {
       userId?: number;
     } = {}
   ): Promise<SearchResult[]> {
-    try {
-      // Check search result cache first
-      const { getCachedSearchResults, setCachedSearchResults, getCachedQueryEmbedding, setCachedQueryEmbedding } = await import('./embedding-cache');
-      
-      const cachedResults = getCachedSearchResults(queryText, options);
-      if (cachedResults) {
-        return cachedResults;
-      }
-
-      // Check query embedding cache
-      const processedQuery = preprocessTextForEmbedding(queryText);
-      let queryEmbedding = getCachedQueryEmbedding(processedQuery);
-      
-      if (!queryEmbedding) {
-        // Generate query embedding
-        const queryResult = await generateEmbedding(processedQuery);
-        
-        if (!validateEmbedding(queryResult.embedding)) {
-          throw new Error('Invalid query embedding');
-        }
-        
-        queryEmbedding = queryResult.embedding;
-        // Cache the query embedding
-        setCachedQueryEmbedding(processedQuery, queryEmbedding);
-      }
-
-      // Perform search
-      const { data, error } = await this.supabase.rpc('semantic_search', {
-        p_query_embedding: `[${queryEmbedding.join(',')}]`,
-        p_content_types: options.contentTypes || null,
-        p_similarity_threshold: options.similarityThreshold || 0.7,
-        p_max_results: options.maxResults || 10,
-        p_user_id: options.userId || null
-      } as any);
-
-      if (error) {
-        console.error('Error performing semantic search:', error);
-        return [];
-      }
-
-      const results = data || [];
-      
-      // Cache the search results
-      setCachedSearchResults(queryText, options, results);
-      
-      return results;
-    } catch (error) {
-      console.error('Error in semantic search:', error);
-      return [];
-    }
+    // Convert to dual search options and use E5 only for backward compatibility
+    const dualOptions: DualSearchOptions = {
+      ...options,
+      searchType: 'e5_only'
+    };
+    
+    return this.dualSemanticSearch(queryText, dualOptions);
   }
 
   // Get embedding by content
@@ -490,7 +709,60 @@ export class VectorStore {
     }
   }
 
-  // Get embedding statistics
+  // Get dual embedding statistics
+  async getDualEmbeddingStats(): Promise<{
+    total: number;
+    dualComplete: number;
+    e5Only: number;
+    bgeOnly: number;
+    incomplete: number;
+    dualCoveragePercent: number;
+    byContentType: Record<string, any>;
+    byStatus: Record<string, number>;
+  }> {
+    try {
+      const { data, error } = await this.supabase.rpc('get_dual_embedding_statistics');
+
+      if (error) {
+        console.error('Error getting dual embedding stats:', error);
+        return {
+          total: 0,
+          dualComplete: 0,
+          e5Only: 0,
+          bgeOnly: 0,
+          incomplete: 0,
+          dualCoveragePercent: 0,
+          byContentType: {},
+          byStatus: {}
+        };
+      }
+
+      return data[0] || {
+        total: 0,
+        dualComplete: 0,
+        e5Only: 0,
+        bgeOnly: 0,
+        incomplete: 0,
+        dualCoveragePercent: 0,
+        byContentType: {},
+        byStatus: {}
+      };
+    } catch (error) {
+      console.error('Error getting dual embedding stats:', error);
+      return {
+        total: 0,
+        dualComplete: 0,
+        e5Only: 0,
+        bgeOnly: 0,
+        incomplete: 0,
+        dualCoveragePercent: 0,
+        byContentType: {},
+        byStatus: {}
+      };
+    }
+  }
+
+  // Get legacy embedding statistics (backward compatibility)
   async getEmbeddingStats(): Promise<{
     total: number;
     byContentType: Record<string, number>;
@@ -521,6 +793,41 @@ export class VectorStore {
     } catch (error) {
       console.error('Error getting embedding stats:', error);
       return { total: 0, byContentType: {}, byStatus: {} };
+    }
+  }
+
+  // Find embeddings that need dual embedding backfill
+  async findIncompleteEmbeddings(
+    contentTypeFilter?: ContentType,
+    priorityMissing: 'e5' | 'bge' | 'any' = 'bge',
+    limit: number = 50
+  ): Promise<{
+    id: number;
+    content_type: string;
+    content_id: number;
+    content_text: string;
+    has_e5_embedding: boolean;
+    has_bge_embedding: boolean;
+    missing_types: string[];
+    priority_score: number;
+    created_at: string;
+  }[]> {
+    try {
+      const { data, error } = await this.supabase.rpc('find_incomplete_dual_embeddings', {
+        limit_count: limit,
+        content_type_filter: contentTypeFilter || null,
+        priority_missing: priorityMissing
+      } as any);
+
+      if (error) {
+        console.error('Error finding incomplete embeddings:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error finding incomplete embeddings:', error);
+      return [];
     }
   }
 
@@ -626,4 +933,92 @@ export async function searchSimilarContent(
     maxResults,
     similarityThreshold: 0.7
   });
+}
+
+// Dual embedding search utility functions
+export async function searchSimilarContentDual(
+  query: string,
+  options: DualSearchOptions = {}
+): Promise<SearchResult[]> {
+  const vectorStore = getVectorStore();
+  return vectorStore.dualSemanticSearch(query, {
+    similarityThreshold: 0.7,
+    maxResults: 10,
+    searchType: 'hybrid',
+    embeddingWeights: { e5: 0.4, bge: 0.6 },
+    ...options
+  });
+}
+
+export async function searchWithE5Only(
+  query: string,
+  contentTypes?: ContentType[],
+  maxResults: number = 10
+): Promise<SearchResult[]> {
+  return searchSimilarContentDual(query, {
+    contentTypes,
+    maxResults,
+    searchType: 'e5_only'
+  });
+}
+
+export async function searchWithBGEOnly(
+  query: string,
+  contentTypes?: ContentType[],
+  maxResults: number = 10
+): Promise<SearchResult[]> {
+  return searchSimilarContentDual(query, {
+    contentTypes,
+    maxResults,
+    searchType: 'bge_only'
+  });
+}
+
+export async function searchWithHybrid(
+  query: string,
+  contentTypes?: ContentType[],
+  maxResults: number = 10,
+  embeddingWeights: { e5: number; bge: number } = { e5: 0.4, bge: 0.6 }
+): Promise<SearchResult[]> {
+  return searchSimilarContentDual(query, {
+    contentTypes,
+    maxResults,
+    searchType: 'hybrid',
+    embeddingWeights
+  });
+}
+
+// Dual embedding statistics utility
+export async function getDualEmbeddingStatistics(): Promise<{
+  total: number;
+  dualComplete: number;
+  e5Only: number;
+  bgeOnly: number;
+  incomplete: number;
+  dualCoveragePercent: number;
+  byContentType: Record<string, any>;
+  byStatus: Record<string, number>;
+}> {
+  const vectorStore = getVectorStore();
+  return vectorStore.getDualEmbeddingStats();
+}
+
+// Find content that needs dual embedding backfill
+export async function findContentNeedingBackfill(
+  contentType?: ContentType,
+  priorityMissing: 'e5' | 'bge' | 'any' = 'bge',
+  limit: number = 50
+): Promise<{
+  id: number;
+  content_type: string;
+  content_id: number;
+  content_text: string;
+  has_e5_embedding: boolean;
+  has_bge_embedding: boolean;
+  missing_types: string[];
+  priority_score: number;
+  created_at: string;
+}[]> {
+  const vectorStore = getVectorStore();
+  return vectorStore.findIncompleteEmbeddings(contentType, priorityMissing, limit);
 }

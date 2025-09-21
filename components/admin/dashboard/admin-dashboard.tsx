@@ -90,7 +90,7 @@ export function AdminDashboard() {
     );
   }
 
-  const { userStats, contentStats, recentActivity } = analytics;
+  const { userStats, contentStats, recentActivity } = analytics.data;
 
   return (
     <div className="space-y-6">

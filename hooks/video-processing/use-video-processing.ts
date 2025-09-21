@@ -178,8 +178,6 @@ export function useVideoProcessingQueues(params?: {
 // Utility functions
 export function getStepDisplayName(stepName: string): string {
   const stepNames: Record<string, string> = {
-    compress: 'Optimizing Video',
-    audio_convert: 'Converting to Audio',
     transcribe: 'Generating Transcript',
     embed: 'Creating AI Embeddings',
   };
@@ -188,9 +186,7 @@ export function getStepDisplayName(stepName: string): string {
 
 export function getStepDescription(stepName: string): string {
   const descriptions: Record<string, string> = {
-    compress: 'Compressing and optimizing video file for faster processing',
-    audio_convert: 'Extracting audio track from compressed video',
-    transcribe: 'Converting speech to text using AI transcription',
+    transcribe: 'Converting speech to text using AI transcription directly from video',
     embed: 'Generating semantic embeddings for AI-powered search',
   };
   return descriptions[stepName] || '';

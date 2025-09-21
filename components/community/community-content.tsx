@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
 import {
@@ -14,6 +14,7 @@ import { Plus, TrendingUp, Search } from "lucide-react";
 import Link from "next/link";
 import PostCard from "./post-card";
 import CommunitySidebar from "./community-sidebar";
+import CompactRecommendations from "./recommendations/compact-recommendations";
 
 export default function CommunityContent() {
   const t = useTranslations("CommunityContent");
@@ -58,6 +59,21 @@ export default function CommunityContent() {
     query.trim().length > 0 ? isSearchLoading : isPopularLoading;
   const isError = query.trim().length > 0 ? isSearchError : isPopularError;
   const error = query.trim().length > 0 ? searchError : popularError;
+
+  // Derive search intent for recommendations (extract hashtags and keyword)
+  const { qForRec, hashtagsForRec } = useMemo(() => {
+    const hashtagMatches = query.match(/#([A-Za-z0-9_]+)/g) || [];
+    const hashtags = Array.from(
+      new Set(
+        hashtagMatches.map((t) => t.slice(1).toLowerCase())
+      )
+    );
+    const q = query.replace(/#([A-Za-z0-9_]+)/g, "").trim();
+    return {
+      qForRec: q.length ? q : undefined,
+      hashtagsForRec: hashtags.length ? hashtags : undefined,
+    };
+  }, [query]);
 
   return (
     <>
@@ -104,6 +120,9 @@ export default function CommunityContent() {
                   className="w-full px-4 py-3 rounded-2xl bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Recommendations Section (driven by current search intent) */}
+              <CompactRecommendations limit={3} q={qForRec} hashtags={hashtagsForRec} />
 
               {/* Posts Feed */}
               {isLoading && (

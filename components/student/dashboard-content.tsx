@@ -17,7 +17,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile } from '@/hooks/profile/use-profile';
-import { useDashboard } from '@/hooks/dashboard/use-dashboard';
+import { useDashboard, RecentCourse, UpcomingEvent } from '@/hooks/dashboard/use-dashboard';
 import AnimatedBackground from '@/components/ui/animated-background';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -117,7 +117,7 @@ export default function DashboardContent() {
                 </h3>
                 
                 <div className="space-y-4">
-                  {recentCourses.map((course) => (
+                  {recentCourses.map((course: RecentCourse) => (
                     <div
                       key={course.id}
                       className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
@@ -160,7 +160,7 @@ export default function DashboardContent() {
                 </h3>
                 
                 <div className="space-y-3">
-                  {upcomingEvents.map((event) => (
+                  {upcomingEvents.map((event: UpcomingEvent) => (
                     <div key={event.id} className="p-3 bg-white/10 rounded-lg">
                       <h4 className="font-medium text-white text-sm">{event.title}</h4>
                       <p className="text-xs text-white/60">{event.date} at {event.time}</p>

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 import crypto from "crypto";
@@ -54,7 +54,7 @@ export async function POST(
     const token = crypto.randomBytes(32).toString('hex');
 
     // 计算过期时间
-    let expires_at = null;
+    let expires_at: Date | null = null;
     if (expires_in_days) {
       expires_at = new Date();
       expires_at.setDate(expires_at.getDate() + expires_in_days);
@@ -155,6 +155,75 @@ export async function GET(
 
   } catch (err: any) {
     console.error("Get invite links error:", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+// 撤销（删除）某个邀请链接
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ quizSlug: string }> }
+) {
+  try {
+    const { quizSlug } = await params;
+
+    const auth = await authorize("student");
+    if (auth instanceof NextResponse) return auth;
+    const { sub: userId } = auth;
+
+    const supabase = await createClient();
+
+    // 获取quiz信息并验证作者权限
+    const { data: quiz, error: quizErr } = await supabase
+      .from("community_quiz")
+      .select("id, author_id")
+      .eq("slug", quizSlug)
+      .maybeSingle();
+
+    if (quizErr || !quiz) {
+      return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+    }
+
+    if (quiz.author_id !== userId) {
+      return NextResponse.json(
+        { error: "Only the quiz author can revoke invite links" },
+        { status: 403 }
+      );
+    }
+
+    // 支持从 query 参数或 body 传入 token
+    const url = new URL(req.url);
+    let token = url.searchParams.get('token');
+    if (!token) {
+      try {
+        const body = await req.json();
+        token = body?.token;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!token) {
+      return NextResponse.json({ error: "Missing token" }, { status: 400 });
+    }
+
+    // 将该 token 标记为失效
+    const { error: updErr } = await supabase
+      .from("community_quiz_invite_token")
+      .update({ is_active: false, expires_at: new Date().toISOString() })
+      .eq("token", token)
+      .eq("quiz_id", quiz.id);
+
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error("Revoke invite link error:", err);
     return NextResponse.json(
       { error: err?.message ?? "Unknown error" },
       { status: 500 }

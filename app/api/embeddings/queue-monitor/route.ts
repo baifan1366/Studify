@@ -169,7 +169,9 @@ async function enhancedHandler(request: NextRequest) {
     console.log('🔍 Queue monitor request:', {
       method: request.method,
       url: request.url,
-      headers: Object.fromEntries(request.headers.entries()),
+      userAgent: request.headers.get('user-agent'),
+      qstashMessageId: request.headers.get('upstash-message-id'),
+      qstashRetryCount: request.headers.get('upstash-retries'),
       hasSigningKey: !!process.env.QSTASH_CURRENT_SIGNING_KEY,
       nodeEnv: process.env.NODE_ENV
     });
@@ -191,3 +193,21 @@ async function enhancedHandler(request: NextRequest) {
 export const POST = (process.env.NODE_ENV === 'development' || !process.env.QSTASH_CURRENT_SIGNING_KEY)
   ? enhancedHandler
   : verifySignatureAppRouter(enhancedHandler);
+
+// Handle QStash retries - they may come as different HTTP methods
+// QStash may retry with different HTTP methods, so we map them all to the same handler
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;
+
+// Also handle OPTIONS for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upstash-Signature',
+    },
+  });
+}

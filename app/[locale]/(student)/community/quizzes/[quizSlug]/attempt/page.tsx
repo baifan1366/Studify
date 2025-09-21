@@ -134,10 +134,25 @@ export default function QuizAttemptPage() {
   // 监听 session 过期
   useEffect(() => {
     if (sessionExpired && attemptId) {
-      alert("时间到！Quiz 已自动提交。");
-      router.push(`/community/quizzes/${quizSlug}`);
+      // 会话过期时，尝试提交并跳转至结果页
+      (async () => {
+        try {
+          await completeAttempt();
+        } catch (e) {
+          console.warn("completeAttempt on expiry failed or already submitted", e);
+        } finally {
+          router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
+        }
+      })();
     }
-  }, [sessionExpired, attemptId, router, quizSlug]);
+  }, [sessionExpired, attemptId, router, quizSlug, completeAttempt]);
+
+  // 监听 session 标记为 completed 的情况，直接跳转结果页
+  useEffect(() => {
+    if (session?.status === 'completed' && attemptId) {
+      router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
+    }
+  }, [session?.status, attemptId, router, quizSlug]);
 
   // 当页面从 bfcache 恢复（pageshow persisted）或标签页可见性变化时，重新补水 session（解决刷新/前进/后退 timer 丢失）
   useEffect(() => {
@@ -352,9 +367,9 @@ export default function QuizAttemptPage() {
         console.log("Advanced to question:", nextIndex);
       } else {
         // 完成 quiz
-        const result = await completeAttempt();
-        alert(`Quiz Finished! You got ${result.correct}/${result.total} correct`);
-        router.push(`/community/quizzes/${quizSlug}`);
+        await completeAttempt();
+        // 跳转到结果页显示分数 Modal
+        router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
       }
     } catch (error) {
       console.error("Error in handleNextQuestion:", error);

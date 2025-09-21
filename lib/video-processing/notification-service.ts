@@ -1,4 +1,5 @@
 import { notificationService } from '@/lib/notifications/notification-service';
+import { createServerClient } from "@/utils/supabase/server";
 
 export interface VideoProcessingNotificationData {
   attachment_id: number;
@@ -11,10 +12,22 @@ export interface VideoProcessingNotificationData {
 }
 
 export async function sendVideoProcessingNotification(
-  userId: string,
+  userId: string, // Auth UUID
   data: VideoProcessingNotificationData
 ) {
   try {
+    // Get profile ID from auth UUID
+    const client = await createServerClient();
+    const { data: profile, error: profileError } = await client
+      .from("profiles")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Failed to get profile for notification:', profileError);
+      return; // Skip notification if we can't find the profile
+    }
     let title: string;
     let message: string;
     let type: 'course' | 'system' = 'course';
@@ -47,7 +60,7 @@ export async function sendVideoProcessingNotification(
     }
 
     await notificationService.createNotification({
-      user_id: parseInt(userId),
+      user_id: profile.id,
       title,
       message,
       kind: type,
@@ -78,14 +91,25 @@ export async function sendVideoProcessingProgressNotification(
   data: VideoProcessingNotificationData & { retry_count?: number }
 ) {
   try {
+    // Get profile ID from auth UUID
+    const client = await createServerClient();
+    const { data: profile, error: profileError } = await client
+      .from("profiles")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Failed to get profile for progress notification:', profileError);
+      return; // Skip notification if we can't find the profile
+    }
+
     // Only send progress notifications for retrying status
     if (data.status !== 'started' || !data.current_step) {
       return;
     }
 
     const stepNames: Record<string, string> = {
-      compress: 'Optimizing Video',
-      audio_convert: 'Converting to Audio',
       transcribe: 'Generating Transcript',
       embed: 'Creating AI Embeddings'
     };
@@ -104,7 +128,7 @@ export async function sendVideoProcessingProgressNotification(
     }
 
     await notificationService.createNotification({
-      user_id: parseInt(userId),
+      user_id: profile.id,
       title,
       message,
       kind: 'course',

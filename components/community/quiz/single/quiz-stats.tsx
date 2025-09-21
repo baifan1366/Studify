@@ -6,6 +6,7 @@ import {
   Heart, 
   HelpCircle, 
   Calendar,
+  Timer,
   Eye,
   Lock
 } from "lucide-react";
@@ -140,6 +141,20 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               Created {new Date(quiz.created_at).toLocaleDateString()}
             </div>
           )}
+
+          {/* Duration / Time Limit */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Timer className="h-4 w-4" />
+            {typeof quiz.time_limit_minutes === 'number' && quiz.time_limit_minutes > 0 ? (
+              <>
+                Duration: <span className="font-medium">{quiz.time_limit_minutes} min</span>
+              </>
+            ) : (
+              <>
+                No time limit
+              </>
+            )}
+          </div>
 
           {quiz.tags && quiz.tags.length > 0 && (
             <div>

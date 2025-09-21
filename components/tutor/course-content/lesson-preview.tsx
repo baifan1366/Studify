@@ -19,6 +19,9 @@ import ChapterManagement from './chapter-management';
 import { detectLessonVideoSource, detectAttachmentVideo } from '@/utils/attachment/video-utils';
 import VideoPlayer from '@/components/ui/video-player';
 import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
+import { useAttachment } from '@/hooks/course/use-attachments';
+import { VideoPreview } from '@/components/tutor/storage/video-preview';
+import { PreviewAttachment } from '@/components/tutor/storage/preview-attachment';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -33,23 +36,17 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   const t = useTranslations('LessonPreview');
   const [contentType, setContentType] = useState<ContentType>('unknown');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [embedError, setEmbedError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
-  const [cloudinaryData, setCloudinaryData] = useState<{
-    hls_url?: string;
-    fallback_url?: string;
-    cached?: boolean;
-  } | null>(null);
-  const [processingVideo, setProcessingVideo] = useState(false);
-  const [processingStage, setProcessingStage] = useState<string>('');
-  const [retryCount, setRetryCount] = useState(0);
-  const [retryTimeout, setRetryTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [estimatedTime, setEstimatedTime] = useState<number>(0);
-  const [processingStartTime, setProcessingStartTime] = useState<number>(0);
+
+  // Get attachment details for type-based preview
+  const attachmentId = lesson?.attachments?.[0];
+  const { data: attachment, isLoading: attachmentLoading } = useAttachment(attachmentId);
 
   // Detect content type with priority system
   const detectContentType = (lesson: Lesson): ContentType => {
@@ -220,127 +217,16 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
     }
   };
 
-  // Calculate exponential backoff delay
-  const getRetryDelay = (attempt: number): number => {
-    return Math.min(1000 * Math.pow(2, attempt), 30000); // Max 30 seconds
-  };
-
-  // Estimate processing time based on file size
-  const estimateProcessingTime = (sizeBytes?: number): number => {
-    if (!sizeBytes) return 60; // Default 1 minute
-    const sizeMB = sizeBytes / (1024 * 1024);
-    // Rough estimate: 10 seconds per MB + 30 seconds base time
-    return Math.max(30, Math.ceil(sizeMB * 10 + 30));
-  };
-
-  // Fetch Cloudinary HLS URL for MEGA videos with retry logic
-  const fetchCloudinaryUrl = async (attachmentId: number, attempt: number = 0) => {
-    
-    if (!attachmentId || attachmentId === undefined) {
-      console.error('❌ Invalid attachment ID:', attachmentId);
-      setError('Invalid attachment ID');
-      return;
-    }
-    
-    setProcessingVideo(true);
-    setRetryCount(attempt);
-    
-    if (attempt === 0) {
-      setProcessingStartTime(Date.now());
-
-      // Use default estimate since we only have attachment IDs, not full attachment objects
-      // The actual file size would need to be fetched from the database if needed for estimation
-      setEstimatedTime(60); // Default estimate
-    }
-    
-    try {
-      setProcessingStage(attempt === 0 ? 'Initializing video processing...' : `Retrying... (attempt ${attempt + 1})`);
-      
-      const url = `/api/video/preview?attachmentId=${attachmentId}`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      // Handle rate limiting
-      if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get('retry-after') || '3600', 10);
-        throw new Error(`Rate limit exceeded. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`);
-      }
-      
-      // Handle processing in progress
-      if (response.status === 202 && data.processing) {
-        setProcessingStage('Video is being processed by another request...');
-        const retryAfter = parseInt(response.headers.get('retry-after') || '300', 10);
-        
-        if (attempt < 3) {
-          const delay = Math.max(retryAfter * 1000, getRetryDelay(attempt));
-          setRetryTimeout(setTimeout(() => {
-            fetchCloudinaryUrl(attachmentId, attempt + 1);
-          }, delay));
-          return;
-        } else {
-          throw new Error('Video processing is taking longer than expected. Please try again later.');
-        }
-      }
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to process video');
-      }
-      
-      setProcessingStage('Processing completed successfully!');
-      const newCloudinaryData = {
-        hls_url: data.hls_url,
-        fallback_url: data.fallback_url,
-        cached: data.cached,
-      };
-      setCloudinaryData(newCloudinaryData);
-      
-      // Stop processing since we got the data successfully
-      setProcessingVideo(false);
-      setProcessingStage('');
-      
-    } catch (error) {
-      console.error('❌ Cloudinary processing failed:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Video processing failed';
-      
-      // Implement retry logic with exponential backoff
-      if (attempt < 3 && !errorMessage.includes('Rate limit') && !errorMessage.includes('Access denied')) {
-        const delay = getRetryDelay(attempt);
-        setProcessingStage(`Processing failed. Retrying in ${Math.ceil(delay / 1000)} seconds...`);
-        
-        setRetryTimeout(setTimeout(() => {
-          fetchCloudinaryUrl(attachmentId, attempt + 1);
-        }, delay));
-        return;
-      }
-      
-      // Final fallback: try direct MEGA streaming
-      if (attempt >= 3) {
-        setProcessingStage('Falling back to direct streaming...');
-        setError('Video processing failed. Attempting direct streaming as fallback.');
-        // Note: Direct MEGA streaming would need to be implemented in the streaming API
-      } else {
-        setError(errorMessage);
-      }
-    } finally {
-      if (attempt >= 3 || cloudinaryData) {
-        setProcessingVideo(false);
-        setProcessingStage('');
-      }
-    }
-  };
-
-  // Cleanup retry timeout on unmount
+  // Cleanup loading timeout on unmount
   useEffect(() => {
     return () => {
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
       }
     };
-  }, [retryTimeout]);
+  }, [loadingTimeout]);
 
-  // Render video content with Cloudinary HLS streaming
+  // Render video content
   const renderVideoContent = () => {
     
     // Use priority-based video source detection
@@ -353,118 +239,22 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       return null;
     }
 
-    // Handle MEGA attachments with Cloudinary processing
+    // Handle MEGA attachments with updated VideoPlayer
     if (videoSource.sourceType === 'attachment' && lesson?.attachments?.[0]) {
       const attachmentId = lesson.attachments[0]; // This is already the ID number
       
-      // If we don't have Cloudinary data yet, fetch it
-      if (!cloudinaryData && !processingVideo) {
-        fetchCloudinaryUrl(attachmentId);
-        return (
-          <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
-            <div className="text-center text-white space-y-4 max-w-md">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
-              <div className="space-y-3">
-                <p className="text-lg font-medium">{t('processing_video')}</p>
-                {processingStage && (
-                  <p className="text-sm opacity-90 font-medium">{processingStage}</p>
-                )}
-                {estimatedTime > 0 && processingStartTime > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs opacity-70">
-                      {t('estimated_time')}: {Math.ceil(estimatedTime / 60)} {t('minutes')}
-                    </p>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                        style={{
-                          width: `${Math.min(100, ((Date.now() - processingStartTime) / (estimatedTime * 1000)) * 100)}%`
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-                {retryCount > 0 && (
-                  <p className="text-xs opacity-70">{t('retry_attempt')}: {retryCount + 1}/4</p>
-                )}
-                <p className="text-xs opacity-60">{t('large_files_may_take_several_minutes_to_process')}</p>
-              </div>
-            </div>
-          </div>
-        );
-      }
-      
-      // Show processing state
-      if (processingVideo) {
-        return (
-          <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
-            <div className="text-center text-white space-y-4 max-w-md">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
-              <div className="space-y-3">
-                <p className="text-lg font-medium">{t('processing_video')}</p>
-                {processingStage && (
-                  <p className="text-sm opacity-90 font-medium">{processingStage}</p>
-                )}
-                {estimatedTime > 0 && processingStartTime > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs opacity-70">
-                      {t('estimated_time')}: {Math.ceil(estimatedTime / 60)} {t('minutes')}
-                    </p>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                        style={{
-                          width: `${Math.min(100, ((Date.now() - processingStartTime) / (estimatedTime * 1000)) * 100)}%`
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-                {retryCount > 0 && (
-                  <p className="text-xs opacity-70">{t('retry_attempt')}: {retryCount + 1}/4</p>
-                )}
-                <p className="text-xs opacity-60">{t('converting_to_hls_streaming_format')}</p>
-              </div>
-            </div>
-          </div>
-        );
-      }
-      
-      // Use Cloudinary HLS streaming if available
-      if (cloudinaryData?.hls_url) {
-        return (
-          <div className="space-y-2">
-            <VideoPlayer
-              hlsSrc={cloudinaryData.hls_url}
-              src={cloudinaryData.fallback_url}
-              className="aspect-video"
-              onError={(error) => {
-                console.error('🎬 VideoPlayer error:', error);
-                setError(`VideoPlayer error: ${error}`);
-              }}
-              onLoadStart={() => {
-                // Only set loading if we don't already have cloudinary data loaded
-                if (!cloudinaryData?.hls_url) {
-                  setIsLoading(true);
-                }
-              }}
-              onCanPlay={() => {
-                setIsLoading(false);
-              }}
-            />
-            {cloudinaryData.cached && (
-              <div className="text-xs text-muted-foreground text-center">
-                ✓ {t('using_cached_hls_stream')}
-              </div>
-            )}
-            {!cloudinaryData.cached && processingStartTime > 0 && (
-              <div className="text-xs text-muted-foreground text-center">
-                ✓ {t('processed_in')} {Math.ceil((Date.now() - processingStartTime) / 1000)} {t('seconds')}
-              </div>
-            )}
-          </div>
-        );
-      } 
+      // Use the updated VideoPlayer which handles all streaming internally
+      return (
+        <div className="space-y-2">
+          <VideoPlayer
+            attachmentId={attachmentId}
+            title={lesson.title}
+            className="aspect-video"
+            controls={true}
+            autoPlay={false}
+          />
+        </div>
+      );
     }
 
     // Error fallback UI
@@ -540,6 +330,42 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
     );
   };
 
+  // Render type-based preview using attachment type (similar to storage-dialog.tsx)
+  const renderTypeBasedPreview = () => {
+    if (!attachment) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+          <span className="ml-2 text-muted-foreground">{t('loading_attachment')}</span>
+        </div>
+      );
+    }
+
+    const attachmentData = {
+      attachmentId: attachment.id,
+      title: attachment.title,
+      fileType: attachment.type
+    };
+
+    // Use same logic as storage-dialog.tsx for type-based preview
+    if (attachment.type === 'video') {
+      return (
+        <VideoPreview 
+          attachmentId={attachmentData.attachmentId}
+          title={attachmentData.title}
+          onClose={() => setShowPreview(false)}
+        />
+      );
+    } else {
+      return (
+        <PreviewAttachment 
+          attachmentId={attachmentData.attachmentId}
+          onClose={() => setShowPreview(false)}
+        />
+      );
+    }
+  };
+
   const renderContent = () => {
     // Check if we have any content source (attachments or content_url)
     const hasAttachments = lesson?.attachments && lesson.attachments.length > 0;
@@ -555,40 +381,70 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    // Handle video content with existing video logic
-    if (contentType === 'video') {
-      return renderVideoContent();
-    }
-
-    // Handle audio content (keep existing logic)
-    if (contentType === 'audio') {
-      return (
-        <div className="space-y-4">
-          <div className="bg-muted rounded-lg p-6">
-            <audio
-              controls
-              className="w-full"
-              src={lesson.content_url}
-            >
-              {t('audioNotSupported')}
-            </audio>
+    // Priority 1: Use attachment-based preview if we have attachments
+    if (hasAttachments && attachmentId) {
+      if (attachmentLoading) {
+        return (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+            <span className="ml-2 text-muted-foreground">{t('loading_attachment')}</span>
           </div>
-        </div>
-      );
+        );
+      }
+      
+      if (attachment) {
+        // Use type-based preview for attachments (similar to storage-dialog.tsx)
+        if (attachment.type === 'video') {
+          return (
+            <div className="space-y-2">
+              <VideoPlayer
+                attachmentId={attachment.id}
+                title={attachment.title}
+                className="w-full"
+                controls={true}
+                autoPlay={false}
+              />
+            </div>
+          );
+        } else {
+          // Use MegaDocumentPreview for non-video attachments
+          return (
+            <MegaDocumentPreview
+              attachmentId={attachment.id}
+              className="w-full min-h-[400px]"
+              showControls={true}
+            />
+          );
+        }
+      }
     }
 
-    // For all other content types, use MegaDocumentPreview if we have attachments
-    if (hasAttachments && lesson.attachments?.[0]) {
-      return (
-        <MegaDocumentPreview
-          attachmentId={lesson.attachments[0]}
-          className="w-full min-h-[400px]"
-          showControls={true}
-        />
-      );
+    // Priority 2: Fallback to content_url-based preview
+    if (hasContentUrl) {
+      // Handle video content with existing video logic
+      if (contentType === 'video') {
+        return renderVideoContent();
+      }
+
+      // Handle audio content (keep existing logic)
+      if (contentType === 'audio') {
+        return (
+          <div className="space-y-4">
+            <div className="bg-muted rounded-lg p-6">
+              <audio
+                controls
+                className="w-full"
+                src={lesson.content_url}
+              >
+                {t('audioNotSupported')}
+              </audio>
+            </div>
+          </div>
+        );
+      }
     }
     
-    // Fallback for content_url without attachments
+    // Priority 3: Fallback for content_url without attachments
     if (lesson.content_url) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
@@ -609,21 +465,13 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    // Fallback for unknown content
+    // Priority 4: Final fallback for unknown content
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
         <ExternalLink className="h-16 w-16 text-muted-foreground" />
         <div>
-          <h3 className="text-lg font-medium text-foreground mb-2">{t('externalContent')}</h3>
-          <p className="text-muted-foreground mb-4">{t('externalContentDescription')}</p>
-          <Button
-            variant="outline"
-            onClick={() => window.open(lesson.content_url, '_blank')}
-            className="gap-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            {t('openLink')}
-          </Button>
+          <h3 className="text-lg font-medium text-foreground mb-2">{t('unknownContent')}</h3>
+          <p className="text-muted-foreground mb-4">{t('unknownContentDescription')}</p>
         </div>
       </div>
     );

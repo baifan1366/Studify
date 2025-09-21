@@ -66,13 +66,32 @@ export async function GET(
 
     console.log(`🔍 Preview request for file ${fileId}: ${attachment.file_name}`)
 
-    // Get MEGA file info first
-    const fileInfo = await getMegaFileInfo(megaUrl)
+    // Get MEGA file info first with timeout handling
+    let fileInfo
+    try {
+      fileInfo = await Promise.race([
+        getMegaFileInfo(megaUrl),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('MEGA file info timeout')), 30000)
+        )
+      ])
+    } catch (megaError) {
+      console.error('❌ MEGA file info failed:', megaError)
+      // Fallback: return direct MEGA URL for large file mode
+      return NextResponse.json({
+        url: megaUrl,
+        mode: 'large',
+        size: attachment.size || 0,
+        name: attachment.file_name || 'Unknown',
+        mimeType: getMimeTypeFromExtension(attachment.file_name || '')
+      } as LargeFileResponse)
+    }
     
     if (!fileInfo.isValid) {
+      console.warn('⚠️ Invalid MEGA file, falling back to direct URL')
       return NextResponse.json(
-        { url: megaUrl, mode: 'large', size: 0, name: attachment.file_name || 'Unknown', mimeType: 'application/octet-stream' } as LargeFileResponse,
-        { status: 400 }
+        { url: megaUrl, mode: 'large', size: attachment.size || 0, name: attachment.file_name || 'Unknown', mimeType: getMimeTypeFromExtension(attachment.file_name || '') } as LargeFileResponse,
+        { status: 200 } // Changed from 400 to 200 for graceful fallback
       )
     }
 
@@ -87,8 +106,13 @@ export async function GET(
       console.log(`📥 Small file detected, downloading and returning binary...`)
       
       try {
-        // Download file as buffer
-        const fileBuffer = await downloadMegaFile(megaUrl, MAX_FILE_SIZE_BYTES)
+        // Download file as buffer with timeout
+        const fileBuffer = await Promise.race([
+          downloadMegaFile(megaUrl, MAX_FILE_SIZE_BYTES),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Download timeout after 45 seconds')), 45000)
+          )
+        ])
         
         console.log(`✅ File downloaded successfully, returning binary response`)
         

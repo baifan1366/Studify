@@ -2,6 +2,7 @@
 
 import { DocumentPreview } from '@/components/ui/document-preview';
 import { useTranslations } from 'next-intl';
+import { useState, useEffect, useRef } from 'react';
 
 // Types
 interface MegaDocumentPreviewProps {
@@ -19,7 +20,7 @@ const handleDownload = (attachmentId: number) => {
 }
 
 
-// Main MegaDocumentPreview component - now simplified to just API calls
+// Main MegaDocumentPreview component with proper state management
 export default function MegaDocumentPreview({ 
   attachmentId,
   className = '',
@@ -27,15 +28,33 @@ export default function MegaDocumentPreview({
   onError 
 }: MegaDocumentPreviewProps) {
   const t = useTranslations('DocumentPreview')
+  const [key, setKey] = useState(0)
+  const mountedRef = useRef(true)
+  
+  // Reset DocumentPreview when attachmentId changes to prevent controller conflicts
+  useEffect(() => {
+    if (mountedRef.current) {
+      setKey(prev => prev + 1)
+    }
+  }, [attachmentId])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
   
   // Debug logging for development
   if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 MegaDocumentPreview: Rendering with attachmentId:', attachmentId)
+    console.log('🔧 MegaDocumentPreview: Rendering with attachmentId:', attachmentId, 'key:', key)
   }
 
-  // Simply pass the attachmentId to DocumentPreview which handles the API calls
+  // Use key prop to force DocumentPreview remount and prevent controller reuse
   return (
     <DocumentPreview
+      key={`${attachmentId}-${key}`}
       fileId={attachmentId.toString()}
       className={className}
       showControls={showControls}

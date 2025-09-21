@@ -440,7 +440,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         currentLesson?.kind === 'video' && attachment?.url ? (
           <>
             <VideoPlayer
-              src={`/api/attachments/${attachment.id}/stream`}
+              attachmentId={attachment.id}
               className="aspect-video mb-4"
             />
             {/* Always show BilibiliVideoPlayer as fallback for video lessons */}

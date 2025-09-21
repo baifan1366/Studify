@@ -131,10 +131,15 @@ function CourseRecommendationCard({ course }: { course: any }) {
               className="object-cover group-hover:scale-105 transition-transform duration-200"
             />
           </div>
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
             <Badge variant="secondary" className="bg-black/70 text-white">
               {course.recommendation_score}% {t('match')}
             </Badge>
+            {course.embedding_score !== undefined && course.embedding_score > 10 && (
+              <Badge variant="secondary" className="bg-purple-600/90 text-white text-xs">
+                🧠 AI Match
+              </Badge>
+            )}
           </div>
         </div>
         
@@ -156,6 +161,38 @@ function CourseRecommendationCard({ course }: { course: any }) {
             {course.description}
           </p>
           
+          {/* Score Breakdown */}
+          {(course.traditional_score !== undefined || course.embedding_score !== undefined) && (
+            <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                📊 {t('score_breakdown')}
+              </p>
+              <div className="flex justify-between items-center text-xs">
+                {course.traditional_score !== undefined && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-blue-600">📝</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Rules: {course.traditional_score}/60
+                    </span>
+                  </div>
+                )}
+                {course.embedding_score !== undefined && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-purple-600">🧠</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      AI: {course.embedding_score}/40
+                    </span>
+                  </div>
+                )}
+              </div>
+              {course.embedding_similarity !== undefined && course.embedding_similarity > 0.5 && (
+                <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
+                  🎯 {Math.round(course.embedding_similarity * 100)}% semantic match
+                </div>
+              )}
+            </div>
+          )}
+
           {course.recommendation_reasons && course.recommendation_reasons.length > 0 && (
             <div className="mb-3">
               <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">
@@ -164,8 +201,12 @@ function CourseRecommendationCard({ course }: { course: any }) {
               <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
                 {course.recommendation_reasons.map((reason: string, index: number) => (
                   <li key={index} className="flex items-start gap-1">
-                    <span className="text-blue-600 mt-0.5">•</span>
-                    <span>{reason}</span>
+                    <span className={`mt-0.5 ${
+                      reason.includes('learning profile') ? 'text-purple-600' : 'text-blue-600'
+                    }`}>•</span>
+                    <span className={
+                      reason.includes('learning profile') ? 'text-purple-600 dark:text-purple-400' : ''
+                    }>{reason}</span>
                   </li>
                 ))}
               </ul>

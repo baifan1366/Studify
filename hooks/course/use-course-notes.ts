@@ -16,7 +16,7 @@ interface CourseNote {
 }
 
 interface CreateNoteData {
-  lessonId: string;
+  lessonId: number;
   timestampSec?: number;
   content: string;
   tags?: string[];
@@ -26,6 +26,7 @@ interface UpdateNoteData {
   noteId: string;
   content?: string;
   tags?: string[];
+  timestampSec?: number;
 }
 
 interface NotesResponse {
@@ -38,13 +39,13 @@ interface NoteResponse {
   note: CourseNote;
 }
 
-export function useCourseNotes(lessonId?: string, courseId?: string) {
+export function useCourseNotes(lessonId?: number, courseId?: number) {
   return useQuery<CourseNote[]>({
     queryKey: ['course-notes', courseId, lessonId],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (lessonId) params.append('lessonId', lessonId);
-      if (courseId) params.append('courseId', courseId);
+      if (lessonId) params.append('lessonId', lessonId.toString());
+      if (courseId) params.append('courseId', courseId.toString());
       
       const response = await apiGet<NotesResponse>(
         `/api/course/notes?${params.toString()}`

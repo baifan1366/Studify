@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Download, FileText, Image as ImageIcon, Play, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
+import { Download, FileText, Image as ImageIcon, Play, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Clock, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import VideoPlayer from '@/components/ui/video-player'
 import { Document, Page, pdfjs } from 'react-pdf'
@@ -11,6 +11,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import ReactMarkdown from 'react-markdown'
 import { useTranslations } from 'next-intl'
+import { useAsyncDocumentPreview } from '@/hooks/document/use-async-document-preview'
 
 // Set up PDF.js worker with version matching
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -24,6 +25,7 @@ interface DocumentPreviewProps {
   onDownload?: () => void
   className?: string
   showControls?: boolean
+  enableAsyncProcessing?: boolean // New prop to enable QStash processing
 }
 
 interface CloudinaryData {
@@ -38,12 +40,24 @@ export function DocumentPreview({
   attachmentId, 
   onDownload,
   className = '',
-  showControls = true
+  showControls = true,
+  enableAsyncProcessing = false
 }: DocumentPreviewProps) {
   const t = useTranslations('DocumentPreview')
   const [fileType, setFileType] = useState<FileType>(providedFileType || 'other')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Async document processing (only for MEGA files with attachmentId)
+  const shouldUseAsyncProcessing = enableAsyncProcessing && 
+    attachmentId && 
+    (url.includes('mega.nz') || url.includes('mega.co.nz')) &&
+    ['pdf', 'text', 'office'].includes(fileType)
+    
+  const asyncProcessing = useAsyncDocumentPreview(
+    shouldUseAsyncProcessing ? attachmentId : null,
+    fileType as 'pdf' | 'text' | 'office'
+  )
   
   // Video streaming state
   const [cloudinaryData, setCloudinaryData] = useState<CloudinaryData | null>(null)
@@ -127,7 +141,13 @@ export function DocumentPreview({
     const detectedType = providedFileType || detectFileType(url)
     setFileType(detectedType)
     
-    // Handle different file types
+    // If async processing is enabled and available, don't load immediately
+    if (shouldUseAsyncProcessing) {
+      setIsLoading(false)
+      return
+    }
+    
+    // Handle different file types with traditional loading
     if (detectedType === 'pdf') {
       validateAndLoadPdf(url)
     } else if (detectedType === 'text') {
@@ -135,13 +155,24 @@ export function DocumentPreview({
     } else {
       setIsLoading(false)
     }
-  }, [url, providedFileType])
+  }, [url, providedFileType, shouldUseAsyncProcessing])
+
+  // Helper function to check if URL is a blob URL
+  const isBlobUrl = (url: string): boolean => {
+    return url.startsWith('blob:')
+  }
 
   // Validate PDF file size before loading
   const validatePdfSize = async (url: string): Promise<boolean> => {
     
     try {
       setIsValidating(true)
+      
+      // Skip validation for blob URLs - they're already loaded in memory
+      if (isBlobUrl(url)) {
+        console.log('📄 PDF Validation: Skipping validation for blob URL')
+        return true
+      }
       
       const response = await fetch(url, { 
         method: 'HEAD',
@@ -247,27 +278,32 @@ export function DocumentPreview({
     try {
       setProcessingStage('Validating text file...')
       
-      // First, check file size with HEAD request
-      const headResponse = await fetch(url, { method: 'HEAD', mode: 'cors' })
-      if (headResponse.ok) {
-        const contentLength = headResponse.headers.get('content-length')
-        if (contentLength) {
-          const sizeInBytes = parseInt(contentLength)
-          const sizeInMB = sizeInBytes / (1024 * 1024)
-          setFileSize(sizeInBytes)
-          
-          if (sizeInMB > MAX_FILE_SIZE_MB) {
-            throw new Error(`Text file too large (${sizeInMB.toFixed(1)}MB). Maximum size is ${MAX_FILE_SIZE_MB}MB.`)
-          }
-          
-          if (sizeInMB > 10) {
-            setProcessingStage(`Large text file detected (${sizeInMB.toFixed(1)}MB). Loading may take longer...`)
+      // Skip size validation for blob URLs - they're already loaded in memory
+      if (!isBlobUrl(url)) {
+        // First, check file size with HEAD request for non-blob URLs
+        const headResponse = await fetch(url, { method: 'HEAD', mode: 'cors' })
+        if (headResponse.ok) {
+          const contentLength = headResponse.headers.get('content-length')
+          if (contentLength) {
+            const sizeInBytes = parseInt(contentLength)
+            const sizeInMB = sizeInBytes / (1024 * 1024)
+            setFileSize(sizeInBytes)
+            
+            if (sizeInMB > MAX_FILE_SIZE_MB) {
+              throw new Error(`Text file too large (${sizeInMB.toFixed(1)}MB). Maximum size is ${MAX_FILE_SIZE_MB}MB.`)
+            }
+            
+            if (sizeInMB > 10) {
+              setProcessingStage(`Large text file detected (${sizeInMB.toFixed(1)}MB). Loading may take longer...`)
+            }
           }
         }
       }
       
       setProcessingStage('Loading text content...')
-      const response = await fetch(url, { mode: 'cors' })
+      // Use different fetch options for blob URLs vs regular URLs
+      const fetchOptions = isBlobUrl(url) ? {} : { mode: 'cors' as RequestMode }
+      const response = await fetch(url, fetchOptions)
       
       if (!response.ok) {
         if (response.status === 0 || response.type === 'opaque') {
@@ -699,6 +735,120 @@ export function DocumentPreview({
     )
   }
 
+  // Render async processing state
+  if (shouldUseAsyncProcessing && !asyncProcessing.isCompleted) {
+    return (
+      <div className={`flex items-center justify-center h-96 ${className}`}>
+        <div className="text-center space-y-4 max-w-md">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto"></div>
+            {asyncProcessing.progress > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-medium text-primary">
+                  {Math.round(asyncProcessing.progress)}%
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">
+              {asyncProcessing.isProcessing ? 'Processing Document' : 'Document Processing'}
+            </h3>
+            
+            <p className="text-sm text-muted-foreground">
+              {asyncProcessing.stage}
+            </p>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-secondary rounded-full h-2">
+              <div 
+                className="bg-primary h-2 rounded-full transition-all duration-500"
+                style={{ width: `${asyncProcessing.progress}%` }}
+              />
+            </div>
+            
+            {/* Time Remaining */}
+            {asyncProcessing.estimatedTimeRemaining > 0 && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>
+                  Est. {Math.ceil(asyncProcessing.estimatedTimeRemaining / 60)} min remaining
+                </span>
+              </div>
+            )}
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2 justify-center">
+              {!asyncProcessing.isProcessing && !asyncProcessing.isQueueing && (
+                <Button 
+                  onClick={() => asyncProcessing.startProcessing('normal')}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Start Processing
+                </Button>
+              )}
+              
+              <Button 
+                onClick={handleDownload} 
+                variant="outline" 
+                size="sm"
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download Instead
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Handle async processing failure
+  if (shouldUseAsyncProcessing && asyncProcessing.isFailed) {
+    return (
+      <div className={`flex items-center justify-center h-96 ${className}`}>
+        <div className="text-center space-y-4">
+          <FileText className="h-12 w-12 text-destructive mx-auto" />
+          <div className="space-y-2">
+            <p className="text-destructive font-medium">Processing Failed</p>
+            <p className="text-sm text-muted-foreground">
+              {asyncProcessing.error || 'Document processing failed'}
+            </p>
+          </div>
+          <div className="flex gap-2 justify-center">
+            <Button 
+              onClick={() => asyncProcessing.startProcessing('high')} 
+              variant="default" 
+              size="sm"
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry Processing
+            </Button>
+            <Button 
+              onClick={handleDownload} 
+              variant="outline" 
+              size="sm"
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download File
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Use processed result if available
+  const effectiveUrl = (shouldUseAsyncProcessing && asyncProcessing.result?.previewUrl) 
+    ? asyncProcessing.result.previewUrl 
+    : url
+
   if ((isLoading || isValidating) && fileType !== 'video') {
     return (
       <div className={`flex items-center justify-center h-96 ${className}`}>
@@ -855,6 +1005,11 @@ export function DocumentPreview({
             <div className="border border-border rounded-lg overflow-auto max-h-[600px] bg-gray-50 flex justify-center">
               <Document
                 file={(() => {
+                  // Use async processed URL if available, otherwise use streaming endpoint for MEGA files
+                  if (shouldUseAsyncProcessing && asyncProcessing.result?.previewUrl) {
+                    return asyncProcessing.result.previewUrl
+                  }
+                  
                   const pdfUrl = attachmentId && (url.includes('mega.nz') || url.includes('mega.co.nz')) 
                     ? `/api/attachments/${attachmentId}/stream` 
                     : url

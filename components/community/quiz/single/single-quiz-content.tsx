@@ -9,10 +9,13 @@ interface SingleQuizContentProps {
     question_count?: number;
     attempt_count?: number;
     like_count?: number;
-    recent_attempts?: Array<{
+    leaderboard?: Array<{
+      rank: number;
       user_id: string;
       display_name: string;
       avatar_url?: string;
+      score: number;
+      time_spent_seconds?: number | null;
       completed_at: string;
     }>;
   };
@@ -28,7 +31,7 @@ export default function SingleQuizContent({ quiz }: SingleQuizContentProps) {
           <QuizStats quiz={quiz} />
         </div>
         <div className="md:col-span-1">
-          <QuizLeaderboard recentAttempts={quiz.recent_attempts || []} />
+          <QuizLeaderboard leaderboard={quiz.leaderboard || []} />
         </div>
       </div>
     </div>

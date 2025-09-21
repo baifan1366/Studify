@@ -23,20 +23,25 @@ import {
 } from 'lucide-react';
 import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
-import { useLessonByCourseModuleId } from '@/hooks/course/use-course-lesson';
+import { useLessonByCourseModuleId, useAllLessonsByCourseId } from '@/hooks/course/use-course-lesson';
 import { useCourseProgress, useUpdateProgress } from '@/hooks/course/use-course-progress';
-import { useCourseNotes, useCreateNote } from '@/hooks/course/use-course-notes';
 import { useUser } from '@/hooks/profile/use-user';
 import { useKnowledgeGraph } from '@/hooks/course/use-knowledge-graph';
 import { useQuiz } from '@/hooks/course/use-quiz';
 import CourseQuizInterface from './course-quiz-interface';
 import CourseKnowledgeGraph from './course-knowledge-graph';
+import CourseNoteContent from './course-note-content';
+import CourseChapterContent from './course-chapter-content';
 import BilibiliVideoPlayer from '@/components/video/bilibili-video-player';
 import { useDanmaku } from '@/hooks/video/use-danmaku';
 import { useVideoComments } from '@/hooks/video/use-video-comments';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
+import { useAttachment } from '@/hooks/course/use-attachments';
+import VideoPlayer from '@/components/ui/video-player';
+import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
 
 interface CourseLearningContentProps {
   courseSlug: string;
@@ -71,7 +76,7 @@ function ModuleLessons({ courseId, module, isExpanded, onToggle, currentLessonId
         aria-label={isExpanded ? t('CourseContent.collapse_module') : t('CourseContent.expand_module')}
       >
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-900 dark:text-white truncate text-sm">{module.title}</h4>
+          <h4 className="font-medium text-gray-900 dark:text-white text-sm leading-tight">{module.title}</h4>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {moduleLessons?.length || 0} {t('CourseContent.module_lessons_count')}
           </p>
@@ -102,25 +107,26 @@ function ModuleLessons({ courseId, module, isExpanded, onToggle, currentLessonId
                 <button
                   key={lesson.id}
                   onClick={() => onLessonClick(lesson.public_id)}
+                  data-lesson-id={lesson.public_id}
                   className={`w-full text-left p-2 rounded-md text-sm transition-all duration-200 group ${
                     isActive
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-sm'
+                      ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-700 shadow-sm'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:shadow-sm border border-transparent'
-                  }`}
+              }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-start gap-2 mb-1">
                     <CheckCircle 
                       size={14} 
-                      className={`flex-shrink-0 ${
+                      className={`flex-shrink-0 mt-0.5 ${
                         isCompleted
                           ? 'text-green-500 dark:text-green-400'
                           : 'text-gray-300 dark:text-gray-600'
                       }`}
                     />
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono min-w-0">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono flex-shrink-0 mt-0.5">
                       {String(index + 1).padStart(2, '0')}
                     </span>
-                    <span className="truncate font-medium flex-1 min-w-0">{lesson.title}</span>
+                    <span className="font-medium flex-1 leading-tight">{lesson.title}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs ml-6">
                     <span className="text-gray-500 dark:text-gray-400">
@@ -153,9 +159,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   
   // Learning state
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(initialLessonId || null);
-  const [activeTab, setActiveTab] = useState<'notes' | 'quiz' | 'ai'>('notes');
-  const [noteContent, setNoteContent] = useState('');
-  const [noteTimestamp, setNoteTimestamp] = useState(0);
+  const [activeTab, setActiveTab] = useState<'chapters' | 'notes' | 'quiz' | 'ai'>('chapters');
+  const [currentVideoTimestamp, setCurrentVideoTimestamp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
@@ -163,14 +168,23 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const { data: course, isLoading: courseLoading } = useCourseBySlug(courseSlug);
   const { data: courseModules, isLoading: modulesLoading } = useModuleByCourseId(course?.id || 0);
   const { data: progress } = useCourseProgress(courseSlug);
-  const { data: notes } = useCourseNotes(currentLessonId || '');
+  
+  // Use dedicated hook to fetch all lessons from all modules
+  const { data: allLessons = [] } = useAllLessonsByCourseId(course?.id || 0, courseModules || []);
+
+  // Get current lesson - define this before hooks that depend on it
+  const currentLesson = React.useMemo(() => {
+    if (!allLessons || !currentLessonId) return null;
+    return allLessons.find(lesson => lesson.public_id === currentLessonId) || null;
+  }, [allLessons, currentLessonId]);
+
+  // Now we can safely use currentLesson in other hooks
   const updateProgress = useUpdateProgress();
-  const createNote = useCreateNote();
   const { toast } = useToast();
 
   // Knowledge Graph and Quiz hooks
   const knowledgeGraph = useKnowledgeGraph({ courseSlug });
-  const quiz = currentLessonId ? useQuiz({ lessonId: currentLessonId }) : null;
+  const quiz = useQuiz({ lessonId: currentLesson?.public_id || '' });
 
   // Video player hooks
   const { addMessage: addDanmaku, messages: danmakuMessages } = useDanmaku({
@@ -183,42 +197,17 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     userId: user?.id
   });
 
-  // Custom hook to collect all lessons from all modules
-  const useAllLessons = () => {
-    const [lessons, setLessons] = useState<any[]>([]);
+  // Get attachment ID from current lesson attachments (for all types with attachments)
+  const attachmentId = React.useMemo(() => {
+    if (!currentLesson || !currentLesson.attachments?.length) {
+      return null;
+    }
+    // Use the first attachment ID
+    return currentLesson.attachments[0];
+  }, [currentLesson]);
 
-    React.useEffect(() => {
-      if (courseModules && courseModules.length > 0) {
-        const allModuleLessons: any[] = [];
-        
-        // This is a simplified approach - in a real app, you'd want to 
-        // properly collect lessons from each useLessonByCourseModuleId hook
-        courseModules.forEach(module => {
-          if (module.lessons) {
-            module.lessons.forEach((lesson: any) => {
-              allModuleLessons.push({
-                ...lesson,
-                moduleTitle: module.title,
-                moduleId: module.id
-              });
-            });
-          }
-        });
-        
-        setLessons(allModuleLessons.sort((a, b) => a.position - b.position));
-      }
-    }, [courseModules]);
-
-    return lessons;
-  };
-
-  const allLessons = useAllLessons();
-
-  // Get current lesson - we'll still search through course modules for now
-  const currentLesson = React.useMemo(() => {
-    if (!allLessons || !currentLessonId) return null;
-    return allLessons.find(lesson => lesson.public_id === currentLessonId) || null;
-  }, [allLessons, currentLessonId]);
+  // Fetch attachment data if we have an attachment ID
+  const { data: attachment, isLoading: attachmentLoading } = useAttachment(attachmentId);
 
   // Helper function to toggle module expansion
   const toggleModuleExpansion = (moduleId: number) => {
@@ -232,6 +221,31 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
       return newSet;
     });
   };
+
+  // Auto-expand module containing current lesson and set appropriate default tab
+  React.useEffect(() => {
+    if (currentLessonId && allLessons.length > 0) {
+      const currentLesson = allLessons.find(lesson => lesson.public_id === currentLessonId);
+      if (currentLesson && currentLesson.moduleId) {
+        setExpandedModules(prev => {
+          const newSet = new Set(prev);
+          newSet.add(currentLesson.moduleId);
+          return newSet;
+        });
+        
+        // Set default tab based on lesson type
+        setActiveTab(currentLesson.kind === 'video' ? 'chapters' : 'notes');
+        
+        // Scroll to the selected lesson after a brief delay
+        setTimeout(() => {
+          const lessonElement = document.querySelector(`[data-lesson-id="${currentLessonId}"]`);
+          if (lessonElement) {
+            lessonElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 100);
+      }
+    }
+  }, [currentLessonId, allLessons]);
 
   // Initialize first few modules as expanded
   React.useEffect(() => {
@@ -250,8 +264,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     if (!currentLessonId && allLessons.length > 0) {
       setCurrentLessonId(allLessons[0].public_id);
     }
-  }, [allLessons]);
-
+  }, [allLessons, currentLessonId]);
+  
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -277,6 +291,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           e.preventDefault();
           setIsFullscreen(!isFullscreen);
           break;
+        case 'c':
+          e.preventDefault();
+          if (currentLesson?.kind === 'video') {
+            setActiveTab('chapters');
+          }
+          break;
         case 'n':
           e.preventDefault();
           setActiveTab('notes');
@@ -297,7 +317,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   }, [currentLessonId, isFullscreen]);
 
   const handleTimeUpdate = (time: number) => {
-    setNoteTimestamp(time);
+    setCurrentVideoTimestamp(time);
     
     // Update progress every 10 seconds
     if (currentLessonId && time % 10 === 0) {
@@ -337,36 +357,21 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     }
   };
 
-  const handleCreateNote = async () => {
-    if (!noteContent.trim() || !currentLessonId) return;
-    
-    try {
-      await createNote.mutate({
-        lessonId: currentLessonId,
-        content: noteContent,
-        timestampSec: noteTimestamp
-      });
-      
-      setNoteContent('');
-      toast({
-        title: 'Note Saved',
-        description: 'Your note has been saved successfully.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save note. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handlePreviousLesson = () => {
     if (!currentLessonId) return;
     
     const currentIndex = allLessons.findIndex((l: any) => l.public_id === currentLessonId);
     if (currentIndex > 0) {
-      setCurrentLessonId(allLessons[currentIndex - 1].public_id);
+      const previousLesson = allLessons[currentIndex - 1];
+      setCurrentLessonId(previousLesson.public_id);
+      
+      // Show toast with lesson info
+      toast({
+        title: t('LessonNavigation.previous_lesson'),
+        description: `${previousLesson.moduleTitle} • ${previousLesson.title}`,
+        duration: 2000,
+      });
     }
   };
 
@@ -375,7 +380,15 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     
     const currentIndex = allLessons.findIndex((l: any) => l.public_id === currentLessonId);
     if (currentIndex < allLessons.length - 1) {
-      setCurrentLessonId(allLessons[currentIndex + 1].public_id);
+      const nextLesson = allLessons[currentIndex + 1];
+      setCurrentLessonId(nextLesson.public_id);
+      
+      // Show toast with lesson info
+      toast({
+        title: t('LessonNavigation.next_lesson'),
+        description: `${nextLesson.moduleTitle} • ${nextLesson.title}`,
+        duration: 2000,
+      });
     }
   };
 
@@ -413,49 +426,142 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
 
   return (
     <div className="w-full">
-      {/* Bilibili Video Player */}
+      {/* Content Display */}
       <div className="mb-6">
-        {currentLesson?.content_url ? (
-          <BilibiliVideoPlayer
-            src={currentLesson.content_url}
-            title={currentLesson.title || 'Course Lesson'}
-            poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+        {/* 1. Document/Assignment with MEGA attachment - use MegaDocumentPreview */}
+        {(currentLesson?.kind === 'document' || currentLesson?.kind === 'assignment') && attachment?.url ? (
+          <MegaDocumentPreview
+            megaUrl={attachment.url}
+            attachmentId={attachment.id}
+            className="w-full min-h-[400px]"
+            showControls={true}
           />
+        ) : 
+        /* 2. Video with MEGA attachment - use VideoPlayer for streaming */
+        currentLesson?.kind === 'video' && attachment?.url ? (
+          <>
+            <VideoPlayer
+              src={`/api/attachments/${attachment.id}/stream`}
+              className="aspect-video mb-4"
+            />
+            {/* Always show BilibiliVideoPlayer as fallback for video lessons */}
+            <BilibiliVideoPlayer
+              src={currentLesson.content_url}
+              title={currentLesson.title || 'Course Lesson'}
+              poster={course?.thumbnail_url || undefined}
+              danmakuMessages={danmakuMessages}
+              comments={comments}
+              onDanmakuSend={handleDanmakuSend}
+              onCommentSend={handleCommentSend}
+            />
+          </>
+        ) : 
+        /* 3. Video with YouTube/external link - use BilibiliVideoPlayer */
+        currentLesson?.kind === 'video' && currentLesson?.content_url ? (
+          <>
+            <BilibiliVideoPlayer
+              src={currentLesson.content_url}
+              title={currentLesson.title || 'Course Lesson'}
+              poster={course?.thumbnail_url || undefined}
+              danmakuMessages={danmakuMessages}
+              comments={comments}
+              onDanmakuSend={handleDanmakuSend}
+              onCommentSend={handleCommentSend}
+            />
+          </>
+        ) : 
+        /* Loading states */
+        attachmentLoading ? (
+          <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
+            <div className="text-center text-white/60">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
+              <p className="text-xl">Loading {currentLesson?.kind}...</p>
+              <p className="text-sm mt-2">{currentLesson?.title}</p>
+            </div>
+          </div>
+        ) : 
+        /* Error/fallback states */
+        currentLesson?.kind === 'video' && attachmentId && !attachment ? (
+          <>
+            <div className="aspect-video bg-gradient-to-br from-red-900 to-black flex items-center justify-center rounded-lg mb-4">
+              <div className="text-center text-white/60">
+                <Play size={64} className="mx-auto mb-4" />
+                <p className="text-xl">Video attachment not found</p>
+                <p className="text-sm mt-2">Attachment ID: {attachmentId}</p>
+                <p className="text-xs mt-1 opacity-80">Falling back to external video</p>
+              </div>
+            </div>
+            {/* Always show BilibiliVideoPlayer as fallback for video lessons */}
+            <BilibiliVideoPlayer
+              src={currentLesson.content_url}
+              title={currentLesson.title || 'Course Lesson'}
+              poster={course?.thumbnail_url || undefined}
+              danmakuMessages={danmakuMessages}
+              comments={comments}
+              onDanmakuSend={handleDanmakuSend}
+              onCommentSend={handleCommentSend}
+            />
+          </>
+        ) : currentLesson?.kind === 'video' ? (
+          <>
+            <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg mb-4">
+              <div className="text-center text-white/60">
+                <Play size={64} className="mx-auto mb-4" />
+                <p className="text-xl">No video content available</p>
+                <p className="text-sm mt-2">{currentLesson?.title}</p>
+                <p className="text-xs mt-1 opacity-80">Please check if video attachment or external link is provided</p>
+              </div>
+            </div>
+            {/* Always show BilibiliVideoPlayer as fallback for video lessons */}
+            <BilibiliVideoPlayer
+              src={currentLesson?.content_url}
+              title={currentLesson.title || 'Course Lesson'}
+              poster={course?.thumbnail_url || undefined}
+              danmakuMessages={danmakuMessages}
+              comments={comments}
+              onDanmakuSend={handleDanmakuSend}
+              onCommentSend={handleCommentSend}
+            />
+          </>
         ) : (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
-              <Play size={64} className="mx-auto mb-4" />
-              <p className="text-xl">Video content coming soon</p>
+              <FileText size={64} className="mx-auto mb-4" />
+              <p className="text-xl">Content coming soon</p>
               <p className="text-sm mt-2">{currentLesson?.title}</p>
+              <p className="text-xs mt-1 opacity-80">
+                {currentLesson?.kind ? `${currentLesson.kind} lesson` : 'No content type specified'}
+              </p>
             </div>
           </div>
         )}
       </div>
 
       {/* Lesson Navigation */}
-      <div className="flex items-center justify-between mb-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <button
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4 gap-3 sm:gap-4">
+        <Button
           onClick={handlePreviousLesson}
           disabled={!currentLessonId || allLessons.findIndex((l: any) => l.public_id === currentLessonId) === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:bg-gray-800 dark:hover:bg-gray-700 dark:disabled:bg-gray-900 rounded-lg text-sm font-medium transition-colors"
         >
           <ChevronLeft size={16} />
-          {t('LessonNavigation.previous_lesson')}
-        </button>
+          <span className="hidden sm:inline">{t('LessonNavigation.previous_lesson')}</span>
+          <span className="sm:hidden">Prev</span>
+        </Button>
         
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate max-w-md mx-auto">{currentLesson?.title}</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+        <div className="text-center flex-1 min-w-0">
+          <h2 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white truncate max-w-full">{currentLesson?.title}</h2>
+          {currentLesson?.moduleTitle && (
+            <p className="text-xs text-orange-600 dark:text-orange-400 font-medium mb-1">
+              {currentLesson.moduleTitle} • {t('LessonNavigation.lesson')} {currentLesson.modulePosition}
+            </p>
+          )}
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {t('LessonNavigation.lesson_of', { 
               current: (allLessons.findIndex((l: any) => l.public_id === currentLessonId) + 1), 
               total: allLessons.length 
             })}
           </p>
-          <div className="flex items-center justify-center gap-4 mt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-2">
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {t('LessonNavigation.duration', { 
                 minutes: currentLesson?.duration_sec ? Math.ceil(currentLesson.duration_sec / 60) : 0 
@@ -464,7 +570,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             {currentLesson && (
               <button
                 onClick={handleLessonComplete}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-full transition-colors"
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-full transition-colors whitespace-nowrap"
               >
                 {t('LessonNavigation.mark_complete')}
               </button>
@@ -472,20 +578,23 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           </div>
         </div>
         
-        <button
+        <Button
           onClick={handleNextLesson}
+          variant="default"
+          size="sm"
           disabled={!currentLessonId || allLessons.findIndex((l: any) => l.public_id === currentLessonId) === allLessons.length - 1}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-50 disabled:text-gray-400 dark:disabled:bg-gray-900 text-white rounded-lg text-sm font-medium transition-colors"
+          className="px-3 lg:px-4 py-2 text-xs sm:text-sm whitespace-nowrap"
         >
-          {t('LessonNavigation.next_lesson')}
+          <span className="hidden sm:inline">{t('LessonNavigation.next_lesson')}</span>
+          <span className="sm:hidden">Next</span>
           <ChevronRight size={16} />
-        </button>
+        </Button>
       </div>
 
       {/* Course Content and Learning Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Course Content Sidebar */}
-        <div className="lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="xl:col-span-1 lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('CourseContent.title')}</h3>
             <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -520,7 +629,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           </div>
           
           {/* Module and Lesson List */}
-          <div className="space-y-1 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+          <div className="space-y-1 max-h-64 sm:max-h-80 lg:max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
             {modulesLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-gray-500 dark:text-gray-400 text-sm">{t('CourseContent.loading_modules')}</div>
@@ -548,93 +657,84 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         </div>
 
         {/* Main Learning Panel */}
-        <div className="lg:col-span-3 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="xl:col-span-3 lg:col-span-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200">
-            <button
+          <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
+            {/* Chapters Tab - Only show for video lessons */}
+            {currentLesson?.kind === 'video' && (
+              <Button
+                onClick={() => setActiveTab('chapters')}
+                variant="ghost"
+                size="sm"
+                className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
+                  activeTab === 'chapters'
+                    ? 'text-orange-500 border-b-orange-500'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <BookOpen size={16} />
+                <span className="hidden sm:inline">Chapters</span>
+              </Button>
+            )}
+            <Button
               onClick={() => setActiveTab('notes')}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+              variant="ghost"
+              size="sm"
+              className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'notes'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-orange-500 border-b-orange-500'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}
             >
               <PenTool size={16} />
-              Notes
-            </button>
-            <button
+              <span className="hidden sm:inline">Notes</span>
+            </Button>
+            <Button
               onClick={() => setActiveTab('quiz')}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+              variant="ghost"
+              size="sm"
+              className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'quiz'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-orange-500 border-b-orange-500'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}
             >
               <FileText size={16} />
-              Quiz
-            </button>
-            <button
+              <span className="hidden sm:inline">Quiz</span>
+            </Button>
+            <Button
               onClick={() => setActiveTab('ai')}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+              variant="ghost"
+              size="sm"
+              className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'ai'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-orange-500 border-b-orange-500'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}
             >
               <Brain size={16} />
-              AI Assistant
-            </button>
+              <span className="hidden sm:inline">AI Assistant</span>
+            </Button>
           </div>
 
           {/* Tab Content */}
-          <div className="p-4 max-h-96 overflow-y-auto">
+          <div className="p-3 lg:p-4 max-h-64 sm:max-h-80 lg:max-h-96 overflow-y-auto">
+            {activeTab === 'chapters' && currentLesson?.kind === 'video' && (
+              <CourseChapterContent
+                currentLessonId={currentLesson?.id}
+                currentTimestamp={currentVideoTimestamp}
+                onSeekTo={handleTimeUpdate}
+              />
+            )}
             {activeTab === 'notes' && (
-              <div className="space-y-4">
-                {/* Note Input */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock size={14} />
-                    <span>
-                      {Math.floor(noteTimestamp / 60)}:{String(noteTimestamp % 60).padStart(2, '0')}
-                    </span>
-                  </div>
-                  <textarea
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="Add a note at this timestamp..."
-                    className="w-full h-24 border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={handleCreateNote}
-                    disabled={!noteContent.trim() || createNote.isPending}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {createNote.isPending ? 'Saving...' : 'Save Note'}
-                  </button>
-                </div>
-
-                {/* Existing Notes */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-gray-900">Your Notes</h4>
-                  {notes?.map((note) => (
-                    <div key={note.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                        <Clock size={12} />
-                        <div className="text-xs text-gray-500">
-                          {(note.timestampSec ?? 0) > 0 ? `${Math.floor((note.timestampSec ?? 0) / 60)}:${String((note.timestampSec ?? 0) % 60).padStart(2, '0')} - ` : ''}
-                          {new Date(note.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <p className="text-gray-800 text-sm">{note.content}</p>
-                    </div>
-                  )) || (
-                    <p className="text-gray-500 text-sm">No notes yet. Start taking notes as you watch!</p>
-                  )}
-                </div>
-              </div>
+              <CourseNoteContent
+                currentLessonId={currentLesson?.id}
+                currentTimestamp={currentVideoTimestamp}
+                onTimeUpdate={handleTimeUpdate}
+              />
             )}
 
-            {activeTab === 'quiz' && currentLessonId && quiz && (
+            {activeTab === 'quiz' && currentLessonId && (
               <>
                 {quiz.isLoading ? (
                   <div className="flex items-center justify-center py-8">

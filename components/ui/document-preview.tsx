@@ -48,11 +48,11 @@ export function DocumentPreview({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // Async document processing (only for MEGA files with attachmentId)
+  // Async document processing (prioritize QStash for MEGA files)
   const shouldUseAsyncProcessing = enableAsyncProcessing && 
     attachmentId && 
-    (url.includes('mega.nz') || url.includes('mega.co.nz')) &&
-    ['pdf', 'text', 'office'].includes(fileType)
+    ['pdf', 'text', 'office'].includes(fileType) &&
+    (url.includes('mega.nz') || url.includes('mega.co.nz'))
     
   const asyncProcessing = useAsyncDocumentPreview(
     shouldUseAsyncProcessing ? attachmentId : null,
@@ -141,10 +141,23 @@ export function DocumentPreview({
     const detectedType = providedFileType || detectFileType(url)
     setFileType(detectedType)
     
-    // If async processing is enabled and available, don't load immediately
+    // MEGA files ALWAYS use QStash processing (skip traditional loading)
     if (shouldUseAsyncProcessing) {
       setIsLoading(false)
-      return
+      console.log('🚀 MEGA document detected - using QStash processing directly:', { 
+        attachmentId, 
+        fileType: detectedType, 
+        url: url.substring(0, 50) + '...' 
+      })
+      
+      // Immediately start QStash processing - no fallback to traditional loading
+      if (!asyncProcessing.isProcessing && !asyncProcessing.isCompleted && !asyncProcessing.isFailed) {
+        setTimeout(() => {
+          console.log('📤 Sending to QStash queue:', { attachmentId, priority: 'normal' })
+          asyncProcessing.startProcessing('normal')
+        }, 100) // Minimal delay for hook initialization
+      }
+      return // Skip all traditional loading
     }
     
     // Handle different file types with traditional loading
@@ -238,12 +251,23 @@ export function DocumentPreview({
       
       const streamingUrl = `/api/attachments/${attachmentId}/stream`
       
-      // Set extended timeout for PDF streaming
+      // Set extended timeout for PDF streaming with QStash fallback
       const timeout = setTimeout(() => {
         if (isLoading) {
           console.error('⏰ PDF Loading: Streaming timeout reached', { timeoutMs: LOADING_TIMEOUT_PDF })
-          setError(`PDF loading timeout after ${LOADING_TIMEOUT_PDF / 1000} seconds. Large files may require direct download.`)
-          setIsLoading(false)
+          console.log('🔄 Auto-switching to QStash processing due to timeout...')
+          
+          // Switch to async processing if available
+          if (attachmentId && ['pdf', 'text', 'office'].includes(fileType)) {
+            setIsLoading(false)
+            // Trigger QStash processing as fallback
+            if (asyncProcessing.startProcessing) {
+              asyncProcessing.startProcessing('high') // High priority for timeout fallback
+            }
+          } else {
+            setError(`PDF loading timeout after ${LOADING_TIMEOUT_PDF / 1000} seconds. Switching to async processing...`)
+            setIsLoading(false)
+          }
         }
       }, LOADING_TIMEOUT_PDF)
       
@@ -265,8 +289,19 @@ export function DocumentPreview({
     const timeout = setTimeout(() => {
       if (isLoading) {
         console.error('⏰ PDF Loading: Direct URL timeout reached', { timeoutDuration })
-        setError(`PDF loading timeout after ${timeoutDuration / 1000} seconds. File may be too large or connection too slow.`)
-        setIsLoading(false)
+        console.log('🔄 Auto-switching to QStash processing due to timeout...')
+        
+        // Switch to async processing if available  
+        if (attachmentId && ['pdf', 'text', 'office'].includes(fileType)) {
+          setIsLoading(false)
+          // Trigger QStash processing as fallback
+          if (asyncProcessing.startProcessing) {
+            asyncProcessing.startProcessing('high') // High priority for timeout fallback
+          }
+        } else {
+          setError(`PDF loading timeout after ${timeoutDuration / 1000} seconds. File may be too large or connection too slow.`)
+          setIsLoading(false)
+        }
       }
     }, timeoutDuration)
     

@@ -4,6 +4,16 @@ import React, { useState } from 'react';
 import { Clock, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useCourseNotes, useCreateNote, useUpdateNote, useDeleteNote } from '@/hooks/course/use-course-notes';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,18 +35,27 @@ interface CourseNoteContentProps {
   currentLessonId?: number;
   currentTimestamp?: number;
   onTimeUpdate?: (time: number) => void;
+  lessonKind?: string; // Add lesson kind to determine if video
 }
 
 export default function CourseNoteContent({ 
   currentLessonId, 
   currentTimestamp = 0,
-  onTimeUpdate 
+  onTimeUpdate,
+  lessonKind 
 }: CourseNoteContentProps) {
   const [noteContent, setNoteContent] = useState('');
   const [noteTimestamp, setNoteTimestamp] = useState(currentTimestamp);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingTimestamp, setEditingTimestamp] = useState(0);
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+
+  // Check if this is a video lesson
+  const isVideoLesson = lessonKind === 'video';
+  
+  // Use default timestamp for non-video lessons
+  const defaultTimestamp = 0; // 00:00
 
   const { data: notes } = useCourseNotes(currentLessonId);
   const createNote = useCreateNote();
@@ -44,10 +63,14 @@ export default function CourseNoteContent({
   const deleteNote = useDeleteNote();
   const { toast } = useToast();
 
-  // Update noteTimestamp when currentTimestamp changes
+  // Update noteTimestamp when currentTimestamp changes (only for video lessons)
   React.useEffect(() => {
-    setNoteTimestamp(currentTimestamp);
-  }, [currentTimestamp]);
+    if (isVideoLesson) {
+      setNoteTimestamp(currentTimestamp);
+    } else {
+      setNoteTimestamp(defaultTimestamp);
+    }
+  }, [currentTimestamp, isVideoLesson]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -72,10 +95,13 @@ export default function CourseNoteContent({
       await createNote.mutateAsync({
         lessonId: currentLessonId,
         content: noteContent,
-        timestampSec: noteTimestamp
+        timestampSec: isVideoLesson ? noteTimestamp : defaultTimestamp
       });
       
       setNoteContent('');
+      if (isVideoLesson) {
+        setNoteTimestamp(currentTimestamp);
+      }
       toast({
         title: 'Note Saved',
         description: 'Your note has been saved successfully.',
@@ -129,11 +155,10 @@ export default function CourseNoteContent({
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return;
-    
     try {
       await deleteNote.mutateAsync(noteId);
       
+      setDeleteNoteId(null);
       toast({
         title: 'Note Deleted',
         description: 'Your note has been deleted successfully.',
@@ -151,30 +176,32 @@ export default function CourseNoteContent({
     <div className="space-y-4">
       {/* Note Creation Form */}
       <div className="space-y-2">
-        {/* Timestamp Input */}
-        <div className="flex items-center gap-2">
-          <Clock size={14} className="text-gray-600 dark:text-gray-400" />
-          <span className="text-sm text-gray-600 dark:text-gray-400">Timestamp:</span>
-          <Input
-            type="text"
-            value={formatTime(noteTimestamp)}
-            onChange={(e) => setNoteTimestamp(parseTimeInput(e.target.value))}
-            placeholder="0:00"
-            className="w-20 text-sm"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setNoteTimestamp(currentTimestamp);
-              if (onTimeUpdate) onTimeUpdate(currentTimestamp);
-            }}
-            className="text-xs"
-          >
-            Current
-          </Button>
-        </div>
+        {/* Timestamp Input - Only show for video lessons */}
+        {isVideoLesson && (
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-gray-600 dark:text-gray-400" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">Timestamp:</span>
+            <Input
+              type="text"
+              value={formatTime(noteTimestamp)}
+              onChange={(e) => setNoteTimestamp(parseTimeInput(e.target.value))}
+              placeholder="0:00"
+              className="w-20 text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setNoteTimestamp(currentTimestamp);
+                if (onTimeUpdate) onTimeUpdate(currentTimestamp);
+              }}
+              className="text-xs"
+            >
+              Current
+            </Button>
+          </div>
+        )}
         
         {/* Note Content */}
         <textarea
@@ -207,7 +234,7 @@ export default function CourseNoteContent({
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                   <Clock size={12} />
                   <span>
-                    {(note.timestampSec ?? 0) > 0 ? formatTime(note.timestampSec ?? 0) + ' - ' : ''}
+                    {isVideoLesson && (note.timestampSec ?? 0) > 0 ? formatTime(note.timestampSec ?? 0) + ' - ' : ''}
                     {new Date(note.createdAt).toLocaleDateString()}
                   </span>
                 </div>
@@ -226,7 +253,7 @@ export default function CourseNoteContent({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteNote(note.id)}
+                      onClick={() => setDeleteNoteId(note.id)}
                       className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                     >
                       <Trash2 size={14} />
@@ -238,16 +265,18 @@ export default function CourseNoteContent({
               {/* Note Content */}
               {editingNoteId === note.id ? (
                 <div className="space-y-2">
-                  {/* Edit Timestamp */}
-                  <div className="flex items-center gap-2">
-                    <Clock size={12} className="text-gray-400" />
-                    <Input
-                      type="text"
-                      value={formatTime(editingTimestamp)}
-                      onChange={(e) => setEditingTimestamp(parseTimeInput(e.target.value))}
-                      className="w-20 text-xs h-8"
-                    />
-                  </div>
+                  {/* Edit Timestamp - Only show for video lessons */}
+                  {isVideoLesson && (
+                    <div className="flex items-center gap-2">
+                      <Clock size={12} className="text-gray-400" />
+                      <Input
+                        type="text"
+                        value={formatTime(editingTimestamp)}
+                        onChange={(e) => setEditingTimestamp(parseTimeInput(e.target.value))}
+                        className="w-20 text-xs h-8"
+                      />
+                    </div>
+                  )}
                   
                   {/* Edit Content */}
                   <textarea
@@ -290,6 +319,27 @@ export default function CourseNoteContent({
           </p>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteNoteId !== null} onOpenChange={(open) => !open && setDeleteNoteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Note</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this note? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteNoteId && handleDeleteNote(deleteNoteId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -248,7 +248,14 @@ export default function MegaDocumentPreview({
   onError 
 }: MegaDocumentPreviewProps) {
   const t = useTranslations('DocumentPreview');
-  const { blobUrl, loading, error, progress, fileType } = useMegaBlob(megaUrl);
+  
+  // For documents (PDF, text, office), skip blob loading and use QStash directly
+  const detectedFileType = detectFileTypeFromName(megaUrl.split('/').pop() || '');
+  const shouldSkipBlobLoading = attachmentId && ['pdf', 'text', 'office'].includes(detectedFileType);
+  
+  const { blobUrl, loading, error, progress, fileType } = shouldSkipBlobLoading 
+    ? { blobUrl: null, loading: false, error: null, progress: 0, fileType: detectedFileType }
+    : useMegaBlob(megaUrl);
 
   // Handle error callback
   useEffect(() => {
@@ -322,7 +329,8 @@ export default function MegaDocumentPreview({
     );
   }
 
-  if (!blobUrl) {
+  // For QStash-enabled documents, always show DocumentPreview (even without blobUrl)
+  if (!blobUrl && !shouldSkipBlobLoading) {
     return (
       <div className={`flex flex-col items-center justify-center p-8 border border-gray-200 rounded-lg bg-gray-50 ${className}`}>
         <FileText className="w-16 h-16 text-gray-400 mb-4" />
@@ -337,17 +345,16 @@ export default function MegaDocumentPreview({
     );
   }
 
-  // Use the existing DocumentPreview component with the blob URL
-  // Enable async processing for better performance and timeout handling
+  // Use DocumentPreview with QStash processing for documents, blob URL for others
   return (
     <DocumentPreview
-      url={blobUrl}
+      url={shouldSkipBlobLoading ? megaUrl : (blobUrl || megaUrl)} // Use original MEGA URL for QStash processing, fallback to megaUrl
       fileType={fileType as any}
       attachmentId={attachmentId}
       className={className}
       showControls={showControls}
       onDownload={handleDownload}
-      enableAsyncProcessing={true} // Enable QStash processing for MEGA files
+      enableAsyncProcessing={true} // Always enable QStash for MEGA files
     />
   );
 }

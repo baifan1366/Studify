@@ -10,7 +10,23 @@ export async function POST(request: NextRequest) {
     }
     
     const supabase = await createClient();
-    const user = authResult.user;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
     
     const { questionId, userAnswer, timeTakenSec } = await request.json();
 
@@ -47,7 +63,7 @@ export async function POST(request: NextRequest) {
       .from('course_enrollment')
       .select('id')
       .eq('course_id', question.course_lesson.course.id)
-      .eq('user_id', user.profile?.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .single();
 
@@ -62,7 +78,7 @@ export async function POST(request: NextRequest) {
     const { data: existingSubmission } = await supabase
       .from('course_quiz_submission')
       .select('*')
-      .eq('user_id', user.profile?.id)
+      .eq('user_id', userId)
       .eq('question_id', question.id)
       .eq('is_deleted', false)
       .single();
@@ -109,7 +125,7 @@ export async function POST(request: NextRequest) {
     const { data: previousAttempts } = await supabase
       .from('course_quiz_submission')
       .select('attempt_number')
-      .eq('user_id', user.profile?.id)
+      .eq('user_id', userId)
       .eq('question_id', question.id)
       .order('attempt_number', { ascending: false })
       .limit(1);
@@ -120,7 +136,7 @@ export async function POST(request: NextRequest) {
     const { data: submission, error: submissionError } = await supabase
       .from('course_quiz_submission')
       .insert({
-        user_id: user.profile?.id,
+        user_id: userId,
         question_id: question.id,
         lesson_id: question.course_lesson.id,
         user_answer: userAnswer,
@@ -143,7 +159,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('course_analytics')
       .insert({
-        user_id: user.profile?.id,
+        user_id: userId,
         course_id: question.course_lesson.course.id,
         lesson_id: question.course_lesson.id,
         event_type: 'quiz_attempt',

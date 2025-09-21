@@ -16,6 +16,9 @@ export interface RecommendedCourse {
     display_name: string;
   };
   recommendation_score: number;
+  traditional_score?: number;        // New: Traditional scoring (0-60)
+  embedding_score?: number;          // New: Embedding scoring (0-40)
+  embedding_similarity?: number;     // New: Raw similarity (0-1)
   recommendation_reasons: string[];
 }
 

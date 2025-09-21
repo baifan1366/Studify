@@ -69,6 +69,7 @@ import { useAttachments, useUploadAttachment, useUpdateAttachment, useDeleteAtta
 import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-tasks'
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
+import { VideoPreview } from './video-preview'
 // VideoProcessingProgress is no longer needed - using toast notifications instead
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
@@ -92,7 +93,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const { formatDate } = useFormat()
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('upload')
-  const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string } | null>(null)
+  const [previewData, setPreviewData] = useState<{ url: string; attachmentId: number; fileType: string; title?: string } | null>(null)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ isOpen: false, attachment: null })
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ isOpen: false, attachment: null })
   // videoProcessingState is no longer needed - using background tasks with toast
@@ -220,7 +221,12 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       toast.error('No preview available for this file')
       return
     }
-    setPreviewData({ url: attachment.url, attachmentId: attachment.id, fileType: attachment.type })
+    setPreviewData({ 
+      url: attachment.url, 
+      attachmentId: attachment.id, 
+      fileType: attachment.type,
+      title: attachment.title
+    })
   }
 
   const handleEdit = (attachment: CourseAttachment) => {
@@ -557,12 +563,18 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
 
       {/* Preview Modal */}
       {previewData && (
-        <PreviewAttachment 
-          url={previewData.url} 
-          attachmentId={previewData.attachmentId}
-          fileType={previewData.fileType as 'pdf' | 'video' | 'image' | 'office' | 'text' | 'other'}
-          onClose={() => setPreviewData(null)} 
-        />
+        previewData.fileType === 'video' ? (
+          <VideoPreview 
+            attachmentId={previewData.attachmentId}
+            title={previewData.title}
+            onClose={() => setPreviewData(null)}
+          />
+        ) : (
+          <PreviewAttachment 
+            attachmentId={previewData.attachmentId}
+            onClose={() => setPreviewData(null)}
+          />
+        )
       )}
 
       {/* Edit Dialog */}

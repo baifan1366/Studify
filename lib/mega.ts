@@ -1,8 +1,15 @@
-import { Storage } from 'megajs'
+import { Storage, File as MegaFile } from 'megajs'
 
 export interface UploadResult {
   url: string
   size: number
+}
+
+export interface MegaFileInfo {
+  name: string
+  size: number
+  url: string
+  isValid: boolean
 }
 
 interface MegaError extends Error {
@@ -255,6 +262,113 @@ export async function uploadToMega(file: File): Promise<UploadResult> {
         console.warn('Failed to clean up MEGA storage connection:', cleanupError)
       }
     }
+  }
+}
+
+/**
+ * Get MEGA file information without downloading the full file
+ */
+export async function getMegaFileInfo(megaUrl: string): Promise<MegaFileInfo> {
+  try {
+    console.log('🔍 Getting MEGA file info for:', megaUrl.substring(0, 50) + '...')
+    
+    // Parse MEGA URL and get file info
+    const megaFile = MegaFile.fromURL(megaUrl)
+    
+    // Load file attributes to get size and name
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('MEGA file info timeout after 15 seconds'))
+      }, 15000)
+      
+      megaFile.loadAttributes((error) => {
+        clearTimeout(timeout)
+        if (error) {
+          reject(new Error(`Failed to load MEGA file attributes: ${error.message}`))
+        } else {
+          resolve()
+        }
+      })
+    })
+
+    const fileInfo: MegaFileInfo = {
+      name: megaFile.name || 'Unknown',
+      size: megaFile.size || 0,
+      url: megaUrl,
+      isValid: true
+    }
+
+    console.log('📄 MEGA file info:', {
+      name: fileInfo.name,
+      size: `${(fileInfo.size / 1024 / 1024).toFixed(1)}MB`,
+      isValid: fileInfo.isValid
+    })
+
+    return fileInfo
+  } catch (error) {
+    console.error('❌ Failed to get MEGA file info:', error)
+    return {
+      name: 'Unknown',
+      size: 0,
+      url: megaUrl,
+      isValid: false
+    }
+  }
+}
+
+/**
+ * Download MEGA file as Buffer (for small files only)
+ */
+export async function downloadMegaFile(megaUrl: string, maxSizeBytes: number = 50 * 1024 * 1024): Promise<Buffer> {
+  try {
+    console.log('📥 Downloading MEGA file:', megaUrl.substring(0, 50) + '...')
+    
+    // Get file info first to check size
+    const fileInfo = await getMegaFileInfo(megaUrl)
+    
+    if (!fileInfo.isValid) {
+      throw new Error('Invalid MEGA file')
+    }
+    
+    if (fileInfo.size > maxSizeBytes) {
+      throw new Error(`File too large (${(fileInfo.size / 1024 / 1024).toFixed(1)}MB). Maximum size is ${(maxSizeBytes / 1024 / 1024).toFixed(1)}MB.`)
+    }
+
+    const megaFile = MegaFile.fromURL(megaUrl)
+    
+    // Download file with timeout
+    const chunks: Buffer[] = []
+    const downloadStream = megaFile.download({})
+    
+    const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Download timeout after 2 minutes'))
+      }, 120000)
+      
+      downloadStream.on('data', (chunk: Buffer) => {
+        chunks.push(chunk)
+      })
+      
+      downloadStream.on('end', () => {
+        clearTimeout(timeout)
+        resolve(Buffer.concat(chunks))
+      })
+      
+      downloadStream.on('error', (error: Error) => {
+        clearTimeout(timeout)
+        reject(error)
+      })
+    })
+
+    console.log('✅ MEGA file downloaded successfully:', {
+      size: fileBuffer.length,
+      sizeFormatted: `${(fileBuffer.length / 1024 / 1024).toFixed(1)}MB`
+    })
+
+    return fileBuffer
+  } catch (error) {
+    console.error('❌ Failed to download MEGA file:', error)
+    throw new Error(`MEGA download failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 

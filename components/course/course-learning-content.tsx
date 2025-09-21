@@ -431,7 +431,6 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         {/* 1. Document/Assignment with MEGA attachment - use MegaDocumentPreview */}
         {(currentLesson?.kind === 'document' || currentLesson?.kind === 'assignment') && attachment?.url ? (
           <MegaDocumentPreview
-            megaUrl={attachment.url}
             attachmentId={attachment.id}
             className="w-full min-h-[400px]"
             showControls={true}
@@ -668,7 +667,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
                 size="sm"
                 className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                   activeTab === 'chapters'
-                    ? 'text-orange-500 border-b-orange-500'
+                    ? 'text-orange-500'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
@@ -682,7 +681,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               size="sm"
               className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'notes'
-                  ? 'text-orange-500 border-b-orange-500'
+                  ? 'text-orange-500'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -695,7 +694,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               size="sm"
               className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'quiz'
-                  ? 'text-orange-500 border-b-orange-500'
+                  ? 'text-orange-500'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >

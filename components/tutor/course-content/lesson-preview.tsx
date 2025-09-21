@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import ChapterManagement from './chapter-management';
 import { detectLessonVideoSource, detectAttachmentVideo } from '@/utils/attachment/video-utils';
 import VideoPlayer from '@/components/ui/video-player';
-import { DocumentPreview, type FileType } from '@/components/ui/document-preview';
+import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -577,23 +577,35 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
       );
     }
 
-    // For all other content types, use the DocumentPreview component
-    if (lesson.content_url) {
-      const attachmentId = hasAttachments ? lesson.attachments?.[0] : undefined;
-      
+    // For all other content types, use MegaDocumentPreview if we have attachments
+    if (hasAttachments && lesson.attachments?.[0]) {
       return (
-        <DocumentPreview
-          url={lesson.content_url}
-          fileType={lesson.kind as FileType}
-          attachmentId={attachmentId}
-          onDownload={() => {
-            const link = document.createElement('a');
-            link.href = lesson.content_url as string;
-            link.download = lesson.title;
-            link.click();
-          }}
+        <MegaDocumentPreview
+          attachmentId={lesson.attachments[0]}
+          className="w-full min-h-[400px]"
           showControls={true}
         />
+      );
+    }
+    
+    // Fallback for content_url without attachments
+    if (lesson.content_url) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+          <ExternalLink className="h-16 w-16 text-muted-foreground" />
+          <div>
+            <h3 className="text-lg font-medium text-foreground mb-2">{t('externalContent')}</h3>
+            <p className="text-muted-foreground mb-4">{t('externalContentDescription')}</p>
+            <Button
+              variant="outline"
+              onClick={() => window.open(lesson.content_url, '_blank')}
+              className="gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t('openLink')}
+            </Button>
+          </div>
+        </div>
       );
     }
 

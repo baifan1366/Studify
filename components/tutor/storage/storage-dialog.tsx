@@ -558,10 +558,8 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       {/* Preview Modal */}
       {previewData && (
         <PreviewAttachment 
-          url={previewData.url} 
           attachmentId={previewData.attachmentId}
-          fileType={previewData.fileType as 'pdf' | 'video' | 'image' | 'office' | 'text' | 'other'}
-          onClose={() => setPreviewData(null)} 
+          onClose={() => setPreviewData(null)}
         />
       )}
 

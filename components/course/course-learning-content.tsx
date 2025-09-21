@@ -186,7 +186,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
 
   // Knowledge Graph and Quiz hooks
   const knowledgeGraph = useKnowledgeGraph({ courseSlug });
-  const quiz = useQuiz({ lessonId: currentLessonId || '' });
+  const quiz = useQuiz({ lessonId: currentLesson?.public_id || '' });
 
   // Video player hooks
   const { addMessage: addDanmaku, messages: danmakuMessages } = useDanmaku({

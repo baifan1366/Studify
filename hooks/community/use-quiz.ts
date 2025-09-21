@@ -61,27 +61,27 @@ export const useCreateQuiz = () => {
 };
 
 // // ✅ 更新 quiz
-// export const useUpdateQuiz = (slug: string) => {
-//   const queryClient = useQueryClient();
+export const useUpdateQuiz = (slug: string) => {
+  const queryClient = useQueryClient();
 
-//   return useMutation({
-//     mutationFn: (updates: {
-//       title?: string;
-//       description?: string;
-//       difficulty?: number;
-//       tags?: string[];
-//     }) =>
-//       apiSend<CommunityQuiz>({
-//         url: QUIZ_API.quizDetail(slug),
-//         method: "PUT",
-//         body: updates,
-//       }),
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["communityQuiz", slug] });
-//       queryClient.invalidateQueries({ queryKey: ["communityQuizzes"] });
-//     },
-//   });
-// };
+  return useMutation({
+    mutationFn: (updates: {
+      title?: string;
+      description?: string;
+      difficulty?: number;
+      tags?: string[];
+    }) =>
+      apiSend<CommunityQuiz>({
+        url: QUIZ_API.quizDetail(slug),
+        method: "PATCH",
+        body: updates,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["communityQuiz", slug] });
+      queryClient.invalidateQueries({ queryKey: ["communityQuizzes"] });
+    },
+  });
+};
 
 // // ✅ 删除 quiz
 // export const useDeleteQuiz = (slug: string) => {

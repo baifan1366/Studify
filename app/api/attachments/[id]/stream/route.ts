@@ -386,6 +386,8 @@ export async function GET(
         
         const stream = new ReadableStream({
           async start(controller) {
+            let isControllerActive = true
+            
             try {
               logStep('MEGA_DOWNLOAD_INITIATED', {
                 requestId,
@@ -425,12 +427,30 @@ export async function GET(
                     effectiveMemoryLimit,
                     isPdf
                   })
+                  isControllerActive = false
                   controller.error(new Error('Memory limit exceeded'))
                   return
                 }
                 
-                // Enqueue chunk immediately (true streaming)
-                controller.enqueue(buffer)
+                // Enqueue chunk immediately (true streaming) - only if controller is active
+                if (isControllerActive) {
+                  try {
+                    controller.enqueue(buffer)
+                  } catch (enqueueError) {
+                    logError('ENQUEUE_ERROR', enqueueError, {
+                      requestId,
+                      message: 'Controller may be closed'
+                    })
+                    isControllerActive = false
+                    return // Exit the loop if controller is closed
+                  }
+                } else {
+                  logStep('CONTROLLER_INACTIVE_RANGE', {
+                    requestId,
+                    message: 'Controller is inactive, stopping range stream'
+                  })
+                  return
+                }
               }
               
               logStep('STREAMING_COMPLETE', {
@@ -441,7 +461,18 @@ export async function GET(
                 totalDuration: Date.now() - requestStartTime + 'ms'
               })
               
-              controller.close()
+              // Only close if controller is still active
+              if (isControllerActive) {
+                try {
+                  isControllerActive = false
+                  controller.close()
+                } catch (closeError) {
+                  logError('CONTROLLER_CLOSE_ERROR', closeError, {
+                    requestId,
+                    message: 'Controller may already be closed'
+                  })
+                }
+              }
             } catch (error) {
               logError('STREAMING_ERROR', error, {
                 requestId,
@@ -509,18 +540,22 @@ export async function GET(
               let chunkCount = 0
               const streamStartTime = Date.now()
               
-              // Set streaming timeout based on file type
+              // Set streaming timeout based on file type with controller state tracking
               const effectiveTimeout = isPdf ? PDF_STREAMING_TIMEOUT : STREAMING_TIMEOUT
+              let isControllerActive = true
               
               const timeoutId = setTimeout(() => {
-                logError('STREAMING_TIMEOUT', new Error(`Streaming timeout after ${effectiveTimeout / 1000}s`), {
-                  requestId,
-                  totalReceived,
-                  duration: Date.now() - streamStartTime,
-                  isPdf,
-                  effectiveTimeout
-                })
-                controller.error(new Error('Streaming timeout'))
+                if (isControllerActive) {
+                  logError('STREAMING_TIMEOUT', new Error(`Streaming timeout after ${effectiveTimeout / 1000}s`), {
+                    requestId,
+                    totalReceived,
+                    duration: Date.now() - streamStartTime,
+                    isPdf,
+                    effectiveTimeout
+                  })
+                  isControllerActive = false
+                  controller.error(new Error('Streaming timeout'))
+                }
               }, effectiveTimeout)
               
               logStep('TIMEOUT_SET', {
@@ -554,11 +589,30 @@ export async function GET(
                       effectiveMemoryLimit,
                       isPdf
                     })
+                    isControllerActive = false
                     controller.error(new Error('File too large for streaming'))
                     return
                   }
                   
-                  controller.enqueue(buffer)
+                  // Only enqueue if controller is still active
+                  if (isControllerActive) {
+                    try {
+                      controller.enqueue(buffer)
+                    } catch (enqueueError) {
+                      logError('ENQUEUE_ERROR_FULL_FILE', enqueueError, {
+                        requestId,
+                        message: 'Controller may be closed during full file streaming'
+                      })
+                      isControllerActive = false
+                      return // Exit if controller is closed
+                    }
+                  } else {
+                    logStep('CONTROLLER_INACTIVE', {
+                      requestId,
+                      message: 'Controller is inactive, stopping enqueue'
+                    })
+                    return // Exit if controller is inactive
+                  }
                 }
                 
                 clearTimeout(timeoutId)
@@ -569,7 +623,18 @@ export async function GET(
                   duration: Date.now() - streamStartTime + 'ms'
                 })
                 
-                controller.close()
+                // Only close if controller is still active
+                if (isControllerActive) {
+                  try {
+                    isControllerActive = false
+                    controller.close()
+                  } catch (closeError) {
+                    logError('CONTROLLER_CLOSE_ERROR_FULL_FILE', closeError, {
+                      requestId,
+                      message: 'Controller may already be closed during full file streaming'
+                    })
+                  }
+                }
               } catch (streamError) {
                 clearTimeout(timeoutId)
                 throw streamError

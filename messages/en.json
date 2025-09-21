@@ -182,7 +182,9 @@
     "pdf_document": "PDF Document",
     "image_file": "Image File",
     "invalid_title": "Invalid title",
-    "file_preview_description": "Preview the file in the browser"
+    "file_preview_description": "Preview the file in the browser",
+    "video_preview": "Video Preview",
+    "video_preview_description": "Watch the video file in the player"
   },
   "DocumentPreview": {
     "minutes": "minutes",
@@ -1919,7 +1921,10 @@
     "converting_to_hls_streaming_format": "Converting to HLS streaming format",
     "using_cached_hls_stream": "Using cached HLS stream",
     "processed_in": "Processed in",
-    "large_files_may_take_several_minutes_to_process": "Large files may take several minutes to process"
+    "large_files_may_take_several_minutes_to_process": "Large files may take several minutes to process",
+    "loading_attachment": "Loading attachment...",
+    "unknownContent": "Unknown Content Type",
+    "unknownContentDescription": "This lesson contains an unknown content type that cannot be previewed."
   },
   "CoursesContent": {
     "explore_courses": "Explore Courses",

@@ -39,6 +39,7 @@ export function DocumentPreview({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   // Fetch file data from API
   useEffect(() => {
@@ -50,6 +51,11 @@ export function DocumentPreview({
         console.log(`🔍 Fetching file data for fileId: ${fileId}`)
         
         const apiResponse = await fetch(`/api/preview/${fileId}`)
+        
+        // Check if response is ok
+        if (!apiResponse.ok) {
+          throw new Error(`API response error: ${apiResponse.status} ${apiResponse.statusText}`)
+        }
         
         // Check response headers to determine mode
         const previewMode = apiResponse.headers.get('X-Preview-Mode')
@@ -96,7 +102,7 @@ export function DocumentPreview({
         URL.revokeObjectURL(blobUrl)
       }
     }
-  }, [fileId])
+  }, [fileId, retryCount])
 
   // Cleanup blob URL when component unmounts
   useEffect(() => {
@@ -153,10 +159,20 @@ export function DocumentPreview({
             <p className="text-muted-foreground text-sm">{error}</p>
           </div>
           {showControls && (
-            <Button onClick={handleDownload} variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Try Download
-            </Button>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => {
+                setRetryCount(prev => prev + 1)
+                setError(null)
+                setResponse(null)
+                setBlobUrl(null)
+              }} variant="outline" size="sm">
+                Retry {retryCount > 0 && `(${retryCount + 1})`}
+              </Button>
+              <Button onClick={handleDownload} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </div>
           )}
         </div>
       </div>

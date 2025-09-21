@@ -10,7 +10,23 @@ export async function GET(request: NextRequest) {
     }
     
     const supabase = await createClient();
-    const user = authResult.user;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -42,7 +58,7 @@ export async function GET(request: NextRequest) {
       .from('course_enrollment')
       .select('id')
       .eq('course_id', lesson.course.id)
-      .eq('user_id', user.profile?.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .single();
 
@@ -73,7 +89,7 @@ export async function GET(request: NextRequest) {
     const { data: submissions, error: submissionsError } = await supabase
       .from('course_quiz_submission')
       .select('*')
-      .eq('user_id', user.profile?.id)
+      .eq('user_id', userId)
       .in('question_id', questionIds)
       .eq('is_deleted', false);
 

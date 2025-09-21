@@ -377,7 +377,23 @@ export async function PATCH(request: NextRequest) {
     }
     
     const supabase = await createClient();
-    const user = authResult.sub;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
     
     const { noteId, content, tags, timestampSec } = await request.json();
 
@@ -401,7 +417,7 @@ export async function PATCH(request: NextRequest) {
       .from('course_notes')
       .update(updateData)
       .eq('public_id', noteId)
-      .eq('user_id', user)
+      .eq('user_id', userId)
       .eq('is_deleted', false)
       .select()
       .single();
@@ -441,7 +457,23 @@ export async function DELETE(request: NextRequest) {
     }
     
     const supabase = await createClient();
-    const user = authResult.sub;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
     
     const { searchParams } = new URL(request.url);
     const noteId = searchParams.get('noteId');
@@ -461,7 +493,7 @@ export async function DELETE(request: NextRequest) {
         deleted_at: new Date().toISOString()
       })
       .eq('public_id', noteId)
-      .eq('user_id', user);
+      .eq('user_id', userId);
 
     if (deleteError) {
       return NextResponse.json(

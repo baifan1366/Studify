@@ -731,6 +731,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
                 currentLessonId={currentLesson?.id}
                 currentTimestamp={currentVideoTimestamp}
                 onTimeUpdate={handleTimeUpdate}
+                lessonKind={currentLesson?.kind}
               />
             )}
 

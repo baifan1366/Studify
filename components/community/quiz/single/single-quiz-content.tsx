@@ -1,6 +1,7 @@
 import QuizHeader from "./quiz-header";
 import QuizStats from "./quiz-stats";
 import QuizLeaderboard from "./quiz-leaderboard";
+import QuizRecentAttemptsModal from "./quiz-recent-attempts";
 import { Separator } from "@/components/ui/separator";
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 
@@ -30,8 +31,9 @@ export default function SingleQuizContent({ quiz }: SingleQuizContentProps) {
           <Separator className="my-8" />
           <QuizStats quiz={quiz} />
         </div>
-        <div className="md:col-span-1">
+        <div className="md:col-span-1 space-y-6">
           <QuizLeaderboard leaderboard={quiz.leaderboard || []} />
+          <QuizRecentAttemptsModal quizSlug={quiz.slug} />
         </div>
       </div>
     </div>

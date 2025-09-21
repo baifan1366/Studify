@@ -1573,3 +1573,23 @@ CREATE TABLE currencies (
     rate_to_usd DECIMAL(15,6),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Create document_processing_jobs table for QStash async document processing
+CREATE TABLE IF NOT EXISTS document_processing_jobs (
+  id TEXT PRIMARY KEY,
+  attachment_id INTEGER NOT NULL REFERENCES course_attachments(id) ON DELETE CASCADE,
+  document_type TEXT NOT NULL CHECK (document_type IN ('pdf', 'text', 'office')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high')),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  stage TEXT,
+  error TEXT,
+  result JSONB,
+  message_id TEXT, -- QStash message ID for tracking
+  
+  -- Indexes for performance
+  CONSTRAINT unique_user_attachment UNIQUE (attachment_id, user_id)
+);

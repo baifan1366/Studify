@@ -20,6 +20,18 @@ export function useAttachments(ownerId?: number) {
   })
 }
 
+// Fetch single attachment by ID
+export function useAttachment(attachmentId?: number) {
+  return useQuery({
+    queryKey: ['attachment', attachmentId],
+    queryFn: async () => {
+      if (!attachmentId) return null
+      return apiGet<CourseAttachment>(`/api/attachments/${attachmentId}`)
+    },
+    enabled: !!attachmentId
+  })
+}
+
 // Fetch current user's storage attachments (personal attachments)
 // Note: This needs to be used with a user profile ID to filter correctly
 export function useUserStorageAttachments(userId?: number) {

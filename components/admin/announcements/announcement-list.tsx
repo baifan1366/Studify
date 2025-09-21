@@ -171,7 +171,7 @@ export default function AnnouncementList() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="flex items-center min-w-[120px]">
             <Filter className="h-4 w-4 mr-2" />
-            <span>{t("filter")}</span>
+            <span className="text-gray-600 dark:text-gray-400">{t("filter")}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("all_statuses")}</SelectItem>

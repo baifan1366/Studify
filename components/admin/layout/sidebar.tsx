@@ -68,7 +68,6 @@ const defaultMenuSections: MenuSection[] = [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/admin/dashboard' },
       { id: 'messages', label: 'Messages', icon: Mail, path: '/admin/messages' },
       { id: 'announcements', label: 'Announcements', icon: Bell, path: '/admin/announcements' },
-      { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
     ]
   },
   {
@@ -97,12 +96,11 @@ const defaultMenuSections: MenuSection[] = [
           { id: 'content-reports', label: 'Reports', icon: AlertTriangle, path: '/admin/reports' },
         ]
       },
-      { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
       {
         id: 'reports',
         label: 'Reports',
         icon: FileText,
-        path: '/admin/reports/users',
+        path: '/admin/reports',
         subItems: [
           { id: 'user-reports', label: 'User Reports', icon: FileText, path: '/admin/reports/users' },
           { id: 'content-reports-detail', label: 'Content Reports', icon: FileText, path: '/admin/reports/content' },

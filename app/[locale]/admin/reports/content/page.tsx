@@ -1,9 +1,8 @@
-import { AdminUsersList } from '@/components/admin/users/admin-users-list';
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('AdminUsersPage');
+  const t = await getTranslations('AdminReportsContentPage');
 
   return {
     title: t('metadata_title'),
@@ -17,12 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function AdminUsersPage() {
-  const t = await getTranslations('AdminUsersPage');
+export default async function AdminReportsContentPage() {
+  const t = await getTranslations('AdminReportsContentPage');
 
   return (
     <div>
-      <AdminUsersList />
+      <h2>{t('page_title')}</h2>
     </div>
   );
 }

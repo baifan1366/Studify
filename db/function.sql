@@ -126,7 +126,11 @@ DECLARE
   payload jsonb;
 BEGIN
   -- Validate content type for embedding
-  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson', 'comment', 'auth_user') THEN
+  IF p_content_type NOT IN (
+    'profile', 'course', 'post', 'lesson', 'comment', 'auth_user',
+    'classroom', 'live_session', 'assignment', 'quiz_question', 'course_note',
+    'course_review', 'community_group', 'ai_agent', 'notification'
+  ) THEN
     RAISE NOTICE 'Invalid content type for embedding: %', p_content_type;
     RETURN false;
   END IF;

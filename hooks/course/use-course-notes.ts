@@ -26,6 +26,7 @@ interface UpdateNoteData {
   noteId: string;
   content?: string;
   tags?: string[];
+  timestampSec?: number;
 }
 
 interface NotesResponse {

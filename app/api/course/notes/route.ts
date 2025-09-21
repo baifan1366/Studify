@@ -379,7 +379,7 @@ export async function PATCH(request: NextRequest) {
     const supabase = await createClient();
     const user = authResult.sub;
     
-    const { noteId, content, tags } = await request.json();
+    const { noteId, content, tags, timestampSec } = await request.json();
 
     if (!noteId) {
       return NextResponse.json(
@@ -389,13 +389,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update note
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+    
+    if (content !== undefined) updateData.content = content;
+    if (tags !== undefined) updateData.tags = tags;
+    if (timestampSec !== undefined) updateData.timestamp_sec = timestampSec;
+    
     const { data: note, error: noteError } = await supabase
       .from('course_notes')
-      .update({
-        content: content,
-        tags: tags,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('public_id', noteId)
       .eq('user_id', user)
       .eq('is_deleted', false)
@@ -415,6 +419,7 @@ export async function PATCH(request: NextRequest) {
         id: note.public_id,
         content: note.content,
         tags: note.tags,
+        timestampSec: note.timestamp_sec,
         updatedAt: note.updated_at
       }
     });

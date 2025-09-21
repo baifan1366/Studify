@@ -25,12 +25,13 @@ import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useLessonByCourseModuleId, useAllLessonsByCourseId } from '@/hooks/course/use-course-lesson';
 import { useCourseProgress, useUpdateProgress } from '@/hooks/course/use-course-progress';
-import { useCourseNotes, useCreateNote } from '@/hooks/course/use-course-notes';
 import { useUser } from '@/hooks/profile/use-user';
 import { useKnowledgeGraph } from '@/hooks/course/use-knowledge-graph';
 import { useQuiz } from '@/hooks/course/use-quiz';
 import CourseQuizInterface from './course-quiz-interface';
 import CourseKnowledgeGraph from './course-knowledge-graph';
+import CourseNoteContent from './course-note-content';
+import CourseChapterContent from './course-chapter-content';
 import BilibiliVideoPlayer from '@/components/video/bilibili-video-player';
 import { useDanmaku } from '@/hooks/video/use-danmaku';
 import { useVideoComments } from '@/hooks/video/use-video-comments';
@@ -158,9 +159,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   
   // Learning state
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(initialLessonId || null);
-  const [activeTab, setActiveTab] = useState<'notes' | 'quiz' | 'ai'>('notes');
-  const [noteContent, setNoteContent] = useState('');
-  const [noteTimestamp, setNoteTimestamp] = useState(0);
+  const [activeTab, setActiveTab] = useState<'chapters' | 'notes' | 'quiz' | 'ai'>('chapters');
+  const [currentVideoTimestamp, setCurrentVideoTimestamp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
@@ -179,9 +179,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   }, [allLessons, currentLessonId]);
 
   // Now we can safely use currentLesson in other hooks
-  const { data: notes } = useCourseNotes(currentLesson?.id);
   const updateProgress = useUpdateProgress();
-  const createNote = useCreateNote();
   const { toast } = useToast();
 
   // Knowledge Graph and Quiz hooks
@@ -224,7 +222,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     });
   };
 
-  // Auto-expand module containing current lesson
+  // Auto-expand module containing current lesson and set appropriate default tab
   React.useEffect(() => {
     if (currentLessonId && allLessons.length > 0) {
       const currentLesson = allLessons.find(lesson => lesson.public_id === currentLessonId);
@@ -234,6 +232,9 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           newSet.add(currentLesson.moduleId);
           return newSet;
         });
+        
+        // Set default tab based on lesson type
+        setActiveTab(currentLesson.kind === 'video' ? 'chapters' : 'notes');
         
         // Scroll to the selected lesson after a brief delay
         setTimeout(() => {
@@ -290,6 +291,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           e.preventDefault();
           setIsFullscreen(!isFullscreen);
           break;
+        case 'c':
+          e.preventDefault();
+          if (currentLesson?.kind === 'video') {
+            setActiveTab('chapters');
+          }
+          break;
         case 'n':
           e.preventDefault();
           setActiveTab('notes');
@@ -310,7 +317,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   }, [currentLessonId, isFullscreen]);
 
   const handleTimeUpdate = (time: number) => {
-    setNoteTimestamp(time);
+    setCurrentVideoTimestamp(time);
     
     // Update progress every 10 seconds
     if (currentLessonId && time % 10 === 0) {
@@ -350,29 +357,6 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     }
   };
 
-  const handleCreateNote = async () => {
-    if (!noteContent.trim() || !currentLesson?.id) return;
-    
-    try {
-      await createNote.mutate({
-        lessonId: currentLesson.id,
-        content: noteContent,
-        timestampSec: noteTimestamp
-      });
-      
-      setNoteContent('');
-      toast({
-        title: 'Note Saved',
-        description: 'Your note has been saved successfully.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save note. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handlePreviousLesson = () => {
     if (!currentLessonId) return;
@@ -676,14 +660,30 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         <div className="xl:col-span-3 lg:col-span-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           {/* Tabs */}
           <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
+            {/* Chapters Tab - Only show for video lessons */}
+            {currentLesson?.kind === 'video' && (
+              <Button
+                onClick={() => setActiveTab('chapters')}
+                variant="ghost"
+                size="sm"
+                className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
+                  activeTab === 'chapters'
+                    ? 'text-orange-500 border-b-orange-500'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <BookOpen size={16} />
+                <span className="hidden sm:inline">Chapters</span>
+              </Button>
+            )}
             <Button
               onClick={() => setActiveTab('notes')}
               variant="ghost"
               size="sm"
               className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'notes'
-                  ? 'text-orange-500'
-                  : 'text-gray-600'
+                  ? 'text-orange-500 border-b-orange-500'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}
             >
               <PenTool size={16} />
@@ -695,8 +695,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               size="sm"
               className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'quiz'
-                  ? 'text-orange-500'
-                  : 'text-gray-600'
+                  ? 'text-orange-500 border-b-orange-500'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}
             >
               <FileText size={16} />
@@ -708,8 +708,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               size="sm"
               className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
                 activeTab === 'ai'
-                  ? 'text-orange-500'
-                  : 'text-gray-600'
+                  ? 'text-orange-500 border-b-orange-500'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}
             >
               <Brain size={16} />
@@ -719,50 +719,19 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
 
           {/* Tab Content */}
           <div className="p-3 lg:p-4 max-h-64 sm:max-h-80 lg:max-h-96 overflow-y-auto">
+            {activeTab === 'chapters' && currentLesson?.kind === 'video' && (
+              <CourseChapterContent
+                currentLessonId={currentLesson?.id}
+                currentTimestamp={currentVideoTimestamp}
+                onSeekTo={handleTimeUpdate}
+              />
+            )}
             {activeTab === 'notes' && (
-              <div className="space-y-4">
-                {/* Note Input */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock size={14} />
-                    <span>
-                      {Math.floor(noteTimestamp / 60)}:{String(noteTimestamp % 60).padStart(2, '0')}
-                    </span>
-                  </div>
-                  <textarea
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="Add a note at this timestamp..."
-                    className="w-full h-20 sm:h-24 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white dark:bg-gray-800"
-                  />
-                  <Button
-                    onClick={handleCreateNote}
-                    disabled={!noteContent.trim() || createNote.isPending}
-                    variant="default"
-                  >
-                    {createNote.isPending ? 'Saving...' : 'Save Note'}
-                  </Button>
-                </div>
-
-                {/* Existing Notes */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-gray-900">Your Notes</h4>
-                  {notes?.map((note) => (
-                    <div key={note.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                        <Clock size={12} />
-                        <div className="text-xs text-gray-500">
-                          {(note.timestampSec ?? 0) > 0 ? `${Math.floor((note.timestampSec ?? 0) / 60)}:${String((note.timestampSec ?? 0) % 60).padStart(2, '0')} - ` : ''}
-                          {new Date(note.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <p className="text-gray-800 text-sm">{note.content}</p>
-                    </div>
-                  )) || (
-                    <p className="text-gray-500 text-sm">No notes yet. Start taking notes as you watch!</p>
-                  )}
-                </div>
-              </div>
+              <CourseNoteContent
+                currentLessonId={currentLesson?.id}
+                currentTimestamp={currentVideoTimestamp}
+                onTimeUpdate={handleTimeUpdate}
+              />
             )}
 
             {activeTab === 'quiz' && currentLessonId && (

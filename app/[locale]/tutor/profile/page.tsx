@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import ProfileContent from '@/components/tutor/profile/profile-content';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('TutorCalendarPage');
+  const t = await getTranslations('TutorProfilePage');
 
   return {
     title: t('metadata_title'),
@@ -16,12 +17,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function TutorCalendarPage() {
-  const t = await getTranslations('TutorCalendarPage');
+export default async function TutorProfilePage() {
+  const t = await getTranslations('TutorProfilePage');
 
   return (
     <div>
-      <h1>{t('page_title')}</h1>
+      <ProfileContent />
     </div>
   );
 }

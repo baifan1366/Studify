@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
@@ -12,8 +11,6 @@ import Image from 'next/image';
 
 export default function ProfileContent() {
   const t = useTranslations('ProfileContent');
-  const router = useRouter();
-  const pathname = usePathname();
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
   const updateProfileMutation = useUpdateProfile(userData?.id || '');
@@ -167,22 +164,6 @@ export default function ProfileContent() {
       }
     };
     input.click();
-  };
-
-  // Quick Actions handlers
-  const handleNavigateToCourses = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/course`);
-  };
-
-  const handleNavigateToAchievements = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/achievements`);
-  };
-
-  const handleNavigateToCommunity = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/community`);
   };
 
   return (
@@ -521,57 +502,6 @@ export default function ProfileContent() {
                   </div>
                 </div>
               )}
-
-              {/* Quick Actions */}
-              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6 mb-8">
-                <div className="relative z-10">
-                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <Settings size={20} />
-                    {t('quick_actions')}
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <motion.button
-                      onClick={handleNavigateToCourses}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <BookOpen size={20} className="text-blue-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('my_courses')}</div>
-                        <div className="text-sm text-white/70">{t('view_enrolled')}</div>
-                      </div>
-                    </motion.button>
-
-                    <motion.button
-                      onClick={handleNavigateToAchievements}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Award size={20} className="text-yellow-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('achievements')}</div>
-                        <div className="text-sm text-white/70">{t('view_badges')}</div>
-                      </div>
-                    </motion.button>
-
-                    <motion.button
-                      onClick={handleNavigateToCommunity}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Users size={20} className="text-green-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('community')}</div>
-                        <div className="text-sm text-white/70">{t('join_groups')}</div>
-                      </div>
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
             </motion.div>
           </div>
         </div>

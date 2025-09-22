@@ -56,8 +56,6 @@ const defaultMenuSections: MenuSection[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/tutor/dashboard' },
       { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tutor/notifications' },
-      { id: 'messages', label: 'Messages', icon: Mail, path: '/tutor/messages' },
-      { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/tutor/calendar' },
     ]
   },
   {
@@ -77,7 +75,6 @@ const defaultMenuSections: MenuSection[] = [
       { id: 'classroom', label: 'Classroom', icon: Users, path: '/tutor/classroom' },
       { id: 'students', label: 'Students', icon: GraduationCap, path: '/tutor/student' },
       { id: 'ai-assistant', label: 'AI Assistant', icon: BookOpen, path: '/tutor/ai-assistant' },
-      { id: 'insights', label: 'Insights', icon: FileText, path: '/tutor/insights' },
       { id: 'settings', label: 'Settings', icon: Settings, path: '/tutor/settings' },
     ]
   }

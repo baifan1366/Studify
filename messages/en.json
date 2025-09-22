@@ -79,7 +79,7 @@
     "language": "Language",
     "data": "Data & Storage",
     "account_security": "Account Security",
-    "two_factor_auth": "Two|Factor Authentication",
+    "two_factor_auth": "Two-Factor Authentication",
     "two_factor_desc": "Add an extra layer of security to your account",
     "email_verification": "Email Verification",
     "verified": "Verified",
@@ -812,7 +812,7 @@
   "StudentList": {
     "title": "Student Management",
     "subtitle": "Manage your enrolled students and track their progress across all courses",
-    "courses_view": "Courses View", 
+    "courses_view": "Courses View",
     "students_view": "Students View",
     "filters": "Filters & Search",
     "search_placeholder": "Search students, courses, or emails...",
@@ -829,7 +829,7 @@
     "hide_students": "Hide Students",
     "show_students": "Show Students",
     "enrolled_students": "Enrolled Students",
-    "hide_courses": "Hide Courses", 
+    "hide_courses": "Hide Courses",
     "show_courses": "Show Courses",
     "student_courses": "Student Courses",
     "progress": "Progress",
@@ -839,7 +839,7 @@
   "student": {
     "title": "Student Management",
     "subtitle": "Manage your enrolled students and track their progress across all courses",
-    "courses_view": "Courses View", 
+    "courses_view": "Courses View",
     "students_view": "Students View",
     "filters": "Filters & Search",
     "search_placeholder": "Search students, courses, or emails...",
@@ -859,7 +859,7 @@
     "hide_students": "Hide Students",
     "show_students": "Show Students",
     "enrolled_students": "Enrolled Students",
-    "hide_courses": "Hide Courses", 
+    "hide_courses": "Hide Courses",
     "show_courses": "Show Courses",
     "student_courses": "Student Courses",
     "progress": "Progress",
@@ -871,7 +871,7 @@
     "overall_progress": "Overall Progress",
     "first_enrolled": "First Enrolled",
     "status_active": "Active",
-    "status_completed": "Completed", 
+    "status_completed": "Completed",
     "status_dropped": "Dropped",
     "status_locked": "Locked"
   },
@@ -950,7 +950,7 @@
     "categories": {
       "all": "All",
       "learning": "Learning",
-      "consistency": "Consistency", 
+      "consistency": "Consistency",
       "community": "Community",
       "performance": "Performance",
       "habits": "Habits"
@@ -2615,7 +2615,7 @@
     "failed_to_delete": "Failed to delete permission"
   },
   "RolePermissionManagement": {
-    "unknown_role":"Unknown Role",
+    "unknown_role": "Unknown Role",
     "title": "Role-Permission Management",
     "manage_role_permissions": "Manage Role Permissions",
     "create_connection": "Create Role-Permission Connection",

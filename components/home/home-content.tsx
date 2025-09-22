@@ -12,7 +12,6 @@ import CommunityHighlights from '@/components/community-highlights';
 import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
 import { useTranslations } from 'next-intl';
 
 export default function HomeContent() {
@@ -121,7 +120,7 @@ export default function HomeContent() {
   };
 
   return (
-    <AnimatedBackground>
+    <>
       {/* Main Content */}
       <div>
         {/* Hero Section */}
@@ -156,6 +155,6 @@ export default function HomeContent() {
           onDailyCheckin={handleDailyCheckin}
         />
       </div>
-    </AnimatedBackground>
+    </>
   );
 }

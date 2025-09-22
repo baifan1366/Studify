@@ -152,7 +152,7 @@ export default function CreateAnnouncement({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
+          <DialogTitle className="flex items-center gap-2 text-xl text-gray-600 dark:text-gray-400">
             <Send className="h-5 w-5" />
             {t("create_announcement")}
           </DialogTitle>

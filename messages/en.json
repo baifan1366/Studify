@@ -2018,6 +2018,68 @@
     "og_description": "View and manage settings for your courses",
     "page_title": "Settings"
   },
+  "AdminUsersList": {
+    "page_title": "User Management",
+    "page_description": "Manage all users in your system",
+    "promote_to_admin": "Promote to Admin",
+    "filters": "Filters",
+    "search_placeholder": "Search users...",
+    "filter_by_role": "Filter by role",
+    "filter_by_status": "Filter by status",
+    "items_per_page": "Items per page",
+    "all_roles": "All Roles",
+    "admin": "Admin",
+    "tutor": "Tutor",
+    "student": "Student",
+    "all_status": "All Status",
+    "active": "Active",
+    "banned": "Banned",
+    "per_page_10": "10 per page",
+    "per_page_20": "20 per page",
+    "per_page_50": "50 per page",
+    "per_page_100": "100 per page",
+    "users_count": "Users ({count})",
+    "showing_users": "Showing {shown} of {total} users",
+    "table_user": "User",
+    "table_role": "Role",
+    "table_status": "Status",
+    "table_points": "Points",
+    "table_joined": "Joined",
+    "table_last_login": "Last Login",
+    "table_actions": "Actions",
+    "unknown_user": "Unknown",
+    "never_logged_in": "Never",
+    "page_info": "Page {current} of {total}",
+    "previous": "Previous",
+    "next": "Next",
+    "promote_dialog_title": "Promote User to Admin",
+    "promote_dialog_description": "Enter the email address of the user you want to promote to admin.",
+    "email_label": "Email Address",
+    "email_placeholder": "user@example.com",
+    "cancel": "Cancel",
+    "promote_button": "Promote to Admin",
+    "promoting": "Promoting...",
+    "ban_dialog_title": "Ban User",
+    "ban_dialog_description": "Are you sure you want to ban {name}?",
+    "ban_reason_label": "Reason for ban",
+    "ban_reason_placeholder": "Enter the reason for banning this user...",
+    "ban_button": "Ban User",
+    "banning": "Banning...",
+    "delete_confirmation": "Are you sure you want to delete {name}?",
+    "error_loading": "Failed to load users: {message}",
+    "email_required": "Please enter an email address",
+    "ban_reason_required": "Please provide a ban reason",
+    "user_promoted": "User promoted to admin successfully",
+    "promote_failed": "Failed to promote user",
+    "user_banned": "User banned successfully",
+    "ban_failed": "Failed to ban user",
+    "user_unbanned": "User unbanned successfully",
+    "unban_failed": "Failed to unban user",
+    "user_deleted": "User deleted successfully",
+    "delete_failed": "Failed to delete user",
+    "important_notice_title": "Important Notice",
+    "important_notice_description": "This will grant full administrative privileges to the user. Please ensure you trust this person completely."
+  },
   "Announcements": {
     "announcements": "Announcements",
     "create_announcement": "Create Announcement",
@@ -2296,5 +2358,117 @@
     "lesson_completed_desc": "Great job! You can now move to the next lesson.",
     "course_completed": "🎉 Course Completed!",
     "course_completed_desc": "Congratulations! You have successfully completed this course."
+  },
+  "AdminUsersPage": {
+    "metadata_title": "Users | Admin | Studify",
+    "metadata_description": "Manage users on Studify.",
+    "metadata_keywords": "users, admin, studify",
+    "og_title": "Users | Admin | Studify",
+    "og_description": "Manage users on Studify.",
+    "page_title": "Users"
+  },
+  "AdminReportsPage": {
+    "metadata_title": "Reports | Admin | Studify",
+    "metadata_description": "Manage reports on Studify.",
+    "metadata_keywords": "reports, admin, studify",
+    "og_title": "Reports | Admin | Studify",
+    "og_description": "Manage reports on Studify.",
+    "page_title": "Reports"
+  },
+  "AdminProfilePage": {
+    "metadata_title": "Profile | Admin | Studify",
+    "metadata_description": "Manage your profile, privacy settings, and learning preferences on Studify.",
+    "metadata_keywords": "profile, admin, studify",
+    "og_title": "Profile | Admin | Studify",
+    "og_description": "Manage your profile, privacy settings, and learning preferences on Studify.",
+    "page_title": "Profile"
+  },
+  "AdminMaintenancePage": {
+    "metadata_title": "Maintenance | Admin | Studify",
+    "metadata_description": "Manage maintenance on Studify.",
+    "metadata_keywords": "maintenance, admin, studify",
+    "og_title": "Maintenance | Admin | Studify",
+    "og_description": "Manage maintenance on Studify.",
+    "page_title": "Maintenance"
+  },
+  "AdminCoursesPage": {
+    "metadata_title": "Courses | Admin | Studify",
+    "metadata_description": "Manage courses on Studify.",
+    "metadata_keywords": "courses, admin, studify",
+    "og_title": "Courses | Admin | Studify",
+    "og_description": "Manage courses on Studify.",
+    "page_title": "Courses"
+  },
+  "AdminAIPage": {
+    "metadata_title": "AI | Admin | Studify",
+    "metadata_description": "Manage AI on Studify.",
+    "metadata_keywords": "ai, admin, studify",
+    "og_title": "AI | Admin | Studify",
+    "og_description": "Manage AI on Studify.",
+    "page_title": "AI"
+  },
+  "AdminBannedUsersPage": {
+    "metadata_title": "Banned Users | Admin | Studify",
+    "metadata_description": "Manage banned users on Studify.",
+    "metadata_keywords": "banned users, admin, studify",
+    "og_title": "Banned Users | Admin | Studify",
+    "og_description": "Manage banned users on Studify.",
+    "page_title": "Banned Users"
+  },
+  "AdminRolesPage": {
+    "metadata_title": "Roles | Admin | Studify",
+    "metadata_description": "Manage roles on Studify.",
+    "metadata_keywords": "roles, admin, studify",
+    "og_title": "Roles | Admin | Studify",
+    "og_description": "Manage roles on Studify.",
+    "page_title": "Roles"
+  },
+  "AdminClassroomsPage": {
+    "metadata_title": "Classrooms | Admin | Studify",
+    "metadata_description": "Manage classrooms on Studify.",
+    "metadata_keywords": "classrooms, admin, studify",
+    "og_title": "Classrooms | Admin | Studify",
+    "og_description": "Manage classrooms on Studify.",
+    "page_title": "Classrooms"
+  },
+  "AdminCommunityPage": {
+    "metadata_title": "Community | Admin | Studify",
+    "metadata_description": "Manage community on Studify.",
+    "metadata_keywords": "community, admin, studify",
+    "og_title": "Community | Admin | Studify",
+    "og_description": "Manage community on Studify.",
+    "page_title": "Community"
+  },
+  "AdminMessagesPage": {
+    "metadata_title": "Messages | Admin | Studify",
+    "metadata_description": "Manage messages on Studify.",
+    "metadata_keywords": "messages, admin, studify",
+    "og_title": "Messages | Admin | Studify",
+    "og_description": "Manage messages on Studify.",
+    "page_title": "Messages"
+  },
+  "AdminReportsAuditPage": {
+    "metadata_title": "Audit | Admin | Studify",
+    "metadata_description": "Manage audit on Studify.",
+    "metadata_keywords": "audit, admin, studify",
+    "og_title": "Audit | Admin | Studify",
+    "og_description": "Manage audit on Studify.",
+    "page_title": "Audit"
+  },
+  "AdminReportsContentPage": {
+    "metadata_title": "Content | Admin | Studify",
+    "metadata_description": "Manage content on Studify.",
+    "metadata_keywords": "content, admin, studify",
+    "og_title": "Content | Admin | Studify",
+    "og_description": "Manage content on Studify.",
+    "page_title": "Content"
+  },
+  "AdminReportsUsersPage": {
+    "metadata_title": "Users | Admin | Studify",
+    "metadata_description": "Manage users on Studify.",
+    "metadata_keywords": "users, admin, studify",
+    "og_title": "Users | Admin | Studify",
+    "og_description": "Manage users on Studify.",
+    "page_title": "Users"
   }
 }

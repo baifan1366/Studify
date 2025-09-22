@@ -4,17 +4,17 @@ import { createAdminClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { targetType: string; targetId: string } }
+  { params }: { params: Promise<{ targetType: string; targetId: string }> }
 ) {
   try {
     // Authentication check with student role requirement
     await authorize('student');
     
-    const targetType = params.targetType;
-    const targetId = parseInt(params.targetId);
+    const { targetType, targetId } = await params;
+    const targetIdNum = parseInt(targetId);
     
     // Validate parameters
-    if (isNaN(targetId)) {
+    if (isNaN(targetIdNum)) {
       return NextResponse.json(
         { error: 'Invalid target ID' },
         { status: 400 }
@@ -38,7 +38,7 @@ export async function GET(
       .from('ban')
       .select('*')
       .eq('target_type', targetType)
-      .eq('target_id', targetId)
+      .eq('target_id', targetIdNum)
       .eq('status', 'approved')
       .eq('is_deleted', false)
       .order('created_at', { ascending: false });

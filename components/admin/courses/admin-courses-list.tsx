@@ -65,8 +65,9 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useAdminCourses, useUpdateCourse, useDeleteCourse, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
+import { useAdminCourses, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
 import { useFormat } from '@/hooks/use-format';
+import { useTranslations } from 'next-intl';
 import type { AdminCourse, AdminCourseFilters } from '@/interface/admin/admin-interface';
 
 const statusColors = {
@@ -82,6 +83,7 @@ const levelColors = {
 } as const;
 
 export default function AdminCoursesList() {
+  const t = useTranslations('AdminCoursesList');
   const [filters, setFilters] = useState<AdminCourseFilters>({
     page: 1,
     limit: 20,
@@ -96,8 +98,6 @@ export default function AdminCoursesList() {
 
   const { formatNumber } = useFormat();
   const { data: coursesData, isLoading, error } = useAdminCourses(filters);
-  const updateCourse = useUpdateCourse();
-  const deleteCourse = useDeleteCourse();
   const approveCourse = useApproveCourse();
   const rejectCourse = useRejectCourse();
 
@@ -108,9 +108,6 @@ export default function AdminCoursesList() {
     }));
   };
 
-  const handleStatusUpdate = async (courseId: string, status: string) => {
-    await updateCourse.mutateAsync({ courseId, updates: { status } });
-  };
 
   const handleApprove = async () => {
     if (!selectedCourse) return;
@@ -127,7 +124,7 @@ export default function AdminCoursesList() {
     if (!selectedCourse || !rejectionReason) return;
     await rejectCourse.mutateAsync({
       courseId: selectedCourse.public_id,
-      reason: rejectionReason
+      rejected_message: rejectionReason
     });
     setShowRejectionDialog(false);
     setRejectionReason('');
@@ -174,9 +171,9 @@ export default function AdminCoursesList() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Course Management</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t('page_title')}</h2>
         <p className="text-muted-foreground">
-          Manage courses, approve submissions, and monitor quality
+          {t('page_subtitle')}
         </p>
       </div>
 
@@ -186,7 +183,7 @@ export default function AdminCoursesList() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              Filters
+              {t('filters')}
             </CardTitle>
             <Button
               variant="outline"
@@ -199,7 +196,7 @@ export default function AdminCoursesList() {
                 search: ''
               })}
             >
-              Clear Filters
+              {t('clear_filters')}
             </Button>
           </div>
         </CardHeader>
@@ -379,7 +376,12 @@ export default function AdminCoursesList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" aria-label="View course details">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            aria-label={t('preview_course')}
+                            title={t('preview_course')}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           
@@ -392,7 +394,8 @@ export default function AdminCoursesList() {
                                   setSelectedCourse(course);
                                   setShowApprovalDialog(true);
                                 }}
-                                aria-label="Approve course"
+                                aria-label={t('approve_course')}
+                                title={t('approve_course')}
                               >
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                               </Button>
@@ -403,42 +406,13 @@ export default function AdminCoursesList() {
                                   setSelectedCourse(course);
                                   setShowRejectionDialog(true);
                                 }}
-                                aria-label="Reject course"
+                                aria-label={t('reject_course')}
+                                title={t('reject_course')}
                               >
                                 <XCircle className="h-4 w-4 text-destructive" />
                               </Button>
                             </>
                           )}
-                          
-                          <Button variant="ghost" size="sm" aria-label="Edit course">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" aria-label="Delete course">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Course</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{course.title}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteCourse.mutate(course.public_id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  disabled={deleteCourse.isPending}
-                                >
-                                  {deleteCourse.isPending ? 'Deleting...' : 'Delete'}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -488,30 +462,30 @@ export default function AdminCoursesList() {
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Course</DialogTitle>
+            <DialogTitle>{t('approve_course_title')}</DialogTitle>
             <DialogDescription>
-              Approve "{selectedCourse?.title}" for publication
+              {t('approve_course_desc', { title: selectedCourse?.title || '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="approval-notes">Approval Notes (Optional)</Label>
+              <Label htmlFor="approval-notes">{t('approval_notes')}</Label>
               <Textarea
                 id="approval-notes"
-                placeholder="Add any notes about the approval..."
+                placeholder={t('approval_notes_placeholder')}
                 value={approvalNotes}
                 onChange={(e) => setApprovalNotes(e.target.value)}
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button 
                 onClick={handleApprove}
                 disabled={approveCourse.isPending}
               >
-                {approveCourse.isPending ? 'Approving...' : 'Approve Course'}
+                {approveCourse.isPending ? t('approving') : t('approve_course_button')}
               </Button>
             </div>
           </div>
@@ -522,17 +496,17 @@ export default function AdminCoursesList() {
       <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Course</DialogTitle>
+            <DialogTitle>{t('reject_course_title')}</DialogTitle>
             <DialogDescription>
-              Reject "{selectedCourse?.title}" and provide feedback
+              {t('reject_course_desc', { title: selectedCourse?.title || '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="rejection-reason">Rejection Reason *</Label>
+              <Label htmlFor="rejection-reason">{t('rejection_reason_required')}</Label>
               <Textarea
                 id="rejection-reason"
-                placeholder="Explain why this course is being rejected..."
+                placeholder={t('rejection_reason_placeholder')}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 required
@@ -540,14 +514,14 @@ export default function AdminCoursesList() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowRejectionDialog(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleReject}
                 disabled={!rejectionReason.trim() || rejectCourse.isPending}
               >
-                {rejectCourse.isPending ? 'Rejecting...' : 'Reject Course'}
+                {rejectCourse.isPending ? t('rejecting') : t('reject_course_button')}
               </Button>
             </div>
           </div>

@@ -160,6 +160,7 @@ export default function CourseTable() {
                 return 'default';
             case 'pending':
                 return 'secondary';
+            case 'rejected':
             case 'ban':
                 return 'destructive';
             default:
@@ -173,6 +174,7 @@ export default function CourseTable() {
                 return 'text-green-600 dark:text-green-400';
             case 'pending':
                 return 'text-yellow-600 dark:text-yellow-400';
+            case 'rejected':
             case 'ban':
                 return 'text-white';
             default:
@@ -181,7 +183,7 @@ export default function CourseTable() {
     };
 
     const isEditDeleteDisabled = (course: Course) => {
-        return course.status === 'active' || course.status === 'inactive' || course.status === 'ban';
+        return course.status === 'active' || course.status === 'inactive' || course.status === 'ban' || course.status === 'rejected';
     };
 
     const handleChangeToInactive = async (course: Course) => {

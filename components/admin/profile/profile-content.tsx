@@ -2,19 +2,17 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings } from 'lucide-react';
+import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, Shield, Key, Crown, CheckCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
 import Image from 'next/image';
+import { useAdminRolesById, useAdminRolesWithDetails } from '@/hooks/role-based/use-admin-roles';
 
 export default function ProfileContent() {
   const t = useTranslations('ProfileContent');
-  const router = useRouter();
-  const pathname = usePathname();
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
   const updateProfileMutation = useUpdateProfile(userData?.id || '');
@@ -29,18 +27,14 @@ export default function ProfileContent() {
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-
   const user = userData;
   const profile = fullProfileData?.profile || user?.profile;
   const userDisplayName = profile?.display_name || user?.user_metadata?.full_name || '';
   const userEmail = user?.email || '';
   const userName = userDisplayName || userEmail?.split('@')[0] || 'Unknown User';
   const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
-  
-  // Get interests from profile preferences
-  const userInterests = profile?.preferences?.interests || user?.user_metadata?.interests;
-  const broadField = userInterests?.broadField;
-  const subFields = userInterests?.subFields || [];
+  const { data: adminRolesData } = useAdminRolesById(userData?.id || '');
+  const { data: adminRolesWithDetails, isLoading: adminRolesLoading } = useAdminRolesWithDetails(userData?.id);
 
   React.useEffect(() => {
     if (profile) {
@@ -170,22 +164,6 @@ export default function ProfileContent() {
     input.click();
   };
 
-  // Quick Actions handlers
-  const handleNavigateToCourses = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/course`);
-  };
-
-  const handleNavigateToAchievements = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/achievements`);
-  };
-
-  const handleNavigateToCommunity = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/community`);
-  };
-
   return (
     <AnimatedBackground>
       <div className="min-h-screen p-6 pb-32 overflow-y-auto">
@@ -275,22 +253,6 @@ export default function ProfileContent() {
                       {profile.role}
                     </span>
                   )}
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">{(profile as any)?.points || 0}</div>
-                      <div className="text-xs text-white/70">{t('points')}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">12</div>
-                      <div className="text-xs text-white/70">{t('courses')}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">5</div>
-                      <div className="text-xs text-white/70">{t('achievements')}</div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -438,140 +400,170 @@ export default function ProfileContent() {
                       )}
                     </div>
                   </div>
-
-                  {/* Bio */}
-                  <div className="mt-6">
-                    <label className="block text-sm font-medium text-white/80 mb-2">
-                      {t('bio')}
-                    </label>
-                    {isEditing ? (
-                      <textarea
-                        value={editForm.bio}
-                        onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                        rows={4}
-                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder={t('bio_placeholder')}
-                      />
-                    ) : (
-                      <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white min-h-[100px]">
-                        {(profile as any)?.bio || t('bio_empty')}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
+            </motion.div>
 
-              {/* Interests Section */}
-              {(broadField || subFields.length > 0) && (
-                <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                    <motion.div
-                      className="absolute -top-4 -right-4 w-16 h-16 bg-purple-500/30 rounded-full blur-xl"
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.3, 0.7, 0.3],
-                      }}
-                      transition={{
-                        duration: 6,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 2
-                      }}
-                    />
-                  </div>
+            {/* Admin Role & Permissions Section */}
+            <motion.div
+              className="lg:col-span-3 mt-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+            >
+              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-rose-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                {/* Animated Background Elements */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                  <motion.div
+                    className="absolute -top-6 -right-6 w-24 h-24 bg-purple-500/30 rounded-full blur-xl"
+                    animate={{
+                      scale: [1, 1.3, 1],
+                      opacity: [0.2, 0.5, 0.2],
+                    }}
+                    transition={{
+                      duration: 6,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: 2
+                    }}
+                  />
+                </div>
 
-                  <div className="relative z-10">
-                    <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                      <Award size={20} />
-                      {t('interests')} {/* You may need to add this to translations */}
-                    </h3>
-
-                    <div className="space-y-4">
-                      {broadField && (
-                        <div>
-                          <label className="block text-sm font-medium text-white/80 mb-2">
-                            {t('main_interest')} {/* You may need to add this to translations */}
-                          </label>
-                          <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
-                            <span className="inline-block px-3 py-1 bg-blue-500/30 rounded-full text-sm font-medium text-white">
-                              {broadField}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {subFields.length > 0 && (
-                        <div>
-                          <label className="block text-sm font-medium text-white/80 mb-2">
-                            {t('specific_interests')} {/* You may need to add this to translations */}
-                          </label>
-                          <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
-                            <div className="flex flex-wrap gap-2">
-                              {subFields.map((interest: string, index: number) => (
-                                <span
-                                  key={index}
-                                  className="inline-block px-3 py-1 bg-green-500/30 rounded-full text-sm font-medium text-white"
-                                >
-                                  {interest}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-purple-600/30 rounded-lg">
+                      <Shield size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">
+                        {t('admin_role_section')}
+                      </h3>
+                      <p className="text-white/70 text-sm">
+                        {t('admin_role_section_subtitle')}
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Quick Actions */}
-              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6 mb-8">
-                <div className="relative z-10">
-                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <Settings size={20} />
-                    {t('quick_actions')}
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <motion.button
-                      onClick={handleNavigateToCourses}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <BookOpen size={20} className="text-blue-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('my_courses')}</div>
-                        <div className="text-sm text-white/70">{t('view_enrolled')}</div>
+                  {adminRolesLoading || !userData?.id ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    </div>
+                  ) : !adminRolesWithDetails || adminRolesWithDetails.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-full mb-4">
+                        <Crown size={32} className="text-white/60" />
                       </div>
-                    </motion.button>
+                      <h4 className="text-xl font-semibold text-white mb-2">
+                        {t('no_admin_role')}
+                      </h4>
+                      <p className="text-white/70">
+                        {t('no_admin_role_desc')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Summary Stats */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white/10 rounded-xl p-4 text-center">
+                          <div className="flex items-center justify-center w-12 h-12 bg-blue-600/30 rounded-lg mx-auto mb-2">
+                            <Award size={24} className="text-white" />
+                          </div>
+                          <div className="text-2xl font-bold text-white">
+                            {adminRolesWithDetails?.length || 0}
+                          </div>
+                          <div className="text-sm text-white/70">
+                            {t('role_count')}
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white/10 rounded-xl p-4 text-center">
+                          <div className="flex items-center justify-center w-12 h-12 bg-green-600/30 rounded-lg mx-auto mb-2">
+                            <Key size={24} className="text-white" />
+                          </div>
+                          <div className="text-2xl font-bold text-white">
+                            {adminRolesWithDetails?.filter(role => !role.is_deleted).length || 0}
+                          </div>
+                          <div className="text-sm text-white/70">
+                            {t('active')} {t('admin_roles')}
+                          </div>
+                          
+                        </div>
 
-                    <motion.button
-                      onClick={handleNavigateToAchievements}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Award size={20} className="text-yellow-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('achievements')}</div>
-                        <div className="text-sm text-white/70">{t('view_badges')}</div>
+                        <div className="bg-white/10 rounded-xl p-4 text-center">
+                          <div className="flex items-center justify-center w-12 h-12 bg-purple-600/30 rounded-lg mx-auto mb-2">
+                            <CheckCircle size={24} className="text-white" />
+                          </div>
+                          <div className="text-2xl font-bold text-white">
+                            {new Set(adminRolesWithDetails?.map(role => role.rolePermissionDetails?.permission?.title).filter(Boolean) || []).size}
+                          </div>
+                          <div className="text-sm text-white/70">
+                            {t('total_permissions')}
+                          </div>
+                        </div>
                       </div>
-                    </motion.button>
 
-                    <motion.button
-                      onClick={handleNavigateToCommunity}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Users size={20} className="text-green-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('community')}</div>
-                        <div className="text-sm text-white/70">{t('join_groups')}</div>
+                      {/* Role Details */}
+                      <div className="space-y-4">
+                        <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+                          <Settings size={20} />
+                          {t('role_permissions')}
+                        </h4>
+                        
+                        <div className="grid gap-4">
+                          {(adminRolesWithDetails || []).map((roleData, index) => (
+                            <motion.div
+                              key={roleData.id}
+                              className="bg-white/5 rounded-lg p-4 border border-white/10"
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.1 * index, duration: 0.4 }}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-1.5 bg-blue-600/30 rounded">
+                                      <Award size={16} className="text-white" />
+                                    </div>
+                                    <div>
+                                      <h5 className="font-semibold text-white">
+                                        {roleData.rolePermissionDetails?.role?.title || `${t('role')} #${index + 1}`}
+                                      </h5>
+                                      <div className="flex items-center gap-2 text-sm text-white/70">
+                                        <Key size={12} />
+                                        <span>
+                                          {roleData.rolePermissionDetails?.permission?.title || t('permission')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-xs text-white/60 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <Calendar size={12} />
+                                      <span>
+                                        {t('assigned_at')}: {new Date(roleData.created_at).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    !roleData.is_deleted 
+                                      ? 'bg-green-600/20 text-green-300 border border-green-600/30' 
+                                      : 'bg-red-600/20 text-red-300 border border-red-600/30'
+                                  }`}>
+                                    <CheckCircle size={12} className="mr-1" />
+                                    {!roleData.is_deleted ? t('active') : t('inactive')}
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
                       </div>
-                    </motion.button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

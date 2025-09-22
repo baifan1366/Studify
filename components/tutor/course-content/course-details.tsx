@@ -14,6 +14,7 @@ import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useCourse } from '@/hooks/course/use-courses';
 import { useUser } from '@/hooks/profile/use-user';
 import { useBanByTarget } from '@/hooks/ban/use-ban';
+import { useUpdateCourseStatus } from '@/hooks/course/use-course-status';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function CourseDetails() {
@@ -33,6 +34,19 @@ export default function CourseDetails() {
   // Get ban information if course status is 'ban'
   const { data: banInfo } = useBanByTarget('course', courseId);
   const activeBan = banInfo && banInfo.length > 0 ? banInfo[0] : null;
+
+  // Hook for updating course status
+  const updateCourseStatusMutation = useUpdateCourseStatus();
+
+  // Handle acknowledgment of rejection
+  const handleAcknowledgeRejection = () => {
+    if (course?.id) {
+      updateCourseStatusMutation.mutate({
+        courseId: course.id,
+        status: 'inactive'
+      });
+    }
+  };
 
   const handleModuleSelect = (moduleId: number) => {
     setSelectedModuleId(moduleId);
@@ -185,6 +199,30 @@ export default function CourseDetails() {
                     {!activeBan.expires_at && (
                       <div className="text-red-900 dark:text-red-100 font-medium">{t('permanentBan')}</div>
                     )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Rejection Information Alert */}
+            {course?.status === 'rejected' && course.rejected_message && (
+              <Alert className="mb-6 border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/50">
+                <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
+                  <div className="space-y-3">
+                    <div className="font-semibold">{t('courseRejected')}</div>
+                    <div><strong>{t('rejectionMessage')}:</strong> {course.rejected_message}</div>
+                    <div className="pt-2">
+                      <Button
+                        onClick={handleAcknowledgeRejection}
+                        disabled={updateCourseStatusMutation.isPending}
+                        variant="outline"
+                        size="sm"
+                        className="bg-orange-100 border-orange-300 text-orange-800 hover:bg-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-200 dark:hover:bg-orange-800/50"
+                      >
+                        {updateCourseStatusMutation.isPending ? t('acknowledgeRejection') : t('noted')}
+                      </Button>
+                    </div>
                   </div>
                 </AlertDescription>
               </Alert>

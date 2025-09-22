@@ -25,6 +25,92 @@ export function useAdminRolesById(adminId?: string) {
   });
 }
 
+// Simplified hook to get admin roles for display (using existing API)
+export function useAdminRolesWithDetails(adminId?: string) {
+  const { data: adminRoles, isLoading: adminRolesLoading } = useAdminRoles();
+  const { data: allRolePermissions, isLoading: rolePermissionsLoading } = useQuery<any[]>({
+    queryKey: ['role-permissions'],
+    queryFn: () => apiGet<any[]>('/api/role_permissions'),
+  });
+  const { data: allRoles, isLoading: rolesLoading } = useQuery<any[]>({
+    queryKey: ['roles'],
+    queryFn: () => apiGet<any[]>('/api/roles'),
+  });
+  const { data: allPermissions, isLoading: permissionsLoading } = useQuery<any[]>({
+    queryKey: ['permissions'],
+    queryFn: () => apiGet<any[]>('/api/permissions'),
+  });
+
+  const isLoading = adminRolesLoading || rolePermissionsLoading || rolesLoading || permissionsLoading;
+
+  const result = useQuery<AdminRolesWithDetails[]>({
+    queryKey: ['admin-roles-details', adminId],
+    queryFn: () => {
+      if (!adminId || !adminRoles || !allRolePermissions || !allRoles || !allPermissions) {
+        return [];
+      }
+      
+      // Filter admin roles for the specific user
+      const userAdminRoles = adminRoles.filter(role => role.user_id === adminId && !role.is_deleted);
+      
+      // Enhance with role and permission details
+      return userAdminRoles.map((adminRole) => {
+        const rolePermission = allRolePermissions.find(rp => rp.public_id === adminRole.role_permission_id);
+        const role = rolePermission ? allRoles.find(r => r.public_id === rolePermission.role_id) : null;
+        const permission = rolePermission ? allPermissions.find(p => p.public_id === rolePermission.permission_id) : null;
+        
+        return {
+          ...adminRole,
+          rolePermissionDetails: rolePermission ? {
+            id: rolePermission.id,
+            public_id: rolePermission.public_id,
+            role_id: rolePermission.role_id,
+            permission_id: rolePermission.permission_id,
+            role: role ? {
+              id: role.id,
+              public_id: role.public_id,
+              title: role.title,
+            } : null,
+            permission: permission ? {
+              id: permission.id,
+              public_id: permission.public_id,
+              title: permission.title,
+            } : null,
+          } : undefined,
+        };
+      });
+    },
+    enabled: Boolean(adminId && adminRoles && allRolePermissions && allRoles && allPermissions),
+  });
+
+  return {
+    ...result,
+    isLoading: isLoading || result.isLoading,
+  };
+}
+
+// Interface for enhanced admin roles data
+export interface AdminRolesWithDetails extends AdminRoles {
+  rolePermissionDetails?: RolePermissionWithDetails;
+}
+
+export interface RolePermissionWithDetails {
+  id: number;
+  public_id: string;
+  role_id: string;
+  permission_id: string;
+  role: {
+    id: number;
+    public_id: string;
+    title: string;
+  } | null;
+  permission: {
+    id: number;
+    public_id: string;
+    title: string;
+  } | null;
+}
+
 export function useCreateAdminRoles() {
   const qc = useQueryClient();
 

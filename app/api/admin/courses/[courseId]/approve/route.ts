@@ -86,9 +86,10 @@ export async function PATCH(
 
   try {
     const { courseId } = await params;
-    const { reason } = await request.json();
+    const { reason, rejected_message } = await request.json();
+    const rejectionReason = rejected_message || reason;
 
-    if (!reason) {
+    if (!rejectionReason) {
       return NextResponse.json({ message: 'Rejection reason is required' }, { status: 400 });
     }
 
@@ -106,11 +107,12 @@ export async function PATCH(
       return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
-    // Update course status to inactive
+    // Update course status to inactive with rejection message
     const { data: updatedCourse, error: updateError } = await supabase
       .from('course')
       .update({
         status: 'inactive',
+        rejected_message: rejectionReason,
         updated_at: new Date().toISOString()
       })
       .eq('public_id', courseId)
@@ -134,7 +136,7 @@ export async function PATCH(
           course_title: course.title,
           course_public_id: courseId,
           previous_status: course.status,
-          rejection_reason: reason
+          rejection_reason: rejectionReason
         }
       });
 

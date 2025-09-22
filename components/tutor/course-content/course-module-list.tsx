@@ -43,6 +43,7 @@ import CreateCourseModule from './create-course-module';
 import { useModuleByCourseId, useUpdateModule, useDeleteModule } from '@/hooks/course/use-course-module';
 import { Module } from '@/interface/courses/module-interface';
 import { courseModuleSchema } from '@/lib/validations/course-module';
+import { CourseStatus } from '@/utils/course-status';
 import { z } from 'zod';
 
 // Extended interface for UI display
@@ -55,7 +56,7 @@ interface CourseModuleListProps {
   courseId: number;
   onModuleSelect?: (moduleId: number) => void;
   selectedModuleId?: number;
-  courseStatus?: 'active' | 'pending' | 'inactive' | 'ban';
+  courseStatus?: CourseStatus;
 }
 
 export default function CourseModuleList({ 

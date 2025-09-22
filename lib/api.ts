@@ -379,8 +379,8 @@ export const adminApi = {
     api.delete(`/api/admin/courses/${courseId}`),
   approveCourse: (courseId: string, notes?: string) => 
     api.post(`/api/admin/courses/${courseId}/approve`, { notes }),
-  rejectCourse: (courseId: string, reason: string) => 
-    api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
+  rejectCourse: (courseId: string, rejected_message: string) => 
+    api.patch(`/api/admin/courses/${courseId}/approve`, { rejected_message }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
   

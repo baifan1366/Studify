@@ -20,9 +20,9 @@ export async function PATCH(
     const { status } = body;
 
     // Validate status values
-    if (!status || !['active', 'pending', 'inactive', 'ban'].includes(status)) {
+    if (!status || !['active', 'pending', 'inactive', 'ban', 'rejected'].includes(status)) {
       return NextResponse.json({ 
-        error: "Invalid status. Must be 'active', 'pending', 'inactive', or 'ban'" 
+        error: "Invalid status. Must be 'active', 'pending', 'inactive', 'ban', or 'rejected'" 
       }, { status: 400 });
     }
 
@@ -42,6 +42,7 @@ export async function PATCH(
     // Tutors can only:
     // 1. Submit inactive courses for approval (inactive → pending)
     // 2. Change active courses back to inactive (active → inactive)
+    // 3. Acknowledge rejected courses (rejected → inactive)
     
     if (status === 'pending' && currentCourse.status !== 'inactive') {
       return NextResponse.json({ 
@@ -49,9 +50,9 @@ export async function PATCH(
       }, { status: 400 });
     }
 
-    if (status === 'inactive' && currentCourse.status !== 'active') {
+    if (status === 'inactive' && !['active', 'rejected'].includes(currentCourse.status)) {
       return NextResponse.json({ 
-        error: "Only active courses can be changed back to inactive" 
+        error: "Only active or rejected courses can be changed to inactive" 
       }, { status: 400 });
     }
 

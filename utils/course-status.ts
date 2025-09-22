@@ -3,7 +3,7 @@
  * Handles business logic for course status restrictions
  */
 
-export type CourseStatus = 'active' | 'pending' | 'inactive' | 'ban';
+export type CourseStatus = 'active' | 'pending' | 'inactive' | 'ban' | 'rejected';
 
 /**
  * Check if course operations (edit/delete) are allowed based on status
@@ -34,6 +34,7 @@ export function canEditLessons(courseStatus: CourseStatus): boolean {
  * Tutors can only:
  * - Submit inactive courses for approval (inactive → pending)
  * - Change active courses back to inactive (active → inactive)
+ * - Acknowledge rejected courses (rejected → inactive)
  * Banned courses cannot be modified by tutors
  */
 export function canChangeStatus(currentStatus: CourseStatus, targetStatus: CourseStatus): boolean {
@@ -52,6 +53,11 @@ export function canChangeStatus(currentStatus: CourseStatus, targetStatus: Cours
     return true;
   }
   
+  // Acknowledge rejection: rejected → inactive
+  if (currentStatus === 'rejected' && targetStatus === 'inactive') {
+    return true;
+  }
+  
   return false;
 }
 
@@ -64,6 +70,8 @@ export function getAvailableStatusTransitions(currentStatus: CourseStatus): Cour
       return ['pending']; // Can submit for approval
     case 'active':
       return ['inactive']; // Can deactivate
+    case 'rejected':
+      return ['inactive']; // Can acknowledge rejection
     case 'pending':
       return []; // Cannot change pending status (only admins can)
     case 'ban':
@@ -84,6 +92,8 @@ export function getStatusRestrictionMessage(status: CourseStatus): string {
       return 'This course is pending approval and cannot be modified';
     case 'inactive':
       return 'This course is inactive and can be modified';
+    case 'rejected':
+      return 'This course has been rejected and cannot be modified until acknowledged';
     case 'ban':
       return 'This course has been banned and cannot be modified';
     default:
@@ -117,6 +127,12 @@ export function getStatusDisplay(status: CourseStatus): {
         label: 'Inactive',
         color: 'text-gray-700',
         bgColor: 'bg-gray-100'
+      };
+    case 'rejected':
+      return {
+        label: 'Rejected',
+        color: 'text-orange-700',
+        bgColor: 'bg-orange-100'
       };
     case 'ban':
       return {

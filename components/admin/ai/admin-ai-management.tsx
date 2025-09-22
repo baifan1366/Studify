@@ -38,10 +38,13 @@ import {
   TrendingUp,
   Shield
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { useFormat } from '@/hooks/use-format';
+import { useTranslations } from 'next-intl';
 
 export function AdminAIManagement() {
+  const t = useTranslations('AdminAIManagement');
+  const { formatRelativeTime } = useFormat();
   const [selectedTab, setSelectedTab] = useState('overview');
   const [embeddingFilters, setEmbeddingFilters] = useState({ status: 'all', limit: 50, offset: 0 });
   const [moderationFilters, setModerationFilters] = useState({ days: 7, status: 'all', limit: 50 });
@@ -90,24 +93,24 @@ export function AdminAIManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            AI Content Management
+            {t('page_title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Monitor and manage AI-powered features across your platform
+            {t('page_subtitle')}
           </p>
         </div>
         <Button>
           <Settings className="h-4 w-4 mr-2" />
-          AI Settings
+          {t('ai_settings')}
         </Button>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="grid grid-cols-4 w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="embeddings">Embeddings</TabsTrigger>
-          <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-          <TabsTrigger value="moderation">Moderation</TabsTrigger>
+          <TabsTrigger value="overview">{t('overview')}</TabsTrigger>
+          <TabsTrigger value="embeddings">{t('embeddings')}</TabsTrigger>
+          <TabsTrigger value="recommendations">{t('recommendations')}</TabsTrigger>
+          <TabsTrigger value="moderation">{t('moderation')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -316,7 +319,7 @@ export function AdminAIManagement() {
                       <TableCell>{item.priority}</TableCell>
                       <TableCell>{item.retry_count}</TableCell>
                       <TableCell>
-                        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                        {formatRelativeTime(item.created_at)}
                       </TableCell>
                       <TableCell>
                         <Button size="sm" variant="ghost">

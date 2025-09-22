@@ -238,7 +238,8 @@ CREATE TABLE IF NOT EXISTS course (
   average_rating numeric(3,2) DEFAULT 0,
   total_students int DEFAULT 0,
   is_free boolean NOT NULL DEFAULT false,
-  status text CHECK(status IN ('active', 'pending', 'inactive', 'ban')) DEFAULT 'inactive',
+  status text CHECK(status IN ('active', 'pending', 'inactive', 'ban', 'rejected')) DEFAULT 'inactive',
+  rejected_message text,
   community_group_public_id UUID, -- Forward reference, will be created later
   is_deleted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),

@@ -8,11 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { 
   useSystemHealth,
   useSystemHealthAction,
@@ -43,10 +41,13 @@ import {
   Monitor,
   Cpu
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { useFormat } from '@/hooks/use-format';
+import { useTranslations } from 'next-intl';
 
 export function AdminMaintenanceCenter() {
+  const t = useTranslations('AdminMaintenanceCenter');
+  const { formatRelativeTime } = useFormat();
   const [selectedTab, setSelectedTab] = useState('health');
   const [queueType, setQueueType] = useState('all');
   const [cachePattern, setCachePattern] = useState('*');
@@ -123,24 +124,24 @@ export function AdminMaintenanceCenter() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            System Maintenance Center
+            {t('page_title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Monitor system health, manage queues, cache, and feature flags
+            {t('page_subtitle')}
           </p>
         </div>
         <Button onClick={() => handleHealthAction('force_health_check')}>
           <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh All
+          {t('refresh_all')}
         </Button>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="grid grid-cols-4 w-full">
-          <TabsTrigger value="health">System Health</TabsTrigger>
-          <TabsTrigger value="queues">Queue Monitor</TabsTrigger>
-          <TabsTrigger value="cache">Cache Management</TabsTrigger>
-          <TabsTrigger value="features">Feature Flags</TabsTrigger>
+          <TabsTrigger value="health">{t('system_health')}</TabsTrigger>
+          <TabsTrigger value="queues">{t('queue_monitor')}</TabsTrigger>
+          <TabsTrigger value="cache">{t('cache_management')}</TabsTrigger>
+          <TabsTrigger value="features">{t('feature_flags')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="space-y-6">
@@ -186,7 +187,7 @@ export function AdminMaintenanceCenter() {
                           </div>
                         )}
                         <div className="text-xs text-muted-foreground">
-                          Last Check: {formatDistanceToNow(new Date(info.lastCheck), { addSuffix: true })}
+                          {t('last_check')}: {formatRelativeTime(info.lastCheck)}
                         </div>
                       </div>
                     </CardContent>

@@ -13,12 +13,14 @@ export async function POST(req: NextRequest) {
     let password: string | undefined
     let fullName: string | undefined
     let locale: string | undefined
+    let captchaToken: string | undefined
     try {
       const body = await req.json()
       email = typeof body.email === 'string' ? body.email : undefined
       password = typeof body.password === 'string' ? body.password : undefined
       fullName = typeof body.fullName === 'string' ? body.fullName : undefined
       locale = typeof body.locale === 'string' ? body.locale : undefined
+      captchaToken = typeof body.captchaToken === 'string' ? body.captchaToken : undefined
     } catch {
       const form = await req.formData().catch(() => null)
       if (form) {
@@ -26,6 +28,7 @@ export async function POST(req: NextRequest) {
         password = String(form.get('password') || '') || undefined
         fullName = (form.get('fullName') as string) || undefined
         locale = (form.get('locale') as string) || undefined
+        captchaToken = (form.get('captchaToken') as string) || undefined
       }
     }
 
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await client.auth.signUp({
       email,
       password,
+      options: captchaToken ? { captchaToken } : undefined,
     })
 
     if (error || !data.user) {

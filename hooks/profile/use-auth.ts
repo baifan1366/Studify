@@ -5,8 +5,8 @@ import { apiSend } from "@/lib/api-config";
 
 export type UserRole = "student" | "tutor" | "admin";
 
-type SignInArgs = { email: string; password: string; locale: string };
-type SignUpArgs = { email: string; password: string; fullName?: string; locale: string; role?: UserRole };
+type SignInArgs = { email: string; password: string; locale: string; captchaToken?: string };
+type SignUpArgs = { email: string; password: string; fullName?: string; locale: string; role?: UserRole; captchaToken?: string };
 
 type AuthResponse = {
   ok: boolean;

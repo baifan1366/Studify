@@ -75,7 +75,7 @@ interface QueueRecord {
   updated_at: string;
 }
 
-interface SearchResult {
+export interface SearchResult {
   content_type: string;
   content_id: number;
   content_text: string;

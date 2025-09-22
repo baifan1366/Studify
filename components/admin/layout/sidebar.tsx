@@ -66,7 +66,7 @@ const defaultMenuSections: MenuSection[] = [
     title: 'Home',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/admin/dashboard' },
-      { id: 'messages', label: 'Messages', icon: Mail, path: '/admin/messages' },
+      { id: 'ban-list', label: 'Ban List', icon: Shield, path: '/admin/ban' },
       { id: 'announcements', label: 'Announcements', icon: Bell, path: '/admin/announcements' },
     ]
   },
@@ -81,7 +81,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: 'all-users', label: 'All Users', icon: Users, path: '/admin/users' },
           { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield, path: '/admin/roles' },
-          { id: 'banned-users', label: 'Banned Users', icon: Users, path: '/admin/users/banned' },
         ]
       },
       {

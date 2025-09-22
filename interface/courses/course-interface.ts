@@ -39,7 +39,7 @@ export interface Course {
   // Auto-creation flags
   auto_create_classroom?: boolean;
   auto_create_community?: boolean;
-  status?: 'active' | 'pending' | 'inactive';
+  status?: 'active' | 'pending' | 'inactive' | 'ban';
   
   // Related data (populated via joins)
   modules?: Array<{

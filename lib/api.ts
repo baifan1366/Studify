@@ -620,3 +620,11 @@ export const videoEmbeddingsApi = {
   delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
 } as const;
 
+export const banApi = {
+  list: "/api/ban",
+  getById: (banId: string) => `/api/ban/${banId}`,
+  create: "/api/ban",
+  update: (banId: string) => `/api/ban/${banId}`,
+  delete: (banId: string) => `/api/ban/${banId}`,
+  status: (banId: string) => `/api/ban/${banId}/status`,
+} as const;

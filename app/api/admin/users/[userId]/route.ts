@@ -9,10 +9,16 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  // 🚨 TEMPORARY DEBUG: Log the request to see what's happening
+  console.log('🔍 [API] GET /api/admin/users/[userId] called');
+  
   const authResult = await authorize('admin');
   if (authResult instanceof NextResponse) {
+    console.log('🚨 [API] Authorization failed:', authResult.status, await authResult.text());
     return authResult;
   }
+  
+  console.log('✅ [API] Authorization successful for user:', authResult.user.id);
 
   try {
     const { userId } = await params;

@@ -88,12 +88,6 @@ const defaultMenuSections: MenuSection[] = [
         icon: Bell,
         path: "/notifications",
       },
-      {
-        id: "calendar",
-        label: "Calendar",
-        icon: CalendarIcon,
-        path: "/calendar",
-      },
     ],
   },
   {
@@ -217,10 +211,6 @@ const defaultMenuSections: MenuSection[] = [
     title: "Tools",
     items: [
       { id: "documents", label: "Documents", icon: Folder, path: "/documents" },
-      { id: "search", label: "Search", icon: Search, path: "/search" },
-      { id: "bookmarks", label: "Bookmarks", icon: Star, path: "/bookmarks" },
-      { id: "recent", label: "Recent", icon: Clock, path: "/recent" },
-      { id: "settings", label: "Settings", icon: Settings, path: "/settings" },
     ],
   },
 ];

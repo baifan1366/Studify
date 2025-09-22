@@ -1,5 +1,3 @@
-// components/admin/users/admin-users-list.tsx
-
 'use client';
 
 import { useState } from 'react';
@@ -12,8 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useAdminUsers, usePromoteToAdmin, useUpdateAdminUser, useDeleteAdminUser } from '@/hooks/admin/use-admin-users';
+import { useAdminUsers, usePromoteToAdmin } from '@/hooks/admin/use-admin-users';
 import { AdminUser, AdminUserFilters } from '@/interface/admin/admin-interface';
 import { 
   Search, 
@@ -28,11 +25,13 @@ import {
   Mail,
   AlertTriangle
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useFormat } from '@/hooks/use-format';
 import { toast } from 'sonner';
+import { UserInfoDialog } from './user-info-dialog';
 
 export function AdminUsersList() {
   const t = useTranslations('AdminUsersList');
+  const { formatRelativeTime } = useFormat();
   
   const [filters, setFilters] = useState<AdminUserFilters>({
     page: 1,
@@ -42,16 +41,12 @@ export function AdminUsersList() {
     search: ''
   });
 
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showUserDialog, setShowUserDialog] = useState(false);
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [showBanDialog, setShowBanDialog] = useState(false);
   const [promoteEmail, setPromoteEmail] = useState('');
-  const [banReason, setBanReason] = useState('');
-
   const { data, isLoading, error } = useAdminUsers(filters);
   const promoteToAdmin = usePromoteToAdmin();
-  const updateUser = useUpdateAdminUser();
-  const deleteUser = useDeleteAdminUser();
 
   const handleSearch = (value: string) => {
     setFilters(prev => ({ ...prev, search: value, page: 1 }));
@@ -81,54 +76,6 @@ export function AdminUsersList() {
     }
   };
 
-  const handleBanUser = async () => {
-    if (!selectedUser || !banReason.trim()) {
-      toast.error(t('ban_reason_required'));
-      return;
-    }
-
-    try {
-      await updateUser.mutateAsync({
-        userId: selectedUser.user_id,
-        updates: {
-          status: 'banned',
-          banned_reason: banReason
-        }
-      });
-      toast.success(t('user_banned'));
-      setShowBanDialog(false);
-      setBanReason('');
-      setSelectedUser(null);
-    } catch (error: any) {
-      toast.error(error.message || t('ban_failed'));
-    }
-  };
-
-  const handleUnbanUser = async (user: AdminUser) => {
-    try {
-      await updateUser.mutateAsync({
-        userId: user.user_id,
-        updates: { status: 'active' }
-      });
-      toast.success(t('user_unbanned'));
-    } catch (error: any) {
-      toast.error(error.message || t('unban_failed'));
-    }
-  };
-
-  const handleDeleteUser = async (user: AdminUser) => {
-    if (!confirm(t('delete_confirmation', { name: user.display_name || user.email || t('unknown_user') }))) {
-      return;
-    }
-
-    try {
-      await deleteUser.mutateAsync(user.user_id);
-      toast.success(t('user_deleted'));
-    } catch (error: any) {
-      toast.error(error.message || t('delete_failed'));
-    }
-  };
-
   const getRoleBadgeVariant = (role: string): 'destructive' | 'default' | 'secondary' | 'outline' => {
     switch (role) {
       case 'admin': return 'destructive';
@@ -144,6 +91,11 @@ export function AdminUsersList() {
       case 'banned': return 'destructive';
       default: return 'outline';
     }
+  };
+
+  const handlePreviewUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowUserDialog(true);
   };
 
   if (error) {
@@ -247,15 +199,16 @@ export function AdminUsersList() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-transparent p-2">
-        <CardHeader>
-          <CardTitle className="flex items-center text-gray-900 dark:text-gray-100">
-            <Filter className="h-5 w-5 mr-2" />
+      <Card className="bg-transparent p-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+            <Filter className="h-5 w-5" />
             {t('filters')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Search */}
             <div className="relative">
               <Input
                 placeholder={t('search_placeholder')}
@@ -264,8 +217,10 @@ export function AdminUsersList() {
                 onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
+
+            {/* Role */}
             <Select value={filters.role || 'all'} onValueChange={(value) => handleFilterChange('role', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('filter_by_role')} />
               </SelectTrigger>
               <SelectContent>
@@ -275,8 +230,10 @@ export function AdminUsersList() {
                 <SelectItem value="student">{t('student')}</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Status */}
             <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('filter_by_status')} />
               </SelectTrigger>
               <SelectContent>
@@ -285,8 +242,10 @@ export function AdminUsersList() {
                 <SelectItem value="banned">{t('banned')}</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Limit */}
             <Select value={filters.limit?.toString() || '20'} onValueChange={(value) => handleFilterChange('limit', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('items_per_page')} />
               </SelectTrigger>
               <SelectContent>
@@ -299,6 +258,7 @@ export function AdminUsersList() {
           </div>
         </CardContent>
       </Card>
+
 
       {/* Users Table */}
       <Card className="bg-transparent p-2">
@@ -361,50 +321,25 @@ export function AdminUsersList() {
                     </TableCell>
                     <TableCell>{user.points}</TableCell>
                     <TableCell>
-                      {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
+                      {user.created_at ? formatRelativeTime(user.created_at) : t('not_provided')}
                     </TableCell>
                     <TableCell>
                       <span className="text-gray-900 dark:text-gray-100">
                         {user.last_login 
-                          ? formatDistanceToNow(new Date(user.last_login), { addSuffix: true })
+                          ? formatRelativeTime(user.last_login)
                           : t('never_logged_in')
                         }
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {user.status === 'active' ? (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setShowBanDialog(true);
-                            }}
-                          >
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleUnbanUser(user)}
-                          >
-                            <Shield className="h-4 w-4" />
-                          </Button>
-                        )}
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleDeleteUser(user)}
+                          onClick={() => handlePreviewUser(user.user_id)}
+                          title={t('preview_user')}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -446,38 +381,12 @@ export function AdminUsersList() {
         </CardContent>
       </Card>
 
-      {/* Ban User Dialog */}
-      <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('ban_dialog_title')}</DialogTitle>
-            <DialogDescription>
-              {t('ban_dialog_description', { 
-                name: selectedUser?.display_name || selectedUser?.email || t('unknown_user')
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="banReason">{t('ban_reason_label')}</Label>
-              <Textarea
-                id="banReason"
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
-                placeholder={t('ban_reason_placeholder')}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBanDialog(false)}>
-              {t('cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleBanUser} disabled={updateUser.isPending}>
-              {updateUser.isPending ? t('banning') : t('ban_button')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* User Info Dialog */}
+      <UserInfoDialog 
+        userId={selectedUserId}
+        open={showUserDialog}
+        onOpenChange={setShowUserDialog}
+      />
     </div>
   );
 }

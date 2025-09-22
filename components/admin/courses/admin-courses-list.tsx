@@ -160,7 +160,7 @@ export default function AdminCoursesList() {
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <BookOpen className="h-8 w-8 text-destructive mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Failed to load courses</p>
+            <p className="text-sm text-muted-foreground">{t('failed_to_load_courses')}</p>
           </div>
         </CardContent>
       </Card>
@@ -203,54 +203,54 @@ export default function AdminCoursesList() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="status-filter">Status</Label>
+              <Label htmlFor="status-filter">{t('status')}</Label>
               <Select
                 value={filters.status || 'all'}
                 onValueChange={(value) => handleFilterChange('status', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
+                  <SelectValue placeholder={t('all_statuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="all">{t('all_statuses')}</SelectItem>
+                  <SelectItem value="active">{t('active')}</SelectItem>
+                  <SelectItem value="pending">{t('pending')}</SelectItem>
+                  <SelectItem value="inactive">{t('inactive')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="category-filter">Category</Label>
+              <Label htmlFor="category-filter">{t('category')}</Label>
               <Select
                 value={filters.category || 'all'}
                 onValueChange={(value) => handleFilterChange('category', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All categories" />
+                  <SelectValue placeholder={t('all_categories')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="programming">Programming</SelectItem>
-                  <SelectItem value="design">Design</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="all">{t('all_categories')}</SelectItem>
+                  <SelectItem value="programming">{t('programming')}</SelectItem>
+                  <SelectItem value="design">{t('design')}</SelectItem>
+                  <SelectItem value="business">{t('business')}</SelectItem>
+                  <SelectItem value="marketing">{t('marketing')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="search">Search</Label>
+              <Label htmlFor="search">{t('search')}</Label>
               <Input
                 id="search"
-                placeholder="Search courses..."
+                placeholder={t('search_courses_placeholder')}
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
             </div>
 
             <div>
-              <Label htmlFor="limit-filter">Per Page</Label>
+              <Label htmlFor="limit-filter">{t('per_page')}</Label>
               <Select
                 value={filters.limit?.toString() || '20'}
                 onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
@@ -273,30 +273,30 @@ export default function AdminCoursesList() {
       {/* Courses Table */}
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle>Courses ({coursesData?.pagination.total || 0})</CardTitle>
+          <CardTitle>{t('courses_count', { count: coursesData?.pagination.total || 0 })}</CardTitle>
           <CardDescription>
-            Review and manage all courses in the system
+            {t('review_manage_courses')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {coursesData?.courses.length === 0 ? (
             <div className="text-center py-8">
               <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No courses found</p>
+              <p className="text-sm text-muted-foreground">{t('no_courses_found')}</p>
             </div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Instructor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Rating</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('course')}</TableHead>
+                    <TableHead>{t('instructor')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead>{t('students')}</TableHead>
+                    <TableHead>{t('price')}</TableHead>
+                    <TableHead>{t('rating')}</TableHead>
+                    <TableHead>{t('created')}</TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -330,7 +330,7 @@ export default function AdminCoursesList() {
                             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <BookOpen className="h-3 w-3" />
-                                {course.total_lessons} lessons
+                                {t('lessons_count', { count: course.total_lessons })}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
@@ -360,13 +360,13 @@ export default function AdminCoursesList() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
-                          {course.is_free ? 'Free' : formatPrice(course.price_cents, course.currency)}
+                          {course.is_free ? t('free') : formatPrice(course.price_cents, course.currency)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'}</span>
+                          <span className="text-sm">{course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : t('n_a')}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -424,9 +424,11 @@ export default function AdminCoursesList() {
               {coursesData && coursesData.pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-muted-foreground">
-                    Showing {((coursesData.pagination.page - 1) * coursesData.pagination.limit) + 1} to{' '}
-                    {Math.min(coursesData.pagination.page * coursesData.pagination.limit, coursesData.pagination.total)} of{' '}
-                    {coursesData.pagination.total} courses
+                    {t('showing_entries', {
+                      from: ((coursesData.pagination.page - 1) * coursesData.pagination.limit) + 1,
+                      to: Math.min(coursesData.pagination.page * coursesData.pagination.limit, coursesData.pagination.total),
+                      total: coursesData.pagination.total
+                    })}
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
@@ -436,10 +438,10 @@ export default function AdminCoursesList() {
                       disabled={!filters.page || filters.page <= 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Previous
+                      {t('previous')}
                     </Button>
                     <span className="text-sm">
-                      Page {filters.page || 1} of {coursesData.pagination.totalPages}
+                      {t('page_of', { current: filters.page || 1, total: coursesData.pagination.totalPages })}
                     </span>
                     <Button
                       variant="outline"
@@ -447,7 +449,7 @@ export default function AdminCoursesList() {
                       onClick={() => handleFilterChange('page', (filters.page || 1) + 1)}
                       disabled={!filters.page || filters.page >= coursesData.pagination.totalPages}
                     >
-                      Next
+                      {t('next')}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -485,7 +487,7 @@ export default function AdminCoursesList() {
                 onClick={handleApprove}
                 disabled={approveCourse.isPending}
               >
-                {approveCourse.isPending ? t('approving') : t('approve_course_button')}
+                {approveCourse.isPending ? t('approving') : t('approve')}
               </Button>
             </div>
           </div>
@@ -521,7 +523,7 @@ export default function AdminCoursesList() {
                 onClick={handleReject}
                 disabled={!rejectionReason.trim() || rejectCourse.isPending}
               >
-                {rejectCourse.isPending ? t('rejecting') : t('reject_course_button')}
+                {rejectCourse.isPending ? t('rejecting') : t('reject')}
               </Button>
             </div>
           </div>

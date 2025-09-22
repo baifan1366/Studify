@@ -63,27 +63,27 @@ export function AdminAIManagement() {
   const handleEmbeddingAction = async (action: string, items?: number[]) => {
     try {
       await embeddingAction.mutateAsync({ action, items });
-      toast.success(`Embedding ${action} completed successfully`);
+      toast.success(t('embedding_action_success', { action }));
     } catch (error: any) {
-      toast.error(error.message || `Failed to ${action} embeddings`);
+      toast.error(error.message || t('embedding_action_failed', { action }));
     }
   };
 
   const handleRecommendationAction = async (action: string, data?: any) => {
     try {
       await recommendationAction.mutateAsync({ action, ...data });
-      toast.success(`Recommendation ${action} completed successfully`);
+      toast.success(t('recommendation_action_success', { action }));
     } catch (error: any) {
-      toast.error(error.message || `Failed to ${action} recommendations`);
+      toast.error(error.message || t('recommendation_action_failed', { action }));
     }
   };
 
   const handleModerationAction = async (action: string, data?: any) => {
     try {
       await moderationAction.mutateAsync({ action, ...data });
-      toast.success(`Moderation ${action} completed successfully`);
+      toast.success(t('moderation_action_success', { action }));
     } catch (error: any) {
-      toast.error(error.message || `Failed to ${action} moderation`);
+      toast.error(error.message || t('moderation_action_failed', { action }));
     }
   };
 
@@ -118,20 +118,20 @@ export function AdminAIManagement() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="bg-transparent p-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">AI Generations</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('ai_generations')}</CardTitle>
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {contentGeneration?.data?.overview?.aiRunsTotal || 0}
                 </div>
-                <p className="text-xs text-muted-foreground">Last 30 days</p>
+                <p className="text-xs text-muted-foreground">{t('last_30_days')}</p>
               </CardContent>
             </Card>
 
             <Card className="bg-transparent p-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Queue Items</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('queue_items')}</CardTitle>
                 <Database className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -139,34 +139,34 @@ export function AdminAIManagement() {
                   {embeddingQueue?.data?.stats?.total || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {embeddingQueue?.data?.stats?.queued || 0} pending
+                  {t('pending_count', { count: embeddingQueue?.data?.stats?.queued || 0 })}
                 </p>
               </CardContent>
             </Card>
 
             <Card className="bg-transparent p-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Recommendations</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('recommendations')}</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {recommendations?.data?.overview?.activeRecommendations || 0}
                 </div>
-                <p className="text-xs text-muted-foreground">Active users</p>
+                <p className="text-xs text-muted-foreground">{t('active_users')}</p>
               </CardContent>
             </Card>
 
             <Card className="bg-transparent p-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Flagged Content</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('flagged_content')}</CardTitle>
                 <Shield className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {moderation?.data?.overview?.flaggedContent || 0}
                 </div>
-                <p className="text-xs text-muted-foreground">Needs review</p>
+                <p className="text-xs text-muted-foreground">{t('needs_review')}</p>
               </CardContent>
             </Card>
           </div>
@@ -174,31 +174,31 @@ export function AdminAIManagement() {
           {/* System Performance */}
           <Card className="bg-transparent p-2">
             <CardHeader>
-              <CardTitle>AI System Performance</CardTitle>
-              <CardDescription>Recent processing metrics and health status</CardDescription>
+              <CardTitle>{t('ai_system_performance')}</CardTitle>
+              <CardDescription>{t('recent_processing_metrics')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Video Processing</div>
+                  <div className="text-sm font-medium">{t('video_processing')}</div>
                   <div className="text-2xl font-bold">
                     {Math.round((contentGeneration?.data?.overview?.avgVideoProcessingTimeMs || 0) / 1000)}s
                   </div>
-                  <div className="text-xs text-muted-foreground">Average time</div>
+                  <div className="text-xs text-muted-foreground">{t('average_time')}</div>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Search Performance</div>
+                  <div className="text-sm font-medium">{t('search_performance')}</div>
                   <div className="text-2xl font-bold">
                     {Math.round(recommendations?.data?.overview?.avgSearchProcessingTime || 0)}ms
                   </div>
-                  <div className="text-xs text-muted-foreground">Average response</div>
+                  <div className="text-xs text-muted-foreground">{t('average_response')}</div>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Coverage</div>
+                  <div className="text-sm font-medium">{t('coverage')}</div>
                   <div className="text-2xl font-bold">
                     {recommendations?.data?.overview?.recommendationCoverage || 0}%
                   </div>
-                  <div className="text-xs text-muted-foreground">User coverage</div>
+                  <div className="text-xs text-muted-foreground">{t('user_coverage')}</div>
                 </div>
               </div>
             </CardContent>
@@ -211,10 +211,10 @@ export function AdminAIManagement() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Database className="h-5 w-5 mr-2" />
-                Embedding Queue Management
+                {t('embedding_queue_management')}
               </CardTitle>
               <CardDescription>
-                Monitor and manage the AI embedding generation queue
+                {t('monitor_embedding_queue')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -225,7 +225,7 @@ export function AdminAIManagement() {
                   disabled={embeddingAction.isPending}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Retry Failed
+                  {t('retry_failed')}
                 </Button>
                 <Button 
                   size="sm" 
@@ -234,7 +234,7 @@ export function AdminAIManagement() {
                   disabled={embeddingAction.isPending}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Completed
+                  {t('clear_completed')}
                 </Button>
                 <Select 
                   value={embeddingFilters.status} 
@@ -244,11 +244,11 @@ export function AdminAIManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="queued">Queued</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="all">{t('all_status')}</SelectItem>
+                    <SelectItem value="queued">{t('queued')}</SelectItem>
+                    <SelectItem value="processing">{t('processing')}</SelectItem>
+                    <SelectItem value="completed">{t('completed')}</SelectItem>
+                    <SelectItem value="failed">{t('failed')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -259,31 +259,31 @@ export function AdminAIManagement() {
                   <div className="text-2xl font-bold text-blue-600">
                     {embeddingQueue?.data?.stats?.queued || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Queued</div>
+                  <div className="text-xs text-muted-foreground">{t('queued')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-600">
                     {embeddingQueue?.data?.stats?.processing || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Processing</div>
+                  <div className="text-xs text-muted-foreground">{t('processing')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
                     {embeddingQueue?.data?.stats?.completed || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Completed</div>
+                  <div className="text-xs text-muted-foreground">{t('completed')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-red-600">
                     {embeddingQueue?.data?.stats?.failed || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Failed</div>
+                  <div className="text-xs text-muted-foreground">{t('failed')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold">
                     {Math.round((embeddingQueue?.data?.stats?.avgProcessingTimeMs || 0) / 1000)}s
                   </div>
-                  <div className="text-xs text-muted-foreground">Avg Time</div>
+                  <div className="text-xs text-muted-foreground">{t('avg_time')}</div>
                 </div>
               </div>
 
@@ -291,12 +291,12 @@ export function AdminAIManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Content Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Retry Count</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('content_type')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead>{t('priority')}</TableHead>
+                    <TableHead>{t('retry_count')}</TableHead>
+                    <TableHead>{t('created')}</TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -340,10 +340,10 @@ export function AdminAIManagement() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <TrendingUp className="h-5 w-5 mr-2" />
-                Recommendation System
+                {t('recommendation_system')}
               </CardTitle>
               <CardDescription>
-                Monitor and optimize AI-powered recommendations
+                {t('monitor_ai_recommendations')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -354,7 +354,7 @@ export function AdminAIManagement() {
                   disabled={recommendationAction.isPending}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh All
+                  {t('refresh_all')}
                 </Button>
                 <Button 
                   size="sm" 
@@ -363,7 +363,7 @@ export function AdminAIManagement() {
                   disabled={recommendationAction.isPending}
                 >
                   <Zap className="h-4 w-4 mr-2" />
-                  Optimize Performance
+                  {t('optimize_performance')}
                 </Button>
               </div>
 
@@ -373,19 +373,19 @@ export function AdminAIManagement() {
                   <div className="text-2xl font-bold">
                     {recommendations?.data?.overview?.totalSearches || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Total Searches</div>
+                  <div className="text-xs text-muted-foreground">{t('total_searches')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold">
                     {Math.round(recommendations?.data?.overview?.avgSearchResultsCount || 0)}
                   </div>
-                  <div className="text-xs text-muted-foreground">Avg Results</div>
+                  <div className="text-xs text-muted-foreground">{t('avg_results')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold">
                     {recommendations?.data?.overview?.recommendationCoverage || 0}%
                   </div>
-                  <div className="text-xs text-muted-foreground">User Coverage</div>
+                  <div className="text-xs text-muted-foreground">{t('user_coverage')}</div>
                 </div>
               </div>
             </CardContent>
@@ -398,10 +398,10 @@ export function AdminAIManagement() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Shield className="h-5 w-5 mr-2" />
-                AI Content Moderation
+                {t('ai_content_moderation')}
               </CardTitle>
               <CardDescription>
-                Automated content moderation and flagging system
+                {t('automated_content_moderation')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -412,7 +412,7 @@ export function AdminAIManagement() {
                   disabled={moderationAction.isPending}
                 >
                   <Play className="h-4 w-4 mr-2" />
-                  Enable Auto-Moderation
+                  {t('enable_auto_moderation')}
                 </Button>
                 <Button 
                   size="sm" 
@@ -421,7 +421,7 @@ export function AdminAIManagement() {
                   disabled={moderationAction.isPending}
                 >
                   <Brain className="h-4 w-4 mr-2" />
-                  Retrain Model
+                  {t('retrain_model')}
                 </Button>
                 <Select 
                   value={moderationFilters.status} 
@@ -431,10 +431,10 @@ export function AdminAIManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Reports</SelectItem>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="reviewing">Reviewing</SelectItem>
-                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="all">{t('all_reports')}</SelectItem>
+                    <SelectItem value="open">{t('open')}</SelectItem>
+                    <SelectItem value="reviewing">{t('reviewing')}</SelectItem>
+                    <SelectItem value="resolved">{t('resolved')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -445,25 +445,25 @@ export function AdminAIManagement() {
                   <div className="text-2xl font-bold text-orange-600">
                     {moderation?.data?.overview?.totalReports || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Total Reports</div>
+                  <div className="text-xs text-muted-foreground">{t('total_reports')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-red-600">
                     {moderation?.data?.overview?.openReports || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Open Reports</div>
+                  <div className="text-xs text-muted-foreground">{t('open_reports')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">
                     {moderation?.data?.overview?.flaggedContent || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Flagged Content</div>
+                  <div className="text-xs text-muted-foreground">{t('flagged_content')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-600">
                     {moderation?.data?.overview?.bannedUsers || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground">Banned Users</div>
+                  <div className="text-xs text-muted-foreground">{t('banned_users')}</div>
                 </div>
               </div>
             </CardContent>

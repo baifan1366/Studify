@@ -38,7 +38,7 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'lan
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
   const updateSettingsMutation = useUpdateSettings();
   const { toast } = useToast();
   const { fontSize, setFontSize } = useFontSize();

@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function DashboardContent() {
   const t = useTranslations('Dashboard');
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
   const { data: dashboardData, isLoading: dashboardLoading } = useDashboard();
 
   const user = userData;

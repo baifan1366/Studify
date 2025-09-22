@@ -59,9 +59,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         role,
         joined_at,
         profiles!classroom_member_user_id_fkey(
+          id,
           user_id,
           email,
           display_name,
+          full_name,
           avatar_url
         )
       `)
@@ -75,14 +77,32 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 
     if (error) throw error;
 
-    return NextResponse.json({
-      classroom: {
-        id: classroom.id,
-        name: classroom.name
-      },
-      members: members || [],
-      user_role: classroom.classroom_member[0]?.role
+    // Transform the data to match ParticipantInfo interface
+    const participantsInfo = (members || []).map(member => {
+      const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+      return {
+        id: profile?.id || member.id,
+        user_id: profile?.user_id || '',
+        email: profile?.email || '',
+        display_name: profile?.display_name || '',
+        full_name: profile?.full_name || '',
+        avatar_url: profile?.avatar_url || null,
+        role: member.role as 'student' | 'tutor',
+        joined_at: member.joined_at,
+        classroom: {
+          id: classroom.id,
+          name: classroom.name
+        }
+      };
     });
+
+    console.log('🔍 Members API returning participants info:', {
+      total: participantsInfo.length,
+      sample: participantsInfo[0],
+      ids: participantsInfo.map(p => ({ id: p.id, identity: `user-${p.id}`, display_name: p.display_name }))
+    });
+
+    return NextResponse.json(participantsInfo);
   } catch (error) {
     console.error('Error fetching classroom members:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

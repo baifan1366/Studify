@@ -88,13 +88,24 @@ export async function GET(
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
 
-  // 5. Get reactions
+  // 5. Get reactions from both database and Redis
   const { data: postReactions } = await supabaseClient
     .from("community_reaction")
     .select("emoji, user_id")
     .eq("target_type", "post")
     .eq("target_id", post.id);
 
+  // Get Redis reactions for real-time data
+  let redisReactions: Record<string, string> = {};
+  try {
+    const redis = (await import("@/utils/redis/redis")).default;
+    const redisKey = `post:${post.id}:reactions`;
+    redisReactions = await redis.hgetall(redisKey) || {};
+  } catch (redisError) {
+    console.warn("Failed to get Redis reactions:", redisError);
+  }
+
+  // Combine database and Redis reactions
   const reactions = (postReactions || []).reduce(
     (acc: Record<string, number>, reaction: { emoji: string }) => {
       acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
@@ -102,6 +113,13 @@ export async function GET(
     },
     {}
   );
+
+  // Add Redis reactions
+  Object.entries(redisReactions).forEach(([userId, emoji]) => {
+    if (typeof emoji === 'string') {
+      reactions[emoji] = (reactions[emoji] || 0) + 1;
+    }
+  });
 
   // 6. Get attachments (based on post.public_id)
   const { data: attachments, error: attachmentError } = await supabaseClient

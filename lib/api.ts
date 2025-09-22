@@ -237,6 +237,7 @@ export const communityApi = {
   studyGroups: "/api/community/study-groups",
   joinGroup: (id: number) => `/api/community/study-groups/${id}/join`,
   leaveGroup: (id: number) => `/api/community/study-groups/${id}/leave`,
+  recommendations: "/api/community/recommendations",
 } as const;
 
 // Gamification API endpoints
@@ -382,6 +383,64 @@ export const adminApi = {
     api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
+  
+  // AI Management
+  ai: {
+    getContentGeneration: (days: number) => 
+      api.get(`/api/admin/ai/content-generation?days=${days}`),
+    performGenerationAction: (data: any) => 
+      api.post('/api/admin/ai/content-generation', data),
+    getEmbeddingQueue: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/ai/embedding-queue?${queryParams}`);
+    },
+    performEmbeddingAction: (data: any) => 
+      api.post('/api/admin/ai/embedding-queue', data),
+    deleteEmbeddingQueue: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.delete(`/api/admin/ai/embedding-queue?${queryParams}`);
+    },
+    getRecommendations: (days: number) => 
+      api.get(`/api/admin/ai/recommendation?days=${days}`),
+    performRecommendationAction: (data: any) => 
+      api.post('/api/admin/ai/recommendation', data),
+    getModeration: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/ai/moderation?${queryParams}`);
+    },
+    performModerationAction: (data: any) => 
+      api.post('/api/admin/ai/moderation', data)
+  },
+  
+  // System Maintenance
+  maintenance: {
+    getSystemHealth: () => 
+      api.get('/api/admin/maintenance/system-health'),
+    performHealthAction: (data: any) => 
+      api.post('/api/admin/maintenance/system-health', data),
+    getQueueMonitor: (type: string) => 
+      api.get(`/api/admin/maintenance/queue-monitor?type=${type}`),
+    performQueueAction: (data: any) => 
+      api.post('/api/admin/maintenance/queue-monitor', data),
+    getCache: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/maintenance/cache?${queryParams}`);
+    },
+    performCacheAction: (data: any) => 
+      api.post('/api/admin/maintenance/cache', data),
+    deleteCache: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.delete(`/api/admin/maintenance/cache?${queryParams}`);
+    },
+    getFeatureFlags: (params: any) => {
+      const queryParams = new URLSearchParams(params).toString();
+      return api.get(`/api/admin/maintenance/feature-flags?${queryParams}`);
+    },
+    performFeatureFlagAction: (data: any) => 
+      api.post('/api/admin/maintenance/feature-flags', data),
+    deleteFeatureFlag: (flag: string) => 
+      api.delete(`/api/admin/maintenance/feature-flags?flag=${flag}`)
+  }
 } as const;
 
 // Recommendations API endpoints
@@ -389,44 +448,165 @@ export const recommendationsApi = {
   get: '/recommendations',
 } as const;
 
+// Helper function to get auth headers
+const getAuthHeaders = async () => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  try {
+    // Get session from Supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+  } catch (error) {
+    console.warn('Failed to get auth session:', error);
+  }
+  
+  return headers;
+};
+
 // API client for making HTTP requests
 export const api = {
   get: async (url: string) => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return response.json();
+    console.log('🌐 [API Client] GET request:', url);
+    const headers = await getAuthHeaders();
+    delete headers['Content-Type']; // Not needed for GET requests
+    
+    const response = await fetch(url, { headers });
+    
+    console.log('📡 [API Client] GET response:', {
+      url,
+      status: response.status,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [API Client] GET error:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ [API Client] GET success:', { url, dataKeys: Object.keys(data) });
+    return { data };
   },
+  
   post: async (url: string, data?: any) => {
+    console.log('🌐 [API Client] POST request:', { url, hasData: !!data });
+    const headers = await getAuthHeaders();
+    
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: data ? JSON.stringify(data) : undefined,
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return response.json();
+    
+    console.log('📡 [API Client] POST response:', {
+      url,
+      status: response.status,
+      ok: response.ok
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [API Client] POST error:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const responseData = await response.json();
+    console.log('✅ [API Client] POST success:', { url });
+    return { data: responseData };
   },
+  
   put: async (url: string, data?: any) => {
+    console.log('🌐 [API Client] PUT request:', { url, hasData: !!data });
+    const headers = await getAuthHeaders();
+    
     const response = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: data ? JSON.stringify(data) : undefined,
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return response.json();
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [API Client] PUT error:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const responseData = await response.json();
+    console.log('✅ [API Client] PUT success:', { url });
+    return { data: responseData };
   },
+  
   patch: async (url: string, data?: any) => {
+    console.log('🌐 [API Client] PATCH request:', { url, hasData: !!data });
+    const headers = await getAuthHeaders();
+    
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: data ? JSON.stringify(data) : undefined,
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return response.json();
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [API Client] PATCH error:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const responseData = await response.json();
+    console.log('✅ [API Client] PATCH success:', { url });
+    return { data: responseData };
   },
+  
   delete: async (url: string) => {
-    const response = await fetch(url, { method: 'DELETE' });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return response.json();
+    console.log('🌐 [API Client] DELETE request:', url);
+    const headers = await getAuthHeaders();
+    delete headers['Content-Type']; // Not needed for DELETE requests
+    
+    const response = await fetch(url, { 
+      method: 'DELETE',
+      headers 
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [API Client] DELETE error:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const responseData = await response.json();
+    console.log('✅ [API Client] DELETE success:', { url });
+    return { data: responseData };
   },
 };
 // video embeddings api
@@ -439,3 +619,4 @@ export const videoEmbeddingsApi = {
   update: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
   delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
 } as const;
+

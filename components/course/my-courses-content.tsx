@@ -123,8 +123,7 @@ function LoadingState() {
 }
 
 // A separate component for the error state
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-  const t = useTranslations('MyCoursesContent');
+function ErrorState({ onRetry, t }: { onRetry: () => void; t: (key: string) => string }) {
   return (
     <div className="text-center py-12">
       <h2 className="text-2xl font-bold text-red-500 mb-4">{t('error_loading')}</h2>
@@ -141,8 +140,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 // A separate component for the empty state
-function EmptyState({ onBrowseCourses }: { onBrowseCourses: () => void }) {
-  const t = useTranslations('MyCoursesContent');
+function EmptyState({ onBrowseCourses, t }: { onBrowseCourses: () => void; t: (key: string) => string }) {
   return (
     <div className="text-center py-12">
       <h2 className="text-2xl font-bold text-white mb-4">{t('no_courses_title')}</h2>
@@ -161,6 +159,7 @@ export default function MyCoursesContent() {
   const { data: user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('MyCoursesContent');
   const userId = user?.profile?.id ? parseInt(user.profile.id) : null;
   
   // State to hold the transformed UI courses data
@@ -224,23 +223,22 @@ export default function MyCoursesContent() {
 
   // Handle error state
   if (error) {
-    return <ErrorState onRetry={() => refetch()} />;
+    return <ErrorState onRetry={() => refetch()} t={t} />;
   }
 
   // Handle empty state
   if (!enrollments || enrollments.length === 0) {
-    return <EmptyState onBrowseCourses={() => router.push('/courses')} />;
+    return <EmptyState onBrowseCourses={() => router.push('/courses')} t={t} />;
   }
 
-  const handleContinueCourse = (courseId: string) => {
-    router.push(`/learn/${courseId}`);
+  const handleContinueCourse = (courseSlug: string) => {
+    router.push(`/courses/${courseSlug}/learn`);
   };
 
   const handleCourseDetails = (courseSlug: string) => {
     router.push(`/courses/${courseSlug}`);
   };
 
-  const t = useTranslations('MyCoursesContent');
   return (
     <>
       <div className="text-center">

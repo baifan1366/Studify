@@ -111,7 +111,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ queueId
     console.log('Queue cancelled successfully:', queueId);
 
     // Send cancellation notification
-    await sendVideoProcessingNotification(authResult.payload.sub, {
+    await sendVideoProcessingNotification(profile.id.toString(), {
       attachment_id: queue.attachment_id,
       queue_id: parseInt(queueId),
       attachment_title: `Video ${queue.attachment_id}`,

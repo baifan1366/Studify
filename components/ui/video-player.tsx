@@ -1,485 +1,365 @@
-'use client';
+'use client'
 
-import React, { useRef, useEffect, useState } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, Settings, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
+import { useState, useRef, useEffect } from 'react'
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
+import { cn } from '@/lib/utils'
 
 interface VideoPlayerProps {
-  src?: string;
-  hlsSrc?: string;
-  poster?: string;
-  className?: string;
-  autoPlay?: boolean;
-  controls?: boolean;
-  onLoadStart?: () => void;
-  onCanPlay?: () => void;
-  onError?: (error: string) => void;
-  onTimeUpdate?: (currentTime: number, duration: number) => void;
+  attachmentId: number
+  title?: string
+  className?: string
+  autoPlay?: boolean
+  controls?: boolean
+  onTimeUpdate?: (currentTime: number, duration: number) => void
+  onEnded?: () => void
 }
 
 export default function VideoPlayer({
-  src,
-  hlsSrc,
-  poster,
+  attachmentId,
+  title = 'Video',
   className,
   autoPlay = false,
   controls = true,
-  onLoadStart,
-  onCanPlay,
-  onError,
   onTimeUpdate,
+  onEnded
 }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hlsSupported, setHlsSupported] = useState<boolean | null>(null); // null = checking, false = not supported, true = supported
-  const [activeSource, setActiveSource] = useState<'hls' | 'mp4' | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [volume, setVolume] = useState(1)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showControls, setShowControls] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  const controlsTimeoutRef = useRef<NodeJS.Timeout>(null)
 
-  // Check HLS support and load HLS.js if needed
-  useEffect(() => {
-    const checkHlsSupport = async () => {
-      const video = videoRef.current;
-      if (!video) {
-        return;
-      }
+  // Video source URL using the streaming API
+  const videoSrc = `/api/attachments/${attachmentId}/stream`
 
-      // Check native HLS support (Safari)
-      const nativeSupport = video.canPlayType('application/vnd.apple.mpegurl');
-      if (nativeSupport) {
-        setHlsSupported(true);
-        return;
-      }
-
-      // Check if HLS.js can be used
-      if (typeof window !== 'undefined') {
-        try {
-          const { default: Hls } = await import('hls.js');
-          
-          const isSupported = Hls.isSupported();
-          
-          if (isSupported) {
-            setHlsSupported(true);
-          } else {
-            console.warn('🎬 HLS.js not supported in this browser');
-            setHlsSupported(false);
-          }
-        } catch (error) {
-          console.error('🎬 Failed to load HLS.js:', error);
-          setHlsSupported(false);
-        }
-      } else {
-        console.warn('🎬 Window not available for HLS.js check');
-        setHlsSupported(false);
-      }
-    };
-
-    checkHlsSupport();
-  }, []);
-
-  // Initialize video source
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const initializeVideo = async () => {
-      setIsLoading(true);
-      setError(null);
-      onLoadStart?.();
-
-      try {
-        // Priority 1: Try HLS if available and supported
-        if (hlsSrc && hlsSupported === true) {
-          await loadHlsSource(hlsSrc);
-          setActiveSource('hls');
-        
-        // Check video element and try to play
-        setTimeout(() => {
-          const videoElement = videoRef.current;
-          if (videoElement) {
-            const rect = videoElement.getBoundingClientRect();
-            
-            // Try to trigger play to see if video appears
-            if (videoElement.paused) {
-              videoElement.play().then(() => {
-              }).catch(error => {
-                console.error('🎬 Video play failed:', error);
-              });
-            }
-          }
-        }, 2000);
-        
-        return;
-        }
-
-        // Priority 2: Fallback to MP4
-        if (src) {
-          video.src = src;
-          setActiveSource('mp4');
-          return;
-        }
-
-        // Priority 3: Try HLS as direct source (fallback for unsupported browsers)
-        if (hlsSrc && hlsSupported === false) {
-          video.src = hlsSrc;
-          setActiveSource('hls');
-          return;
-        }
-
-        throw new Error('No compatible video source available');
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to load video';
-        console.error('🎬 Video initialization failed:', errorMessage);
-        setError(errorMessage);
-        onError?.(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Only initialize video after HLS support check is complete
-    if ((hlsSrc || src) && hlsSupported !== null) {
-      initializeVideo();
-    }
-
-    return () => {
-      // Cleanup HLS instance if exists
-      if ((video as any).hls) {
-        (video as any).hls.destroy();
-      }
-    };
-  }, [hlsSrc, src, hlsSupported]);
-
-  // Load HLS source
-  const loadHlsSource = async (hlsUrl: string): Promise<void> => {
-    const video = videoRef.current;
-    if (!video) throw new Error('Video element not available');
-
-    // First, test if the HLS URL is accessible
-    try {
-      const response = await fetch(hlsUrl, { method: 'HEAD' });
-      if (!response.ok) {
-        throw new Error(`HLS URL not accessible: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('🎬 HLS URL accessibility test failed:', error);
-      throw new Error(`HLS URL not accessible: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    // Native HLS support (Safari)
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = hlsUrl;
-      return new Promise((resolve, reject) => {
-        const handleCanPlay = () => {
-          video.removeEventListener('canplay', handleCanPlay);
-          video.removeEventListener('error', handleError);
-          resolve();
-        };
-        const handleError = (e: Event) => {
-          video.removeEventListener('canplay', handleCanPlay);
-          video.removeEventListener('error', handleError);
-          console.error('🎬 Native HLS error:', e);
-          reject(new Error('Failed to load HLS stream natively'));
-        };
-        video.addEventListener('canplay', handleCanPlay);
-        video.addEventListener('error', handleError);
-      });
-    }
-
-    // HLS.js support
-    const { default: Hls } = await import('hls.js');
-    if (!Hls.isSupported()) {
-      throw new Error('HLS not supported in this browser');
-    }
-
-    const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-      backBufferLength: 90,
-      debug: true, // Enable debug for troubleshooting
-    });
-
-    hls.loadSource(hlsUrl);
-    hls.attachMedia(video);
-
-    // Store HLS instance for cleanup
-    (video as any).hls = hls;
-
-    return new Promise((resolve, reject) => {
-      let resolved = false;
-
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        if (!resolved) {
-          resolved = true;
-          resolve();
-        }
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('🎬 HLS error:', data);
-        console.error('🎬 HLS error details:', {
-          type: data.type,
-          details: data.details,
-          fatal: data.fatal,
-          reason: data.reason,
-          response: data.response
-        });
-        
-        if (data.fatal && !resolved) {
-          resolved = true;
-          reject(new Error(`HLS fatal error: ${data.details || data.type} - ${data.reason || 'Unknown reason'}`));
-        }
-      });
-
-      // Reduce timeout to 10 seconds for faster fallback
-      setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          console.warn('🎬 HLS loading timeout after 10 seconds');
-          reject(new Error('HLS loading timeout after 10 seconds'));
-        }
-      }, 10000);
-    });
-  };
-
-  // Video event handlers
-  const handleLoadedMetadata = () => {
-    const video = videoRef.current;
-    if (video) {
-      setDuration(video.duration);
-      onCanPlay?.();
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    const video = videoRef.current;
-    if (video) {
-      setCurrentTime(video.currentTime);
-      onTimeUpdate?.(video.currentTime, video.duration);
-    }
-  };
-
-  const handlePlay = () => setIsPlaying(true);
-  const handlePause = () => setIsPlaying(false);
-
-  const handleError = () => {
-    const video = videoRef.current;
-    if (video?.error) {
-      const errorMessage = `Video error: ${video.error.message}`;
-      setError(errorMessage);
-      onError?.(errorMessage);
-    }
-  };
-
-  // Control handlers
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isPlaying) {
-      video.pause();
-    } else {
-      video.play().catch(error => {
-        console.error('Play failed:', error);
-        setError('Failed to play video');
-      });
-    }
-  };
-
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const newVolume = value[0];
-    video.volume = newVolume;
-    setVolume(newVolume);
-    
-    if (newVolume === 0) {
-      setIsMuted(true);
-    } else if (isMuted) {
-      setIsMuted(false);
-    }
-  };
-
-  const handleSeek = (value: number[]) => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const newTime = value[0];
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      videoRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  const retry = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    setError(null);
-    setIsLoading(true);
-    video.load();
-  };
-
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  if (error) {
-    return (
-      <div className={cn("relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center", className)}>
-        <div className="text-center text-white space-y-4">
-          <div className="text-red-400 text-lg">Video Error</div>
-          <div className="text-sm opacity-80">{error}</div>
-          <Button variant="outline" size="sm" onClick={retry} className="gap-2">
-            <RotateCcw className="h-4 w-4" />
-            Retry
-          </Button>
-        </div>
-      </div>
-    );
+  // Format time for display
+  const formatTime = (time: number): string => {
+    const minutes = Math.floor(time / 60)
+    const seconds = Math.floor(time % 60)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
+  // Toggle play/pause
+  const togglePlay = () => {
+    if (!videoRef.current) return
+    
+    if (isPlaying) {
+      videoRef.current.pause()
+    } else {
+      videoRef.current.play()
+    }
+  }
+
+  // Toggle mute
+  const toggleMute = () => {
+    if (!videoRef.current) return
+    
+    videoRef.current.muted = !isMuted
+    setIsMuted(!isMuted)
+  }
+
+  // Handle volume change
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0]
+    if (!videoRef.current) return
+    
+    videoRef.current.volume = newVolume
+    setVolume(newVolume)
+    
+    if (newVolume === 0) {
+      setIsMuted(true)
+      videoRef.current.muted = true
+    } else if (isMuted) {
+      setIsMuted(false)
+      videoRef.current.muted = false
+    }
+  }
+
+  // Handle seek
+  const handleSeek = (value: number[]) => {
+    const newTime = value[0]
+    if (!videoRef.current) return
+    
+    videoRef.current.currentTime = newTime
+    setCurrentTime(newTime)
+  }
+
+  // Skip forward/backward
+  const skip = (seconds: number) => {
+    if (!videoRef.current) return
+    
+    const newTime = Math.max(0, Math.min(duration, currentTime + seconds))
+    videoRef.current.currentTime = newTime
+    setCurrentTime(newTime)
+  }
+
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return
+    
+    if (!isFullscreen) {
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen()
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+      }
+    }
+  }
+
+  // Show controls temporarily
+  const showControlsTemporarily = () => {
+    setShowControls(true)
+    
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false)
+      }
+    }, 3000)
+  }
+
+  // Video event handlers
+  const handleLoadStart = () => {
+    setIsLoading(true)
+    setError(null)
+  }
+
+  const handleCanPlay = () => {
+    setIsLoading(false)
+  }
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const current = videoRef.current.currentTime
+      const total = videoRef.current.duration
+      
+      setCurrentTime(current)
+      onTimeUpdate?.(current, total)
+    }
+  }
+
+  const handlePlay = () => {
+    setIsPlaying(true)
+  }
+
+  const handlePause = () => {
+    setIsPlaying(false)
+    setShowControls(true)
+  }
+
+  const handleEnded = () => {
+    setIsPlaying(false)
+    setShowControls(true)
+    onEnded?.()
+  }
+
+  const handleError = () => {
+    setIsLoading(false)
+    setError('Failed to load video. Please try again.')
+  }
+
+  // Handle fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+    }
+  }, [])
+
   return (
-    <div className={cn("relative bg-black rounded-lg overflow-hidden group", className)}>
+    <div
+      ref={containerRef}
+      className={cn(
+        'relative bg-black rounded-lg overflow-hidden group',
+        isFullscreen ? 'fixed inset-0 z-50' : 'aspect-video',
+        className
+      )}
+      onMouseMove={showControlsTemporarily}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => {
+        if (isPlaying) {
+          setShowControls(false)
+        }
+      }}
+    >
       <video
         ref={videoRef}
+        src={videoSrc}
         className="w-full h-full object-contain"
-        poster={poster}
         autoPlay={autoPlay}
-        playsInline
+        onLoadStart={handleLoadStart}
+        onCanPlay={handleCanPlay}
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
         onPlay={handlePlay}
         onPause={handlePause}
+        onEnded={handleEnded}
         onError={handleError}
-        onLoadStart={() => {
-          // Don't override loading state if we're already successfully loaded
-          if (!activeSource) {
-            setIsLoading(true);
-          }
-        }}
-        onCanPlay={() => {
-          setIsLoading(false);
-        }}
+        onClick={togglePlay}
       />
 
       {/* Loading overlay */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="text-center text-white space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-            <div className="text-sm">
-              Loading {activeSource === 'hls' ? 'HLS stream' : 'video'}...
-            </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      )}
+
+      {/* Error overlay */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+          <div className="text-center text-white p-4">
+            <p className="text-lg mb-2">Video Error</p>
+            <p className="text-sm text-gray-300">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => {
+                setError(null)
+                if (videoRef.current) {
+                  videoRef.current.load()
+                }
+              }}
+            >
+              Retry
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Custom controls */}
-      {controls && !isLoading && !error && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Controls */}
+      {controls && (
+        <div
+          className={cn(
+            'absolute inset-0 flex flex-col justify-end transition-opacity duration-300',
+            showControls ? 'opacity-100' : 'opacity-0'
+          )}
+        >
           {/* Progress bar */}
-          <div className="mb-3">
+          <div className="px-4 pb-2">
             <Slider
               value={[currentTime]}
-              max={duration || 100}
-              step={1}
+              max={duration}
+              step={0.1}
               onValueChange={handleSeek}
               className="w-full"
             />
           </div>
 
           {/* Control buttons */}
-          <div className="flex items-center justify-between text-white">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-4 pb-4 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => skip(-10)}
+                className="text-white hover:bg-white/20"
+              >
+                <SkipBack className="h-4 w-4" />
+              </Button>
+              
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={togglePlay}
                 className="text-white hover:bg-white/20"
               >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isPlaying ? (
+                  <Pause className="h-5 w-5" />
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
               </Button>
-
+              
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={toggleMute}
+                onClick={() => skip(10)}
                 className="text-white hover:bg-white/20"
               >
-                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                <SkipForward className="h-4 w-4" />
               </Button>
 
-              <div className="w-20">
-                <Slider
-                  value={[isMuted ? 0 : volume]}
-                  max={1}
-                  step={0.1}
-                  onValueChange={handleVolumeChange}
-                />
-              </div>
-
-              <div className="text-sm">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </div>
-
-              {activeSource && (
-                <div className="text-xs opacity-60 ml-2">
-                  {activeSource.toUpperCase()}
+              <div className="flex items-center space-x-2 ml-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleMute}
+                  className="text-white hover:bg-white/20"
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+                
+                <div className="w-20">
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    max={1}
+                    step={0.1}
+                    onValueChange={handleVolumeChange}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleFullscreen}
-              className="text-white hover:bg-white/20"
-            >
-              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Click to play overlay */}
-      {!isPlaying && !isLoading && !error && (
-        <div 
-          className="absolute inset-0 flex items-center justify-center cursor-pointer"
-          onClick={togglePlay}
-        >
-          <div className="bg-black/50 rounded-full p-4 hover:bg-black/70 transition-colors">
-            <Play className="h-12 w-12 text-white" />
+            <div className="flex items-center space-x-2">
+              <span className="text-white text-sm">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleFullscreen}
+                className="text-white hover:bg-white/20"
+              >
+                {isFullscreen ? (
+                  <Minimize className="h-4 w-4" />
+                ) : (
+                  <Maximize className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Metadata } from 'next';
 import CourseLearningContent from '@/components/course/course-learning-content';
 import { getTranslations } from 'next-intl/server';
@@ -6,7 +5,6 @@ import { getTranslations } from 'next-intl/server';
 interface CourseLearningPageProps {
   params: Promise<{
     slug: string;
-    locale: string;
   }>;
   searchParams: Promise<{
     lesson?: string;
@@ -14,15 +12,15 @@ interface CourseLearningPageProps {
 }
 
 export async function generateMetadata({ params }: CourseLearningPageProps): Promise<Metadata> {
-  const { locale } = await params;
   const t = await getTranslations('CourseLearningPage');
+  const { slug } = await params;
 
   return {
-    title: t('metadata_title'),
+    title: t('metadata_title', { courseSlug: slug }),
     description: t('metadata_description'),
     keywords: t('metadata_keywords').split(','),
     openGraph: {
-      title: t('og_title'),
+      title: t('og_title', { courseSlug: slug }),
       description: t('og_description'),
       type: 'website',
     },

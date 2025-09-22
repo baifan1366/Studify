@@ -1,9 +1,28 @@
-// app/[locale]/admin/users/page.tsx
-
 import { AdminUsersList } from '@/components/admin/users/admin-users-list';
+import { Metadata } from "next";
+import { getTranslations } from 'next-intl/server';
 
-export default function AdminUsersPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('AdminUsersPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
+
+export default async function AdminUsersPage() {
+  const t = await getTranslations('AdminUsersPage');
+
   return (
+    <div>
       <AdminUsersList />
+    </div>
   );
 }

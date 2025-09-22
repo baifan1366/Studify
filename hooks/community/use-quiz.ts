@@ -14,6 +14,7 @@ const QUIZ_API = {
     `/api/community/quizzes/${quizSlug}/attempts`,
   quizLikes: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/likes`,
   userAttempts: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/user-attempts`,
+  attemptScore: (attemptId: number) => `/api/community/quizzes/attempts/${attemptId}/score`,
 };
 
 // ✅ 所有 quiz 列表
@@ -60,27 +61,27 @@ export const useCreateQuiz = () => {
 };
 
 // // ✅ 更新 quiz
-// export const useUpdateQuiz = (slug: string) => {
-//   const queryClient = useQueryClient();
+export const useUpdateQuiz = (slug: string) => {
+  const queryClient = useQueryClient();
 
-//   return useMutation({
-//     mutationFn: (updates: {
-//       title?: string;
-//       description?: string;
-//       difficulty?: number;
-//       tags?: string[];
-//     }) =>
-//       apiSend<CommunityQuiz>({
-//         url: QUIZ_API.quizDetail(slug),
-//         method: "PUT",
-//         body: updates,
-//       }),
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["communityQuiz", slug] });
-//       queryClient.invalidateQueries({ queryKey: ["communityQuizzes"] });
-//     },
-//   });
-// };
+  return useMutation({
+    mutationFn: (updates: {
+      title?: string;
+      description?: string;
+      difficulty?: number;
+      tags?: string[];
+    }) =>
+      apiSend<CommunityQuiz>({
+        url: QUIZ_API.quizDetail(slug),
+        method: "PATCH",
+        body: updates,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["communityQuiz", slug] });
+      queryClient.invalidateQueries({ queryKey: ["communityQuizzes"] });
+    },
+  });
+};
 
 // // ✅ 删除 quiz
 // export const useDeleteQuiz = (slug: string) => {
@@ -159,7 +160,7 @@ export const useSubmitAnswer = (quizSlug: string, attemptId: number) => {
 export const useCompleteAttempt = (quizSlug: string, attemptId: number) => {
   return useMutation({
     mutationFn: () =>
-      apiSend<{ total: number; correct: number }>({
+      apiSend<{ total: number; correct: number; score: number; percentage: number }>({
         url: `${QUIZ_API.quizAttempts(quizSlug)}/${attemptId}/complete`,
         method: "POST",
       }),
@@ -175,10 +176,62 @@ export const useUserAttemptStatus = (quizSlug: string) => {
     accessReason: string;
     isAuthor: boolean;
     userPermission: 'view' | 'attempt' | 'edit' | null;
+    hasInProgressAttempt: boolean;
     quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility' | 'quiz_mode'>;
   }, Error>({
     queryKey: ["userAttemptStatus", quizSlug],
     queryFn: () => apiGet(QUIZ_API.userAttempts(quizSlug)),
     staleTime: 1000 * 30, // 30秒缓存
+  });
+};
+
+// 获取当前进行中的 attempt
+export const useCurrentAttempt = (quizSlug: string) => {
+  return useQuery<{
+    hasCurrentAttempt: boolean;
+    currentAttempt: {
+      id: number;
+      status: string;
+      created_at: string;
+      score: number;
+      progress: {
+        answered: number;
+        total: number;
+        correct: number;
+        percentage: number;
+        current_question_index: number;
+      };
+    } | null;
+    session: {
+      id: number;
+      session_token: string;
+      status: string;
+      time_limit_minutes: number | null;
+      time_spent_seconds: number;
+      current_question_index: number;
+      remaining_seconds: number | null;
+      is_expired: boolean;
+      started_at: string;
+      last_activity_at: string;
+    } | null;
+  }, Error>({
+    queryKey: ["currentAttempt", quizSlug],
+    queryFn: () => apiGet(`/api/community/quizzes/${quizSlug}/current-attempt`),
+    staleTime: 1000 * 10, // 10秒缓存
+  });
+};
+
+// ✅ 获取测验分数 - 根据 attemptId 计算答对题目的总数
+export const useQuizScore = (attemptId: number | null) => {
+  return useQuery<{ score: number }, Error>({
+    queryKey: ["quizScore", attemptId],
+    queryFn: () => {
+      if (!attemptId) {
+        throw new Error("Attempt ID is required");
+      }
+      return apiGet<{ score: number }>(QUIZ_API.attemptScore(attemptId));
+    },
+    enabled: !!attemptId, // 只有当 attemptId 存在时才执行查询
+    staleTime: 1000 * 60 * 2, // 2分钟缓存
   });
 };

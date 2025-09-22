@@ -121,13 +121,56 @@ export default function QuizCard({ quiz }: QuizCardProps) {
             <Button 
               size="sm" 
               className="rounded-lg"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                try {
+                  let attemptId: number | null = null;
+                  let sessionPublicId: string | null = null;
+
+                  // Check current attempt
+                  const cur = await fetch(`/api/community/quizzes/${quiz.slug}/current-attempt`);
+                  if (cur.ok) {
+                    const data = await cur.json();
+                    if (data?.hasCurrentAttempt) {
+                      attemptId = data.currentAttempt?.id ?? null;
+                      sessionPublicId = data.session?.public_id ?? null;
+                    }
+                  }
+
+                  // Create attempt if missing
+                  if (!attemptId) {
+                    const res = await fetch(`/api/community/quizzes/${quiz.slug}/attempts`, { method: 'POST' });
+                    if (!res.ok) throw new Error('Failed to create attempt');
+                    const attempt = await res.json();
+                    attemptId = attempt?.id ?? null;
+                  }
+
+                  // Create session if missing
+                  if (!sessionPublicId && attemptId) {
+                    const sres = await fetch(`/api/community/quizzes/${quiz.slug}/attempts/${attemptId}/session`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({})
+                    });
+                    if (!sres.ok) throw new Error('Failed to create session');
+                    const s = await sres.json();
+                    sessionPublicId = s?.public_id ?? null;
+                  }
+
+                  if (sessionPublicId) {
+                    router.push(`/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`);
+                  } else {
+                    router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                  }
+                } catch (err) {
+                  console.error(err);
+                  router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                }
               }}
             >
               <Play className="h-4 w-4 mr-1" />
-              {isAuthor ? "Preview" : "Start"}
+              {attemptStatus?.hasInProgressAttempt ? "Continue" :
+               (isAuthor ? "Preview" : "Start")}
             </Button>
           ) : (
             <Button size="sm" disabled className="rounded-lg">

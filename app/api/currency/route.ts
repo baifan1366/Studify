@@ -52,7 +52,6 @@ export async function GET() {
 // POST - Update exchange rates from exchangerate.host
 async function handler(req: NextRequest) {
   try {
-    console.log('[Currency API] Starting exchange rate update...');
     
     const apiKey = process.env.EXCHANGE_RATE_API_ACCESS_KEY;
     if (!apiKey) {
@@ -80,7 +79,6 @@ async function handler(req: NextRequest) {
     }
 
     const isFirstDay = !existingCurrencies || existingCurrencies.length === 0;
-    console.log(`[Currency API] First day check: ${isFirstDay ? 'TRUE - Creating records' : 'FALSE - Updating records'}`);
 
     // Try to fetch exchange rates from exchangerate.host using live endpoint
     let rates: { [key: string]: number } = {};
@@ -91,7 +89,6 @@ async function handler(req: NextRequest) {
         const symbols = SUPPORTED_CURRENCIES.map(c => c.code).join(',');
         const exchangeRateUrl = `http://api.exchangerate.host/live?access_key=${apiKey}&currencies=${symbols}&source=USD&format=1`;
         
-        console.log('[Currency API] Fetching rates from exchangerate.host...');
         // Create AbortController for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -113,7 +110,6 @@ async function handler(req: NextRequest) {
               rates[currency] = rate as number;
             });
             rates['USD'] = 1.0; // USD base rate
-            console.log('[Currency API] Successfully fetched live exchange rates');
           } else {
             throw new Error(`API returned error: ${data.error?.info || 'Unknown error'}`);
           }
@@ -134,12 +130,10 @@ async function handler(req: NextRequest) {
       SUPPORTED_CURRENCIES.forEach(currency => {
         rates[currency.code] = currency.fallbackRate;
       });
-      console.log('[Currency API] Using fallback exchange rates');
     }
 
     if (isFirstDay) {
       // First day: Create all currency records
-      console.log('[Currency API] Creating initial currency records...');
       
       const currencyRecords = SUPPORTED_CURRENCIES.map(currency => ({
         code: currency.code,
@@ -161,8 +155,6 @@ async function handler(req: NextRequest) {
           { status: 500 }
         );
       }
-
-      console.log(`[Currency API] Successfully created ${insertedCurrencies.length} currency records`);
       
       return NextResponse.json({
         success: true,
@@ -175,7 +167,6 @@ async function handler(req: NextRequest) {
 
     } else {
       // Subsequent days: Update existing rates
-      console.log('[Currency API] Updating existing currency rates...');
       
       const updatePromises = SUPPORTED_CURRENCIES.map(async (currency) => {
         const newRate = currency.code === 'USD' ? 1.0 : (rates[currency.code] || 1.0);
@@ -197,7 +188,6 @@ async function handler(req: NextRequest) {
       });
 
       const updatedRates = await Promise.all(updatePromises);
-      console.log(`[Currency API] Successfully updated ${updatedRates.length} currency rates`);
 
       return NextResponse.json({
         success: true,

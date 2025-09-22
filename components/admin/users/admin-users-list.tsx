@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,12 +24,16 @@ import {
   Ban, 
   Trash2,
   Eye,
-  Edit
+  Edit,
+  Mail,
+  AlertTriangle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
 export function AdminUsersList() {
+  const t = useTranslations('AdminUsersList');
+  
   const [filters, setFilters] = useState<AdminUserFilters>({
     page: 1,
     limit: 20,
@@ -62,23 +67,23 @@ export function AdminUsersList() {
 
   const handlePromoteUser = async () => {
     if (!promoteEmail.trim()) {
-      toast.error('Please enter an email address');
+      toast.error(t('email_required'));
       return;
     }
 
     try {
       await promoteToAdmin.mutateAsync({ email: promoteEmail });
-      toast.success('User promoted to admin successfully');
+      toast.success(t('user_promoted'));
       setShowPromoteDialog(false);
       setPromoteEmail('');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to promote user');
+      toast.error(error.message || t('promote_failed'));
     }
   };
 
   const handleBanUser = async () => {
     if (!selectedUser || !banReason.trim()) {
-      toast.error('Please provide a ban reason');
+      toast.error(t('ban_reason_required'));
       return;
     }
 
@@ -90,12 +95,12 @@ export function AdminUsersList() {
           banned_reason: banReason
         }
       });
-      toast.success('User banned successfully');
+      toast.success(t('user_banned'));
       setShowBanDialog(false);
       setBanReason('');
       setSelectedUser(null);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to ban user');
+      toast.error(error.message || t('ban_failed'));
     }
   };
 
@@ -105,22 +110,22 @@ export function AdminUsersList() {
         userId: user.user_id,
         updates: { status: 'active' }
       });
-      toast.success('User unbanned successfully');
+      toast.success(t('user_unbanned'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to unban user');
+      toast.error(error.message || t('unban_failed'));
     }
   };
 
   const handleDeleteUser = async (user: AdminUser) => {
-    if (!confirm(`Are you sure you want to delete ${user.display_name || user.email}?`)) {
+    if (!confirm(t('delete_confirmation', { name: user.display_name || user.email || t('unknown_user') }))) {
       return;
     }
 
     try {
       await deleteUser.mutateAsync(user.user_id);
-      toast.success('User deleted successfully');
+      toast.success(t('user_deleted'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete user');
+      toast.error(error.message || t('delete_failed'));
     }
   };
 
@@ -145,8 +150,8 @@ export function AdminUsersList() {
     return (
       <Card className="bg-transparent p-2">
         <CardContent className="pt-6">
-          <div className="text-center text-red-600">
-            Failed to load users: {error.message}
+          <div className="text-center text-red-600 dark:text-red-400">
+            {t('error_loading', { message: error.message })}
           </div>
         </CardContent>
       </Card>
@@ -158,41 +163,83 @@ export function AdminUsersList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-gray-500">Manage all users in your system</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{t('page_title')}</h1>
+          <p className="text-gray-500 dark:text-gray-400">{t('page_description')}</p>
         </div>
         <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
           <DialogTrigger asChild>
             <Button>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Promote to Admin
+              <UserPlus className="h-4 w-4 mr-2 text-white" />
+              <span className="text-white">{t('promote_to_admin')}</span>
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Promote User to Admin</DialogTitle>
-              <DialogDescription>
-                Enter the email address of the user you want to promote to admin.
+          <DialogContent className="sm:max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl">
+            <DialogHeader className="space-y-4 pb-4">
+              <DialogTitle className="text-xl font-semibold text-center text-gray-900 dark:text-gray-100">
+                {t('promote_dialog_title')}
+              </DialogTitle>
+              <DialogDescription className="text-center text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                {t('promote_dialog_description')}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email Address</Label>
+            
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <Label 
+                  htmlFor="email" 
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                >
+                  <Mail className="h-4 w-4" />
+                  {t('email_label')}
+                </Label>
                 <Input
                   id="email"
                   type="email"
                   value={promoteEmail}
                   onChange={(e) => setPromoteEmail(e.target.value)}
-                  placeholder="user@example.com"
+                  placeholder={t('email_placeholder')}
+                  style={{ 
+                    color: '#000000',
+                    backgroundColor: '#ffffff'
+                  }}
+                  className="dark:text-white dark:bg-gray-800"
                 />
               </div>
+              
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <p className="font-medium mb-1">{t('important_notice_title')}</p>
+                    <p>{t('important_notice_description')}</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowPromoteDialog(false)}>
-                Cancel
+            
+            <DialogFooter className="pt-4 flex gap-3 sm:gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowPromoteDialog(false)}
+                className="flex-1 py-2.5 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                {t('cancel')}
               </Button>
-              <Button onClick={handlePromoteUser} disabled={promoteToAdmin.isPending}>
-                {promoteToAdmin.isPending ? 'Promoting...' : 'Promote to Admin'}
+              <Button 
+                onClick={handlePromoteUser} 
+                disabled={promoteToAdmin.isPending || !promoteEmail.trim()}
+              >
+                {promoteToAdmin.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    {t('promoting')}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-white">
+                    <Shield className="h-4 w-4" />
+                    {t('promote_button')}
+                  </div>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -202,17 +249,16 @@ export function AdminUsersList() {
       {/* Filters */}
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center text-gray-900 dark:text-gray-100">
             <Filter className="h-5 w-5 mr-2" />
-            Filters
+            {t('filters')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search users..."
+                placeholder={t('search_placeholder')}
                 className="pl-10"
                 value={filters.search || ''}
                 onChange={(e) => handleSearch(e.target.value)}
@@ -220,34 +266,34 @@ export function AdminUsersList() {
             </div>
             <Select value={filters.role || 'all'} onValueChange={(value) => handleFilterChange('role', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by role" />
+                <SelectValue placeholder={t('filter_by_role')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="tutor">Tutor</SelectItem>
-                <SelectItem value="student">Student</SelectItem>
+                <SelectItem value="all">{t('all_roles')}</SelectItem>
+                <SelectItem value="admin">{t('admin')}</SelectItem>
+                <SelectItem value="tutor">{t('tutor')}</SelectItem>
+                <SelectItem value="student">{t('student')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t('filter_by_status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="banned">Banned</SelectItem>
+                <SelectItem value="all">{t('all_status')}</SelectItem>
+                <SelectItem value="active">{t('active')}</SelectItem>
+                <SelectItem value="banned">{t('banned')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filters.limit?.toString() || '20'} onValueChange={(value) => handleFilterChange('limit', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Items per page" />
+                <SelectValue placeholder={t('items_per_page')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="10">10 per page</SelectItem>
-                <SelectItem value="20">20 per page</SelectItem>
-                <SelectItem value="50">50 per page</SelectItem>
-                <SelectItem value="100">100 per page</SelectItem>
+                <SelectItem value="10">{t('per_page_10')}</SelectItem>
+                <SelectItem value="20">{t('per_page_20')}</SelectItem>
+                <SelectItem value="50">{t('per_page_50')}</SelectItem>
+                <SelectItem value="100">{t('per_page_100')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -257,40 +303,45 @@ export function AdminUsersList() {
       {/* Users Table */}
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle>Users ({data?.pagination.total || 0})</CardTitle>
-          <CardDescription>
-            Showing {data?.users.length || 0} of {data?.pagination.total || 0} users
+          <CardTitle className="text-gray-900 dark:text-gray-100">
+            {t('users_count', { count: data?.data?.pagination.total || 0 })}
+          </CardTitle>
+          <CardDescription className="text-gray-500 dark:text-gray-400">
+            {t('showing_users', { 
+              shown: data?.data?.users.length || 0, 
+              total: data?.data?.pagination.total || 0 
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
+                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
               ))}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-gray-900 dark:text-gray-100">{t('table_user')}</TableHead>
+                  <TableHead className="text-gray-900 dark:text-gray-100">{t('table_role')}</TableHead>
+                  <TableHead className="text-gray-900 dark:text-gray-100">{t('table_status')}</TableHead>
+                  <TableHead className="text-gray-900 dark:text-gray-100">{t('table_points')}</TableHead>
+                  <TableHead className="text-gray-900 dark:text-gray-100">{t('table_joined')}</TableHead>
+                  <TableHead className="text-gray-900 dark:text-gray-100">{t('table_last_login')}</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-gray-100">{t('table_actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.users.map((user: AdminUser) => (
+                {data?.data?.users.map((user: AdminUser) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">
-                          {user.display_name || user.full_name || 'Unknown'}
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {user.display_name || user.full_name || t('unknown_user')}
                         </div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -303,7 +354,7 @@ export function AdminUsersList() {
                         {user.status}
                       </Badge>
                       {user.status === 'banned' && user.banned_reason && (
-                        <div className="text-xs text-red-600 mt-1">
+                        <div className="text-xs text-red-600 dark:text-red-400 mt-1">
                           {user.banned_reason}
                         </div>
                       )}
@@ -313,10 +364,12 @@ export function AdminUsersList() {
                       {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
                     </TableCell>
                     <TableCell>
-                      {user.last_login 
-                        ? formatDistanceToNow(new Date(user.last_login), { addSuffix: true })
-                        : 'Never'
-                      }
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {user.last_login 
+                          ? formatDistanceToNow(new Date(user.last_login), { addSuffix: true })
+                          : t('never_logged_in')
+                        }
+                      </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
@@ -362,27 +415,30 @@ export function AdminUsersList() {
           )}
 
           {/* Pagination */}
-          {data?.pagination && data.pagination.totalPages > 1 && (
+          {data?.data?.pagination && data.data.pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-500">
-                Page {data.pagination.page} of {data.pagination.totalPages}
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {t('page_info', { 
+                  current: data.data.pagination.page, 
+                  total: data.data.pagination.totalPages 
+                })}
               </div>
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={data.pagination.page <= 1}
+                  disabled={data.data.pagination.page <= 1}
                   onClick={() => setFilters(prev => ({ ...prev, page: prev.page! - 1 }))}
                 >
-                  Previous
+                  {t('previous')}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={data.pagination.page >= data.pagination.totalPages}
+                  disabled={data.data.pagination.page >= data.data.pagination.totalPages}
                   onClick={() => setFilters(prev => ({ ...prev, page: prev.page! + 1 }))}
                 >
-                  Next
+                  {t('next')}
                 </Button>
               </div>
             </div>
@@ -394,28 +450,30 @@ export function AdminUsersList() {
       <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ban User</DialogTitle>
+            <DialogTitle>{t('ban_dialog_title')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to ban {selectedUser?.display_name || selectedUser?.email}?
+              {t('ban_dialog_description', { 
+                name: selectedUser?.display_name || selectedUser?.email || t('unknown_user')
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="banReason">Reason for ban</Label>
+              <Label htmlFor="banReason">{t('ban_reason_label')}</Label>
               <Textarea
                 id="banReason"
                 value={banReason}
                 onChange={(e) => setBanReason(e.target.value)}
-                placeholder="Enter the reason for banning this user..."
+                placeholder={t('ban_reason_placeholder')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBanDialog(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button variant="destructive" onClick={handleBanUser} disabled={updateUser.isPending}>
-              {updateUser.isPending ? 'Banning...' : 'Ban User'}
+              {updateUser.isPending ? t('banning') : t('ban_button')}
             </Button>
           </DialogFooter>
         </DialogContent>

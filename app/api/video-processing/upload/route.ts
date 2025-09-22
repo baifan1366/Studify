@@ -47,6 +47,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User profile not found" }, { status: 404 });
     }
 
+    console.log('🔍 Profile debug info:', {
+      auth_user_id: authResult.payload.sub,
+      profile_id: profile.id,
+      profile_id_type: typeof profile.id
+    });
+
     // 2. Verify attachment exists and user has access
     const { data: attachment, error: attachmentError } = await client
       .from("course_attachments")
@@ -88,14 +94,15 @@ export async function POST(req: Request) {
       .insert([{
         attachment_id: attachment_id,
         user_id: authResult.payload.sub,
-        current_step: 'compress',
+        current_step: 'transcribe',
         status: 'pending',
         progress_percentage: 0,
         started_at: new Date().toISOString(),
         processing_metadata: {
           original_size: attachment.size,
           original_type: attachment.type,
-          original_title: attachment.title
+          original_title: attachment.title,
+          original_url: attachment.url
         }
       }])
       .select("*")
@@ -109,12 +116,17 @@ export async function POST(req: Request) {
     // 6. Initialize processing steps
     await client.rpc('initialize_video_processing_steps', { queue_id_param: newQueue.id });
 
-    // 7. Queue the first step (compression) with QStash
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app/';
-    const compressionEndpoint = `${baseUrl}/api/video-processing/steps/compress`;
+    // 7. Queue the first step (transcribe) with QStash
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app').replace(/\/$/, '');
+    const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
 
-    console.log('Queueing video compression for attachment:', attachment_id);
-    console.log('Compression endpoint:', compressionEndpoint);
+    console.log('🚀 [req_' + Date.now() + '] Video transcription queue setup');
+    console.log('🔗 [req_' + Date.now() + '] URL construction debug:', {
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      baseUrl: baseUrl,
+      finalEndpoint: transcribeEndpoint,
+      hasDoubleSlash: transcribeEndpoint.includes('//api/')
+    });
 
     // Validate QStash token before attempting to use it
     const qstashToken = process.env.QSTASH_TOKEN;
@@ -127,30 +139,51 @@ export async function POST(req: Request) {
     }
 
     try {
+      console.log('🚀 Starting QStash job creation...');
+      console.log('📋 QStash job details:', {
+        queueName: `video-processing-${authResult.payload.sub}`,
+        endpoint: transcribeEndpoint,
+        payload: {
+          queue_id: newQueue.id,
+          attachment_id: attachment_id,
+          user_id: authResult.payload.sub, // Use the UUID from auth, not profile.id
+          audio_url: attachment.url, // Use the original video URL directly
+          timestamp: new Date().toISOString(),
+        }
+      });
+
       // Use QStash queue manager for better video processing
       const queueManager = getQueueManager();
-      const queueName = `video-processing-${authResult.payload.sub}`;
+      // Use a simpler queue name without UUID to avoid issues
+      const userIdHash = authResult.payload.sub.replace(/-/g, '').substring(0, 12);
+      const queueName = `video_${userIdHash}`;
       
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
+      console.log('📦 Ensuring queue exists:', queueName);
       await queueManager.ensureQueue(queueName, 1);
+      console.log('✅ Queue ensured successfully');
 
-      // Enqueue the video processing job
+      // Enqueue the video processing job with improved retry configuration
+      console.log('📤 Enqueuing job to QStash...');
       const qstashResponse = await queueManager.enqueue(
         queueName,
-        compressionEndpoint,
+        transcribeEndpoint,
         {
           queue_id: newQueue.id,
           attachment_id: attachment_id,
-          user_id: authResult.payload.sub,
+          user_id: authResult.payload.sub, // Use the UUID from auth, not profile.id
+          audio_url: attachment.url, // Use the original video URL directly
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 3,
-          delay: '10s'
+          retries: 3 // Maximum retries allowed by QStash quota
         }
       );
 
+      console.log('✅ QStash enqueue response:', qstashResponse);
+
       // Update queue with QStash message ID
+      console.log('💾 Updating database with QStash message ID...');
       await client
         .from("video_processing_queue")
         .update({ 
@@ -159,7 +192,7 @@ export async function POST(req: Request) {
         })
         .eq("id", newQueue.id);
 
-      console.log('QStash compression job published:', qstashResponse.messageId);
+      console.log('✅ QStash transcription job published:', qstashResponse.messageId);
 
       // Send notification that processing has started
       await sendVideoProcessingNotification(authResult.payload.sub, {
@@ -167,12 +200,12 @@ export async function POST(req: Request) {
         queue_id: newQueue.id,
         attachment_title: attachment.title,
         status: 'started',
-        current_step: 'compress',
+        current_step: 'transcribe',
         progress_percentage: 0
       });
 
     } catch (qstashError: any) {
-      console.error('Failed to queue compression job:', qstashError);
+      console.error('Failed to queue transcription job:', qstashError);
       console.error('QStash error details:', {
         name: qstashError.name,
         message: qstashError.message,
@@ -185,39 +218,31 @@ export async function POST(req: Request) {
         .from("video_processing_queue")
         .update({ 
           status: 'failed',
-          error_message: 'Failed to queue compression job',
+          error_message: 'Failed to queue transcription job',
           error_details: { 
             qstash_error: qstashError.message,
             qstash_status: qstashError.status,
-            token_format: qstashToken.startsWith('eyJ') ? 'invalid_base64_credentials' : 'unknown'
+            token_format: qstashToken.startsWith('eyJ') ? 'base64_encoded' : 'unknown',
+            endpoint_url: transcribeEndpoint,
+            base_url: baseUrl
           }
         })
         .eq("id", newQueue.id);
 
       return NextResponse.json({
         error: "Failed to start video processing",
-        details: qstashError.status === 401 || qstashError.status === 403 
-          ? "QStash authentication failed - invalid token" 
-          : "QStash service unavailable",
-        debug_info: {
-          token_issue: qstashToken.startsWith('eyJ') ? 'Token appears to be base64 credentials instead of QStash token' : null,
-          error_status: qstashError.status,
-          suggestion: 'Get the correct QStash token from Upstash console'
-        }
-      }, { status: 503 });
+      }, { status: 500 });
     }
 
     return NextResponse.json({
       message: "Video processing started successfully",
       queue_id: newQueue.public_id,
       status: "processing",
-      current_step: "compress",
+      current_step: "transcribe",
       progress: 0,
-      estimated_completion_time: "5-10 minutes",
+      estimated_completion_time: "3-5 minutes",
       steps: [
-        { name: "compress", status: "processing", description: "Optimizing video file" },
-        { name: "audio_convert", status: "pending", description: "Converting to audio" },
-        { name: "transcribe", status: "pending", description: "Generating transcript" },
+        { name: "transcribe", status: "processing", description: "Generating transcript from video" },
         { name: "embed", status: "pending", description: "Creating AI embeddings" }
       ]
     }, { status: 202 });

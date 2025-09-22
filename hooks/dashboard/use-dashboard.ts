@@ -44,7 +44,7 @@ export function useDashboard() {
     queryKey: ['dashboard'],
     queryFn: async () => {
       const response = await api.get('/api/dashboard');
-      return response;
+      return response.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: true,

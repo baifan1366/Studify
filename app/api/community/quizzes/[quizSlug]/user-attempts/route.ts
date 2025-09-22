@@ -32,21 +32,26 @@ export async function GET(
     // 检查用户是否有权限（对于private quiz）
     let hasPermission = true;
     if (quiz.visibility === 'private' && !isAuthor) {
-      const { data: permission } = await supabase
+      const { data: perms } = await supabase
         .from("community_quiz_permission")
-        .select("id")
+        .select("permission_type")
         .eq("quiz_id", quiz.id)
-        .eq("user_id", userId)
-        .in("permission_type", ["attempt", "edit"])
-        .maybeSingle();
-      
-      hasPermission = !!permission;
+        .eq("user_id", userId);
+      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
+      let best: 'view'|'attempt'|'edit'|null = null;
+      if (perms && perms.length > 0) {
+        for (const p of perms) {
+          const t = p.permission_type as 'view'|'attempt'|'edit';
+          if (!best || order[t] > order[best]) best = t;
+        }
+      }
+      hasPermission = !!best && (best === 'attempt' || best === 'edit');
     }
 
-    // 获取用户的尝试次数
-    const { data: attempts, error: attemptsErr } = await supabase
+    // 获取用户的尝试次数 (包括所有状态用于分析)
+    const { data: allAttempts, error: attemptsErr } = await supabase
       .from("community_quiz_attempt")
-      .select("id")
+      .select("id, status")
       .eq("quiz_id", quiz.id)
       .eq("user_id", userId);
 
@@ -54,19 +59,27 @@ export async function GET(
       return NextResponse.json({ error: attemptsErr.message }, { status: 500 });
     }
 
-    const attemptCount = attempts?.length || 0;
+    // 分类统计尝试次数
+    const allAttemptsCount = allAttempts?.length || 0;
+    const completedAttempts = allAttempts?.filter(a => a.status === 'submitted' || a.status === 'graded') || [];
+    const inProgressAttempts = allAttempts?.filter(a => a.status === 'in_progress') || [];
+    const attemptCount = completedAttempts.length; // 用于限制检查的是已完成的尝试
     
     // 检查用户权限等级
-    let userPermission = null;
+    let userPermission: 'view'|'attempt'|'edit'|null = null;
     if (!isAuthor && quiz.visibility === 'private') {
-      const { data: permission } = await supabase
+      const { data: perms } = await supabase
         .from("community_quiz_permission")
         .select("permission_type")
         .eq("quiz_id", quiz.id)
-        .eq("user_id", userId)
-        .maybeSingle();
-      
-      userPermission = permission?.permission_type || null;
+        .eq("user_id", userId);
+      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
+      if (perms && perms.length > 0) {
+        for (const p of perms) {
+          const t = p.permission_type as 'view'|'attempt'|'edit';
+          if (!userPermission || order[t] > order[userPermission]) userPermission = t;
+        }
+      }
     }
 
     // 确定用户是否可以尝试quiz
@@ -93,12 +106,15 @@ export async function GET(
     }
 
     return NextResponse.json({
-      attemptCount,
+      attemptCount, // 已完成的尝试次数
+      allAttemptsCount, // 所有尝试次数
+      inProgressCount: inProgressAttempts.length, // 进行中的尝试数
       maxAttempts: quiz.max_attempts,
       canAttempt,
       accessReason,
       isAuthor,
       userPermission,
+      hasInProgressAttempt: inProgressAttempts.length > 0,
       quiz: {
         max_attempts: quiz.max_attempts,
         visibility: quiz.visibility,

@@ -6,7 +6,7 @@ import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
 import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
-import UserProfilePopover from '@/components/user-profile-popover';
+import UserProfilePopover from '@/components/admin/layout/user-profile-popover';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -51,7 +51,6 @@ export default function ClassroomHeader({
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
     >
       <div className="flex items-center justify-between h-full px-6">
-        {/* Left side - Menu Button and Title */}
         <div className="flex items-center gap-4">
           {/* Menu Toggle Button */}
           <motion.button
@@ -95,20 +94,11 @@ export default function ClassroomHeader({
         <div className="flex items-center gap-4">
           <ThemeSwitcher />
         </div>
-        {/* Right side - Actions */}
-        <motion.div
-          className="flex items-center space-x-4"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, duration: 0.3 }}
-        >
-
-          {/* Profile Button */}
-          <div className="relative">
+        <div className="flex items-center gap-4">
             <motion.button
               ref={profileButtonRef}
               onClick={handleProfileClick}
-              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
+              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -136,7 +126,6 @@ export default function ClassroomHeader({
               triggerRef={profileButtonRef}
             />
           </div>
-        </motion.div>
       </div>
     </motion.header>
   );

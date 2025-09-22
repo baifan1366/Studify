@@ -8,6 +8,7 @@ const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV !== "production",
+  exclude: [/OneSignalSDKWorker\.js$/], // Exclude OneSignal service worker from Serwist
 });
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
@@ -24,6 +25,20 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // Ensure OneSignal service worker is served correctly
+      {
+        source: '/OneSignalSDKWorker.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+        ],
+      },
       {
         source: "/api/:path*",
         headers: [

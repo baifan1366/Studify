@@ -3,28 +3,16 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Dialog, DialogDescription, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DocumentPreview } from '@/components/ui/document-preview'
+import MegaDocumentPreview from '@/components/attachment/mega-document-preview'
 import { toast } from 'sonner'
 
 interface PreviewAttachmentProps {
-  url: string
+  attachmentId: number
   onClose: () => void
-  attachmentId?: number
-  fileType?: 'pdf' | 'video' | 'image' | 'office' | 'text' | 'other'
 }
 
-export function PreviewAttachment({ url, onClose, attachmentId, fileType }: PreviewAttachmentProps) {
+export function PreviewAttachment({ attachmentId, onClose }: PreviewAttachmentProps) {
   const t = useTranslations('StorageDialog')
-
-  const handleDownload = () => {
-    try {
-      // Open the MEGA URL in a new tab for download
-      window.open(url, '_blank')
-      toast.success(t('download_started'))
-    } catch (error) {
-      toast.error(t('download_failed'))
-    }
-  }
 
 
   return (
@@ -37,11 +25,9 @@ export function PreviewAttachment({ url, onClose, attachmentId, fileType }: Prev
           </DialogDescription>
         </DialogHeader>
         <div className="overflow-auto max-h-[calc(90vh-8rem)]">
-          <DocumentPreview
-            url={url}
+          <MegaDocumentPreview
             attachmentId={attachmentId}
-            fileType={fileType}
-            onDownload={handleDownload}
+            className="w-full min-h-[400px]"
             showControls={true}
           />
         </div>

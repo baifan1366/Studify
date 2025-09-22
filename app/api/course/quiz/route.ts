@@ -10,7 +10,23 @@ export async function GET(request: NextRequest) {
     }
     
     const supabase = await createClient();
-    const user = authResult.user;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -42,7 +58,7 @@ export async function GET(request: NextRequest) {
       .from('course_enrollment')
       .select('id')
       .eq('course_id', lesson.course.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .single();
 
@@ -53,11 +69,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch quiz questions for the lesson
+    // Fetch quiz questions for the lesson using the actual lesson ID (not public_id)
     const { data: questions, error: questionsError } = await supabase
-      .from('course_quiz_questions')
+      .from('course_quiz_question')
       .select('*')
-      .eq('lesson_id', lessonId)
+      .eq('lesson_id', lesson.id)
       .eq('is_deleted', false)
       .order('position', { ascending: true });
 
@@ -71,9 +87,9 @@ export async function GET(request: NextRequest) {
     // Fetch user's previous submissions for these questions
     const questionIds = questions.map((q: any) => q.id);
     const { data: submissions, error: submissionsError } = await supabase
-      .from('course_quiz_submissions')
+      .from('course_quiz_submission')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .in('question_id', questionIds)
       .eq('is_deleted', false);
 

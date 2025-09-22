@@ -2,58 +2,10 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
-
-export interface AdminUser {
-  id: number;
-  public_id: string;
-  user_id: string;
-  display_name?: string;
-  full_name?: string;
-  email?: string;
-  role: 'admin' | 'student' | 'tutor';
-  status: 'active' | 'banned';
-  banned_reason?: string;
-  banned_at?: string;
-  points: number;
-  onboarded: boolean;
-  profile_completion: number;
-  created_at: string;
-  updated_at: string;
-  last_login?: string;
-}
-
-export interface AdminUserDetails extends AdminUser {
-  course_enrollment: { count: number }[];
-  classroom_member: { count: number }[];
-  community_post: { count: number }[];
-  community_comment: { count: number }[];
-  recentActivity: Array<{
-    action: string;
-    created_at: string;
-    meta: any;
-  }>;
-}
-
-export interface UsersResponse {
-  users: AdminUser[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-export interface UserFilters {
-  page?: number;
-  limit?: number;
-  role?: string;
-  status?: string;
-  search?: string;
-}
+import { AdminUser, AdminUserDetails, AdminUsersResponse, AdminUserFilters } from '@/interface/admin/admin-interface';
 
 // Get paginated users list
-export function useAdminUsers(filters: UserFilters = {}) {
+export function useAdminUsers(filters: AdminUserFilters = {}) {
   return useQuery({
     queryKey: ['admin', 'users', filters],
     queryFn: () => adminApi.getUsers(filters),

@@ -91,8 +91,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: 'courses', label: 'Courses', icon: BookOpen, path: '/admin/courses' },
           { id: 'community-posts', label: 'Community Posts', icon: MessageSquare, path: '/admin/community' },
-          { id: 'classrooms', label: 'Classrooms', icon: Users, path: '/admin/classrooms' },
-          { id: 'content-reports', label: 'Reports', icon: AlertTriangle, path: '/admin/reports' },
         ]
       },
       {
@@ -103,7 +101,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: 'user-reports', label: 'User Reports', icon: FileText, path: '/admin/reports/users' },
           { id: 'content-reports-detail', label: 'Content Reports', icon: FileText, path: '/admin/reports/content' },
-          { id: 'audit-logs', label: 'Audit Logs', icon: Activity, path: '/admin/reports/audit' },
         ]
       },
     ]

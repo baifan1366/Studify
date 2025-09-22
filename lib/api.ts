@@ -628,3 +628,26 @@ export const banApi = {
   delete: (banId: string) => `/api/ban/${banId}`,
   status: (banId: string) => `/api/ban/${banId}/status`,
 } as const;
+
+export const adminRoleApi = {
+  listRoles: "/api/roles",
+  getRolesById: (roleId: string) => `/api/roles/${roleId}`,
+  createRoles: "/api/roles",
+  updateRoles: (roleId: string) => `/api/roles/${roleId}`,
+  deleteRoles: (roleId: string) => `/api/roles/${roleId}`,
+  listPermissions: "/api/permissions",
+  getPermissionsById: (permissionId: string) => `/api/permissions/${permissionId}`,
+  createPermissions: "/api/permissions",
+  updatePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
+  deletePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
+  listRolePermissions: "/api/role_permissions",
+  getRolePermissionsById: (rolePermissionId: string) => `/api/role-permissions/${rolePermissionId}`,
+  createRolePermissions: "/api/role-permissions",
+  updateRolePermissions: (rolePermissionId: string) => `/api/role-permissions/${rolePermissionId}`,
+  deleteRolePermissions: (rolePermissionId: string) => `/api/role_permissions/${rolePermissionId}`,
+  listAdminRoles: "/api/admin/admin-role",
+  createAdminRoles: "/api/admin/admin-role",
+  getAdminRolesByAdminId: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+  updateAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+  deleteAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+} as const;

@@ -1701,7 +1701,11 @@
     "chooseModuleFromLeft": "Choose a module from the left panel to view its lessons and start learning.",
     "showModules": "Show Modules",
     "courseId": "Course ID",
-    "storage": "Storage"
+    "storage": "Storage",
+    "courseBanned": "This course has been banned",
+    "reason": "Reason",
+    "expiresAt": "Expires at",
+    "permanentBan": "This is a permanent ban"
   },
   "CourseModuleList": {
     "courseModules": "Course Modules",
@@ -1731,8 +1735,8 @@
     "moduleDeleted": "Module deleted successfully",
     "updateError": "Failed to update module. Please try again.",
     "deleteError": "Failed to delete module. Please try again.",
-    "activePendingCourseRestriction": "Cannot edit or delete modules while course is active or pending. Please set course to inactive first.",
-    "pendingCourseRestriction": "Cannot edit or delete modules while course is pending. Please set course to inactive first."
+    "activePendingCourseRestriction": "Cannot edit or delete modules while course is active, pending, or banned.",
+    "pendingCourseRestriction": "Cannot edit or delete modules while course is active, pending, or banned."
   },
   "CourseLessonGrid": {
     "courseLessons": "Course Lessons",
@@ -1776,7 +1780,7 @@
     "updateError": "Failed to update lesson. Please try again.",
     "lessonDeleted": "Lesson deleted successfully",
     "deleteError": "Failed to delete lesson. Please try again.",
-    "pendingCourseRestriction": "Cannot edit or delete lessons while course is pending. Please set course to inactive first.",
+    "pendingCourseRestriction": "Cannot edit or delete lessons while course is active, pending, or banned.",
     "edit": "Edit",
     "delete": "Delete",
     "deleteLessonConfirmation": "Are you sure you want to delete the lesson '{title}'? This action cannot be undone.",

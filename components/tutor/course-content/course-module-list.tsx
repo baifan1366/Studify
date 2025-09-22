@@ -55,7 +55,7 @@ interface CourseModuleListProps {
   courseId: number;
   onModuleSelect?: (moduleId: number) => void;
   selectedModuleId?: number;
-  courseStatus?: 'active' | 'pending' | 'inactive';
+  courseStatus?: 'active' | 'pending' | 'inactive' | 'ban';
 }
 
 export default function CourseModuleList({ 
@@ -92,7 +92,7 @@ export default function CourseModuleList({
     onModuleSelect?.(moduleId);
   };
 
-  const isEditDeleteDisabled = courseStatus === 'active' || courseStatus === 'pending';
+  const isEditDeleteDisabled = courseStatus === 'active' || courseStatus === 'pending' || courseStatus === 'ban';
 
   const handleEdit = (module: Module, e: React.MouseEvent) => {
     e.stopPropagation();

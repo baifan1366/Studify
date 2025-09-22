@@ -627,6 +627,7 @@ export const banApi = {
   update: (banId: string) => `/api/ban/${banId}`,
   delete: (banId: string) => `/api/ban/${banId}`,
   status: (banId: string) => `/api/ban/${banId}/status`,
+  getByTarget: (targetType: string, targetId: number) => `/api/ban/target/${targetType}/${targetId}`,
 } as const;
 
 export const adminRoleApi = {

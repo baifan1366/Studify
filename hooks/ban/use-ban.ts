@@ -32,6 +32,19 @@ export function useBanById(banId?: string) {
   });
 }
 
+export function useBanByTarget(targetType: string, targetId?: number) {
+  return useQuery<Ban[]>({
+    queryKey: ['ban', 'target', targetType, targetId],
+    queryFn: () => {
+      if (!targetId) {
+        throw new Error('Target ID is required');
+      }
+      return apiGet<Ban[]>(banApi.getByTarget(targetType, targetId));
+    },
+    enabled: Boolean(targetId && targetType),
+  });
+}
+
 export function useCreateBan() {
   const queryClient = useQueryClient();
 

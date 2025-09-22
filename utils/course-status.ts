@@ -3,7 +3,7 @@
  * Handles business logic for course status restrictions
  */
 
-export type CourseStatus = 'active' | 'pending' | 'inactive';
+export type CourseStatus = 'active' | 'pending' | 'inactive' | 'ban';
 
 /**
  * Check if course operations (edit/delete) are allowed based on status
@@ -34,8 +34,14 @@ export function canEditLessons(courseStatus: CourseStatus): boolean {
  * Tutors can only:
  * - Submit inactive courses for approval (inactive → pending)
  * - Change active courses back to inactive (active → inactive)
+ * Banned courses cannot be modified by tutors
  */
 export function canChangeStatus(currentStatus: CourseStatus, targetStatus: CourseStatus): boolean {
+  // Banned courses cannot be modified by tutors
+  if (currentStatus === 'ban') {
+    return false;
+  }
+  
   // Submit for approval: inactive → pending
   if (currentStatus === 'inactive' && targetStatus === 'pending') {
     return true;
@@ -60,6 +66,8 @@ export function getAvailableStatusTransitions(currentStatus: CourseStatus): Cour
       return ['inactive']; // Can deactivate
     case 'pending':
       return []; // Cannot change pending status (only admins can)
+    case 'ban':
+      return []; // Cannot change banned status (only admins can)
     default:
       return [];
   }
@@ -76,6 +84,8 @@ export function getStatusRestrictionMessage(status: CourseStatus): string {
       return 'This course is pending approval and cannot be modified';
     case 'inactive':
       return 'This course is inactive and can be modified';
+    case 'ban':
+      return 'This course has been banned and cannot be modified';
     default:
       return 'This course cannot be modified';
   }
@@ -107,6 +117,12 @@ export function getStatusDisplay(status: CourseStatus): {
         label: 'Inactive',
         color: 'text-gray-700',
         bgColor: 'bg-gray-100'
+      };
+    case 'ban':
+      return {
+        label: 'Banned',
+        color: 'text-red-700',
+        bgColor: 'bg-red-100'
       };
     default:
       return {

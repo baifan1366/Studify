@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, HardDrive } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, HardDrive, AlertTriangle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import { useSearchParams } from 'next/navigation';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useCourse } from '@/hooks/course/use-courses';
 import { useUser } from '@/hooks/profile/use-user';
+import { useBanByTarget } from '@/hooks/ban/use-ban';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function CourseDetails() {
   const t = useTranslations('CourseDetails');
@@ -27,6 +29,10 @@ export default function CourseDetails() {
   const [leftPanelWidth, setLeftPanelWidth] = useState(320); // Default width in pixels
   const { data: userData } = useUser();
   const userId = userData?.profile?.id || "0";
+  
+  // Get ban information if course status is 'ban'
+  const { data: banInfo } = useBanByTarget('course', courseId);
+  const activeBan = banInfo && banInfo.length > 0 ? banInfo[0] : null;
 
   const handleModuleSelect = (moduleId: number) => {
     setSelectedModuleId(moduleId);
@@ -162,6 +168,28 @@ export default function CourseDetails() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
+            {/* Ban Information Alert */}
+            {course?.status === 'ban' && activeBan && (
+              <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-red-800 dark:text-red-200">
+                  <div className="space-y-2">
+                    <div className="font-semibold">{t('courseBanned')}</div>
+                    <div><strong>{t('reason')}:</strong> {activeBan.reason}</div>
+                    {activeBan.expires_at && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span><strong>{t('expiresAt')}:</strong> {new Date(activeBan.expires_at).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {!activeBan.expires_at && (
+                      <div className="text-red-900 dark:text-red-100 font-medium">{t('permanentBan')}</div>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {selectedModuleId ? (
               <CourseLessonGrid
                 moduleId={selectedModuleId}

@@ -160,7 +160,8 @@ export default function CourseTable() {
                 return 'default';
             case 'pending':
                 return 'secondary';
-            case 'inactive':
+            case 'ban':
+                return 'destructive';
             default:
                 return 'outline';
         }
@@ -172,14 +173,15 @@ export default function CourseTable() {
                 return 'text-green-600 dark:text-green-400';
             case 'pending':
                 return 'text-yellow-600 dark:text-yellow-400';
-            case 'inactive':
+            case 'ban':
+                return 'text-white';
             default:
                 return 'text-gray-600 dark:text-gray-400';
         }
     };
 
     const isEditDeleteDisabled = (course: Course) => {
-        return course.status === 'active' || course.status === 'inactive';
+        return course.status === 'active' || course.status === 'inactive' || course.status === 'ban';
     };
 
     const handleChangeToInactive = async (course: Course) => {

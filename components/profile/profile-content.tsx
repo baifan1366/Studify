@@ -211,27 +211,25 @@ export default function ProfileContent() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
             >
-              <div className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+              <div className="bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
                 {/* Animated Background Elements */}
-                <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                  <motion.div
-                    className="absolute -top-4 -right-4 w-16 h-16 bg-blue-500/30 rounded-full blur-xl"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [0.3, 0.6, 0.3],
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  />
-                </div>
+                <motion.div
+                  className="fixed top-4 right-4 w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/30 rounded-full blur-xl pointer-events-none"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 0.6, 0.3],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
 
-                <div className="relative z-10 text-center">
+                <div className="text-center z-10">
                   {/* Avatar */}
-                  <div className="relative inline-block mb-4">
-                    <div className="w-32 h-32 rounded-full overflow-hidden bg-white/20 flex items-center justify-center mx-auto">
+                  <div className="inline-block mb-4">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-white/20 flex items-center justify-center mx-auto">
                       {avatarPreview ? (
                         <Image
                           src={avatarPreview}
@@ -254,19 +252,19 @@ export default function ProfileContent() {
                     </div>
                     <motion.button
                       onClick={handleAvatarChange}
-                      className="absolute bottom-2 right-2 w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white shadow-lg"
+                      className="mt-2 mx-auto w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white shadow-lg"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
-                      <Camera size={16} />
+                      <Camera size={14} className="sm:w-4 sm:h-4" />
                     </motion.button>
                   </div>
 
                   {/* User Info */}
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 truncate">
                     {userName}
                   </h2>
-                  <p className="text-white/70 mb-4">{userEmail}</p>
+                  <p className="text-white/70 mb-4 text-sm sm:text-base truncate">{userEmail}</p>
                   
                   {profile?.role && (
                     <span className="inline-block px-4 py-2 bg-white/20 rounded-full text-sm font-medium text-white capitalize mb-4">
@@ -301,58 +299,56 @@ export default function ProfileContent() {
               transition={{ delay: 0.4, duration: 0.6 }}
             >
               {/* Personal Information */}
-              <div className="relative bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                  <motion.div
-                    className="absolute -bottom-4 -left-4 w-20 h-20 bg-emerald-500/30 rounded-full blur-xl"
-                    animate={{
-                      scale: [1.2, 1, 1.2],
-                      opacity: [0.4, 0.2, 0.4],
-                    }}
-                    transition={{
-                      duration: 5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 1
-                    }}
-                  />
-                </div>
+              <div className="bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
+                <motion.div
+                  className="fixed bottom-4 left-4 w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500/30 rounded-full blur-xl pointer-events-none"
+                  animate={{
+                    scale: [1.2, 1, 1.2],
+                    opacity: [0.4, 0.2, 0.4],
+                  }}
+                  transition={{
+                    duration: 5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 1
+                  }}
+                />
 
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                      <User size={20} />
+                <div className="z-10">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                    <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
+                      <User size={18} className="sm:w-5 sm:h-5" />
                       {t('personal_info')}
                     </h3>
                     {!isEditing ? (
                       <motion.button
                         onClick={handleEdit}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-medium"
+                        className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-xs sm:text-sm font-medium self-start sm:self-auto"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Edit3 size={16} />
+                        <Edit3 size={14} className="sm:w-4 sm:h-4" />
                         {t('edit')}
                       </motion.button>
                     ) : (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <motion.button
                           onClick={handleSave}
                           disabled={updateProfileMutation.isPending}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium"
+                          className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-xs sm:text-sm font-medium"
                           whileHover={{ scale: updateProfileMutation.isPending ? 1 : 1.05 }}
                           whileTap={{ scale: updateProfileMutation.isPending ? 1 : 0.95 }}
                         >
-                          <Save size={16} />
+                          <Save size={14} className="sm:w-4 sm:h-4" />
                           {updateProfileMutation.isPending ? 'Saving...' : t('save')}
                         </motion.button>
                         <motion.button
                           onClick={handleCancel}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-white text-sm font-medium"
+                          className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-gray-600 hover:bg-gray-700 rounded-lg text-white text-xs sm:text-sm font-medium"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          <X size={16} />
+                          <X size={14} className="sm:w-4 sm:h-4" />
                           {t('cancel')}
                         </motion.button>
                       </div>
@@ -461,24 +457,22 @@ export default function ProfileContent() {
 
               {/* Interests Section */}
               {(broadField || subFields.length > 0) && (
-                <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                    <motion.div
-                      className="absolute -top-4 -right-4 w-16 h-16 bg-purple-500/30 rounded-full blur-xl"
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.3, 0.7, 0.3],
-                      }}
-                      transition={{
-                        duration: 6,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 2
-                      }}
-                    />
-                  </div>
+                <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
+                  <motion.div
+                    className="fixed top-4 right-4 w-12 h-12 sm:w-16 sm:h-16 bg-purple-500/30 rounded-full blur-xl pointer-events-none"
+                    animate={{
+                      scale: [1, 1.3, 1],
+                      opacity: [0.3, 0.7, 0.3],
+                    }}
+                    transition={{
+                      duration: 6,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: 2
+                    }}
+                  />
 
-                  <div className="relative z-10">
+                  <div className="z-10">
                     <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                       <Award size={20} />
                       {t('interests')} {/* You may need to add this to translations */}
@@ -523,50 +517,50 @@ export default function ProfileContent() {
               )}
 
               {/* Quick Actions */}
-              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6 mb-8">
-                <div className="relative z-10">
-                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <Settings size={20} />
+              <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-8 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <Settings size={18} className="sm:w-5 sm:h-5" />
                     {t('quick_actions')}
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     <motion.button
                       onClick={handleNavigateToCourses}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <BookOpen size={20} className="text-blue-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('my_courses')}</div>
-                        <div className="text-sm text-white/70">{t('view_enrolled')}</div>
+                      <BookOpen size={18} className="sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('my_courses')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_enrolled')}</div>
                       </div>
                     </motion.button>
 
                     <motion.button
                       onClick={handleNavigateToAchievements}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Award size={20} className="text-yellow-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('achievements')}</div>
-                        <div className="text-sm text-white/70">{t('view_badges')}</div>
+                      <Award size={18} className="sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('achievements')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_badges')}</div>
                       </div>
                     </motion.button>
 
                     <motion.button
                       onClick={handleNavigateToCommunity}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Users size={20} className="text-green-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('community')}</div>
-                        <div className="text-sm text-white/70">{t('join_groups')}</div>
+                      <Users size={18} className="sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('community')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('join_groups')}</div>
                       </div>
                     </motion.button>
                   </div>

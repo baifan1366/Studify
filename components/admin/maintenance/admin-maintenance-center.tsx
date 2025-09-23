@@ -8,11 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { 
   useSystemHealth,
   useSystemHealthAction,
@@ -43,10 +41,13 @@ import {
   Monitor,
   Cpu
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { useFormat } from '@/hooks/use-format';
+import { useTranslations } from 'next-intl';
 
 export function AdminMaintenanceCenter() {
+  const t = useTranslations('AdminMaintenanceCenter');
+  const { formatRelativeTime } = useFormat();
   const [selectedTab, setSelectedTab] = useState('health');
   const [queueType, setQueueType] = useState('all');
   const [cachePattern, setCachePattern] = useState('*');
@@ -66,36 +67,36 @@ export function AdminMaintenanceCenter() {
   const handleHealthAction = async (action: string, data?: any) => {
     try {
       await healthAction.mutateAsync({ action, ...data });
-      toast.success(`Health action "${action}" completed successfully`);
+      toast.success(t('health_action_success', { action }));
     } catch (error: any) {
-      toast.error(error.message || `Failed to perform health action`);
+      toast.error(error.message || t('health_action_failed'));
     }
   };
 
   const handleQueueAction = async (action: string, queueName?: string, items?: string[]) => {
     try {
       await queueAction.mutateAsync({ action, queueName, items });
-      toast.success(`Queue action "${action}" completed successfully`);
+      toast.success(t('queue_action_success', { action }));
     } catch (error: any) {
-      toast.error(error.message || `Failed to perform queue action`);
+      toast.error(error.message || t('queue_action_failed'));
     }
   };
 
   const handleCacheAction = async (action: string, data?: any) => {
     try {
       await cacheAction.mutateAsync({ action, ...data });
-      toast.success(`Cache action "${action}" completed successfully`);
+      toast.success(t('cache_action_success', { action }));
     } catch (error: any) {
-      toast.error(error.message || `Failed to perform cache action`);
+      toast.error(error.message || t('cache_action_failed'));
     }
   };
 
   const handleFeatureFlagToggle = async (flagKey: string, enabled: boolean) => {
     try {
       await flagAction.mutateAsync({ action: 'toggle_flag', flagKey, enabled });
-      toast.success(`Feature flag "${flagKey}" ${enabled ? 'enabled' : 'disabled'}`);
+      toast.success(t('feature_flag_toggled', { flagKey, status: enabled ? t('enabled') : t('disabled') }));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to toggle feature flag');
+      toast.error(error.message || t('failed_to_toggle_feature_flag'));
     }
   };
 
@@ -123,24 +124,24 @@ export function AdminMaintenanceCenter() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            System Maintenance Center
+            {t('page_title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Monitor system health, manage queues, cache, and feature flags
+            {t('page_subtitle')}
           </p>
         </div>
         <Button onClick={() => handleHealthAction('force_health_check')}>
           <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh All
+          {t('refresh_all')}
         </Button>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="grid grid-cols-4 w-full">
-          <TabsTrigger value="health">System Health</TabsTrigger>
-          <TabsTrigger value="queues">Queue Monitor</TabsTrigger>
-          <TabsTrigger value="cache">Cache Management</TabsTrigger>
-          <TabsTrigger value="features">Feature Flags</TabsTrigger>
+          <TabsTrigger value="health">{t('system_health')}</TabsTrigger>
+          <TabsTrigger value="queues">{t('queue_monitor')}</TabsTrigger>
+          <TabsTrigger value="cache">{t('cache_management')}</TabsTrigger>
+          <TabsTrigger value="features">{t('feature_flags')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="space-y-6">
@@ -149,7 +150,7 @@ export function AdminMaintenanceCenter() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Activity className="h-5 w-5 mr-2" />
-                System Health Overview
+                {t('system_health_overview')}
                 <Badge 
                   className={`ml-2 ${
                     systemHealth?.data?.overall === 'healthy' ? 'bg-green-100 text-green-800' :
@@ -157,11 +158,11 @@ export function AdminMaintenanceCenter() {
                     'bg-red-100 text-red-800'
                   }`}
                 >
-                  {systemHealth?.data?.overall || 'Unknown'}
+                  {systemHealth?.data?.overall ? t(systemHealth.data.overall) : t('unknown')}
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Current system status and service health metrics
+                {t('current_system_status')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -178,15 +179,15 @@ export function AdminMaintenanceCenter() {
                     <CardContent>
                       <div className="space-y-1">
                         <div className="text-xs text-muted-foreground">
-                          Response Time: {info.responseTime ? `${info.responseTime}ms` : 'N/A'}
+                          {t('response_time')}: {info.responseTime ? `${info.responseTime}ms` : t('n_a')}
                         </div>
                         {info.error && (
                           <div className="text-xs text-red-600">
-                            Error: {info.error}
+                            {t('error')}: {info.error}
                           </div>
                         )}
                         <div className="text-xs text-muted-foreground">
-                          Last Check: {formatDistanceToNow(new Date(info.lastCheck), { addSuffix: true })}
+                          {t('last_check')}: {formatRelativeTime(info.lastCheck)}
                         </div>
                       </div>
                     </CardContent>
@@ -198,7 +199,7 @@ export function AdminMaintenanceCenter() {
               {systemHealth?.data?.performance && (
                 <Card className="border">
                   <CardHeader>
-                    <CardTitle className="text-sm">Performance Metrics</CardTitle>
+                    <CardTitle className="text-sm">{t('performance_metrics')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-4 md:grid-cols-4">
@@ -206,25 +207,25 @@ export function AdminMaintenanceCenter() {
                         <div className="text-2xl font-bold">
                           {Math.round(systemHealth.data.performance.apiResponseTime)}ms
                         </div>
-                        <div className="text-xs text-muted-foreground">API Response</div>
+                        <div className="text-xs text-muted-foreground">{t('api_response')}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold">
                           {Math.round(systemHealth.data.performance.systemLoad)}%
                         </div>
-                        <div className="text-xs text-muted-foreground">System Load</div>
+                        <div className="text-xs text-muted-foreground">{t('system_load')}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold">
                           {Math.round(systemHealth.data.performance.memoryUsage?.used || 0)}%
                         </div>
-                        <div className="text-xs text-muted-foreground">Memory Used</div>
+                        <div className="text-xs text-muted-foreground">{t('memory_used')}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold">
                           {Math.round(systemHealth.data.performance.cpuUsage)}%
                         </div>
-                        <div className="text-xs text-muted-foreground">CPU Usage</div>
+                        <div className="text-xs text-muted-foreground">{t('cpu_usage')}</div>
                       </div>
                     </div>
                   </CardContent>
@@ -239,7 +240,7 @@ export function AdminMaintenanceCenter() {
                   disabled={healthAction.isPending}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Force Health Check
+                  {t('force_health_check')}
                 </Button>
                 <Button 
                   size="sm" 
@@ -248,7 +249,7 @@ export function AdminMaintenanceCenter() {
                   disabled={healthAction.isPending}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Redis Cache
+                  {t('clear_redis_cache')}
                 </Button>
               </div>
             </CardContent>
@@ -261,10 +262,10 @@ export function AdminMaintenanceCenter() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Database className="h-5 w-5 mr-2" />
-                Queue Monitor
+                {t('queue_monitor')}
               </CardTitle>
               <CardDescription>
-                Monitor and manage system processing queues
+                {t('monitor_system_queues')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -274,9 +275,9 @@ export function AdminMaintenanceCenter() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Queues</SelectItem>
-                    <SelectItem value="database">Database Queues</SelectItem>
-                    <SelectItem value="processing">Processing Queues</SelectItem>
+                    <SelectItem value="all">{t('all_queues')}</SelectItem>
+                    <SelectItem value="database">{t('database_queues')}</SelectItem>
+                    <SelectItem value="processing">{t('processing_queues')}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -287,7 +288,7 @@ export function AdminMaintenanceCenter() {
                     disabled={queueAction.isPending}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Retry Failed
+                    {t('retry_failed')}
                   </Button>
                   <Button 
                     size="sm" 
@@ -296,7 +297,7 @@ export function AdminMaintenanceCenter() {
                     disabled={queueAction.isPending}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Purge Completed
+                    {t('purge_completed')}
                   </Button>
                 </div>
               </div>
@@ -304,17 +305,17 @@ export function AdminMaintenanceCenter() {
               {/* QStash Queues */}
               {queueMonitor?.data?.qstash?.queues && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-medium mb-2">QStash Queues</h4>
+                  <h4 className="text-sm font-medium mb-2">{t('qstash_queues')}</h4>
                   <div className="grid gap-2 md:grid-cols-3">
                     {queueMonitor.data.qstash.queues.map((queue: any) => (
                       <Card key={queue.name} className="border">
                         <CardContent className="p-3">
                           <div className="text-sm font-medium">{queue.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            Parallelism: {queue.details?.parallelism || 'N/A'}
+                            {t('parallelism')}: {queue.details?.parallelism || t('n_a')}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Lag: {queue.details?.lag || 0}
+                            {t('lag')}: {queue.details?.lag || 0}
                           </div>
                         </CardContent>
                       </Card>
@@ -326,13 +327,13 @@ export function AdminMaintenanceCenter() {
               {/* Database Queues */}
               {queueMonitor?.data?.database && (
                 <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Database Queues</h4>
+                  <h4 className="text-sm font-medium">{t('database_queues')}</h4>
                   
                   {/* Video Processing */}
                   {queueMonitor.data.database.videoProcessing && (
                     <Card className="border">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Video Processing Queue</CardTitle>
+                        <CardTitle className="text-sm">{t('video_processing_queue')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-2 md:grid-cols-5 mb-3">
@@ -340,31 +341,31 @@ export function AdminMaintenanceCenter() {
                             <div className="text-lg font-bold text-blue-600">
                               {queueMonitor.data.database.videoProcessing.stats.pending}
                             </div>
-                            <div className="text-xs">Pending</div>
+                            <div className="text-xs">{t('pending')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-yellow-600">
                               {queueMonitor.data.database.videoProcessing.stats.processing}
                             </div>
-                            <div className="text-xs">Processing</div>
+                            <div className="text-xs">{t('processing')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-green-600">
                               {queueMonitor.data.database.videoProcessing.stats.completed}
                             </div>
-                            <div className="text-xs">Completed</div>
+                            <div className="text-xs">{t('completed')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-red-600">
                               {queueMonitor.data.database.videoProcessing.stats.failed}
                             </div>
-                            <div className="text-xs">Failed</div>
+                            <div className="text-xs">{t('failed')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold">
                               {Math.round(queueMonitor.data.database.videoProcessing.avgProcessingTime / 1000)}s
                             </div>
-                            <div className="text-xs">Avg Time</div>
+                            <div className="text-xs">{t('avg_time')}</div>
                           </div>
                         </div>
                       </CardContent>
@@ -375,7 +376,7 @@ export function AdminMaintenanceCenter() {
                   {queueMonitor.data.database.embedding && (
                     <Card className="border">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Embedding Queue</CardTitle>
+                        <CardTitle className="text-sm">{t('embedding_queue')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-2 md:grid-cols-4 mb-3">
@@ -383,25 +384,25 @@ export function AdminMaintenanceCenter() {
                             <div className="text-lg font-bold text-blue-600">
                               {queueMonitor.data.database.embedding.stats.queued}
                             </div>
-                            <div className="text-xs">Queued</div>
+                            <div className="text-xs">{t('queued')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-yellow-600">
                               {queueMonitor.data.database.embedding.stats.processing}
                             </div>
-                            <div className="text-xs">Processing</div>
+                            <div className="text-xs">{t('processing')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-green-600">
                               {queueMonitor.data.database.embedding.stats.completed}
                             </div>
-                            <div className="text-xs">Completed</div>
+                            <div className="text-xs">{t('completed')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-red-600">
                               {queueMonitor.data.database.embedding.stats.failed}
                             </div>
-                            <div className="text-xs">Failed</div>
+                            <div className="text-xs">{t('failed')}</div>
                           </div>
                         </div>
                       </CardContent>
@@ -419,16 +420,16 @@ export function AdminMaintenanceCenter() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <HardDrive className="h-5 w-5 mr-2" />
-                Cache Management
+                {t('cache_management')}
               </CardTitle>
               <CardDescription>
-                Monitor and manage Redis cache
+                {t('monitor_redis_cache')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
                 <Input
-                  placeholder="Cache key pattern (e.g., user:*, session:*)"
+                  placeholder={t('cache_key_pattern_placeholder')}
                   value={cachePattern}
                   onChange={(e) => setCachePattern(e.target.value)}
                   className="w-64"
@@ -440,7 +441,7 @@ export function AdminMaintenanceCenter() {
                     disabled={cacheAction.isPending}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Clear All
+                    {t('clear_all')}
                   </Button>
                   <Button 
                     size="sm" 
@@ -449,7 +450,7 @@ export function AdminMaintenanceCenter() {
                     disabled={cacheAction.isPending}
                   >
                     <Zap className="h-4 w-4 mr-2" />
-                    Optimize
+                    {t('optimize')}
                   </Button>
                 </div>
               </div>
@@ -462,7 +463,7 @@ export function AdminMaintenanceCenter() {
                       <div className="text-2xl font-bold">
                         {cacheData.data.statistics.totalKeys || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">Total Keys</div>
+                      <div className="text-xs text-muted-foreground">{t('total_keys')}</div>
                     </CardContent>
                   </Card>
                   <Card className="border">
@@ -470,15 +471,15 @@ export function AdminMaintenanceCenter() {
                       <div className="text-2xl font-bold">
                         {Math.round(cacheData.data.statistics.hitRate || 0)}%
                       </div>
-                      <div className="text-xs text-muted-foreground">Hit Rate</div>
+                      <div className="text-xs text-muted-foreground">{t('hit_rate')}</div>
                     </CardContent>
                   </Card>
                   <Card className="border">
                     <CardContent className="p-3">
                       <div className="text-2xl font-bold">
-                        {cacheData.data.memory?.used || 'N/A'}
+                        {cacheData.data.memory?.used || t('n_a')}
                       </div>
-                      <div className="text-xs text-muted-foreground">Memory Used</div>
+                      <div className="text-xs text-muted-foreground">{t('memory_used')}</div>
                     </CardContent>
                   </Card>
                   <Card className="border">
@@ -486,7 +487,7 @@ export function AdminMaintenanceCenter() {
                       <div className="text-2xl font-bold">
                         {cacheData.data.statistics.connectedClients || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">Connections</div>
+                      <div className="text-xs text-muted-foreground">{t('connections')}</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -496,11 +497,11 @@ export function AdminMaintenanceCenter() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Key</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>TTL</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('key')}</TableHead>
+                    <TableHead>{t('type')}</TableHead>
+                    <TableHead>{t('ttl')}</TableHead>
+                    <TableHead>{t('size')}</TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -535,25 +536,25 @@ export function AdminMaintenanceCenter() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Flag className="h-5 w-5 mr-2" />
-                Feature Flags
+                {t('feature_flags')}
               </CardTitle>
               <CardDescription>
-                Control feature rollouts and system toggles
+                {t('control_feature_rollouts')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
                 <Select value={featureFlagCategory} onValueChange={setFeatureFlagCategory}>
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="All Categories" />
+                    <SelectValue placeholder={t('all_categories')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
-                    <SelectItem value="core">Core</SelectItem>
-                    <SelectItem value="ai">AI Features</SelectItem>
-                    <SelectItem value="classroom">Classroom</SelectItem>
-                    <SelectItem value="community">Community</SelectItem>
-                    <SelectItem value="commerce">Commerce</SelectItem>
+                    <SelectItem value="">{t('all_categories')}</SelectItem>
+                    <SelectItem value="core">{t('core')}</SelectItem>
+                    <SelectItem value="ai">{t('ai_features')}</SelectItem>
+                    <SelectItem value="classroom">{t('classroom')}</SelectItem>
+                    <SelectItem value="community">{t('community')}</SelectItem>
+                    <SelectItem value="commerce">{t('commerce')}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -564,7 +565,7 @@ export function AdminMaintenanceCenter() {
                   disabled={flagAction.isPending}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Reset to Defaults
+                  {t('reset_to_defaults')}
                 </Button>
               </div>
 
@@ -572,11 +573,11 @@ export function AdminMaintenanceCenter() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Feature</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Environment</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('feature')}</TableHead>
+                    <TableHead>{t('category')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead>{t('environment')}</TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -599,7 +600,7 @@ export function AdminMaintenanceCenter() {
                             onCheckedChange={(enabled) => handleFeatureFlagToggle(key, enabled)}
                           />
                           <span className={feature.enabled ? 'text-green-600' : 'text-gray-600'}>
-                            {feature.enabled ? 'Enabled' : 'Disabled'}
+                            {feature.enabled ? t('enabled') : t('disabled')}
                           </span>
                         </div>
                       </TableCell>

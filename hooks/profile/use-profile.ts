@@ -19,10 +19,10 @@ export function useUserProfile() {
 /**
  * Hook for fetching full profile data with all settings
  */
-export function useFullProfile() {
+export function useFullProfile(profileId: string) {
   return useQuery<any>({
     queryKey: ["profile", "full"],
-    queryFn: () => apiGet<any>('/api/profile'),
+    queryFn: () => apiGet<any>(`/api/profile/${profileId}`),
     staleTime: 5 * 60 * 1000,  // 5 minutes
     gcTime: 10 * 60 * 1000,    // 10 minutes
   });
@@ -31,13 +31,13 @@ export function useFullProfile() {
 /**
  * Hook for updating user profile information
  */
-export function useUpdateProfile() {
+export function useUpdateProfile(profileId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<any, Error, Record<string, any>>({
     mutationFn: (profileData) =>
       apiSend({
-        url: '/api/profile',
+        url: `/api/profile/${profileId}`,
         method: 'PATCH',
         body: profileData,
       }),

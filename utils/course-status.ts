@@ -3,7 +3,7 @@
  * Handles business logic for course status restrictions
  */
 
-export type CourseStatus = 'active' | 'pending' | 'inactive';
+export type CourseStatus = 'active' | 'pending' | 'inactive' | 'ban' | 'rejected';
 
 /**
  * Check if course operations (edit/delete) are allowed based on status
@@ -34,8 +34,15 @@ export function canEditLessons(courseStatus: CourseStatus): boolean {
  * Tutors can only:
  * - Submit inactive courses for approval (inactive → pending)
  * - Change active courses back to inactive (active → inactive)
+ * - Acknowledge rejected courses (rejected → inactive)
+ * Banned courses cannot be modified by tutors
  */
 export function canChangeStatus(currentStatus: CourseStatus, targetStatus: CourseStatus): boolean {
+  // Banned courses cannot be modified by tutors
+  if (currentStatus === 'ban') {
+    return false;
+  }
+  
   // Submit for approval: inactive → pending
   if (currentStatus === 'inactive' && targetStatus === 'pending') {
     return true;
@@ -43,6 +50,11 @@ export function canChangeStatus(currentStatus: CourseStatus, targetStatus: Cours
   
   // Deactivate course: active → inactive
   if (currentStatus === 'active' && targetStatus === 'inactive') {
+    return true;
+  }
+  
+  // Acknowledge rejection: rejected → inactive
+  if (currentStatus === 'rejected' && targetStatus === 'inactive') {
     return true;
   }
   
@@ -58,8 +70,12 @@ export function getAvailableStatusTransitions(currentStatus: CourseStatus): Cour
       return ['pending']; // Can submit for approval
     case 'active':
       return ['inactive']; // Can deactivate
+    case 'rejected':
+      return ['inactive']; // Can acknowledge rejection
     case 'pending':
       return []; // Cannot change pending status (only admins can)
+    case 'ban':
+      return []; // Cannot change banned status (only admins can)
     default:
       return [];
   }
@@ -76,6 +92,10 @@ export function getStatusRestrictionMessage(status: CourseStatus): string {
       return 'This course is pending approval and cannot be modified';
     case 'inactive':
       return 'This course is inactive and can be modified';
+    case 'rejected':
+      return 'This course has been rejected and cannot be modified until acknowledged';
+    case 'ban':
+      return 'This course has been banned and cannot be modified';
     default:
       return 'This course cannot be modified';
   }
@@ -107,6 +127,18 @@ export function getStatusDisplay(status: CourseStatus): {
         label: 'Inactive',
         color: 'text-gray-700',
         bgColor: 'bg-gray-100'
+      };
+    case 'rejected':
+      return {
+        label: 'Rejected',
+        color: 'text-orange-700',
+        bgColor: 'bg-orange-100'
+      };
+    case 'ban':
+      return {
+        label: 'Banned',
+        color: 'text-red-700',
+        bgColor: 'bg-red-100'
       };
     default:
       return {

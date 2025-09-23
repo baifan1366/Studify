@@ -146,9 +146,12 @@ CREATE TABLE IF NOT EXISTS action (
 CREATE TABLE IF NOT EXISTS ban (
   id bigserial PRIMARY KEY,
   public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint REFERENCES profiles(id) ON DELETE CASCADE,
+  target_id bigint NOT NULL,
   reason text,
+  target_type text NOT NULL CHECK (target_type IN ('post', 'chat', 'comment', 'course', 'user', 'other')) DEFAULT 'user',
+  status text NOT NULL CHECK (status IN ('approved','pending', 'rejected')) DEFAULT 'pending',
   expires_at timestamptz,
+  message text,
   is_deleted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -235,7 +238,8 @@ CREATE TABLE IF NOT EXISTS course (
   average_rating numeric(3,2) DEFAULT 0,
   total_students int DEFAULT 0,
   is_free boolean NOT NULL DEFAULT false,
-  status text CHECK(status IN ('active', 'pending', 'inactive')) DEFAULT 'inactive',
+  status text CHECK(status IN ('active', 'pending', 'inactive', 'ban', 'rejected')) DEFAULT 'inactive',
+  rejected_message text,
   community_group_public_id UUID, -- Forward reference, will be created later
   is_deleted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -851,15 +855,6 @@ CREATE TABLE IF NOT EXISTS community_quiz_permission (
   UNIQUE(quiz_id, user_id, permission_type)
 );
 
-CREATE TABLE IF NOT EXISTS community_quiz_invite_token (
-  id bigserial PRIMARY KEY,
-  token text UNIQUE NOT NULL,
-  quiz_id bigint NOT NULL REFERENCES community_quiz(id),
-  permission_type text NOT NULL CHECK (permission_type IN ('view', 'attempt', 'edit')),
-  created_by uuid NOT NULL REFERENCES auth.users(id),
-  created_at timestamptz not null default now(),
-);
-
 -- Add unique index on (quiz_id, user_id)
 create unique index if not exists uq_cqp_quiz_user
 on community_quiz_permission (quiz_id, user_id);
@@ -1421,15 +1416,44 @@ COMMENT ON COLUMN community_quiz_session.time_spent_seconds IS 'Total time spent
 COMMENT ON COLUMN community_quiz_session.current_question_index IS 'Current question index (0-based) for progress tracking';
 COMMENT ON COLUMN community_quiz_session.browser_info IS 'Browser and client information for session validation';
 
--- =========================
--- Currency System
--- =========================
-CREATE TABLE currencies (
-    id bigserial PRIMARY KEY,
-    code CHAR(3) UNIQUE NOT NULL,
-    name VARCHAR(100),
-    country VARCHAR(100),
-    symbol VARCHAR(10),
-    rate_to_usd DECIMAL(15,6),
-    updated_at timestamptz NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS roles (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS role_permission (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  role_id bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  permission_id bigint NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS admin_roles (
+  id bigserial PRIMARY KEY,
+  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  role_permission_id bigint NOT NULL REFERENCES role_permission(id) ON DELETE CASCADE,
+  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  is_deleted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
 );

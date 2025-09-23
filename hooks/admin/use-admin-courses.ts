@@ -111,11 +111,11 @@ export function useRejectCourse() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ courseId, reason }: {
+    mutationFn: async ({ courseId, rejected_message }: {
       courseId: string;
-      reason: string;
+      rejected_message: string;
     }) => {
-      return adminApi.rejectCourse(courseId, reason);
+      return adminApi.rejectCourse(courseId, rejected_message);
     },
     onSuccess: (data, variables) => {
       toast.success('Course rejected successfully');

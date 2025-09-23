@@ -18,8 +18,10 @@ import {
 } from 'lucide-react';
 import { useAdminCourseAnalytics } from '@/hooks/admin/use-admin-courses';
 import { useFormat } from '@/hooks/use-format';
+import { useTranslations } from 'next-intl';
 
 export default function AdminCoursesStats() {
+  const t = useTranslations('AdminCoursesStats');
   const { formatNumber } = useFormat();
   const { data: analytics, isLoading, error } = useAdminCourseAnalytics(30);
 
@@ -43,7 +45,7 @@ export default function AdminCoursesStats() {
         <CardContent className="flex items-center justify-center h-24">
           <div className="text-center">
             <BookOpen className="h-6 w-6 text-destructive mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Failed to load stats</p>
+            <p className="text-sm text-muted-foreground">{t('failed_to_load_stats')}</p>
           </div>
         </CardContent>
       </Card>
@@ -52,33 +54,33 @@ export default function AdminCoursesStats() {
 
   const statCards = [
     {
-      title: 'Total Courses',
+      title: t('total_courses'),
       value: analytics.overview.totalCourses,
-      description: 'All courses in system',
+      description: t('all_courses_in_system'),
       icon: BookOpen,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
     },
     {
-      title: 'Active Courses',
+      title: t('active_courses'),
       value: analytics.overview.activeCourses,
-      description: 'Published & available',
+      description: t('published_available'),
       icon: CheckCircle,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
     },
     {
-      title: 'Pending Review',
+      title: t('pending_review'),
       value: analytics.overview.pendingCourses,
-      description: 'Awaiting approval',
+      description: t('awaiting_approval'),
       icon: Clock,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50',
     },
     {
-      title: 'Total Students',
+      title: t('total_students'),
       value: analytics.overview.totalEnrollments,
-      description: 'Enrolled students',
+      description: t('enrolled_students'),
       icon: Users,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
@@ -119,23 +121,23 @@ export default function AdminCoursesStats() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Revenue Overview
+              {t('revenue_overview')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Total Revenue</span>
+                <span className="text-sm text-muted-foreground">{t('total_revenue')}</span>
                 <span className="font-medium">
                   ${formatNumber(analytics.overview.totalRevenue, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Transactions</span>
+                <span className="text-sm text-muted-foreground">{t('transactions')}</span>
                 <span className="font-medium">{analytics.overview.totalTransactions}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Avg. per Transaction</span>
+                <span className="text-sm text-muted-foreground">{t('avg_per_transaction')}</span>
                 <span className="font-medium">
                   ${analytics.overview.totalTransactions > 0 
                     ? formatNumber(analytics.overview.totalRevenue / analytics.overview.totalTransactions, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -152,21 +154,21 @@ export default function AdminCoursesStats() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Enrollment Stats
+              {t('enrollment_stats')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Active Enrollments</span>
+                <span className="text-sm text-muted-foreground">{t('active_enrollments')}</span>
                 <span className="font-medium">{analytics.overview.activeEnrollments}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Completed</span>
+                <span className="text-sm text-muted-foreground">{t('completed')}</span>
                 <span className="font-medium">{analytics.overview.completedEnrollments}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Completion Rate</span>
+                <span className="text-sm text-muted-foreground">{t('completion_rate')}</span>
                 <span className="font-medium">
                   {analytics.overview.totalEnrollments > 0
                     ? formatNumber((analytics.overview.completedEnrollments / analytics.overview.totalEnrollments) * 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -183,9 +185,9 @@ export default function AdminCoursesStats() {
       {analytics.topCourses.length > 0 && (
         <Card className="bg-transparent p-2">
           <CardHeader>
-            <CardTitle>Top Performing Courses</CardTitle>
+            <CardTitle>{t('top_performing_courses')}</CardTitle>
             <CardDescription>
-              Courses with the highest student enrollment
+              {t('highest_enrollment_courses')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -204,9 +206,9 @@ export default function AdminCoursesStats() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{course.total_students} students</p>
+                    <p className="text-sm font-medium">{t('students_count', { count: course.total_students })}</p>
                     <p className="text-xs text-muted-foreground">
-                      ⭐ {course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'} • {course.total_lessons} lessons
+                      ⭐ {course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : t('n_a')} • {t('lessons_count', { count: course.total_lessons })}
                     </p>
                   </div>
                 </div>
@@ -220,9 +222,9 @@ export default function AdminCoursesStats() {
       {analytics.pendingCourses.length > 0 && (
         <Card className="bg-transparent p-2">
           <CardHeader>
-            <CardTitle>Courses Awaiting Review</CardTitle>
+            <CardTitle>{t('courses_awaiting_review')}</CardTitle>
             <CardDescription>
-              Courses submitted for approval
+              {t('courses_submitted_approval')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -237,7 +239,7 @@ export default function AdminCoursesStats() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">
-                      Submitted {new Date(course.created_at).toLocaleDateString()}
+                      {t('submitted_date', { date: new Date(course.created_at).toLocaleDateString() })}
                     </p>
                   </div>
                 </div>

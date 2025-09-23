@@ -379,8 +379,8 @@ export const adminApi = {
     api.delete(`/api/admin/courses/${courseId}`),
   approveCourse: (courseId: string, notes?: string) => 
     api.post(`/api/admin/courses/${courseId}/approve`, { notes }),
-  rejectCourse: (courseId: string, reason: string) => 
-    api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
+  rejectCourse: (courseId: string, rejected_message: string) => 
+    api.patch(`/api/admin/courses/${courseId}/approve`, { rejected_message }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
   
@@ -620,3 +620,35 @@ export const videoEmbeddingsApi = {
   delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
 } as const;
 
+export const banApi = {
+  list: "/api/ban",
+  getById: (banId: string) => `/api/ban/${banId}`,
+  create: "/api/ban",
+  update: (banId: string) => `/api/ban/${banId}`,
+  delete: (banId: string) => `/api/ban/${banId}`,
+  status: (banId: string) => `/api/ban/${banId}/status`,
+  getByTarget: (targetType: string, targetId: number) => `/api/ban/target/${targetType}/${targetId}`,
+} as const;
+
+export const adminRoleApi = {
+  listRoles: "/api/roles",
+  getRolesById: (roleId: string) => `/api/roles/${roleId}`,
+  createRoles: "/api/roles",
+  updateRoles: (roleId: string) => `/api/roles/${roleId}`,
+  deleteRoles: (roleId: string) => `/api/roles/${roleId}`,
+  listPermissions: "/api/permissions",
+  getPermissionsById: (permissionId: string) => `/api/permissions/${permissionId}`,
+  createPermissions: "/api/permissions",
+  updatePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
+  deletePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
+  listRolePermissions: "/api/role_permissions",
+  getRolePermissionsById: (rolePermissionId: string) => `/api/role-permissions/${rolePermissionId}`,
+  createRolePermissions: "/api/role-permissions",
+  updateRolePermissions: (rolePermissionId: string) => `/api/role-permissions/${rolePermissionId}`,
+  deleteRolePermissions: (rolePermissionId: string) => `/api/role_permissions/${rolePermissionId}`,
+  listAdminRoles: "/api/admin/admin-role",
+  createAdminRoles: "/api/admin/admin-role",
+  getAdminRolesByAdminId: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+  updateAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+  deleteAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+} as const;

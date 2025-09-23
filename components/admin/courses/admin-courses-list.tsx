@@ -65,8 +65,9 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useAdminCourses, useUpdateCourse, useDeleteCourse, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
+import { useAdminCourses, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
 import { useFormat } from '@/hooks/use-format';
+import { useTranslations } from 'next-intl';
 import type { AdminCourse, AdminCourseFilters } from '@/interface/admin/admin-interface';
 
 const statusColors = {
@@ -82,6 +83,7 @@ const levelColors = {
 } as const;
 
 export default function AdminCoursesList() {
+  const t = useTranslations('AdminCoursesList');
   const [filters, setFilters] = useState<AdminCourseFilters>({
     page: 1,
     limit: 20,
@@ -96,8 +98,6 @@ export default function AdminCoursesList() {
 
   const { formatNumber } = useFormat();
   const { data: coursesData, isLoading, error } = useAdminCourses(filters);
-  const updateCourse = useUpdateCourse();
-  const deleteCourse = useDeleteCourse();
   const approveCourse = useApproveCourse();
   const rejectCourse = useRejectCourse();
 
@@ -108,9 +108,6 @@ export default function AdminCoursesList() {
     }));
   };
 
-  const handleStatusUpdate = async (courseId: string, status: string) => {
-    await updateCourse.mutateAsync({ courseId, updates: { status } });
-  };
 
   const handleApprove = async () => {
     if (!selectedCourse) return;
@@ -127,7 +124,7 @@ export default function AdminCoursesList() {
     if (!selectedCourse || !rejectionReason) return;
     await rejectCourse.mutateAsync({
       courseId: selectedCourse.public_id,
-      reason: rejectionReason
+      rejected_message: rejectionReason
     });
     setShowRejectionDialog(false);
     setRejectionReason('');
@@ -163,7 +160,7 @@ export default function AdminCoursesList() {
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <BookOpen className="h-8 w-8 text-destructive mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Failed to load courses</p>
+            <p className="text-sm text-muted-foreground">{t('failed_to_load_courses')}</p>
           </div>
         </CardContent>
       </Card>
@@ -174,9 +171,9 @@ export default function AdminCoursesList() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Course Management</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t('page_title')}</h2>
         <p className="text-muted-foreground">
-          Manage courses, approve submissions, and monitor quality
+          {t('page_subtitle')}
         </p>
       </div>
 
@@ -186,7 +183,7 @@ export default function AdminCoursesList() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              Filters
+              {t('filters')}
             </CardTitle>
             <Button
               variant="outline"
@@ -199,61 +196,61 @@ export default function AdminCoursesList() {
                 search: ''
               })}
             >
-              Clear Filters
+              {t('clear_filters')}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="status-filter">Status</Label>
+              <Label htmlFor="status-filter">{t('status')}</Label>
               <Select
                 value={filters.status || 'all'}
                 onValueChange={(value) => handleFilterChange('status', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
+                  <SelectValue placeholder={t('all_statuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="all">{t('all_statuses')}</SelectItem>
+                  <SelectItem value="active">{t('active')}</SelectItem>
+                  <SelectItem value="pending">{t('pending')}</SelectItem>
+                  <SelectItem value="inactive">{t('inactive')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="category-filter">Category</Label>
+              <Label htmlFor="category-filter">{t('category')}</Label>
               <Select
                 value={filters.category || 'all'}
                 onValueChange={(value) => handleFilterChange('category', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All categories" />
+                  <SelectValue placeholder={t('all_categories')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="programming">Programming</SelectItem>
-                  <SelectItem value="design">Design</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="all">{t('all_categories')}</SelectItem>
+                  <SelectItem value="programming">{t('programming')}</SelectItem>
+                  <SelectItem value="design">{t('design')}</SelectItem>
+                  <SelectItem value="business">{t('business')}</SelectItem>
+                  <SelectItem value="marketing">{t('marketing')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="search">Search</Label>
+              <Label htmlFor="search">{t('search')}</Label>
               <Input
                 id="search"
-                placeholder="Search courses..."
+                placeholder={t('search_courses_placeholder')}
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
             </div>
 
             <div>
-              <Label htmlFor="limit-filter">Per Page</Label>
+              <Label htmlFor="limit-filter">{t('per_page')}</Label>
               <Select
                 value={filters.limit?.toString() || '20'}
                 onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
@@ -276,30 +273,30 @@ export default function AdminCoursesList() {
       {/* Courses Table */}
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle>Courses ({coursesData?.pagination.total || 0})</CardTitle>
+          <CardTitle>{t('courses_count', { count: coursesData?.pagination.total || 0 })}</CardTitle>
           <CardDescription>
-            Review and manage all courses in the system
+            {t('review_manage_courses')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {coursesData?.courses.length === 0 ? (
             <div className="text-center py-8">
               <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No courses found</p>
+              <p className="text-sm text-muted-foreground">{t('no_courses_found')}</p>
             </div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Instructor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Rating</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('course')}</TableHead>
+                    <TableHead>{t('instructor')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead>{t('students')}</TableHead>
+                    <TableHead>{t('price')}</TableHead>
+                    <TableHead>{t('rating')}</TableHead>
+                    <TableHead>{t('created')}</TableHead>
+                    <TableHead>{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -333,7 +330,7 @@ export default function AdminCoursesList() {
                             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <BookOpen className="h-3 w-3" />
-                                {course.total_lessons} lessons
+                                {t('lessons_count', { count: course.total_lessons })}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
@@ -363,13 +360,13 @@ export default function AdminCoursesList() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
-                          {course.is_free ? 'Free' : formatPrice(course.price_cents, course.currency)}
+                          {course.is_free ? t('free') : formatPrice(course.price_cents, course.currency)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'N/A'}</span>
+                          <span className="text-sm">{course.average_rating ? formatNumber(course.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : t('n_a')}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -379,7 +376,12 @@ export default function AdminCoursesList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" aria-label="View course details">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            aria-label={t('preview_course')}
+                            title={t('preview_course')}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           
@@ -392,7 +394,8 @@ export default function AdminCoursesList() {
                                   setSelectedCourse(course);
                                   setShowApprovalDialog(true);
                                 }}
-                                aria-label="Approve course"
+                                aria-label={t('approve_course')}
+                                title={t('approve_course')}
                               >
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                               </Button>
@@ -403,42 +406,13 @@ export default function AdminCoursesList() {
                                   setSelectedCourse(course);
                                   setShowRejectionDialog(true);
                                 }}
-                                aria-label="Reject course"
+                                aria-label={t('reject_course')}
+                                title={t('reject_course')}
                               >
                                 <XCircle className="h-4 w-4 text-destructive" />
                               </Button>
                             </>
                           )}
-                          
-                          <Button variant="ghost" size="sm" aria-label="Edit course">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" aria-label="Delete course">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Course</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{course.title}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteCourse.mutate(course.public_id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  disabled={deleteCourse.isPending}
-                                >
-                                  {deleteCourse.isPending ? 'Deleting...' : 'Delete'}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -450,9 +424,11 @@ export default function AdminCoursesList() {
               {coursesData && coursesData.pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-muted-foreground">
-                    Showing {((coursesData.pagination.page - 1) * coursesData.pagination.limit) + 1} to{' '}
-                    {Math.min(coursesData.pagination.page * coursesData.pagination.limit, coursesData.pagination.total)} of{' '}
-                    {coursesData.pagination.total} courses
+                    {t('showing_entries', {
+                      from: ((coursesData.pagination.page - 1) * coursesData.pagination.limit) + 1,
+                      to: Math.min(coursesData.pagination.page * coursesData.pagination.limit, coursesData.pagination.total),
+                      total: coursesData.pagination.total
+                    })}
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
@@ -462,10 +438,10 @@ export default function AdminCoursesList() {
                       disabled={!filters.page || filters.page <= 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Previous
+                      {t('previous')}
                     </Button>
                     <span className="text-sm">
-                      Page {filters.page || 1} of {coursesData.pagination.totalPages}
+                      {t('page_of', { current: filters.page || 1, total: coursesData.pagination.totalPages })}
                     </span>
                     <Button
                       variant="outline"
@@ -473,7 +449,7 @@ export default function AdminCoursesList() {
                       onClick={() => handleFilterChange('page', (filters.page || 1) + 1)}
                       disabled={!filters.page || filters.page >= coursesData.pagination.totalPages}
                     >
-                      Next
+                      {t('next')}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -488,30 +464,30 @@ export default function AdminCoursesList() {
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Course</DialogTitle>
+            <DialogTitle>{t('approve_course_title')}</DialogTitle>
             <DialogDescription>
-              Approve "{selectedCourse?.title}" for publication
+              {t('approve_course_desc', { title: selectedCourse?.title || '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="approval-notes">Approval Notes (Optional)</Label>
+              <Label htmlFor="approval-notes">{t('approval_notes')}</Label>
               <Textarea
                 id="approval-notes"
-                placeholder="Add any notes about the approval..."
+                placeholder={t('approval_notes_placeholder')}
                 value={approvalNotes}
                 onChange={(e) => setApprovalNotes(e.target.value)}
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button 
                 onClick={handleApprove}
                 disabled={approveCourse.isPending}
               >
-                {approveCourse.isPending ? 'Approving...' : 'Approve Course'}
+                {approveCourse.isPending ? t('approving') : t('approve')}
               </Button>
             </div>
           </div>
@@ -522,17 +498,17 @@ export default function AdminCoursesList() {
       <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Course</DialogTitle>
+            <DialogTitle>{t('reject_course_title')}</DialogTitle>
             <DialogDescription>
-              Reject "{selectedCourse?.title}" and provide feedback
+              {t('reject_course_desc', { title: selectedCourse?.title || '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="rejection-reason">Rejection Reason *</Label>
+              <Label htmlFor="rejection-reason">{t('rejection_reason_required')}</Label>
               <Textarea
                 id="rejection-reason"
-                placeholder="Explain why this course is being rejected..."
+                placeholder={t('rejection_reason_placeholder')}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 required
@@ -540,14 +516,14 @@ export default function AdminCoursesList() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowRejectionDialog(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleReject}
                 disabled={!rejectionReason.trim() || rejectCourse.isPending}
               >
-                {rejectCourse.isPending ? 'Rejecting...' : 'Reject Course'}
+                {rejectCourse.isPending ? t('rejecting') : t('reject')}
               </Button>
             </div>
           </div>

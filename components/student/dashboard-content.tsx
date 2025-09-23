@@ -18,13 +18,12 @@ import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile } from '@/hooks/profile/use-profile';
 import { useDashboard, RecentCourse, UpcomingEvent } from '@/hooks/dashboard/use-dashboard';
-import AnimatedBackground from '@/components/ui/animated-background';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardContent() {
   const t = useTranslations('Dashboard');
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
   const { data: dashboardData, isLoading: dashboardLoading } = useDashboard();
 
   const user = userData;

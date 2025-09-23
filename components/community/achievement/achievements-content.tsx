@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { Award, Trophy, Star, Lock, CheckCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useAchievements, Achievement } from '@/hooks/achievements/use-achievements';
-import AnimatedBackground from '@/components/ui/animated-background';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 
@@ -32,13 +31,11 @@ export default function AchievementsContent() {
 
   if (isLoading) {
     return (
-      <AnimatedBackground>
         <div className="min-h-screen p-6">
           <div className="max-w-6xl mx-auto">
             <Skeleton className="w-full h-96" />
           </div>
         </div>
-      </AnimatedBackground>
     );
   }
 
@@ -52,7 +49,6 @@ export default function AchievementsContent() {
   const progressPercentage = achievements.length > 0 ? (unlockedAchievements.length / achievements.length) * 100 : 0;
 
   return (
-    <AnimatedBackground>
       <div className="min-h-screen p-6 pb-32">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -218,6 +214,5 @@ export default function AchievementsContent() {
           )}
         </div>
       </div>
-    </AnimatedBackground>
   );
 }

@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import SettingsContent from '@/components/settings/settings-content';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('AdminSettingsPage');
@@ -21,7 +22,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <div>
-      <h1>{t('page_title')}</h1>
+      <SettingsContent />
     </div>
   );
 }

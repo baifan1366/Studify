@@ -25,3 +25,7 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+
+// ban's status = pending
+// announcement's status = draft
+// total users

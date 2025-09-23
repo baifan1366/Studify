@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import { UserReports } from "@/components/admin/reports/user-reports";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('AdminReportsUsersPage');
@@ -21,7 +22,7 @@ export default async function AdminReportsUsersPage () {
 
   return (
     <div>
-      <h2>{t('page_title')}</h2>
+      <UserReports />
     </div>
   );
 }

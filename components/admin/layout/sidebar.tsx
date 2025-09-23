@@ -97,7 +97,7 @@ const defaultMenuSections: MenuSection[] = [
         id: 'reports',
         label: 'Reports',
         icon: FileText,
-        path: '/admin/reports',
+        path: '/admin/reports/users',
         subItems: [
           { id: 'user-reports', label: 'User Reports', icon: FileText, path: '/admin/reports/users' },
           { id: 'content-reports-detail', label: 'Content Reports', icon: FileText, path: '/admin/reports/content' },

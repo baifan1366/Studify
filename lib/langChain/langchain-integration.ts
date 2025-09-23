@@ -36,6 +36,8 @@ import {
 import { getVectorStore } from './vectorstore';
 import { generateEmbedding, generateDualEmbedding } from './embedding';
 import { aiWorkflowExecutor } from './ai-workflow';
+import { getLLM, getAnalyticalLLM } from './client';
+import { HumanMessage } from "@langchain/core/messages";
 
 // Main LangChain integration class
 export class StudifyLangChain {
@@ -252,23 +254,26 @@ Generate 5-10 questions in JSON format:`;
       prompt += '\n\n' + parser.getFormatInstructions();
     }
 
-    // Execute AI workflow
-    const response = await aiWorkflowExecutor.simpleAICall(prompt, {
+    // 使用您的 client.ts 中的 getLLM 函数
+    const llm = await getLLM({
       temperature: 0.3,
-      model: 'openai/gpt-4o'
+      model: 'x-ai/grok-4-fast:free'
     });
+    
+    const response = await llm.invoke([new HumanMessage(prompt)]);
+    const responseText = response.content as string;
 
     // Parse response if parser is available
     if (parser) {
       try {
-        return parser.parse(response);
+        return parser.parse(responseText);
       } catch (error) {
         console.warn('Failed to parse AI response, returning raw text:', error);
-        return response;
+        return responseText;
       }
     }
 
-    return response;
+    return responseText;
   }
 
   /**
@@ -340,12 +345,15 @@ Please format your response as JSON:
 }`;
 
     try {
-      const enhancementResponse = await aiWorkflowExecutor.simpleAICall(enhancementPrompt, {
+      const llm = await getLLM({
         temperature: 0.3,
-        model: 'openai/gpt-4o'
+        model: 'x-ai/grok-4-fast:free'
       });
+      
+      const enhancementResponse = await llm.invoke([new HumanMessage(enhancementPrompt)]);
+      const enhancementText = enhancementResponse.content as string;
 
-      const parsed = parseJson(enhancementResponse);
+      const parsed = parseJson(enhancementText);
       
       return {
         results,
@@ -420,12 +428,15 @@ Please format your response as JSON:
 ${includeSourceReferences ? 'Include references to context sources using [1], [2], etc. in your answer.' : ''}`;
 
     try {
-      const response = await aiWorkflowExecutor.simpleAICall(answerPrompt, {
+      const llm = await getAnalyticalLLM({
         temperature: 0.2,
-        model: 'openai/gpt-4o'
+        model: 'x-ai/grok-4-fast:free'
       });
+      
+      const response = await llm.invoke([new HumanMessage(answerPrompt)]);
+      const responseText = response.content as string;
 
-      const parsed = parseJson(response);
+      const parsed = parseJson(responseText);
       
       return {
         answer: parsed.answer,
@@ -523,7 +534,9 @@ ${includeSourceReferences ? 'Include references to context sources using [1], [2
             prompt = prompt.replace('{input}', String(currentData));
           }
           
-          currentData = await aiWorkflowExecutor.simpleAICall(prompt, step.config.options);
+          const llm = await getLLM(step.config.options || {});
+          const response = await llm.invoke([new HumanMessage(prompt)]);
+          currentData = response.content as string;
           break;
       }
     }

@@ -32,13 +32,11 @@ export default function DashboardContent() {
 
   if (profileLoading || dashboardLoading) {
     return (
-      <AnimatedBackground>
         <div className="min-h-screen p-6">
           <div className="max-w-7xl mx-auto">
             <Skeleton className="w-full h-96" />
           </div>
         </div>
-      </AnimatedBackground>
     );
   }
 
@@ -55,7 +53,6 @@ export default function DashboardContent() {
   const upcomingEvents = dashboardData?.upcomingEvents || [];
 
   return (
-    <AnimatedBackground>
       <div className="min-h-screen p-6 pb-32">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -210,6 +207,5 @@ export default function DashboardContent() {
           </div>
         </div>
       </div>
-    </AnimatedBackground>
   );
 }

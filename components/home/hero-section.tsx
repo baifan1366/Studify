@@ -1,9 +1,19 @@
 "use client";
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Play, BookOpen, Zap, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, BookOpen, Zap, ArrowRight, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface HeroSectionProps {
   onStartLearning?: () => void;
@@ -12,7 +22,66 @@ interface HeroSectionProps {
 
 export default function HeroSection({ onStartLearning, onExploreCourses }: HeroSectionProps) {
   const t = useTranslations('HeroSection');
+  const [isVisible, setIsVisible] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  // 检查本地存储中是否已隐藏hero section
+  useEffect(() => {
+    const isHidden = localStorage.getItem('hero-section-hidden');
+    if (isHidden === 'true') {
+      setIsVisible(false);
+    }
+
+    // 监听重新显示hero section的事件
+    const handleShowHero = () => {
+      setIsVisible(true);
+    };
+
+    window.addEventListener('show-hero-section', handleShowHero);
+
+    return () => {
+      window.removeEventListener('show-hero-section', handleShowHero);
+    };
+  }, []);
+
+  const handleCloseClick = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmHide = () => {
+    localStorage.setItem('hero-section-hidden', 'true');
+    setIsVisible(false);
+    setShowConfirmDialog(false);
+  };
+
+  const handleCancelHide = () => {
+    setShowConfirmDialog(false);
+  };
+
+  if (!isVisible) {
+    return null;
+  }
+
   return (
+    <>
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('close_dialog.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('close_dialog.description')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelHide}>
+              {t('close_dialog.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmHide}>
+              {t('close_dialog.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     <motion.section
       className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-8 mb-8"
       initial={{ opacity: 0, y: 20 }}
@@ -47,6 +116,16 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
           }}
         />
       </div>
+
+      {/* 关闭按钮 */}
+      <button
+        onClick={handleCloseClick}
+        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all duration-200 backdrop-blur-sm"
+        title={t('close_button_title') || 'Close hero section'}
+        aria-label={t('close_button_aria') || 'Close hero section'}
+      >
+        <X size={20} />
+      </button>
 
       <div className="relative z-10">
         {/* Hero Content */}
@@ -138,5 +217,6 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
         </div>
       </div>
     </motion.section>
+    </>
   );
 }

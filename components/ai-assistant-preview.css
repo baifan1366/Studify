@@ -1,0 +1,156 @@
+/* AI Assistant Preview Markdown Styles */
+
+.ai-message-content .prose {
+  color: inherit;
+}
+
+.ai-message-content .prose h1,
+.ai-message-content .prose h2,
+.ai-message-content .prose h3,
+.ai-message-content .prose h4,
+.ai-message-content .prose h5,
+.ai-message-content .prose h6 {
+  color: inherit;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.ai-message-content .prose h1:first-child,
+.ai-message-content .prose h2:first-child,
+.ai-message-content .prose h3:first-child {
+  margin-top: 0;
+}
+
+.ai-message-content .prose p {
+  color: inherit;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.ai-message-content .prose p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message-content .prose ul,
+.ai-message-content .prose ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.ai-message-content .prose li {
+  margin-bottom: 0.25rem;
+}
+
+.ai-message-content .prose code {
+  background-color: rgba(100, 116, 139, 0.1);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.dark .ai-message-content .prose code {
+  background-color: rgba(148, 163, 184, 0.1);
+}
+
+.ai-message-content .prose pre {
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+}
+
+.ai-message-content .prose pre:first-child {
+  margin-top: 0;
+}
+
+.ai-message-content .prose pre:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message-content .prose blockquote {
+  border-left: 4px solid rgba(100, 116, 139, 0.3);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  font-style: italic;
+}
+
+.dark .ai-message-content .prose blockquote {
+  border-left-color: rgba(148, 163, 184, 0.3);
+}
+
+.ai-message-content .prose table {
+  width: 100%;
+  margin: 0.75rem 0;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ai-message-content .prose th,
+.ai-message-content .prose td {
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+}
+
+.dark .ai-message-content .prose th,
+.dark .ai-message-content .prose td {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.ai-message-content .prose th {
+  background-color: rgba(100, 116, 139, 0.05);
+  font-weight: 600;
+}
+
+.dark .ai-message-content .prose th {
+  background-color: rgba(148, 163, 184, 0.05);
+}
+
+.ai-message-content .prose a {
+  color: #3b82f6;
+  text-decoration: underline;
+  text-decoration-color: rgba(59, 130, 246, 0.4);
+  transition: all 0.2s ease;
+}
+
+.ai-message-content .prose a:hover {
+  color: #2563eb;
+  text-decoration-color: rgba(37, 99, 235, 0.6);
+}
+
+.dark .ai-message-content .prose a {
+  color: #60a5fa;
+}
+
+.dark .ai-message-content .prose a:hover {
+  color: #93c5fd;
+}
+
+/* 优化流式输出时的显示 */
+.ai-message-content .markdown-chat-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 确保代码块不会破坏聊天气泡的布局 */
+.ai-message-content .prose pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* 优化列表在聊天气泡中的显示 */
+.ai-message-content .prose ul li::marker,
+.ai-message-content .prose ol li::marker {
+  color: inherit;
+}
+
+/* 优化强调文本 */
+.ai-message-content .prose strong {
+  color: inherit;
+  font-weight: 600;
+}
+
+.ai-message-content .prose em {
+  color: inherit;
+  font-style: italic;
+}

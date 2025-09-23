@@ -59,7 +59,7 @@ export class StudifyToolCallingAgent {
 
   constructor(config: ToolCallingConfig = {}) {
     this.config = {
-      model: "openai/gpt-4o",
+      model: "x-ai/grok-4-fast:free",
       temperature: 0.3,
       enabledTools: 'all',
       maxIterations: 10,
@@ -71,7 +71,7 @@ export class StudifyToolCallingAgent {
   }
 
   /**
-   * Initialize the agent with selected tools
+   * Initialize the tool calling agent
    */
   async initialize(): Promise<void> {
     try {
@@ -356,6 +356,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       userId?: number;
       contentTypes?: string[];
       includeAnalysis?: boolean;
+      conversationContext?: Array<{role: string; content: string}>;
+      conversationId?: string;
     } = {}
   ): Promise<{
     answer: string;
@@ -380,7 +382,19 @@ For this educational Q&A session:
     const agent = new StudifyToolCallingAgent(config);
     await agent.initialize();
 
+    // Build enhanced question with context if available
     let enhancedQuestion = question;
+    
+    // Add conversation context if provided
+    if (options.conversationContext && options.conversationContext.length > 0) {
+      enhancedQuestion = `Here's our conversation history:
+${options.conversationContext.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+Current question: ${question}
+
+Please provide a contextually appropriate response considering our previous conversation.`;
+    }
+    
     if (options.contentTypes) {
       enhancedQuestion += `\n\nFocus on content types: ${options.contentTypes.join(', ')}`;
     }
@@ -401,14 +415,22 @@ For this educational Q&A session:
   }
 
   /**
-   * Course content analysis with tools
+   * Content analysis with tools - 扩展支持更多分析类型
    */
   async analyzeCourseContent(
     content: string,
-    analysisType: 'summary' | 'topics' | 'questions' = 'summary',
+    analysisType: 'summary' | 'topics' | 'questions' | 'notes' | 'problem_solving' | 'learning_path' = 'summary',
     options: {
       userId?: number;
+      contentTypes?: string[];
+      includeAnalysis?: boolean;
       includeRecommendations?: boolean;
+      imageUrl?: string;
+      conversationContext?: Array<{role: string; content: string}>;
+      conversationId?: string;
+      learningGoal?: string;
+      currentLevel?: string;
+      timeConstraint?: string;
     } = {}
   ): Promise<{
     analysis: any;
@@ -431,11 +453,111 @@ For course content analysis:
     const agent = new StudifyToolCallingAgent(config);
     await agent.initialize();
 
-    const prompt = `Analyze the following course content for ${analysisType}:
+    let prompt = '';
+    
+    switch (analysisType) {
+      case 'notes':
+        prompt = `Generate smart study notes from the following content. Extract key points, create summaries, and identify important concepts:
+
+${content}
+
+Please provide:
+1. A concise summary
+2. Key learning points (bullet format)
+3. Important concepts and definitions
+4. Suggested study focus areas
+${options.includeRecommendations ? '\n5. Related learning resources and next steps' : ''}`;
+        break;
+        
+      case 'problem_solving':
+        // Check if content is base64 image data
+        const isImageData = content.startsWith('data:image/');
+        
+        if (isImageData) {
+          prompt = `I've received an image that contains an academic problem or question. Please analyze the image and solve the problem step by step:
+
+Image Data: ${content}
+
+Please provide:
+1. **Problem Recognition**: What type of problem or question is shown in the image?
+2. **Problem Analysis**: Break down the problem and identify key components
+3. **Solution Steps**: Provide detailed step-by-step solution
+4. **Calculations**: Show all mathematical work and reasoning
+5. **Final Answer**: State the final answer clearly
+6. **Learning Concepts**: Identify the academic concepts and formulas used
+7. **Study Tips**: Suggest how to approach similar problems
+
+Format your response in clear markdown with proper headings and formatting.`;
+        } else {
+          prompt = `Analyze and solve the following academic problem step by step:
+
+${content}
+${options.imageUrl ? `\nImage reference: ${options.imageUrl}` : ''}
+
+Please provide:
+1. Problem analysis and understanding
+2. Step-by-step solution approach
+3. Detailed calculations or reasoning
+4. Final answer with explanation
+5. Learning concepts involved`;
+        }
+        break;
+
+      case 'learning_path':
+        prompt = `Create a comprehensive personalized learning path based on the following requirements:
+
+${content}
+
+Please generate a structured learning roadmap with the following components:
+
+1. **Learning Summary**: Brief overview of the learning journey and expected outcomes
+
+2. **Mermaid Flowchart**: Create a Mermaid diagram showing the learning progression. Use this format:
+\`\`\`mermaid
+graph TD
+    A[Start: ${options.learningGoal || 'Learning Goal'}] --> B[Foundation]
+    B --> C[Intermediate Concepts]
+    C --> D[Advanced Topics]
+    D --> E[Practical Application]
+    E --> F[Mastery & Beyond]
+\`\`\`
+
+3. **Detailed Roadmap**: Step-by-step breakdown including:
+   - Step title and description
+   - Estimated duration
+   - Difficulty level
+   - Key resources and topics
+   - Prerequisites
+
+4. **Recommended Courses**: Suggest specific courses with:
+   - Course title and description
+   - Difficulty level (Beginner/Intermediate/Advanced)
+   - Estimated duration
+   - Key learning outcomes
+
+5. **Practice Quizzes**: Recommend practice materials with:
+   - Quiz/exercise title and description
+   - Number of questions
+   - Estimated completion time
+   - Focus areas
+
+6. **Community Recommendations**: Suggest relevant study groups and discussion topics
+
+Please format the response as a structured JSON object that can be parsed programmatically, while also providing a human-readable summary.
+
+Current user level: ${options.currentLevel || 'Beginner'}
+Time constraint: ${options.timeConstraint || 'Flexible'}
+
+Focus on practical, actionable steps that help the user "快速知道学什么、从哪开始"`;
+        break;
+        
+      default:
+        prompt = `Analyze the following course content for ${analysisType}:
 
 ${content}
 
 ${options.includeRecommendations ? '\nAlso provide content recommendations based on this analysis.' : ''}`;
+    }
 
     const result = await agent.execute(prompt, {
       userId: options.userId,

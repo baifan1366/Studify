@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Create tool calling agent
     const agent = new StudifyToolCallingAgent({
-      model: model || "openai/gpt-4o",
+      model: model || "x-ai/grok-4-fast:free",
       temperature: temperature || 0.3,
       enabledTools: enabledTools || 'all',
       toolCategories: toolCategories,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       intermediateSteps: includeSteps ? result.intermediateSteps : undefined,
       metadata: {
         processingTimeMs: processingTime,
-        model: model || "openai/gpt-4o",
+        model: model || "x-ai/grok-4-fast:free",
         toolsEnabled: true,
         timestamp: new Date().toISOString(),
         userId: authResult.payload.sub

@@ -652,3 +652,14 @@ export const adminRoleApi = {
   updateAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
   deleteAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
 } as const;
+
+// Course Progress API endpoints
+export const courseProgressApi = {
+  list: "/api/course/progress",
+  create: "/api/course/progress",
+  getByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
+  updateByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
+  getByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
+  updateByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
+  updateStatus: (progressId: string) => `/api/course/progress/${progressId}/status`,
+} as const;

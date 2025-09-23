@@ -2726,6 +2726,7 @@
     "lesson": "Lesson",
     "lesson_of": "Lesson {current} of {total}",
     "duration": "Duration: {minutes} min",
+    "start_now": "Start Now",
     "mark_complete": "Mark Complete",
     "lesson_completed": "Lesson Complete!",
     "module_lessons_count": "lessons",

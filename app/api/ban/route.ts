@@ -23,10 +23,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const authResult = await authorize('admin');
-    if (authResult instanceof NextResponse) {
-        return authResult;
-    }
+
   try {
     const body = await req.json();
     const client = await createAdminClient();
@@ -35,7 +32,8 @@ export async function POST(req: Request) {
       target_id: body.target_id,
       target_type: body.target_type,
       reason: body.reason,
-      status: body.status,
+      status: 'pending',
+      created_at: new Date().toISOString(),
     };
 
     if (!payload.target_id) {

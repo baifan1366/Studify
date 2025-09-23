@@ -52,7 +52,6 @@ export function useCreateBan() {
     mutationFn: async ({
       body,
     }: {
-      created_by: number;
       body: Record<string, any>;
     }) =>
       apiSend({

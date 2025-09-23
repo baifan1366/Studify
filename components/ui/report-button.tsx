@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
+import { useCreateBan } from "@/hooks/ban/use-ban";
 
 interface ReportButtonProps {
   targetId: number;
@@ -30,6 +31,7 @@ export function ReportButton({ targetId, targetType }: ReportButtonProps) {
   const [reason, setReason] = useState<string>("");
   const { toast } = useToast();
   const t = useTranslations('ReportButton')
+  const { mutateAsync: createBan } = useCreateBan();
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
@@ -42,8 +44,13 @@ export function ReportButton({ targetId, targetType }: ReportButtonProps) {
     }
 
     try {
-      // TODO: send `targetId`, `targetType`, and `reason` to your backend API
-      // await fetch("/api/report", { method: "POST", body: JSON.stringify({ targetId, targetType, reason }) })
+      await createBan({
+        body: {
+          target_id: targetId,
+          target_type: targetType,
+          reason: reason.trim(),
+        },
+      });
 
       toast({
         title: t('reportSubmitted'),
@@ -59,7 +66,7 @@ export function ReportButton({ targetId, targetType }: ReportButtonProps) {
         variant: "destructive",
       });
     }
-  };
+  };  
 
   return (
     <>

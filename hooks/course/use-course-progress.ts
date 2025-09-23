@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiSend, apiGet } from '@/lib/api-config';
+import { api, courseProgressApi } from '@/lib/api';
+import { toast } from 'sonner';
 
 interface CourseProgress {
   lessonId: string;
   lessonTitle: string;
   lessonPosition: number;
-  courseId: string;
-  courseTitle: string;
+  courseId?: string;
+  courseTitle?: string;
   state: 'not_started' | 'in_progress' | 'completed';
   progressPct: number;
   lastSeenAt: string;
@@ -31,52 +32,149 @@ interface UpdateProgressResponse {
   };
 }
 
-export function useCourseProgress(courseId?: string, lessonId?: string) {
-  return useQuery<CourseProgress | CourseProgress[]>({
-    queryKey: ['course-progress', courseId, lessonId],
+// Hook to get course progress (either by courseId or all progress)
+export function useCourseProgress(courseId?: string) {
+  return useQuery({
+    queryKey: ['course-progress', courseId],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (courseId) params.append('courseId', courseId);
-      if (lessonId) params.append('lessonId', lessonId);
+      const url = courseId 
+        ? `${courseProgressApi.list}?courseId=${courseId}`
+        : courseProgressApi.list;
       
-      const response = await apiGet<{ success: boolean; progress: CourseProgress | CourseProgress[] }>(
-        `/api/course/progress?${params.toString()}`
-      );
-      return response.progress;
+      const response = await api.get(url);
+      return response.data.progress as CourseProgress[];
     },
-    enabled: !!(courseId || lessonId),
+    enabled: true,
   });
 }
 
-export function useUpdateProgress() {
+// Hook to update course progress
+export function useUpdateCourseProgress() {
   const queryClient = useQueryClient();
 
-  return useMutation<UpdateProgressResponse, Error, UpdateProgressData>({
-    mutationFn: async (data) => {
-      return apiSend<UpdateProgressResponse, UpdateProgressData>({
-        url: '/api/course/progress',
-        method: 'POST',
-        body: data,
-      });
+  return useMutation({
+    mutationFn: async (data: UpdateProgressData) => {
+      const response = await api.post(courseProgressApi.create, data);
+      return response.data as UpdateProgressResponse;
     },
     onSuccess: (data, variables) => {
-      // Update the specific lesson progress
-      queryClient.invalidateQueries({ 
-        queryKey: ['course-progress', undefined, variables.lessonId] 
-      });
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['course-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['course-progress-lesson', variables.lessonId] });
       
-      // Update course-wide progress
-      queryClient.invalidateQueries({ 
-        queryKey: ['course-progress'] 
-      });
-      
-      // Update course enrollment data
-      queryClient.invalidateQueries({ 
-        queryKey: ['course-enrollment'] 
-      });
+      // Show success message based on progress
+      if (data.progress.progressPct >= 100) {
+        toast.success('Lesson completed!');
+      } else {
+        toast.success('Progress updated successfully');
+      }
     },
-    onError: (error) => {
-      console.error('Progress update failed:', error);
+    onError: (error: any) => {
+      console.error('Failed to update course progress:', error);
+      toast.error('Failed to update progress. Please try again.');
+    },
+  });
+}
+
+// Hook to get course progress by progress ID
+export function useCourseProgressByProgressId(progressId: string) {
+  return useQuery({
+    queryKey: ['course-progress-id', progressId],
+    queryFn: async () => {
+      const response = await api.get(courseProgressApi.getByProgressId(progressId));
+      return response.data as CourseProgress;
+    },
+    enabled: !!progressId,
+  });
+}
+
+// Hook to get course progress by lesson ID
+export function useCourseProgressByLessonId(lessonId: string) {
+  return useQuery({
+    queryKey: ['course-progress-lesson', lessonId],
+    queryFn: async () => {
+      const response = await api.get(courseProgressApi.getByLessonId(lessonId));
+      return response.data as CourseProgress;
+    },
+    enabled: !!lessonId,
+  });
+}
+
+// Hook to update course progress by lesson ID (PATCH)
+export function useUpdateCourseProgressByLessonId() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ lessonId, ...data }: UpdateProgressData) => {
+      const response = await api.patch(courseProgressApi.updateByLessonId(lessonId), data);
+      return response.data as UpdateProgressResponse;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['course-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['course-progress-lesson', variables.lessonId] });
+      
+      // Show success message based on progress
+      if (data.progress.progressPct >= 100) {
+        toast.success('Lesson completed!');
+      } else {
+        toast.success('Progress updated successfully');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to update course progress by lesson ID:', error);
+      toast.error('Failed to update progress. Please try again.');
+    },
+  });
+}
+
+// Hook to update course progress by progress ID (PATCH)
+export function useUpdateCourseProgressByProgressId() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ progressId, ...data }: { progressId: string; progressPct: number; timeSpentSec?: number }) => {
+      const response = await api.patch(courseProgressApi.updateByProgressId(progressId), data);
+      return response.data as UpdateProgressResponse;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['course-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['course-progress-id', variables.progressId] });
+      
+      // Show success message based on progress
+      if (data.progress.progressPct >= 100) {
+        toast.success('Lesson completed!');
+      } else {
+        toast.success('Progress updated successfully');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to update course progress by progress ID:', error);
+      toast.error('Failed to update progress. Please try again.');
+    },
+  });
+}
+
+// Hook to update course progress status
+export function useUpdateCourseProgressStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ progressId, status }: { progressId: string; status: 'not_started' | 'in_progress' | 'completed' }) => {
+      const response = await api.patch(courseProgressApi.updateStatus(progressId), { state: status });
+      return response.data as UpdateProgressResponse;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['course-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['course-progress-id', variables.progressId] });
+      
+      toast.success('Progress status updated successfully');
+    },
+    onError: (error: any) => {
+      console.error('Failed to update course progress status:', error);
+      toast.error('Failed to update progress status. Please try again.');
     },
   });
 }

@@ -1,10 +1,9 @@
-import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { PromptTemplate } from "@langchain/core/prompts";
-import { LLMChain } from "langchain/chains";
 import { apiKeyManager } from './api-key-manager';
 import { contextManager } from './context-manager';
 import { createClient } from '@supabase/supabase-js';
+import { getLLM } from './client';
 
 // 工作流步骤接口
 interface WorkflowStep {
@@ -73,7 +72,7 @@ Please provide a structured analysis in the following format:
 
 Be concise but comprehensive.`,
         requiresContext: true,
-        model: "anthropic/claude-3.5-sonnet",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.2
       },
       {
@@ -93,7 +92,7 @@ Create a summary that includes:
 
 Make it engaging and informative.`,
         requiresContext: true,
-        model: "anthropic/claude-3.5-sonnet",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.3
       },
       {
@@ -113,7 +112,7 @@ Generate a study plan with:
 5. Additional Resources (if needed)
 
 Tailor the plan to be practical and achievable.`,
-        model: "openai/gpt-4o",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.4
       }
     ],
@@ -147,7 +146,7 @@ Identify:
 
 Provide a structured analysis of question-worthy content.`,
         requiresContext: true,
-        model: "anthropic/claude-3.5-sonnet",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.1
       },
       {
@@ -173,7 +172,7 @@ For each question, provide:
 6. Learning objective addressed
 
 Format as JSON for easy parsing.`,
-        model: "openai/gpt-4o",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.3,
         outputParser: (output: string) => {
           try {
@@ -198,7 +197,7 @@ Please review and:
 5. Suggest improvements if needed
 
 Provide the final optimized question set with your review comments.`,
-        model: "anthropic/claude-3.5-sonnet",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.2
       }
     ]
@@ -230,7 +229,7 @@ Provide insights that will help in content recommendation.`,
           contentTypes: ['profile', 'course_note', 'quiz_question'],
           maxChunks: 5
         },
-        model: "anthropic/claude-3.5-sonnet"
+        model: "x-ai/grok-4-fast:free"
       },
       {
         id: 'find-relevant-content',
@@ -254,7 +253,7 @@ Provide top 10 recommendations with reasoning for each.`,
           maxChunks: 15,
           minSimilarity: 0.6
         },
-        model: "openai/gpt-4o",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.4
       },
       {
@@ -275,7 +274,7 @@ Design a learning path that includes:
 7. Alternative paths for different learning speeds
 
 Make it practical and motivating.`,
-        model: "anthropic/claude-3.5-sonnet",
+        model: "x-ai/grok-4-fast:free",
         temperature: 0.3
       }
     ]
@@ -398,8 +397,11 @@ export class AIWorkflowExecutor {
     while (attempt <= maxRetries) {
       try {
         // 获取LLM实例
-        const llm = await apiKeyManager.createLLM(step.model, 1);
-        llm.temperature = step.temperature || 0.3;
+        const llm = await getLLM({
+          model: step.model || "x-ai/grok-4-fast:free",
+          temperature: step.temperature || 0.3,
+          maxRetries: 1
+        });
 
         // 准备prompt变量
         const promptVariables = await this.preparePromptVariables(step, context);
@@ -583,8 +585,10 @@ export class AIWorkflowExecutor {
       finalPrompt = `${prompt}\n\nRelevant Context:\n${contextResult.context}`;
     }
 
-    const llm = await apiKeyManager.createLLM(options.model);
-    llm.temperature = options.temperature || 0.3;
+    const llm = await getLLM({
+      model: options.model || "x-ai/grok-4-fast:free",
+      temperature: options.temperature || 0.3
+    });
 
     const response = await llm.invoke([new HumanMessage(finalPrompt)]);
     return response.content as string;

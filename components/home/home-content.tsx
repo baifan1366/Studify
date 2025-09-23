@@ -6,6 +6,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
  
 import HeroSection from '@/components/home/hero-section';
+import ShowHeroButton from '@/components/home/show-hero-button';
 import AIAssistantPreview from '@/components/ai-assistant-preview';
 import LearningPath from '@/components/learning-path';
 import CommunityHighlights from '@/components/community-highlights';
@@ -123,6 +124,9 @@ export default function HomeContent() {
     <>
       {/* Main Content */}
       <div>
+        {/* Show Hero Button (only visible when hero is hidden) */}
+        <ShowHeroButton />
+        
         {/* Hero Section */}
         <HeroSection
           onStartLearning={handleStartLearning}

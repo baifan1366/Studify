@@ -8,7 +8,13 @@ const qaRequestSchema = z.object({
   question: z.string().min(1, 'Question is required'),
   contentTypes: z.array(z.string()).optional(),
   includeAnalysis: z.boolean().default(false),
-  maxContext: z.number().min(1).max(20).default(5)
+  maxContext: z.number().min(1).max(20).default(5),
+  // Support for conversation context
+  context: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string()
+  })).optional(),
+  conversationId: z.string().optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -24,16 +30,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = qaRequestSchema.parse(body);
 
-    const { question, contentTypes, includeAnalysis, maxContext } = validatedData;
+    const { question, contentTypes, includeAnalysis, maxContext, context, conversationId } = validatedData;
 
-    console.log(`❓ Educational Q&A request from user ${authResult.payload.sub}: "${question.substring(0, 100)}..."`);
+    console.log(`❓ Educational Q&A request from user ${authResult.payload.sub}: "${question.substring(0, 100)}..." ${context ? `(with ${context.length} context messages)` : '(no context)'}`);
 
     // Execute educational Q&A with tools
     const startTime = Date.now();
     const result = await enhancedAIExecutor.educationalQA(question, {
       userId: parseInt(authResult.payload.sub),
       contentTypes,
-      includeAnalysis
+      includeAnalysis,
+      conversationContext: context,
+      conversationId
     });
 
     const processingTime = Date.now() - startTime;

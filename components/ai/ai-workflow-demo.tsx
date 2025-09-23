@@ -67,7 +67,7 @@ export default function AIWorkflowDemo() {
     try {
       await aiAssistant.askWithContext(query, {
         includeContext: true,
-        model: "anthropic/claude-3.5-sonnet"
+        model: "x-ai/grok-4-fast:free"
       });
     } catch (error) {
       console.error('AI assistant failed:', error);

@@ -7,6 +7,47 @@
     "og_title": "Home | Studify",
     "og_description": "Personalized Learning, Powered by AI and Real|time Tutoring"
   },
+  "ChatPage": {
+    "metadata_title": "Chat | Studify",
+    "metadata_description": "Connect with teachers and classmates through instant messaging and group conversations",
+    "metadata_keywords": "chat,messaging,conversations,communication,teachers,students",
+    "og_title": "Chat | Studify",
+    "og_description": "Stay Connected with Your Learning Community"
+  },
+  "ChatContent": {
+    "page_title": "Chat",
+    "page_subtitle": "Connect with your teachers and classmates",
+    "conversations": "Conversations",
+    "no_conversations": "No conversations yet",
+    "no_conversations_desc": "Start a conversation by searching for someone or joining a classroom chat",
+    "search_placeholder": "Search conversations...",
+    "new_conversation": "New Conversation",
+    "online": "Online",
+    "offline": "Offline",
+    "typing": "Typing...",
+    "send_message": "Send message",
+    "type_message": "Type a message...",
+    "attach_file": "Attach file",
+    "emoji": "Add emoji",
+    "voice_call": "Voice call",
+    "video_call": "Video call",
+    "more_options": "More options",
+    "view_profile": "View Profile",
+    "mute_conversation": "Mute Conversation",
+    "block_user": "Block User",
+    "delete_conversation": "Delete Conversation",
+    "message_sent": "Message sent",
+    "message_delivered": "Message delivered",
+    "message_read": "Message read",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last_seen": "Last seen {time}",
+    "just_now": "Just now",
+    "loading": "Loading...",
+    "error_loading": "Error loading messages",
+    "error_sending": "Failed to send message",
+    "retry": "Retry"
+  },
   "ProfilePage": {
     "metadata_title": "Profile | Studify",
     "metadata_description": "Manage your profile information, view achievements, and track your learning progress",
@@ -597,28 +638,192 @@
     "header_title": "Home",
     "default_user_name": "Student"
   },
-  "AIAssistantPreview": {
+  "AIAssistant": {
     "title": "AI Learning Assistant",
     "subtitle": "Your personal AI copilot for learning",
-    "feature_upload_title": "Upload & Solve",
-    "feature_upload_desc": "Upload a problem → Get instant step|by|step solution",
-    "feature_upload_preview": "📸 Take a photo of your math problem and get detailed explanations instantly",
-    "feature_mindmap_title": "Mind Map Generator",
-    "feature_mindmap_desc": "Generate a sample learning mind map",
-    "feature_mindmap_preview": "🧠 Create visual learning maps for any topic to enhance understanding",
-    "feature_chat_title": "AI Tutor Chat",
-    "feature_chat_desc": "Ask questions and get personalized explanations",
-    "feature_chat_preview": "💬 Chat with AI tutor for real|time help and clarifications",
-    "drop_image_here": "Drop your problem image here",
-    "subjects": {
-      "Math": "Math",
-      "Physics": "Physics",
-      "Chemistry": "Chemistry",
-      "Biology": "Biology"
+    "history_auto_save": "All AI interactions are automatically saved to history",
+    "features": {
+      "use_now": "Use Now",
+      "quick_qa": {
+        "title": "AI Quick Q&A",
+        "description": "Learning assistant, explain concepts, instantly answer your questions",
+        "input_description": "Enter your question, AI assistant will answer immediately",
+        "placeholder": "E.g., Explain Newton's second law, How to fix this code error?",
+        "submit": "Ask"
+      },
+      "solve_problem": {
+        "title": "Upload & Solve",
+        "description": "Take a photo or upload problem images for detailed solutions",
+        "input_description": "Take a photo or upload problem images for detailed solutions",
+        "upload_text": "Click to upload image or drag here",
+        "supported_formats": "Supports PNG, JPG, JPEG formats",
+        "submit": "Solve"
+      },
+      "smart_notes": {
+        "title": "Smart Notes Summary",
+        "description": "Paste content to automatically generate study notes and key points",
+        "input_description": "Paste content to automatically generate study notes and key points",
+        "placeholder": "Paste course materials, lectures, video subtitles, etc...",
+        "language_support": "Supports Chinese and English content",
+        "submit": "Generate Notes"
+      },
+      "learning_path": {
+        "title": "Personalized Learning Path",
+        "description": "Enter learning goals to generate customized study plans and resource recommendations",
+        "input_description": "Enter learning goals to generate customized study plans and resource recommendations",
+        "placeholder": "E.g., I want to learn Python, I need to prepare for math exam",
+        "select_level": "Select Level",
+        "select_time": "Select Time",
+        "levels": {
+          "beginner": "Beginner",
+          "intermediate": "Intermediate",
+          "advanced": "Advanced"
+        },
+        "timeframes": {
+          "one_week": "Within 1 week",
+          "one_month": "Within 1 month",
+          "three_months": "Within 3 months",
+          "flexible": "Flexible schedule"
+        },
+        "submit": "Generate Path"
+      }
     },
-    "ai_tutor_online": "AI Tutor is online",
-    "ai_tutor_prompt": "\"How can I help you with your studies today?\"",
-    "cta_experience_ai": "Experience AI Tutoring"
+    "preview": {
+      "select_feature": "Select an AI Feature",
+      "select_description": "Click on the feature cards on the left to view detailed introductions and start using the AI assistant",
+      "start_experience": "← Select a feature to start",
+      "collapsed_description": "Your intelligent learning companion ready to assist with questions, problem-solving, note-taking, and learning paths.",
+      "expand_hint": "Expand to see features"
+    },
+    "sidebar": {
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar",
+      "features": "Features"
+    },
+    "chat": {
+      "input": {
+        "placeholder": "Enter your question... (Press Enter to send)",
+        "aria_label": "Enter message"
+      },
+      "typing": "AI is thinking...",
+      "error": {
+        "title": "Request Failed",
+        "description": "Please check your network connection and try again",
+        "retry": "Retry",
+        "unknown": "Unknown error",
+        "network_error": "Sorry, an error occurred. Please check your network connection and try again."
+      },
+      "welcome": {
+        "title": "Start chatting with AI assistant",
+        "subtitle": "Ask me any learning-related questions"
+      },
+      "quickqa": {
+        "title": "AI Quick Q&A", 
+        "description": "Smart Q&A assistant, instantly answer your questions"
+      }
+    },
+    "dialog": {
+      "ai_result_title": "AI Assistant Result",
+      "tools_used": "Tools Used",
+      "ai_answer": "AI Answer",
+      "confidence": "Confidence",
+      "recommendations": "Recommendations"
+    },
+    "upload": {
+      "drop_here": "Drop your file here",
+      "max_size": "Maximum file size: 10MB",
+      "error": {
+        "title": "Upload Failed",
+        "description": "Please try again later",
+        "invalid_type": "Please upload a valid image file (JPG, PNG, GIF, WebP)",
+        "too_large": "File size must be less than 10MB"
+      },
+      "success": {
+        "title": "Upload Successful",
+        "description": "Your image has been analyzed successfully"
+      }
+    },
+    "learning_path": {
+      "roadmap": "Learning Roadmap",
+      "steps": "Learning Steps", 
+      "recommended_courses": "Recommended Courses",
+      "practice_quizzes": "Practice Quizzes",
+      "community_suggestions": "Community Recommendations",
+      "duration": "Duration",
+      "difficulty": "Difficulty",
+      "resources": "Resources",
+      "questions": "questions",
+      "start_quiz": "Start Quiz",
+      "view_course": "View Course",
+      "join_group": "Join Group",
+      "step_number": "Step",
+      "min": "min",
+      "mermaid": {
+        "title": "Mermaid Diagram Code:",
+        "copy_hint": "Copy this code to",
+        "view_diagram": "to view the diagram"
+      }
+    },
+    "camera": {
+      "error": {
+        "title": "Camera Access Failed",
+        "description": "Please allow camera access to take photos"
+      },
+      "capture": "Capture Photo",
+      "stop": "Stop Camera",
+      "switch": "Switch Camera"
+    },
+    "common": {
+      "cancel": "Cancel",
+      "characters": "characters",
+      "error": "❌ Error",
+      "failed": "Failed",
+      "try_again": "Please try again later",
+      "check_format": "Please check the format and try again",
+      "preview": "Preview"
+    },
+    "errors": {
+      "qa_failed": "❌ 出错了",
+      "solve_failed": "❌ 解题失败", 
+      "notes_failed": "❌ 笔记生成失败",
+      "path_failed": "❌ 路径生成失败",
+      "unknown_error": "Unknown error occurred"
+    },
+    "recommendations": {
+      "title": "You might also like",
+      "loading": "Finding relevant content...",
+      "related_courses": "Related Courses",
+      "related_posts": "Related Discussions",
+      "related_communities": "Related Communities",
+      "view_more": "View More",
+      "members": "members"
+    },
+    "results": {
+      "processing_time": "Processing time",
+      "regenerate": "Regenerate",
+      "back": "Back",
+      "tools_used": "AI tools used",
+      "quick_qa": {
+        "title": "AI Q&A Results",
+        "answer_title": "AI Answer",
+        "sources": "Reference Sources",
+        "confidence": "Confidence"
+      },
+      "solve_problem": {
+        "title": "Solution Results",
+        "solution_title": "Problem Analysis & Solution"
+      },
+      "smart_notes": {
+        "title": "Smart Notes",
+        "notes_title": "Study Notes",
+        "recommendations": "Study Recommendations"
+      },
+      "learning_path": {
+        "title": "Learning Path",
+        "path_title": "Personalized Learning Path",
+        "personalized_note": "This learning path is customized based on your personal profile and interests"
+      }
+    }
   },
   "LearningPath": {
     "title": "Your Customized Learning Journey",
@@ -683,7 +888,7 @@
     "discussions_label": "Discussions",
     "quizzes_label": "Quizzes",
     "achievements_label": "Achievements",
-    "messages_label": "Messages",
+    "chat_label": "Chat",
     "documents_label": "Documents",
     "search_label": "Search",
     "bookmarks_label": "Bookmarks",
@@ -718,7 +923,16 @@
     "secondary_cta": "Explore Courses",
     "feature_recommendations": "AI|Powered Recommendations",
     "feature_live_tutoring": "Live Tutoring Sessions",
-    "feature_interactive": "Interactive Learning"
+    "feature_interactive": "Interactive Learning",
+    "close_button_title": "Hide hero section",
+    "close_button_aria": "Hide hero section",
+    "close_dialog": {
+      "title": "Hide Hero Section?",
+      "description": "This will hide the hero section from your homepage. You can still access all features through the navigation menu. This setting will be remembered for future visits.",
+      "cancel": "Keep Showing",
+      "confirm": "Hide Section"
+    },
+    "show_hero_button": "Show Welcome Section"
   },
   "Header": {
     "default_title": "Classroom",
@@ -958,7 +1172,21 @@
     "achievement_unlocked": "Achievement Unlocked!",
     "points_earned": "You earned {points} points.",
     "no_achievements": "No achievements found in this category.",
-    "loading": "Loading achievements..."
+    "loading": "Loading...",
+    "error": "Error",
+    "try_again": "Try Again"
+  },
+  "VideoProcessing": {
+    "title": "Processing Video",
+    "description": "Your video is being processed. This may take a few minutes.",
+    "progress": "Progress",
+    "cancel": "Cancel",
+    "cancel_confirm": "Are you sure you want to cancel processing?",
+    "cancel_confirm_description": "This will stop the current processing and you'll need to start over.",
+    "keep_processing": "Keep Processing",
+    "cancel_processing": "Cancel Processing",
+    "processing_cancelled": "Processing Cancelled",
+    "processing_complete": "Processing Complete"
   },
   "Recommendations": {
     "page_title": "Course Recommendations",

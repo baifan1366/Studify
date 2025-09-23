@@ -3,6 +3,8 @@ import { VectorStore, getVectorStore, ContentType, SearchResult } from './vector
 import { generateEmbedding, cosineSimilarity } from './embedding';
 import { contextManager } from './context-manager';
 import { aiWorkflowExecutor } from './ai-workflow';
+import { getLLM } from './client';
+import { HumanMessage } from "@langchain/core/messages";
 
 // Base retriever interface
 export interface BaseRetriever {
@@ -306,12 +308,15 @@ Response: {
 `;
 
     try {
-      const response = await aiWorkflowExecutor.simpleAICall(parsePrompt, {
+      const llm = await getLLM({
         temperature: 0.1,
-        model: 'openai/gpt-4o'
+        model: 'x-ai/grok-4-fast:free'
       });
+      
+      const response = await llm.invoke([new HumanMessage(parsePrompt)]);
+      const responseText = response.content as string;
 
-      const parsed = JSON.parse(response);
+      const parsed = JSON.parse(responseText);
       return {
         cleanQuery: parsed.cleanQuery || query,
         filters: parsed.filters || {}
@@ -405,10 +410,13 @@ Relevant parts:
           .replace('{question}', query)
           .replace('{context}', doc.pageContent);
 
-        const compressedContent = await aiWorkflowExecutor.simpleAICall(prompt, {
+        const llm = await getLLM({
           temperature: 0.1,
-          model: 'openai/gpt-4o'
+          model: 'x-ai/grok-4-fast:free'
         });
+        
+        const response = await llm.invoke([new HumanMessage(prompt)]);
+        const compressedContent = response.content as string;
 
         if (compressedContent.trim().length > 0) {
           compressedDocs.push({
@@ -542,16 +550,19 @@ Generate ${this.numQueries} alternative questions:
 `;
 
     try {
-      const response = await aiWorkflowExecutor.simpleAICall(prompt, {
+      const llm = await getLLM({
         temperature: 0.7,
-        model: 'openai/gpt-4o'
+        model: 'x-ai/grok-4-fast:free'
       });
+      
+      const response = await llm.invoke([new HumanMessage(prompt)]);
+      const responseText = response.content as string;
 
       // Parse the response to extract queries
-      const lines = response.split('\n').filter(line => line.trim().length > 0);
+      const lines = responseText.split('\n').filter((line: string) => line.trim().length > 0);
       const queries = lines
-        .map(line => line.replace(/^\d+\.\s*/, '').trim())
-        .filter(line => line.length > 0)
+        .map((line: string) => line.replace(/^\d+\.\s*/, '').trim())
+        .filter((line: string) => line.length > 0)
         .slice(0, this.numQueries);
 
       return [query, ...queries]; // Include original query

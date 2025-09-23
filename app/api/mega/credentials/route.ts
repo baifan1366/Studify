@@ -8,14 +8,10 @@ import { authorize } from '@/utils/auth/server-guard'
  */
 export async function GET() {
   try {
-    // Authorize user (must be authenticated)
-    const user = await authorize('tutor')
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+    // Authorize user (must be authenticated - allow both students and tutors)
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
     // Get MEGA credentials from environment variables

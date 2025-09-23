@@ -641,14 +641,25 @@ export const adminRoleApi = {
   createPermissions: "/api/permissions",
   updatePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
   deletePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
-  listRolePermissions: "/api/role_permissions",
-  getRolePermissionsById: (rolePermissionId: string) => `/api/role-permissions/${rolePermissionId}`,
-  createRolePermissions: "/api/role-permissions",
-  updateRolePermissions: (rolePermissionId: string) => `/api/role-permissions/${rolePermissionId}`,
-  deleteRolePermissions: (rolePermissionId: string) => `/api/role_permissions/${rolePermissionId}`,
+  listRolePermissions: "/api/role-permission",
+  getRolePermissionsById: (rolePermissionId: string) => `/api/role-permission/${rolePermissionId}`,
+  createRolePermissions: "/api/role-permission",
+  updateRolePermissions: (rolePermissionId: string) => `/api/role-permission/${rolePermissionId}`,
+  deleteRolePermissions: (rolePermissionId: string) => `/api/role-permission/${rolePermissionId}`,
   listAdminRoles: "/api/admin/admin-role",
   createAdminRoles: "/api/admin/admin-role",
   getAdminRolesByAdminId: (adminId: string) => `/api/admin/admin-role/${adminId}`,
   updateAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
   deleteAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+} as const;
+
+// Course Progress API endpoints
+export const courseProgressApi = {
+  list: "/api/course/progress",
+  create: "/api/course/progress",
+  getByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
+  updateByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
+  getByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
+  updateByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
+  updateStatus: (progressId: string) => `/api/course/progress/${progressId}/status`,
 } as const;

@@ -15,6 +15,7 @@ import Link from "next/link";
 import PostCard from "./post-card";
 import CommunitySidebar from "./community-sidebar";
 import CompactRecommendations from "./recommendations/compact-recommendations";
+import AISummaryCard from "./ai-summary-card";
 
 export default function CommunityContent() {
   const t = useTranslations("CommunityContent");
@@ -75,6 +76,12 @@ export default function CommunityContent() {
     };
   }, [query]);
 
+  // Top result IDs for AI summary (use public_id if available)
+  const topIds = useMemo(
+    () => (posts || []).slice(0, 8).map((p: any) => p.public_id ?? p.id),
+    [posts]
+  );
+
   return (
     <>
         <div className="flex h-full">
@@ -120,6 +127,11 @@ export default function CommunityContent() {
                   className="w-full px-4 py-3 rounded-2xl bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* AI Summary (based on current search results) */}
+              {query.trim().length > 0 && (
+                <AISummaryCard query={query} resultIds={topIds} locale="en" />
+              )}
 
               {/* Recommendations Section (driven by current search intent) */}
               <CompactRecommendations limit={3} q={qForRec} hashtags={hashtagsForRec} />

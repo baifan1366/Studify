@@ -36,6 +36,12 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
 
               if (event === 'SIGNED_IN' && session) {
                 console.log('User signed in via OAuth, syncing...');
+                console.log('🔍 Session user data:', {
+                  id: session.user.id,
+                  email: session.user.email,
+                  user_metadata: session.user.user_metadata,
+                  identities: session.user.identities?.[0]?.identity_data
+                });
                 
                 // Call our sync API to set up JWT session
                 const syncResponse = await fetch("/api/auth/sync", {
@@ -46,7 +52,13 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
 
                 if (syncResponse.ok) {
                   const syncResult = await syncResponse.json();
-                  console.log('Sync successful:', syncResult);
+                  console.log('✅ Sync successful:', syncResult);
+                  console.log('👤 User data from sync:', {
+                    id: syncResult?.user?.id,
+                    name: syncResult?.user?.name,
+                    email: syncResult?.user?.email,
+                    role: syncResult?.user?.role
+                  });
                   
                   // Role-based redirect
                   const userRole = syncResult?.user?.role || 'student';
@@ -57,13 +69,18 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
                   };
                   
                   const redirectPath = redirectPaths[userRole as keyof typeof redirectPaths] || `/${locale}/home`;
-                  console.log('Redirecting OAuth user to:', redirectPath);
+                  console.log('🔄 Redirecting OAuth user to:', redirectPath);
                   
                   // Clean up subscription before redirect
                   subscription.unsubscribe();
                   router.replace(redirectPath);
                 } else {
-                  console.error('Sync failed:', await syncResponse.text());
+                  const errorText = await syncResponse.text();
+                  console.error('❌ Sync failed:', {
+                    status: syncResponse.status,
+                    statusText: syncResponse.statusText,
+                    body: errorText
+                  });
                   subscription.unsubscribe();
                   setIsProcessing(false);
                 }

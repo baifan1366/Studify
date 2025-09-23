@@ -13,6 +13,8 @@ import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/utils/supabase/client";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { useAccountSwitcher } from "@/hooks/auth/use-account-switcher";
+import { useTranslations } from 'next-intl';
 
 // HCaptcha configuration
 const HCAPTCHA_SITE_KEY = "d26a2d9a-3b10-4210-86a6-c8e4d872db56";
@@ -28,6 +30,8 @@ interface AuthFormProps {
   footerLinkText: string;
   footerLinkHref: string;
   locale: string;
+  authMode?: string;
+  redirectUrl?: string;
 }
 
 export function AuthForm({
@@ -41,10 +45,14 @@ export function AuthForm({
   footerLinkText,
   footerLinkHref,
   locale,
+  authMode,
+  redirectUrl,
 }: AuthFormProps) {
   const router = useRouter();
   const signIn = useSignIn();
   const signUp = useSignUp();
+  const { handleLoginSuccess } = useAccountSwitcher();
+  const t = useTranslations('AuthSignInPage');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,14 +92,22 @@ export function AuthForm({
       
       // Use current page as callback since Supabase is configured to redirect here
       const currentOrigin = window.location.origin;
-      const redirectUrl = `${currentOrigin}/${locale}/sign-in`;
+      let oauthRedirectUrl = `${currentOrigin}/${locale}/sign-in`;
       
-      console.log('OAuth redirect URL:', redirectUrl);
+      // If adding new account, preserve the mode and redirect parameters
+      if (authMode === 'add') {
+        oauthRedirectUrl += `?mode=add`;
+        if (redirectUrl) {
+          oauthRedirectUrl += `&redirect=${encodeURIComponent(redirectUrl)}`;
+        }
+      }
+      
+      console.log('OAuth redirect URL:', oauthRedirectUrl);
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: oauthRedirectUrl,
           queryParams: { 
             access_type: "offline",
             prompt: "consent"
@@ -169,15 +185,34 @@ export function AuthForm({
           email, 
           password, 
           locale, 
-          captchaToken 
+          captchaToken,
+          mode: authMode === 'add' ? 'add' : 'login'
         });
-        const r = res.role;
-        const pathByRole: Record<typeof r, string> = {
-          student: `/${locale}/home`,
-          tutor: `/${locale}/tutor/dashboard`,
-          admin: `/${locale}/admin/dashboard`,
-        } as const;
-        router.replace(pathByRole[r]);
+        
+        // Handle login success for account addition
+        if (res.mode === 'add' || authMode === 'add') {
+          handleLoginSuccess(res);
+          
+          // Show success message and redirect
+          toast({
+            title: "Account Added Successfully",
+            description: "The account has been added to your account switcher.",
+            duration: 3000,
+          });
+          
+          // For account addition, redirect to specified URL or home
+          const targetUrl = redirectUrl || `/${locale}/home`;
+          setTimeout(() => router.replace(targetUrl), 1000);
+        } else {
+          // Normal login flow
+          const r = res.role;
+          const pathByRole: Record<typeof r, string> = {
+            student: `/${locale}/home`,
+            tutor: `/${locale}/tutor/dashboard`,
+            admin: `/${locale}/admin/dashboard`,
+          } as const;
+          router.replace(pathByRole[r]);
+        }
       }
     } catch (err: any) {
       setError(err?.message || "Failed");
@@ -294,13 +329,25 @@ export function AuthForm({
               {footerLinkText}
             </Link>
           </div>
-          <button
-        onClick={handleGoogleLogin}
-        disabled={loading}
-        className="w-full rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
-      >
-        {loading ? "Loading..." : "Continue with Google"}
-      </button>
+          {/* Hide Google login for add account mode */}
+          {authMode !== 'add' && (
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "Continue with Google"}
+            </button>
+          )}
+          
+          {/* Show message for add account mode */}
+          {authMode === 'add' && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
+                {t('add_account_notice')}
+              </p>
+            </div>
+          )}
         </motion.div>
 
         <div className="mt-6 flex justify-center">

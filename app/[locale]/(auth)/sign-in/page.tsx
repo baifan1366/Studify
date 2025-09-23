@@ -10,21 +10,30 @@ export async function generateMetadata() {
   };
 }
 
-export default async function SignInPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function SignInPage({ 
+  params, 
+  searchParams 
+}: { 
+  params: Promise<{ locale: string }>; 
+  searchParams: Promise<{ mode?: string; redirect?: string }>;
+}) {
   const { locale } = await params;
+  const { mode, redirect } = await searchParams;
   const t = await getTranslations('AuthSignInPage');
   return (
     <>
       <OAuthHandler locale={locale} />
       <AuthForm
         mode="sign-in"
-        title={t('welcome_back')}
-        subtitle={t('sign_in_subtitle')}
-        buttonText={t('sign_in_button')}
+        title={mode === 'add' ? t('add_new_account') : t('welcome_back')}
+        subtitle={mode === 'add' ? t('add_account_subtitle') : t('sign_in_subtitle')}
+        buttonText={mode === 'add' ? t('add_account_button') : t('sign_in_button')}
         footerText={t('no_account_question')}
         footerLinkText={t('sign_up_link')}
         footerLinkHref="/sign-up"
         locale={locale}
+        authMode={mode}
+        redirectUrl={redirect}
       >
         <AuthInput
           name="email"

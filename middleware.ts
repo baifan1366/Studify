@@ -38,6 +38,8 @@ export async function middleware(request: NextRequest) {
   const isPublicAuthPage =
     /\/(?:[a-zA-Z-]+)?\/(sign-in|verify-email)$/.test(pathname) ||
     /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/sign-up$/.test(pathname);
+  // Check if this is sign-in with mode=add (allow even for logged in users)
+  const isAddAccountMode = pathname.includes('/sign-in') && request.nextUrl.searchParams.get('mode') === 'add';
   // Onboarding pages (allow access without onboarding check)
   // This includes both /onboarding routes and role-based landing pages like /en/student
   const isOnboardingPage = /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/onboarding/.test(pathname) || 
@@ -52,7 +54,7 @@ export async function middleware(request: NextRequest) {
                           pathname.includes("/stripe/webhook") ||
                           pathname.endsWith("/webhook");
 
-  if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic || isQStashWebhook || isStripeWebhook) {
+  if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic || isQStashWebhook || isStripeWebhook || isAddAccountMode) {
     return intlResponse;
   }
 

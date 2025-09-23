@@ -7,6 +7,7 @@ import {
   usePopularPosts,
   useSearchPosts,
 } from "@/hooks/community/use-community";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ export default function CommunityContent() {
   const th = useTranslations("Header");
   const [user, setUser] = useState<User | null>(null);
   const [query, setQuery] = useState("");
+  
+  // Debounce the query to avoid excessive API calls
+  const debouncedQuery = useDebouncedValue(query, 500);
 
   // Fetch user for header
   useEffect(() => {
@@ -53,28 +57,28 @@ export default function CommunityContent() {
     isLoading: isSearchLoading,
     isError: isSearchError,
     error: searchError,
-  } = useSearchPosts(query);
+  } = useSearchPosts(debouncedQuery);
 
-  const posts = query.trim().length > 0 ? searchPosts : popularPosts;
+  const posts = debouncedQuery.trim().length > 0 ? searchPosts : popularPosts;
   const isLoading =
-    query.trim().length > 0 ? isSearchLoading : isPopularLoading;
-  const isError = query.trim().length > 0 ? isSearchError : isPopularError;
-  const error = query.trim().length > 0 ? searchError : popularError;
+    debouncedQuery.trim().length > 0 ? isSearchLoading : isPopularLoading;
+  const isError = debouncedQuery.trim().length > 0 ? isSearchError : isPopularError;
+  const error = debouncedQuery.trim().length > 0 ? searchError : popularError;
 
   // Derive search intent for recommendations (extract hashtags and keyword)
   const { qForRec, hashtagsForRec } = useMemo(() => {
-    const hashtagMatches = query.match(/#([A-Za-z0-9_]+)/g) || [];
+    const hashtagMatches = debouncedQuery.match(/#([A-Za-z0-9_]+)/g) || [];
     const hashtags = Array.from(
       new Set(
         hashtagMatches.map((t) => t.slice(1).toLowerCase())
       )
     );
-    const q = query.replace(/#([A-Za-z0-9_]+)/g, "").trim();
+    const q = debouncedQuery.replace(/#([A-Za-z0-9_]+)/g, "").trim();
     return {
       qForRec: q.length ? q : undefined,
       hashtagsForRec: hashtags.length ? hashtags : undefined,
     };
-  }, [query]);
+  }, [debouncedQuery]);
 
   // Top result IDs for AI summary (use public_id if available)
   const topIds = useMemo(
@@ -91,19 +95,19 @@ export default function CommunityContent() {
               {/* Header */}
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-3">
-                  {query.trim().length > 0 ? (
+                  {debouncedQuery.trim().length > 0 ? (
                     <Search className="w-8 h-8 text-green-400" />
                   ) : (
                     <TrendingUp className="w-8 h-8 text-blue-400" />
                   )}
                   <div>
                     <h1 className="text-3xl font-bold text-white">
-                      {query.trim().length > 0
+                      {debouncedQuery.trim().length > 0
                         ? "Search Results"
                         : "Community Feed"}
                     </h1>
                     <p className="text-gray-400">
-                      {query.trim().length > 0
+                      {debouncedQuery.trim().length > 0
                         ? "Posts matching your search"
                         : "Discover popular posts from all groups"}
                     </p>
@@ -129,8 +133,8 @@ export default function CommunityContent() {
               </div>
 
               {/* AI Summary (based on current search results) */}
-              {query.trim().length > 0 && (
-                <AISummaryCard query={query} resultIds={topIds} locale="en" />
+              {debouncedQuery.trim().length > 0 && (
+                <AISummaryCard query={debouncedQuery} resultIds={topIds} locale="en" />
               )}
 
               {/* Recommendations Section (driven by current search intent) */}
@@ -168,12 +172,12 @@ export default function CommunityContent() {
                   <div className="bg-white/5 rounded-xl p-8 border border-white/10">
                     <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-white mb-2">
-                      {query.trim().length > 0
+                      {debouncedQuery.trim().length > 0
                         ? "No results found"
                         : "No posts yet"}
                     </h3>
                     <p className="text-gray-400 mb-6">
-                      {query.trim().length > 0
+                      {debouncedQuery.trim().length > 0
                         ? "Try searching with different keywords or hashtags."
                         : "Be the first to share something with the community!"}
                     </p>
@@ -181,7 +185,7 @@ export default function CommunityContent() {
                       <Link href="/community/create">
                         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                           <Plus className="w-4 h-4 mr-2" />
-                          {query.trim().length > 0
+                          {debouncedQuery.trim().length > 0
                             ? "Create Post"
                             : "Create Group"}
                         </Button>

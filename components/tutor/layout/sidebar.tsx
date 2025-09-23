@@ -10,6 +10,7 @@ import {
   Calendar,
   FileText,
   BarChart3,
+  PackageOpen,
   LogOut,
   BookOpen,
   Users,
@@ -56,6 +57,7 @@ const defaultMenuSections: MenuSection[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/tutor/dashboard' },
       { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tutor/notifications' },
+      { id: 'storage', label: 'Storage', icon: PackageOpen, path: '/tutor/storage' },
     ]
   },
   {
@@ -65,9 +67,8 @@ const defaultMenuSections: MenuSection[] = [
         id: 'teaching',
         label: 'Teaching',
         icon: BookOpen,
-        path: '/tutor/teaching',
+        path: '/tutor/teaching/assignments-exams',
         subItems: [
-          { id: 'schedule', label: 'Schedule', icon: UserCheck, path: '/tutor/teaching/schedule' },
           { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/tutor/teaching/assignments-exams' },
           { id: 'course-content', label: 'Course Content', icon: Video, path: '/tutor/teaching/course-content' },
         ]
@@ -75,7 +76,6 @@ const defaultMenuSections: MenuSection[] = [
       { id: 'classroom', label: 'Classroom', icon: Users, path: '/tutor/classroom' },
       { id: 'students', label: 'Students', icon: GraduationCap, path: '/tutor/student' },
       { id: 'ai-assistant', label: 'AI Assistant', icon: BookOpen, path: '/tutor/ai-assistant' },
-      { id: 'settings', label: 'Settings', icon: Settings, path: '/tutor/settings' },
     ]
   }
 ];

@@ -343,7 +343,7 @@ export function UserReportsList() {
                       <Avatar className="w-10 h-10">
                         <AvatarImage src={user.avatar_url} alt={user.full_name} />
                         <AvatarFallback>
-                          {user.full_name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+                          {user.full_name}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">

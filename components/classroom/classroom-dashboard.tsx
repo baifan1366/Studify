@@ -99,6 +99,17 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   // Fetch classroom data
   const { data: classroomsData, isLoading: isClassroomLoading } = useClassrooms();
   const { data: membersData, isLoading: isMembersLoading } = useClassroomMembers(classroomSlug);
+  
+  // Debug members data
+  useEffect(() => {
+    console.log('🔍 ClassroomDashboard - Members data:', {
+      membersData,
+      isLoading: isMembersLoading,
+      isArray: Array.isArray(membersData),
+      hasMembers: !!membersData?.members,
+      actualMembers: Array.isArray(membersData) ? membersData : membersData?.members || []
+    });
+  }, [membersData, isMembersLoading]);
   const { data: liveSessionsData, isLoading: isLiveSessionsLoading } = useLiveSessions(classroomSlug);
   const { data: assignmentsData, isLoading: isAssignmentsLoading } = useAssignments(classroomSlug, 'upcoming');
 
@@ -136,14 +147,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         // Convert HookAssignment to AssignmentInterface format for validation
         const interfaceAssignment: AssignmentInterface = {
           id: parseInt(assignment.id),
-          public_id: assignment.id,
-          course_id: 1, // Default course ID
+          classroom_id: 1, // Default classroom ID
+          author_id: 1, // Default author ID
           title: assignment.title,
-          description: assignment.description,
-          due_at: new Date(assignment.due_on),
-          is_deleted: false,
-          created_at: new Date(),
-          updated_at: new Date()
+          description: assignment.description || '',
+          due_date: assignment.due_on,
+          created_at: new Date().toISOString(),
+          slug: assignment.title.toLowerCase().replace(/\s+/g, '-')
         };
         return validateAssignmentInterface(interfaceAssignment);
       });
@@ -266,7 +276,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               <Badge variant="outline">{classroom.user_role}</Badge>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                <span className="text-sm">{membersData?.members?.length || 0} members</span>
+                <span className="text-sm">{(() => {
+                  const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+                  return members.length;
+                })() || 0} members</span>
               </div>
             </div>
           </div>
@@ -535,7 +548,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{membersData?.members?.length || 0}</div>
+                <div className="text-2xl font-bold">{(() => {
+                  const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+                  return members.length;
+                })() || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   Active members
                 </p>
@@ -720,6 +736,12 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             classroomSlug={classroomSlug}
             navigateToSection={navigateToSection}
             classroom={classroom}
+            userRole={classroom?.user_role}
+            currentUserId={(() => {
+              const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+              const currentUser = members.find(m => m.is_current_user);
+              return currentUser?.id || currentUser?.user_id || 0;
+            })()}
           />
         </AnimatedTabsContent>
 
@@ -735,8 +757,16 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         <AnimatedTabsContent value="chat" className="space-y-6">
           <ChatTabs
             classroomSlug={classroomSlug}
-            currentUserId={membersData?.members?.find(m => m.is_current_user)?.user_id || 'unknown'}
-            currentUserName={membersData?.members?.find(m => m.is_current_user)?.name || 'Unknown User'}
+            currentUserId={(() => {
+              const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+              return members.find(m => m.is_current_user)?.user_id || 
+                     members.find(m => m.is_current_user)?.id || 'unknown';
+            })()}
+            currentUserName={(() => {
+              const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+              const currentUser = members.find(m => m.is_current_user);
+              return currentUser?.name || currentUser?.display_name || 'Unknown User';
+            })()}
             isOpen={true}
             onToggle={() => {}}
             className="relative w-full h-[600px] border-0 shadow-none bg-transparent"

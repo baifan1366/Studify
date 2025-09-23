@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, Users, Settings, Hash } from 'lucide-react';
+import { MessageCircle, Users, Settings, Hash, Bell, BellOff } from 'lucide-react';
 import { ChatPanel } from '../chat-panel';
 import { useClassroomChat } from '@/hooks/classroom/use-classroom-chat';
 import { HookChatMessage } from '@/interface/classroom/chat-message-interface';
@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { useNotifications, useCreateNotification } from '@/hooks/notifications/use-notifications';
+import { useNotificationSettings, useUpdateNotificationSettings } from '@/hooks/notifications/use-notification-settings';
 
 // Tab types
 type ChatTabType = 'general' | 'settings';
@@ -37,12 +39,14 @@ function GeneralChatTab({
   classroomSlug, 
   sessionId, 
   currentUserId, 
-  currentUserName 
+  currentUserName,
+  classroom
 }: {
   classroomSlug: string;
   sessionId?: number;
   currentUserId: string;
   currentUserName: string;
+  classroom?: any;
 }) {
   const {
     messages,
@@ -51,6 +55,10 @@ function GeneralChatTab({
     clearMessages,
     markAsRead,
   } = useClassroomChat(classroomSlug, sessionId);
+
+  // Notification hooks
+  const createNotification = useCreateNotification();
+  const { data: notificationSettings } = useNotificationSettings();
 
   // Mark messages as read when viewing the chat tab
   useEffect(() => {
@@ -71,6 +79,43 @@ function GeneralChatTab({
     
     try {
       await sendMessage(trimmedContent);
+      
+      // Create notification for classroom members (if notifications are enabled)
+      if (notificationSettings?.settings?.classroom_updates !== false) {
+        try {
+          // Get all classroom members except the sender
+          const membersResponse = await fetch(`/api/classroom/${classroomSlug}/members`);
+          if (membersResponse.ok) {
+            const members = await membersResponse.json();
+            const memberArray = Array.isArray(members) ? members : members?.members || [];
+            
+            // Get member IDs excluding current user
+            const memberIds = memberArray
+              .filter((member: any) => member.id !== currentUserId && member.user_id !== currentUserId)
+              .map((member: any) => member.id);
+            
+            if (memberIds.length > 0) {
+              await createNotification.mutateAsync({
+                user_ids: memberIds,
+                kind: 'classroom_message',
+                title: `New message in ${classroom?.name || 'classroom'}`,
+                message: `${currentUserName}: ${trimmedContent.substring(0, 100)}${trimmedContent.length > 100 ? '...' : ''}`,
+                payload: {
+                  classroom_slug: classroomSlug,
+                  session_id: sessionId,
+                  sender_name: currentUserName,
+                  message_preview: trimmedContent.substring(0, 200)
+                },
+                deep_link: `/classroom/${classroomSlug}?tab=chat`,
+                send_push: notificationSettings?.settings?.push_notifications === true
+              });
+            }
+          }
+        } catch (notificationError) {
+          console.error('Failed to send chat notification:', notificationError);
+          // Don't throw - message was sent successfully, notification is optional
+        }
+      }
     } catch (error) {
       console.error(`Failed to send message for ${currentUserName}:`, error);
       // Show user-friendly error with their name
@@ -204,10 +249,10 @@ function AnnouncementsTab() {
 }
 
 function SettingsTab() {
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('chat-notifications');
-    return saved ? JSON.parse(saved) : true;
-  });
+  const { data: notificationSettings, isLoading } = useNotificationSettings();
+  const { mutate: updateSettings } = useUpdateNotificationSettings();
+
+  // Local settings for chat-specific features
   const [sounds, setSounds] = useState(() => {
     const saved = localStorage.getItem('chat-sounds');
     return saved ? JSON.parse(saved) : false;
@@ -217,10 +262,11 @@ function SettingsTab() {
     return saved ? JSON.parse(saved) : true;
   });
 
-  // Save settings to localStorage
+  // Handle notification settings update
   const saveNotifications = (value: boolean) => {
-    setNotifications(value);
-    localStorage.setItem('chat-notifications', JSON.stringify(value));
+    updateSettings({
+      classroom_updates: value
+    });
   };
 
   const saveSounds = (value: boolean) => {
@@ -233,6 +279,8 @@ function SettingsTab() {
     localStorage.setItem('chat-autoscroll', JSON.stringify(value));
   };
 
+  const notifications = notificationSettings?.settings?.classroom_updates ?? true;
+
   return (
     <div className="h-full overflow-y-auto">
       <h3 className="font-semibold mb-4">
@@ -241,11 +289,12 @@ function SettingsTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium">
-              Notifications
+            <div className="text-sm font-medium flex items-center gap-2">
+              {notifications ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+              Chat Notifications
             </div>
             <div className="text-xs text-muted-foreground">
-              Get notified of new messages
+              Get notified when new messages are posted
             </div>
           </div>
           <button
@@ -372,6 +421,7 @@ export function ChatTabs({
             sessionId={sessionId}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
+            classroom={classroom}
           />
         );
       case 'settings':

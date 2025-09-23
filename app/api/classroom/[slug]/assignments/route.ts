@@ -51,20 +51,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 404 });
     }
 
-    // Build query
+    // Build query - only get assignments for now, submissions can be joined if needed
     let query = supabase
       .from('classroom_assignment')
       .select(`
-        *,
-        classroom_submission(
-          id,
-          submitted_at,
-          grade,
-          feedback
-        )
+        id,
+        classroom_id,
+        author_id,
+        title,
+        description,
+        due_date,
+        created_at
       `)
-      .eq('classroom_id', classroom.id)
-      .eq('classroom_submission.student_id', profile.id);
+      .eq('classroom_id', classroom.id);
 
     // Apply status filter based on due_date
     const now = new Date().toISOString();
@@ -82,15 +81,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 
     if (error) throw error;
 
-    // Transform data to include submission status
-    const transformedAssignments = assignments?.map(assignment => ({
-      ...assignment,
-      submission_status: assignment.classroom_submission?.[0] || null,
-      classroom_submission: undefined // Remove from response
-    })) || [];
-
+    // Return assignments directly - submissions can be fetched separately if needed
     return NextResponse.json({
-      assignments: transformedAssignments,
+      assignments: assignments || [],
       pagination: {
         limit,
         offset,
@@ -117,7 +110,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   try {
     const body = await request.json();
-    const { title, description, content, starts_at, ends_at, total_points, settings } = body;
+    const { title, description, due_date } = body;
+
+    // Validate required fields
+    if (!title || !description || !due_date) {
+      return NextResponse.json({ 
+        error: 'Missing required fields: title, description, due_date' 
+      }, { status: 400 });
+    }
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -145,24 +145,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    // Create assignment
+    // Create assignment with only the required schema fields
     const { data: assignment, error } = await supabase
       .from('classroom_assignment')
       .insert({
         classroom_id: classroom.id,
+        author_id: profile.id,
         title,
         description,
-        due_date: ends_at,
-        author_id: profile.id
+        due_date,
+        created_at: new Date().toISOString()
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error creating assignment:', error);
+      console.error('Assignment data attempted:', {
+        classroom_id: classroom.id,
+        author_id: profile.id,
+        title,
+        description,
+        due_date
+      });
+      throw error;
+    }
 
     return NextResponse.json({ assignment }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating assignment:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to create assignment',
+      details: error?.message || 'Internal server error'
+    }, { status: 500 });
   }
 }

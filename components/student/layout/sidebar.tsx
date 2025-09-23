@@ -22,6 +22,7 @@ import {
   Video,
   Route,
   MessageSquare,
+  MessageCircle,
   Trophy,
   Target,
   BookMarked,
@@ -210,7 +211,7 @@ const defaultMenuSections: MenuSection[] = [
           },
         ],
       },
-      { id: "messages", label: "Messages", icon: Mail, path: "/messages" },
+      { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
   },
   {
@@ -329,8 +330,8 @@ export default function AnimatedSidebar({
         return t("quizzes_label");
       case "achievements":
         return t("achievements_label");
-      case "messages":
-        return t("messages_label");
+      case "chat":
+        return t("chat_label");
       case "documents":
         return t("documents_label");
       case "search":

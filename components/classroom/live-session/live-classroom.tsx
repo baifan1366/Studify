@@ -403,52 +403,87 @@ function LiveClassroomContent({
     const m = new Map<string, ParticipantInfo>();
     // Ensure participantsInfo is an array before calling forEach
     if (Array.isArray(participantsInfo)) {
-      participantsInfo.forEach(pi => {
-        // Use user_id as the key to match with LiveKit participant.identity
-        m.set(String(pi.user_id ?? pi.id), pi);
+      participantsInfo.forEach(info => {
+        // LiveKit identity format is 'user-{profile.id}', so we create both mappings
+        if (info.id) {
+          // Map both the raw ID and the LiveKit format
+          m.set(String(info.id), info);           // Direct profile ID mapping
+          m.set(`user-${info.id}`, info);         // LiveKit identity format
+        }
+        // Also map by user_id if available (UUID format)
+        if (info.user_id) {
+          m.set(String(info.user_id), info);
+        }
       });
     }
+    
+    console.log('🗺️ Participants info map created:', {
+      totalParticipants: participantsInfo?.length || 0,
+      mapSize: m.size,
+      mapKeys: Array.from(m.keys()),
+      sampleData: participantsInfo?.[0]
+    });
+    
     return m;
   }, [participantsInfo]);
 
   // Debug logging to compare identities
   console.log('livekit identities', livekitParticipants.map(p => p.identity));
-  console.log('participantsInfo', Array.isArray(participantsInfo) ? participantsInfo.map(pi => ({ id: pi.id, user_id: pi.user_id, display_name: pi.display_name })) : participantsInfo);
-
   // Merge LiveKit participants with database participant info
   const mergedParticipants = useMemo(() => {
+    console.log('🔄 Starting participant merge process...');
+    console.log('LiveKit participants:', livekitParticipants.map(p => ({ identity: p.identity, name: p.name })));
+    
     return livekitParticipants.map(p => {
       // LiveKit participant.identity should contain the user_id
       const idKey = String(p.identity);
       const info = participantsInfoMap.get(idKey) ?? null;
 
-      console.log(`Merging participant ${p.identity}:`, {
+      console.log(`🔍 Merging participant ${p.identity}:`, {
         livekitIdentity: p.identity,
         foundInfo: !!info,
+        infoId: info?.id,
         infoUserId: info?.user_id,
-        infoDisplayName: info?.display_name
+        infoDisplayName: info?.display_name,
+        infoRole: info?.role,
+        participantName: p.name,
+        mapHasKey: participantsInfoMap.has(String(p.identity))
       });
 
-      return {
-        // Basic LiveKit fields
-        identity: p.identity,
-        sid: p.sid,
-        isLocal: p.isLocal,
-        metadata: p.metadata,
-        participantObj: p, // Original LiveKit participant for useTracks/useParticipantTracks
+      // Determine display name with better fallback logic
+      const displayName = info?.display_name || 
+                         info?.name || 
+                         info?.full_name || 
+                         p.name || 
+                         `User ${p.identity}`;
 
-        // Display fields from database or fallback
-        displayName: info?.display_name ?? info?.full_name ?? info?.name ?? p.name ?? p.identity,
-        avatarUrl: info?.avatar_url ?? undefined,
-        role: info?.role ?? (p.metadata ? (() => { 
-          try { 
-            return JSON.parse(p.metadata).role 
-          } catch { 
+      const mergedParticipant = {
+        livekitParticipant: p,
+        sid: p.sid,
+        identity: p.identity,
+        displayName,
+        role: info?.role || 'student',
+        avatarUrl: (info ? (() => {
+          if (info.avatar_url) {
+            // 如果 avatar_url 是相对路径，转换为绝对路径
+            if (!info.avatar_url.startsWith('http')) {
+              return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${info.avatar_url}`;
+            }
+            return info.avatar_url;
+          } else {
             return undefined 
           } 
         })() : undefined),
         userInfo: info // Full user info object for additional data
       };
+
+      console.log(`✅ Merged participant ${p.identity}:`, {
+        hasLivekitParticipant: !!mergedParticipant.livekitParticipant,
+        displayName: mergedParticipant.displayName,
+        role: mergedParticipant.role
+      });
+
+      return mergedParticipant;
     });
   }, [livekitParticipants, participantsInfoMap]);
   
@@ -992,8 +1027,14 @@ function ParticipantsList({ participants, userRole }: any) {
 
 // Participant Card Component - Updated to use merged participant data
 function ParticipantCard({ participant, userRole }: any) {
-  // participant is the merged object containing participant.participantObj (LiveKit participant)
-  const livekitParticipant = participant.participantObj;
+  // participant is the merged object containing participant.livekitParticipant (LiveKit participant)
+  const livekitParticipant = participant.livekitParticipant;
+  
+  // Safety check - if no LiveKit participant, return null
+  if (!livekitParticipant) {
+    console.error('❌ ParticipantCard: No livekitParticipant found:', participant);
+    return null;
+  }
   
   // Use useTracks to get real-time track status from LiveKit
   const allTracks = useTracks([Track.Source.Camera, Track.Source.Microphone, Track.Source.ScreenShare]);
@@ -1018,17 +1059,20 @@ function ParticipantCard({ participant, userRole }: any) {
   );
   
   // Debug logging for participant data with track status
-  console.log('ParticipantCard data:', {
+  console.log('✅ ParticipantCard data:', {
     displayName,
     avatarUrl,
     role,
     userInfo,
     participantCameraEnabled,
     participantMicEnabled,
+    participantSid: livekitParticipant?.sid,
     participantTracksCount: participantTracks.length,
     allTracksCount: allTracks.length,
-    isLocal,
-    participantSid: participant.sid
+    isLocal: livekitParticipant?.isLocal,
+    hasLivekitParticipant: !!livekitParticipant,
+    participantKeys: Object.keys(participant || {}),
+    livekitKeys: Object.keys(livekitParticipant || {})
   });
 
   return (
@@ -1077,12 +1121,9 @@ function ParticipantCard({ participant, userRole }: any) {
             {isLocal && (
               <span className="text-xs text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">You</span>
             )}
-            {userInfo && (
-              <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">DB</span>
-            )}
           </div>
           <div className="text-xs text-slate-400 capitalize">
-            {role} {userInfo?.email && `• ${userInfo.email.split('@')[0]}`}
+            {role} {userInfo?.email}
           </div>
         </div>
         
@@ -1160,12 +1201,7 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
     return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
   };
 
-  const getAspectRatio = (count: number) => {
-    // For single participant, use full height
-    if (count <= 1) return 'aspect-video';
-    // For multiple participants, maintain video aspect ratio
-    return 'aspect-video';
-  };
+
 
   return (
     <motion.div 
@@ -1179,7 +1215,7 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
         {participants.map((participant: any, index: number) => (
           <div 
             key={participant.sid || participant.identity || `participant-${index}`}
-            className={`relative w-full ${getAspectRatio(participants.length)} min-h-0`}
+            className={`relative w-full ${(participants.length)} min-h-0`}
           >
             <VideoTile 
               participant={participant}
@@ -1276,7 +1312,18 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
   };
 
   // Use the original LiveKit participant object for track operations
-  const livekitParticipant = participant.participantObj || participant;
+  // Support both new (livekitParticipant) and old (participantObj) formats for compatibility
+  const livekitParticipant = participant.livekitParticipant || participant.participantObj || participant;
+  
+  // Safety check
+  if (!livekitParticipant) {
+    console.error('❌ VideoTile: No valid participant found:', participant);
+    return (
+      <div className={`${sizeClasses[size]} relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center`}>
+        <span className="text-slate-400 text-sm">No Participant</span>
+      </div>
+    );
+  }
   
   const allTracks = useTracks([Track.Source.Camera, Track.Source.Microphone, Track.Source.ScreenShare]);
   const participantTracks = allTracks.filter(trackRef => 
@@ -1315,12 +1362,28 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
 
       {/* --- Camera 独立容器 --- */}
       <motion.div 
-        className={`${sizeClasses[size]} relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex`}
+        className={`${sizeClasses[size]} relative rounded-xl overflow-hidden`}
         whileHover={{ scale: 1.02 }}
         transition={{ duration: 0.2 }}
       >
-        {cameraTrackRef && cameraTrackRef.publication?.track && !cameraTrackRef.publication?.isMuted ? (
-          <div className="relative w-full aspect-video">
+        {(() => {
+          const hasCameraTrack = !!cameraTrackRef;
+          const hasTrack = !!cameraTrackRef?.publication?.track;
+          const isMuted = !!cameraTrackRef?.publication?.isMuted;
+          const showCamera = hasCameraTrack && hasTrack && !isMuted;
+          
+          console.log('🎥 Camera status check:', {
+            participantName,
+            hasCameraTrack,
+            hasTrack,
+            isMuted,
+            showCamera,
+            trackSid: cameraTrackRef?.publication?.trackSid
+          });
+          
+          return showCamera;
+        })() ? (
+          <div className="relative w-full h-full">
             <VideoTrack
               trackRef={cameraTrackRef}
               className="w-full h-full object-cover rounded-lg"
@@ -1328,9 +1391,18 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
           </div>
 
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 z-10 bg-gradient-to-br from-slate-700 to-slate-800">
-            <VideoOff className="w-8 h-8 mb-2" />
-            <span className="text-sm">No Camera</span>
+          <div 
+            className="w-full h-full min-h-[200px] flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800"
+            style={{ minHeight: '200px' }} 
+          >
+            <VideoOff className="w-8 h-8 mb-2 text-slate-400" />
+            <span className="text-sm font-medium">No Camera</span>
+            <span className="text-xs mt-1 opacity-75">Camera is off for {participantName}</span>
+            {/* 调试信息 */}
+            <div className="text-xs mt-2 opacity-50 text-center">
+              <div>Participant: {participantName}</div>
+              <div>Size: {size}</div>
+            </div>
           </div>
         )}
 

@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useClassrooms } from '@/hooks/classroom/use-create-live-session';
-import { useAssignments } from '@/hooks/classroom/use-assignments';
+import { useClassroomAssignments } from '@/hooks/classroom/use-classroom-assignments';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +50,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { CreateAssignmentDialog } from './Dialog/create-assignment-dialog';
 
 interface ClassroomAssignmentsPageProps {
   classroomSlug: string;
@@ -71,7 +72,6 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   const router = useRouter();
   const { toast } = useToast();
   const [classroom, setClassroom] = useState<any>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [formData, setFormData] = useState({
@@ -82,42 +82,26 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
     status: 'draft' as 'draft' | 'published' | 'closed'
   });
 
-  // Mock assignments data - replace with actual API call
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    {
-      id: '1',
-      title: 'Math Problem Set 1',
-      description: 'Complete exercises 1-20 from chapter 3',
-      due_date: '2024-01-15T23:59:00Z',
-      total_points: 100,
-      status: 'published',
-      created_at: '2024-01-01T10:00:00Z',
-      submissions_count: 15,
-      total_students: 25
-    },
-    {
-      id: '2',
-      title: 'Science Lab Report',
-      description: 'Write a detailed report on the chemistry experiment',
-      due_date: '2024-01-20T23:59:00Z',
-      total_points: 150,
-      status: 'published',
-      created_at: '2024-01-05T14:00:00Z',
-      submissions_count: 8,
-      total_students: 25
-    },
-    {
-      id: '3',
-      title: 'History Essay Draft',
-      description: 'First draft of your research essay on World War II',
-      due_date: '2024-01-25T23:59:00Z',
-      total_points: 200,
-      status: 'draft',
-      created_at: '2024-01-08T09:00:00Z',
-      submissions_count: 0,
-      total_students: 25
-    }
-  ]);
+  // Get assignments data from API
+  const { data: assignmentsResponse, isLoading: assignmentsLoading, error: assignmentsError } = useClassroomAssignments(classroomSlug);
+  
+  // Debug: log the data
+  console.log('Assignments Response:', assignmentsResponse);
+  console.log('Assignments Loading:', assignmentsLoading);
+  console.log('Assignments Error:', assignmentsError);
+  
+  // Convert API assignment data to match the local interface
+  const assignments = assignmentsResponse?.assignments?.map(assignment => ({
+    id: String(assignment.id),
+    title: assignment.title,
+    description: assignment.description || '',
+    due_date: assignment.due_date,
+    total_points: 100, // Default since API doesn't provide this
+    status: 'published' as 'draft' | 'published' | 'closed', // Default status
+    created_at: assignment.created_at,
+    submissions_count: 0, // Would need to get from submissions API
+    total_students: 25 // Would need to get from classroom members
+  })) || [];
 
   const { data: classroomsData } = useClassrooms();
 
@@ -143,37 +127,6 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
     setEditingAssignment(null);
   };
 
-  const handleCreateAssignment = async () => {
-    try {
-      const newAssignment: Assignment = {
-        id: Date.now().toString(),
-        title: formData.title,
-        description: formData.description,
-        due_date: formData.due_date,
-        total_points: formData.total_points,
-        status: formData.status,
-        created_at: new Date().toISOString(),
-        submissions_count: 0,
-        total_students: 25 // This would come from classroom data
-      };
-
-      setAssignments(prev => [...prev, newAssignment]);
-      
-      toast({
-        title: "Success",
-        description: "Assignment created successfully",
-      });
-      
-      setIsCreateDialogOpen(false);
-      resetForm();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create assignment",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleEditAssignment = (assignment: Assignment) => {
     setEditingAssignment(assignment);
@@ -191,22 +144,11 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
     if (!editingAssignment) return;
 
     try {
-      setAssignments(prev => prev.map(assignment => 
-        assignment.id === editingAssignment.id 
-          ? {
-              ...assignment,
-              title: formData.title,
-              description: formData.description,
-              due_date: formData.due_date,
-              total_points: formData.total_points,
-              status: formData.status
-            }
-          : assignment
-      ));
-      
+      // TODO: Implement actual API call for updating assignment
+      // For now, just close the dialog
       toast({
-        title: "Success",
-        description: "Assignment updated successfully",
+        title: "Info",
+        description: "Update functionality coming soon",
       });
       
       setIsEditDialogOpen(false);
@@ -222,11 +164,10 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
-      setAssignments(prev => prev.filter(a => a.id !== assignmentId));
-      
+      // TODO: Implement actual API call for deleting assignment
       toast({
-        title: "Success",
-        description: "Assignment deleted successfully",
+        title: "Info",
+        description: "Delete functionality coming soon",
       });
     } catch (error: any) {
       toast({
@@ -274,11 +215,24 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
   const canManageAssignments = classroom?.user_role === 'owner' || classroom?.user_role === 'tutor';
 
-  if (!classroom) {
+  if (!classroom || assignmentsLoading) {
     return (
       <div className="container mx-auto py-8">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (assignmentsError) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Error loading assignments: {assignmentsError.message}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
         </div>
       </div>
     );
@@ -310,85 +264,17 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
             </p>
           </div>
           {canManageAssignments && (
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Assignment
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Create Assignment</DialogTitle>
-                  <DialogDescription>
-                    Create a new assignment for your classroom.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Assignment title"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Assignment description"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="due_date">Due Date</Label>
-                    <Input
-                      id="due_date"
-                      type="datetime-local"
-                      value={formData.due_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="total_points">Total Points</Label>
-                    <Input
-                      id="total_points"
-                      type="number"
-                      value={formData.total_points}
-                      onChange={(e) => setFormData(prev => ({ ...prev, total_points: parseInt(e.target.value) || 0 }))}
-                      min="1"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleCreateAssignment}
-                    disabled={!formData.title || !formData.due_date}
-                  >
-                    Create Assignment
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <CreateAssignmentDialog
+              classroomSlug={classroomSlug}
+              onAssignmentCreated={() => {
+                // Refresh assignments list after creation
+                // You could trigger a data refetch here
+                toast({
+                  title: "Assignment Created",
+                  description: "The assignment has been created successfully",
+                });
+              }}
+            />
           )}
         </div>
       </div>

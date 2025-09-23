@@ -44,43 +44,58 @@ export function MembersTab({ membersData, isOwnerOrTutor, classroomSlug, navigat
         )}
       </CardHeader>
       <CardContent>
-        {!membersData?.members?.length ? (
-          <div className="text-center py-8">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No members yet</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Share the class code to invite students
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {membersData.members.map((member: any) => (
-              <div key={member.id || member.user_id || member.profiles?.user_id} className="flex items-center justify-between p-4 bg-gray-100/5 hover:bg-gray-200/8 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <Avatar>
-                    <AvatarImage src={member.profiles?.avatar_url} />
-                    <AvatarFallback>
-                      {member.profiles?.display_name?.charAt(0)?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{member.profiles?.display_name || 'Unknown User'}</p>
-                    <p className="text-sm text-muted-foreground">{member.profiles?.email}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
+        {(() => {
+          console.log('🔍 Members data in MembersTab:', {
+            membersData,
+            hasMembers: !!membersData,
+            membersArray: membersData?.length ? membersData : membersData?.members,
+            memberCount: membersData?.length || membersData?.members?.length || 0
+          });
+          
+          // Handle both array format and object format
+          const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+          
+          return members.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No members yet</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Share the class code to invite students
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {members.map((member: any, index: number) => {
+                console.log('🔍 Rendering member:', member);
+                return (
+                  <div key={member.id || member.user_id || `member-${index}`} className="flex items-center justify-between p-4 bg-gray-100/5 hover:bg-gray-200/8 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <Avatar>
+                        <AvatarImage src={member.avatar_url} />
+                        <AvatarFallback>
+                          {(member.display_name || member.name)?.charAt(0)?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{member.display_name || member.name || 'Unknown User'}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={member.role === 'owner' ? 'default' : member.role === 'tutor' ? 'secondary' : 'outline'}>
+                        {member.role}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        Joined {new Date(member.joined_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant={member.role === 'owner' ? 'default' : member.role === 'tutor' ? 'secondary' : 'outline'}>
-                    {member.role}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground">
-                    Joined {new Date(member.joined_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );

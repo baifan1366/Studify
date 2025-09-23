@@ -71,7 +71,7 @@ export function AdminDashboard() {
       <div className="space-y-6 p-4 sm:p-6">
         <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <Card key={i} className="animate-pulse bg-transparent border-gray-200 dark:border-gray-700">
               <CardHeader>
                 <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
               </CardHeader>
@@ -111,10 +111,6 @@ export function AdminDashboard() {
             {t('subtitle')}
           </p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white shrink-0">
-          <Activity className="h-4 w-4 mr-2" />
-          {t('view_full_analytics')}
-        </Button>
       </div>
 
       {/* Stats Grid */}
@@ -183,7 +179,7 @@ export function AdminDashboard() {
                   variant={role === 'admin' ? 'destructive' : role === 'tutor' ? 'default' : 'secondary'}
                   className="capitalize"
                 >
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                  {role}
                 </Badge>
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{count as number}</span>
               </div>

@@ -14,6 +14,27 @@
     "og_title": "Chat | Studify",
     "og_description": "Stay Connected with Your Learning Community"
   },
+  "ReportButton": {
+    "reasonRequired": "Reason is required",
+    "reasonRequiredDescription": "Please provide a reason for reporting this post",
+    "reportSubmittedDescription": "Thanks for letting us know. Our team will review it.",
+    "reportSubmitted": "Report submitted",
+    "error": "Error",
+    "errorDescription": "Could not submit report. Please try again.",
+    "report": "Report",
+    "reason": "Reason",
+    "reasonPlaceholder": "Please provide a reason for reporting this post",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "targetType": {
+      "post": "Post",
+      "chat": "Chat",
+      "comment": "Comment",
+      "course": "Course",
+      "user": "User",
+      "other": "Other"
+    }
+  },
   "ChatContent": {
     "page_title": "Chat",
     "page_subtitle": "Connect with your teachers and classmates",
@@ -2078,10 +2099,10 @@
     "cancel_button": "Cancel"
   },
   "CoursePage": {
-    "metadata_title": "{{courseSlug}} | Course | Studify",
+    "metadata_title": "Course Details | Course | Studify",
     "metadata_description": "Learn with interactive courses, track your progress, and master new skills",
     "metadata_keywords": "course,learning,education,online course,skill development",
-    "og_title": "{{courseSlug}} | Course | Studify",
+    "og_title": "Course Details | Course | Studify",
     "og_description": "Interactive learning experience with progress tracking and skill development"
   },
   "CourseStatusErrors": {

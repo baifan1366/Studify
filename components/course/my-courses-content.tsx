@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from 'next-intl';
+import { ReportButton } from '@/components/ui/report-button';
 
 // The enriched enrollment type we expect from the API
 interface EnrichedEnrollment {
@@ -281,6 +282,12 @@ export default function MyCoursesContent() {
                   <div className="text-sm text-white/60 capitalize">
                     {course?.level ? t(course.level as 'beginner' | 'intermediate' | 'advanced') : t('beginner')}
                   </div>
+                </div>
+                <div className="flex-shrink-0">
+                  <ReportButton 
+                    targetId={parseInt(course.course.public_id)} 
+                    targetType="course" 
+                  />
                 </div>
               </div>
 

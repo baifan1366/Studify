@@ -186,12 +186,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: "groups", label: "Groups", icon: Users, path: "/community" },
           {
-            id: "discussions",
-            label: "Discussions",
-            icon: MessageSquare,
-            path: "/community/discussions",
-          },
-          {
             id: "quizzes",
             label: "Quizzes",
             icon: Brain,
@@ -308,8 +302,6 @@ export default function AnimatedSidebar({
         return t("community_label");
       case "groups":
         return t("groups_label");
-      case "discussions":
-        return t("discussions_label");
       case "quizzes":
         return t("quizzes_label");
       case "achievements":

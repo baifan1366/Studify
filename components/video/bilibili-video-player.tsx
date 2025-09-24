@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -46,6 +47,14 @@ interface Comment {
   isLiked: boolean;
 }
 
+interface VideoStats {
+  views: number;
+  likes: number;
+  dislikes: number;
+  publishedAt: string;
+  duration: number;
+}
+
 interface VideoPlayerProps {
   src?: string;
   attachmentId?: number; // Support MEGA attachment streaming
@@ -53,8 +62,13 @@ interface VideoPlayerProps {
   poster?: string;
   danmakuMessages?: DanmakuMessage[];
   comments?: Comment[];
+  videoStats?: VideoStats;
+  currentUserLiked?: boolean;
   onDanmakuSend?: (message: string) => void;
   onCommentSend?: (content: string) => void;
+  onLike?: () => void;
+  onShare?: () => void;
+  onDownload?: () => void;
 }
 
 export default function BilibiliVideoPlayer({
@@ -64,8 +78,13 @@ export default function BilibiliVideoPlayer({
   poster,
   danmakuMessages = [],
   comments = [],
+  videoStats,
+  currentUserLiked = false,
   onDanmakuSend,
-  onCommentSend
+  onCommentSend,
+  onLike,
+  onShare,
+  onDownload
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +112,24 @@ export default function BilibiliVideoPlayer({
   // Input state
   const [danmakuText, setDanmakuText] = useState('');
   const [commentText, setCommentText] = useState('');
+  
+  // Internationalization
+  const t = useTranslations();
+  
+  // Helper functions
+  const formatViews = (views: number) => {
+    if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}k`;
+    }
+    return views.toString();
+  };
+  
+  const formatTimeAgo = (publishedAt: string) => {
+    const now = new Date();
+    const published = new Date(publishedAt);
+    const diffInDays = Math.floor((now.getTime() - published.getTime()) / (1000 * 60 * 60 * 24));
+    return `${diffInDays}${t('VideoPlayer.days_ago')}`;
+  };
 
   // Control visibility timer
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -591,7 +628,7 @@ export default function BilibiliVideoPlayer({
                           >
                             <div className="space-y-3">
                               <div>
-                                <label className="text-white text-sm block mb-1">播放速度</label>
+                                <label className="text-white text-sm block mb-1">{t('VideoPlayer.playback_speed')}</label>
                                 <select
                                   value={playbackRate}
                                   onChange={(e) => changePlaybackRate(parseFloat(e.target.value))}
@@ -667,7 +704,7 @@ export default function BilibiliVideoPlayer({
                   onClick={sendDanmaku}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
                 >
-                  发送
+{t('VideoPlayer.send_danmaku')}
                 </button>
               </div>
             </motion.div>
@@ -676,30 +713,47 @@ export default function BilibiliVideoPlayer({
       </div>
 
       {/* Video Info and Actions */}
-      <div className="bg-white p-6">
+      <div className="bg-white dark:bg-gray-900 p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900 mb-2">{title}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span>1.2万播放</span>
-              <span>3天前</span>
-              <span>BV1234567890</span>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{title}</h1>
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              {videoStats && (
+                <>
+                  <span>{formatViews(videoStats.views)} {t('VideoPlayer.views_count')}</span>
+                  <span>{formatTimeAgo(videoStats.publishedAt)}</span>
+                  {attachmentId && <span>ID: {attachmentId}</span>}
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-              <Heart size={16} />
-              <span>点赞</span>
+            <button 
+              onClick={onLike}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                currentUserLiked 
+                  ? 'bg-red-500 hover:bg-red-600 text-white' 
+                  : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white'
+              }`}
+            >
+              <Heart size={16} className={currentUserLiked ? 'fill-current' : ''} />
+              <span>{t('VideoPlayer.like')} {videoStats?.likes ? `(${videoStats.likes})` : ''}</span>
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+            <button 
+              onClick={onShare}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
+            >
               <Share2 size={16} />
-              <span>分享</span>
+              <span>{t('VideoPlayer.share')}</span>
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+            <button 
+              onClick={onDownload}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
+            >
               <Download size={16} />
-              <span>下载</span>
+              <span>{t('VideoPlayer.download')}</span>
             </button>
-            <button className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+            <button className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors">
               <MoreHorizontal size={16} />
             </button>
           </div>
@@ -718,11 +772,11 @@ export default function BilibiliVideoPlayer({
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">
-                  评论 {videoSourceInfo.type === 'youtube' || videoSourceInfo.type === 'vimeo' ? '(外部视频)' : comments.length}
+                  {t('VideoPlayer.comments')} {videoSourceInfo.type === 'youtube' || videoSourceInfo.type === 'vimeo' ? t('VideoPlayer.external_video') : comments.length}
                 </h3>
                 <button
                   onClick={() => setShowComments(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                   title="Hide Comments (C)"
                 >
                   ×
@@ -739,7 +793,7 @@ export default function BilibiliVideoPlayer({
                     <textarea
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="发一条友善的评论"
+                      placeholder={t('VideoPlayer.comment_placeholder')}
                       className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-blue-500"
                       rows={3}
                     />
@@ -748,16 +802,17 @@ export default function BilibiliVideoPlayer({
                         onClick={sendComment}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
                       >
-                        发布
+{t('VideoPlayer.publish')}
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="mb-6 p-4 bg-gray-100 rounded-lg text-center">
-                  <p className="text-gray-600">
-                    这是一个 {videoSourceInfo.type === 'youtube' ? 'YouTube' : 'Vimeo'} 视频。
-                    请在原平台查看和发表评论。
+                <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {t('VideoPlayer.external_video_notice', { 
+                      platform: videoSourceInfo.type === 'youtube' ? 'YouTube' : 'Vimeo' 
+                    })}
                   </p>
                   {videoSourceInfo.src && (
                     <a 
@@ -766,7 +821,9 @@ export default function BilibiliVideoPlayer({
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 underline mt-2 inline-block"
                     >
-                      在 {videoSourceInfo.type === 'youtube' ? 'YouTube' : 'Vimeo'} 上观看
+{t('VideoPlayer.watch_on_platform', { 
+                        platform: videoSourceInfo.type === 'youtube' ? 'YouTube' : 'Vimeo' 
+                      })}
                     </a>
                   )}
                 </div>
@@ -789,13 +846,13 @@ export default function BilibiliVideoPlayer({
                           {new Date(comment.timestamp).toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-gray-900 mb-2">{comment.content}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <p className="text-gray-900 dark:text-gray-100 mb-2">{comment.content}</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                         <button className={`flex items-center gap-1 hover:text-blue-600 ${comment.isLiked ? 'text-blue-600' : ''}`}>
                           <Heart size={14} className={comment.isLiked ? 'fill-current' : ''} />
                           <span>{comment.likes}</span>
                         </button>
-                        <button className="hover:text-blue-600">回复</button>
+                        <button className="hover:text-blue-600">{t('VideoPlayer.reply')}</button>
                         <button className="hover:text-red-600">
                           <Flag size={14} />
                         </button>
@@ -814,11 +871,11 @@ export default function BilibiliVideoPlayer({
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="font-semibold text-xs">{reply.username}</span>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
                                     {new Date(reply.timestamp).toLocaleString()}
                                   </span>
                                 </div>
-                                <p className="text-sm text-gray-900">{reply.content}</p>
+                                <p className="text-sm text-gray-900 dark:text-gray-100">{reply.content}</p>
                               </div>
                             </div>
                           ))}
@@ -835,15 +892,15 @@ export default function BilibiliVideoPlayer({
       </AnimatePresence>
 
       {/* Keyboard Shortcuts Help */}
-      <div className="bg-gray-50 p-4 text-xs text-gray-600">
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 text-xs text-gray-600 dark:text-gray-400">
         <div className="flex flex-wrap gap-4">
-          <span><kbd className="bg-white px-2 py-1 rounded border">Space</kbd> 播放/暂停</span>
-          <span><kbd className="bg-white px-2 py-1 rounded border">←/→</kbd> 快退/快进10秒</span>
-          <span><kbd className="bg-white px-2 py-1 rounded border">↑/↓</kbd> 音量调节</span>
-          <span><kbd className="bg-white px-2 py-1 rounded border">M</kbd> 静音</span>
-          <span><kbd className="bg-white px-2 py-1 rounded border">F</kbd> 全屏</span>
-          <span><kbd className="bg-white px-2 py-1 rounded border">D</kbd> 弹幕开关</span>
-          <span><kbd className="bg-white px-2 py-1 rounded border">C</kbd> 评论开关</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">Space</kbd> {t('VideoPlayer.keyboard_shortcuts.play_pause')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">←/→</kbd> {t('VideoPlayer.keyboard_shortcuts.seek_backward_forward')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">↑/↓</kbd> {t('VideoPlayer.keyboard_shortcuts.volume_up_down')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">M</kbd> {t('VideoPlayer.keyboard_shortcuts.mute')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">F</kbd> {t('VideoPlayer.keyboard_shortcuts.fullscreen')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">D</kbd> {t('VideoPlayer.keyboard_shortcuts.toggle_danmaku')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">C</kbd> {t('VideoPlayer.keyboard_shortcuts.toggle_comments')}</span>
         </div>
       </div>
     </div>

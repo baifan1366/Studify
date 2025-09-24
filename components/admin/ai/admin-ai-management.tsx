@@ -2,7 +2,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,9 +46,42 @@ import { useTranslations } from 'next-intl';
 export function AdminAIManagement() {
   const t = useTranslations('AdminAIManagement');
   const { formatRelativeTime } = useFormat();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState('overview');
   const [embeddingFilters, setEmbeddingFilters] = useState({ status: 'all', limit: 50, offset: 0 });
   const [moderationFilters, setModerationFilters] = useState({ days: 7, status: 'all', limit: 50 });
+
+  // Handle hash-based navigation with Next.js router
+  useEffect(() => {
+    // Get hash from current URL (client-side only)
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.slice(1); // Remove # symbol
+      const validTabs = ['overview', 'embeddings', 'recommendations', 'moderation'];
+      
+      if (hash && validTabs.includes(hash)) {
+        setSelectedTab(hash);
+      } else if (!hash) {
+        setSelectedTab('overview');
+      }
+    }
+  }, [pathname]); // Re-run when pathname changes
+
+  // Handle tab change and update URL hash using Next.js router
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value);
+    
+    // Build new URL with hash
+    const currentSearch = searchParams.toString();
+    const searchString = currentSearch ? `?${currentSearch}` : '';
+    const newUrl = value === 'overview' 
+      ? pathname + searchString
+      : pathname + searchString + '#' + value;
+    
+    // Use Next.js router for navigation
+    router.push(newUrl, { scroll: false });
+  };
 
   // Hooks
   const { data: contentGeneration, isLoading: generationLoading } = useAIContentGeneration(30);
@@ -105,7 +139,7 @@ export function AdminAIManagement() {
         </Button>
       </div>
 
-      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+      <Tabs value={selectedTab} onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="overview">{t('overview')}</TabsTrigger>
           <TabsTrigger value="embeddings">{t('embeddings')}</TabsTrigger>

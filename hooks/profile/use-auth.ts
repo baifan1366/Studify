@@ -5,7 +5,7 @@ import { apiSend } from "@/lib/api-config";
 
 export type UserRole = "student" | "tutor" | "admin";
 
-type SignInArgs = { email: string; password: string; locale: string; captchaToken?: string };
+type SignInArgs = { email: string; password: string; locale: string; captchaToken?: string; mode?: 'login' | 'add' | 'switch' };
 type SignUpArgs = { email: string; password: string; fullName?: string; locale: string; role?: UserRole; captchaToken?: string };
 
 type AuthResponse = {
@@ -14,6 +14,8 @@ type AuthResponse = {
   role: UserRole;
   name?: string;
   requiresConfirmation?: boolean;
+  mode?: 'login' | 'add' | 'switch';
+  accountInfo?: any;
 };
 
 // Sign In Hook

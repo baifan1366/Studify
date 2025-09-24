@@ -121,7 +121,10 @@
     "active": "Active",
     "inactive": "Inactive",
     "total_permissions": "Total Permissions",
-    "role_count": "Role Count"
+    "role_count": "Role Count",
+    "interests": "Learning Interests",
+    "main_interest": "Primary Interest",
+    "specific_interests": "Specific Interests"
   },
   "SettingsPage": {
     "metadata_title": "Settings | Studify",
@@ -337,6 +340,10 @@
     "welcome_back": "Welcome back",
     "sign_in_subtitle": "Sign in to your Studify account",
     "sign_in_button": "Sign in",
+    "add_new_account": "Add New Account",
+    "add_account_subtitle": "Sign in to add this account to your account switcher",
+    "add_account_button": "Add Account",
+    "add_account_notice": "Adding accounts is currently only supported with email and password. Google OAuth account addition will be available soon.",
     "no_account_question": "Don't have an account?",
     "sign_up_link": "Sign up",
     "email_label": "Email address",
@@ -818,6 +825,15 @@
       "related_communities": "Related Communities",
       "view_more": "View More",
       "members": "members"
+    },
+    "smart_recommendations": {
+      "courses_title": "Recommended Courses",
+      "posts_title": "Related Discussions", 
+      "groups_title": "Recommended Communities",
+      "loading": "Loading recommendations...",
+      "no_results": "No recommendations found",
+      "relevance": "Relevance",
+      "view_more": "View More Recommendations"
     },
     "results": {
       "processing_time": "Processing time",
@@ -1381,7 +1397,17 @@
     "settings": "Settings",
     "switch_account": "Switch Account",
     "sign_out": "Sign Out",
-    "signing_out": "Signing out..."
+    "signing_out": "Signing out...",
+    "accounts": "Accounts",
+    "add_account": "Add another account",
+    "remove_account": "Remove account",
+    "switching_account": "Switching account...",
+    "switch_error": "Failed to switch account",
+    "current_account": "Current account",
+    "profile_updated": "Profile Updated",
+    "profile_updated_desc": "Your profile has been successfully updated",
+    "page_title": "Your Profile",
+    "page_subtitle": "Manage your account settings and preferences"
   },
   "LearningPathContent": {
     "error_title": "Error",
@@ -2293,7 +2319,17 @@
     "currency_updated": "Currency Updated",
     "currency_changed_to": "Currency changed to {currency}",
     "show_more": "Show More",
-    "show_less": "Show Less"
+    "show_less": "Show Less",
+    "insufficient_points": "Insufficient Points",
+    "not_enough_points_to_redeem": "You don't have enough points to redeem this course",
+    "redemption_successful": "Redemption Successful",
+    "course_redeemed_with_points": "Course successfully redeemed for {points} points",
+    "redemption_failed": "Redemption Failed",
+    "error_redeeming_course": "Error redeeming course with points",
+    "redeeming_now": "Redeeming...",
+    "insufficient_points_short": "Not enough points",
+    "redeem_with_points": "Redeem for {points} pts",
+    "your_points": "Your points"
   },
   "AdminDashboardPage": {
     "metadata_title": "Dashboard | Admin | Studify",

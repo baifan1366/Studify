@@ -116,7 +116,7 @@ export class StudifyToolCallingAgent {
         returnIntermediateSteps: true,
       });
 
-      console.log(`🤖 Tool calling agent initialized with ${tools.length} tools`);
+      console.log(`🤖 Tool calling agent initialized with ${tools.length} tools:`, tools.map(t => t.name));
     } catch (error) {
       console.error('❌ Failed to initialize tool calling agent:', error);
       throw error;
@@ -147,6 +147,7 @@ export class StudifyToolCallingAgent {
 
     try {
       console.log(`🚀 Executing tool calling query: "${input.substring(0, 100)}..."`);
+      console.log('🔧 Available tools:', this.getSelectedTools().map(t => t.name));
 
       // Add user context if provided
       let enhancedInput = input;
@@ -154,16 +155,38 @@ export class StudifyToolCallingAgent {
         enhancedInput = `[User ID: ${options.userId}] ${input}`;
       }
 
-      const result = await this.agent!.invoke({
-        input: enhancedInput
-      });
-
+      console.log('📡 Calling AgentExecutor...');
+      const result = await this.agent!.invoke({ input: enhancedInput });
       const executionTime = Date.now() - startTime;
 
+      console.log('🔍 Raw AgentExecutor result:', {
+        hasOutput: !!result.output,
+        outputLength: result.output?.length || 0,
+        hasIntermediateSteps: !!result.intermediateSteps,
+        intermediateStepsLength: result.intermediateSteps?.length || 0,
+        resultKeys: Object.keys(result)
+      });
+
       // Extract tools used from intermediate steps
-      const toolsUsed: string[] = result.intermediateSteps 
-        ? result.intermediateSteps.map((step: any) => step.action?.tool || 'unknown')
-        : [];
+      const toolsUsed: string[] = [];
+      if (result.intermediateSteps && result.intermediateSteps.length > 0) {
+        console.log('🔧 Analyzing intermediate steps:');
+        for (const [index, step] of result.intermediateSteps.entries()) {
+          console.log(`  Step ${index}:`, {
+            hasAction: !!step.action,
+            actionType: step.action?.constructor?.name,
+            actionTool: step.action?.tool,
+            hasObservation: !!step.observation,
+            observationLength: step.observation?.length || 0
+          });
+          
+          if (step.action && step.action.tool) {
+            toolsUsed.push(step.action.tool);
+          }
+        }
+      } else {
+        console.log('⚠️ No intermediate steps found in result');
+      }
 
       console.log(`✅ Tool calling completed in ${executionTime}ms using tools: ${toolsUsed.join(', ')}`);
 
@@ -223,7 +246,7 @@ export class StudifyToolCallingAgent {
   /**
    * Get tools based on configuration
    */
-  private getSelectedTools(): DynamicTool[] {
+  protected getSelectedTools(): DynamicTool[] {
     if (this.config.enabledTools === 'all') {
       return getAllTools();
     }
@@ -441,13 +464,16 @@ Please provide a contextually appropriate response considering our previous conv
     const config: ToolCallingConfig = {
       toolCategories: ['CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
       userId: options.userId,
+      verbose: true, // Enable verbose logging
+      model: "gpt-4o-mini", // Use a model that definitely supports function calling
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For course content analysis:
-1. Use the analyze_course tool for detailed content analysis
-2. ${options.includeRecommendations ? 'Generate content recommendations if applicable' : ''}
-3. Provide structured, actionable insights
-4. Focus on educational value and learning outcomes`
+1. ALWAYS use the analyze_content tool for detailed content analysis
+2. ${options.includeRecommendations ? 'ALWAYS use the recommend_content tool to generate content recommendations' : ''}
+3. You MUST use tools to provide structured, actionable insights
+4. Focus on educational value and learning outcomes
+5. Do not provide direct answers without using the available tools first`
     };
 
     const agent = new StudifyToolCallingAgent(config);
@@ -504,15 +530,20 @@ Please provide:
         break;
 
       case 'learning_path':
-        prompt = `Create a comprehensive personalized learning path based on the following requirements:
+        prompt = `You MUST use the analyze_content tool to create a comprehensive personalized learning path. 
 
-${content}
+STEP 1: First, use the analyze_content tool with this JSON input:
+{
+  "content": "${content.replace(/"/g, '\\"')}",
+  "analysisType": "learning_path",
+  "customPrompt": "Create a comprehensive personalized learning roadmap for: ${options.learningGoal || 'the specified learning goal'}. Current level: ${options.currentLevel || 'Beginner'}. Time constraint: ${options.timeConstraint || 'Flexible'}. Include: 1) Learning Summary, 2) Mermaid flowchart diagram, 3) Step-by-step roadmap with duration and difficulty, 4) Recommended courses, 5) Practice quizzes, 6) Study tips. Focus on practical, actionable steps that help the user quickly know what to learn and where to start."
+}
 
-Please generate a structured learning roadmap with the following components:
+STEP 2: Based on the tool results, format a comprehensive learning path with:
 
 1. **Learning Summary**: Brief overview of the learning journey and expected outcomes
 
-2. **Mermaid Flowchart**: Create a Mermaid diagram showing the learning progression. Use this format:
+2. **Mermaid Flowchart**: Create a Mermaid diagram showing the learning progression:
 \`\`\`mermaid
 graph TD
     A[Start: ${options.learningGoal || 'Learning Goal'}] --> B[Foundation]
@@ -522,33 +553,12 @@ graph TD
     E --> F[Mastery & Beyond]
 \`\`\`
 
-3. **Detailed Roadmap**: Step-by-step breakdown including:
-   - Step title and description
-   - Estimated duration
-   - Difficulty level
-   - Key resources and topics
-   - Prerequisites
+3. **Detailed Roadmap**: Step-by-step breakdown with duration, difficulty, resources
+4. **Recommended Courses**: Specific courses with descriptions and difficulty levels
+5. **Practice Quizzes**: Practice materials with question counts and focus areas
+6. **Study Tips**: Practical advice for effective learning
 
-4. **Recommended Courses**: Suggest specific courses with:
-   - Course title and description
-   - Difficulty level (Beginner/Intermediate/Advanced)
-   - Estimated duration
-   - Key learning outcomes
-
-5. **Practice Quizzes**: Recommend practice materials with:
-   - Quiz/exercise title and description
-   - Number of questions
-   - Estimated completion time
-   - Focus areas
-
-6. **Community Recommendations**: Suggest relevant study groups and discussion topics
-
-Please format the response as a structured JSON object that can be parsed programmatically, while also providing a human-readable summary.
-
-Current user level: ${options.currentLevel || 'Beginner'}
-Time constraint: ${options.timeConstraint || 'Flexible'}
-
-Focus on practical, actionable steps that help the user "快速知道学什么、从哪开始"`;
+Remember: You MUST use the analyze_content tool first before providing your response!`;
         break;
         
       default:
@@ -559,10 +569,63 @@ ${content}
 ${options.includeRecommendations ? '\nAlso provide content recommendations based on this analysis.' : ''}`;
     }
 
+    console.log(`🔧 Executing ${analysisType} analysis with tools:`, {
+      toolCategories: config.toolCategories,
+      promptLength: prompt.length,
+      userId: options.userId
+    });
+
     const result = await agent.execute(prompt, {
       userId: options.userId,
-      includeSteps: false
+      includeSteps: true // Enable steps to see what tools were called
     });
+
+    console.log(`🎯 Analysis result:`, {
+      outputLength: result.output?.length || 0,
+      toolsUsed: result.toolsUsed,
+      executionTime: result.executionTime,
+      hasIntermediateSteps: !!result.intermediateSteps
+    });
+
+    // If no tools were used and output is empty, try direct tool calling as fallback
+    if (result.toolsUsed.length === 0 && (!result.output || result.output.trim().length === 0)) {
+      console.warn('⚠️  No tools used and empty output, trying direct tool execution');
+      
+      try {
+        // Try to directly call the analyze_content tool
+        const tools = this.getSelectedTools();
+        const analyzeContentTool = tools.find(t => t.name === 'analyze_content');
+        
+        if (analyzeContentTool) {
+          console.log('🔧 Attempting direct tool call as fallback');
+          const directInput = JSON.stringify({
+            content: content,
+            analysisType: analysisType,
+            customPrompt: `Create a comprehensive personalized learning roadmap for: ${options.learningGoal || 'the specified learning goal'}. Current level: ${options.currentLevel || 'Beginner'}. Time constraint: ${options.timeConstraint || 'Flexible'}. Include detailed roadmap, courses, and study tips.`
+          });
+          
+          const directResult = await analyzeContentTool.func(directInput);
+          console.log('✅ Direct tool call successful, result length:', directResult.length);
+          
+          return {
+            analysis: directResult,
+            recommendations: options.includeRecommendations ? [] : undefined,
+            toolsUsed: ['analyze_content'],
+            executionTime: result.executionTime
+          };
+        }
+      } catch (directError) {
+        console.error('❌ Direct tool call failed:', directError);
+      }
+      
+      console.warn('⚠️  Providing fallback response');
+      return {
+        analysis: `I apologize, but I was unable to generate a ${analysisType} analysis at this time. This might be due to a temporary issue with the AI service. Please try again in a moment.`,
+        recommendations: options.includeRecommendations ? [] : undefined,
+        toolsUsed: result.toolsUsed,
+        executionTime: result.executionTime
+      };
+    }
 
     return {
       analysis: result.output,

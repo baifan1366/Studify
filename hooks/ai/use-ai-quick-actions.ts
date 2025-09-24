@@ -93,9 +93,16 @@ export function useAIQuickQA() {
       });
     },
     onError: (error) => {
-      console.error('Quick QA error:', error);
+      console.error('❌ Quick QA error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: typeof error,
+        error: error
+      });
+      
       toast({
-        title: "❌ Error",
+        title: "❌ AI问答失败",
         description: error instanceof Error ? error.message : 'Please try again later',
         variant: "destructive"
       });
@@ -145,8 +152,16 @@ export function useAISolveProblem() {
       });
     },
     onError: (error) => {
+      console.error('❌ Solve problem error in hook:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: typeof error,
+        error: error
+      });
+      
       toast({
-        title: "❌ Failed",
+        title: "❌ 解题失败",
         description: error instanceof Error ? error.message : 'Please check file format and try again',
         variant: "destructive"
       });
@@ -196,8 +211,16 @@ export function useAISmartNotes() {
       });
     },
     onError: (error) => {
+      console.error('❌ Smart notes error in hook:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: typeof error,
+        error: error
+      });
+      
       toast({
-        title: "❌ Failed",
+        title: "❌ 笔记生成失败",
         description: error instanceof Error ? error.message : 'Please try again later',
         variant: "destructive"
       });
@@ -210,6 +233,9 @@ export function useAILearningPath() {
   const { toast } = useToast();
 
   return useMutation({
+    meta: {
+      timeout: 300000, // 5 minutes timeout
+    },
     mutationFn: async (params: {
       learning_goal: string;
       current_level?: string;
@@ -262,8 +288,16 @@ Please create a comprehensive personalized learning roadmap.`;
       });
     },
     onError: (error) => {
+      console.error('❌ Learning path error in hook:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: typeof error,
+        error: error
+      });
+      
       toast({
-        title: "❌ Failed",
+        title: "❌ 学习路径生成失败",
         description: error instanceof Error ? error.message : 'Please try again later',
         variant: "destructive"
       });

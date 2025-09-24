@@ -37,37 +37,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { 
   useAIQuickQA, 
   useAISolveProblem, 
   useAISmartNotes, 
   useAILearningPath 
 } from '@/hooks/ai/use-ai-quick-actions';
-import AIResultDisplay from './ai/ai-result-display';
 import ReactMarkdown from 'react-markdown';
-import dynamic from 'next/dynamic';
 import AIContentRecommendations from './ai/ai-content-recommendations';
+import SmartRecommendations from './ai/smart-recommendations';
+import { useUser } from '@/hooks/profile/use-user';
 
-// 简化的Mermaid渲染器
-function SimpleMermaidRenderer({ chart }: { chart: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const t = useTranslations('AIAssistant');
-
-  useEffect(() => {
-    if (containerRef.current) {
-      // 简单显示Mermaid代码，用户可以复制到其他工具中渲染
-      containerRef.current.innerHTML = `
-        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">${t('learning_path.mermaid.title') || 'Mermaid Diagram Code:'}</h4>
-          <pre class="text-xs bg-white dark:bg-slate-800 p-3 rounded border text-slate-700 dark:text-slate-300 overflow-x-auto"><code>${chart.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
-          <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">${t('learning_path.mermaid.copy_hint') || 'Copy this code to'} <a href="https://mermaid.live" target="_blank" class="underline">mermaid.live</a> ${t('learning_path.mermaid.view_diagram') || 'to view the diagram'}</p>
-        </div>
-      `;
-    }
-  }, [chart, t]);
-
-  return <div ref={containerRef} />;
-}
+// 导入真正的Mermaid渲染器
+import Mermaid from '@/components/ui/mermaid';
 
 interface AIAssistantPreviewProps {
   onExperienceAI?: () => void;
@@ -1088,19 +1071,56 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
     setUploadError(null);
     
     try {
+      console.log('🔄 Starting problem solving for file:', file.name);
       const response = await solveProblemMutation.mutateAsync(file);
-      onResult(response);
-      toast({
-        title: t('upload.success.title') || "Upload Successful",
-        description: t('upload.success.description') || "Your image has been analyzed successfully.",
-      });
+      console.log('✅ Problem solving response:', response);
+      
+      console.log('📋 Full Problem Solving API response:', response);
+      
+      if (response && response.success) {
+        // Check if any of the expected content fields exist and are not empty
+        const hasContent = (response.result && response.result.trim()) || 
+                          (response.answer && response.answer.trim()) || 
+                          (response.analysis && response.analysis.trim());
+        
+        if (hasContent) {
+          onResult(response);
+          toast({
+            title: t('upload.success.title') || "Upload Successful",
+            description: t('upload.success.description') || "Your image has been analyzed successfully.",
+          });
+        } else {
+          console.error('❌ Problem Solving Response structure:', {
+            success: response.success,
+            result: response.result,
+            answer: response.answer,
+            analysis: response.analysis,
+            toolsUsed: response.toolsUsed
+          });
+          throw new Error(`解题分析返回空内容: ${JSON.stringify({
+            hasResult: !!response.result,
+            hasAnswer: !!response.answer, 
+            hasAnalysis: !!response.analysis,
+            toolsUsed: response.toolsUsed?.length || 0
+          })}`);
+        }
+      } else {
+        console.error('❌ Problem Solving API response failed:', response);
+        throw new Error('解题服务请求失败: ' + (response?.error || 'Unknown error'));
+      }
     } catch (error) {
-      console.error('Solve problem error:', error);
+      console.error('❌ Solve problem error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setUploadError(errorMessage);
+      console.error('Error details:', {
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        response: error
+      });
+      
+      setUploadError(`解题失败: ${errorMessage}`);
       toast({
         title: t('upload.error.title') || "Upload Failed",
-        description: t('upload.error.description') || "Please try again later.",
+        description: errorMessage.includes('fetch') ? '网络连接失败，请检查网络连接' : errorMessage,
         variant: "destructive"
       });
     }
@@ -1234,11 +1254,51 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
 
   const handleSubmit = async () => {
     if (!content.trim()) return;
+    
     try {
+      console.log('🔄 Starting smart notes generation for content length:', content.length);
       const response = await smartNotesMutation.mutateAsync(content);
-      onResult(response);
+      console.log('✅ Smart notes response:', response);
+      
+      console.log('📋 Full API response:', response);
+      
+      if (response && response.success) {
+        // Check if any of the expected content fields exist and are not empty
+        const hasContent = (response.result && response.result.trim()) || 
+                          (response.answer && response.answer.trim()) || 
+                          (response.analysis && response.analysis.trim());
+        
+        if (hasContent) {
+          onResult(response);
+        } else {
+          console.error('❌ Response structure:', {
+            success: response.success,
+            result: response.result,
+            answer: response.answer,
+            analysis: response.analysis,
+            toolsUsed: response.toolsUsed
+          });
+          throw new Error(`AI分析返回空内容: ${JSON.stringify({
+            hasResult: !!response.result,
+            hasAnswer: !!response.answer, 
+            hasAnalysis: !!response.analysis,
+            toolsUsed: response.toolsUsed?.length || 0
+          })}`);
+        }
+      } else {
+        console.error('❌ API response failed:', response);
+        throw new Error('AI服务请求失败: ' + (response?.error || 'Unknown error'));
+      }
     } catch (error) {
-      console.error('Smart notes error:', error);
+      console.error('❌ Smart notes error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error details:', {
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        contentLength: content.length
+      });
+      
+      toast.error("笔记生成失败: " + (errorMessage.includes('fetch') ? '网络连接失败，请检查网络连接' : errorMessage));
     }
   };
 
@@ -1298,15 +1358,57 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
 
   const handleSubmit = async () => {
     if (!goal.trim()) return;
+    
     try {
+      console.log('🔄 Starting learning path generation for goal:', goal);
       const response = await learningPathMutation.mutateAsync({
         learning_goal: goal,
         current_level: level,
         time_constraint: timeConstraint
       });
-      onResult(response);
+      console.log('✅ Learning path response:', response);
+      
+      console.log('📋 Full Learning Path API response:', response);
+      
+      if (response && response.success) {
+        // Check if any of the expected content fields exist and are not empty
+        const hasContent = (response.result && response.result.trim()) || 
+                          (response.answer && response.answer.trim()) || 
+                          (response.analysis && response.analysis.trim());
+        
+        if (hasContent) {
+          onResult(response);
+        } else {
+          console.error('❌ Learning Path Response structure:', {
+            success: response.success,
+            result: response.result,
+            answer: response.answer,
+            analysis: response.analysis,
+            toolsUsed: response.toolsUsed
+          });
+          throw new Error(`学习路径生成返回空内容: ${JSON.stringify({
+            hasResult: !!response.result,
+            hasAnswer: !!response.answer, 
+            hasAnalysis: !!response.analysis,
+            toolsUsed: response.toolsUsed?.length || 0
+          })}`);
+        }
+      } else {
+        console.error('❌ Learning Path API response failed:', response);
+        throw new Error('学习路径服务请求失败: ' + (response?.error || 'Unknown error'));
+      }
     } catch (error) {
-      console.error('Learning path error:', error);
+      console.error('❌ Learning path error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error details:', {
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        goal,
+        level,
+        timeConstraint
+      });
+      
+      toast.error("学习路径生成失败: " + (errorMessage.includes('fetch') ? '网络连接失败，请检查网络连接' : errorMessage));
     }
   };
 
@@ -1515,7 +1617,7 @@ function LearningPathVisualization({ learningPath }: { learningPath: any }) {
             {t('learning_path.roadmap')}
           </h3>
           <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 overflow-x-auto">
-            <SimpleMermaidRenderer chart={mermaidDiagram} />
+            <Mermaid chart={mermaidDiagram} className="w-full" />
           </div>
         </div>
       )}
@@ -1664,8 +1766,16 @@ interface StreamingResultContentProps {
 
 function StreamingResultContent({ type, result }: StreamingResultContentProps) {
   const t = useTranslations('AIAssistant');
+  const { data: user } = useUser();
   const [displayText, setDisplayText] = useState('');
   const [isStreaming, setIsStreaming] = useState(true);
+
+  // Helper function to get numeric user ID
+  const getUserId = (): number | undefined => {
+    if (user?.profile?.id) return parseInt(user.profile.id);
+    if (user?.id) return parseInt(user.id);
+    return undefined;
+  };
   
   const fullText = result.answer || result.result || '';
 
@@ -1701,24 +1811,79 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
   const Icon = getIcon();
 
   // 学习路径类型使用特殊的可视化组件
-  if (type === 'learning_path' && !isStreaming) {
-    return (
-      <div className="space-y-4">
-        {/* AI 生成总结 */}
-        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
-          <div className="flex items-start gap-2 mb-2">
-            <Icon className="h-4 w-4 text-slate-600 dark:text-slate-400 mt-0.5 flex-shrink-0" />
-            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('dialog.ai_answer')}</span>
-          </div>
-          <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-            <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
-              <MarkdownContent content={displayText} isStreaming={false} />
+  if (type === 'learning_path') {
+    // 如果还在流式传输，显示学习路径生成状态
+    if (isStreaming) {
+      return (
+        <div className="space-y-4">
+          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-6">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">🧠 AI正在分析并生成个性化学习路径...</span>
+              </div>
+              <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400">
+                <p>✅ 分析您的学习目标和当前水平</p>
+                <p className="opacity-60">🎯 制定阶段性学习计划</p>
+                <p className="opacity-40">📊 生成可视化学习路线图</p>
+                <p className="opacity-30">🎓 推荐相关课程和资源</p>
+              </div>
             </div>
           </div>
         </div>
+      );
+    }
+
+    // 解析学习路径数据
+    let learningData: any = {};
+    try {
+      const analysisText = result.analysis || result.result || fullText;
+      if (typeof analysisText === 'string' && analysisText.includes('Learning Path Analysis Results:')) {
+        const jsonStart = analysisText.indexOf('{');
+        const jsonEnd = analysisText.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          const jsonStr = analysisText.substring(jsonStart, jsonEnd + 1);
+          learningData = JSON.parse(jsonStr);
+        }
+      } else if (typeof analysisText === 'object') {
+        learningData = analysisText;
+      }
+    } catch (error) {
+      console.error('Failed to parse learning path data:', error);
+    }
+
+    return (
+      <div className="space-y-4">        
+        {/* 学习路径可视化 - 使用和AI结果显示相同的组件 */}
+        {learningData.learningGoal ? (
+          <LearningPathVisualization learningPath={learningData} />
+        ) : (
+          // 如果解析失败，显示原始文本
+          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
+            <div className="flex items-start gap-2 mb-2">
+              <Icon className="h-4 w-4 text-slate-600 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('dialog.ai_answer')}</span>
+            </div>
+            <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
+                <MarkdownContent content={displayText} isStreaming={false} />
+              </div>
+            </div>
+          </div>
+        )}
         
-        {/* 学习路径可视化 */}
-        <LearningPathVisualization learningPath={result.learningPath || result} />
+        {/* 学习路径完成后，推荐相关课程 */}
+        {!isStreaming && getUserId() && (
+          <div className="mt-6">
+            <SmartRecommendations
+              type="courses"
+              userId={getUserId()}
+              context={learningData.learningGoal || fullText}
+              maxResults={4}
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -1758,6 +1923,42 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
               {typeof rec === 'string' ? rec : JSON.stringify(rec)}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Q&A和问题解答类型，推荐社区帖子和群组 */}
+      {!isStreaming && getUserId() && (type === 'quick_qa' || type === 'solve_problem') && (
+        <div className="mt-6 space-y-4">
+          {/* 推荐相关讨论帖子 */}
+          <SmartRecommendations
+            type="posts"
+            userId={getUserId()}
+            context={fullText}
+            maxResults={3}
+            className="w-full"
+          />
+          
+          {/* 推荐相关学习社区 */}
+          <SmartRecommendations
+            type="groups"
+            userId={getUserId()}
+            context={fullText}
+            maxResults={3}
+            className="w-full"
+          />
+        </div>
+      )}
+
+      {/* 智能笔记类型，推荐课程 */}
+      {!isStreaming && getUserId() && type === 'smart_notes' && (
+        <div className="mt-6">
+          <SmartRecommendations
+            type="courses"
+            userId={getUserId()}
+            context={fullText}
+            maxResults={3}
+            className="w-full"
+          />
         </div>
       )}
     </div>

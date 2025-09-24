@@ -2,11 +2,12 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown, ChevronUp, Coins, CreditCard } from 'lucide-react';
 import { useCourses } from '@/hooks/course/use-courses';
 import { useEnrolledCoursesByUserId } from '@/hooks/course/use-enrolled-courses';
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
+import { usePointsData, useRedeemCourse } from '@/hooks/profile/use-learning-stats';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -28,9 +29,12 @@ export default function CoursesContent() {
   const userId = user?.profile?.id || 0;
   const { data: enrolledCourses } = useEnrolledCoursesByUserId(userId as number);
   const { data: currencies, isLoading: currenciesLoading } = useCurrencies();
+  const { data: pointsData } = usePointsData();
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
+  const redeemCourse = useRedeemCourse();
   const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const [isRedeemingNow, setIsRedeemingNow] = useState(false);
   const t = useTranslations('CoursesContent');
   const locale = useLocale();
   const [currency, setCurrency] = useState('MYR');
@@ -95,6 +99,7 @@ export default function CoursesContent() {
         priceCents: c.price_cents || 0,
         isFree: !c.price_cents || c.price_cents === 0,
         points: Math.max(100, Math.floor((c.price_cents || 0) / 10)), // Calculate points based on price
+        pointsAvailable: true, // TODO: Check if course has point price set
         thumbnailUrl: c.thumbnail_url,
         level: c.level || 'beginner',
         category: c.category || 'General',
@@ -130,6 +135,47 @@ export default function CoursesContent() {
       });
     } finally {
       setIsBuyingNow(false);
+    }
+  };
+
+  const handleRedeemWithPoints = async (courseId: string | number, pointsNeeded: number) => {
+    const userPoints = pointsData?.data?.currentPoints || 0;
+    
+    if (userPoints < pointsNeeded) {
+      toast({
+        title: t('insufficient_points'),
+        description: t('not_enough_points_to_redeem'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsRedeemingNow(true);
+    try {
+      // Convert course.id back to numeric courseId for API
+      const numericCourseId = courses?.find(c => c.public_id === courseId)?.id;
+      
+      if (!numericCourseId) {
+        throw new Error('Course not found');
+      }
+
+      const result = await redeemCourse.mutateAsync({
+        courseId: numericCourseId
+      });
+      
+      toast({
+        title: t('redemption_successful'),
+        description: t('course_redeemed_with_points', { points: pointsNeeded }),
+      });
+      
+    } catch (error: any) {
+      toast({
+        title: t('redemption_failed'),
+        description: error.message || t('error_redeeming_course'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRedeemingNow(false);
     }
   };
 
@@ -578,7 +624,7 @@ export default function CoursesContent() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
                       {course.isEnrolled ? (
                         <Button
                           onClick={() => handleGoToCourse(course.slug)}
@@ -590,21 +636,47 @@ export default function CoursesContent() {
                         </Button>
                       ) : (
                         <>
-                          <Button
-                            onClick={() => handleGoToCourse(course.slug)}
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            {t('view_details')}
-                          </Button>
-                          <Button
-                            onClick={() => handleBuyNow(course.id)}
-                            variant="default"
-                            className="flex-1"
-                            disabled={isBuyingNow}
-                          >
-                            {isBuyingNow ? t('buying_now') : t('buy_now')}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleGoToCourse(course.slug)}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              {t('view_details')}
+                            </Button>
+                            <Button
+                              onClick={() => handleBuyNow(course.id)}
+                              variant="default"
+                              className="flex-1"
+                              disabled={isBuyingNow}
+                            >
+                              <CreditCard size={16} className="mr-1" />
+                              {isBuyingNow ? t('buying_now') : t('buy_now')}
+                            </Button>
+                          </div>
+                          
+                          {/* Points Redemption Button */}
+                          {course.pointsAvailable && (
+                            <Button
+                              onClick={() => handleRedeemWithPoints(course.id, course.points)}
+                              variant="secondary"
+                              className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-semibold"
+                              disabled={isRedeemingNow || (pointsData?.data?.currentPoints || 0) < course.points}
+                            >
+                              <Coins size={16} className="mr-2" />
+                              {isRedeemingNow 
+                                ? t('redeeming_now') 
+                                : (pointsData?.data?.currentPoints || 0) < course.points
+                                  ? t('insufficient_points_short')
+                                  : t('redeem_with_points', { points: course.points })
+                              }
+                            </Button>
+                          )}
+                          
+                          {/* Points Status Display */}
+                          <div className="text-center text-xs text-black/60 dark:text-white/60">
+                            {t('your_points')}: <span className="font-semibold text-yellow-500">{pointsData?.data?.currentPoints || 0}</span>
+                          </div>
                         </>
                       )}
                     </div>

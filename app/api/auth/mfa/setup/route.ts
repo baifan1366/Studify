@@ -22,15 +22,16 @@ function generateBackupCodes(): string[] {
 export async function GET(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const { user, profile } = authResult;
+    const { user } = authResult;
+    const profile = user.profile;
 
     // Check if MFA is already enabled
-    if (profile.two_factor_enabled) {
+    if (profile?.two_factor_enabled) {
       return NextResponse.json(
         { error: 'Two-factor authentication is already enabled' },
         { status: 400 }
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Generate new TOTP secret
     const secret = generateSecret();
     const appName = 'Studify';
-    const accountName = profile.email || user.email;
+    const accountName = profile?.email || user.email;
     
     // Create TOTP URL for QR code
     const totpUrl = `otpauth://totp/${encodeURIComponent(appName)}:${encodeURIComponent(accountName)}?secret=${secret}&issuer=${encodeURIComponent(appName)}`;
@@ -90,12 +91,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const { user, profile } = authResult;
+    const { user } = authResult;
+    const profile = user.profile;
     const body = await request.json();
     const { code } = body;
 

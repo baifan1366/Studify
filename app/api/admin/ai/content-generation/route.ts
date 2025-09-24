@@ -6,7 +6,7 @@ import { createAdminClient } from '@/utils/supabase/server';
 
 // GET /api/admin/ai/content-generation - Get AI content generation statistics
 export async function GET(request: NextRequest) {
-  const authResult = await authorize('admin')(request);
+  const authResult = await authorize('admin');
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/ai/content-generation - Trigger AI content generation tasks
 export async function POST(request: NextRequest) {
-  const authResult = await authorize('admin')(request);
+  const authResult = await authorize('admin');
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         // Create AI run requests for summary generation
         const summaryRuns = notes?.map(note => ({
           agent_id: agentId,
-          requester_id: authResult.user.profile?.id,
+          requester_id: authResult.user.id,
           input: {
             type: 'generate_summary',
             content: note.content,
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
 
         const analysisRuns = contentIds.map((id: string) => ({
           agent_id: agentId,
-          requester_id: authResult.user.profile?.id,
+          requester_id: authResult.user.id,
           input: {
             type: 'content_analysis',
             content_type: contentType,

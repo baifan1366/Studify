@@ -17,7 +17,7 @@
   - `app/api/mistake-book/route.ts`
 
 ### 3. **Authorization Function Calls**
-- ✅ **Fixed `authorize` function usage**: Updated all API routes to use correct calling pattern `authorize('student')(request)`
+- ✅ **Fixed `authorize` function usage**: Updated all API routes to use correct calling pattern `authorize('student')`
 - **Files fixed**:
   - `app/api/auth/change-password/route.ts`
   - `app/api/auth/mfa/setup/route.ts` 
@@ -48,7 +48,7 @@ const authResult = await authorize('student'); // ❌ Incorrect
 
 **After:**
 ```typescript
-const authResult = await authorize('student')(request); // ✅ Correct
+const authResult = await authorize('student'); // ✅ Correct
 ```
 
 ### Supabase Client Pattern

@@ -121,17 +121,6 @@ export async function POST(request: NextRequest) {
       pointsEarned = isCorrect === true ? question.points : 0;
     }
 
-    // Get attempt number
-    const { data: previousAttempts } = await supabase
-      .from('course_quiz_submission')
-      .select('attempt_number')
-      .eq('user_id', userId)
-      .eq('question_id', question.id)
-      .order('attempt_number', { ascending: false })
-      .limit(1);
-
-    const attemptNumber = (previousAttempts?.[0]?.attempt_number || 0) + 1;
-
     // Create submission
     const { data: submission, error: submissionError } = await supabase
       .from('course_quiz_submission')
@@ -143,7 +132,6 @@ export async function POST(request: NextRequest) {
         is_correct: isCorrect,
         points_earned: pointsEarned,
         time_taken_sec: timeTakenSec,
-        attempt_number: attemptNumber
       })
       .select()
       .single();
@@ -169,7 +157,6 @@ export async function POST(request: NextRequest) {
           is_correct: isCorrect,
           points_earned: pointsEarned,
           time_taken_sec: timeTakenSec,
-          attempt_number: attemptNumber
         }
       });
 

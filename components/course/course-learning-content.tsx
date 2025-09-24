@@ -620,12 +620,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         <div className="xl:col-span-1 lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('CourseContent.title')}</h3>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            {/* <div className="text-xs text-gray-500 dark:text-gray-400">
               {(() => {
                 const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
                 return progressArray.filter((p: any) => p.state === 'completed').length;
               })()} / {allLessons.length} {t('CourseContent.completed_count')}
-            </div>
+            </div> */}
           </div>
           
           {/* Progress Bar */}

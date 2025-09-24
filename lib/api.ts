@@ -661,5 +661,17 @@ export const courseProgressApi = {
   updateByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
   getByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
   updateByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
-  updateStatus: (progressId: string) => `/api/course/progress/${progressId}/status`,
+  updateState: (progressId: string) => `/api/course/progress/${progressId}/state`,
 } as const;
+
+export const quizApi = {
+  getLessonQuizByLessonId: (lessonId: string) => `/api/course/quiz?lessonId=${lessonId}`,
+  createSubmission: `/api/course/quiz/submit`,
+  getTutorQuiz: `/api/tutor-quiz`,
+  getTutorQuizByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}`,
+  createTutorQuizByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}`,
+  getTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  updateTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  deleteTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  getSubmissionByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}/submission`,
+}

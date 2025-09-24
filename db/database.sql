@@ -419,6 +419,7 @@ CREATE TABLE IF NOT EXISTS course_notes (
 CREATE TABLE IF NOT EXISTS course_quiz_question (
   id bigserial PRIMARY KEY,
   public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
   question_text text NOT NULL,
   question_type text NOT NULL CHECK (question_type IN ('multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_blank')),

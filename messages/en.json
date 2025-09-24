@@ -2742,6 +2742,14 @@
     "og_description": "Manage users on Studify.",
     "page_title": "Users"
   },
+  "TutorQuizContentPage": {
+    "metadata_title": "Quiz Content | Tutor | Studify",
+    "metadata_description": "Manage quiz content on Studify.",
+    "metadata_keywords": "quiz content, tutor, studify",
+    "og_title": "Quiz Content | Tutor | Studify",
+    "og_description": "Manage quiz content on Studify.",
+    "page_title": "Quiz Content"
+  },
   "AdminReportsPage": {
     "metadata_title": "Reports | Admin | Studify",
     "metadata_description": "Manage reports on Studify.",

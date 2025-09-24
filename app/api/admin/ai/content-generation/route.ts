@@ -6,7 +6,7 @@ import { createAdminClient } from '@/utils/supabase/server';
 
 // GET /api/admin/ai/content-generation - Get AI content generation statistics
 export async function GET(request: NextRequest) {
-  const authResult = await authorize('admin');
+  const authResult = await authorize('admin')(request);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/ai/content-generation - Trigger AI content generation tasks
 export async function POST(request: NextRequest) {
-  const authResult = await authorize('admin');
+  const authResult = await authorize('admin')(request);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

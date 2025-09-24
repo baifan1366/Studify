@@ -37,7 +37,8 @@ export async function GET(
         status,
         enrolled_at,
         completed_at,
-        course!inner(
+        course_id,
+        course(
           id,
           title
         )
@@ -52,7 +53,7 @@ export async function GET(
       .select(`
         course_id,
         last_accessed,
-        course!inner(
+        course(
           title
         )
       `)
@@ -81,7 +82,7 @@ export async function GET(
 
       progressWithPercentage.push({
         course_id: prog.course_id,
-        course_title: prog.course.title,
+        course_title: Array.isArray(prog.course) ? (prog.course as any[])[0]?.title : (prog.course as any)?.title,
         completed_lessons: completedLessons || 0,
         total_lessons: totalLessons || 0,
         last_accessed: prog.last_accessed,
@@ -95,8 +96,8 @@ export async function GET(
       status: enrollment.status,
       enrolled_at: enrollment.enrolled_at,
       completed_at: enrollment.completed_at,
-      course_title: enrollment.course.title,
-      course_id: enrollment.course.id,
+      course_title: Array.isArray(enrollment.course) ? (enrollment.course as any[])[0]?.title : (enrollment.course as any)?.title,
+      course_id: Array.isArray(enrollment.course) ? (enrollment.course as any[])[0]?.id : (enrollment.course as any)?.id,
     }));
 
     return NextResponse.json({

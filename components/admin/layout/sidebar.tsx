@@ -106,35 +106,35 @@ const defaultMenuSections: MenuSection[] = [
       },
     ]
   },
-  {
-    title: 'System Management',
-    items: [
-      {
-        id: 'ai-management',
-        label: 'AI Management',
-        icon: Brain,
-        path: '/admin/ai',
-        subItems: [
-          { id: 'ai-overview', label: 'AI Overview', icon: Brain, path: '/admin/ai' },
-          { id: 'ai-embeddings', label: 'Embeddings', icon: Database, path: '/admin/ai#embeddings' },
-          { id: 'ai-recommendations', label: 'Recommendations', icon: BarChart3, path: '/admin/ai#recommendations' },
-          { id: 'ai-moderation', label: 'Moderation', icon: Shield, path: '/admin/ai#moderation' },
-        ]
-      },
-      {
-        id: 'maintenance',
-        label: 'System Maintenance',
-        icon: Wrench,
-        path: '/admin/maintenance',
-        subItems: [
-          { id: 'system-health', label: 'System Health', icon: Activity, path: '/admin/maintenance#health' },
-          { id: 'queue-monitor', label: 'Queue Monitor', icon: Database, path: '/admin/maintenance#queues' },
-          { id: 'cache-management', label: 'Cache Management', icon: HardDrive, path: '/admin/maintenance#cache' },
-          { id: 'feature-flags', label: 'Feature Flags', icon: Flag, path: '/admin/maintenance#features' },
-        ]
-      },
-    ]
-  }
+  // {
+  //   title: 'System Management',
+  //   items: [
+  //     {
+  //       id: 'ai-management',
+  //       label: 'AI Management',
+  //       icon: Brain,
+  //       path: '/admin/ai',
+  //       subItems: [
+  //         { id: 'ai-overview', label: 'AI Overview', icon: Brain, path: '/admin/ai' },
+  //         { id: 'ai-embeddings', label: 'Embeddings', icon: Database, path: '/admin/ai#embeddings' },
+  //         { id: 'ai-recommendations', label: 'Recommendations', icon: BarChart3, path: '/admin/ai#recommendations' },
+  //         { id: 'ai-moderation', label: 'Moderation', icon: Shield, path: '/admin/ai#moderation' },
+  //       ]
+  //     },
+  //     {
+  //       id: 'maintenance',
+  //       label: 'System Maintenance',
+  //       icon: Wrench,
+  //       path: '/admin/maintenance',
+  //       subItems: [
+  //         { id: 'system-health', label: 'System Health', icon: Activity, path: '/admin/maintenance#health' },
+  //         { id: 'queue-monitor', label: 'Queue Monitor', icon: Database, path: '/admin/maintenance#queues' },
+  //         { id: 'cache-management', label: 'Cache Management', icon: HardDrive, path: '/admin/maintenance#cache' },
+  //         { id: 'feature-flags', label: 'Feature Flags', icon: Flag, path: '/admin/maintenance#features' },
+  //       ]
+  //     },
+  //   ]
+  // }
 ];
 
 export default function AnimatedSidebar({

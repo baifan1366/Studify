@@ -70,13 +70,12 @@ const defaultMenuSections: MenuSection[] = [
         icon: BookOpen,
         path: '/tutor/teaching/quiz-content',
         subItems: [
-          { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/tutor/teaching/quiz-content' },
+          { id: 'quiz-content', label: 'Quiz Content', icon: ClipboardList, path: '/tutor/teaching/quiz-content' },
           { id: 'course-content', label: 'Course Content', icon: Video, path: '/tutor/teaching/course-content' },
         ]
       },
       { id: 'classroom', label: 'Classroom', icon: Users, path: '/tutor/classroom' },
       { id: 'students', label: 'Students', icon: GraduationCap, path: '/tutor/student' },
-      { id: 'ai-assistant', label: 'AI Assistant', icon: BookOpen, path: '/tutor/ai-assistant' },
     ]
   }
 ];

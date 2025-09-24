@@ -10,9 +10,18 @@ export async function POST(
     const { slug, id } = await params;
     const assignmentId = parseInt(id);
 
-    // Authorize tutor or owner
-    const { userId } = await authorize('tutor');
-    const supabase = createAdminClient();
+    console.log('POST Grade - Starting request:', { slug, assignmentId });
+
+    // Authorize user (will check classroom-specific permissions later)
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      console.log('POST Grade - Authorization failed');
+      return authResult;
+    }
+    const { sub: userId } = authResult;
+    const supabase = await createAdminClient();
+
+    console.log('POST Grade - Auth successful, userId:', userId);
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -21,12 +30,15 @@ export async function POST(
       .eq('user_id', userId)
       .single();
 
+    console.log('POST Grade - Profile lookup:', { userId, profile, profileError });
+
     if (profileError || !profile) {
+      console.log('POST Grade - Profile not found:', profileError);
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
     // Verify user has permission to grade in this classroom
-    const { data: classroom } = await supabase
+    const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
       .select(`
         id,
@@ -36,7 +48,16 @@ export async function POST(
       .eq('classroom_member.user_id', profile.id)
       .single();
 
-    if (!classroom || !['owner', 'tutor'].includes(classroom.classroom_member[0]?.role)) {
+    console.log('Classroom query result:', { classroom, classroomError, profileId: profile.id, slug });
+
+    if (classroomError || !classroom) {
+      console.log('Classroom not found:', classroomError);
+      return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 403 });
+    }
+
+    const userRole = classroom.classroom_member[0]?.role;
+    if (!userRole || !['owner', 'tutor'].includes(userRole)) {
+      console.log('Insufficient permissions. User role:', userRole);
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -100,8 +121,7 @@ export async function POST(
           updated_at,
           profiles!classroom_grade_user_id_fkey(
             id,
-            first_name,
-            last_name,
+            display_name,
             avatar_url
           )
         `)
@@ -135,8 +155,7 @@ export async function POST(
           updated_at,
           profiles!classroom_grade_user_id_fkey(
             id,
-            first_name,
-            last_name,
+            display_name,
             avatar_url
           )
         `)
@@ -159,9 +178,18 @@ export async function GET(
     const { slug, id } = await params;
     const assignmentId = parseInt(id);
 
+    console.log('GET Grade - Starting request:', { slug, assignmentId });
+
     // Authorize user (students can see their own grades, tutors can see all)
-    const { userId } = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      console.log('GET Grade - Authorization failed');
+      return authResult;
+    }
+    const { sub: userId } = authResult;
+    const supabase = await createAdminClient();
+
+    console.log('GET Grade - Auth successful, userId:', userId);
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -170,12 +198,15 @@ export async function GET(
       .eq('user_id', userId)
       .single();
 
+    console.log('GET Grade - Profile lookup:', { userId, profile, profileError });
+
     if (profileError || !profile) {
+      console.log('GET Grade - Profile not found:', profileError);
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
     // Verify user has access to this classroom
-    const { data: classroom } = await supabase
+    const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
       .select(`
         id,
@@ -185,12 +216,31 @@ export async function GET(
       .eq('classroom_member.user_id', profile.id)
       .single();
 
-    if (!classroom) {
+    console.log('GET Grade - Classroom query:', { classroom, classroomError, profileId: profile.id, slug });
+
+    if (classroomError || !classroom) {
+      console.log('GET Grade - Classroom not found:', classroomError);
       return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 404 });
     }
 
     const userRole = classroom.classroom_member[0]?.role;
     const isOwnerOrTutor = ['owner', 'tutor'].includes(userRole);
+    
+    console.log('GET Grade - User role in classroom:', { userRole, isOwnerOrTutor });
+
+    // Verify assignment belongs to this classroom
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('classroom_assignment')
+      .select('id, classroom_id')
+      .eq('id', assignmentId)
+      .eq('classroom_id', classroom.id)
+      .single();
+
+    console.log('Assignment verification:', { assignment, assignmentError, assignmentId, classroomId: classroom.id });
+
+    if (assignmentError || !assignment) {
+      return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    }
 
     // Build query based on user role
     let query = supabase
@@ -207,14 +257,12 @@ export async function GET(
         updated_at,
         profiles!classroom_grade_user_id_fkey(
           id,
-          first_name,
-          last_name,
+          display_name,
           avatar_url
         ),
         grader:profiles!classroom_grade_grader_id_fkey(
           id,
-          first_name,
-          last_name
+          display_name
         )
       `)
       .eq('assignment_id', assignmentId)
@@ -244,9 +292,13 @@ export async function DELETE(
     const { slug, id } = await params;
     const assignmentId = parseInt(id);
 
-    // Authorize tutor or owner
-    const { userId } = await authorize('tutor');
-    const supabase = createAdminClient();
+    // Authorize user (will check classroom-specific permissions later)
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { sub: userId } = authResult;
+    const supabase = await createAdminClient();
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -260,7 +312,7 @@ export async function DELETE(
     }
 
     // Verify user has permission to delete grades in this classroom
-    const { data: classroom } = await supabase
+    const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
       .select(`
         id,
@@ -270,7 +322,14 @@ export async function DELETE(
       .eq('classroom_member.user_id', profile.id)
       .single();
 
-    if (!classroom || !['owner', 'tutor'].includes(classroom.classroom_member[0]?.role)) {
+    if (classroomError || !classroom) {
+      console.log('Classroom not found for delete grade:', classroomError);
+      return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 403 });
+    }
+
+    const userRole = classroom.classroom_member[0]?.role;
+    if (!userRole || !['owner', 'tutor'].includes(userRole)) {
+      console.log('Insufficient permissions for delete grade. User role:', userRole);
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

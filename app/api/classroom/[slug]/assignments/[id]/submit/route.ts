@@ -22,11 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   try {
     const body = await request.json();
-    const { content } = body;
+    const { content, attachment_ids = [] } = body;
 
     if (!content) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
+
+    // Since attachments_id is a single field, we'll use the first attachment ID if provided
+    const attachmentId = attachment_ids.length > 0 ? attachment_ids[0] : null;
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -94,7 +97,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         assignment_id: id,
         student_id: profile.id,
         content,
-        submitted_at: new Date().toISOString()
+        submitted_at: new Date().toISOString(),
+        attachments_id: attachmentId
       })
       .select(`
         id,
@@ -134,11 +138,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
 
   try {
     const body = await request.json();
-    const { content } = body;
+    const { content, attachment_ids = [] } = body;
 
     if (!content) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
+
+    // Since attachments_id is a single field, we'll use the first attachment ID if provided
+    const attachmentId = attachment_ids.length > 0 ? attachment_ids[0] : null;
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -190,7 +197,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
       .from('classroom_submission')
       .update({
         content,
-        submitted_at: new Date().toISOString()
+        submitted_at: new Date().toISOString(),
+        attachments_id: attachmentId
       })
       .eq('assignment_id', id)
       .eq('student_id', profile.id)

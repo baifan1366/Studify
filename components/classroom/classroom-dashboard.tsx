@@ -19,13 +19,12 @@ import {
 } from 'lucide-react';
 import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
-import { useAssignments } from '@/hooks/classroom/use-assignments';
+import { useClassroomAssignments, ClassroomAssignment } from '@/hooks/classroom/use-classroom-assignments';
 import { ChatTabs } from './tabs/chat-tabs';
 
 const LiveClassroom = dynamic(() => import('@/components/classroom/live-session/live-classroom'));
 import { Assignment as AssignmentInterface } from '@/interface/classroom/asg-interface';
 import { Quiz } from '@/interface/classroom/quiz-interface';
-import { Assignment as HookAssignment } from '@/hooks/classroom/use-assignments';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -111,10 +110,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     });
   }, [membersData, isMembersLoading]);
   const { data: liveSessionsData, isLoading: isLiveSessionsLoading } = useLiveSessions(classroomSlug);
-  const { data: assignmentsData, isLoading: isAssignmentsLoading } = useAssignments(classroomSlug, 'upcoming');
+  const { data: assignmentsResponse, isLoading: isAssignmentsLoading } = useClassroomAssignments(classroomSlug, 'upcoming');
 
   // Type the assignments data properly using hook's Assignment type
-  const typedAssignments: HookAssignment[] = assignmentsData || [];
+  const typedAssignments: ClassroomAssignment[] = assignmentsResponse?.assignments || [];
   const sampleQuizzes: Quiz[] = []; // Placeholder for future quiz data
   
   // Example usage of AssignmentInterface for type checking
@@ -144,14 +143,14 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     if (classroom && typedAssignments.length > 0) {
       // Validate assignments using the interface
       const validAssignments = typedAssignments.filter(assignment => {
-        // Convert HookAssignment to AssignmentInterface format for validation
+        // Convert ClassroomAssignment to AssignmentInterface format for validation
         const interfaceAssignment: AssignmentInterface = {
-          id: parseInt(assignment.id),
+          id: assignment.id,
           classroom_id: 1, // Default classroom ID
           author_id: 1, // Default author ID
           title: assignment.title,
           description: assignment.description || '',
-          due_date: assignment.due_on,
+          due_date: assignment.due_date,
           created_at: new Date().toISOString(),
           slug: assignment.title.toLowerCase().replace(/\s+/g, '-')
         };
@@ -690,12 +689,12 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {typedAssignments.slice(0, 3).map((assignment: HookAssignment) => (
+                    {typedAssignments.slice(0, 3).map((assignment: ClassroomAssignment) => (
                       <div key={assignment.id} className="flex justify-between items-center p-3 bg-gray-100/5 hover:bg-gray-200/8  rounded-lg">
                         <div>
                           <p className="font-medium">{assignment.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            Due: {new Date(assignment.due_on).toLocaleDateString()}
+                            Due: {new Date(assignment.due_date).toLocaleDateString()}
                           </p>
                         </div>
                         <Badge variant="outline">Active</Badge>
@@ -731,7 +730,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
         <AnimatedTabsContent value="assignments" className="space-y-6">
           <AssignmentsTab 
-            assignmentsData={assignmentsData}
+            assignmentsData={assignmentsResponse}
             isOwnerOrTutor={isOwnerOrTutor}
             classroomSlug={classroomSlug}
             navigateToSection={navigateToSection}

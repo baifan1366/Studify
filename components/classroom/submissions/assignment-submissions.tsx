@@ -28,7 +28,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useSubmissions, useGradeSubmission } from '@/hooks/classroom/use-submissions';
 import { useCreateGrade, useAssignmentGrades } from '@/hooks/classroom/use-grades';
+import { CreateAssignmentDialog } from '../Dialog/create-assignment-dialog';
 import { SubmissionsSummary } from './submissions-summary';
+import { BulkGradingDialog } from './bulk-grading-dialog';
+import { SubmissionAttachments } from './submission-attachments';
+import { SubmissionAIChecker } from '@/components/ai/submission-ai-checker';
+import { ClassroomColor, getCardStyling, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface Submission {
   id: number;
@@ -38,12 +43,21 @@ interface Submission {
   submitted_at: string;
   grade: number | null;
   feedback: string | null;
+  attachments_id?: number | null;
   profiles: {
     id: number;
     display_name: string;
     email: string;
     avatar_url?: string;
   };
+  classroom_attachments?: {
+    id: number;
+    file_name: string;
+    file_url: string;
+    mime_type: string;
+    size_bytes: number;
+    created_at: string;
+  } | null;
 }
 
 interface Assignment {
@@ -59,6 +73,7 @@ interface AssignmentSubmissionsProps {
   classroomSlug: string;
   userRole: string;
   currentUserId?: number;
+  classroomColor?: ClassroomColor;
   onClose?: () => void;
 }
 
@@ -67,6 +82,7 @@ export function AssignmentSubmissions({
   classroomSlug, 
   userRole, 
   currentUserId,
+  classroomColor,
   onClose 
 }: AssignmentSubmissionsProps) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -75,6 +91,7 @@ export function AssignmentSubmissions({
   const [gradingSubmission, setGradingSubmission] = useState<number | null>(null);
   const [gradeValue, setGradeValue] = useState('');
   const [feedbackValue, setFeedbackValue] = useState('');
+  const [showBulkGrading, setShowBulkGrading] = useState(false);
   const { toast } = useToast();
   
   // Use the new grading hooks
@@ -82,6 +99,12 @@ export function AssignmentSubmissions({
   const { data: assignmentGrades } = useAssignmentGrades(classroomSlug, assignment?.id);
 
   const isOwnerOrTutor = ['owner', 'tutor'].includes(userRole);
+
+  // Get classroom color styling
+  const validColor = (classroomColor && CLASSROOM_COLORS.includes(classroomColor as ClassroomColor)) 
+    ? classroomColor as ClassroomColor 
+    : CLASSROOM_COLORS[0];
+  const cardStyling = getCardStyling(validColor, 'light');
 
   // Fetch submissions for this assignment
   useEffect(() => {
@@ -228,6 +251,20 @@ export function AssignmentSubmissions({
 
   return (
     <div className="space-y-6">
+      {/* Bulk Grading Dialog */}
+      <BulkGradingDialog
+        isOpen={showBulkGrading}
+        onClose={() => setShowBulkGrading(false)}
+        submissions={submissions}
+        assignment={assignment}
+        classroomSlug={classroomSlug}
+        classroomColor={classroomColor}
+        onGradingComplete={() => {
+          fetchSubmissions();
+          setShowBulkGrading(false);
+        }}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -247,26 +284,34 @@ export function AssignmentSubmissions({
       {isOwnerOrTutor && (
         <SubmissionsSummary
           assignmentId={assignment.id}
-          totalStudents={20} // This should come from classroom members count
-          submittedCount={submissions.length}
-          gradedCount={submissions.filter(s => s.grade !== null).length}
-          averageGrade={
-            submissions.filter(s => s.grade !== null).length > 0
-              ? submissions
-                  .filter(s => s.grade !== null)
-                  .reduce((sum, s) => sum + (s.grade || 0), 0) /
-                submissions.filter(s => s.grade !== null).length
-              : undefined
-          }
+          classroomSlug={classroomSlug}
           dueDate={assignment.due_date}
+          userRole={userRole as 'owner' | 'tutor' | 'student'}
+          classroomColor={classroomColor as ClassroomColor}
+          onGradeSubmission={(submissionId) => {
+            if (submissionId === -1) {
+              // Handle bulk grading - open bulk grading dialog
+              setShowBulkGrading(true);
+            } else {
+              // Handle individual submission grading
+              setGradingSubmission(submissionId);
+            }
+          }}
         />
       )}
 
       {/* Assignment Info */}
-      <Card>
+      <Card 
+        className="border-l-4 hover:shadow-md transition-shadow"
+        style={{ 
+          borderLeftColor: validColor,
+          backgroundColor: cardStyling.backgroundColor,
+          borderColor: cardStyling.borderColor
+        }}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+            <FileText className="h-5 w-5" style={{ color: validColor }} />
             Assignment Details
           </CardTitle>
         </CardHeader>
@@ -279,7 +324,7 @@ export function AssignmentSubmissions({
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Due Date</Label>
               <p className="mt-1 flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-4 w-4" style={{ color: validColor }} />
                 {formatDate(assignment.due_date)}
               </p>
             </div>
@@ -290,9 +335,16 @@ export function AssignmentSubmissions({
       {/* Submissions List */}
       <div className="space-y-4">
         {submissions.length === 0 ? (
-          <Card>
+          <Card 
+            className="border-l-4 hover:shadow-md transition-shadow"
+            style={{ 
+              borderLeftColor: validColor,
+              backgroundColor: cardStyling.backgroundColor,
+              borderColor: cardStyling.borderColor
+            }}
+          >
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <FileText className="h-12 w-12 mb-4" style={{ color: validColor, opacity: 0.6 }} />
               <h3 className="text-lg font-semibold mb-2">No Submissions Yet</h3>
               <p className="text-muted-foreground text-center">
                 No students have submitted this assignment yet.
@@ -306,9 +358,17 @@ export function AssignmentSubmissions({
             const isGrading = gradingSubmission === submission.id;
 
             return (
-              <Card key={submission.id} className="overflow-hidden">
+              <Card 
+                key={submission.id} 
+                className="overflow-hidden border-l-4 hover:shadow-md transition-all duration-200"
+                style={{ 
+                  borderLeftColor: validColor,
+                  backgroundColor: cardStyling.backgroundColor,
+                  borderColor: cardStyling.borderColor
+                }}
+              >
                 <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => setExpandedSubmission(isExpanded ? null : submission.id)}
                 >
                   <div className="flex items-center justify-between">
@@ -319,12 +379,13 @@ export function AssignmentSubmissions({
                           alt={submission.profiles.display_name} 
                         />
                         <AvatarFallback>
-                          {submission.profiles.display_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          {submission.profiles.display_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 
+                           submission.profiles.email?.substring(0, 2).toUpperCase() || 'NA'}
                         </AvatarFallback>
                       </Avatar>
                       
                       <div>
-                        <h3 className="font-semibold">{submission.profiles.display_name}</h3>
+                        <h3 className="font-semibold">{submission.profiles.display_name || submission.profiles.email || 'Unknown User'}</h3>
                         <p className="text-sm text-muted-foreground">{submission.profiles.email}</p>
                       </div>
                     </div>
@@ -372,6 +433,30 @@ export function AssignmentSubmissions({
                               <p className="text-sm whitespace-pre-wrap">{submission.content}</p>
                             </ScrollArea>
                           </div>
+
+                          {/* AI Content Detection - Tutors and Admins Only */}
+                          {(userRole === 'tutor' || userRole === 'owner' || userRole === 'admin' || userRole === 'instructor') && (
+                            <div>
+                              <SubmissionAIChecker 
+                                submissionText={submission.content}
+                                submissionId={submission.id}
+                                onDetectionResult={(result) => {
+                                  console.log('AI Detection Result:', result);
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Submission Attachments */}
+                          {submission.classroom_attachments && (
+                            <div>
+                              <SubmissionAttachments 
+                                attachments={[submission.classroom_attachments]}
+                                userRole="tutor"
+                                showTitle={true}
+                              />
+                            </div>
+                          )}
 
                           {/* Existing Grade and Feedback */}
                           {submission.grade !== null && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -12,23 +12,10 @@ import { useSignIn, useSignUp } from "@/hooks/profile/use-auth";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/utils/supabase/client";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
-// PKCE 
-function generatePKCEVerifier() {
-  const array = new Uint8Array(32);
-  window.crypto.getRandomValues(array);
-  return Array.from(array, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
-}
-
-async function generatePKCEChallenge(verifier: string) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await window.crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
+// HCaptcha configuration
+const HCAPTCHA_SITE_KEY = "d26a2d9a-3b10-4210-86a6-c8e4d872db56";
 
 interface AuthFormProps {
   mode: "sign-in" | "sign-up";
@@ -61,70 +48,109 @@ export function AuthForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
   const { toast } = useToast();
+
+  // CAPTCHA handlers
+  const handleCaptchaVerify = (token: string) => {
+    console.log('CAPTCHA verified:', token);
+    setCaptchaToken(token);
+    setError(null); // Clear any previous captcha errors
+  };
+
+  const handleCaptchaExpire = () => {
+    console.log('CAPTCHA expired');
+    setCaptchaToken(null);
+  };
+
+  const handleCaptchaError = (err: string) => {
+    console.error('CAPTCHA error:', err);
+    setCaptchaToken(null);
+    setError('CAPTCHA verification failed. Please try again.');
+  };
+
+  const resetCaptcha = () => {
+    if (captchaRef.current) {
+      captchaRef.current.resetCaptcha();
+    }
+    setCaptchaToken(null);
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
       console.log('Starting OAuth flow with Google');
       
-      // Use production URL if available, fallback to current origin
-      // Ensure we never use localhost in production
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      // Use current page as callback since Supabase is configured to redirect here
       const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/${locale}/sign-in`;
       
-      // In production, prioritize NEXT_PUBLIC_SITE_URL and avoid localhost
-      let redirectUrl;
-      if (process.env.NEXT_PUBLIC_NODE_ENV === 'production') {
-        if (siteUrl && !siteUrl.includes('localhost')) {
-          redirectUrl = `${siteUrl}/${locale}/auth/callback`;
-        } else if (!currentOrigin.includes('localhost')) {
-          redirectUrl = `${currentOrigin}/${locale}/auth/callback`;
-        } else {
-          // Fallback: try to construct from window.location.host
-          const protocol = window.location.protocol;
-          const host = window.location.host;
-          redirectUrl = `${protocol}//${host}/${locale}/auth/callback`;
-        }
-      } else {
-        redirectUrl = `${currentOrigin}/${locale}/auth/callback`;
-      }
+      console.log('OAuth redirect URL:', redirectUrl);
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectUrl,
-          queryParams: { access_type: "offline" },
-          skipBrowserRedirect: false,
+          queryParams: { 
+            access_type: "offline",
+            prompt: "consent"
+          },
         },
       });
 
       if (error) {
-        toast({ title: "Google Login Failed", variant: "destructive" });
         console.error("OAuth error:", error);
+        toast({ 
+          title: "Google Login Failed", 
+          description: error.message,
+          variant: "destructive" 
+        });
+        setLoading(false);
       }
+      // Note: setLoading(false) is not called on success because we're redirecting
     } catch (err) {
-      toast({ title: "Google Login Failed", variant: "destructive" });
       console.error("OAuth error:", err);
-    } finally {
+      toast({ 
+        title: "Google Login Failed", 
+        description: "An unexpected error occurred",
+        variant: "destructive" 
+      });
       setLoading(false);
     }
-  };    async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  };
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    
+    // Check CAPTCHA verification
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA verification");
+      return;
+    }
+    
     setPending(true);
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email") || "");
     const password = String(form.get("password") || "");
     const fullName = (form.get("fullName") as string) || undefined;
     const confirmPassword = (form.get("confirmPassword") as string) || undefined;
+    
     try {
       if (mode === "sign-up") {
         if (!email || !password) throw new Error("Email and password are required");
         if (confirmPassword !== undefined && confirmPassword !== password) {
           throw new Error("Passwords do not match");
         }
-        const res = await signUp.mutateAsync({ email, password, fullName, locale, role });
+        const res = await signUp.mutateAsync({ 
+          email, 
+          password, 
+          fullName, 
+          locale, 
+          role, 
+          captchaToken 
+        });
         if (res.requiresConfirmation) {
           router.replace(`/${locale}/verify-email`);
           return;
@@ -139,7 +165,12 @@ export function AuthForm({
         router.replace(pathByRole[r]);
       } else {
         if (!email || !password) throw new Error("Email and password are required");
-        const res = await signIn.mutateAsync({ email, password, locale });
+        const res = await signIn.mutateAsync({ 
+          email, 
+          password, 
+          locale, 
+          captchaToken 
+        });
         const r = res.role;
         const pathByRole: Record<typeof r, string> = {
           student: `/${locale}/home`,
@@ -150,6 +181,8 @@ export function AuthForm({
       }
     } catch (err: any) {
       setError(err?.message || "Failed");
+      // Reset CAPTCHA on error
+      resetCaptcha();
     } finally {
       setPending(false);
     }
@@ -215,6 +248,19 @@ export function AuthForm({
           <form onSubmit={onSubmit} className="space-y-6">
             <input type="hidden" name="locale" value={locale} />
             {children}
+
+            {/* HCaptcha Component */}
+            <div className="flex justify-center">
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={HCAPTCHA_SITE_KEY}
+                onVerify={handleCaptchaVerify}
+                onExpire={handleCaptchaExpire}
+                onError={handleCaptchaError}
+                theme={theme === 'dark' ? 'dark' : 'light'}
+                size="normal"
+              />
+            </div>
 
             {error && (
               <div className="p-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800/50">

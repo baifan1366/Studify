@@ -66,6 +66,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         submitted_at,
         grade,
         feedback,
+        attachments_id,
         classroom_assignment!classroom_submission_assignment_id_fkey (
           id,
           title,
@@ -76,6 +77,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
           id,
           display_name,
           email
+        ),
+        classroom_attachments!classroom_submission_attachments_id_fkey (
+          id,
+          file_name,
+          file_url,
+          mime_type,
+          size_bytes,
+          created_at
         )
       `)
       .eq('classroom_assignment.classroom_id', classroom.id);
@@ -128,7 +137,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   try {
     const body = await request.json();
-    const { assignment_id, content } = body;
+    const { assignment_id, content, attachment_ids = [] } = body;
 
     // Validate required fields
     if (!assignment_id || !content) {
@@ -136,6 +145,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         error: 'Missing required fields: assignment_id, content' 
       }, { status: 400 });
     }
+
+    // Since attachments_id is a single field, we'll use the first attachment ID if provided
+    const attachmentId = attachment_ids.length > 0 ? attachment_ids[0] : null;
 
     // Get user's profile ID
     const { data: profile, error: profileError } = await supabase
@@ -203,7 +215,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         assignment_id,
         student_id: profile.id,
         content,
-        submitted_at: new Date().toISOString()
+        submitted_at: new Date().toISOString(),
+        attachments_id: attachmentId
       })
       .select(`
         id,
@@ -212,7 +225,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         content,
         submitted_at,
         grade,
-        feedback
+        feedback,
+        attachments_id
       `)
       .single();
 

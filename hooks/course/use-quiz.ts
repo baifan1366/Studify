@@ -27,13 +27,13 @@ export function useQuiz({ lessonId }: UseQuizProps) {
   });
 
   const submitAnswerMutation = useMutation({
-    mutationFn: async (data: { questionId: string; answer: string }) => {
+    mutationFn: async (data: { questionId: string; answer: string | boolean }) => {
       const response = await fetch(quizApi.createSubmission, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           questionId: data.questionId,
-          userAnswer: data.answer,
+          userAnswer: typeof data.answer === 'boolean' ? data.answer.toString() : data.answer,
           timeTakenSec: 0, // Could be enhanced to track actual time
         }),
       });
@@ -57,7 +57,7 @@ export function useQuiz({ lessonId }: UseQuizProps) {
     },
   });
 
-  const handleSubmitAnswer = async (questionId: string, answer: string) => {
+  const handleSubmitAnswer = async (questionId: string, answer: string | boolean) => {
     await submitAnswerMutation.mutateAsync({ questionId, answer });
   };
 

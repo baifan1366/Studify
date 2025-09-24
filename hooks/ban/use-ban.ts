@@ -94,17 +94,29 @@ export function useUpdateBanStatus() {
         body: { status, expires_at },
       });
 
-      // If ban is approved and target_type is "course", update the course status to "ban"
+      // If ban is approved and target_type is "course", execute auto-flow
       if (status === 'approved' && banResult.target_type === 'course' && banResult.target_id) {
         try {
+          // Update course status to "ban"
           await apiSend({
             url: `/api/admin/courses/${banResult.target_id}/status`,
             method: 'PATCH',
             body: { status: 'ban' },
           });
-        } catch (courseError) {
-          console.warn('Failed to update course status:', courseError);
-          // Don't fail the whole operation if course update fails
+
+          // Auto-create system announcement for enrolled students
+          await apiSend({
+            url: `/api/course/ban-notification`,
+            method: 'POST',
+            body: { 
+              courseId: banResult.target_id,
+              banReason: banResult.reason,
+              expiresAt: expires_at || null
+            },
+          });
+        } catch (error) {
+          console.warn('Failed to complete ban auto-flow:', error);
+          // Don't fail the whole operation if auto-flow fails
         }
       }
 
@@ -119,7 +131,7 @@ export function useUpdateBanStatus() {
         title: 'Success',
         description: `Ban status updated to ${variables.status}${
           variables.status === 'approved' && data.target_type === 'course' 
-            ? '. Course has been banned.' 
+            ? '. Course has been banned and enrolled students have been automatically notified.' 
             : ''
         }`,
       });

@@ -33,10 +33,17 @@ const DEFAULT_GROK_CONFIG: GrokConfig = {
 };
 
 // 获取站点信息用于OpenRouter排名
-const getSiteInfo = () => ({
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://studify-platform.vercel.app",
-  siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Studify",
-});
+const getSiteInfo = () => {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const defaultUrl = isDevelopment 
+    ? "http://localhost:3000" 
+    : "https://studify-platform.vercel.app";
+    
+  return {
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL || defaultUrl,
+    siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Studify",
+  };
+};
 
 /**
  * 创建优化的Grok-4 LLM实例 - 支持多key轮换

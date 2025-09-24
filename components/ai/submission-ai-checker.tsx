@@ -1,20 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Brain, 
-  User, 
-  RefreshCw, 
+  Loader2, 
   Shield, 
+  User, 
+  Brain, 
+  RefreshCw, 
   AlertTriangle, 
-  CheckCircle,
-  Clock,
-  Zap
+  CheckCircle
 } from 'lucide-react';
 import { useTextClassifier, ClassificationResponse } from '@/hooks/ai/use-text-classifier';
 
@@ -36,6 +35,7 @@ export function SubmissionAIChecker({
   const { classifyText, loading, result, error } = useTextClassifier({
     onSuccess: (result) => {
       setHasAnalyzed(true);
+      console.log('🎯 AI Checker received result:', result);
       onDetectionResult?.({ ...result, submissionId });
     }
   });
@@ -70,11 +70,28 @@ export function SubmissionAIChecker({
     }
   };
 
-  const getRiskLevel = (classification: string, confidence: number) => {
-    if (classification.toLowerCase() === 'human-written') {
+  const getRiskLevel = (classification: string, confidence: number, analysis: any) => {
+    // Prioritize using API returned risk_level
+    const apiRiskLevel = analysis?.risk_level;
+    if (apiRiskLevel) {
+      const riskMap = {
+        'low': { level: 'Low', color: 'text-green-600' },
+        'medium': { level: 'Medium', color: 'text-yellow-600' },
+        'high': { level: 'High', color: 'text-red-600' }
+      };
+      return riskMap[apiRiskLevel as keyof typeof riskMap] || { level: 'Medium', color: 'text-yellow-600' };
+    }
+
+    // If has AI traces, elevate risk level
+    if (analysis?.has_ai_traces) {
+      return { level: 'Medium+', color: 'text-orange-600' };
+    }
+
+    // Traditional logic
+    if (classification.toLowerCase() === 'human') {
       return { level: 'Low', color: 'text-green-600' };
     }
-    if (classification.toLowerCase() === 'ai-generated') {
+    if (classification.toLowerCase() === 'ai_generated') {
       return { 
         level: confidence > 0.8 ? 'High' : confidence > 0.6 ? 'Medium' : 'Low',
         color: confidence > 0.8 ? 'text-red-600' : confidence > 0.6 ? 'text-yellow-600' : 'text-green-600'
@@ -105,12 +122,12 @@ export function SubmissionAIChecker({
             >
               {loading ? (
                 <>
-                  <Clock className="h-3 w-3 mr-2 animate-spin" />
+                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
                   Analyzing...
                 </>
               ) : (
                 <>
-                  <Zap className="h-3 w-3 mr-2" />
+                  <Shield className="h-3 w-3 mr-2" />
                   Check Content
                 </>
               )}
@@ -141,8 +158,8 @@ export function SubmissionAIChecker({
                   {(result.confidence * 100).toFixed(1)}% confidence
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Risk: <span className={getRiskLevel(result.classification, result.confidence).color}>
-                    {getRiskLevel(result.classification, result.confidence).level}
+                  Risk: <span className={getRiskLevel(result.classification, result.confidence, result.analysis).color}>
+                    {getRiskLevel(result.classification, result.confidence, result.analysis).level}
                   </span>
                 </div>
               </div>
@@ -153,15 +170,6 @@ export function SubmissionAIChecker({
               <Progress value={result.confidence * 100} className="h-2" />
             </div>
 
-            {/* Development Mode Indicator */}
-            {result.suggestions.some(s => s.includes('mock result')) && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  <strong>Development Mode:</strong> This is a mock result for testing. Real AI analysis will be available in production.
-                </AlertDescription>
-              </Alert>
-            )}
 
             {/* Quick Summary */}
             {result.classification.toLowerCase() === 'ai-generated' && result.confidence > 0.7 && (

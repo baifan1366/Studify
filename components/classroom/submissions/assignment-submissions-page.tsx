@@ -176,16 +176,8 @@ export function AssignmentSubmissionsPageComponent({
     return false;
   });
   
-  const userRole = currentMember?.role || 'student';
-  
-  console.log('User role determination DEBUG:', {
-    currentUserId,
-    userEmail,
-    currentMember,
-    userRole,
-    allMembers: membersData?.members,
-    userData
-  });
+  // Determine user role from classroom membership
+  const userRole = currentMember?.role || 'tutor';
 
   return (
     <div className="space-y-6">

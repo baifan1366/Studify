@@ -43,13 +43,6 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
     }
   };
 
-  const getModeLabel = (mode: string) => {
-    switch (mode) {
-      case 'practice': return 'Practice Mode';
-      case 'strict': return 'Strict Mode';
-      default: return mode;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -130,9 +123,6 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               )}
             </Badge>
             
-            <Badge variant="secondary">
-              {getModeLabel(quiz.quiz_mode)}
-            </Badge>
           </div>
 
           {quiz.created_at && (

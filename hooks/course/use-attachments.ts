@@ -34,15 +34,20 @@ export function useAttachment(attachmentId?: number) {
 
 // Fetch current user's storage attachments (personal attachments)
 // Note: This needs to be used with a user profile ID to filter correctly
-export function useUserStorageAttachments(userId?: number) {
+export function useUserStorageAttachments(userId?: string | number) {
   return useQuery({
     queryKey: ['userStorageAttachments', userId],
     queryFn: async () => {
       if (!userId) {
         return [] // Return empty array if no user ID provided
       }
+      // Convert string ID to number if necessary
+      const numericUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId
+      if (isNaN(numericUserId)) {
+        return [] // Return empty array if invalid ID
+      }
       // Fetch user's own attachments by owner_id
-      return apiGet<CourseAttachment[]>(attachmentsApi.listByOwner(userId))
+      return apiGet<CourseAttachment[]>(attachmentsApi.listByOwner(numericUserId))
     },
     enabled: !!userId // Only fetch when userId is available
   })

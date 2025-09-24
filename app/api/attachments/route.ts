@@ -135,6 +135,12 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate user first
+    const authResult = await authorize('tutor')
+    if (authResult instanceof NextResponse) {
+      return authResult
+    }
+
     const { searchParams } = new URL(request.url)
     const ownerId = searchParams.get('owner_id')
 
@@ -155,6 +161,29 @@ export async function GET(request: NextRequest) {
           { status: 400 }
         )
       }
+
+      // Get the user's profile to ensure they can only access their own attachments
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', authResult.payload.sub)
+        .single()
+
+      if (profileError || !profile) {
+        return NextResponse.json(
+          { error: 'User profile not found' },
+          { status: 404 }
+        )
+      }
+
+      // Only allow users to access their own attachments
+      if (profile.id !== ownerIdNum) {
+        return NextResponse.json(
+          { error: 'Access denied: You can only access your own attachments' },
+          { status: 403 }
+        )
+      }
+
       query = query.eq('owner_id', ownerIdNum)
     }
 

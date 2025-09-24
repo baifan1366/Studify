@@ -33,7 +33,19 @@ export default function ProfileContent() {
   const userName = userDisplayName || userEmail?.split('@')[0] || 'Unknown User';
   const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
   const { data: adminRolesData } = useAdminRolesById(userData?.id || '');
-  const { data: adminRolesWithDetails, isLoading: adminRolesLoading } = useAdminRolesWithDetails(userData?.id);
+  const { data: adminRolesWithDetails, isLoading: adminRolesLoading, error: adminRolesError } = useAdminRolesWithDetails(userData?.id);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 [ProfileContent] Debug info:', {
+      userId: userData?.id,
+      adminRolesLoading,
+      adminRolesWithDetails,
+      adminRolesError,
+      hasData: !!adminRolesWithDetails,
+      dataLength: adminRolesWithDetails?.length || 0
+    });
+  }, [userData?.id, adminRolesLoading, adminRolesWithDetails, adminRolesError]);
 
   React.useEffect(() => {
     if (profile) {

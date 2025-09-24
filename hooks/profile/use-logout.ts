@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { authApi } from '@/lib/api';
 
 /**
  * Hook for user logout using React Query
@@ -11,7 +12,7 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/auth/logout', {
+      const response = await fetch(authApi.logout, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

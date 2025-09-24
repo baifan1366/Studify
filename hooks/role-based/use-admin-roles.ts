@@ -27,18 +27,33 @@ export function useAdminRolesById(adminId?: string) {
 
 // Simplified hook to get admin roles for display (using existing API)
 export function useAdminRolesWithDetails(adminId?: string) {
-  const { data: adminRoles, isLoading: adminRolesLoading } = useAdminRoles();
-  const { data: allRolePermissions, isLoading: rolePermissionsLoading } = useQuery<any[]>({
+  const { data: adminRoles, isLoading: adminRolesLoading, error: adminRolesError } = useAdminRoles();
+  const { data: allRolePermissions, isLoading: rolePermissionsLoading, error: rolePermissionsError } = useQuery<any[]>({
     queryKey: ['role-permissions'],
-    queryFn: () => apiGet<any[]>('/api/role_permissions'),
+    queryFn: async () => {
+      console.log('🔍 [useAdminRolesWithDetails] Fetching role-permissions from:', adminRoleApi.listRolePermissions);
+      const data = await apiGet<any[]>(adminRoleApi.listRolePermissions);
+      console.log('✅ [useAdminRolesWithDetails] Role-permissions data:', data);
+      return data;
+    },
   });
-  const { data: allRoles, isLoading: rolesLoading } = useQuery<any[]>({
+  const { data: allRoles, isLoading: rolesLoading, error: rolesError } = useQuery<any[]>({
     queryKey: ['roles'],
-    queryFn: () => apiGet<any[]>('/api/roles'),
+    queryFn: async () => {
+      console.log('🔍 [useAdminRolesWithDetails] Fetching roles from:', adminRoleApi.listRoles);
+      const data = await apiGet<any[]>(adminRoleApi.listRoles);
+      console.log('✅ [useAdminRolesWithDetails] Roles data:', data);
+      return data;
+    },
   });
-  const { data: allPermissions, isLoading: permissionsLoading } = useQuery<any[]>({
+  const { data: allPermissions, isLoading: permissionsLoading, error: permissionsError } = useQuery<any[]>({
     queryKey: ['permissions'],
-    queryFn: () => apiGet<any[]>('/api/permissions'),
+    queryFn: async () => {
+      console.log('🔍 [useAdminRolesWithDetails] Fetching permissions from:', adminRoleApi.listPermissions);
+      const data = await apiGet<any[]>(adminRoleApi.listPermissions);
+      console.log('✅ [useAdminRolesWithDetails] Permissions data:', data);
+      return data;
+    },
   });
 
   const isLoading = adminRolesLoading || rolePermissionsLoading || rolesLoading || permissionsLoading;
@@ -46,18 +61,45 @@ export function useAdminRolesWithDetails(adminId?: string) {
   const result = useQuery<AdminRolesWithDetails[]>({
     queryKey: ['admin-roles-details', adminId],
     queryFn: () => {
+      console.log('🔍 [useAdminRolesWithDetails] Processing data:', {
+        adminId,
+        hasAdminRoles: !!adminRoles,
+        adminRolesCount: adminRoles?.length || 0,
+        hasRolePermissions: !!allRolePermissions,
+        rolePermissionsCount: allRolePermissions?.length || 0,
+        hasRoles: !!allRoles,
+        rolesCount: allRoles?.length || 0,
+        hasPermissions: !!allPermissions,
+        permissionsCount: allPermissions?.length || 0
+      });
+
       if (!adminId || !adminRoles || !allRolePermissions || !allRoles || !allPermissions) {
+        console.log('⚠️ [useAdminRolesWithDetails] Missing required data, returning empty array');
         return [];
       }
       
       // Filter admin roles for the specific user
       const userAdminRoles = adminRoles.filter(role => role.user_id === adminId && !role.is_deleted);
+      console.log('🔍 [useAdminRolesWithDetails] User admin roles:', userAdminRoles);
       
       // Enhance with role and permission details
       return userAdminRoles.map((adminRole) => {
-        const rolePermission = allRolePermissions.find(rp => rp.public_id === adminRole.role_permission_id);
+        // Fix ID matching: adminRole.role_permission_id is numeric, should match rp.id (not rp.public_id)
+        const rolePermission = allRolePermissions.find(rp => rp.id === adminRole.role_permission_id);
+        // Fix ID matching: rolePermission.role_id and permission_id are UUIDs, should match public_id
         const role = rolePermission ? allRoles.find(r => r.public_id === rolePermission.role_id) : null;
         const permission = rolePermission ? allPermissions.find(p => p.public_id === rolePermission.permission_id) : null;
+        
+        console.log('🔗 [useAdminRolesWithDetails] Mapping admin role:', {
+          adminRoleId: adminRole.id,
+          rolePermissionId: adminRole.role_permission_id,
+          foundRolePermission: !!rolePermission,
+          rolePermissionDetails: rolePermission ? { id: rolePermission.id, role_id: rolePermission.role_id, permission_id: rolePermission.permission_id } : null,
+          foundRole: !!role,
+          roleTitle: role?.title,
+          foundPermission: !!permission,
+          permissionTitle: permission?.title
+        });
         
         return {
           ...adminRole,
@@ -81,6 +123,15 @@ export function useAdminRolesWithDetails(adminId?: string) {
       });
     },
     enabled: Boolean(adminId && adminRoles && allRolePermissions && allRoles && allPermissions),
+  });
+
+  // Log any errors
+  console.log('🔍 [useAdminRolesWithDetails] Errors:', {
+    adminRolesError,
+    rolePermissionsError,
+    rolesError,
+    permissionsError,
+    resultError: result.error
   });
 
   return {

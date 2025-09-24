@@ -18,6 +18,8 @@ interface ExtendedUser extends User {
     role?: string;
     created_at: string;
     updated_at: string;
+    two_factor_enabled?: boolean;
+    totp_enabled_at?: string;
   };
 }
 

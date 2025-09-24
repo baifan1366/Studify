@@ -1,10 +1,26 @@
 import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import DashboardContent from '@/components/student/dashboard-content';
 
-export const metadata: Metadata = {
-  title: 'Dashboard - Studify',
-  description: 'Your learning dashboard with progress tracking, recent courses, and achievements.',
-};
+/**
+ * Student Dashboard Page Component
+ * Learning dashboard with progress tracking and course overview
+ */
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('DashboardPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function DashboardPage() {
   return <DashboardContent />;

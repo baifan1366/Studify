@@ -282,10 +282,7 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
                                                         <div className="flex items-center gap-2">
                                                             {k === 'video' && <Play className="h-4 w-4" />}
                                                             {k === 'document' && <FileText className="h-4 w-4" />}
-                                                            {k === 'quiz' && <Circle className="h-4 w-4" />}
                                                             {k === 'assignment' && <Star className="h-4 w-4" />}
-                                                            {k === 'live' && <Eye className="h-4 w-4" />}
-                                                            {k === 'whiteboard' && <Image className="h-4 w-4" />}
                                                             {t(`kinds.${k}`)}
                                                         </div>
                                                     </SelectItem>

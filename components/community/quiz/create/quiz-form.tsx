@@ -17,7 +17,6 @@ export default function QuizForm() {
   const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
-  const [quizMode, setQuizMode] = useState<'practice' | 'strict'>('practice');
   const router = useRouter();
   const params = useParams(); // { locale: 'en', ... } 在 app/[locale] 结构下可用
 
@@ -31,8 +30,7 @@ export default function QuizForm() {
         difficulty, 
         tags, 
         visibility, 
-        max_attempts: maxAttempts, 
-        quiz_mode: quizMode 
+        max_attempts: maxAttempts 
       },
       {
         onSuccess: (data: any) => {
@@ -126,20 +124,6 @@ export default function QuizForm() {
             <SelectItem value="5">5 attempts</SelectItem>
             <SelectItem value="10">10 attempts</SelectItem>
             <SelectItem value="999">Unlimited</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Quiz Mode */}
-      <div>
-        <Label className="block mb-2 font-medium">Quiz Mode</Label>
-        <Select value={quizMode} onValueChange={(value: 'practice' | 'strict') => setQuizMode(value)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select quiz mode" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="practice">Practice - Relaxed mode with hints</SelectItem>
-            <SelectItem value="strict">Strict - Exam-like conditions</SelectItem>
           </SelectContent>
         </Select>
       </div>

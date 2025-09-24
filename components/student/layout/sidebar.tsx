@@ -186,12 +186,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: "groups", label: "Groups", icon: Users, path: "/community" },
           {
-            id: "discussions",
-            label: "Discussions",
-            icon: MessageSquare,
-            path: "/community/discussions",
-          },
-          {
             id: "quizzes",
             label: "Quizzes",
             icon: Brain,
@@ -206,12 +200,6 @@ const defaultMenuSections: MenuSection[] = [
         ],
       },
       { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
-    ],
-  },
-  {
-    title: "Tools",
-    items: [
-      { id: "documents", label: "Documents", icon: Folder, path: "/documents" },
     ],
   },
 ];
@@ -314,8 +302,6 @@ export default function AnimatedSidebar({
         return t("community_label");
       case "groups":
         return t("groups_label");
-      case "discussions":
-        return t("discussions_label");
       case "quizzes":
         return t("quizzes_label");
       case "achievements":

@@ -38,7 +38,7 @@ export default function QuizContent() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("popular");
 
-  const { data: quizzes, isLoading } = useQuizzes();
+  const { data: quizzes, isLoading } = useQuizzes(tab);
 
   const filteredQuizzes =
     quizzes?.filter((quiz) =>

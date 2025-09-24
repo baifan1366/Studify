@@ -18,10 +18,19 @@ const QUIZ_API = {
 };
 
 // ✅ 所有 quiz 列表
-export const useQuizzes = () => {
+export const useQuizzes = (tab?: string) => {
+  const getQuizUrl = () => {
+    if (tab === "popular") {
+      return `${QUIZ_API.quizzes}?filter=popular`;
+    } else if (tab === "mine") {
+      return `${QUIZ_API.quizzes}?filter=mine`;
+    }
+    return QUIZ_API.quizzes;
+  };
+
   return useQuery<CommunityQuiz[], Error>({
-    queryKey: ["communityQuizzes"],
-    queryFn: () => apiGet<CommunityQuiz[]>(QUIZ_API.quizzes),
+    queryKey: ["communityQuizzes", tab],
+    queryFn: () => apiGet<CommunityQuiz[]>(getQuizUrl()),
     staleTime: 1000 * 60 * 5,
   });
 };
@@ -47,7 +56,6 @@ export const useCreateQuiz = () => {
       tags?: string[];
       max_attempts?: number;
       visibility?: 'public' | 'private';
-      quiz_mode?: 'practice' | 'strict';
     }) =>
       apiSend<CommunityQuiz>({
         url: QUIZ_API.quizzes,
@@ -177,7 +185,7 @@ export const useUserAttemptStatus = (quizSlug: string) => {
     isAuthor: boolean;
     userPermission: 'view' | 'attempt' | 'edit' | null;
     hasInProgressAttempt: boolean;
-    quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility' | 'quiz_mode'>;
+    quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility'>;
   }, Error>({
     queryKey: ["userAttemptStatus", quizSlug],
     queryFn: () => apiGet(QUIZ_API.userAttempts(quizSlug)),

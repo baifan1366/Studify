@@ -14,7 +14,7 @@ export async function POST(
     const supabase = await createClient();
     const body = await req.json();
     const { question_id, user_answer } = body as {
-      question_id: string; // ⚡ 改成 string，因为 public_id 是 uuid
+      question_id: string; 
       user_answer: string[];
     };
 

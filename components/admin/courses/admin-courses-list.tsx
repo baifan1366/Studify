@@ -44,6 +44,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -64,8 +69,13 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Settings,
+  PlayCircle,
+  FileText,
 } from 'lucide-react';
 import { useAdminCourses, useApproveCourse, useRejectCourse } from '@/hooks/admin/use-admin-courses';
+import { useCourse } from '@/hooks/course/use-courses';
+import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useFormat } from '@/hooks/use-format';
 import { useTranslations } from 'next-intl';
 import type { AdminCourse, AdminCourseFilters } from '@/interface/admin/admin-interface';
@@ -93,13 +103,18 @@ export default function AdminCoursesList() {
   const [selectedCourse, setSelectedCourse] = useState<AdminCourse | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const { formatNumber } = useFormat();
+  const { formatNumber, formatPrice: formatCurrency } = useFormat();
   const { data: coursesData, isLoading, error } = useAdminCourses(filters);
   const approveCourse = useApproveCourse();
   const rejectCourse = useRejectCourse();
+  
+  // Course preview data
+  const { data: courseDetails } = useCourse(selectedCourse?.id);
+  const { data: courseModules } = useModuleByCourseId(selectedCourse?.id || 0);
 
   const handleFilterChange = (key: keyof AdminCourseFilters, value: string | number) => {
     setFilters((prev) => ({
@@ -131,11 +146,9 @@ export default function AdminCoursesList() {
     setSelectedCourse(null);
   };
 
-  const formatPrice = (cents: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-    }).format(cents / 100);
+  const handlePreview = (course: AdminCourse) => {
+    setSelectedCourse(course);
+    setShowPreviewDialog(true);
   };
 
   const formatDuration = (minutes: number) => {
@@ -177,79 +190,70 @@ export default function AdminCoursesList() {
         </p>
       </div>
 
-      {/* Filters */}
-      <Card className="bg-transparent p-2">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              {t('filters')}
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFilters({
-                page: 1,
-                limit: 20,
-                status: 'all',
-                category: 'all',
-                search: ''
-              })}
-            >
-              {t('clear_filters')}
-            </Button>
+      {/* Compact Filters */}
+      <div className="flex items-center gap-4 bg-card border rounded-lg p-4">
+        {/* Search Bar */}
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t('search_courses_placeholder')}
+              value={filters.search || ''}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              className="pl-10"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="status-filter">{t('status')}</Label>
-              <Select
-                value={filters.status || 'all'}
-                onValueChange={(value) => handleFilterChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('all_statuses')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('all_statuses')}</SelectItem>
-                  <SelectItem value="active">{t('active')}</SelectItem>
-                  <SelectItem value="pending">{t('pending')}</SelectItem>
-                  <SelectItem value="inactive">{t('inactive')}</SelectItem>
-                </SelectContent>
-              </Select>
+        </div>
+
+        {/* Filter Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Settings className="h-4 w-4" />
+              {t('filters')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80 p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="status-filter">{t('status')}</Label>
+                <Select
+                  value={filters.status || 'all'}
+                  onValueChange={(value) => handleFilterChange('status', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('all_statuses')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('all_statuses')}</SelectItem>
+                    <SelectItem value="active">{t('active')}</SelectItem>
+                    <SelectItem value="pending">{t('pending')}</SelectItem>
+                    <SelectItem value="inactive">{t('inactive')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-filter">{t('category')}</Label>
+                <Select
+                  value={filters.category || 'all'}
+                  onValueChange={(value) => handleFilterChange('category', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('all_categories')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('all_categories')}</SelectItem>
+                    <SelectItem value="programming">{t('programming')}</SelectItem>
+                    <SelectItem value="design">{t('design')}</SelectItem>
+                    <SelectItem value="business">{t('business')}</SelectItem>
+                    <SelectItem value="marketing">{t('marketing')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="category-filter">{t('category')}</Label>
-              <Select
-                value={filters.category || 'all'}
-                onValueChange={(value) => handleFilterChange('category', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('all_categories')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('all_categories')}</SelectItem>
-                  <SelectItem value="programming">{t('programming')}</SelectItem>
-                  <SelectItem value="design">{t('design')}</SelectItem>
-                  <SelectItem value="business">{t('business')}</SelectItem>
-                  <SelectItem value="marketing">{t('marketing')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="search">{t('search')}</Label>
-              <Input
-                id="search"
-                placeholder={t('search_courses_placeholder')}
-                value={filters.search || ''}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-            </div>
-
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="limit-filter">{t('per_page')}</Label>
               <Select
                 value={filters.limit?.toString() || '20'}
@@ -266,9 +270,24 @@ export default function AdminCoursesList() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setFilters({
+                page: 1,
+                limit: 20,
+                status: 'all',
+                category: 'all',
+                search: ''
+              })}
+            >
+              {t('clear_filters')}
+            </Button>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Courses Table */}
       <Card className="bg-transparent p-2">
@@ -360,7 +379,7 @@ export default function AdminCoursesList() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
-                          {course.is_free ? t('free') : formatPrice(course.price_cents, course.currency)}
+                          {formatCurrency(course.price_cents, course.currency, course.is_free)}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -379,6 +398,7 @@ export default function AdminCoursesList() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
+                            onClick={() => handlePreview(course)}
                             aria-label={t('preview_course')}
                             title={t('preview_course')}
                           >
@@ -527,6 +547,166 @@ export default function AdminCoursesList() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Course Preview Dialog */}
+      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              {t('course_preview')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('course_preview_desc')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCourse && (
+            <div className="space-y-6">
+              {/* Course Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">{selectedCourse.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {selectedCourse.description || t('no_description')}
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={levelColors[selectedCourse.level]}>
+                      {selectedCourse.level}
+                    </Badge>
+                    {selectedCourse.category && (
+                      <Badge variant="outline">
+                        {selectedCourse.category}
+                      </Badge>
+                    )}
+                    <Badge variant={statusColors[selectedCourse.status]}>
+                      {selectedCourse.status}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{t('students')}: {selectedCourse.total_students}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      <span>{t('lessons_count', { count: selectedCourse.total_lessons })}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span>{formatDuration(selectedCourse.total_duration_minutes)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>{formatCurrency(selectedCourse.price_cents, selectedCourse.currency, selectedCourse.is_free)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {selectedCourse.thumbnail_url && (
+                    <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                      <img
+                        src={selectedCourse.thumbnail_url}
+                        alt={selectedCourse.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <h4 className="font-medium">{t('instructor')}</h4>
+                    <div className="flex items-center gap-2 p-3 border rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Users className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{selectedCourse.profiles.display_name}</p>
+                        <p className="text-xs text-muted-foreground">{t('course_instructor')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Course Modules */}
+              {courseModules && courseModules.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {t('course_modules')} ({courseModules.length})
+                  </h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {courseModules.map((module, index) => (
+                      <div key={module.id} className="border rounded-lg p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h5 className="font-medium text-sm">
+                              {index + 1}. {module.title}
+                            </h5>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {module.lessons?.length || 0} {t('lessons')}
+                          </Badge>
+                        </div>
+                        
+                        {module.lessons && module.lessons.length > 0 && (
+                          <div className="mt-2 pl-4 space-y-1">
+                            {module.lessons.slice(0, 3).map((lesson, lessonIndex) => (
+                              <div key={lesson.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <PlayCircle className="h-3 w-3" />
+                                <span>{lessonIndex + 1}. {lesson.title}</span>
+                              </div>
+                            ))}
+                            {module.lessons.length > 3 && (
+                              <p className="text-xs text-muted-foreground pl-5">
+                                +{module.lessons.length - 3} {t('more_lessons')}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
+                  {t('close')}
+                </Button>
+                {selectedCourse.status === 'pending' && (
+                  <>
+                    <Button
+                      onClick={() => {
+                        setShowPreviewDialog(false);
+                        setShowApprovalDialog(true);
+                      }}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {t('approve')}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        setShowPreviewDialog(false);
+                        setShowRejectionDialog(true);
+                      }}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {t('reject')}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

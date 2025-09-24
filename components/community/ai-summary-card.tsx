@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAICommunitySummary, useSummaryFormatter } from "@/hooks/ai/use-ai-community-summary";
@@ -64,14 +65,41 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
   const { formatFullSummary } = useSummaryFormatter();
 
   const summaryKey = useMemo(() => state.generateSummaryKey("search", query || ""), [state, query]);
-  const cachedResult = state.getSummaryResult(summaryKey) || searchResult;
+  // Only use saved result for gating; allow hook result as a display fallback
+  const savedResultForKey = state.getSummaryResult(summaryKey);
+  const cachedResult = savedResultForKey || searchResult;
 
   // Local state for showing/hiding detailed content
   const [showDetails, setShowDetails] = useState(false);
+  // Auto summarize toggle (non-persistent)
+  const [autoEnabled, setAutoEnabled] = useState(true);
 
   const hasQuery = query.trim().length > 0;
   const hasResults = resultIds && resultIds.length > 0;
   const disabled = !hasQuery || !hasResults || isSearching;
+
+  // Auto-generate when enabled and there is no cached result
+  useEffect(() => {
+    if (!autoEnabled) return;
+    if (!hasQuery || !hasResults) return;
+    if (isSearching) return;
+    if (savedResultForKey) return;
+
+    summarizeSearch(
+      {
+        query,
+        resultIds,
+        maxItems: Math.min(10, resultIds.length || 10),
+        locale
+      },
+      {
+        onSuccess: (data) => {
+          state.saveSummaryResult(summaryKey, data);
+        }
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, locale]);
 
   const handleGenerate = () => {
     if (disabled) return;
@@ -120,7 +148,15 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
             <FileText className="w-5 h-5 text-blue-400" />
             <CardTitle className="text-lg sm:text-xl text-white">AI Summary</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-300">
+              <span>Auto summarize</span>
+              <Switch
+                checked={autoEnabled}
+                onCheckedChange={(v) => setAutoEnabled(!!v)}
+                className="scale-90"
+              />
+            </div>
             <Button
               size="sm"
               variant="secondary"

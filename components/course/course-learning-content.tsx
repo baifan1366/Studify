@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  XCircle
 } from 'lucide-react';
 import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
@@ -620,12 +621,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         <div className="xl:col-span-1 lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('CourseContent.title')}</h3>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            {/* <div className="text-xs text-gray-500 dark:text-gray-400">
               {(() => {
                 const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
                 return progressArray.filter((p: any) => p.state === 'completed').length;
               })()} / {allLessons.length} {t('CourseContent.completed_count')}
-            </div>
+            </div> */}
           </div>
           
           {/* Progress Bar */}
@@ -762,13 +763,22 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               <>
                 {quiz.isLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="text-white/60">{t('Quiz.loading')}</div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600 mx-auto mb-4"></div>
+                    <div className="text-gray-600 dark:text-gray-400">{t('Quiz.loading')}</div>
+                  </div>
+                ) : quiz.error ? (
+                  <div className="text-center py-8">
+                    <XCircle size={48} className="text-red-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Quiz</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Failed to load quiz questions. Please try again later.
+                    </p>
                   </div>
                 ) : !quiz.questions.length ? (
                   <div className="text-center py-8">
-                    <FileText size={48} className="text-white/40 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-white mb-2">{t('Quiz.no_quiz_title')}</h3>
-                    <p className="text-white/60">
+                    <FileText size={48} className="text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('Quiz.no_quiz_title')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
                       {t('Quiz.no_quiz_message')}
                     </p>
                   </div>

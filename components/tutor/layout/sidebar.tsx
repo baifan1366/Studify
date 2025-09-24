@@ -67,9 +67,9 @@ const defaultMenuSections: MenuSection[] = [
         id: 'teaching',
         label: 'Teaching',
         icon: BookOpen,
-        path: '/tutor/teaching/assignments-exams',
+        path: '/tutor/teaching/quiz-content',
         subItems: [
-          { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/tutor/teaching/assignments-exams' },
+          { id: 'assignment-&-exams', label: 'Assignments & Exams', icon: ClipboardList, path: '/tutor/teaching/quiz-content' },
           { id: 'course-content', label: 'Course Content', icon: Video, path: '/tutor/teaching/course-content' },
         ]
       },

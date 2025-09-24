@@ -9,19 +9,19 @@ export async function PATCH(
     const body = await req.json();
     const client = await createServerClient();
     const { progressId } = await params;
-    const { status } = body;
+    const { state } = body;
 
-    // Validate status values
-    if (!status || !['not_started','in_progress','completed'].includes(status)) {
+    // Validate state values
+    if (!state || !['not_started','in_progress','completed'].includes(state)) {
       return NextResponse.json({ 
-        error: "Invalid status. Must be 'not_started', 'in_progress', or 'completed'" 
+        error: "Invalid state. Must be 'not_started', 'in_progress', or 'completed'" 
       }, { status: 400 });
     }
 
     const { data, error } = await client
       .from("course_progress")
       .update({ 
-        status,
+        state,
         last_seen_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -35,7 +35,7 @@ export async function PATCH(
 
     return NextResponse.json({ 
       data,
-      message: `Course status updated to ${status}` 
+      message: `Course state updated to ${state}` 
     });
 
   } catch (e: any) {

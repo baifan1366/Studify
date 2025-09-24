@@ -22,13 +22,26 @@ import {
   useUpdateAssignmentSubmission 
 } from '@/hooks/classroom/use-submissions';
 import { 
+  useAttachments, 
+  useAssignmentAttachments,
+  formatFileSize,
+  getFileIcon,
+  ClassroomAttachment
+} from '@/hooks/classroom/use-attachments';
+import { 
   FileText, 
   Clock, 
   CheckCircle, 
   Calendar, 
   User,
-  AlertCircle 
+  AlertCircle,
+  Upload,
+  X,
+  Download,
+  Paperclip,
+  Plus
 } from 'lucide-react';
+import { SubmissionAttachments } from './submission-attachments';
 
 interface Assignment {
   id: number;
@@ -54,6 +67,9 @@ export function SubmissionDialog({
 }: SubmissionDialogProps) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<ClassroomAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
 
   // Fetch existing submissions for this assignment and current user
@@ -65,6 +81,13 @@ export function SubmissionDialog({
 
   const submitAssignment = useSubmitAssignment();
   const updateSubmission = useUpdateAssignmentSubmission();
+  
+  // Attachment functionality
+  const { uploadFile } = useAttachments(classroomSlug);
+  const { data: existingAttachments, refetch: refetchAttachments } = useAssignmentAttachments(
+    classroomSlug, 
+    assignment?.id
+  );
 
   // Get the current user's submission if it exists
   const existingSubmission = submissionsData?.submissions?.[0];
@@ -75,14 +98,76 @@ export function SubmissionDialog({
   const canSubmit = assignment && !isOverdue;
   const canUpdate = hasSubmitted && !isOverdue;
 
-  // Load existing submission content
+  // Load existing submission content and attachments
   useEffect(() => {
     if (existingSubmission) {
       setContent(existingSubmission.content);
     } else {
       setContent('');
     }
-  }, [existingSubmission]);
+    
+    // Load existing attachments for this assignment and user
+    if (existingAttachments && currentUserId) {
+      const userAttachments = existingAttachments.filter(
+        (att: any) => att.owner_id === currentUserId
+      );
+      setAttachments(userAttachments);
+    } else {
+      setAttachments([]);
+    }
+  }, [existingSubmission, existingAttachments, currentUserId]);
+
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
+    if (!assignment) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const { promise } = uploadFile(file, {
+        contextType: 'assignment',
+        assignmentId: assignment.id,
+        customMessage: file.name,
+        onProgress: (progress) => setUploadProgress(progress)
+      });
+
+      const newAttachment = await promise;
+      setAttachments(prev => [...prev, newAttachment]);
+      refetchAttachments();
+      
+      toast({
+        title: "File Uploaded",
+        description: `${file.name} has been attached to your submission`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach(handleFileUpload);
+    }
+    // Reset input
+    event.target.value = '';
+  };
+
+  // Remove attachment
+  const removeAttachment = (attachmentId: number) => {
+    setAttachments(prev => prev.filter(att => att.id !== attachmentId));
+    // When resubmitting, the attachment will be removed from the submission
+    // by not including it in the attachmentIds array
+  };
 
   const handleSubmit = async () => {
     if (!assignment || !content.trim()) {
@@ -97,12 +182,15 @@ export function SubmissionDialog({
     setIsSubmitting(true);
     
     try {
+      // Get attachment IDs from current attachments
+      const attachmentIds = attachments.map(att => att.id);
       if (hasSubmitted) {
         // Update existing submission
         await updateSubmission.mutateAsync({
           classroomSlug,
           assignmentId: assignment.id,
-          content: content.trim()
+          content: content.trim(),
+          attachmentIds
         });
         
         toast({
@@ -114,7 +202,8 @@ export function SubmissionDialog({
         await submitAssignment.mutateAsync({
           classroomSlug,
           assignmentId: assignment.id,
-          content: content.trim()
+          content: content.trim(),
+          attachmentIds
         });
         
         toast({
@@ -228,6 +317,20 @@ export function SubmissionDialog({
                       </div>
                     </div>
                   )}
+
+                  {/* Show existing submission attachments */}
+                  {existingSubmission && existingSubmission.classroom_attachments && (
+                    <div>
+                      <Label className="text-sm font-medium">Submitted Attachments</Label>
+                      <div className="mt-2">
+                        <SubmissionAttachments 
+                          attachments={[existingSubmission.classroom_attachments]}
+                          userRole="student"
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -250,12 +353,122 @@ export function SubmissionDialog({
                     
                     <Textarea
                       id="submission-content"
-                      placeholder="Enter your assignment submission here..."
+                      placeholder="Enter your submission here..."
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
-                      rows={10}
-                      className="min-h-[200px]"
+                      rows={6}
+                      className="resize-none"
                     />
+
+                    {/* Attachment Section */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-medium flex items-center gap-2">
+                          <Paperclip className="h-4 w-4" />
+                          Attachments
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            multiple
+                            onChange={handleFileInputChange}
+                            className="hidden"
+                            id="file-upload"
+                            disabled={isUploading || isOverdue}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById('file-upload')?.click()}
+                            disabled={isUploading || isOverdue}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Files
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Upload Progress */}
+                      {isUploading && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Upload className="h-4 w-4" />
+                            Uploading... {uploadProgress}%
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Attachment List */}
+                      {attachments.length > 0 && (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {attachments.map((attachment) => (
+                            <div 
+                              key={attachment.id}
+                              className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border"
+                            >
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="text-lg">{getFileIcon(attachment.mime_type)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate">
+                                    {attachment.file_name}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size_bytes)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(attachment.file_url, '_blank')}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeAttachment(attachment.id)}
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                  disabled={isOverdue}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {attachments.length === 0 && (
+                        <div className="text-center py-4 text-muted-foreground text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                          {hasSubmitted 
+                            ? "No files currently attached. Add files to include with your resubmission."
+                            : "No files attached. Click \"Add Files\" to upload documents, images, or other files."
+                          }
+                        </div>
+                      )}
+
+                      {/* Resubmission notice */}
+                      {hasSubmitted && attachments.length > 0 && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                          <p className="text-xs text-blue-700">
+                            💡 Resubmitting will update your submission with these {attachments.length} file{attachments.length !== 1 ? 's' : ''}. 
+                            You can add new files or remove existing ones before resubmitting.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                     
                     <div className="text-sm text-muted-foreground">
                       {content.length} characters

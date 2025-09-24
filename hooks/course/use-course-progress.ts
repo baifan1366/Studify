@@ -156,13 +156,13 @@ export function useUpdateCourseProgressByProgressId() {
   });
 }
 
-// Hook to update course progress status
-export function useUpdateCourseProgressStatus() {
+// Hook to update course progress state
+export function useUpdateCourseProgressstate() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ progressId, status }: { progressId: string; status: 'not_started' | 'in_progress' | 'completed' }) => {
-      const response = await api.patch(courseProgressApi.updateStatus(progressId), { state: status });
+    mutationFn: async ({ progressId, state }: { progressId: string; state: 'not_started' | 'in_progress' | 'completed' }) => {
+      const response = await api.patch(courseProgressApi.updateState(progressId), { state: state });
       return response.data as UpdateProgressResponse;
     },
     onSuccess: (data, variables) => {
@@ -170,11 +170,11 @@ export function useUpdateCourseProgressStatus() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-id', variables.progressId] });
       
-      toast.success('Progress status updated successfully');
+      toast.success('Progress state updated successfully');
     },
     onError: (error: any) => {
-      console.error('Failed to update course progress status:', error);
-      toast.error('Failed to update progress status. Please try again.');
+      console.error('Failed to update course progress state:', error);
+      toast.error('Failed to update progress state. Please try again.');
     },
   });
 }

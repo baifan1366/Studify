@@ -61,6 +61,14 @@ export function useTextClassifier(options: UseTextClassifierOptions = {}) {
     setResult(null);
 
     try {
+      // 🔍 Frontend Debug: Request information
+      console.log('🌐 Frontend API Request:', {
+        endpoint: apiEndpoint,
+        textLength: text.length,
+        textPreview: text.slice(0, 100),
+        timestamp: new Date().toISOString()
+      });
+
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
@@ -69,16 +77,50 @@ export function useTextClassifier(options: UseTextClassifierOptions = {}) {
         body: JSON.stringify({ text }),
       });
 
+      // 🔍 Frontend Debug: Response status
+      console.log('🌐 Frontend API Response Status:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
-        if (response.status === 422) {
-          const errorData = await response.json();
-          const errorMessage = errorData.detail?.[0]?.msg || 'Validation error';
-          throw new Error(errorMessage);
+        // Try to read error response body
+        let errorDetails = 'Unknown error';
+        try {
+          const errorBody = await response.text();
+          console.log('❌ Error Response Body:', errorBody);
+          errorDetails = errorBody;
+        } catch (e) {
+          console.log('❌ Could not read error response body');
         }
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+        if (response.status === 422) {
+          try {
+            const errorData = JSON.parse(errorDetails);
+            const errorMessage = errorData.detail?.[0]?.msg || 'Validation error';
+            throw new Error(errorMessage);
+          } catch (e) {
+            throw new Error(`Validation error: ${errorDetails}`);
+          }
+        }
+        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorDetails}`);
       }
 
       const data: ClassificationResponse = await response.json();
+      
+      // 🔍 Frontend Debug: Successful response data
+      console.log('✅ Frontend Received Data:', {
+        classification: data.classification,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        analysis: data.analysis,
+        suggestionsCount: data.suggestions?.length || 0,
+        processingTime: data.processing_time,
+        fullData: data
+      });
+      
       setResult(data);
       onSuccess?.(data);
       

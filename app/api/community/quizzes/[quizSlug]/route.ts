@@ -23,7 +23,7 @@ export async function GET(
     const { data: quiz, error: quizError } = await supabase
       .from("community_quiz")
       .select(
-        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode, time_limit_minutes, author_id, created_at`
+        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, time_limit_minutes, author_id, created_at`
       )
       .eq("slug", quizSlug)
       .maybeSingle();
@@ -339,17 +339,6 @@ async function handleUpdate(
       updates.visibility = visibility;
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "quiz_mode")) {
-      const quiz_mode = body.quiz_mode;
-      if (
-        quiz_mode != null &&
-        !["practice", "strict"].includes(quiz_mode)
-      ) {
-        return NextResponse.json({ error: "Invalid quiz_mode" }, { status: 400 });
-      }
-      updates.quiz_mode = quiz_mode;
-    }
-
     if (Object.prototype.hasOwnProperty.call(body, "time_limit_minutes")) {
       const time_limit_minutes = body.time_limit_minutes;
       if (
@@ -373,7 +362,7 @@ async function handleUpdate(
       .update(updates)
       .eq("id", quiz.id)
       .select(
-        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode, time_limit_minutes, author_id, created_at`
+        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, time_limit_minutes, author_id, created_at`
       )
       .single();
 

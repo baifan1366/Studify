@@ -231,7 +231,6 @@ BEGIN
           'author_id', cq.author_id,
           'difficulty', cq.difficulty,
           'visibility', cq.visibility,
-          'quiz_mode', cq.quiz_mode,
           'tags', cq.tags,
           'public_id', cq.public_id
         ) as additional_data

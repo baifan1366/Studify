@@ -47,7 +47,6 @@ export const useCreateQuiz = () => {
       tags?: string[];
       max_attempts?: number;
       visibility?: 'public' | 'private';
-      quiz_mode?: 'practice' | 'strict';
     }) =>
       apiSend<CommunityQuiz>({
         url: QUIZ_API.quizzes,
@@ -177,7 +176,7 @@ export const useUserAttemptStatus = (quizSlug: string) => {
     isAuthor: boolean;
     userPermission: 'view' | 'attempt' | 'edit' | null;
     hasInProgressAttempt: boolean;
-    quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility' | 'quiz_mode'>;
+    quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility'>;
   }, Error>({
     queryKey: ["userAttemptStatus", quizSlug],
     queryFn: () => apiGet(QUIZ_API.userAttempts(quizSlug)),

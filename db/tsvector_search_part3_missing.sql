@@ -256,7 +256,6 @@ BEGIN
     setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
     setweight(to_tsvector('english', coalesce(NEW.description, '')), 'B') ||
     setweight(to_tsvector('english', coalesce(NEW.difficulty::text, '')), 'C') ||
-    setweight(to_tsvector('english', coalesce(NEW.quiz_mode, '')), 'C') ||
     setweight(to_tsvector('english', coalesce(NEW.visibility, '')), 'D') ||
     -- Process tags array
     setweight(to_tsvector('english', coalesce(
@@ -383,7 +382,6 @@ UPDATE community_quiz SET search_vector =
   setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
   setweight(to_tsvector('english', coalesce(description, '')), 'B') ||
   setweight(to_tsvector('english', coalesce(difficulty::text, '')), 'C') ||
-  setweight(to_tsvector('english', coalesce(quiz_mode, '')), 'C') ||
   setweight(to_tsvector('english', coalesce(visibility, '')), 'D') ||
   setweight(to_tsvector('english', coalesce(
     array_to_string(tags, ' '), ''

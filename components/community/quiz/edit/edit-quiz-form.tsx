@@ -30,7 +30,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const [tagsInput, setTagsInput] = useState("");
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
-  const [quizMode, setQuizMode] = useState<'practice' | 'strict'>('practice');
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
   
   // Questions state
@@ -62,7 +61,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       setDifficulty(quiz.difficulty || 1);
       setVisibility(quiz.visibility || 'public');
       setMaxAttempts(quiz.max_attempts || 1);
-      setQuizMode(quiz.quiz_mode || 'practice');
       setTimeLimitMinutes(quiz.time_limit_minutes || null);
       
       // Handle tags
@@ -120,7 +118,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       // tags, // Temporarily disabled as per backend
       visibility,
       max_attempts: maxAttempts,
-      quiz_mode: quizMode,
       time_limit_minutes: timeLimitMinutes,
     };
 
@@ -426,20 +423,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                   <SelectItem value="5">5 attempts</SelectItem>
                   <SelectItem value="10">10 attempts</SelectItem>
                   <SelectItem value="999">Unlimited</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Quiz Mode */}
-            <div className="space-y-2">
-              <Label htmlFor="quizMode">Quiz Mode</Label>
-              <Select value={quizMode} onValueChange={(value: 'practice' | 'strict') => setQuizMode(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="practice">Practice - Relaxed mode</SelectItem>
-                  <SelectItem value="strict">Strict - Exam mode</SelectItem>
                 </SelectContent>
               </Select>
             </div>

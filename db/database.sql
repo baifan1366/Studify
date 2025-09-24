@@ -787,7 +787,6 @@ CREATE TABLE IF NOT EXISTS community_quiz (
   difficulty int CHECK (difficulty BETWEEN 1 AND 5),
   max_attempts int NOT NULL DEFAULT 1,
   visibility text CHECK (visibility IN ('public','private')) DEFAULT 'public',
-  quiz_mode text CHECK (quiz_mode IN ('practice', 'strict')) DEFAULT 'practice',
   time_limit_minutes int,
   is_deleted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()

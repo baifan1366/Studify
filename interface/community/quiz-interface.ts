@@ -12,7 +12,6 @@ export interface CommunityQuiz {
   difficulty: number; // 1-5
   max_attempts: number; // 最大尝试次数
   visibility: 'public' | 'private'; // 可见性
-  quiz_mode: 'practice' | 'strict'; // 测验模式
   time_limit_minutes?: number | null; // 限时（分钟）
   created_at?: string;
   is_deleted?: boolean;

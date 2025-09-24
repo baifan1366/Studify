@@ -9,7 +9,6 @@ type Body = {
   tags?: string[];
   max_attempts?: number;
   visibility?: 'public' | 'private';
-  quiz_mode?: 'practice' | 'strict';
 };
 
 /** 使用你提供的 slugify（严格按你给的实现） */
@@ -39,8 +38,7 @@ export async function GET() {
         tags, 
         difficulty, 
         max_attempts, 
-        visibility, 
-        quiz_mode,
+        visibility,
         author_id
       `);
 
@@ -105,8 +103,7 @@ export async function POST(req: Request) {
       difficulty = 1, 
       tags = [], 
       max_attempts = 1, 
-      visibility = 'public', 
-      quiz_mode = 'practice' 
+      visibility = 'public' 
     } = body;
 
     if (!title || typeof title !== "string") {
@@ -144,7 +141,6 @@ export async function POST(req: Request) {
           tags,
           max_attempts,
           visibility,
-          quiz_mode,
           author_id: userId, // 关键：记录是谁创建的
         })
         .select("slug, public_id")

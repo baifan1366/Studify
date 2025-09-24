@@ -1,5 +1,27 @@
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import CreateGroupForm from '@/components/community/create-group-form';
 import { Suspense } from 'react';
+
+/**
+ * Create Community Group Page Component
+ * Form for creating new community groups
+ */
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('CreateGroupPage');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default function CreateGroupPage() {
   return (

@@ -12,6 +12,7 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
   const [isClient, setIsClient] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [mermaidLoaded, setMermaidLoaded] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -31,16 +32,21 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
         // 动态导入 mermaid 以避免 SSR 问题
         const mermaid = (await import('mermaid')).default;
         
-        // 简化 Mermaid 配置以避免渲染问题
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: 'dark',
-          securityLevel: 'loose',
-          flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true
-          }
-        });
+        if (!mermaidLoaded) {
+          // 简化的 Mermaid 配置 - 先使用内置主题
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',  // 使用内置的dark主题
+            securityLevel: 'loose',
+            fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+            flowchart: {
+              useMaxWidth: true,
+              htmlLabels: true,
+              curve: 'basis'
+            }
+          });
+          setMermaidLoaded(true);
+        }
 
         // 清除之前的内容
         if (containerRef.current) {
@@ -54,14 +60,8 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
         const cleanChart = chart.trim();
         console.log('🎨 Rendering mermaid chart:', cleanChart.substring(0, 100) + '...');
         
-        // 添加超时处理
-        const renderPromise = mermaid.render(id, cleanChart);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Mermaid rendering timeout')), 10000)
-        );
-        
-        // 渲染图表，最多等待10秒
-        const { svg } = await Promise.race([renderPromise, timeoutPromise]) as any;
+        // 渲染图表
+        const { svg } = await mermaid.render(id, cleanChart);
         
         if (containerRef.current) {
           containerRef.current.innerHTML = svg;
@@ -72,6 +72,8 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
           if (svgElement) {
             svgElement.style.maxWidth = '100%';
             svgElement.style.height = 'auto';
+            svgElement.style.display = 'block';
+            svgElement.style.margin = '0 auto';
           }
         }
       } catch (err) {
@@ -80,15 +82,17 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
         
         // 如果渲染失败，显示原始代码和链接
         if (containerRef.current) {
+          const cleanChart = chart.trim();
+          const encodedChart = encodeURIComponent(cleanChart);
           containerRef.current.innerHTML = `
             <div class="bg-slate-800 border border-slate-600 rounded-lg p-4">
               <div class="text-sm text-slate-400 mb-2 flex items-center gap-2">
                 <span>🔗</span>
                 <span>Mermaid Diagram Code</span>
               </div>
-              <pre class="text-xs text-slate-300 whitespace-pre-wrap font-mono bg-slate-900 p-3 rounded border overflow-x-auto">${chart}</pre>
+              <pre class="text-xs text-slate-300 whitespace-pre-wrap font-mono bg-slate-900 p-3 rounded border overflow-x-auto">${cleanChart}</pre>
               <div class="mt-3 text-xs text-slate-500">
-                💡 <a href="https://mermaid.live" target="_blank" class="text-orange-400 hover:text-orange-300 underline">点击这里在 mermaid.live 查看可视化图表</a>
+                💡 <a href="https://mermaid.live/edit#pako:${btoa(cleanChart)}" target="_blank" class="text-orange-400 hover:text-orange-300 underline">点击这里在 mermaid.live 查看可视化图表</a>
               </div>
             </div>
           `;
@@ -98,9 +102,9 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
       }
     };
 
-    const timeoutId = setTimeout(renderChart, 100); // 小延迟确保 DOM 准备好
+    const timeoutId = setTimeout(renderChart, 300); // 稍微增加延迟确保 DOM 准备好
     return () => clearTimeout(timeoutId);
-  }, [isClient, chart]);
+  }, [isClient, chart, mermaidLoaded]);
 
   if (!isClient) {
     return (
@@ -140,8 +144,11 @@ export default function Mermaid({ chart, className = '' }: MermaidProps) {
     <div className={`mermaid-container ${className}`}>
       <div 
         ref={containerRef}
-        className="mermaid-chart bg-slate-900 rounded-lg p-4 overflow-auto border border-slate-700"
-        style={{ minHeight: '200px' }}
+        className="mermaid-chart rounded-lg p-4 overflow-auto border border-slate-700"
+        style={{ 
+          minHeight: '200px',
+          backgroundColor: 'transparent' // 让mermaid自己控制背景色
+        }}
       />
       {error && (
         <div className="mt-2 text-xs text-amber-400 bg-amber-400/10 p-2 rounded border border-amber-400/20">

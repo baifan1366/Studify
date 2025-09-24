@@ -6,6 +6,9 @@ import { verifyAppJwt, AppJwtPayload } from './jwt';
 import redis from '../redis/redis';
 import { createAdminClient } from '../supabase/server';
 
+// Re-export createAdminClient for API routes
+export { createAdminClient };
+
 type Role = 'student' | 'tutor' | 'admin';
 
 type UserInfo = {
@@ -20,6 +23,7 @@ type UserInfo = {
 type AuthResult = {
   payload: AppJwtPayload;
   user: UserInfo;
+  profile: any;
   // Backward compatibility - expose sub directly
   sub: string;
 };
@@ -27,7 +31,7 @@ type AuthResult = {
 /**
  * Authorizes a request for a specific role in an App Router API Route and returns user information.
  * @param role The required role ('student', 'tutor', or 'admin').
- * @returns A promise that resolves to one of two possible return types:
+ * @returns A function that accepts a request and returns a promise that resolves to one of two possible return types:
  * 
  * **Success Case (Authorization Passed):**
  * Returns `AuthResult` object containing:
@@ -49,6 +53,7 @@ type AuthResult = {
  *     profile?: any;      // User profile from profiles table
  *     [key: string]: any; // Other user properties
  *   },
+ *   profile: any;       // User profile from profiles table
  *   sub: string;        // User ID from JWT
  * }
  * ```
@@ -71,16 +76,18 @@ type AuthResult = {
  * 
  * **Usage Example:**
  * ```typescript
- * const authResult = await authorize('student');
+ * const authResult = await authorize('student')(request);
  * if (authResult instanceof NextResponse) {
  *   return authResult; // Return error response
  * }
  * // Use authResult.payload.sub as user ID and authResult.user for user info
  * const userId = authResult.payload.sub;
  * const userEmail = authResult.user.email;
+ * const profile = authResult.profile;
  * ```
  */
-export async function authorize(role: Role): Promise<AuthResult | NextResponse> {
+export function authorize(role: Role) {
+  return async function(request: Request): Promise<AuthResult | NextResponse> {
   try {
     // 1. 读取 Cookie 里的 App JWT
     const cookieStore = await cookies();
@@ -155,6 +162,7 @@ export async function authorize(role: Role): Promise<AuthResult | NextResponse> 
     return {
       payload,
       user: userInfo,
+      profile: userInfo.profile,
       sub: payload.sub  // Backward compatibility
     };
 
@@ -162,4 +170,5 @@ export async function authorize(role: Role): Promise<AuthResult | NextResponse> 
     console.error('Authorization error:', error);
     return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 401 });
   }
+  };
 }

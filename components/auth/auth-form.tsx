@@ -15,6 +15,7 @@ import { supabase } from "@/utils/supabase/client";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { useAccountSwitcher } from "@/hooks/auth/use-account-switcher";
 import { useTranslations } from 'next-intl';
+import MFAVerificationForm from "./mfa-verification-form";
 
 // HCaptcha configuration
 const HCAPTCHA_SITE_KEY = "d26a2d9a-3b10-4210-86a6-c8e4d872db56";
@@ -57,6 +58,8 @@ export function AuthForm({
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [requiresMFA, setRequiresMFA] = useState(false);
+  const [loginCredentials, setLoginCredentials] = useState<{email: string; password: string} | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
   const { toast } = useToast();
 
@@ -76,6 +79,40 @@ export function AuthForm({
     console.error('CAPTCHA error:', err);
     setCaptchaToken(null);
     setError('CAPTCHA verification failed. Please try again.');
+  };
+
+  // MFA handlers
+  const handleMFAVerificationSuccess = (data: any) => {
+    // Handle login success for account addition
+    if (data.mode === 'add' || authMode === 'add') {
+      handleLoginSuccess(data);
+      
+      // Show success message and redirect
+      toast({
+        title: "Account Added Successfully",
+        description: "The account has been added to your account switcher.",
+        duration: 3000,
+      });
+      
+      // For account addition, redirect to specified URL or home
+      const targetUrl = redirectUrl || `/${locale}/home`;
+      setTimeout(() => router.replace(targetUrl), 1000);
+    } else {
+      // Normal login flow
+      const r = data.role;
+      const pathByRole: Record<typeof r, string> = {
+        student: `/${locale}/home`,
+        tutor: `/${locale}/tutor/dashboard`,
+        admin: `/${locale}/admin/dashboard`,
+      } as const;
+      router.replace(pathByRole[r]);
+    }
+  };
+
+  const handleMFABackToLogin = () => {
+    setRequiresMFA(false);
+    setLoginCredentials(null);
+    setError(null);
   };
 
   const resetCaptcha = () => {
@@ -181,37 +218,73 @@ export function AuthForm({
         router.replace(pathByRole[r]);
       } else {
         if (!email || !password) throw new Error("Email and password are required");
-        const res = await signIn.mutateAsync({ 
-          email, 
-          password, 
-          locale, 
-          captchaToken,
-          mode: authMode === 'add' ? 'add' : 'login'
-        });
         
-        // Handle login success for account addition
-        if (res.mode === 'add' || authMode === 'add') {
-          handleLoginSuccess(res);
-          
-          // Show success message and redirect
-          toast({
-            title: "Account Added Successfully",
-            description: "The account has been added to your account switcher.",
-            duration: 3000,
+        // First attempt sign-in to check for MFA requirement
+        try {
+          const response = await fetch('/api/auth/sign-in', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email,
+              password,
+              locale,
+              captchaToken,
+              mode: authMode === 'add' ? 'add' : 'login'
+            }),
           });
-          
-          // For account addition, redirect to specified URL or home
-          const targetUrl = redirectUrl || `/${locale}/home`;
-          setTimeout(() => router.replace(targetUrl), 1000);
-        } else {
-          // Normal login flow
-          const r = res.role;
-          const pathByRole: Record<typeof r, string> = {
-            student: `/${locale}/home`,
-            tutor: `/${locale}/tutor/dashboard`,
-            admin: `/${locale}/admin/dashboard`,
-          } as const;
-          router.replace(pathByRole[r]);
+
+          const data = await response.json();
+
+          if (response.ok) {
+            if (data.requiresMFA) {
+              // Store credentials for MFA verification
+              setLoginCredentials({ email, password });
+              setRequiresMFA(true);
+              setPending(false);
+              return;
+            }
+
+            // Normal login success
+            const res = data;
+            
+            // Handle login success for account addition
+            if (res.mode === 'add' || authMode === 'add') {
+              handleLoginSuccess(res);
+              
+              // Show success message and redirect
+              toast({
+                title: "Account Added Successfully",
+                description: "The account has been added to your account switcher.",
+                duration: 3000,
+              });
+              
+              // For account addition, redirect to specified URL or home
+              const targetUrl = redirectUrl || `/${locale}/home`;
+              setTimeout(() => router.replace(targetUrl), 1000);
+            } else {
+              // Normal login flow
+              const r = res.role;
+              const pathByRole: Record<typeof r, string> = {
+                student: `/${locale}/home`,
+                tutor: `/${locale}/tutor/dashboard`,
+                admin: `/${locale}/admin/dashboard`,
+              } as const;
+              router.replace(pathByRole[r]);
+            }
+          } else {
+            if (data.requiresMFA) {
+              // Store credentials for MFA verification
+              setLoginCredentials({ email, password });
+              setRequiresMFA(true);
+              setPending(false);
+              return;
+            }
+            throw new Error(data.error || 'Sign-in failed');
+          }
+        } catch (fetchError) {
+          throw fetchError;
         }
       }
     } catch (err: any) {
@@ -280,9 +353,20 @@ export function AuthForm({
           transition={{ duration: 0.5 }}
           className="bg-white/80 dark:bg-[#0D1F1A] rounded-2xl shadow-xl dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] dark:border dark:border-gray-700/50 p-8 backdrop-blur-sm transition-colors duration-300"
         >
-          <form onSubmit={onSubmit} className="space-y-6">
-            <input type="hidden" name="locale" value={locale} />
-            {children}
+          {requiresMFA && loginCredentials ? (
+            <MFAVerificationForm
+              email={loginCredentials.email}
+              password={loginCredentials.password}
+              onVerificationSuccess={handleMFAVerificationSuccess}
+              onBack={handleMFABackToLogin}
+              mode={authMode}
+              redirectUrl={redirectUrl}
+            />
+          ) : (
+            <>
+              <form onSubmit={onSubmit} className="space-y-6">
+                <input type="hidden" name="locale" value={locale} />
+                {children}
 
             {/* HCaptcha Component */}
             <div className="flex justify-center">
@@ -347,6 +431,8 @@ export function AuthForm({
                 {t('add_account_notice')}
               </p>
             </div>
+          )}
+            </>
           )}
         </motion.div>
 

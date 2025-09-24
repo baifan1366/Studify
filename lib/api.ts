@@ -206,7 +206,7 @@ export const settingsApi = {
 // Authentication API endpoints
 export const authApi = {
   login: "/api/auth/login",
-  logout: "/api/auth/logout",
+  logout: "/api/auth/sign-out",
   register: "/api/auth/register",
   forgotPassword: "/api/auth/forgot-password",
   resetPassword: "/api/auth/reset-password",
@@ -313,7 +313,7 @@ export const adminApi = {
   promoteToAdmin: (data: { user_id?: string; email?: string }) => 
     api.post('/api/admin/users', data),
   updateUser: (userId: string, updates: any) => 
-    api.put(`/api/admin/users/${userId}`, updates),
+    api.patch(`/api/admin/users/${userId}`, updates),
   deleteUser: (userId: string) => 
     api.delete(`/api/admin/users/${userId}`),
   

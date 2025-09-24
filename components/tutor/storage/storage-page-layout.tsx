@@ -15,7 +15,8 @@ import {
   Filter,
   Settings
 } from 'lucide-react'
-import { useAttachments } from '@/hooks/course/use-attachments'
+import { useUserStorageAttachments } from '@/hooks/course/use-attachments'
+import { CourseAttachment } from '@/interface/courses/attachment-interface'
 import { StorageStats } from '@/components/tutor/storage/storage-stats'
 import { StorageFilters } from '@/components/tutor/storage/storage-filters'
 import { StorageFileList } from '@/components/tutor/storage/storage-file-list'
@@ -36,7 +37,7 @@ export interface FilterState {
 }
 
 interface StoragePageLayoutProps {
-  ownerId: number
+  // Props removed since we get user ID from the useUser hook directly
 }
 
 export function StoragePageLayout() {
@@ -52,14 +53,25 @@ export function StoragePageLayout() {
     sortBy: 'date',
     sortOrder: 'desc'
   })
-  const { data: user } = useUser()
-  const ownerId = user?.id || 0
-  // Hooks
-  const { data: attachments = [], isLoading, refetch } = useAttachments(ownerId as number)
+  const { data: user, isLoading: userLoading } = useUser()
+  
+  // Hooks - use the correct hook for user storage attachments
+  const { data: attachments = [], isLoading: attachmentsLoading, error: attachmentsError, refetch } = useUserStorageAttachments(user?.profile?.id)
+  
+  const isLoading = userLoading || attachmentsLoading
+
+  // Debug logging for development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[StoragePageLayout] User:', user)
+    console.log('[StoragePageLayout] User Profile ID:', user?.profile?.id)
+    console.log('[StoragePageLayout] Attachments:', attachments)
+    console.log('[StoragePageLayout] Attachments Error:', attachmentsError)
+    console.log('[StoragePageLayout] Loading States:', { userLoading, attachmentsLoading })
+  }
 
   // Filter and sort attachments
   const filteredAttachments = attachments
-    .filter(attachment => {
+    .filter((attachment: CourseAttachment) => {
       // Search filter
       if (filters.search && !attachment.title.toLowerCase().includes(filters.search.toLowerCase())) {
         return false
@@ -94,7 +106,7 @@ export function StoragePageLayout() {
       
       return true
     })
-    .sort((a, b) => {
+    .sort((a: CourseAttachment, b: CourseAttachment) => {
       let comparison = 0
       
       switch (filters.sortBy) {
@@ -134,7 +146,7 @@ export function StoragePageLayout() {
   }
 
   const handleSelectAll = (selected: boolean) => {
-    setSelectedFiles(selected ? filteredAttachments.map(f => f.id) : [])
+    setSelectedFiles(selected ? filteredAttachments.map((f: CourseAttachment) => f.id) : [])
   }
 
   const handleUploadSuccess = () => {
@@ -236,7 +248,7 @@ export function StoragePageLayout() {
             <Card className="border-dashed border-2 border-primary/20 bg-primary/5">
               <CardContent className="p-6">
                 <StorageUploadZone 
-                  ownerId={ownerId as number}
+                  ownerId={user?.profile?.id ? parseInt(user.profile.id, 10) : 0}
                   onUploadSuccess={handleUploadSuccess}
                   onClose={() => setShowUploadZone(false)}
                 />
@@ -264,10 +276,36 @@ export function StoragePageLayout() {
                 <StorageBulkActions
                   selectedFiles={selectedFiles}
                   attachments={filteredAttachments}
-                  ownerId={ownerId as number}
+                  ownerId={user?.profile?.id ? parseInt(user.profile.id, 10) : 0}
                   onSelectionChange={setSelectedFiles}
                   onSuccess={handleRefresh}
                 />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Error State */}
+          {attachmentsError && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 text-red-800 dark:text-red-200">
+                  <Settings className="h-5 w-5" />
+                  <div>
+                    <h3 className="font-semibold">{t('error_loading_files')}</h3>
+                    <p className="text-sm text-red-600 dark:text-red-300">
+                      {attachmentsError instanceof Error ? attachmentsError.message : 'Unknown error occurred'}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => refetch()} 
+                      className="mt-2 border-red-300 text-red-700 hover:bg-red-100 dark:border-red-600 dark:text-red-200 dark:hover:bg-red-900"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      {t('retry')}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -307,7 +345,7 @@ export function StoragePageLayout() {
                 viewMode={viewMode}
                 selectedFiles={selectedFiles}
                 onFileSelect={handleFileSelect}
-                ownerId={ownerId as number}
+                ownerId={user?.profile?.id ? parseInt(user.profile.id, 10) : 0}
                 isLoading={isLoading}
                 onRefresh={handleRefresh}
               />

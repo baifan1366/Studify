@@ -33,6 +33,7 @@ import {
   Server
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useLogout } from '@/hooks/profile/use-logout';
 
 interface MenuItem {
   id: string;
@@ -146,6 +147,7 @@ export default function AnimatedSidebar({
   const t = useTranslations('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
+  const logoutMutation = useLogout();
   const [isHovered, setIsHovered] = useState(false);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -534,9 +536,11 @@ export default function AnimatedSidebar({
         {/* Footer */}
         <div className="p-4 border-t border-white/20">
           <motion.button
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
             variants={itemVariants}
             animate={isExpanded ? 'expanded' : 'collapsed'}
-            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-200 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-200 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

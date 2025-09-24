@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend } from "@/lib/api-config";
-import { CommunityQuiz } from "@/interface/community/quiz-interface";
+import { CommunityQuiz, CommunityQuizSubject, CommunityQuizGrade } from "@/interface/community/quiz-interface";
+import { QuizSearchParams, buildSearchQueryParams } from "@/utils/quiz/search-utils";
 
 // API 路径常量
 const QUIZ_API = {
@@ -15,21 +16,43 @@ const QUIZ_API = {
   quizLikes: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/likes`,
   userAttempts: (quizSlug: string) => `/api/community/quizzes/${quizSlug}/user-attempts`,
   attemptScore: (attemptId: number) => `/api/community/quizzes/attempts/${attemptId}/score`,
+  subjects: "/api/community/quizzes/subjects",
+  grades: "/api/community/quizzes/grades",
+  search: "/api/community/quizzes/search",
 };
 
 // ✅ 所有 quiz 列表
-export const useQuizzes = (tab?: string) => {
+export const useQuizzes = (tab?: string, filters?: {
+  subject_id?: number;
+  grade_id?: number;
+  difficulty?: number;
+}) => {
   const getQuizUrl = () => {
+    const params = new URLSearchParams();
+    
     if (tab === "popular") {
-      return `${QUIZ_API.quizzes}?filter=popular`;
+      params.append("filter", "popular");
     } else if (tab === "mine") {
-      return `${QUIZ_API.quizzes}?filter=mine`;
+      params.append("filter", "mine");
     }
-    return QUIZ_API.quizzes;
+    
+    // Add filters
+    if (filters?.subject_id) {
+      params.append("subject_id", filters.subject_id.toString());
+    }
+    if (filters?.grade_id) {
+      params.append("grade_id", filters.grade_id.toString());
+    }
+    if (filters?.difficulty) {
+      params.append("difficulty", filters.difficulty.toString());
+    }
+    
+    const queryString = params.toString();
+    return queryString ? `${QUIZ_API.quizzes}?${queryString}` : QUIZ_API.quizzes;
   };
 
   return useQuery<CommunityQuiz[], Error>({
-    queryKey: ["communityQuizzes", tab],
+    queryKey: ["communityQuizzes", tab, filters],
     queryFn: () => apiGet<CommunityQuiz[]>(getQuizUrl()),
     staleTime: 1000 * 60 * 5,
   });
@@ -56,6 +79,8 @@ export const useCreateQuiz = () => {
       tags?: string[];
       max_attempts?: number;
       visibility?: 'public' | 'private';
+      subject_id?: number;
+      grade_id?: number;
     }) =>
       apiSend<CommunityQuiz>({
         url: QUIZ_API.quizzes,
@@ -78,6 +103,11 @@ export const useUpdateQuiz = (slug: string) => {
       description?: string;
       difficulty?: number;
       tags?: string[];
+      visibility?: 'public' | 'private';
+      max_attempts?: number;
+      time_limit_minutes?: number | null;
+      subject_id?: number;
+      grade_id?: number;
     }) =>
       apiSend<CommunityQuiz>({
         url: QUIZ_API.quizDetail(slug),
@@ -241,5 +271,76 @@ export const useQuizScore = (attemptId: number | null) => {
     },
     enabled: !!attemptId, // 只有当 attemptId 存在时才执行查询
     staleTime: 1000 * 60 * 2, // 2分钟缓存
+  });
+};
+
+// ✅ 获取所有学科
+export const useQuizSubjects = () => {
+  return useQuery<CommunityQuizSubject[], Error>({
+    queryKey: ["quizSubjects"],
+    queryFn: () => apiGet<CommunityQuizSubject[]>(QUIZ_API.subjects),
+    staleTime: 1000 * 60 * 30, // 30分钟缓存，学科变化不频繁
+  });
+};
+
+// ✅ 获取所有年级
+export const useQuizGrades = () => {
+  return useQuery<CommunityQuizGrade[], Error>({
+    queryKey: ["quizGrades"],
+    queryFn: () => apiGet<CommunityQuizGrade[]>(QUIZ_API.grades),
+    staleTime: 1000 * 60 * 30, // 30分钟缓存，年级变化不频繁
+  });
+};
+
+// ✅ 搜索 quiz
+export const useSearchQuizzes = (searchParams: QuizSearchParams) => {
+  const queryParams = buildSearchQueryParams(searchParams);
+  const url = `${QUIZ_API.search}?${queryParams.toString()}`;
+  
+  return useQuery<CommunityQuiz[], Error>({
+    queryKey: ["searchQuizzes", searchParams],
+    queryFn: () => apiGet<CommunityQuiz[]>(url),
+    enabled: !!searchParams.query, // 只有当有搜索查询时才执行
+    staleTime: 1000 * 60 * 2, // 2分钟缓存
+  });
+};
+
+// ✅ 创建学科（仅管理员）
+export const useCreateSubject = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (newSubject: {
+      code: string;
+      translations: { [locale: string]: string };
+    }) =>
+      apiSend<CommunityQuizSubject>({
+        url: QUIZ_API.subjects,
+        method: "POST",
+        body: newSubject,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quizSubjects"] });
+    },
+  });
+};
+
+// ✅ 创建年级（仅管理员）
+export const useCreateGrade = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (newGrade: {
+      code: string;
+      translations: { [locale: string]: string };
+    }) =>
+      apiSend<CommunityQuizGrade>({
+        url: QUIZ_API.grades,
+        method: "POST",
+        body: newGrade,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quizGrades"] });
+    },
   });
 };

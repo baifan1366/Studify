@@ -206,7 +206,7 @@ export const settingsApi = {
 // Authentication API endpoints
 export const authApi = {
   login: "/api/auth/login",
-  logout: "/api/auth/logout",
+  logout: "/api/auth/sign-out",
   register: "/api/auth/register",
   forgotPassword: "/api/auth/forgot-password",
   resetPassword: "/api/auth/reset-password",

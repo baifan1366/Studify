@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, FileText, ExternalLink, AlertCircle } from 'lucide-react'
+import { Download, FileText, ExternalLink, AlertCircle, Copy } from 'lucide-react'
 import { PdfRenderer } from '@/components/ui/pdf-renderer'
 import { useTranslations } from 'next-intl'
 
@@ -93,12 +93,12 @@ export function DocumentPreview({
         console.error(`❌ Failed to fetch file (attempt ${retryCount + 1}):`, err)
         
         // Handle different error types
-        let errorMessage = 'Failed to load file'
+        let errorMessage = t('failedToLoadFile')
         if (err instanceof Error) {
           if (err.message.includes('MEGA')) {
-            errorMessage = `MEGA service error: ${err.message}`
+            errorMessage = t('megaServiceError', { message: err.message })
           } else if (err.message.includes('timeout')) {
-            errorMessage = 'Connection timeout - please try again'
+            errorMessage = t('connectionTimeout')
           } else {
             errorMessage = err.message
           }
@@ -131,16 +131,35 @@ export function DocumentPreview({
     if (onDownload) {
       onDownload()
     } else if (response?.url) {
-      // Large file - open MEGA URL
+      // Large file - open MEGA URL in new tab
       window.open(response.url, '_blank')
     } else if (blobUrl && response?.blob) {
-      // Small file - download blob
+      // Small file - download blob directly
       const link = document.createElement('a')
       link.href = blobUrl
       link.download = response?.name || 'document.pdf'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+    }
+  }
+
+  const handleCopyLink = async () => {
+    if (response?.url) {
+      try {
+        await navigator.clipboard.writeText(response.url)
+        // You can add a toast notification here if available
+        console.log('Link copied to clipboard')
+      } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea')
+        textArea.value = response.url
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        console.log('Link copied to clipboard (fallback)')
+      }
     }
   }
 
@@ -157,11 +176,11 @@ export function DocumentPreview({
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="text-muted-foreground">
-            {isRetrying ? `Retrying... (attempt ${retryCount + 1})` : 'Loading preview...'}
+            {isRetrying ? t('retryingAttempt', { attempt: retryCount + 1 }) : t('loadingPreview')}
           </p>
           {isRetrying && (
             <p className="text-xs text-muted-foreground">
-              Previous attempts failed, trying again...
+              {t('previousAttemptsFailed')}
             </p>
           )}
         </div>
@@ -176,7 +195,7 @@ export function DocumentPreview({
         <div className="text-center space-y-4">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
           <div className="space-y-2">
-            <p className="text-destructive font-medium">Failed to load preview</p>
+            <p className="text-destructive font-medium">{t('failedToLoadPreview')}</p>
             <p className="text-muted-foreground text-sm">{error}</p>
           </div>
           {showControls && (
@@ -192,11 +211,11 @@ export function DocumentPreview({
                 size="sm"
                 disabled={loading || isRetrying}
               >
-                {loading || isRetrying ? 'Retrying...' : `Retry${retryCount > 0 ? ` (${retryCount + 1})` : ''}`}
+                {loading || isRetrying ? t('retrying') : t('retry', { count: retryCount > 0 ? retryCount + 1 : 0 })}
               </Button>
               <Button onClick={handleDownload} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
-                Download
+                {t('download')}
               </Button>
             </div>
           )}
@@ -210,7 +229,7 @@ export function DocumentPreview({
       <div className={`flex items-center justify-center h-96 ${className}`}>
         <div className="text-center space-y-4">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
-          <p className="text-muted-foreground">No preview available</p>
+          <p className="text-muted-foreground">{t('noPreviewAvailable')}</p>
         </div>
       </div>
     )
@@ -241,25 +260,29 @@ export function DocumentPreview({
         <div className="text-center space-y-4 max-w-md">
           <div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {response.name || 'Large Document'}
+              {response.name || t('largeDocument')}
             </h3>
             <p className="text-muted-foreground mb-2">
-              File size: {fileSizeMB}MB (too large for preview)
+              {t('fileSizeInfo', { size: fileSizeMB })}
             </p>
             <p className="text-sm text-muted-foreground mb-4">
-              Files larger than 50MB cannot be previewed directly
+              {t('largeFileCannotPreview')}
             </p>
           </div>
           
           {showControls && (
             <div className="flex gap-2 justify-center flex-wrap">
               <Button onClick={handleDownload} className="gap-2">
-                <Download className="h-4 w-4" />
-                Download File
+                <ExternalLink className="h-4 w-4" />
+                {t('openInNewTab')}
               </Button>
               <Button onClick={handleOpenLink} variant="outline" className="gap-2">
                 <ExternalLink className="h-4 w-4" />
-                Open Link
+                {t('openLink')}
+              </Button>
+              <Button onClick={handleCopyLink} variant="outline" className="gap-2">
+                <Copy className="h-4 w-4" />
+                {t('copyLink')}
               </Button>
             </div>
           )}
@@ -273,7 +296,7 @@ export function DocumentPreview({
     <div className={`flex items-center justify-center h-96 ${className}`}>
       <div className="text-center space-y-4">
         <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
-        <p className="text-muted-foreground">Unable to display preview</p>
+        <p className="text-muted-foreground">{t('unableToDisplayPreview')}</p>
       </div>
     </div>
   )

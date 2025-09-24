@@ -12,7 +12,9 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const authResult = await authorize('student');
-    if ('error' in authResult) return authResult; // Return error response if auth failed
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
     const supabase = await createAdminClient();
     
     const { commentId } = await params;
@@ -147,7 +149,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const authResult = await authorize('student');
-    if ('error' in authResult) return authResult; // Return error response if auth failed
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
     const supabase = await createAdminClient();
     
     const { commentId } = await params;

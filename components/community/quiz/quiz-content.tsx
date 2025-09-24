@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import QuizHeader from "./header";
+import { useState } from "react";
+import QuizHeader, { QuizFilters } from "./header";
 import QuizList from "./quiz-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -9,7 +9,8 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { useQuizzes } from "@/hooks/community/use-quiz";
+import { useQuizzes, useSearchQuizzes } from "@/hooks/community/use-quiz";
+import { useLocale } from "next-intl";
 
 function QuizCardSkeleton() {
   return (
@@ -37,13 +38,41 @@ function QuizCardSkeleton() {
 export default function QuizContent() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("popular");
+  const [filters, setFilters] = useState<QuizFilters>({});
+  const locale = useLocale();
 
-  const { data: quizzes, isLoading } = useQuizzes(tab);
+  // When search is empty, use the normal listing; otherwise call FTS search API
+  const usingSearch = search.trim().length > 0;
+  const hasFilters = filters.subjectId || filters.gradeId || filters.difficulty;
 
-  const filteredQuizzes =
-    quizzes?.filter((quiz) =>
-      quiz.title.toLowerCase().includes(search.toLowerCase())
-    ) || [];
+  // For regular listing with filters
+  const { data: quizzesList, isLoading: isListLoading } = useQuizzes(
+    tab,
+    hasFilters ? {
+      subject_id: filters.subjectId,
+      grade_id: filters.gradeId,
+      difficulty: filters.difficulty,
+    } : undefined
+  );
+
+  // For search with filters
+  const { data: searchResults, isLoading: isSearchLoading } = useSearchQuizzes(
+    usingSearch
+      ? {
+          query: search,
+          locale: typeof locale === "string" ? locale : "en",
+          visibility: "public",
+          subject_id: filters.subjectId,
+          grade_id: filters.gradeId,
+          difficulty: filters.difficulty,
+          limit: 24,
+          sort: "relevance",
+        }
+      : { query: "" }
+  );
+
+  const dataToShow = usingSearch ? searchResults : quizzesList;
+  const loading = usingSearch ? isSearchLoading : isListLoading;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -53,15 +82,17 @@ export default function QuizContent() {
         setSearch={setSearch}
         tab={tab}
         setTab={setTab}
+        filters={filters}
+        setFilters={setFilters}
       />
-      {isLoading ? (
+      {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
           {Array.from({ length: 8 }).map((_, i) => (
             <QuizCardSkeleton key={i} />
           ))}
         </div>
       ) : (
-        <QuizList quizzes={filteredQuizzes} />
+        <QuizList quizzes={dataToShow || []} />
       )}
     </div>
   );

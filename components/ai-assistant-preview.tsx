@@ -3,31 +3,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './ai-assistant-preview.css';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Brain,
-  MessageCircle,
-  Calculator,
-  FileText,
-  Route,
-  Sparkles,
-  ArrowRight,
+import { 
+  MessageCircle, 
+  Calculator, 
+  FileText, 
+  Route, 
+  Lightbulb, 
+  Target, 
+  Loader2, 
+  ArrowRight, 
   ArrowLeft,
-  Camera,
-  Upload,
-  Loader2,
-  CheckCircle,
-  BookOpen,
-  Clock,
-  Maximize2,
+  BookOpen, 
+  ChevronRight, 
+  X,
+  Play,
+  Pause,
   RotateCcw,
-  Target,
-  Lightbulb,
+  CheckCircle,
   Send,
   User,
   Bot,
   ChevronLeft,
-  ChevronRight,
-  Menu
+  Menu,
+  Brain,
+  Upload,
+  Clock,
+  Maximize2
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +45,9 @@ import {
   useAISmartNotes, 
   useAILearningPath 
 } from '@/hooks/ai/use-ai-quick-actions';
+import { useSaveLearningPath } from '@/hooks/dashboard/use-learning-paths';
+import { useSaveAINote } from '@/hooks/dashboard/use-ai-notes';
+import { useSaveMistake } from '@/hooks/dashboard/use-mistake-book';
 import ReactMarkdown from 'react-markdown';
 import AIContentRecommendations from './ai/ai-content-recommendations';
 import SmartRecommendations from './ai/smart-recommendations';
@@ -1812,22 +1816,23 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
 
   // 学习路径类型使用特殊的可视化组件
   if (type === 'learning_path') {
-    // 如果还在流式传输，显示学习路径生成状态
+    // 如果还在流式传输，显示流式文本内容而不是静态加载界面
     if (isStreaming) {
       return (
         <div className="space-y-4">
-          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">🧠 AI正在分析并生成个性化学习路径...</span>
+          {/* 学习路径标题和状态 */}
+          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">🧠 AI正在生成个性化学习路径...</span>
+            </div>
+            
+            {/* 流式显示AI响应文本 */}
+            <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
+                <MarkdownContent content={displayText} isStreaming={isStreaming} />
               </div>
-              <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400">
-                <p>✅ 分析您的学习目标和当前水平</p>
-                <p className="opacity-60">🎯 制定阶段性学习计划</p>
-                <p className="opacity-40">📊 生成可视化学习路线图</p>
-                <p className="opacity-30">🎓 推荐相关课程和资源</p>
-              </div>
+              {isStreaming && <span className="animate-pulse ml-1">▋</span>}
             </div>
           </div>
         </div>
@@ -1872,16 +1877,21 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
           </div>
         )}
         
-        {/* 学习路径完成后，推荐相关课程 */}
-        {!isStreaming && getUserId() && (
-          <div className="mt-6">
-            <SmartRecommendations
-              type="courses"
-              userId={getUserId()}
-              context={learningData.learningGoal || fullText}
-              maxResults={4}
-              className="w-full"
-            />
+        {/* 学习路径完成后，显示保存按钮 */}
+        {!isStreaming && learningData.learningGoal && (
+          <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-emerald-800 dark:text-emerald-200">个性化学习路径生成完成</h4>
+                  <p className="text-sm text-emerald-600 dark:text-emerald-300">保存到仪表盘以便随时查看和跟踪进度</p>
+                </div>
+              </div>
+              <SaveLearningPathButton learningPath={learningData} />
+            </div>
           </div>
         )}
       </div>
@@ -1926,8 +1936,26 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
         </div>
       )}
 
-      {/* Q&A和问题解答类型，推荐社区帖子和群组 */}
-      {!isStreaming && getUserId() && (type === 'quick_qa' || type === 'solve_problem') && (
+      {/* 解题类型，显示保存到错题本按钮 */}
+      {!isStreaming && type === 'solve_problem' && (
+        <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center">
+                <Calculator className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h4 className="font-medium text-red-800 dark:text-red-200">保存解题过程</h4>
+                <p className="text-sm text-red-600 dark:text-red-300">将错题和解题分析保存到错题本中</p>
+              </div>
+            </div>
+            <SaveToMistakeBookButton problemContent={fullText} analysis={fullText} />
+          </div>
+        </div>
+      )}
+
+      {/* Q&A类型，推荐社区帖子和群组 */}
+      {!isStreaming && getUserId() && type === 'quick_qa' && (
         <div className="mt-6 space-y-4">
           {/* 推荐相关讨论帖子 */}
           <SmartRecommendations
@@ -1949,19 +1977,219 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
         </div>
       )}
 
-      {/* 智能笔记类型，推荐课程 */}
-      {!isStreaming && getUserId() && type === 'smart_notes' && (
-        <div className="mt-6">
-          <SmartRecommendations
-            type="courses"
-            userId={getUserId()}
-            context={fullText}
-            maxResults={3}
-            className="w-full"
-          />
+      {/* 智能笔记类型，显示保存按钮 */}
+      {!isStreaming && type === 'smart_notes' && (
+        <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h4 className="font-medium text-purple-800 dark:text-purple-200">保存智能笔记</h4>
+                <p className="text-sm text-purple-600 dark:text-purple-300">将AI生成的笔记保存到您的笔记本中</p>
+              </div>
+            </div>
+            <SaveAINoteButton content={fullText} />
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+// 保存学习路径按钮组件
+interface SaveLearningPathButtonProps {
+  learningPath: any;
+}
+
+function SaveLearningPathButton({ learningPath }: SaveLearningPathButtonProps) {
+  const saveLearningPath = useSaveLearningPath();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (isSaving || isSaved) return;
+
+    setIsSaving(true);
+    try {
+      await saveLearningPath.mutateAsync({
+        learningPath,
+        title: `${learningPath.learningGoal} 学习路径`,
+        description: `基于您的目标"${learningPath.learningGoal}"生成的个性化学习路径`
+      });
+      setIsSaved(true);
+    } catch (error) {
+      // 错误处理由hook中的onError处理
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isSaved) {
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="border-emerald-300 text-emerald-700 dark:text-emerald-300 cursor-default"
+        disabled
+      >
+        <CheckCircle className="w-4 h-4 mr-2" />
+        已保存
+      </Button>
+    );
+  }
+
+  return (
+    <Button 
+      onClick={handleSave}
+      disabled={isSaving}
+      size="sm"
+      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+    >
+      {isSaving ? (
+        <>
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          保存中...
+        </>
+      ) : (
+        <>
+          <BookOpen className="w-4 h-4 mr-2" />
+          保存到仪表盘
+        </>
+      )}
+    </Button>
+  );
+}
+
+// 保存AI笔记按钮组件
+interface SaveAINoteButtonProps {
+  content: string;
+}
+
+function SaveAINoteButton({ content }: SaveAINoteButtonProps) {
+  const saveAINote = useSaveAINote();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (isSaving || isSaved || !content) return;
+
+    setIsSaving(true);
+    try {
+      await saveAINote.mutateAsync({
+        content,
+        aiSummary: content, // 将内容作为AI摘要
+        title: `AI智能笔记 - ${new Date().toLocaleDateString()}`,
+        tags: ['ai_generated', 'smart_notes']
+      });
+      setIsSaved(true);
+    } catch (error) {
+      // 错误处理由hook中的onError处理
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isSaved) {
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="border-purple-300 text-purple-700 dark:text-purple-300 cursor-default"
+        disabled
+      >
+        <CheckCircle className="w-4 h-4 mr-2" />
+        已保存
+      </Button>
+    );
+  }
+
+  return (
+    <Button 
+      onClick={handleSave}
+      disabled={isSaving}
+      size="sm"
+      className="bg-purple-600 hover:bg-purple-700 text-white"
+    >
+      {isSaving ? (
+        <>
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          保存中...
+        </>
+      ) : (
+        <>
+          <FileText className="w-4 h-4 mr-2" />
+          保存笔记
+        </>
+      )}
+    </Button>
+  );
+}
+
+// 保存到错题本按钮组件
+interface SaveToMistakeBookButtonProps {
+  problemContent: string;
+  analysis: string;
+}
+
+function SaveToMistakeBookButton({ problemContent, analysis }: SaveToMistakeBookButtonProps) {
+  const saveMistake = useSaveMistake();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (isSaving || isSaved || !problemContent) return;
+
+    setIsSaving(true);
+    try {
+      await saveMistake.mutateAsync({
+        mistakeContent: problemContent,
+        analysis,
+        sourceType: 'ai_solve',
+        knowledgePoints: [], // 可以后续扩展自动提取知识点
+      });
+      setIsSaved(true);
+    } catch (error) {
+      // 错误处理由hook中的onError处理
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isSaved) {
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="border-red-300 text-red-700 dark:text-red-300 cursor-default"
+        disabled
+      >
+        <CheckCircle className="w-4 h-4 mr-2" />
+        已保存
+      </Button>
+    );
+  }
+
+  return (
+    <Button 
+      onClick={handleSave}
+      disabled={isSaving}
+      size="sm"
+      className="bg-red-600 hover:bg-red-700 text-white"
+    >
+      {isSaving ? (
+        <>
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          保存中...
+        </>
+      ) : (
+        <>
+          <BookOpen className="w-4 h-4 mr-2" />
+          保存到错题本
+        </>
+      )}
+    </Button>
   );
 }
 

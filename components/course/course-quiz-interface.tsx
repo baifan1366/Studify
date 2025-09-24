@@ -30,7 +30,7 @@ interface QuizQuestion {
 }
 
 interface CourseQuizInterfaceProps {
-  lessonId: string;
+  lessonId: string | null;
   questions: QuizQuestion[];
   onSubmitAnswer: (questionId: string, answer: string | boolean) => Promise<void>;
   onQuizComplete: () => void;
@@ -223,7 +223,7 @@ export default function CourseQuizInterface({
         return (
           <div>
             <textarea
-              value={typeof answers[currentQuestion.id] === 'string' ? answers[currentQuestion.id] : ''}
+              value={answers[currentQuestion.id] ? String(answers[currentQuestion.id]) : ''}
               onChange={(e) => handleAnswerChange(e.target.value)}
               placeholder="Type your answer here..."
               className="w-full h-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
@@ -249,7 +249,7 @@ export default function CourseQuizInterface({
           </button>
         </div>
         <CourseQuizAnalysis
-          lessonId={lessonId}
+          lessonId={lessonId || ''}
           userScore={score}
           totalQuestions={totalQuestions}
           correctAnswers={correctAnswers}

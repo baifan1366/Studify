@@ -18,12 +18,14 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Trash2,
+  AlertTriangle,
   Download,
   Upload,
   Key,
   Database,
-  Zap
+  Zap,
+  X,
+  Trash2
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
@@ -31,6 +33,10 @@ import { useFullProfile, useUpdateSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { useFontSize } from '@/context/font-size-context';
 import { FontSizeDemo } from './font-size-demo';
+import { useMFAStatus, useMFADisable } from '@/hooks/auth/use-mfa';
+import { useRequestPasswordReset } from '@/hooks/auth/use-password-reset';
+import MFASetupModal from './mfa-setup-modal';
+import ChangePasswordModal from './change-password-modal';
 
 type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'data';
 
@@ -42,9 +48,19 @@ export default function SettingsContent() {
   const { toast } = useToast();
   const { fontSize, setFontSize } = useFontSize();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
+  const [showMFASetup, setShowMFASetup] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showMFADisable, setShowMFADisable] = useState(false);
+  const [mfaDisableCode, setMfaDisableCode] = useState('');
+  const [mfaDisablePassword, setMfaDisablePassword] = useState('');
+  
+  const mfaStatus = useMFAStatus();
+  const mfaDisable = useMFADisable();
+  const requestPasswordReset = useRequestPasswordReset();
+  
   const [settings, setSettings] = useState({
     // Account settings
-    twoFactorEnabled: false,
+    twoFactorEnabled: mfaStatus.isEnabled || false,
     emailVerified: true,
     
     // Notification settings
@@ -181,6 +197,45 @@ export default function SettingsContent() {
     });
   };
 
+  const handleMFAToggle = () => {
+    if (mfaStatus.isEnabled) {
+      setShowMFADisable(true);
+    } else {
+      setShowMFASetup(true);
+    }
+  };
+
+  const handleMFADisable = async () => {
+    if (!mfaDisablePassword) {
+      toast({
+        title: '密码必填',
+        description: '请输入当前密码以禁用双重验证',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await mfaDisable.mutateAsync({
+        password: mfaDisablePassword,
+        code: mfaDisableCode || undefined
+      });
+      setShowMFADisable(false);
+      setMfaDisablePassword('');
+      setMfaDisableCode('');
+      // Refresh settings
+      window.location.reload();
+    } catch (error) {
+      console.error('MFA disable error:', error);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    if (user?.email) {
+      requestPasswordReset.mutate({ email: user.email });
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'account':
@@ -197,13 +252,27 @@ export default function SettingsContent() {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-600">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 dark:text-white">{t('two_factor_auth')}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('two_factor_desc')}</div>
+                      <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                        {t('two_factor_auth')}
+                        {mfaStatus.isEnabled && (
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full">
+                            已启用
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {mfaStatus.isEnabled ? '通过验证器应用保护您的账户' : '为账户添加额外的安全保护'}
+                      </div>
+                      {mfaStatus.enabledAt && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          启用时间: {new Date(mfaStatus.enabledAt).toLocaleDateString()}
+                        </div>
+                      )}
                     </div>
                     <motion.button
-                      onClick={() => handleSettingChange('twoFactorEnabled', !settings.twoFactorEnabled)}
+                      onClick={handleMFAToggle}
                       className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
-                        settings.twoFactorEnabled 
+                        mfaStatus.isEnabled 
                           ? 'bg-green-500 dark:bg-green-600' 
                           : 'bg-gray-300 dark:bg-gray-600'
                       }`}
@@ -211,7 +280,7 @@ export default function SettingsContent() {
                     >
                       <motion.div
                         className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
-                        animate={{ x: settings.twoFactorEnabled ? 26 : 2 }}
+                        animate={{ x: mfaStatus.isEnabled ? 26 : 2 }}
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       />
                     </motion.button>
@@ -231,14 +300,32 @@ export default function SettingsContent() {
                   </div>
                 </div>
 
-                <motion.button
-                  className="w-full flex items-center justify-center gap-2 p-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-white font-medium transition-colors"
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                >
-                  <Key size={16} />
-                  {t('change_password')}
-                </motion.button>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <motion.button
+                    onClick={() => setShowChangePassword(true)}
+                    className="flex items-center justify-center gap-2 p-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-white font-medium transition-colors"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <Key size={16} />
+                    修改密码
+                  </motion.button>
+
+                  <motion.button
+                    onClick={handleForgotPassword}
+                    disabled={requestPasswordReset.isPending}
+                    className="flex items-center justify-center gap-2 p-4 bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 rounded-lg text-white font-medium transition-colors disabled:opacity-50"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    {requestPasswordReset.isPending ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Mail size={16} />
+                    )}
+                    忘记密码
+                  </motion.button>
+                </div>
               </div>
             </div>
           </div>
@@ -623,6 +710,104 @@ export default function SettingsContent() {
           </motion.div>
         </div>
       </div>
+
+      {/* Modals */}
+      <MFASetupModal 
+        isOpen={showMFASetup} 
+        onClose={() => setShowMFASetup(false)}
+        onSuccess={() => window.location.reload()}
+      />
+      
+      <ChangePasswordModal 
+        isOpen={showChangePassword} 
+        onClose={() => setShowChangePassword(false)}
+      />
+
+      {/* MFA Disable Modal */}
+      {showMFADisable && (
+        <motion.div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">禁用双重验证</h2>
+              <button
+                onClick={() => setShowMFADisable(false)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-red-900 dark:text-red-100 mb-1">确认禁用双重验证</h4>
+                    <p className="text-sm text-red-800 dark:text-red-200">
+                      禁用双重验证将降低您账户的安全性。请输入当前密码确认此操作。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">当前密码 *</label>
+                  <input
+                    type="password"
+                    value={mfaDisablePassword}
+                    onChange={(e) => setMfaDisablePassword(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">验证码 (可选)</label>
+                  <input
+                    type="text"
+                    value={mfaDisableCode}
+                    onChange={(e) => setMfaDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="输入6位验证码"
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowMFADisable(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleMFADisable}
+                  disabled={!mfaDisablePassword || mfaDisable.isPending}
+                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  {mfaDisable.isPending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Shield size={16} />
+                  )}
+                  禁用
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

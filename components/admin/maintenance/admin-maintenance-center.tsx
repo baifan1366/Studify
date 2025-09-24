@@ -2,7 +2,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,10 +49,43 @@ import { useTranslations } from 'next-intl';
 export function AdminMaintenanceCenter() {
   const t = useTranslations('AdminMaintenanceCenter');
   const { formatRelativeTime } = useFormat();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState('health');
   const [queueType, setQueueType] = useState('all');
   const [cachePattern, setCachePattern] = useState('*');
   const [featureFlagCategory, setFeatureFlagCategory] = useState('');
+
+  // Handle hash-based navigation with Next.js router
+  useEffect(() => {
+    // Get hash from current URL (client-side only)
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.slice(1); // Remove # symbol
+      const validTabs = ['health', 'queues', 'cache', 'features'];
+      
+      if (hash && validTabs.includes(hash)) {
+        setSelectedTab(hash);
+      } else if (!hash) {
+        setSelectedTab('health');
+      }
+    }
+  }, [pathname]); // Re-run when pathname changes
+
+  // Handle tab change and update URL hash using Next.js router
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value);
+    
+    // Build new URL with hash
+    const currentSearch = searchParams.toString();
+    const searchString = currentSearch ? `?${currentSearch}` : '';
+    const newUrl = value === 'health' 
+      ? pathname + searchString
+      : pathname + searchString + '#' + value;
+    
+    // Use Next.js router for navigation
+    router.push(newUrl, { scroll: false });
+  };
 
   // Hooks
   const { data: systemHealth, isLoading: healthLoading } = useSystemHealth();
@@ -136,7 +170,7 @@ export function AdminMaintenanceCenter() {
         </Button>
       </div>
 
-      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+      <Tabs value={selectedTab} onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="health">{t('system_health')}</TabsTrigger>
           <TabsTrigger value="queues">{t('queue_monitor')}</TabsTrigger>

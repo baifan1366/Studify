@@ -11,9 +11,19 @@ export async function GET(request: NextRequest) {
     }
     const { user, payload } = authResult;
 
-    const count = await notificationService.getUnreadCount(
-      user.profile?.id || parseInt(payload.sub)
-    );
+    // Get user's profile ID (user.profile should be populated by server-guard)
+    const profileId = user.profile?.id;
+    if (!profileId) {
+      console.error('Profile ID not found for user:', payload.sub);
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('🔍 Getting notification count for profile ID:', profileId);
+
+    const count = await notificationService.getUnreadCount(profileId);
 
     return NextResponse.json({ count });
   } catch (error) {

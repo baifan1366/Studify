@@ -16,8 +16,20 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const unreadOnly = searchParams.get('unread_only') === 'true';
 
+    // Get user's profile ID (user.profile should be populated by server-guard)
+    const profileId = user.profile?.id;
+    if (!profileId) {
+      console.error('Profile ID not found for user:', payload.sub);
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('🔍 Getting notifications for profile ID:', profileId);
+
     const result = await notificationService.getUserNotifications(
-      user.profile?.id || parseInt(payload.sub),
+      profileId,
       page,
       limit,
       unreadOnly

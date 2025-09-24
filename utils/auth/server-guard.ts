@@ -86,8 +86,8 @@ type AuthResult = {
  * const profile = authResult.profile;
  * ```
  */
-export function authorize(role: Role) {
-  return async function(request: Request): Promise<AuthResult | NextResponse> {
+export async function authorize(role: Role): Promise<AuthResult | NextResponse> {
+
   try {
     // 1. 读取 Cookie 里的 App JWT
     const cookieStore = await cookies();
@@ -169,6 +169,4 @@ export function authorize(role: Role) {
   } catch (error) {
     console.error('Authorization error:', error);
     return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 401 });
-  }
-  };
-}
+  }}

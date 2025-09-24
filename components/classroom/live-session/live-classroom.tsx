@@ -177,43 +177,15 @@ export default function RedesiLiveClassroom({
     toast.info('课堂已结束');
   };
 
-  const handleToggleRecording = useCallback(async () => {
-    try {
-      setIsRecording(!isRecording);
-      if (!isRecording) {
-        // Start recording via API
-        const response = await fetch(`/api/classroom/${classroomSlug}/live-sessions/${sessionId}/recording`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'start' })
-        });
-        
-        if (response.ok) {
-          toast.success('开始录制');
-        } else {
-          throw new Error('Failed to start recording');
-        }
-      } else {
-        // Stop recording via API
-        const response = await fetch(`/api/classroom/${classroomSlug}/live-sessions/${sessionId}/recording`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'stop' })
-        });
-        
-        if (response.ok) {
-          toast.info('停止录制');
-        } else {
-          throw new Error('Failed to stop recording');
-        }
-      }
-    } catch (error) {
-      console.error('Recording error:', error);
-      toast.error('录制操作失败');
-      // Revert state on error
-      setIsRecording(isRecording);
+  const handleToggleRecording = useCallback(() => {
+    // Simple state toggle - actual recording logic is handled in BottomControls
+    setIsRecording(!isRecording);
+    if (!isRecording) {
+      toast.success('开始录制');
+    } else {
+      toast.success('停止录制');
     }
-  }, [isRecording, classroomSlug, sessionId]);
+  }, [isRecording]);
 
   const onRefreshToken = () => {
     generateToken();
@@ -747,10 +719,10 @@ function LiveClassroomContent({
         onStartRecording={() => handleToggleRecording()}
         onStopRecording={() => handleToggleRecording()}
         onEndSession={handleEndSession}
-        sessionDuration={sessionDuration}
-        formatDuration={formatDuration}
         addReaction={sendReaction}
         reactionEmojis={reactionEmojiMap}
+        classroomSlug={classroomSlug}
+        sessionId={sessionId?.toString()}
       />
       
       {userRole === 'tutor' && (
@@ -847,7 +819,7 @@ function Header({ isConnected, participantCount, sessionDuration, formatDuration
       transition={{ duration: 0.5 }}
     >
       <div className="flex items-center justify-between">
-        {/* Left - Status & Info */}
+        {/* Status & Info */}
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
             <div className={`w-2.5 h-2.5 rounded-full ${
@@ -874,19 +846,8 @@ function Header({ isConnected, participantCount, sessionDuration, formatDuration
           </div>
         </div>
 
-        {/* Center - Layout Controls */}
+        {/* Layout Controls */}
         <LayoutControls layout={layout} setLayout={setLayout} />
-
-        {/* Right - Actions */}
-        <div className="flex items-center space-x-2">
-          <motion.button
-            className="p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Settings className="w-4 h-4 text-slate-300" />
-          </motion.button>
-        </div>
       </div>
     </motion.header>
   );
@@ -1190,18 +1151,44 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
   );
 }
 
-// Grid Video Layout
+// Grid Video Layout - 智能网格算法（Google Meet风格）
 function GridVideoLayout({ participants, setFocusedParticipant }: any) {
   const getGridClasses = (count: number) => {
     if (count <= 1) return 'grid-cols-1';
-    if (count <= 2) return 'grid-cols-1 md:grid-cols-2';
-    if (count <= 4) return 'grid-cols-2 lg:grid-cols-2';
-    if (count <= 6) return 'grid-cols-2 lg:grid-cols-3';
-    if (count <= 9) return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-3';
-    return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+    if (count <= 2) return 'grid-cols-2';
+    
+    // 智能网格算法：Google Meet风格
+    // rows = floor(sqrt(N))
+    // cols = ceil(N / rows)
+    const rows = Math.floor(Math.sqrt(count));
+    const cols = Math.ceil(count / rows);
+    
+    // 返回对应的 Tailwind CSS 类
+    if (cols <= 2) return 'grid-cols-2';
+    if (cols <= 3) return 'grid-cols-3';
+    if (cols <= 4) return 'grid-cols-4';
+    if (cols <= 5) return 'grid-cols-5';
+    if (cols <= 6) return 'grid-cols-6';
+    if (cols <= 7) return 'grid-cols-7';
+    if (cols <= 8) return 'grid-cols-8';
+    return 'grid-cols-8'; // 最大8列
   };
 
-
+  const getGridRows = (count: number) => {
+    if (count <= 1) return '';
+    if (count <= 2) return '';
+    
+    const rows = Math.floor(Math.sqrt(count));
+    
+    // 返回对应的行数类（如果需要限制行数）
+    if (rows <= 2) return 'grid-rows-2';
+    if (rows <= 3) return 'grid-rows-3';
+    if (rows <= 4) return 'grid-rows-4';
+    if (rows <= 5) return 'grid-rows-5';
+    if (rows <= 6) return 'grid-rows-6';
+    if (rows <= 7) return 'grid-rows-7';
+    return 'grid-rows-8'; // 最大8行
+  };
 
   return (
     <motion.div 
@@ -1211,11 +1198,11 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
     >
-      <div className={`grid gap-2 md:gap-4 h-full w-full ${getGridClasses(participants.length)}`}>
+      <div className={`grid gap-2 md:gap-4 h-full w-full ${getGridClasses(participants.length)} ${getGridRows(participants.length)} auto-rows-fr`}>
         {participants.map((participant: any, index: number) => (
           <div 
             key={participant.sid || participant.identity || `participant-${index}`}
-            className={`relative w-full ${(participants.length)} min-h-0`}
+            className="relative w-full min-h-0"
           >
             <VideoTile 
               participant={participant}
@@ -1230,31 +1217,38 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
   );
 }
 
-// Presentation Video Layout
+// Presentation Video Layout - 左边大容器，右边缩小到三分之一
 function PresentationVideoLayout({ participants }: any) {
   const presenter = participants.find((p: any) => p.metadata?.includes('tutor')) || participants[0];
   const others = participants.filter((p: any) => p.sid !== presenter?.sid);
 
   return (
     <motion.div 
-      className="h-full flex gap-4 p-4"
+      className="h-full flex p-4"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex-1">
+      <div className="w-3/4">
         <VideoTile participant={presenter} size="large" />
       </div>
-      <div className="w-64 space-y-4 overflow-y-auto">
-        {others.map((participant: any, index: number) => (
-          <VideoTile 
-            key={participant.sid || participant.identity || `other-${index}`}
-            participant={participant}
-            size="small"
-          />
-        ))}
-      </div>
+      {others.length > 0 && (
+        <>
+          <div className="w-px bg-slate-600/30 mx-2"></div>
+          <div className="w-1/4 flex justify-end">
+            <div className="flex flex-col space-y-4 h-full max-h-[calc(100vh-200px)] overflow-y-auto max-w-sm ">
+              {others.map((participant: any, index: number) => (
+                <VideoTile 
+                  key={participant.sid || participant.identity || `other-${index}`}
+                  participant={participant}
+                  size="normal"
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }
@@ -1262,17 +1256,16 @@ function PresentationVideoLayout({ participants }: any) {
 // Focus Video Layout
 function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant }: any) {
   const focused = focusedParticipant || participants[0];
-  const others = participants.filter((p: any) => p.sid !== focused?.sid);
 
   return (
     <motion.div 
-      className="h-full flex flex-col gap-4 p-4"
+      className="h-full p-4"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex-1 relative">
+      <div className="w-full h-full relative">
         <VideoTile participant={focused} size="large" />
         <motion.button
           onClick={() => setFocusedParticipant(null)}
@@ -1283,21 +1276,6 @@ function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticip
           Exit Focus
         </motion.button>
       </div>
-      {others.length > 0 && (
-        <div className="h-24 flex gap-4 overflow-x-auto">
-          {others.map((participant: any, index: number) => (
-            <motion.button
-              key={participant.sid || participant.identity || `focus-${index}`}
-              onClick={() => setFocusedParticipant(participant)}
-              className="flex-shrink-0 w-32"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <VideoTile participant={participant} size="thumbnail" />
-            </motion.button>
-          ))}
-        </div>
-      )}
     </motion.div>
   );
 }
@@ -1306,7 +1284,7 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
   const sizeClasses: Record<string, string> = {
     thumbnail: 'w-32 h-20',
     small: 'w-48 h-32',
-    normal: 'w-64 h-48',
+    normal: 'w-74 h-48',
     large: 'w-full h-full',
     grid: 'w-full h-full'
   };
@@ -1392,17 +1370,11 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
 
         ) : (
           <div 
-            className="w-full h-full min-h-[200px] flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800"
-            style={{ minHeight: '200px' }} 
+            className={`w-full h-full ${size === 'grid' ? 'min-h-[300px]' : 'min-h-screen'} flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800`}
           >
-            <VideoOff className="w-8 h-8 mb-2 text-slate-400" />
-            <span className="text-sm font-medium">No Camera</span>
-            <span className="text-xs mt-1 opacity-75">Camera is off for {participantName}</span>
-            {/* 调试信息 */}
-            <div className="text-xs mt-2 opacity-50 text-center">
-              <div>Participant: {participantName}</div>
-              <div>Size: {size}</div>
-            </div>
+            <VideoOff className="w-20 h-20 mb-2 text-slate-400" />
+            <span className="text-m font-large">No Camera</span>
+            <span className="text-sm mt-1 opacity-75">Camera is off for {participantName}</span>
           </div>
         )}
 
@@ -1414,11 +1386,20 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
             </div>
           )}
           {/* Camera status indicator */}
-          {isLocal && (!cameraTrackRef || !cameraTrackRef.publication?.track || cameraTrackRef.publication?.isMuted) && (
-            <div className="bg-red-500/20 text-red-300 px-2 py-1 rounded-full text-xs font-medium border border-red-500/30 flex items-center space-x-1">
-              <VideoOff className="w-3 h-3" />
-              <span>Camera Off</span>
-            </div>
+          {isLocal && (
+            <>
+              {(!cameraTrackRef || !cameraTrackRef.publication?.track || cameraTrackRef.publication?.isMuted) ? (
+                <div className="bg-red-500/20 text-red-300 px-2 py-1 rounded-full text-xs font-medium border border-red-500/30 flex items-center space-x-1">
+                  <VideoOff className="w-3 h-3" />
+                  <span>Camera Off</span>
+                </div>
+              ) : (
+                <div className="bg-green-500/20 text-green-400 px-2 py-1 rounded-full text-xs font-medium border border-green-500/30 flex items-center space-x-1">
+                  <Video className="w-3 h-3" />
+                  <span>Camera On</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

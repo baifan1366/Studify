@@ -139,7 +139,16 @@ export async function GET(request: NextRequest) {
   
   try {
     // 验证用户身份
+    console.log('🔍 About to call authorize function...');
     const authResult = await authorize('student');
+    
+    console.log('🔍 Authorization result:', {
+      isNextResponse: authResult instanceof NextResponse,
+      type: typeof authResult,
+      keys: authResult instanceof NextResponse ? 'NextResponse' : Object.keys(authResult),
+      authResult: authResult instanceof NextResponse ? 'error response' : authResult
+    });
+    
     if (authResult instanceof NextResponse) {
       console.log('❌ GET /api/classroom - Authorization failed');
       return authResult;

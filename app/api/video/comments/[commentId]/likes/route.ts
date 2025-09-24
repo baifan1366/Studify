@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/lib/server-guard';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { authorize } from '@/utils/auth/server-guard';
+import { createAdminClient } from '@/utils/supabase/server';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     commentId: string;
-  };
+  }>;
 }
 
 // Toggle comment like/unlike
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if ('error' in authResult) return authResult; // Return error response if auth failed
+    const supabase = await createAdminClient();
     
-    const { commentId } = params;
+    const { commentId } = await params;
     const { isLiked = true } = await request.json();
 
     if (!commentId) {
@@ -39,7 +40,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const userId = user.profile?.id || user.id;
+    // TypeScript: after auth check, authResult is guaranteed to be AuthResult type
+    const auth = authResult as { user: any; payload: any };
+    const userId = auth.user.profile?.user_id || auth.user.id || auth.payload.sub;
 
     // Check if user already liked/disliked this comment
     const { data: existingLike } = await supabase
@@ -143,10 +146,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 // Get comment like status and statistics
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if ('error' in authResult) return authResult; // Return error response if auth failed
+    const supabase = await createAdminClient();
     
-    const { commentId } = params;
+    const { commentId } = await params;
 
     if (!commentId) {
       return NextResponse.json(
@@ -170,7 +174,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const userId = user.profile?.id || user.id;
+    // TypeScript: after auth check, authResult is guaranteed to be AuthResult type
+    const auth = authResult as { user: any; payload: any };
+    const userId = auth.user.profile?.user_id || auth.user.id || auth.payload.sub;
 
     // Get user's current like status
     const { data: userLike } = await supabase
@@ -180,18 +186,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .eq('comment_id', comment.id)
       .single();
 
-    // Get detailed like statistics
-    const { data: likeStats } = await supabase
+    // Get detailed like statistics using separate queries
+    const { count: likesCount } = await supabase
       .from('video_comment_likes')
-      .select(`
-        comment_id,
-        count(*) filter (where is_liked = true) as likes_count,
-        count(*) filter (where is_liked = false) as dislikes_count,
-        count(*) as total_reactions
-      `)
+      .select('*', { count: 'exact', head: true })
       .eq('comment_id', comment.id)
-      .group('comment_id')
-      .single();
+      .eq('is_liked', true);
+
+    const { count: dislikesCount } = await supabase
+      .from('video_comment_likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('comment_id', comment.id)
+      .eq('is_liked', false);
+
+    const likeStats = {
+      likes_count: likesCount || 0,
+      dislikes_count: dislikesCount || 0,
+      total_reactions: (likesCount || 0) + (dislikesCount || 0)
+    };
 
     return NextResponse.json({
       success: true,

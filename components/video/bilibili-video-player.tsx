@@ -2,6 +2,20 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { 
+  useVideoLikes, 
+  useToggleVideoLike, 
+  useVideoDanmaku, 
+  useSendDanmaku, 
+  useVideoComments, 
+  useCreateComment,
+  useUpdateComment,
+  useDeleteComment,
+  useToggleCommentLike,
+  useTrackVideoView,
+  type VideoStats as VideoStatsType
+} from '@/hooks/video/use-video-interactions';
+import { useUser } from '@/hooks/profile/use-user';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -21,7 +35,12 @@ import {
   Heart,
   Share2,
   Download,
-  Flag
+  Flag,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Check,
+  X
 } from 'lucide-react';
 
 interface DanmakuMessage {
@@ -47,26 +66,19 @@ interface Comment {
   isLiked: boolean;
 }
 
-interface VideoStats {
-  views: number;
-  likes: number;
-  dislikes: number;
-  publishedAt: string;
-  duration: number;
-}
-
 interface VideoPlayerProps {
   src?: string;
   attachmentId?: number; // Support MEGA attachment streaming
+  lessonId: string; // Required for API calls
   title: string;
   poster?: string;
+  // Legacy props for backward compatibility - will be replaced by API data
   danmakuMessages?: DanmakuMessage[];
   comments?: Comment[];
-  videoStats?: VideoStats;
+  videoStats?: VideoStatsType;
   currentUserLiked?: boolean;
-  onDanmakuSend?: (message: string) => void;
-  onCommentSend?: (content: string) => void;
-  onLike?: () => void;
+  // Callbacks
+  onTimeUpdate?: (time: number) => void;
   onShare?: () => void;
   onDownload?: () => void;
 }
@@ -74,15 +86,14 @@ interface VideoPlayerProps {
 export default function BilibiliVideoPlayer({
   src,
   attachmentId,
+  lessonId,
   title,
   poster,
   danmakuMessages = [],
   comments = [],
   videoStats,
   currentUserLiked = false,
-  onDanmakuSend,
-  onCommentSend,
-  onLike,
+  onTimeUpdate,
   onShare,
   onDownload
 }: VideoPlayerProps) {
@@ -116,6 +127,34 @@ export default function BilibiliVideoPlayer({
   // Internationalization
   const t = useTranslations();
   
+  // API hooks for real data
+  const { data: likesData } = useVideoLikes(lessonId);
+  const toggleVideoLikeMutation = useToggleVideoLike();
+  const { data: danmakuData } = useVideoDanmaku(lessonId);
+  const sendDanmakuMutation = useSendDanmaku();
+  const { data: commentsData } = useVideoComments(lessonId);
+  const createCommentMutation = useCreateComment();
+  const updateCommentMutation = useUpdateComment();
+  const deleteCommentMutation = useDeleteComment();
+  const toggleCommentLikeMutation = useToggleCommentLike();
+  const trackViewMutation = useTrackVideoView();
+  
+  // Get current user data
+  const { data: userData } = useUser();
+  const currentUser = userData || null;
+  
+  // Comment management state
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  
+  // Get real data or fallback to props
+  const realVideoStats = videoStats || likesData?.stats;
+  const realComments = commentsData?.comments || comments;
+  const realDanmaku = danmakuData?.danmaku || danmakuMessages;
+  const isLiked = likesData?.currentUserLiked ?? currentUserLiked;
+  
   // Helper functions
   const formatViews = (views: number) => {
     if (views >= 1000) {
@@ -129,6 +168,103 @@ export default function BilibiliVideoPlayer({
     const published = new Date(publishedAt);
     const diffInDays = Math.floor((now.getTime() - published.getTime()) / (1000 * 60 * 60 * 24));
     return `${diffInDays}${t('VideoPlayer.days_ago')}`;
+  };
+
+  // API-based action handlers
+  const handleLike = () => {
+    toggleVideoLikeMutation.mutate({
+      lessonId,
+      attachmentId,
+      isLiked: true
+    });
+  };
+
+  const handleSendDanmaku = () => {
+    if (danmakuText.trim()) {
+      sendDanmakuMutation.mutate({
+        lessonId,
+        attachmentId,
+        content: danmakuText.trim(),
+        videoTimeSec: currentTime,
+        color: '#FFFFFF',
+        size: 'medium'
+      });
+      setDanmakuText('');
+      setShowDanmakuInput(false);
+    }
+  };
+
+  const handleSendComment = () => {
+    if (commentText.trim()) {
+      createCommentMutation.mutate({
+        lessonId,
+        attachmentId,
+        content: commentText.trim()
+      });
+      setCommentText('');
+    }
+  };
+
+  // Comment management handlers
+  const handleEditComment = (commentId: string, content: string) => {
+    setEditingCommentId(commentId);
+    setEditingContent(content);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingContent.trim() && editingCommentId) {
+      updateCommentMutation.mutate({
+        commentId: editingCommentId,
+        content: editingContent.trim()
+      });
+      setEditingCommentId(null);
+      setEditingContent('');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditingContent('');
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    if (window.confirm(t('VideoPlayer.confirm_delete'))) {
+      deleteCommentMutation.mutate(commentId);
+    }
+  };
+
+  const handleReplyToComment = (commentId: string) => {
+    setReplyingToId(commentId);
+    setReplyContent('');
+  };
+
+  const handleSendReply = () => {
+    if (replyContent.trim() && replyingToId) {
+      createCommentMutation.mutate({
+        lessonId,
+        attachmentId,
+        content: replyContent.trim(),
+        parentId: replyingToId
+      });
+      setReplyingToId(null);
+      setReplyContent('');
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyingToId(null);
+    setReplyContent('');
+  };
+
+  const handleToggleCommentLike = (commentId: string) => {
+    toggleCommentLikeMutation.mutate({
+      commentId,
+      isLiked: true
+    });
+  };
+
+  const isCommentOwner = (comment: any) => {
+    return currentUser && (comment.user_id === currentUser.id || comment.userId === currentUser.id);
   };
 
   // Control visibility timer
@@ -390,20 +526,7 @@ export default function BilibiliVideoPlayer({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const sendDanmaku = () => {
-    if (danmakuText.trim() && onDanmakuSend) {
-      onDanmakuSend(danmakuText);
-      setDanmakuText('');
-      setShowDanmakuInput(false);
-    }
-  };
-
-  const sendComment = () => {
-    if (commentText.trim() && onCommentSend) {
-      onCommentSend(commentText);
-      setCommentText('');
-    }
-  };
+  // These functions are now handled by handleSendDanmaku and handleSendComment above
 
   return (
     <div className="w-full bg-black">
@@ -643,9 +766,9 @@ export default function BilibiliVideoPlayer({
                                 </select>
                               </div>
                               <div>
-                                <label className="text-white text-sm block mb-1">画质</label>
+                                <label className="text-white text-sm block mb-1">{t('VideoPlayer.quality')}</label>
                                 <select className="w-full bg-white/10 text-white rounded px-2 py-1 text-sm">
-                                  <option>自动</option>
+                                  <option>{t('VideoPlayer.auto')}</option>
                                   <option>1080P</option>
                                   <option>720P</option>
                                   <option>480P</option>
@@ -695,13 +818,13 @@ export default function BilibiliVideoPlayer({
                   type="text"
                   value={danmakuText}
                   onChange={(e) => setDanmakuText(e.target.value)}
-                  placeholder="发个弹幕见证当下"
+                  placeholder={t('VideoPlayer.danmaku_placeholder')}
                   className="flex-1 bg-white/10 text-white placeholder-white/50 rounded px-3 py-2 outline-none focus:bg-white/20"
-                  onKeyPress={(e) => e.key === 'Enter' && sendDanmaku()}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendDanmaku()}
                   autoFocus
                 />
                 <button
-                  onClick={sendDanmaku}
+                  onClick={handleSendDanmaku}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
                 >
 {t('VideoPlayer.send_danmaku')}
@@ -729,7 +852,7 @@ export default function BilibiliVideoPlayer({
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={onLike}
+              onClick={handleLike}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 currentUserLiked 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
@@ -764,14 +887,14 @@ export default function BilibiliVideoPlayer({
       <AnimatePresence>
         {showComments && (
           <motion.div
-            className="bg-white border-t"
+            className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {t('VideoPlayer.comments')} {videoSourceInfo.type === 'youtube' || videoSourceInfo.type === 'vimeo' ? t('VideoPlayer.external_video') : comments.length}
                 </h3>
                 <button
@@ -794,12 +917,12 @@ export default function BilibiliVideoPlayer({
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder={t('VideoPlayer.comment_placeholder')}
-                      className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-blue-500"
+                      className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                       rows={3}
                     />
                     <div className="flex justify-end mt-2">
                       <button
-                        onClick={sendComment}
+                        onClick={handleSendComment}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
                       >
 {t('VideoPlayer.publish')}
@@ -832,7 +955,7 @@ export default function BilibiliVideoPlayer({
               {/* Comments List - Only show for direct videos */}
               {videoSourceInfo.type === 'direct' && (
                 <div className="space-y-4">
-                  {comments.map((comment) => (
+                  {realComments.map((comment: any) => (
                     <div key={comment.id} className="flex gap-3">
                     <img
                       src={comment.avatar}
@@ -842,26 +965,53 @@ export default function BilibiliVideoPlayer({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-sm">{comment.username}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(comment.timestamp).toLocaleString()}
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(comment.created_at || comment.timestamp).toLocaleString()}
                         </span>
                       </div>
                       <p className="text-gray-900 dark:text-gray-100 mb-2">{comment.content}</p>
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <button className={`flex items-center gap-1 hover:text-blue-600 ${comment.isLiked ? 'text-blue-600' : ''}`}>
+                        <button 
+                          onClick={() => handleToggleCommentLike(comment.id || comment.public_id)}
+                          className={`flex items-center gap-1 hover:text-blue-600 ${comment.isLiked ? 'text-blue-600' : ''}`}
+                        >
                           <Heart size={14} className={comment.isLiked ? 'fill-current' : ''} />
-                          <span>{comment.likes}</span>
+                          <span>{comment.likes_count || comment.likes || 0}</span>
                         </button>
-                        <button className="hover:text-blue-600">{t('VideoPlayer.reply')}</button>
-                        <button className="hover:text-red-600">
-                          <Flag size={14} />
+                        <button 
+                          onClick={() => handleReplyToComment(comment.id || comment.public_id)}
+                          className="hover:text-blue-600"
+                        >
+                          {t('VideoPlayer.reply')}
+                        </button>
+                        {isCommentOwner(comment) && (
+                          <>
+                            <button 
+                              onClick={() => handleEditComment(comment.id || comment.public_id, comment.content)}
+                              className="hover:text-blue-600 flex items-center gap-1"
+                            >
+                              <Edit size={12} />
+                              {t('VideoPlayer.edit')}
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteComment(comment.id || comment.public_id)}
+                              className="hover:text-red-600 flex items-center gap-1"
+                            >
+                              <Trash2 size={12} />
+                              {t('VideoPlayer.delete')}
+                            </button>
+                          </>
+                        )}
+                        <button className="hover:text-red-600 flex items-center gap-1">
+                          <Flag size={12} />
+                          {t('VideoPlayer.report')}
                         </button>
                       </div>
                       
                       {/* Replies */}
-                      {comment.replies.length > 0 && (
-                        <div className="mt-3 pl-4 border-l-2 border-gray-100 space-y-3">
-                          {comment.replies.map((reply) => (
+                      {comment.replies && comment.replies.length > 0 && (
+                        <div className="mt-3 pl-4 border-l-2 border-gray-100 dark:border-gray-700 space-y-3">
+                          {comment.replies.map((reply: any) => (
                             <div key={reply.id} className="flex gap-2">
                               <img
                                 src={reply.avatar}
@@ -882,7 +1032,7 @@ export default function BilibiliVideoPlayer({
                         </div>
                       )}
                     </div>
-                    </div>
+                  </div>
                   ))}
                 </div>
               )}

@@ -25,8 +25,8 @@ type AuthResult = {
 };
 
 /**
- * Authorizes a request for a specific role in an App Router API Route and returns user information.
- * @param role The required role ('student', 'tutor', or 'admin').
+ * Authorizes a request for specific role(s) in an App Router API Route and returns user information.
+ * @param roles The required role ('student', 'tutor', or 'admin') or an array of allowed roles.
  * @returns A promise that resolves to one of two possible return types:
  * 
  * **Success Case (Authorization Passed):**
@@ -69,18 +69,26 @@ type AuthResult = {
  *   { "message": "Forbidden: Insufficient permissions." }
  *   ```
  * 
- * **Usage Example:**
+ * **Usage Examples:**
  * ```typescript
+ * // Single role
  * const authResult = await authorize('student');
  * if (authResult instanceof NextResponse) {
  *   return authResult; // Return error response
  * }
+ * 
+ * // Multiple roles
+ * const authResult = await authorize(['student', 'tutor']);
+ * if (authResult instanceof NextResponse) {
+ *   return authResult; // Return error response
+ * }
+ * 
  * // Use authResult.payload.sub as user ID and authResult.user for user info
  * const userId = authResult.payload.sub;
  * const userEmail = authResult.user.email;
  * ```
  */
-export async function authorize(role: Role): Promise<AuthResult | NextResponse> {
+export async function authorize(roles: Role | Role[]): Promise<AuthResult | NextResponse> {
   try {
     // 1. 读取 Cookie 里的 App JWT
     const cookieStore = await cookies();
@@ -103,7 +111,8 @@ export async function authorize(role: Role): Promise<AuthResult | NextResponse> 
     }
 
     // 4. 权限检查
-    if (payload.role !== role) {
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+    if (!allowedRoles.includes(payload.role)) {
       return NextResponse.json({ message: 'Forbidden: Insufficient permissions.' }, { status: 403 });
     }
 

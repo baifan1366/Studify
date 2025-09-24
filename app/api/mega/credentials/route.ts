@@ -9,7 +9,7 @@ import { authorize } from '@/utils/auth/server-guard'
 export async function GET() {
   try {
     // Authorize user (must be authenticated - allow both students and tutors)
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

@@ -1806,7 +1806,9 @@
     "price": "Price (cents)",
     "currency": "Currency",
     "auto_create_classroom": "Auto create classroom",
+    "auto_create_classroom_description": "Automatically create a classroom when this course is approved by admin",
     "auto_create_community": "Auto create community",
+    "auto_create_community_description": "Automatically create a community discussion group when this course is approved",
     "certificate_template": "Certificate Template",
     "errors": {
       "not_logged_in": "You must be logged in to create a course.",
@@ -3035,6 +3037,14 @@
     "og_title": "Courses | Admin | Studify",
     "og_description": "Manage courses on Studify.",
     "page_title": "Courses"
+  },
+  "CourseApproval": {
+    "auto_creation_success": "Course approved successfully with auto-creation",
+    "classroom_created": "Classroom created automatically",
+    "community_created": "Community group created automatically", 
+    "auto_creation_partial_success": "Course approved but some auto-creation failed",
+    "auto_creation_failed": "Course approved but auto-creation failed",
+    "auto_creation_warnings": "Auto-creation warnings"
   },
   "AdminAIPage": {
     "metadata_title": "AI | Admin | Studify",

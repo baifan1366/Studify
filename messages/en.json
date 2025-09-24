@@ -14,6 +14,20 @@
     "og_title": "Chat | Studify",
     "og_description": "Stay Connected with Your Learning Community"
   },
+  "ClassroomMistakeBookPage": {
+    "metadata_title": "Classroom Mistake Book | Studify",
+    "metadata_description": "A place to record and review your mistakes",
+    "metadata_keywords": "mistake book,mistake book,conversations,communication,teachers,students",
+    "og_title": "Classroom Mistake Book | Studify",
+    "og_description": "A place to record and review your mistakes"
+  },
+  "ChatConversationPage": {
+    "metadata_title": "Conversation | Studify",
+    "metadata_description": "Connect with teachers and classmates through instant messaging and group conversations",
+    "metadata_keywords": "chat,messaging,conversations,communication,teachers,students",
+    "og_title": "Conversation | Studify",
+    "og_description": "Stay Connected with Your Learning Community"
+  },
   "ReportButton": {
     "reasonRequired": "Reason is required",
     "reasonRequiredDescription": "Please provide a reason for reporting this post",
@@ -26,14 +40,12 @@
     "reasonPlaceholder": "Please provide a reason for reporting this post",
     "cancel": "Cancel",
     "submit": "Submit",
-    "targetType": {
-      "post": "Post",
-      "chat": "Chat",
-      "comment": "Comment",
-      "course": "Course",
-      "user": "User",
-      "other": "Other"
-    }
+    "post": "Post",
+    "chat": "Chat",
+    "comment": "Comment",
+    "course": "Course",
+    "user": "User",
+    "other": "Other"
   },
   "ChatContent": {
     "page_title": "Chat",
@@ -4025,5 +4037,96 @@
     "close": "Close",
     "save_grading": "Save Grading",
     "saving": "Saving..."
+  },
+  "AssignmentSubmissionsPage": {
+    "metadata_title": "Assignment {id} Submissions - {slug} | Studify",
+    "metadata_description": "View and manage submissions for assignment {id}",
+    "metadata_keywords": "assignment,submissions,classroom,grading,education",
+    "og_title": "Assignment {id} Submissions - {slug} | Studify",
+    "og_description": "Review and grade student submissions for classroom assignments"
+  },
+  "AssignmentPage": {
+    "metadata_title": "Assignment {id} - {slug} | Studify",
+    "metadata_description": "View assignment {id} details and content",
+    "metadata_keywords": "assignment,homework,task,education,classroom",
+    "og_title": "Assignment {id} - {slug} | Studify",
+    "og_description": "Complete your assignment and submit your work"
+  },
+  "CreatePostPage": {
+    "metadata_title": "Create Post in {groupSlug} | Studify",
+    "metadata_description": "Share your thoughts and knowledge with the community group",
+    "metadata_keywords": "create post,community,discussion,share,knowledge",
+    "og_title": "Create Post in {groupSlug} | Studify",
+    "og_description": "Join the conversation and share your ideas with fellow learners"
+  },
+  "PostDetailPage": {
+    "metadata_title": "{postSlug} - {groupSlug} | Studify",
+    "metadata_description": "Read and discuss community posts with fellow learners",
+    "metadata_keywords": "post,discussion,community,comments,learning",
+    "og_title": "{postSlug} - {groupSlug} | Studify",
+    "og_description": "Join the discussion and learn from community insights"
+  },
+  "GroupPage": {
+    "metadata_title": "{groupSlug} Community Group | Studify",
+    "metadata_description": "Join the community group and connect with like-minded learners",
+    "metadata_keywords": "community group,learning community,discussion,networking",
+    "og_title": "{groupSlug} Community Group | Studify",
+    "og_description": "Connect, learn, and grow with your learning community"
+  },
+  "AchievementsPage": {
+    "metadata_title": "Achievements | Studify",
+    "metadata_description": "Track your learning milestones and unlock rewards",
+    "metadata_keywords": "achievements,milestones,rewards,progress,gamification",
+    "og_title": "Achievements | Studify",
+    "og_description": "Celebrate your learning journey with achievements and rewards"
+  },
+  "CreateGroupPage": {
+    "metadata_title": "Create Community Group | Studify",
+    "metadata_description": "Start a new community group to connect with like-minded learners",
+    "metadata_keywords": "create group,community,networking,collaboration,learning",
+    "og_title": "Create Community Group | Studify",
+    "og_description": "Build your learning community and foster collaboration"
+  },
+  "QuizzesPage": {
+    "metadata_title": "Community Quizzes | Studify",
+    "metadata_description": "Test your knowledge with community-created quizzes",
+    "metadata_keywords": "quizzes,test,knowledge,assessment,community",
+    "og_title": "Community Quizzes | Studify",
+    "og_description": "Challenge yourself with interactive quizzes and assessments"
+  },
+  "CommunityPage": {
+    "metadata_title": "Community | Studify",
+    "metadata_description": "Connect with learners, join groups, and share knowledge",
+    "metadata_keywords": "community,learning groups,discussion,networking,collaboration",
+    "og_title": "Community | Studify",
+    "og_description": "Join a vibrant learning community and expand your network"
+  },
+  "DashboardPage": {
+    "metadata_title": "Dashboard | Studify",
+    "metadata_description": "Your learning dashboard with progress tracking and course overview",
+    "metadata_keywords": "dashboard,learning progress,courses,achievements,analytics",
+    "og_title": "Dashboard | Studify",
+    "og_description": "Track your learning journey and discover new opportunities"
+  },
+  "MyCoursesPage": {
+    "metadata_title": "My Courses | Studify",
+    "metadata_description": "View and manage your enrolled courses and learning progress",
+    "metadata_keywords": "my courses,enrolled courses,learning progress,education",
+    "og_title": "My Courses | Studify",
+    "og_description": "Continue your learning journey with your enrolled courses"
+  },
+  "NotificationsPage": {
+    "metadata_title": "Notifications | Studify",
+    "metadata_description": "Stay updated with important announcements and activity notifications",
+    "metadata_keywords": "notifications,updates,announcements,alerts,activity",
+    "og_title": "Notifications | Studify",
+    "og_description": "Never miss important updates from your learning community"
+  },
+  "RecommendationsPage": {
+    "metadata_title": "Course Recommendations | Studify",
+    "metadata_description": "Discover personalized course recommendations based on your interests",
+    "metadata_keywords": "recommendations,courses,personalized,AI,learning path",
+    "og_title": "Course Recommendations | Studify",
+    "og_description": "Find your next learning adventure with AI-powered recommendations"
   }
 }

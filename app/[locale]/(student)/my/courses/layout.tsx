@@ -1,8 +1,13 @@
-import { Metadata } from "next";
+import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
+/**
+ * My Courses Layout Component
+ * Provides metadata for student's enrolled courses page
+ */
+
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('TutorTeachingPage');
+  const t = await getTranslations('MyCoursesPage');
 
   return {
     title: t('metadata_title'),
@@ -16,12 +21,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function TutorTeachingPage() {
-  const t = await getTranslations('TutorTeachingPage');
-
-  return (
-    <div>
-      <h1>{t('page_title')}</h1>
-    </div>
-  );
+export default function MyCoursesLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <>{children}</>;
 }

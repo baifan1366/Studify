@@ -14,6 +14,65 @@
     "og_title": "Chat | Studify",
     "og_description": "Stay Connected with Your Learning Community"
   },
+  "CourseLearning": {
+    "course_info": "Course Information",
+    "instructor": "Instructor",
+    "level": "Level",
+    "duration": "Duration",
+    "lessons": "Lessons",
+    "students": "Students",
+    "rating": "Rating",
+    "price": "Price",
+    "free": "Free",
+    "description": "Description",
+    "requirements": "Requirements",
+    "learning_objectives": "Learning Objectives",
+    "course_not_found": "Course Not Found",
+    "course_not_found_desc": "The course you're looking for doesn't exist.",
+    "loading_course": "Loading course...",
+    "beginner": "Beginner",
+    "intermediate": "Intermediate", 
+    "advanced": "Advanced",
+    "minutes": "minutes",
+    "hours": "hours",
+    "no_description": "No description available",
+    "no_requirements": "No specific requirements",
+    "no_objectives": "No learning objectives specified",
+    "course_tags": "Tags",
+    "course_category": "Category",
+    "course_language": "Language",
+    "mobile_tools": "Tools",
+    "mobile_course": "Course",
+    "learning_tools": "Learning Tools",
+    "hide_panel": "Hide Panel",
+    "show_panel": "Show Panel"
+  },
+  "VideoPlayer": {
+    "playback_speed": "Playback Speed",
+    "send_danmaku": "Send",
+    "views_count": "views",
+    "days_ago": "days ago",
+    "video_id": "Video ID",
+    "like": "Like",
+    "share": "Share",
+    "download": "Download",
+    "comments": "Comments",
+    "external_video": "(External Video)",
+    "comment_placeholder": "Add a friendly comment",
+    "publish": "Publish",
+    "external_video_notice": "This is a {platform} video. Please view and comment on the original platform.",
+    "watch_on_platform": "Watch on {platform}",
+    "reply": "Reply",
+    "keyboard_shortcuts": {
+      "play_pause": "Play/Pause",
+      "seek_backward_forward": "Seek backward/forward 10s",
+      "volume_up_down": "Volume up/down", 
+      "mute": "Mute",
+      "fullscreen": "Fullscreen",
+      "toggle_danmaku": "Toggle Danmaku",
+      "toggle_comments": "Toggle Comments"
+    }
+  },
   "ReportButton": {
     "reasonRequired": "Reason is required",
     "reasonRequiredDescription": "Please provide a reason for reporting this post",
@@ -861,6 +920,79 @@
         "personalized_note": "This learning path is customized based on your personal profile and interests"
       }
     }
+  },
+  "VideoAIAssistant": {
+    "title": "AI Learning Assistant",
+    "subtitle": "Real-time intelligent Q&A",
+    "features": "Smart cache • Context-aware",
+    "thinking": "Thinking...",
+    "welcome": {
+      "title": "Start Learning Conversation",
+      "description": "Ask me any questions about this video, I will provide detailed answers based on course content",
+      "quick_start": "💡 Quick Start:",
+      "preset_questions": {
+        "lesson_focus": "What are the key points of this lesson?",
+        "core_concepts": "What core concepts do I need to master?",
+        "practice_questions": "Are there any related practice questions?",
+        "practical_applications": "What are the practical applications of this knowledge?",
+        "explain_current": "I didn't understand what was just explained, can you explain in detail?",
+        "explain_selected": "Explain the content I selected"
+      }
+    },
+    "confidence": {
+      "high": "High Confidence",
+      "medium": "Medium Confidence", 
+      "low": "Low Confidence"
+    },
+    "sources": {
+      "title": "Reference Sources",
+      "count": "({count} sources)",
+      "click_to_jump": "Click to jump",
+      "view": "View",
+      "types": {
+        "video_segment": "Video",
+        "course_content": "Course Content",
+        "lesson": "Lesson",
+        "note": "Notes",
+        "web": "Web Search",
+        "metadata": "Metadata"
+      }
+    },
+    "suggested_actions": {
+      "title": "Suggested Actions",
+      "view_materials": "View related course materials",
+      "take_notes": "Take notes on key points",
+      "try_exercises": "Try related exercises"
+    },
+    "related_concepts": {
+      "title": "Related Concepts"
+    },
+    "input": {
+      "placeholder": "Ask any questions about this video...",
+      "context_info": "Current location: {timestamp}",
+      "selected_text": " | Selected: \"{text}...\"",
+      "send_button": "Send"
+    },
+    "loading_stages": {
+      "analyzing": "Analyzing your question...",
+      "searching": "Searching for relevant materials...",
+      "synthesizing": "Analyzing and generating answer..."
+    },
+    "notifications": {
+      "low_confidence": {
+        "title": "Notice",
+        "description": "This answer has low confidence, recommend checking more resources or asking teachers"
+      },
+      "error": {
+        "title": "Error", 
+        "description": "AI assistant request failed, please try again later"
+      },
+      "jump_timestamp": {
+        "title": "Jump to Timestamp",
+        "description": "Will jump to {timestamp} (feature in development)"
+      }
+    },
+    "error_message": "Sorry, the AI assistant is temporarily unable to answer your question. Please try again later or contact technical support."
   },
   "LearningPath": {
     "title": "Your Customized Learning Journey",

@@ -2,10 +2,10 @@
   "HomePage": {
     "title": "Hello world!",
     "metadata_title": "Home | Studify",
-    "metadata_description": "Your personalized learning dashboard with AI|powered recommendations, progress tracking, and community features",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
     "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
     "og_title": "Home | Studify",
-    "og_description": "Personalized Learning, Powered by AI and Real|time Tutoring"
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
   },
   "ChatPage": {
     "metadata_title": "Chat | Studify",
@@ -200,7 +200,24 @@
     "export_started": "Export Started",
     "export_started_desc": "We'll email you when your data export is ready",
     "delete_account_warning": "Delete Account",
-    "delete_account_warning_desc": "This action cannot be undone. Please contact support to proceed."
+    "delete_account_warning_desc": "This action cannot be undone. Please contact support to proceed.",
+    "password_required": "Password Required",
+    "password_required_desc": "Please enter your current password to disable two-factor authentication",
+    "enabled": "Enabled",
+    "mfa_enabled_desc": "Protect your account with authenticator app",
+    "mfa_disabled_desc": "Add an extra layer of security to your account",
+    "enabled_at": "Enabled at: {date}",
+    "forgot_password": "Forgot Password",
+    "error": "Error",
+    "update_failed": "Failed to update setting. Please try again.",
+    "disable_mfa": "Disable Two-Factor Authentication",
+    "confirm_disable_mfa": "Confirm Disable Two-Factor Authentication",
+    "disable_mfa_warning": "Disabling two-factor authentication will reduce your account security. Please enter your current password to confirm this action.",
+    "current_password": "Current Password",
+    "verification_code_optional": "Verification Code (Optional)",
+    "verification_code_placeholder": "Enter 6-digit verification code",
+    "cancel": "Cancel",
+    "disable": "Disable"
   },
   "StorageDialog": {
     "selected": "Selected",
@@ -472,24 +489,24 @@
   },
   "ClassroomLiveSessionsPage": {
     "metadata_title": "Live Sessions | Studify",
-    "metadata_description": "Join live classroom sessions, participate in real|time discussions, and access interactive learning experiences",
-    "metadata_keywords": "live sessions,real|time learning,interactive classroom,virtual sessions,education",
+    "metadata_description": "Join live classroom sessions, participate in real-time discussions, and access interactive learning experiences",
+    "metadata_keywords": "live sessions,real-time learning,interactive classroom,virtual sessions,education",
     "og_title": "Live Sessions | Studify",
     "og_description": "Participate in live classroom sessions and interactive learning experiences"
   },
   "ClassroomQuizPage": {
     "metadata_title": "Quiz | Studify",
-    "metadata_description": "Take interactive quizzes, test your knowledge, and track your performance in real|time",
+    "metadata_description": "Take interactive quizzes, test your knowledge, and track your performance in real-time",
     "metadata_keywords": "quiz,assessment,test,knowledge check,interactive learning,education",
     "og_title": "Quiz | Studify",
     "og_description": "Interactive quizzes and assessments for enhanced learning"
   },
   "LiveSessionRoom": {
     "metadata_title": "Live Session Room | Studify",
-    "metadata_description": "Join the live session room for real|time interactive learning with your instructor and classmates",
-    "metadata_keywords": "live session room,real|time learning,interactive classroom,virtual meeting,education",
+    "metadata_description": "Join the live session room for real-time interactive learning with your instructor and classmates",
+    "metadata_keywords": "live session room,real-time learning,interactive classroom,virtual meeting,education",
     "og_title": "Live Session Room | Studify",
-    "og_description": "Interactive live session room for real|time learning experiences"
+    "og_description": "Interactive live session room for real-time learning experiences"
   },
   "ClassroomPage": {
     "metadata_title": "Classroom | Studify",
@@ -539,10 +556,10 @@
   },
   "RootPage": {
     "metadata_title": "Studify",
-    "metadata_description": "Your personalized learning dashboard with AI|powered recommendations, progress tracking, and community features",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
     "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
     "og_title": "Studify",
-    "og_description": "Personalized Learning, Powered by AI and Real|time Tutoring"
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
   },
   "StudentsPage": {
     "metadata_title": "Students | Studify",
@@ -876,7 +893,7 @@
   },
   "LearningReport": {
     "title": "Smart Learning Report",
-    "subtitle": "AI|powered insights into your learning progress",
+    "subtitle": "AI-powered insights into your learning progress",
     "weekly_learning_duration_title": "Weekly Learning Duration",
     "trend_vs_last_week": "+{value}% vs last week",
     "days": {
@@ -953,12 +970,12 @@
   },
   "HeroSection": {
     "main_title_line1": "Personalized Learning,",
-    "main_title_line2": "Powered by AI and Real|time Tutoring",
-    "subtitle_line1": "Transform your learning journey with AI|powered recommendations,",
+    "main_title_line2": "Powered by AI and Real-time Tutoring",
+    "subtitle_line1": "Transform your learning journey with AI-powered recommendations,",
     "subtitle_line2": "live tutoring sessions, and personalized study paths tailored just for you.",
     "primary_cta": "Start Learning Now",
     "secondary_cta": "Explore Courses",
-    "feature_recommendations": "AI|Powered Recommendations",
+    "feature_recommendations": "AI-Powered Recommendations",
     "feature_live_tutoring": "Live Tutoring Sessions",
     "feature_interactive": "Interactive Learning",
     "close_button_title": "Hide hero section",
@@ -1397,6 +1414,7 @@
     "settings": "Settings",
     "switch_account": "Switch Account",
     "sign_in": "Sign In",
+    "sign_out": "Sign Out",
     "sign_up": "Sign Up",
     "two_factor_verification": "Two-Factor Verification",
     "enter_verification_code_description": "Please enter the 6-digit verification code from your authenticator app.",
@@ -1464,10 +1482,10 @@
   },
   "TutorAiAssistantPage": {
     "metadata_title": "AI Assistant | Tutor | Studify",
-    "metadata_description": "Get instant help with your studies using our AI|powered learning assistant.",
+    "metadata_description": "Get instant help with your studies using our AI-powered learning assistant.",
     "metadata_keywords": "AI assistant, study help, homework help, education",
     "og_title": "AI Assistant | Tutor | Studify",
-    "og_description": "Get instant help with your studies using our AI|powered learning assistant.",
+    "og_description": "Get instant help with your studies using our AI-powered learning assistant.",
     "page_title": "AI Learning Assistant"
   },
   "TutorCalendarPage": {
@@ -1496,10 +1514,10 @@
   },
   "TutorNotificationsPage": {
     "metadata_title": "Notifications | Tutor | Studify",
-    "metadata_description": "Get real|time updates on assignments, class changes, announcements, and upcoming deadlines.",
+    "metadata_description": "Get real-time updates on assignments, class changes, announcements, and upcoming deadlines.",
     "metadata_keywords": "notifications, updates, alerts, student reminders, academic updates",
     "og_title": "Notifications | Tutor | Studify",
-    "og_description": "Stay informed with real|time notifications about your classes, assignments, and exams.",
+    "og_description": "Stay informed with real-time notifications about your classes, assignments, and exams.",
     "page_title": "Notifications"
   },
   "TutorSettingsPage": {
@@ -3176,7 +3194,10 @@
     "rejection_reason_required": "Rejection Reason (Required)",
     "rejection_reason_placeholder": "Explain why this course is being rejected...",
     "reject": "Reject",
-    "rejecting": "Rejecting..."
+    "rejecting": "Rejecting...",
+    "status": "Status",
+    "created": "Created",
+    "action": "Action"
   },
   "AdminCoursesStats": {
     "failed_to_load_stats": "Failed to load stats",
@@ -3206,6 +3227,7 @@
     "submitted_date": "Submitted {date}"
   },
   "AdminMaintenanceCenter": {
+    "refresh_all": "Refresh All",
     "page_title": "Maintenance Center",
     "page_subtitle": "Monitor system health, manage queues, and control feature flags",
     "system_health": "System Health",

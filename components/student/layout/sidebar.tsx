@@ -208,12 +208,6 @@ const defaultMenuSections: MenuSection[] = [
       { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
   },
-  {
-    title: "Tools",
-    items: [
-      { id: "documents", label: "Documents", icon: Folder, path: "/documents" },
-    ],
-  },
 ];
 
 export default function AnimatedSidebar({

@@ -665,13 +665,23 @@ export const courseProgressApi = {
 } as const;
 
 export const quizApi = {
+  // Student quiz endpoints
   getLessonQuizByLessonId: (lessonId: string) => `/api/course/quiz?lessonId=${lessonId}`,
   createSubmission: `/api/course/quiz/submit`,
+  
+  // Tutor quiz management endpoints
   getTutorQuiz: `/api/tutor-quiz`,
   getTutorQuizByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}`,
   createTutorQuizByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}`,
   getTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
   updateTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
   deleteTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  
+  // Quiz submission management
   getSubmissionByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}/submission`,
-}
+  getSubmissionByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}/submission`,
+  updateSubmissionGrade: (lessonId: string, quizId: string, submissionId: string) => `/api/tutor-quiz/${lessonId}/${quizId}/submission/${submissionId}`,
+  
+  // AI Quiz generation
+  generateAIQuiz: (lessonId: string) => `/api/tutor-quiz/${lessonId}/ai-generate`,
+} as const;

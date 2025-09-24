@@ -157,15 +157,16 @@ export function useSubmitAssignment() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ classroomSlug, assignmentId, content }: { 
+    mutationFn: async ({ classroomSlug, assignmentId, content, attachmentIds }: { 
       classroomSlug: string; 
       assignmentId: number; 
-      content: string; 
+      content: string;
+      attachmentIds?: number[];
     }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/assignments/${assignmentId}/submit`,
         method: 'POST',
-        body: { content }
+        body: { content, attachment_ids: attachmentIds || [] }
       });
     },
     onSuccess: (_, { classroomSlug, assignmentId }) => {
@@ -184,15 +185,16 @@ export function useUpdateAssignmentSubmission() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ classroomSlug, assignmentId, content }: { 
+    mutationFn: async ({ classroomSlug, assignmentId, content, attachmentIds }: { 
       classroomSlug: string; 
       assignmentId: number; 
-      content: string; 
+      content: string;
+      attachmentIds?: number[];
     }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/assignments/${assignmentId}/submit`,
         method: 'PUT',
-        body: { content }
+        body: { content, attachment_ids: attachmentIds || [] }
       });
     },
     onSuccess: (_, { classroomSlug, assignmentId }) => {

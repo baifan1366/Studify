@@ -65,8 +65,15 @@ export async function POST(
       visibility = 'private',
       bucket = 'mega-storage',
       path = `mega://${file_name}`,
-      custom_message = null // Optional custom message from user
+      custom_message = null, // Optional custom message from user
+      assignment_id = null // Optional assignment ID for assignment submissions
     } = body;
+
+    // Map assignment context to material since assignment isn't allowed by DB constraint
+    let finalContextType = context_type;
+    if (context_type === 'assignment') {
+      finalContextType = 'material'; // Use material context type for assignments
+    }
 
     console.log('📝 Received attachment metadata:', {
       file_name,
@@ -119,9 +126,15 @@ export async function POST(
     // Save attachment record to database
     console.log('💾 Creating attachment record...');
     
-    const insertData = {
+    // Store assignment info in the path for assignment context
+    let finalPath = path;
+    if (context_type === 'assignment' && assignment_id) {
+      finalPath = `assignment_${assignment_id}/${path}`;
+    }
+
+    const insertData: any = {
       owner_id: profile.id,
-      context_type: context_type,
+      context_type: finalContextType, // Use mapped context type
       context_id: classroom.id,
       file_url: finalFileUrl,
       file_name: file_name,
@@ -129,7 +142,7 @@ export async function POST(
       size_bytes: size_bytes,
       visibility: visibility,
       bucket: bucket,
-      path: path,
+      path: finalPath,
       custom_message: custom_message // Now safely included
     };
     

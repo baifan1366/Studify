@@ -1,9 +1,10 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { uploadToMegaClient } from "@/lib/mega-client";
 import { createClient } from '@supabase/supabase-js';
+import { apiGet } from '@/lib/api-config';
 
 export interface ClassroomAttachment {
   id: number;
@@ -24,10 +25,11 @@ export interface ClassroomAttachment {
 }
 
 interface UploadOptions {
-  contextType?: 'submission' | 'post' | 'comment' | 'material' | 'announcement' | 'chat';
+  contextType?: 'submission' | 'assignment' | 'post' | 'comment' | 'material' | 'announcement' | 'chat';
   onProgress?: (progress: number) => void;
   signal?: AbortSignal; // 用于取消上传
   customMessage?: string; // Custom message from user
+  assignmentId?: number; // For assignment submissions
 }
 
 /**
@@ -64,7 +66,11 @@ export function useUploadFile(classroomSlug: string | undefined) {
         throw new Error("Classroom slug is missing");
       }
 
-      const contextType = options?.contextType || 'chat';
+      // Map assignment context to material since assignment isn't allowed by DB constraint
+      let contextType = options?.contextType || 'chat';
+      if (contextType === 'assignment') {
+        contextType = 'material'; // Use material context type for assignments
+      }
       const visibility = getVisibilityFromContextType(contextType);
       
       // Check if MEGA credentials are available
@@ -79,12 +85,12 @@ export function useUploadFile(classroomSlug: string | undefined) {
       });
 
       if (!hasMegaCredentials) {
-        console.warn('MEGA credentials not found. Falling back to API upload with 4MB limit.');
+        console.warn('MEGA credentials not found. Falling back to API upload with 20MB limit.');
         
         // Fallback to original API upload
-        const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB (increased from 4MB)
         if (file.size > MAX_FILE_SIZE) {
-          throw new Error(`File size exceeds 4MB limit. Please set up MEGA credentials for unlimited uploads. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+          throw new Error(`File size exceeds 20MB limit. Please set up MEGA credentials for unlimited uploads. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
         }
 
         // Use FormData for API upload
@@ -97,6 +103,12 @@ export function useUploadFile(classroomSlug: string | undefined) {
         if (options?.customMessage) {
           formData.append('customMessage', options.customMessage);
           console.log('📝 Adding custom message to FormData:', options.customMessage);
+        }
+
+        // Add assignment ID if provided
+        if (options?.assignmentId) {
+          formData.append('assignmentId', options.assignmentId.toString());
+          console.log('📝 Adding assignment ID to FormData:', options.assignmentId);
         }
         
         const response = await fetch(`/api/classroom/${classroomSlug}/attachments`, {
@@ -133,15 +145,21 @@ export function useUploadFile(classroomSlug: string | undefined) {
       options?.onProgress?.(85);
 
       // Step 2: Create attachment record in database via API
-      const attachmentData = {
+      // Store assignment info in the path for assignment context
+      let megaPath = `mega://${file.name}`;
+      if (options?.contextType === 'assignment' && options?.assignmentId) {
+        megaPath = `assignment_${options.assignmentId}/mega://${file.name}`;
+      }
+
+      const attachmentData: any = {
         file_name: file.name,
         mime_type: megaResult.type,
         size_bytes: megaResult.size,
         file_url: megaResult.url,
-        context_type: contextType,
+        context_type: contextType, // Will be 'material' for assignments
         visibility: visibility,
         bucket: 'mega-storage', // Using MEGA as storage provider
-        path: `mega://${file.name}`, // MEGA path identifier
+        path: megaPath, // Include assignment info in path
         custom_message: options?.customMessage // Pass custom message to API
       };
 
@@ -259,6 +277,33 @@ export function getFileIcon(mimeType: string): string {
  * const result = uploadFile(file, { contextType: 'material' }); // → MEGA or API upload
  * const result = uploadFile(file, { contextType: 'chat' }); // → MEGA or API upload
  */
+/**
+ * Hook to fetch attachments for a specific assignment
+ * Since assignment_id column doesn't exist, we filter by context_type and path
+ */
+export function useAssignmentAttachments(classroomSlug: string | undefined, assignmentId: number | undefined) {
+  return useQuery<ClassroomAttachment[]>({
+    queryKey: ['assignment-attachments', classroomSlug, assignmentId],
+    queryFn: async () => {
+      if (!classroomSlug || !assignmentId) {
+        return [];
+      }
+      // Fetch material attachments (which includes assignment attachments) and filter client-side
+      const response = await apiGet<ClassroomAttachment[]>(`/api/classroom/${classroomSlug}/attachments?context_type=material`);
+      const allAttachments = response || [];
+      
+      // Filter by assignment ID stored in the path
+      const assignmentAttachments = allAttachments.filter((attachment: any) => {
+        return attachment.path && attachment.path.includes(`assignment_${assignmentId}/`);
+      });
+      
+      return assignmentAttachments;
+    },
+    enabled: !!classroomSlug && !!assignmentId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+}
+
 export function useAttachments(classroomSlug: string | undefined) {
   const { uploadFile, isUploading } = useUploadFile(classroomSlug);
   

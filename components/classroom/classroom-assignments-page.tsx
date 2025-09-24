@@ -51,6 +51,8 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 import { CreateAssignmentDialog } from './Dialog/create-assignment-dialog';
+import { SubmissionsSummary } from './submissions/submissions-summary';
+import { StudentSubmissionSummary } from './submissions/student-submission-summary';
 
 interface ClassroomAssignmentsPageProps {
   classroomSlug: string;
@@ -74,6 +76,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   const [classroom, setClassroom] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [showSubmissionsSummary, setShowSubmissionsSummary] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -179,7 +182,12 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   };
 
   const handleViewSubmissions = (assignmentId: string) => {
-    // Navigate to submissions page
+    // Toggle showing submissions summary for this assignment
+    setShowSubmissionsSummary(showSubmissionsSummary === assignmentId ? null : assignmentId);
+  };
+
+  const handleViewFullSubmissions = (assignmentId: string) => {
+    // Navigate to full submissions page
     router.push(`/classroom/${classroomSlug}/assignment/${assignmentId}/submissions`);
   };
 
@@ -346,7 +354,16 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                 {assignments.map((assignment) => (
                   <div
                     key={assignment.id}
-                    className={`p-4 border rounded-lg ${isOverdue(assignment.due_date) && assignment.status === 'published' ? 'border-red-200 bg-red-50' : ''}`}
+                    className={`p-4 border-l-4 rounded-lg hover:shadow-md transition-shadow ${isOverdue(assignment.due_date) && assignment.status === 'published' ? 'border-red-200 bg-red-50' : ''}`}
+                    style={{
+                      borderLeftColor: isOverdue(assignment.due_date) && assignment.status === 'published' 
+                        ? '#ef4444' 
+                        : cardStyling.borderColor,
+                      backgroundColor: isOverdue(assignment.due_date) && assignment.status === 'published' 
+                        ? '#fef2f2' 
+                        : cardStyling.backgroundColor,
+                      borderColor: cardStyling.borderColor
+                    }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -391,14 +408,24 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
                       <div className="flex items-center gap-2 ml-4">
                         {assignment.status === 'published' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewSubmissions(assignment.id)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Submissions
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewSubmissions(assignment.id)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              {showSubmissionsSummary === assignment.id ? 'Hide Summary' : 'View Summary'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewFullSubmissions(assignment.id)}
+                            >
+                              <Users className="h-4 w-4 mr-2" />
+                              Submissions
+                            </Button>
+                          </>
                         )}
                         {canManageAssignments && (
                           <DropdownMenu>
@@ -424,6 +451,42 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                         )}
                       </div>
                     </div>
+
+                    {/* Submissions Summary - shows when expanded */}
+                    {showSubmissionsSummary === assignment.id && (
+                      <div className="mt-4 pt-4 border-t">
+                        {classroom?.user_role === 'student' ? (
+                          <StudentSubmissionSummary
+                            assignmentId={parseInt(assignment.id)}
+                            classroomSlug={classroomSlug}
+                            dueDate={assignment.due_date}
+                            assignmentTitle={assignment.title}
+                            totalPoints={assignment.total_points}
+                            classroomColor={classroom?.color}
+                            onEditSubmission={() => {
+                              // Navigate to assignment submission page
+                              router.push(`/classroom/${classroomSlug}/assignment/${assignment.id}/submit`);
+                            }}
+                            onViewAssignment={() => {
+                              // Navigate to full assignment view
+                              router.push(`/classroom/${classroomSlug}/assignment/${assignment.id}`);
+                            }}
+                          />
+                        ) : (
+                          <SubmissionsSummary
+                            assignmentId={parseInt(assignment.id)}
+                            classroomSlug={classroomSlug}
+                            dueDate={assignment.due_date}
+                            userRole={classroom?.user_role || 'student'}
+                            classroomColor={classroom?.color}
+                            onGradeSubmission={(submissionId) => {
+                              // Handle grading action - could navigate to full submissions page
+                              router.push(`/classroom/${classroomSlug}/assignment/${assignment.id}/submissions`);
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

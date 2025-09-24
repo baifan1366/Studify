@@ -77,22 +77,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 
     if (error) throw error;
 
-    // Transform the data to match ParticipantInfo interface
+    // Transform the data to match ClassroomMember interface
     const participantsInfo = (members || []).map(member => {
       const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
       return {
         id: profile?.id || member.id,
+        profile_id: profile?.id || member.id,
         user_id: profile?.user_id || '',
+        name: profile?.display_name || profile?.full_name || 'Unknown User',
         email: profile?.email || '',
         display_name: profile?.display_name || '',
         full_name: profile?.full_name || '',
         avatar_url: profile?.avatar_url || null,
-        role: member.role as 'student' | 'tutor',
+        role: member.role as 'owner' | 'tutor' | 'student',
         joined_at: member.joined_at,
-        classroom: {
-          id: classroom.id,
-          name: classroom.name
-        }
+        is_current_user: profile?.user_id === userId
       };
     });
 
@@ -102,7 +101,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       ids: participantsInfo.map(p => ({ id: p.id, identity: `user-${p.id}`, display_name: p.display_name }))
     });
 
-    return NextResponse.json(participantsInfo);
+    // Return in the format expected by the hook
+    return NextResponse.json({
+      success: true,
+      members: participantsInfo,
+      current_user_role: classroom.classroom_member[0]?.role || 'student'
+    });
   } catch (error) {
     console.error('Error fetching classroom members:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

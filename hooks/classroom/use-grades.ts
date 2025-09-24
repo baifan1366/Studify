@@ -19,14 +19,14 @@ export interface Grade {
   };
   student?: {
     id: number;
-    first_name: string;
-    last_name: string;
+    display_name: string;
+    full_name: string;
     avatar_url?: string;
   };
   grader?: {
     id: number;
-    first_name: string;
-    last_name: string;
+    display_name: string;
+    full_name: string;
   };
 }
 

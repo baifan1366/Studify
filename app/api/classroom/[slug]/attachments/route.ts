@@ -52,8 +52,13 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Get attachments for this classroom
-    const { data: attachments, error: attachmentsError } = await supabase
+    // Parse query parameters
+    const url = new URL(request.url);
+    const contextType = url.searchParams.get('context_type');
+    const assignmentId = url.searchParams.get('assignment_id');
+
+    // Build query for attachments
+    let query = supabase
       .from('classroom_attachments')
       .select(`
         id,
@@ -66,13 +71,24 @@ export async function GET(
         visibility,
         bucket,
         path,
+        context_type,
         profiles!classroom_attachments_owner_id_fkey (
           display_name,
           avatar_url
         )
       `)
       .eq('context_id', classroom.id)
-      .eq('is_deleted', false)
+      .eq('is_deleted', false);
+
+    // Filter by context type if provided
+    if (contextType) {
+      query = query.eq('context_type', contextType);
+    }
+
+    // For assignment attachments, we'll use the path or custom_message to store assignment info
+    // Since assignment_id column doesn't exist in the database
+
+    const { data: attachments, error: attachmentsError } = await query
       .order('created_at', { ascending: false });
 
     if (attachmentsError) {
@@ -152,9 +168,16 @@ export async function POST(
     const formData = await request.formData();
     console.log('FormData keys:', Array.from(formData.keys()));
     const file = formData.get('file') as File;
-    const contextType = formData.get('contextType') as string || 'chat';
+    let contextType = formData.get('contextType') as string || 'chat';
     const visibility = formData.get('visibility') as string || 'private';
     const customMessage = formData.get('customMessage') as string || null;
+    const assignmentId = formData.get('assignmentId') ? parseInt(formData.get('assignmentId') as string) : null;
+    
+    // Map assignment context to material since assignment isn't allowed by DB constraint
+    const originalContextType = contextType;
+    if (contextType === 'assignment') {
+      contextType = 'material'; // Use material context type for assignments
+    }
 
     if (!file) {
       console.error('No file in formData');
@@ -168,6 +191,7 @@ export async function POST(
       contextType,
       visibility,
       customMessage,
+      assignmentId,
       hasCustomMessage: !!customMessage
     });
 
@@ -220,20 +244,28 @@ export async function POST(
     console.log('Upload data:', uploadData);
 
     // First insert without file_url to get the ID
+    // Store assignment_id in the path field for assignment context
+    let finalPath = objectPath;
+    if (originalContextType === 'assignment' && assignmentId) {
+      finalPath = `assignment_${assignmentId}/${objectPath}`;
+    }
+
+    const insertData: any = {
+      owner_id: profile.id,
+      context_type: contextType,
+      context_id: classroom.id,
+      file_url: '', // Will be updated after we get the ID
+      file_name: file.name,
+      mime_type: file.type,
+      size_bytes: file.size,
+      visibility: visibility,
+      bucket: BUCKET,
+      path: finalPath
+    };
+
     const { data: attachment, error: attachmentError } = await supabase
       .from('classroom_attachments')
-      .insert({
-        owner_id: profile.id,
-        context_type: contextType,
-        context_id: classroom.id,
-        file_url: '', // Will be updated after we get the ID
-        file_name: file.name,
-        mime_type: file.type,
-        size_bytes: file.size,
-        visibility: visibility,
-        bucket: BUCKET,
-        path: objectPath
-      })
+      .insert(insertData)
       .select('id')
       .single();
 

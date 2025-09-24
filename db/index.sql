@@ -212,6 +212,31 @@ CREATE INDEX IF NOT EXISTS idx_course_quiz_submission_user_id ON course_quiz_sub
 CREATE INDEX IF NOT EXISTS idx_course_quiz_submission_lesson_id ON course_quiz_submission(lesson_id);
 
 -- =========================
+-- QUIZ SUBJECT AND GRADE INDEXES
+-- =========================
+
+-- Subject table indexes
+CREATE INDEX IF NOT EXISTS idx_community_quiz_subject_code ON community_quiz_subject(code);
+CREATE INDEX IF NOT EXISTS idx_community_quiz_subject_translations ON community_quiz_subject USING gin(translations);
+
+-- Grade table indexes
+CREATE INDEX IF NOT EXISTS idx_community_quiz_grade_code ON community_quiz_grade(code);
+CREATE INDEX IF NOT EXISTS idx_community_quiz_grade_translations ON community_quiz_grade USING gin(translations);
+
+-- Quiz table foreign key indexes
+CREATE INDEX IF NOT EXISTS idx_community_quiz_subject_id ON community_quiz(subject_id);
+CREATE INDEX IF NOT EXISTS idx_community_quiz_grade_id ON community_quiz(grade_id);
+
+-- Full-text search indexes
+CREATE INDEX IF NOT EXISTS idx_community_quiz_search_vector_en ON community_quiz USING gin(search_vector_en);
+CREATE INDEX IF NOT EXISTS idx_community_quiz_search_vector_zh ON community_quiz USING gin(search_vector_zh);
+
+-- Composite indexes for filtering
+CREATE INDEX IF NOT EXISTS idx_community_quiz_subject_grade ON community_quiz(subject_id, grade_id);
+CREATE INDEX IF NOT EXISTS idx_community_quiz_difficulty_subject ON community_quiz(difficulty, subject_id);
+CREATE INDEX IF NOT EXISTS idx_community_quiz_visibility_subject_grade ON community_quiz(visibility, subject_id, grade_id) WHERE is_deleted = false;
+
+-- =========================
 -- NOTIFICATION SYSTEM INDEXES
 -- =========================
 

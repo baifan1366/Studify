@@ -7,6 +7,14 @@
     "og_title": "Home | Studify",
     "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
   },
+  "NotFoundPage": {
+    "title": "Page Not Found",
+    "subtitle": "Oops! The page you're looking for doesn't exist",
+    "description": "The link you followed may be broken, or the page may have been removed.",
+    "redirecting": "Redirecting to home in {seconds} seconds...",
+    "go_home_now": "Go to Home Now",
+    "error_code": "Error 404"
+  },
   "ChatPage": {
     "metadata_title": "Chat | Studify",
     "metadata_description": "Connect with teachers and classmates through instant messaging and group conversations",

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/lib/server-guard';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { authorize } from '@/utils/auth/server-guard';
+import { createAdminClient } from '@/utils/supabase/server';
 
 // Send danmaku/bullet comment
 export async function POST(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { 
       lessonId, 
@@ -69,7 +72,7 @@ export async function POST(request: NextRequest) {
     const { data: recentDanmaku, error: countError } = await supabase
       .from('video_danmaku')
       .select('id')
-      .eq('user_id', user.profile?.id || user.id)
+      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('lesson_id', lesson.id)
       .gte('created_at', oneMinuteAgo)
       .eq('is_deleted', false);
@@ -87,7 +90,7 @@ export async function POST(request: NextRequest) {
     const { data: danmakuData, error: insertError } = await supabase
       .from('video_danmaku')
       .insert({
-        user_id: user.profile?.id || user.id,
+        user_id: authResult.user.profile?.id || authResult.user.id,
         lesson_id: lesson.id,
         attachment_id: attachmentId,
         content: content.trim(),
@@ -132,8 +135,11 @@ export async function POST(request: NextRequest) {
 // Get danmaku for a video lesson
 export async function GET(request: NextRequest) {
   try {
-    await authorize('student'); // Ensure user is authenticated
-    const supabase = createAdminClient();
+    const authResult = await authorize('student'); // Ensure user is authenticated
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -200,26 +206,32 @@ export async function GET(request: NextRequest) {
     }
 
     // Get danmaku statistics
-    const { data: danmakuStats } = await supabase
+    const { count: totalDanmaku } = await supabase
       .from('video_danmaku')
-      .select(`
-        lesson_id,
-        count(*) as total_danmaku,
-        count(DISTINCT user_id) as unique_senders
-      `)
+      .select('*', { count: 'exact' })
       .eq('lesson_id', lesson.id)
       .eq('is_deleted', false)
-      .eq('is_approved', true)
-      .group('lesson_id')
-      .single();
+      .eq('is_approved', true);
+
+    // For unique senders, we need to get the data and count unique user_ids
+    const { data: danmakuUsers } = await supabase
+      .from('video_danmaku')
+      .select('user_id')
+      .eq('lesson_id', lesson.id)
+      .eq('is_deleted', false)
+      .eq('is_approved', true);
+
+    const uniqueSenders = new Set(danmakuUsers?.map(d => d.user_id) || []).size;
+
+    const danmakuStats = {
+      total_danmaku: totalDanmaku || 0,
+      unique_senders: uniqueSenders
+    };
 
     return NextResponse.json({
       success: true,
       danmaku: danmakuList || [],
-      stats: danmakuStats || {
-        total_danmaku: 0,
-        unique_senders: 0
-      },
+      stats: danmakuStats,
       timeRange: {
         startTime: startTime ? parseFloat(startTime) : null,
         endTime: endTime ? parseFloat(endTime) : null
@@ -238,8 +250,11 @@ export async function GET(request: NextRequest) {
 // Delete danmaku (only by owner)
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const danmakuId = searchParams.get('danmakuId');
@@ -256,7 +271,7 @@ export async function DELETE(request: NextRequest) {
       .from('video_danmaku')
       .select('*')
       .eq('public_id', danmakuId)
-      .eq('user_id', user.profile?.id || user.id)
+      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('is_deleted', false)
       .single();
 

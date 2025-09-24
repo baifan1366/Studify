@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/lib/server-guard';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { authorize } from '@/utils/auth/server-guard';
+import { createAdminClient } from '@/utils/supabase/server';
 
 // Track video view/watch session
 export async function POST(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { 
       lessonId, 
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
     const { data: existingView } = await supabase
       .from('video_views')
       .select('id, watch_duration_sec, last_position_sec')
-      .eq('user_id', user.profile?.id || user.id)
+      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('lesson_id', lesson.id)
       .is('session_end_time', null) // Active session
       .order('created_at', { ascending: false })
@@ -84,7 +87,7 @@ export async function POST(request: NextRequest) {
       const { data: newView, error: insertError } = await supabase
         .from('video_views')
         .insert({
-          user_id: user.profile?.id || user.id,
+          user_id: authResult.user.profile?.id || authResult.user.id,
           lesson_id: lesson.id,
           attachment_id: attachmentId,
           watch_duration_sec: watchDurationSec,
@@ -94,7 +97,7 @@ export async function POST(request: NextRequest) {
           completed_at: isCompleted ? new Date().toISOString() : null,
           session_end_time: isCompleted ? new Date().toISOString() : null,
           device_info: deviceInfo,
-          ip_address: request.ip || request.headers.get('x-forwarded-for')
+          ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
         })
         .select('*')
         .single();
@@ -127,8 +130,11 @@ export async function POST(request: NextRequest) {
 // Get video view statistics
 export async function GET(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -159,7 +165,7 @@ export async function GET(request: NextRequest) {
     const { data: userViews, error: viewsError } = await supabase
       .from('video_views')
       .select('*')
-      .eq('user_id', user.profile?.id || user.id)
+      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('lesson_id', lesson.id)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false });
@@ -173,23 +179,50 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total view statistics for the lesson
-    const { data: lessonStats, error: statsError } = await supabase
+    const { count: totalViews } = await supabase
       .from('video_views')
-      .select(`
-        lesson_id,
-        count(*) as total_views,
-        count(DISTINCT user_id) as unique_viewers,
-        avg(watch_percentage) as avg_watch_percentage,
-        avg(watch_duration_sec) as avg_watch_duration
-      `)
+      .select('*', { count: 'exact' })
+      .eq('lesson_id', lesson.id)
+      .eq('is_deleted', false);
+
+    // Get unique viewers count by fetching user_ids
+    const { data: viewUsers } = await supabase
+      .from('video_views')
+      .select('user_id')
+      .eq('lesson_id', lesson.id)
+      .eq('is_deleted', false);
+
+    const uniqueViewers = new Set(viewUsers?.map(v => v.user_id) || []).size;
+
+    // Get watch duration data for averages
+    const { data: watchData } = await supabase
+      .from('video_views')
+      .select('watch_duration_sec, total_duration_sec')
       .eq('lesson_id', lesson.id)
       .eq('is_deleted', false)
-      .group('lesson_id')
-      .single();
+      .not('watch_duration_sec', 'is', null);
 
-    if (statsError && statsError.code !== 'PGRST116') { // Ignore "no rows" error
-      console.error('Error fetching lesson stats:', statsError);
+    let avgWatchDuration = 0;
+    let avgWatchPercentage = 0;
+
+    if (watchData && watchData.length > 0) {
+      avgWatchDuration = watchData.reduce((sum, item) => sum + (item.watch_duration_sec || 0), 0) / watchData.length;
+      
+      const validPercentages = watchData
+        .filter(item => item.total_duration_sec && item.total_duration_sec > 0)
+        .map(item => (item.watch_duration_sec || 0) / item.total_duration_sec * 100);
+      
+      if (validPercentages.length > 0) {
+        avgWatchPercentage = validPercentages.reduce((sum, pct) => sum + pct, 0) / validPercentages.length;
+      }
     }
+
+    const lessonStats = {
+      total_views: totalViews || 0,
+      unique_viewers: uniqueViewers,
+      avg_watch_percentage: avgWatchPercentage,
+      avg_watch_duration: avgWatchDuration
+    };
 
     const currentView = userViews?.[0] || null;
     

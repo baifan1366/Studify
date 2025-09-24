@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/lib/server-guard';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { authorize } from '@/utils/auth/server-guard';
+import { createAdminClient } from '@/utils/supabase/server';
 
 // Toggle video like/unlike
 export async function POST(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { lessonId, attachmentId, isLiked = true } = await request.json();
 
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = user.profile?.id || user.id;
+    const userId = authResult.user.profile?.id || authResult.user.id;
 
     // Check if user already liked/disliked this video
     const { data: existingLike } = await supabase
@@ -113,28 +116,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Get updated like statistics
-    const { data: likeStats } = await supabase
+    const { count: likesCount } = await supabase
       .from('video_likes')
-      .select(`
-        lesson_id,
-        count(*) filter (where is_liked = true) as likes_count,
-        count(*) filter (where is_liked = false) as dislikes_count,
-        count(*) as total_reactions
-      `)
+      .select('*', { count: 'exact' })
       .eq('lesson_id', lesson.id)
       .eq('is_deleted', false)
-      .group('lesson_id')
-      .single();
+      .eq('is_liked', true);
+
+    const { count: dislikesCount } = await supabase
+      .from('video_likes')
+      .select('*', { count: 'exact' })
+      .eq('lesson_id', lesson.id)
+      .eq('is_deleted', false)
+      .eq('is_liked', false);
+
+    const likeStats = {
+      likes_count: likesCount || 0,
+      dislikes_count: dislikesCount || 0,
+      total_reactions: (likesCount || 0) + (dislikesCount || 0)
+    };
 
     return NextResponse.json({
       success: true,
       action,
       like: likeData,
-      stats: likeStats || {
-        likes_count: 0,
-        dislikes_count: 0,
-        total_reactions: 0
-      }
+      stats: likeStats
     });
 
   } catch (error) {
@@ -149,8 +155,11 @@ export async function POST(request: NextRequest) {
 // Get video like statistics and user's like status
 export async function GET(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -177,7 +186,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = user.profile?.id || user.id;
+    const userId = authResult.user.profile?.id || authResult.user.id;
 
     // Get user's current like status
     const { data: userLike } = await supabase
@@ -189,18 +198,25 @@ export async function GET(request: NextRequest) {
       .single();
 
     // Get overall like statistics
-    const { data: likeStats } = await supabase
+    const { count: likesCount } = await supabase
       .from('video_likes')
-      .select(`
-        lesson_id,
-        count(*) filter (where is_liked = true) as likes_count,
-        count(*) filter (where is_liked = false) as dislikes_count,
-        count(*) as total_reactions
-      `)
+      .select('*', { count: 'exact' })
       .eq('lesson_id', lesson.id)
       .eq('is_deleted', false)
-      .group('lesson_id')
-      .single();
+      .eq('is_liked', true);
+
+    const { count: dislikesCount } = await supabase
+      .from('video_likes')
+      .select('*', { count: 'exact' })
+      .eq('lesson_id', lesson.id)
+      .eq('is_deleted', false)
+      .eq('is_liked', false);
+
+    const likeStats = {
+      likes_count: likesCount || 0,
+      dislikes_count: dislikesCount || 0,
+      total_reactions: (likesCount || 0) + (dislikesCount || 0)
+    };
 
     return NextResponse.json({
       success: true,

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/lib/server-guard';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { authorize } from '@/utils/auth/server-guard';
+import { createAdminClient } from '@/utils/supabase/server';
 
 // Create video comment
 export async function POST(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { 
       lessonId, 
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
     const { data: commentData, error: insertError } = await supabase
       .from('video_comments')
       .insert({
-        user_id: user.profile?.id || user.id,
+        user_id: authResult.user.profile?.id || authResult.user.id,
         lesson_id: lesson.id,
         attachment_id: attachmentId,
         parent_id: parentCommentId,
@@ -121,8 +124,11 @@ export async function POST(request: NextRequest) {
 // Get video comments with pagination and threading
 export async function GET(request: NextRequest) {
   try {
-    await authorize('student'); // Ensure user is authenticated
-    const supabase = createAdminClient();
+    const authResult = await authorize('student'); // Ensure user is authenticated
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -246,7 +252,7 @@ export async function GET(request: NextRequest) {
     let commentsWithReplies = comments;
     if (!parentId && comments) {
       // Get reply counts for each comment
-      const commentIds = comments.map(c => c.id);
+      const commentIds = comments.map((c: any) => c.id);
       if (commentIds.length > 0) {
         const { data: replyCounts } = await supabase
           .from('video_comments')
@@ -256,11 +262,11 @@ export async function GET(request: NextRequest) {
           .eq('is_approved', true);
 
         const replyCountMap = new Map();
-        replyCounts?.forEach(reply => {
+        replyCounts?.forEach((reply: any) => {
           replyCountMap.set(reply.parent_id, (replyCountMap.get(reply.parent_id) || 0) + 1);
         });
 
-        commentsWithReplies = comments.map(comment => ({
+        commentsWithReplies = comments.map((comment: any) => ({
           ...comment,
           replies_count: replyCountMap.get(comment.id) || 0
         }));
@@ -292,8 +298,11 @@ export async function GET(request: NextRequest) {
 // Update comment (edit content)
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { commentId, content, contentType = 'text' } = await request.json();
 
@@ -317,7 +326,7 @@ export async function PATCH(request: NextRequest) {
       .from('video_comments')
       .select('*')
       .eq('public_id', commentId)
-      .eq('user_id', user.profile?.id || user.id)
+      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('is_deleted', false)
       .single();
 
@@ -373,8 +382,11 @@ export async function PATCH(request: NextRequest) {
 // Delete comment
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await authorize('student');
-    const supabase = createAdminClient();
+    const authResult = await authorize('student');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const commentId = searchParams.get('commentId');
@@ -391,7 +403,7 @@ export async function DELETE(request: NextRequest) {
       .from('video_comments')
       .select('*')
       .eq('public_id', commentId)
-      .eq('user_id', user.profile?.id || user.id)
+      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('is_deleted', false)
       .single();
 

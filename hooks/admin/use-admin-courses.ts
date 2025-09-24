@@ -7,7 +7,8 @@ import type {
   AdminCoursesResponse,
   AdminCourseDetails,
   AdminCourseFilters,
-  AdminCourseAnalytics
+  AdminCourseAnalytics,
+  AdminCourseApprovalResponse
 } from '@/interface/admin/admin-interface';
 
 // Fetch courses with filters and pagination
@@ -89,16 +90,36 @@ export function useApproveCourse() {
     mutationFn: async ({ courseId, notes }: {
       courseId: string;
       notes?: string;
-    }) => {
+    }): Promise<{ data: AdminCourseApprovalResponse }> => {
       return adminApi.approveCourse(courseId, notes);
     },
     onSuccess: (data, variables) => {
-      toast.success('Course approved successfully');
+      // Check if auto-creation happened and show appropriate messages
+      const autoCreation = data.data.autoCreation;
+      
+      if (autoCreation?.classroomCreated || autoCreation?.communityCreated) {
+        const createdItems = [];
+        if (autoCreation.classroomCreated) createdItems.push('classroom');
+        if (autoCreation.communityCreated) createdItems.push('community');
+        
+        toast.success(`Course approved successfully! Auto-created: ${createdItems.join(', ')}`);
+      } else {
+        toast.success('Course approved successfully');
+      }
+      
+      // Show warnings if auto-creation had errors
+      if (autoCreation?.errors?.length > 0) {
+        toast.warning(`Auto-creation warnings: ${autoCreation.errors.join(', ')}`);
+      }
       
       // Invalidate and refetch relevant queries
       queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'courses', variables.courseId] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'analytics'] });
+      
+      // Also invalidate classroom and community queries to show new data
+      queryClient.invalidateQueries({ queryKey: ['classrooms'] });
+      queryClient.invalidateQueries({ queryKey: ['communityGroups'] });
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to approve course');

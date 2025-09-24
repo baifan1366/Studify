@@ -7,12 +7,13 @@ import { authenticator } from 'otplib';
 export async function POST(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const { user, profile } = authResult;
+    const { user } = authResult;
+    const profile = user.profile;
     const body = await request.json();
     const { password, code } = body;
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!profile.two_factor_enabled) {
+    if (!profile?.two_factor_enabled) {
       return NextResponse.json(
         { error: 'Two-factor authentication is not enabled' },
         { status: 400 }
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     
     // Verify current password
     const { error: signInError } = await regularSupabase.auth.signInWithPassword({
-      email: profile.email || user.email,
+      email: profile?.email || user.email,
       password: password
     });
 

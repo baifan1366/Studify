@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Star, PlusCircle } from "lucide-react";
+import { Search, Star, PlusCircle, User } from "lucide-react";
 import Link from "next/link";
 
 interface QuizHeaderProps {
@@ -42,6 +42,10 @@ export default function QuizHeader({
               Popular
             </TabsTrigger>
             <TabsTrigger value="newest">Newest</TabsTrigger>
+            <TabsTrigger value="mine">
+              <User className="h-4 w-4 mr-2" />
+              My Quizzes
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 

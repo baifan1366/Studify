@@ -6,7 +6,7 @@ import { createAdminClient } from '@/utils/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     // 验证用户身份
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // 验证用户身份
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // 验证用户身份
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }

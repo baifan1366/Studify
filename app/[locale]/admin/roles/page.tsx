@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import { AdminRoleList } from '@/components/admin/role-based/admin-role-list';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('AdminRolesPage');
@@ -21,7 +22,7 @@ export default async function AdminRolesPage() {
 
   return (
     <div>
-      <h2>{t('page_title')}</h2>
+      <AdminRoleList />
     </div>
   );
 }

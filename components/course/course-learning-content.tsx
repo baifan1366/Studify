@@ -20,7 +20,24 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  XCircle
+  XCircle,
+  User,
+  Users,
+  Star,
+  Tag,
+  Globe,
+  BookMarked,
+  Target,
+  AlertCircle,
+  Info,
+  Menu,
+  X,
+  Settings,
+  Eye,
+  EyeOff,
+  Layers,
+  PanelLeftOpen,
+  PanelLeftClose
 } from 'lucide-react';
 import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
@@ -33,6 +50,7 @@ import CourseQuizInterface from './course-quiz-interface';
 import CourseKnowledgeGraph from './course-knowledge-graph';
 import CourseNoteContent from './course-note-content';
 import CourseChapterContent from './course-chapter-content';
+import VideoAIAssistant from './video-ai-assistant';
 import BilibiliVideoPlayer from '@/components/video/bilibili-video-player';
 import { useDanmaku } from '@/hooks/video/use-danmaku';
 import { useVideoComments } from '@/hooks/video/use-video-comments';
@@ -42,6 +60,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useAttachment } from '@/hooks/course/use-attachments';
 import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
+import BannedCourseDisplay from './banned-course-display';
 
 interface CourseLearningContentProps {
   courseSlug: string;
@@ -164,6 +183,11 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
+  
+  // Responsive design state
+  const [showToolPanel, setShowToolPanel] = useState(false); // For mobile tool panel toggle
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [showCourseContent, setShowCourseContent] = useState(false); // For mobile course content sidebar
 
   const { data: course, isLoading: courseLoading } = useCourseBySlug(courseSlug);
   const { data: courseModules, isLoading: modulesLoading } = useModuleByCourseId(course?.id || 0);
@@ -179,7 +203,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   }, [allLessons, currentLessonId]);
 
   // Get lesson progress and progress update hooks
-  const { data: lessonProgress } = useCourseProgressByLessonId(currentLesson?.id?.toString() || '');
+  const { data: lessonProgress } = useCourseProgressByLessonId(currentLesson?.public_id || '');
   const createProgress = useUpdateCourseProgress();
   const updateProgressByLesson = useUpdateCourseProgressByLessonId();
   const { toast } = useToast();
@@ -322,12 +346,31 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   useEffect(() => {
     if (currentLesson && !lessonProgress && !createProgress.isPending) {
       createProgress.mutate({
-        lessonId: currentLesson.id.toString(),
+        lessonId: currentLesson.public_id,
         progressPct: 0,
         timeSpentSec: 0
       });
     }
   }, [currentLesson, lessonProgress, createProgress]);
+
+  // Responsive design detection
+  useEffect(() => {
+    const checkViewport = () => {
+      setIsMobileView(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    
+    return () => window.removeEventListener('resize', checkViewport);
+  }, []);
+
+  // Auto-hide tool panel on larger screens
+  useEffect(() => {
+    if (!isMobileView) {
+      setShowToolPanel(false);
+    }
+  }, [isMobileView]);
 
   const handleTimeUpdate = (time: number) => {
     setCurrentVideoTimestamp(time);
@@ -335,7 +378,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     // Update progress every 10 seconds if lesson is in progress
     if (currentLessonId && lessonProgress?.state === 'in_progress' && time % 10 === 0) {
       updateProgressByLesson.mutate({
-        lessonId: currentLesson?.id?.toString() || '',
+        lessonId: currentLesson?.public_id || '',
         progressPct: Math.min((time / 100) * 100, 100),
         timeSpentSec: lessonProgress.timeSpentSec + 10
       });
@@ -349,14 +392,14 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     if (!lessonProgress) {
       // Create initial progress record
       createProgress.mutate({
-        lessonId: currentLesson.id.toString(),
+        lessonId: currentLesson.public_id,
         progressPct: 0,
         timeSpentSec: 0
       });
     } else {
       // Update existing progress to in_progress
       updateProgressByLesson.mutate({
-        lessonId: currentLesson.id.toString(),
+        lessonId: currentLesson.public_id,
         progressPct: lessonProgress.progressPct > 0 ? lessonProgress.progressPct : 1,
         timeSpentSec: lessonProgress.timeSpentSec
       });
@@ -369,14 +412,14 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     if (!lessonProgress) {
       // Create progress record and mark as completed
       createProgress.mutate({
-        lessonId: currentLesson.id.toString(),
+        lessonId: currentLesson.public_id,
         progressPct: 100,
         timeSpentSec: 0
       });
     } else {
       // Update existing progress to completed
       updateProgressByLesson.mutate({
-        lessonId: currentLesson.id.toString(),
+        lessonId: currentLesson.public_id,
         progressPct: 100,
         timeSpentSec: lessonProgress.timeSpentSec
       });
@@ -462,14 +505,189 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   if (!course) {
     return (
       <div className="text-center py-20">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Course Not Found</h1>
-        <p className="text-lg text-gray-600">The course you're looking for doesn't exist.</p>
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">{t('CourseLearning.course_not_found')}</h1>
+        <p className="text-lg text-gray-600 dark:text-gray-400">{t('CourseLearning.course_not_found_desc')}</p>
       </div>
     );
   }
 
+  // Check if course is banned
+  if (course.status === 'ban') {
+    return (
+      <BannedCourseDisplay 
+        courseId={course.id} 
+        courseName={course.title} 
+      />
+    );
+  }
+
+  // Helper function to format duration
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} ${t('CourseLearning.minutes')}`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes === 0) {
+      return `${hours} ${t('CourseLearning.hours')}`;
+    }
+    return `${hours}h ${remainingMinutes}m`;
+  };
+
+  // Helper function to format price
+  const formatPrice = (priceCents: number, currency: string) => {
+    if (priceCents === 0) {
+      return t('CourseLearning.free');
+    }
+    const price = priceCents / 100;
+    return `${currency} ${price.toFixed(2)}`;
+  };
+
   return (
     <div className="w-full">
+      {/* Course Information Header */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="p-4 lg:p-6">
+          {/* Course Title and Basic Info */}
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+            <div className="flex-1">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                {course.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                {course.level && (
+                  <div className="flex items-center gap-1">
+                    <Target size={16} />
+                    <span>{t(`CourseLearning.${course.level}`)}</span>
+                  </div>
+                )}
+                {course.total_duration_minutes && course.total_duration_minutes > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Clock size={16} />
+                    <span>{formatDuration(course.total_duration_minutes)}</span>
+                  </div>
+                )}
+                {course.total_lessons && course.total_lessons > 0 && (
+                  <div className="flex items-center gap-1">
+                    <BookOpen size={16} />
+                    <span>{course.total_lessons} {t('CourseLearning.lessons')}</span>
+                  </div>
+                )}
+                {course.total_students && course.total_students > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Users size={16} />
+                    <span>{course.total_students} {t('CourseLearning.students')}</span>
+                  </div>
+                )}
+                {course.average_rating && course.average_rating > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Star size={16} className="text-yellow-500" />
+                    <span>{course.average_rating.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Price Badge */}
+            <div className="flex items-center gap-2">
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                course.price_cents === 0 
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+              }`}>
+                {formatPrice(course.price_cents || 0, course.currency || 'MYR')}
+              </div>
+            </div>
+          </div>
+
+          {/* Course Description */}
+          {course.description && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <Info size={18} />
+                {t('CourseLearning.description')}
+              </h3>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                {course.description}
+              </p>
+            </div>
+          )}
+
+          {/* Additional Course Info Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {/* Requirements */}
+            {course.requirements && course.requirements.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  {t('CourseLearning.requirements')}
+                </h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  {course.requirements.map((req: string, index: number) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
+                      <span>{req}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Learning Objectives */}
+            {course.learning_objectives && course.learning_objectives.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                  <Target size={16} />
+                  {t('CourseLearning.learning_objectives')}
+                </h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  {course.learning_objectives.map((obj: string, index: number) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <CheckCircle size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>{obj}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Course Tags & Category */}
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <Tag size={16} />
+                {t('CourseLearning.course_info')}
+              </h4>
+              <div className="space-y-2 text-sm">
+                {course.category && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">{t('CourseLearning.course_category')}:</span>
+                    <span className="text-gray-900 dark:text-white font-medium">{course.category}</span>
+                  </div>
+                )}
+                {course.language && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">{t('CourseLearning.course_language')}:</span>
+                    <span className="text-gray-900 dark:text-white font-medium">{course.language}</span>
+                  </div>
+                )}
+                {course.tags && course.tags.length > 0 && (
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400 block mb-1">{t('CourseLearning.course_tags')}:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {course.tags.map((tag: string, index: number) => (
+                        <span key={index} className="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Content Display */}
       <div className="mb-6">
         {/* 1. Document/Assignment with MEGA attachment - use MegaDocumentPreview */}
@@ -485,24 +703,20 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           <BilibiliVideoPlayer
             attachmentId={attachment.id}
             src={currentLesson.content_url} // Fallback for external videos
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : 
         /* 3. Video with YouTube/external link - use BilibiliVideoPlayer */
         currentLesson?.kind === 'video' && currentLesson?.content_url ? (
           <BilibiliVideoPlayer
             src={currentLesson.content_url}
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : 
         /* Loading states */
@@ -510,7 +724,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
-              <p className="text-xl">Loading {currentLesson?.kind}...</p>
+              <p className="text-xl">{t('LessonContent.loading', { kind: currentLesson?.kind || 'content' })}</p>
               <p className="text-sm mt-2">{currentLesson?.title}</p>
             </div>
           </div>
@@ -519,31 +733,27 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         currentLesson?.kind === 'video' && attachmentId && !attachment ? (
           <BilibiliVideoPlayer
             src={currentLesson.content_url} // Fallback to external video
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : currentLesson?.kind === 'video' ? (
           <BilibiliVideoPlayer
             src={currentLesson?.content_url} // May be empty, will show no content state
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
               <FileText size={64} className="mx-auto mb-4" />
-              <p className="text-xl">Content coming soon</p>
+              <p className="text-xl">{t('LessonContent.content_coming_soon')}</p>
               <p className="text-sm mt-2">{currentLesson?.title}</p>
               <p className="text-xs mt-1 opacity-80">
-                {currentLesson?.kind ? `${currentLesson.kind} lesson` : 'No content type specified'}
+                {currentLesson?.kind ? `${currentLesson.kind} ${t('LessonContent.lesson_suffix')}` : t('LessonContent.no_content_specified')}
               </p>
             </div>
           </div>
@@ -615,10 +825,105 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         </Button>
       </div>
 
+      {/* Mobile Tool Bar - Only visible on mobile */}
+      {isMobileView && (
+        <div className="lg:hidden mb-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+            <div className="flex items-center justify-between gap-2">
+              {/* Course Content Toggle */}
+              <Button
+                onClick={() => setShowCourseContent(!showCourseContent)}
+                variant="ghost"
+                size="sm"
+                className="flex-1 justify-center gap-2 text-xs sm:text-sm"
+              >
+                {showCourseContent ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+                <span className="truncate">{t('CourseLearning.mobile_course')}</span>
+              </Button>
+
+              {/* Learning Tools Toggle */}
+              <Button
+                onClick={() => setShowToolPanel(!showToolPanel)}
+                variant="ghost"
+                size="sm"
+                className="flex-1 justify-center gap-2 text-xs sm:text-sm"
+              >
+                <Layers size={16} />
+                <span className="truncate">{t('CourseLearning.mobile_tools')}</span>
+              </Button>
+
+              {/* Quick Tab Access */}
+              <div className="flex items-center gap-1 flex-1 justify-center">
+                {currentLesson?.kind === 'video' && (
+                  <Button
+                    onClick={() => {
+                      setActiveTab('chapters');
+                      setShowToolPanel(true);
+                    }}
+                    variant="ghost"
+                    size="sm"
+                    className={`p-2 ${activeTab === 'chapters' ? 'text-orange-500' : 'text-gray-600 dark:text-gray-400'}`}
+                  >
+                    <BookOpen size={16} />
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    setActiveTab('notes');
+                    setShowToolPanel(true);
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${activeTab === 'notes' ? 'text-orange-500' : 'text-gray-600 dark:text-gray-400'}`}
+                >
+                  <PenTool size={16} />
+                </Button>
+                <Button
+                  onClick={() => {
+                    setActiveTab('quiz');
+                    setShowToolPanel(true);
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${activeTab === 'quiz' ? 'text-orange-500' : 'text-gray-600 dark:text-gray-400'}`}
+                >
+                  <MessageSquare size={16} />
+                </Button>
+                <Button
+                  onClick={() => {
+                    setActiveTab('ai');
+                    setShowToolPanel(true);
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${activeTab === 'ai' ? 'text-orange-500' : 'text-gray-600 dark:text-gray-400'}`}
+                >
+                  <Brain size={16} />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Overlay */}
+      {isMobileView && showToolPanel && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setShowToolPanel(false)}
+        />
+      )}
+
       {/* Course Content and Learning Panel */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className={`grid gap-4 lg:gap-6 transition-all duration-300 ${
+        isMobileView 
+          ? 'grid-cols-1' 
+          : 'grid-cols-1 xl:grid-cols-4 lg:grid-cols-3'
+      }`}>
         {/* Course Content Sidebar */}
-        <div className="xl:col-span-1 lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4">
+        <div className={`xl:col-span-1 lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4 ${
+          isMobileView && !showCourseContent ? 'hidden' : ''
+        }`}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('CourseContent.title')}</h3>
             {/* <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -681,9 +986,26 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         </div>
 
         {/* Main Learning Panel */}
-        <div className="xl:col-span-3 lg:col-span-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className={`xl:col-span-3 lg:col-span-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 ${
+          isMobileView && !showToolPanel ? 'hidden scale-95 opacity-0' : 'scale-100 opacity-100'
+        } ${isMobileView ? 'fixed inset-x-4 top-4 bottom-4 z-50 max-h-[90vh] overflow-hidden' : ''}`}>
+          {/* Mobile Panel Header */}
+          {isMobileView && (
+            <div className="lg:hidden flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-white">{t('CourseLearning.learning_tools')}</h3>
+              <Button
+                onClick={() => setShowToolPanel(false)}
+                variant="ghost"
+                size="sm"
+                className="p-1"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+          )}
+          
           {/* Tabs */}
-          <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
+          <div className={`flex flex-wrap border-b border-gray-200 dark:border-gray-700 ${isMobileView ? 'px-3' : ''}`}>
             {/* Chapters Tab - Only show for video lessons */}
             {currentLesson?.kind === 'video' && (
               <Button
@@ -745,14 +1067,14 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           <div className="p-3 lg:p-4 max-h-64 sm:max-h-80 lg:max-h-96 overflow-y-auto">
             {activeTab === 'chapters' && currentLesson?.kind === 'video' && (
               <CourseChapterContent
-                currentLessonId={currentLesson?.id}
+                currentLessonId={currentLesson?.public_id}
                 currentTimestamp={currentVideoTimestamp}
                 onSeekTo={handleTimeUpdate}
               />
             )}
             {activeTab === 'notes' && (
               <CourseNoteContent
-                currentLessonId={currentLesson?.id}
+                currentLessonId={currentLesson?.public_id}
                 currentTimestamp={currentVideoTimestamp}
                 onTimeUpdate={handleTimeUpdate}
                 lessonKind={currentLesson?.kind}
@@ -769,9 +1091,9 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
                 ) : quiz.error ? (
                   <div className="text-center py-8">
                     <XCircle size={48} className="text-red-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Quiz</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('LessonContent.error_loading_quiz')}</h3>
                     <p className="text-gray-600 dark:text-gray-400">
-                      Failed to load quiz questions. Please try again later.
+                      {t('LessonContent.quiz_load_error')}
                     </p>
                   </div>
                 ) : !quiz.questions.length ? (
@@ -804,28 +1126,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             )}
 
             {activeTab === 'ai' && (
-              <>
-                {knowledgeGraph.isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-white/60">{t('KnowledgeGraph.loading')}</div>
-                  </div>
-                ) : knowledgeGraph.error || !knowledgeGraph.concepts.length ? (
-                  <div className="text-center py-8">
-                    <Brain size={48} className="text-purple-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-white mb-2">{t('KnowledgeGraph.title')}</h3>
-                    <p className="text-white/60">
-                      {t('KnowledgeGraph.empty_message')}
-                    </p>
-                  </div>
-                ) : (
-                  <CourseKnowledgeGraph
-                    courseId={courseSlug}
-                    concepts={knowledgeGraph.concepts}
-                    links={knowledgeGraph.links}
-                    onConceptClick={knowledgeGraph.handleConceptClick}
-                  />
-                )}
-              </>
+              <VideoAIAssistant
+                courseSlug={courseSlug}
+                currentLessonId={currentLessonId}
+                currentTimestamp={currentVideoTimestamp}
+                selectedText={null} // TODO: 实现文本选择功能
+              />
             )}
           </div>
         </div>

@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get lesson details
+    // Get lesson details with course price info
     const { data: lesson, error: lessonError } = await supabase
       .from('course_lesson')
-      .select('*, course!inner(*)')
+      .select('*, course!inner(id, title, price, public_id)')
       .eq('public_id', lessonId)
       .eq('is_deleted', false)
       .single();
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is enrolled in the course
+    // Check if user is enrolled in the course or if it's a free course
     const { data: enrollment } = await supabase
       .from('course_enrollment')
       .select('id')
@@ -45,11 +45,25 @@ export async function POST(request: NextRequest) {
       .eq('status', 'active')
       .single();
 
-    if (!enrollment) {
+    // If not enrolled and course is paid, check enrollment
+    if (!enrollment && lesson.course.price > 0) {
       return NextResponse.json(
         { error: 'Not enrolled in this course' },
         { status: 403 }
       );
+    }
+
+    // For free courses (price = 0) or enrolled users, allow access
+    // Auto-enroll in free courses if not already enrolled
+    if (!enrollment && lesson.course.price === 0) {
+      await supabase
+        .from('course_enrollment')
+        .insert({
+          user_id: user.profile?.id || user.id,
+          course_id: lesson.course.id,
+          status: 'active',
+          enrolled_at: new Date().toISOString()
+        });
     }
 
     // Determine state based on progress

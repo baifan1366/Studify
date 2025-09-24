@@ -1,26 +1,28 @@
-'use client';
-
 import React from 'react';
-import { ChatDashboard } from '@/components/chat/chat-dashboard';
-import { ChatNotificationsProvider } from '@/components/chat/chat-notifications-provider';
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import { ChatPageClient } from '@/components/chat/chat-page-client';
 
 /**
  * Chat Page Component
  * Main chat interface with conversations list and message panel
  */
 
-export default function ChatPage() {
-  const handleNavigateToChat = (conversationId: string) => {
-    // This will be handled by the ChatDashboard component
-    // We can dispatch a custom event that the dashboard can listen to
-    window.dispatchEvent(new CustomEvent('navigate-to-conversation', {
-      detail: { conversationId }
-    }));
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('ChatPage');
 
-  return (
-    <ChatNotificationsProvider onNavigateToChat={handleNavigateToChat}>
-      <ChatDashboard />
-    </ChatNotificationsProvider>
-  );
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
+
+export default function ChatPage() {
+  return <ChatPageClient />;
 }

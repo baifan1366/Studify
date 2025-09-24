@@ -18,7 +18,7 @@ export async function GET(
     // 获取quiz信息
     const { data: quiz, error: quizErr } = await supabase
       .from("community_quiz")
-      .select("id, max_attempts, visibility, quiz_mode, author_id")
+      .select("id, max_attempts, visibility, author_id")
       .eq("slug", quizSlug)
       .maybeSingle();
 
@@ -118,7 +118,6 @@ export async function GET(
       quiz: {
         max_attempts: quiz.max_attempts,
         visibility: quiz.visibility,
-        quiz_mode: quiz.quiz_mode,
       },
     });
   } catch (err: any) {

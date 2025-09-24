@@ -1,5 +1,11 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+
+/**
+ * Assignment Detail Page Component
+ * View individual assignment details and content
+ */
 
 interface AssignmentPageProps {
   params: Promise<{
@@ -10,11 +16,18 @@ interface AssignmentPageProps {
 }
 
 export async function generateMetadata({ params }: AssignmentPageProps): Promise<Metadata> {
+  const t = await getTranslations('AssignmentPage');
   const { locale, slug, id } = await params;
   
   return {
-    title: `Assignment ${id} - ${slug}`,
-    description: `View assignment ${id} details`,
+    title: t('metadata_title', { id, slug }),
+    description: t('metadata_description', { id }),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title', { id, slug }),
+      description: t('og_description'),
+      type: 'website',
+    },
   };
 }
 

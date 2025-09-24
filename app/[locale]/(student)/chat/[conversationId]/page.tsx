@@ -8,7 +8,7 @@ export async function generateMetadata({ params }: { params: Promise<{ conversat
   const t = await getTranslations('ChatConversationPage');
 
   return {
-    title: `${t('metadata_title')} - ${conversationId}`,
+    title: `${t('metadata_title')} | ${conversationId}`,
     description: t('metadata_description'),
     keywords: t('metadata_keywords').split(','),
     openGraph: {

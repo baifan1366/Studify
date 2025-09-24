@@ -13,9 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Edit3, FileText, CheckCircle2, List, Save, ArrowLeft, Plus, X, Check, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useQuiz, useUpdateQuiz } from "@/hooks/community/use-quiz";
+import { useQuiz, useUpdateQuiz, useQuizSubjects, useQuizGrades } from "@/hooks/community/use-quiz";
 import { useQuizQuestions, useUpdateQuizQuestion, useDeleteQuizQuestion } from "@/hooks/community/use-quiz-questions";
 import { CommunityQuiz, CommunityQuizQuestion } from "@/interface/community/quiz-interface";
+import { useLocale } from "next-intl";
+import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
 
 interface EditQuizFormProps {
   quizSlug: string;
@@ -30,8 +32,9 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const [tagsInput, setTagsInput] = useState("");
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
-  const [quizMode, setQuizMode] = useState<'practice' | 'strict'>('practice');
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>();
+  const [selectedGradeId, setSelectedGradeId] = useState<number | undefined>();
   
   // Questions state
   const [editingQuestion, setEditingQuestion] = useState<CommunityQuizQuestion | null>(null);
@@ -46,10 +49,13 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   
   const router = useRouter();
   const params = useParams();
+  const locale = useLocale();
   
   // Hooks
   const { data: quiz, isLoading, error } = useQuiz(quizSlug);
   const { data: questions, isLoading: questionsLoading } = useQuizQuestions(quizSlug);
+  const { data: subjects, isLoading: subjectsLoading } = useQuizSubjects();
+  const { data: grades, isLoading: gradesLoading } = useQuizGrades();
   const updateQuiz = useUpdateQuiz(quizSlug);
   const updateQuestion = useUpdateQuizQuestion(quizSlug);
   const deleteQuestion = useDeleteQuizQuestion(quizSlug);
@@ -62,8 +68,9 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       setDifficulty(quiz.difficulty || 1);
       setVisibility(quiz.visibility || 'public');
       setMaxAttempts(quiz.max_attempts || 1);
-      setQuizMode(quiz.quiz_mode || 'practice');
       setTimeLimitMinutes(quiz.time_limit_minutes || null);
+      setSelectedSubjectId(quiz.subject_id || undefined);
+      setSelectedGradeId(quiz.grade_id || undefined);
       
       // Handle tags
       if (quiz.tags && Array.isArray(quiz.tags)) {
@@ -120,8 +127,9 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       // tags, // Temporarily disabled as per backend
       visibility,
       max_attempts: maxAttempts,
-      quiz_mode: quizMode,
       time_limit_minutes: timeLimitMinutes,
+      subject_id: selectedSubjectId,
+      grade_id: selectedGradeId,
     };
 
     updateQuiz.mutate(updateData, {
@@ -397,6 +405,48 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               </p>
             </div>
 
+            {/* Subject Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Select 
+                value={selectedSubjectId?.toString() || "none"} 
+                onValueChange={(value) => setSelectedSubjectId(value === "none" ? undefined : Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select a subject"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No subject</SelectItem>
+                  {subjects?.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.id.toString()}>
+                      {getSubjectName(subject, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Grade Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="grade">Grade Level</Label>
+              <Select 
+                value={selectedGradeId?.toString() || "none"} 
+                onValueChange={(value) => setSelectedGradeId(value === "none" ? undefined : Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={gradesLoading ? "Loading grades..." : "Select a grade level"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No grade level</SelectItem>
+                  {grades?.map((grade) => (
+                    <SelectItem key={grade.id} value={grade.id.toString()}>
+                      {getGradeName(grade, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Visibility */}
             <div className="space-y-3">
               <Label>Visibility</Label>
@@ -426,20 +476,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                   <SelectItem value="5">5 attempts</SelectItem>
                   <SelectItem value="10">10 attempts</SelectItem>
                   <SelectItem value="999">Unlimited</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Quiz Mode */}
-            <div className="space-y-2">
-              <Label htmlFor="quizMode">Quiz Mode</Label>
-              <Select value={quizMode} onValueChange={(value: 'practice' | 'strict') => setQuizMode(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="practice">Practice - Relaxed mode</SelectItem>
-                  <SelectItem value="strict">Strict - Exam mode</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -23,7 +23,7 @@ export async function GET(
     const { data: quiz, error: quizError } = await supabase
       .from("community_quiz")
       .select(
-        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode, time_limit_minutes, author_id, created_at`
+        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, time_limit_minutes, subject_id, grade_id, author_id, created_at`
       )
       .eq("slug", quizSlug)
       .maybeSingle();
@@ -339,17 +339,6 @@ async function handleUpdate(
       updates.visibility = visibility;
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "quiz_mode")) {
-      const quiz_mode = body.quiz_mode;
-      if (
-        quiz_mode != null &&
-        !["practice", "strict"].includes(quiz_mode)
-      ) {
-        return NextResponse.json({ error: "Invalid quiz_mode" }, { status: 400 });
-      }
-      updates.quiz_mode = quiz_mode;
-    }
-
     if (Object.prototype.hasOwnProperty.call(body, "time_limit_minutes")) {
       const time_limit_minutes = body.time_limit_minutes;
       if (
@@ -360,6 +349,30 @@ async function handleUpdate(
         return NextResponse.json({ error: "Invalid time_limit_minutes (>0 or null)" }, { status: 400 });
       }
       updates.time_limit_minutes = time_limit_minutes ?? null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "subject_id")) {
+      const subject_id = body.subject_id;
+      if (
+        subject_id !== null &&
+        subject_id !== undefined &&
+        !(Number.isInteger(subject_id) && subject_id > 0)
+      ) {
+        return NextResponse.json({ error: "Invalid subject_id (must be positive integer or null)" }, { status: 400 });
+      }
+      updates.subject_id = subject_id ?? null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "grade_id")) {
+      const grade_id = body.grade_id;
+      if (
+        grade_id !== null &&
+        grade_id !== undefined &&
+        !(Number.isInteger(grade_id) && grade_id > 0)
+      ) {
+        return NextResponse.json({ error: "Invalid grade_id (must be positive integer or null)" }, { status: 400 });
+      }
+      updates.grade_id = grade_id ?? null;
     }
 
     // Ensure there is at least one field to update
@@ -373,7 +386,7 @@ async function handleUpdate(
       .update(updates)
       .eq("id", quiz.id)
       .select(
-        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, quiz_mode, time_limit_minutes, author_id, created_at`
+        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, time_limit_minutes, author_id, created_at`
       )
       .single();
 

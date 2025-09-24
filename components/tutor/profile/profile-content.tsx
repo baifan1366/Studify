@@ -252,22 +252,6 @@ export default function ProfileContent() {
                       {profile.role}
                     </span>
                   )}
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">{(profile as any)?.points || 0}</div>
-                      <div className="text-xs text-white/70">{t('points')}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">12</div>
-                      <div className="text-xs text-white/70">{t('courses')}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">5</div>
-                      <div className="text-xs text-white/70">{t('achievements')}</div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </motion.div>

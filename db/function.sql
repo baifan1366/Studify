@@ -1706,3 +1706,76 @@ WHERE is_deleted = false;
 -- GRANT EXECUTE ON FUNCTION get_user_hashtag_preferences(bigint, int) TO authenticated;
 -- GRANT EXECUTE ON FUNCTION get_trending_posts(bigint, int, int) TO authenticated;
 -- GRANT EXECUTE ON FUNCTION get_group_posts_for_user(bigint, int, int) TO authenticated;
+
+-- =========================
+-- QUIZ SUBJECT AND GRADE FUNCTIONS
+-- =========================
+
+-- Function to update search vectors for a quiz
+CREATE OR REPLACE FUNCTION update_quiz_search_vectors()
+RETURNS TRIGGER AS $$
+DECLARE
+  subject_translations jsonb := '{}';
+  grade_translations jsonb := '{}';
+BEGIN
+  -- Get subject translations if subject_id exists
+  IF NEW.subject_id IS NOT NULL THEN
+    SELECT translations INTO subject_translations
+    FROM community_quiz_subject
+    WHERE id = NEW.subject_id;
+  END IF;
+  
+  -- Get grade translations if grade_id exists
+  IF NEW.grade_id IS NOT NULL THEN
+    SELECT translations INTO grade_translations
+    FROM community_quiz_grade
+    WHERE id = NEW.grade_id;
+  END IF;
+  
+  -- Update English search vector
+  NEW.search_vector_en := to_tsvector('english', 
+    COALESCE(NEW.title, '') || ' ' ||
+    COALESCE(NEW.description, '') || ' ' ||
+    COALESCE(subject_translations->>'en', '') || ' ' ||
+    COALESCE(grade_translations->>'en', '') || ' ' ||
+    COALESCE(array_to_string(NEW.tags, ' '), '')
+  );
+  
+  -- Update Chinese search vector
+  NEW.search_vector_zh := to_tsvector('simple', 
+    COALESCE(NEW.title, '') || ' ' ||
+    COALESCE(NEW.description, '') || ' ' ||
+    COALESCE(subject_translations->>'zh', '') || ' ' ||
+    COALESCE(grade_translations->>'zh', '') || ' ' ||
+    COALESCE(array_to_string(NEW.tags, ' '), '')
+  );
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update search vectors when subject translations change
+CREATE OR REPLACE FUNCTION update_quiz_search_vectors_on_subject_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Update all quizzes that reference this subject
+  UPDATE community_quiz 
+  SET updated_at = now()
+  WHERE subject_id = NEW.id;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update search vectors when grade translations change
+CREATE OR REPLACE FUNCTION update_quiz_search_vectors_on_grade_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Update all quizzes that reference this grade
+  UPDATE community_quiz 
+  SET updated_at = now()
+  WHERE grade_id = NEW.id;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;

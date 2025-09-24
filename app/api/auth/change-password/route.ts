@@ -6,12 +6,13 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function PATCH(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student')(request);
+    const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const { user, profile } = authResult;
+    const { user } = authResult;
+    const profile = user.profile;
     const body = await request.json();
     const { currentPassword, newPassword } = body;
 
@@ -43,7 +44,7 @@ export async function PATCH(request: NextRequest) {
     
     // Verify current password by attempting to sign in
     const { error: signInError } = await regularSupabase.auth.signInWithPassword({
-      email: profile.email || user.email,
+      email: profile?.email || user.email,
       password: currentPassword
     });
 

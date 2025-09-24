@@ -2,100 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
-
-/**
- * Handle classroom creation and joining after enrollment
- * Implements COURSE.md L15-20 flow
- */
-async function handleClassroomFlow(supabase: any, course: any, userId: number): Promise<{ success: boolean; error?: string }> {
-  try {
-    
-    // Check if classroom exists for this course slug
-    const { data: existingClassroom, error: classroomError } = await supabase
-      .from('classroom')
-      .select('*')
-      .eq('slug', course.slug)
-      .maybeSingle(); // Use maybeSingle to handle "not found" gracefully
-
-    if (classroomError) {
-      console.error('[ClassroomFlow] Failed to lookup classroom:', classroomError);
-      return { success: false, error: `Failed to lookup classroom: ${classroomError.message}` };
-    }
-
-    let classroomId;
-
-    if (!existingClassroom) {
-      // Create new classroom if doesn't exist
-      const { data: newClassroom, error: createError } = await supabase
-        .from('classroom')
-        .insert({
-          name: course.title,
-          description: `Classroom for ${course.title}`,
-          slug: course.slug,
-          visibility: 'private',
-          owner_id: course.owner_id,
-          class_code: generateClassCode(),
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('[ClassroomFlow] Failed to create classroom:', createError);
-        return { success: false, error: `Failed to create classroom: ${createError.message}` };
-      }
-      
-      if (!newClassroom) {
-        console.error('[ClassroomFlow] Classroom created but no data returned');
-        return { success: false, error: 'Classroom created but no data returned' };
-      }
-      
-      classroomId = newClassroom.id;
-    } else {
-      classroomId = existingClassroom.id;
-    }
-
-    // Check if user is already a member
-    const { data: existingMembership, error: membershipError } = await supabase
-      .from('classroom_member')
-      .select('id')
-      .eq('classroom_id', classroomId)
-      .eq('user_id', userId)
-      .maybeSingle(); // Use maybeSingle to handle "not found" gracefully
-
-    if (membershipError) {
-      console.error('[ClassroomFlow] Failed to check existing membership:', membershipError);
-      return { success: false, error: `Failed to check membership: ${membershipError.message}` };
-    }
-
-    if (!existingMembership) {
-      const { error: joinError } = await supabase
-        .from('classroom_member')
-        .insert({
-          classroom_id: classroomId,
-          user_id: userId,
-          role: 'student',
-          status: 'active'
-        });
-
-      if (joinError) {
-        console.error('[ClassroomFlow] Failed to join classroom:', joinError);
-        return { success: false, error: `Failed to join classroom: ${joinError.message}` };
-      }
-    } 
-
-    return { success: true };
-  } catch (error) {
-    console.error('[ClassroomFlow] Unexpected error in classroom flow:', error);
-    return { success: false, error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
-  }
-}
-
-/**
- * Generate a random class code
- */
-function generateClassCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+import { handleStudentEnrollmentFlow } from '@/lib/auto-creation/student-enrollment-flow';
 
 export async function POST(request: NextRequest) {
   try {
@@ -258,11 +165,27 @@ export async function POST(request: NextRequest) {
         .update({ status: 'paid' })
         .eq('id', order.id);
 
-      // After enrollment, handle classroom creation/joining as per COURSE.md L15-20
-      const classroomResult = await handleClassroomFlow(supabase, course, profileId);
-      if (!classroomResult.success) {
-        console.error('[Order] Classroom flow failed:', classroomResult.error);
+      // After enrollment, handle complete auto-creation flow
+      console.log("[Order] User enrolled successfully, starting auto-creation flow");
+      
+      const autoCreationResult = await handleStudentEnrollmentFlow(supabase, course, profileId);
+      
+      if (!autoCreationResult.success) {
+        console.error('[Order] Student enrollment auto-creation flow failed:', autoCreationResult.error);
         // Log error but don't fail the entire enrollment - course enrollment was successful
+      } else {
+        console.log('[Order] Student enrollment auto-creation flow completed successfully');
+        
+        // Log detailed results for debugging
+        if (autoCreationResult.classroomResult) {
+          const cr = autoCreationResult.classroomResult;
+          console.log(`[Order] Classroom result - Created: ${cr.created}, Joined: ${cr.joined}, Name: ${cr.name}`);
+        }
+        
+        if (autoCreationResult.communityResult) {
+          const ccr = autoCreationResult.communityResult;
+          console.log(`[Order] Community result - Created: ${ccr.created}, Joined: ${ccr.joined}, Name: ${ccr.name}`);
+        }
       } 
 
       return NextResponse.json({

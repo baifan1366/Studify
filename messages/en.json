@@ -2,16 +2,116 @@
   "HomePage": {
     "title": "Hello world!",
     "metadata_title": "Home | Studify",
-    "metadata_description": "Your personalized learning dashboard with AI|powered recommendations, progress tracking, and community features",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
     "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
     "og_title": "Home | Studify",
-    "og_description": "Personalized Learning, Powered by AI and Real|time Tutoring"
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
+  },
+  "NotFoundPage": {
+    "title": "Page Not Found",
+    "subtitle": "Oops! The page you're looking for doesn't exist",
+    "description": "The link you followed may be broken, or the page may have been removed.",
+    "redirecting": "Redirecting to home in {seconds} seconds...",
+    "go_home_now": "Go to Home Now",
+    "go_back": "Go Back",
+    "error_code": "Error 404"
   },
   "ChatPage": {
     "metadata_title": "Chat | Studify",
     "metadata_description": "Connect with teachers and classmates through instant messaging and group conversations",
     "metadata_keywords": "chat,messaging,conversations,communication,teachers,students",
     "og_title": "Chat | Studify",
+    "og_description": "Stay Connected with Your Learning Community"
+  },
+  "CourseLearning": {
+    "course_info": "Course Information",
+    "instructor": "Instructor",
+    "level": "Level",
+    "duration": "Duration",
+    "lessons": "Lessons",
+    "students": "Students",
+    "rating": "Rating",
+    "price": "Price",
+    "free": "Free",
+    "description": "Description",
+    "requirements": "Requirements",
+    "learning_objectives": "Learning Objectives",
+    "course_not_found": "Course Not Found",
+    "course_not_found_desc": "The course you're looking for doesn't exist.",
+    "loading_course": "Loading course...",
+    "beginner": "Beginner",
+    "intermediate": "Intermediate", 
+    "advanced": "Advanced",
+    "minutes": "minutes",
+    "hours": "hours",
+    "no_description": "No description available",
+    "no_requirements": "No specific requirements",
+    "no_objectives": "No learning objectives specified",
+    "course_tags": "Tags",
+    "course_category": "Category",
+    "course_language": "Language",
+    "mobile_tools": "Tools",
+    "mobile_course": "Course",
+    "learning_tools": "Learning Tools",
+    "hide_panel": "Hide Panel",
+    "show_panel": "Show Panel"
+  },
+  "VideoPlayer": {
+    "playback_speed": "Playback Speed",
+    "send_danmaku": "Send",
+    "views_count": "views",
+    "days_ago": "days ago",
+    "video_id": "Video ID",
+    "like": "Like",
+    "share": "Share",
+    "download": "Download",
+    "comments": "Comments",
+    "external_video": "(External Video)",
+    "comment_placeholder": "Add a friendly comment",
+    "publish": "Publish",
+    "external_video_notice": "This is a {platform} video. Please view and comment on the original platform.",
+    "watch_on_platform": "Watch on {platform}",
+    "reply": "Reply",
+    "keyboard_shortcuts": {
+      "play_pause": "Play/Pause",
+      "seek_backward_forward": "Seek backward/forward 10s",
+      "volume_up_down": "Volume up/down", 
+      "mute": "Mute",
+      "fullscreen": "Fullscreen",
+      "toggle_danmaku": "Toggle Danmaku",
+      "toggle_comments": "Toggle Comments"
+    },
+    "quality": "Quality",
+    "auto": "Auto",
+    "danmaku_placeholder": "Add a bullet comment to witness this moment",
+    "default_lesson_title": "Course Lesson",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm_delete": "Are you sure you want to delete this comment?",
+    "report": "Report"
+  },
+  "LessonContent": {
+    "content_coming_soon": "Content coming soon",
+    "loading": "Loading {kind}...",
+    "no_content_specified": "No content type specified",
+    "lesson_suffix": "lesson",
+    "error_loading_quiz": "Error Loading Quiz",
+    "quiz_load_error": "Failed to load quiz questions. Please try again later."
+  },
+  "ClassroomMistakeBookPage": {
+    "metadata_title": "Classroom Mistake Book | Studify",
+    "metadata_description": "A place to record and review your mistakes",
+    "metadata_keywords": "mistake book,mistake book,conversations,communication,teachers,students",
+    "og_title": "Classroom Mistake Book | Studify",
+    "og_description": "A place to record and review your mistakes"
+  },
+  "ChatConversationPage": {
+    "metadata_title": "Conversation | Studify",
+    "metadata_description": "Connect with teachers and classmates through instant messaging and group conversations",
+    "metadata_keywords": "chat,messaging,conversations,communication,teachers,students",
+    "og_title": "Conversation | Studify",
     "og_description": "Stay Connected with Your Learning Community"
   },
   "ReportButton": {
@@ -26,14 +126,12 @@
     "reasonPlaceholder": "Please provide a reason for reporting this post",
     "cancel": "Cancel",
     "submit": "Submit",
-    "targetType": {
-      "post": "Post",
-      "chat": "Chat",
-      "comment": "Comment",
-      "course": "Course",
-      "user": "User",
-      "other": "Other"
-    }
+    "post": "Post",
+    "chat": "Chat",
+    "comment": "Comment",
+    "course": "Course",
+    "user": "User",
+    "other": "Other"
   },
   "ChatContent": {
     "page_title": "Chat",
@@ -124,7 +222,55 @@
     "role_count": "Role Count",
     "interests": "Learning Interests",
     "main_interest": "Primary Interest",
-    "specific_interests": "Specific Interests"
+    "specific_interests": "Specific Interests",
+    "purchase_history": "Purchase History",
+    "total_spent": "Total Spent",
+    "lifetime_purchases": "Lifetime purchases",
+    "courses_owned": "Courses Owned",
+    "active_subscriptions": "Active subscriptions",
+    "last_purchase": "Last Purchase",
+    "purchase_date": "Date",
+    "course_name": "Course",
+    "purchase_type": "Type",
+    "purchase_amount": "Amount",
+    "purchase_status": "Status",
+    "course_type": "Course",
+    "subscription_type": "Subscription",
+    "tutoring_type": "Tutoring",
+    "status_completed": "Completed",
+    "status_active": "Active",
+    "status_pending": "Pending",
+    "view_all_purchases": "View All Purchases",
+    "earnings_cashflow": "Earnings & Cashflow",
+    "total_earnings": "Total Earnings",
+    "this_month": "This Month",
+    "pending_payout": "Pending",
+    "monthly_breakdown": "Monthly Breakdown",
+    "current_month": "Current",
+    "paid_month": "Paid",
+    "recent_transactions": "Recent Transactions",
+    "student_course": "Student/Course",
+    "transaction_type": "Type",
+    "transaction_amount": "Amount",
+    "transaction_status": "Status",
+    "tutoring_session": "Tutoring",
+    "course_sale": "Course",
+    "download_report": "Download Report",
+    "payout_settings": "Payout Settings",
+    "analytics": "Analytics",
+    "course_sales": "Course sales",
+    "tutoring_income": "Tutoring",
+    "platform_statistics": "Platform Statistics",
+    "teaching_statistics": "Teaching Statistics",
+    "learning_progress": "Learning Progress",
+    "courses_created": "Courses Created",
+    "students_taught": "Students Taught",
+    "teaching_hours": "Teaching Hours",
+    "avg_rating": "Avg Rating",
+    "total_users": "Total Users",
+    "total_courses": "Total Courses",
+    "active_sessions": "Active Sessions",
+    "reports_pending": "Reports Pending"
   },
   "SettingsPage": {
     "metadata_title": "Settings | Studify",
@@ -200,7 +346,24 @@
     "export_started": "Export Started",
     "export_started_desc": "We'll email you when your data export is ready",
     "delete_account_warning": "Delete Account",
-    "delete_account_warning_desc": "This action cannot be undone. Please contact support to proceed."
+    "delete_account_warning_desc": "This action cannot be undone. Please contact support to proceed.",
+    "password_required": "Password Required",
+    "password_required_desc": "Please enter your current password to disable two-factor authentication",
+    "enabled": "Enabled",
+    "mfa_enabled_desc": "Protect your account with authenticator app",
+    "mfa_disabled_desc": "Add an extra layer of security to your account",
+    "enabled_at": "Enabled at: {date}",
+    "forgot_password": "Forgot Password",
+    "error": "Error",
+    "update_failed": "Failed to update setting. Please try again.",
+    "disable_mfa": "Disable Two-Factor Authentication",
+    "confirm_disable_mfa": "Confirm Disable Two-Factor Authentication",
+    "disable_mfa_warning": "Disabling two-factor authentication will reduce your account security. Please enter your current password to confirm this action.",
+    "current_password": "Current Password",
+    "verification_code_optional": "Verification Code (Optional)",
+    "verification_code_placeholder": "Enter 6-digit verification code",
+    "cancel": "Cancel",
+    "disable": "Disable"
   },
   "StorageDialog": {
     "selected": "Selected",
@@ -316,7 +479,25 @@
     "use_proxy_service_for_external_files": "Use proxy service for external files",
     "all_retry_attempts_failed": "All retry attempts failed",
     "please_check_internet_connection": "Please check your internet connection",
-    "open_direct_link": "Open direct link"
+    "open_direct_link": "Open direct link",
+    "noPreviewAvailable": "No preview available",
+    "failedToLoadFile": "Failed to load file",
+    "megaServiceError": "MEGA service error: {message}",
+    "connectionTimeout": "Connection timeout - please try again",
+    "loadingPreview": "Loading preview...",
+    "retryingAttempt": "Retrying... (attempt {attempt})",
+    "previousAttemptsFailed": "Previous attempts failed, trying again...",
+    "failedToLoadPreview": "Failed to load preview",
+    "retrying": "Retrying...",
+    "retry": "Retry{count, select, 0 {} other { ({count})}}", 
+    "largeDocument": "Large Document",
+    "fileSizeInfo": "File size: {size}MB (too large for preview)",
+    "largeFileCannotPreview": "Files larger than 50MB cannot be previewed directly",
+    "downloadFile": "Download File",
+    "openInNewTab": "Open in New Tab",
+    "openLink": "Open Link", 
+    "copyLink": "Copy Link",
+    "unableToDisplayPreview": "Unable to display preview"
   },
   "labels": {
     "course_id": "Course ID",
@@ -472,24 +653,24 @@
   },
   "ClassroomLiveSessionsPage": {
     "metadata_title": "Live Sessions | Studify",
-    "metadata_description": "Join live classroom sessions, participate in real|time discussions, and access interactive learning experiences",
-    "metadata_keywords": "live sessions,real|time learning,interactive classroom,virtual sessions,education",
+    "metadata_description": "Join live classroom sessions, participate in real-time discussions, and access interactive learning experiences",
+    "metadata_keywords": "live sessions,real-time learning,interactive classroom,virtual sessions,education",
     "og_title": "Live Sessions | Studify",
     "og_description": "Participate in live classroom sessions and interactive learning experiences"
   },
   "ClassroomQuizPage": {
     "metadata_title": "Quiz | Studify",
-    "metadata_description": "Take interactive quizzes, test your knowledge, and track your performance in real|time",
+    "metadata_description": "Take interactive quizzes, test your knowledge, and track your performance in real-time",
     "metadata_keywords": "quiz,assessment,test,knowledge check,interactive learning,education",
     "og_title": "Quiz | Studify",
     "og_description": "Interactive quizzes and assessments for enhanced learning"
   },
   "LiveSessionRoom": {
     "metadata_title": "Live Session Room | Studify",
-    "metadata_description": "Join the live session room for real|time interactive learning with your instructor and classmates",
-    "metadata_keywords": "live session room,real|time learning,interactive classroom,virtual meeting,education",
+    "metadata_description": "Join the live session room for real-time interactive learning with your instructor and classmates",
+    "metadata_keywords": "live session room,real-time learning,interactive classroom,virtual meeting,education",
     "og_title": "Live Session Room | Studify",
-    "og_description": "Interactive live session room for real|time learning experiences"
+    "og_description": "Interactive live session room for real-time learning experiences"
   },
   "ClassroomPage": {
     "metadata_title": "Classroom | Studify",
@@ -539,10 +720,10 @@
   },
   "RootPage": {
     "metadata_title": "Studify",
-    "metadata_description": "Your personalized learning dashboard with AI|powered recommendations, progress tracking, and community features",
+    "metadata_description": "Your personalized learning dashboard with AI-powered recommendations, progress tracking, and community features",
     "metadata_keywords": "learning,education,AI tutoring,progress tracking,study dashboard",
     "og_title": "Studify",
-    "og_description": "Personalized Learning, Powered by AI and Real|time Tutoring"
+    "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
   },
   "StudentsPage": {
     "metadata_title": "Students | Studify",
@@ -862,6 +1043,79 @@
       }
     }
   },
+  "VideoAIAssistant": {
+    "title": "AI Learning Assistant",
+    "subtitle": "Real-time intelligent Q&A",
+    "features": "Smart cache • Context-aware",
+    "thinking": "Thinking...",
+    "welcome": {
+      "title": "Start Learning Conversation",
+      "description": "Ask me any questions about this video, I will provide detailed answers based on course content",
+      "quick_start": "💡 Quick Start:",
+      "preset_questions": {
+        "lesson_focus": "What are the key points of this lesson?",
+        "core_concepts": "What core concepts do I need to master?",
+        "practice_questions": "Are there any related practice questions?",
+        "practical_applications": "What are the practical applications of this knowledge?",
+        "explain_current": "I didn't understand what was just explained, can you explain in detail?",
+        "explain_selected": "Explain the content I selected"
+      }
+    },
+    "confidence": {
+      "high": "High Confidence",
+      "medium": "Medium Confidence", 
+      "low": "Low Confidence"
+    },
+    "sources": {
+      "title": "Reference Sources",
+      "count": "({count} sources)",
+      "click_to_jump": "Click to jump",
+      "view": "View",
+      "types": {
+        "video_segment": "Video",
+        "course_content": "Course Content",
+        "lesson": "Lesson",
+        "note": "Notes",
+        "web": "Web Search",
+        "metadata": "Metadata"
+      }
+    },
+    "suggested_actions": {
+      "title": "Suggested Actions",
+      "view_materials": "View related course materials",
+      "take_notes": "Take notes on key points",
+      "try_exercises": "Try related exercises"
+    },
+    "related_concepts": {
+      "title": "Related Concepts"
+    },
+    "input": {
+      "placeholder": "Ask any questions about this video...",
+      "context_info": "Current location: {timestamp}",
+      "selected_text": " | Selected: \"{text}...\"",
+      "send_button": "Send"
+    },
+    "loading_stages": {
+      "analyzing": "Analyzing your question...",
+      "searching": "Searching for relevant materials...",
+      "synthesizing": "Analyzing and generating answer..."
+    },
+    "notifications": {
+      "low_confidence": {
+        "title": "Notice",
+        "description": "This answer has low confidence, recommend checking more resources or asking teachers"
+      },
+      "error": {
+        "title": "Error", 
+        "description": "AI assistant request failed, please try again later"
+      },
+      "jump_timestamp": {
+        "title": "Jump to Timestamp",
+        "description": "Will jump to {timestamp} (feature in development)"
+      }
+    },
+    "error_message": "Sorry, the AI assistant is temporarily unable to answer your question. Please try again later or contact technical support."
+  },
   "LearningPath": {
     "title": "Your Customized Learning Journey",
     "subtitle": "Track your progress and unlock achievements",
@@ -876,7 +1130,7 @@
   },
   "LearningReport": {
     "title": "Smart Learning Report",
-    "subtitle": "AI|powered insights into your learning progress",
+    "subtitle": "AI-powered insights into your learning progress",
     "weekly_learning_duration_title": "Weekly Learning Duration",
     "trend_vs_last_week": "+{value}% vs last week",
     "days": {
@@ -953,12 +1207,12 @@
   },
   "HeroSection": {
     "main_title_line1": "Personalized Learning,",
-    "main_title_line2": "Powered by AI and Real|time Tutoring",
-    "subtitle_line1": "Transform your learning journey with AI|powered recommendations,",
+    "main_title_line2": "Powered by AI and Real-time Tutoring",
+    "subtitle_line1": "Transform your learning journey with AI-powered recommendations,",
     "subtitle_line2": "live tutoring sessions, and personalized study paths tailored just for you.",
     "primary_cta": "Start Learning Now",
     "secondary_cta": "Explore Courses",
-    "feature_recommendations": "AI|Powered Recommendations",
+    "feature_recommendations": "AI-Powered Recommendations",
     "feature_live_tutoring": "Live Tutoring Sessions",
     "feature_interactive": "Interactive Learning",
     "close_button_title": "Hide hero section",
@@ -1058,7 +1312,27 @@
     "adaptive_learning_paths": "Adaptive learning paths",
     "smart_note_taking": "Smart note-taking",
     "progress_analytics": "Progress analytics",
-    "knowledge_graphs": "Knowledge graphs"
+    "knowledge_graphs": "Knowledge graphs",
+    "auto_creation_success": "Successfully joined classroom and community!",
+    "auto_creation_classroom_only": "Successfully joined classroom!",
+    "auto_creation_community_only": "Successfully joined community group!",
+    "auto_creation_failed": "Unable to join auto-created resources",
+    "classroom_joined": "Joined classroom: {name}",
+    "community_joined": "Joined community group: {name}"
+  },
+  "StudentEnrollmentFlow": {
+    "auto_creation_starting": "Setting up your learning environment...",
+    "auto_creation_success": "Successfully joined classroom and community!",
+    "auto_creation_classroom_created": "Created new classroom: {name}",
+    "auto_creation_classroom_joined": "Joined classroom: {name}",
+    "auto_creation_community_created": "Created new community group: {name}",
+    "auto_creation_community_joined": "Joined community group: {name}",
+    "auto_creation_skipped": "No auto-creation configured for this course",
+    "auto_creation_classroom_failed": "Failed to create or join classroom",
+    "auto_creation_community_failed": "Failed to create or join community group",
+    "auto_creation_partial_success": "Some resources were created successfully",
+    "classroom_name_format": "{courseName} - Classroom",
+    "community_name_format": "{courseName} - Group"
   },
   "StudentList": {
     "title": "Student Management",
@@ -1397,6 +1671,7 @@
     "settings": "Settings",
     "switch_account": "Switch Account",
     "sign_in": "Sign In",
+    "sign_out": "Sign Out",
     "sign_up": "Sign Up",
     "two_factor_verification": "Two-Factor Verification",
     "enter_verification_code_description": "Please enter the 6-digit verification code from your authenticator app.",
@@ -1464,10 +1739,10 @@
   },
   "TutorAiAssistantPage": {
     "metadata_title": "AI Assistant | Tutor | Studify",
-    "metadata_description": "Get instant help with your studies using our AI|powered learning assistant.",
+    "metadata_description": "Get instant help with your studies using our AI-powered learning assistant.",
     "metadata_keywords": "AI assistant, study help, homework help, education",
     "og_title": "AI Assistant | Tutor | Studify",
-    "og_description": "Get instant help with your studies using our AI|powered learning assistant.",
+    "og_description": "Get instant help with your studies using our AI-powered learning assistant.",
     "page_title": "AI Learning Assistant"
   },
   "TutorCalendarPage": {
@@ -1496,10 +1771,10 @@
   },
   "TutorNotificationsPage": {
     "metadata_title": "Notifications | Tutor | Studify",
-    "metadata_description": "Get real|time updates on assignments, class changes, announcements, and upcoming deadlines.",
+    "metadata_description": "Get real-time updates on assignments, class changes, announcements, and upcoming deadlines.",
     "metadata_keywords": "notifications, updates, alerts, student reminders, academic updates",
     "og_title": "Notifications | Tutor | Studify",
-    "og_description": "Stay informed with real|time notifications about your classes, assignments, and exams.",
+    "og_description": "Stay informed with real-time notifications about your classes, assignments, and exams.",
     "page_title": "Notifications"
   },
   "TutorSettingsPage": {
@@ -1626,7 +1901,9 @@
     "price": "Price (cents)",
     "currency": "Currency",
     "auto_create_classroom": "Auto create classroom",
+    "auto_create_classroom_description": "Automatically create a classroom when this course is approved by admin",
     "auto_create_community": "Auto create community",
+    "auto_create_community_description": "Automatically create a community discussion group when this course is approved",
     "certificate_template": "Certificate Template",
     "errors": {
       "not_logged_in": "You must be logged in to create a course.",
@@ -2856,6 +3133,14 @@
     "og_description": "Manage courses on Studify.",
     "page_title": "Courses"
   },
+  "CourseApproval": {
+    "auto_creation_success": "Course approved successfully with auto-creation",
+    "classroom_created": "Classroom created automatically",
+    "community_created": "Community group created automatically", 
+    "auto_creation_partial_success": "Course approved but some auto-creation failed",
+    "auto_creation_failed": "Course approved but auto-creation failed",
+    "auto_creation_warnings": "Auto-creation warnings"
+  },
   "AdminAIPage": {
     "metadata_title": "AI | Admin | Studify",
     "metadata_description": "Manage AI on Studify.",
@@ -3176,7 +3461,19 @@
     "rejection_reason_required": "Rejection Reason (Required)",
     "rejection_reason_placeholder": "Explain why this course is being rejected...",
     "reject": "Reject",
-    "rejecting": "Rejecting..."
+    "rejecting": "Rejecting...",
+    "status": "Status",
+    "created": "Created",
+    "action": "Action",
+    "actions": "Actions",
+    "course_preview": "Course Preview",
+    "course_preview_desc": "Review detailed course information, modules, and lessons",
+    "no_description": "No description available",
+    "course_instructor": "Course Instructor",
+    "course_modules": "Course Modules",
+    "lessons": "lessons",
+    "more_lessons": "more lessons",
+    "close": "Close"
   },
   "AdminCoursesStats": {
     "failed_to_load_stats": "Failed to load stats",
@@ -3206,6 +3503,7 @@
     "submitted_date": "Submitted {date}"
   },
   "AdminMaintenanceCenter": {
+    "refresh_all": "Refresh All",
     "page_title": "Maintenance Center",
     "page_subtitle": "Monitor system health, manage queues, and control feature flags",
     "system_health": "System Health",
@@ -3669,6 +3967,8 @@
     "deleting": "Deleting...",
     "invalid_title": "Invalid title",
     "no_preview_available": "No preview available for this file",
+    "error_loading_files": "Error Loading Files",
+    "retry": "Retry",
     "starting_video_processing": "Starting video processing...",
     "video_processing_background": "You can continue working while we process your video",
     "video_processing_failed": "Failed to start video processing",
@@ -4003,5 +4303,133 @@
     "close": "Close",
     "save_grading": "Save Grading",
     "saving": "Saving..."
+  },
+  "AssignmentSubmissionsPage": {
+    "metadata_title": "Assignment {id} Submissions - {slug} | Studify",
+    "metadata_description": "View and manage submissions for assignment {id}",
+    "metadata_keywords": "assignment,submissions,classroom,grading,education",
+    "og_title": "Assignment {id} Submissions - {slug} | Studify",
+    "og_description": "Review and grade student submissions for classroom assignments"
+  },
+  "AssignmentPage": {
+    "metadata_title": "Assignment {id} - {slug} | Studify",
+    "metadata_description": "View assignment {id} details and content",
+    "metadata_keywords": "assignment,homework,task,education,classroom",
+    "og_title": "Assignment {id} - {slug} | Studify",
+    "og_description": "Complete your assignment and submit your work"
+  },
+  "CreatePostPage": {
+    "metadata_title": "Create Post in {groupSlug} | Studify",
+    "metadata_description": "Share your thoughts and knowledge with the community group",
+    "metadata_keywords": "create post,community,discussion,share,knowledge",
+    "og_title": "Create Post in {groupSlug} | Studify",
+    "og_description": "Join the conversation and share your ideas with fellow learners"
+  },
+  "PostDetailPage": {
+    "metadata_title": "{postSlug} - {groupSlug} | Studify",
+    "metadata_description": "Read and discuss community posts with fellow learners",
+    "metadata_keywords": "post,discussion,community,comments,learning",
+    "og_title": "{postSlug} - {groupSlug} | Studify",
+    "og_description": "Join the discussion and learn from community insights"
+  },
+  "GroupPage": {
+    "metadata_title": "{groupSlug} Community Group | Studify",
+    "metadata_description": "Join the community group and connect with like-minded learners",
+    "metadata_keywords": "community group,learning community,discussion,networking",
+    "og_title": "{groupSlug} Community Group | Studify",
+    "og_description": "Connect, learn, and grow with your learning community"
+  },
+  "AchievementsPage": {
+    "metadata_title": "Achievements | Studify",
+    "metadata_description": "Track your learning milestones and unlock rewards",
+    "metadata_keywords": "achievements,milestones,rewards,progress,gamification",
+    "og_title": "Achievements | Studify",
+    "og_description": "Celebrate your learning journey with achievements and rewards"
+  },
+  "CreateGroupPage": {
+    "metadata_title": "Create Community Group | Studify",
+    "metadata_description": "Start a new community group to connect with like-minded learners",
+    "metadata_keywords": "create group,community,networking,collaboration,learning",
+    "og_title": "Create Community Group | Studify",
+    "og_description": "Build your learning community and foster collaboration"
+  },
+  "QuizzesPage": {
+    "metadata_title": "Community Quizzes | Studify",
+    "metadata_description": "Test your knowledge with community-created quizzes",
+    "metadata_keywords": "quizzes,test,knowledge,assessment,community",
+    "og_title": "Community Quizzes | Studify",
+    "og_description": "Challenge yourself with interactive quizzes and assessments"
+  },
+  "CommunityPage": {
+    "metadata_title": "Community | Studify",
+    "metadata_description": "Connect with learners, join groups, and share knowledge",
+    "metadata_keywords": "community,learning groups,discussion,networking,collaboration",
+    "og_title": "Community | Studify",
+    "og_description": "Join a vibrant learning community and expand your network"
+  },
+  "DashboardPage": {
+    "metadata_title": "Dashboard | Studify",
+    "metadata_description": "Your learning dashboard with progress tracking and course overview",
+    "metadata_keywords": "dashboard,learning progress,courses,achievements,analytics",
+    "og_title": "Dashboard | Studify",
+    "og_description": "Track your learning journey and discover new opportunities"
+  },
+  "MyCoursesPage": {
+    "metadata_title": "My Courses | Studify",
+    "metadata_description": "View and manage your enrolled courses and learning progress",
+    "metadata_keywords": "my courses,enrolled courses,learning progress,education",
+    "og_title": "My Courses | Studify",
+    "og_description": "Continue your learning journey with your enrolled courses"
+  },
+  "NotificationsPage": {
+    "metadata_title": "Notifications | Studify",
+    "metadata_description": "Stay updated with important announcements and activity notifications",
+    "metadata_keywords": "notifications,updates,announcements,alerts,activity",
+    "og_title": "Notifications | Studify",
+    "og_description": "Never miss important updates from your learning community"
+  },
+  "RecommendationsPage": {
+    "metadata_title": "Course Recommendations | Studify",
+    "metadata_description": "Discover personalized course recommendations based on your interests",
+    "metadata_keywords": "recommendations,courses,personalized,AI,learning path",
+    "og_title": "Course Recommendations | Studify",
+    "og_description": "Find your next learning adventure with AI-powered recommendations"
+  },
+  "TutorProfilePage": {
+    "metadata_title": "Profile | Tutor | Studify",
+    "metadata_description": "Manage your profile, privacy settings, and learning preferences on Studify.",
+    "metadata_keywords": "profile,tutor,studify",
+    "og_title": "Profile | Tutor | Studify",
+    "og_description": "Manage your profile, privacy settings, and learning preferences on Studify."
+  },
+  "BannedCourseDisplay": {
+    "loading": "Loading ban information...",
+    "courseBannedTitle": "Course Access Suspended",
+    "accessRestricted": "This course is currently unavailable due to administrative action. Access has been temporarily or permanently restricted.",
+    "contactSupport": "If you believe this is an error, please contact our support team for assistance.",
+    "bannedStatus": "Suspended",
+    "temporaryBan": "Temporary",
+    "permanentBan": "Permanent",
+    "banReason": "Reason for Suspension",
+    "bannedOn": "Suspended On",
+    "expiresAt": "Expires At",
+    "temporaryBanMessage": "This suspension will be lifted {time}. You will regain access to the course once the ban period expires.",
+    "whatCanYouDo": "What can you do now?",
+    "enrollOtherCourses": "Explore and enroll in other available courses",
+    "contactSupportDetails": "Contact support if you have questions about this suspension",
+    "checkAnnouncements": "Check announcements for updates on this course",
+    "waitForExpiry": "Wait for the suspension period to end (for temporary bans)",
+    "goBack": "Go Back",
+    "browseCourses": "Browse Other Courses",
+    "footerMessage": "We appreciate your understanding and patience during this time."
+  },
+  "CourseBanNotification": {
+    "announcementTitle": "Course Suspended: {courseName}",
+    "announcementContent": "The course \"{courseName}\" has been suspended due to policy violations. Reason: {reason}. {expiryInfo} Contact support for questions.",
+    "permanentBanInfo": "This is a permanent suspension.",
+    "temporaryBanInfo": "This suspension will expire on {date}.",
+    "notificationTitle": "Course Suspension Notice",
+    "notificationMessage": "The course \"{courseName}\" you are enrolled in has been suspended. Please check the announcement for details.",
+    "systemSender": "Studify Administration"
   }
 }

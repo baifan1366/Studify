@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiSend } from '@/lib/api-config';
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseCourseData {
   courseId: string;
@@ -23,6 +24,8 @@ export function usePurchaseCourse() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations('CourseDetailContent');
+  const { toast } = useToast();
 
   return useMutation<PurchaseCourseResponse, Error, PurchaseCourseData>({
     mutationFn: async (data) => {
@@ -49,6 +52,13 @@ export function usePurchaseCourse() {
       
       // If it's a free course and user is enrolled, redirect to course with success
       if (data.enrolled && data.courseSlug) {
+        // Show immediate success message for free courses
+        toast({
+          title: t('enrollment_successful'),
+          description: t('enrollment_successful_desc'),
+          variant: 'default',
+        });
+        
         router.push(`/${locale}/courses/${data.courseSlug}?success=true`);
         return;
       }

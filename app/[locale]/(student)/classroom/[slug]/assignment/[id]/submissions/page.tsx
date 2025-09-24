@@ -1,6 +1,12 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { AssignmentSubmissionsPageComponent } from '@/components/classroom/submissions/assignment-submissions-page';
+
+/**
+ * Assignment Submissions Page Component
+ * View and manage submissions for a specific assignment
+ */
 
 interface AssignmentSubmissionsPageProps {
   params: Promise<{
@@ -11,11 +17,18 @@ interface AssignmentSubmissionsPageProps {
 }
 
 export async function generateMetadata({ params }: AssignmentSubmissionsPageProps): Promise<Metadata> {
+  const t = await getTranslations('AssignmentSubmissionsPage');
   const { locale, slug, id } = await params;
   
   return {
-    title: `Assignment ${id} Submissions - ${slug}`,
-    description: `View and manage submissions for assignment ${id}`,
+    title: t('metadata_title', { id, slug }),
+    description: t('metadata_description', { id }),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title', { id, slug }),
+      description: t('og_description'),
+      type: 'website',
+    },
   };
 }
 

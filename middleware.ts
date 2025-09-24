@@ -7,6 +7,39 @@ import redis from "@/utils/redis/redis";
 import { smartWarmupMiddleware } from "@/lib/langChain/smart-warmup";
 import { createServerClient } from "@/utils/supabase/server";
 
+// Centralized public path patterns for better performance and maintainability
+const PUBLIC_PATHS = [
+  /^\/$/, // root
+  /^\/test/, // test pages
+  /^\/auth\/callback/, // auth callbacks
+  /^\/api\/currency/, // public currency API
+  /^\/api\/video-processing\/warmup/, // warmup endpoints
+  /\/sign-in$/, // sign-in pages
+  /\/verify-email$/, // email verification
+  /\/(student|tutor|admin)\/sign-up$/, // role-based signup
+  /\/(student|tutor|admin)(\/onboarding.*)?$/, // onboarding pages
+  /\/process-webhook/, // QStash webhooks
+  /\/queue-monitor/, // Queue monitoring
+  /\/course\/webhook/, // Stripe webhooks
+  /\/stripe\/webhook/, // Stripe webhooks
+  /\/webhook$/, // Generic webhooks
+];
+
+// Cache key generators
+const SESSION_KEY = (jti: string) => `session:${jti}`;
+const PROFILE_KEY = (userId: string) => `profile:${userId}`;
+
+// Debug logger (only in development)
+const debugLog = (message: string, data?: any) => {
+  if (process.env.NODE_ENV !== 'production') {
+    if (data !== undefined) {
+      console.log(`[middleware] ${message}`, data);
+    } else {
+      console.log(`[middleware] ${message}`);
+    }
+  }
+};
+
 const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
@@ -22,40 +55,41 @@ export async function middleware(request: NextRequest) {
   const isApi = parts[0] === 'api' || (parts.length > 1 && parts[1] === 'api');
   const isAuthApi = (parts[0] === 'api' && parts[1] === 'auth') || (parts[1] === 'api' && parts[2] === 'auth');
 
-  // For API routes, bypass intl middleware to avoid locale rewriting on /api
-  const intlResponse = isApi ? NextResponse.next() : intlMiddleware(request);
-  if (!isApi && intlResponse.status !== 200) {
-    return intlResponse;
-  }
-
-  // Allowlist: static assets and auth APIs/pages
+  // Static assets and basic bypasses
   const isStatic = pathname.startsWith("/_next") || /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname);
   const isWellKnown = pathname.startsWith("/.well-known");
   const isServiceWorker = pathname === "/sw.js";
-  // Auth callback routes (bypass middleware to preserve OAuth parameters)
-  const isAuthCallback = pathname.startsWith("/auth/callback") || pathname.includes("/auth/callback") || /\/[a-z]{2}\/auth\/callback/.test(pathname);
-  // Public auth pages: /{locale}/sign-in, /{locale}/verify-email, and nested /{locale}/{role}/sign-up
-  const isPublicAuthPage =
-    /\/(?:[a-zA-Z-]+)?\/(sign-in|verify-email)$/.test(pathname) ||
-    /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/sign-up$/.test(pathname);
+  
   // Check if this is sign-in with mode=add (allow even for logged in users)
   const isAddAccountMode = pathname.includes('/sign-in') && request.nextUrl.searchParams.get('mode') === 'add';
+  
   // Onboarding pages (allow access without onboarding check)
-  // This includes both /onboarding routes and role-based landing pages like /en/student
   const isOnboardingPage = /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/onboarding/.test(pathname) || 
                            /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname) ||
                            /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)(?:\/)?$/.test(pathname);
-  const isTestOrPublic = pathname === "/" || pathname.startsWith("/test");
-  // QStash webhook endpoints (bypass auth for external webhooks)
-  const isQStashWebhook = pathname.includes("/process-webhook") || pathname.includes("/queue-monitor") || pathname.includes("/api/currency")|| pathname.includes("/api/video-processing/warmup");
-  // Stripe webhook endpoints (bypass auth for external webhooks)
-  const isStripeWebhook = pathname.includes("/api/course/webhook") || 
-                          pathname.includes("/course/webhook") || 
-                          pathname.includes("/stripe/webhook") ||
-                          pathname.endsWith("/webhook");
 
-  if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAuthCallback || isPublicAuthPage || isTestOrPublic || isQStashWebhook || isStripeWebhook || isAddAccountMode) {
+  // Use centralized public path checking for better performance
+  const isPublicPath = PUBLIC_PATHS.some((regex) => regex.test(pathname));
+
+  // Early return for static assets, auth APIs, and basic bypasses
+  if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAddAccountMode) {
+    // For API routes, bypass intl middleware to avoid locale rewriting
+    return isApi ? NextResponse.next() : intlMiddleware(request);
+  }
+
+  // For public paths, handle intl middleware but skip auth
+  if (isPublicPath || isOnboardingPage) {
+    const intlResponse = isApi ? NextResponse.next() : intlMiddleware(request);
     return intlResponse;
+  }
+
+  // Handle intl middleware for non-API routes first
+  let intlResponse = NextResponse.next();
+  if (!isApi) {
+    intlResponse = intlMiddleware(request);
+    if (intlResponse.status !== 200) {
+      return intlResponse;
+    }
   }
 
   // Validate app_session cookie
@@ -81,7 +115,14 @@ export async function middleware(request: NextRequest) {
 
     if (!jti || !userId) throw new Error("invalid token");
 
-    const exists = await redis.exists(`session:${jti}`);
+    // Optimized session validation: check JWT expiry first, then Redis for revocation
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < currentTime) {
+      throw new Error("token expired");
+    }
+
+    // Check Redis for session revocation (consider caching this check)
+    const exists = await redis.exists(SESSION_KEY(jti));
     if (!exists) throw new Error("session revoked");
 
     // Inject headers for downstream API routes/handlers
@@ -92,21 +133,37 @@ export async function middleware(request: NextRequest) {
     // Check onboarding status for protected pages (skip for API routes and onboarding pages)
     if (!isApi && !isOnboardingPage) {
       try {
-        const supabase = await createServerClient();
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarded, role')
-          .eq('user_id', userId)
-          .single();
+        // Try to get cached profile first
+        const cachedProfileKey = PROFILE_KEY(userId);
+        let profileData = await redis.get(cachedProfileKey);
+        
+        if (!profileData) {
+          // Cache miss - fetch from database
+          const supabase = await createServerClient();
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('onboarded, role')
+            .eq('user_id', userId)
+            .single();
 
-        if (profile && !profile.onboarded) {
-          const url = request.nextUrl.clone();
-          const locale = request.cookies.get("next-intl-locale")?.value || "en";
-          const userRole = profile.role || role || 'student';
-          url.pathname = `/${locale}/${userRole}`;
-          
-          console.log(`[middleware] redirecting to onboarding`, { userId, role: userRole, pathname });
-          return NextResponse.redirect(url);
+          if (profile) {
+            profileData = JSON.stringify(profile);
+            // Cache for 2 minute to reduce DB pressure
+            await redis.setex(cachedProfileKey, 120, profileData);
+          }
+        }
+
+        if (profileData && typeof profileData === 'string') {
+          const profile = JSON.parse(profileData) as { onboarded: boolean; role: string };
+          if (!profile.onboarded) {
+            const url = request.nextUrl.clone();
+            const locale = request.cookies.get("next-intl-locale")?.value || "en";
+            const userRole = profile.role || role || 'student';
+            url.pathname = `/${locale}/${userRole}`;
+            
+            debugLog('redirecting to onboarding', { userId, role: userRole, pathname });
+            return NextResponse.redirect(url);
+          }
         }
       } catch (error) {
         console.error('[middleware] failed to check onboarding status:', error);
@@ -120,10 +177,13 @@ export async function middleware(request: NextRequest) {
     intlResponse.cookies.getAll().forEach((c) => nextRes.cookies.set(c));
     intlResponse.headers.forEach((v, k) => nextRes.headers.set(k, v));
 
-    // Debug log of authorized user
-    console.log(`[middleware] authorized user`, { id: userId, role, name });
+    // Debug log of authorized user (development only)
+    debugLog('authorized user', { id: userId, role, name });
     return nextRes;
-  } catch (_e) {
+  } catch (error) {
+    // Improved error handling - log the actual error for debugging
+    console.error('[middleware] auth error:', error);
+    
     if (isApi) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

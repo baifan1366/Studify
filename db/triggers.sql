@@ -389,6 +389,57 @@ CREATE TRIGGER trigger_update_quiz_session_updated_at
   EXECUTE FUNCTION update_quiz_session_updated_at();
 
 -- =========================
+-- QUIZ SUBJECT AND GRADE TRIGGERS
+-- =========================
+
+-- Create trigger to automatically update search vectors
+CREATE TRIGGER trigger_update_quiz_search_vectors
+  BEFORE INSERT OR UPDATE ON community_quiz
+  FOR EACH ROW
+  EXECUTE FUNCTION update_quiz_search_vectors();
+
+-- Create triggers for subject and grade updates
+CREATE TRIGGER trigger_update_quiz_search_on_subject_change
+  AFTER UPDATE ON community_quiz_subject
+  FOR EACH ROW
+  WHEN (OLD.translations IS DISTINCT FROM NEW.translations)
+  EXECUTE FUNCTION update_quiz_search_vectors_on_subject_change();
+
+CREATE TRIGGER trigger_update_quiz_search_on_grade_change
+  AFTER UPDATE ON community_quiz_grade
+  FOR EACH ROW
+  WHEN (OLD.translations IS DISTINCT FROM NEW.translations)
+  EXECUTE FUNCTION update_quiz_search_vectors_on_grade_change();
+
+-- Add updated_at trigger for subject table
+CREATE TRIGGER trigger_community_quiz_subject_updated_at
+  BEFORE UPDATE ON community_quiz_subject
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Add updated_at trigger for grade table
+CREATE TRIGGER trigger_community_quiz_grade_updated_at
+  BEFORE UPDATE ON community_quiz_grade
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Comments for new triggers
+COMMENT ON TRIGGER trigger_update_quiz_search_vectors ON community_quiz IS 
+'Automatically updates multilingual search vectors when quiz content or related subject/grade changes.';
+
+COMMENT ON TRIGGER trigger_update_quiz_search_on_subject_change ON community_quiz_subject IS 
+'Updates search vectors for all quizzes when subject translations change.';
+
+COMMENT ON TRIGGER trigger_update_quiz_search_on_grade_change ON community_quiz_grade IS 
+'Updates search vectors for all quizzes when grade translations change.';
+
+COMMENT ON TRIGGER trigger_community_quiz_subject_updated_at ON community_quiz_subject IS 
+'Automatically updates the updated_at timestamp when subject data changes.';
+
+COMMENT ON TRIGGER trigger_community_quiz_grade_updated_at ON community_quiz_grade IS 
+'Automatically updates the updated_at timestamp when grade data changes.';
+
+-- =========================
 -- NOTIFICATION TRIGGERS
 -- =========================
 

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
+import { 
+  parseSearchQueryParams, 
+  validateSearchParams, 
+  getSearchVectorColumn, 
+  buildTsQuery,
+  DEFAULT_SEARCH_PARAMS 
+} from "@/utils/quiz/search-utils";
 
 type Body = {
   title: string;
@@ -9,7 +16,8 @@ type Body = {
   tags?: string[];
   max_attempts?: number;
   visibility?: 'public' | 'private';
-  quiz_mode?: 'practice' | 'strict';
+  subject_id?: number;
+  grade_id?: number;
 };
 
 /** 使用你提供的 slugify（严格按你给的实现） */
@@ -23,26 +31,160 @@ function makeBaseSlug(title: string) {
     .substring(0, 50);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const supabase = await createClient();
+    const { searchParams } = new URL(req.url);
+    const filter = searchParams.get("filter");
+    
+    // Parse search parameters
+    const searchQuery = parseSearchQueryParams(searchParams);
+    const validationErrors = validateSearchParams(searchQuery);
+    
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        { error: validationErrors.join(', ') }, 
+        { status: 400 }
+      );
+    }
+    
+    // Apply defaults
+    const {
+      query,
+      locale = 'en',
+      subject_id,
+      grade_id,
+      difficulty,
+      limit = DEFAULT_SEARCH_PARAMS.limit,
+      offset = DEFAULT_SEARCH_PARAMS.offset,
+      sort = DEFAULT_SEARCH_PARAMS.sort,
+      order = DEFAULT_SEARCH_PARAMS.order
+    } = searchQuery;
 
-    // 获取所有quiz数据
-    const { data: quizzes, error: quizError } = await supabase
-      .from("community_quiz")
-      .select(`
-        id, 
-        public_id, 
-        slug, 
-        title, 
-        description, 
-        tags, 
-        difficulty, 
-        max_attempts, 
-        visibility, 
-        quiz_mode,
-        author_id
-      `);
+    let quizzes;
+    let quizError;
+
+    // 根据 filter 参数决定查询逻辑
+    if (filter === "mine") {
+      // 获取当前用户创建的所有 quiz（需要验证身份）
+      const authResult = await authorize("student");
+      if (authResult instanceof NextResponse) {
+        return NextResponse.json([], { status: 200 }); // 未登录返回空数组
+      }
+      const { sub: userId } = authResult;
+
+      const result = await supabase
+        .from("community_quiz")
+        .select(`
+          id, 
+          public_id, 
+          slug, 
+          title, 
+          description, 
+          tags, 
+          difficulty, 
+          max_attempts, 
+          visibility,
+          author_id,
+          subject_id,
+          grade_id,
+          created_at,
+          community_quiz_subject!subject_id(
+            id,
+            code,
+            translations
+          ),
+          community_quiz_grade!grade_id(
+            id,
+            code,
+            translations
+          )
+        `)
+        .eq("author_id", userId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false });
+
+      quizzes = result.data;
+      quizError = result.error;
+    } else if (filter === "popular") {
+      // 获取所有公开 quiz，按热度排序（根据 attempts 数量和创建时间）
+      const result = await supabase
+        .from("community_quiz")
+        .select(`
+          id, 
+          public_id, 
+          slug, 
+          title, 
+          description, 
+          tags, 
+          difficulty, 
+          max_attempts, 
+          visibility,
+          author_id,
+          subject_id,
+          grade_id,
+          created_at,
+          community_quiz_attempt(id),
+          community_quiz_subject!subject_id(
+            id,
+            code,
+            translations
+          ),
+          community_quiz_grade!grade_id(
+            id,
+            code,
+            translations
+          )
+        `)
+        .eq("visibility", "public")
+        .eq("is_deleted", false);
+
+      if (result.error) {
+        quizError = result.error;
+      } else {
+        // 计算每个 quiz 的 attempt 数量并排序
+        const quizzesWithCounts = result.data?.map(quiz => ({
+          ...quiz,
+          attempts_count: quiz.community_quiz_attempt?.length || 0,
+          community_quiz_attempt: undefined, // 移除这个字段，不返回给前端
+          subject: quiz.community_quiz_subject || null,
+          grade: quiz.community_quiz_grade || null,
+          community_quiz_subject: undefined,
+          community_quiz_grade: undefined
+        })) || [];
+
+        // 按 attempts 数量降序，然后按创建时间降序排序
+        quizzes = quizzesWithCounts.sort((a, b) => {
+          if (a.attempts_count !== b.attempts_count) {
+            return b.attempts_count - a.attempts_count;
+          }
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      }
+    } else {
+      // 默认：返回所有公开 quiz
+      const result = await supabase
+        .from("community_quiz")
+        .select(`
+          id, 
+          public_id, 
+          slug, 
+          title, 
+          description, 
+          tags, 
+          difficulty, 
+          max_attempts, 
+          visibility,
+          author_id,
+          created_at
+        `)
+        .eq("visibility", "public")
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false });
+
+      quizzes = result.data;
+      quizError = result.error;
+    }
 
     if (quizError) {
       return NextResponse.json({ error: quizError.message }, { status: 500 });
@@ -65,15 +207,20 @@ export async function GET() {
       console.warn("Failed to fetch author profiles:", profileError);
     }
 
-    // 将作者信息合并到quiz数据中
-    const quizzesWithAuthors = quizzes.map(quiz => {
+    // 将作者信息合并到quiz数据中，并格式化subject/grade数据
+    const quizzesWithAuthors = quizzes.map((quiz: any) => {
       const author = profiles?.find(profile => profile.user_id === quiz.author_id);
       return {
         ...quiz,
         author: author ? {
           display_name: author.display_name,
           avatar_url: author.avatar_url
-        } : null
+        } : null,
+        subject: quiz.community_quiz_subject || null,
+        grade: quiz.community_quiz_grade || null,
+        // Remove the nested objects to clean up the response
+        community_quiz_subject: undefined,
+        community_quiz_grade: undefined
       };
     });
 
@@ -105,8 +252,9 @@ export async function POST(req: Request) {
       difficulty = 1, 
       tags = [], 
       max_attempts = 1, 
-      visibility = 'public', 
-      quiz_mode = 'practice' 
+      visibility = 'public',
+      subject_id = null,
+      grade_id = null
     } = body;
 
     if (!title || typeof title !== "string") {
@@ -144,8 +292,9 @@ export async function POST(req: Request) {
           tags,
           max_attempts,
           visibility,
-          quiz_mode,
           author_id: userId, // 关键：记录是谁创建的
+          subject_id,
+          grade_id
         })
         .select("slug, public_id")
         .single();

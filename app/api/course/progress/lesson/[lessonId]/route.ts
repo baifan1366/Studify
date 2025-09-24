@@ -1,4 +1,4 @@
-//pass the lesson id and find current user id to get the specific progress
+//pass the lesson public_id and find current user id to get the specific progress
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
@@ -11,12 +11,24 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
     if(authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // First, get the numeric lesson ID from the public_id
+    const { data: lesson, error: lessonError } = await supabase
+      .from('course_lesson')
+      .select('id')
+      .eq('public_id', lessonId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (lessonError || !lesson) {
+      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+    }
     
     const { data, error } = await supabase
       .from("course_progress")
       .select("*")
       .eq("user_id", user?.id)
-      .eq("lesson_id", lessonId)
+      .eq("lesson_id", lesson.id)
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -30,7 +42,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
   try {
     const body = await req.json();
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     const { lessonId } = await params;
+
+    if(authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // First, get the numeric lesson ID from the public_id
+    const { data: lesson, error: lessonError } = await supabase
+      .from('course_lesson')
+      .select('id')
+      .eq('public_id', lessonId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (lessonError || !lesson) {
+      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+    }
 
     const updates = {
       state: body.state,
@@ -47,7 +76,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
     const { data, error } = await supabase
       .from("course_progress")
       .update(updates)
-      .eq("lesson_id", lessonId)
+      .eq("lesson_id", lesson.id)
+      .eq("user_id", user?.id)
       .select("*")
       .single();
 

@@ -175,8 +175,8 @@ export default function SettingsContent() {
       // Revert the setting if update failed
       setSettings(prev => ({ ...prev, [key]: !value }));
       toast({
-        title: 'Error',
-        description: 'Failed to update setting. Please try again.',
+        title: t('error'),
+        description: t('update_failed'),
         variant: 'destructive',
       });
     }
@@ -208,8 +208,8 @@ export default function SettingsContent() {
   const handleMFADisable = async () => {
     if (!mfaDisablePassword) {
       toast({
-        title: '密码必填',
-        description: '请输入当前密码以禁用双重验证',
+        title: t('password_required'),
+        description: t('password_required_desc'),
         variant: 'destructive',
       });
       return;
@@ -256,16 +256,16 @@ export default function SettingsContent() {
                         {t('two_factor_auth')}
                         {mfaStatus.isEnabled && (
                           <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full">
-                            已启用
+                            {t('enabled')}
                           </span>
                         )}
                       </div>
                       <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {mfaStatus.isEnabled ? '通过验证器应用保护您的账户' : '为账户添加额外的安全保护'}
+                        {mfaStatus.isEnabled ? t('mfa_enabled_desc') : t('mfa_disabled_desc')}
                       </div>
                       {mfaStatus.enabledAt && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          启用时间: {new Date(mfaStatus.enabledAt).toLocaleDateString()}
+                          {t('enabled_at', { date: new Date(mfaStatus.enabledAt).toLocaleDateString() })}
                         </div>
                       )}
                     </div>
@@ -308,7 +308,7 @@ export default function SettingsContent() {
                     whileTap={{ scale: 0.99 }}
                   >
                     <Key size={16} />
-                    修改密码
+                    {t('change_password')}
                   </motion.button>
 
                   <motion.button
@@ -323,7 +323,7 @@ export default function SettingsContent() {
                     ) : (
                       <Mail size={16} />
                     )}
-                    忘记密码
+                    {t('forgot_password')}
                   </motion.button>
                 </div>
               </div>
@@ -645,7 +645,7 @@ export default function SettingsContent() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen w-full bg-transparent border-gray-400 dark:border-gray-600 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -738,7 +738,7 @@ export default function SettingsContent() {
             exit={{ scale: 0.9, opacity: 0 }}
           >
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">禁用双重验证</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('disable_mfa')}</h2>
               <button
                 onClick={() => setShowMFADisable(false)}
                 className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -752,9 +752,9 @@ export default function SettingsContent() {
                 <div className="flex items-start gap-3">
                   <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-medium text-red-900 dark:text-red-100 mb-1">确认禁用双重验证</h4>
+                    <h4 className="font-medium text-red-900 dark:text-red-100 mb-1">{t('confirm_disable_mfa')}</h4>
                     <p className="text-sm text-red-800 dark:text-red-200">
-                      禁用双重验证将降低您账户的安全性。请输入当前密码确认此操作。
+                      {t('disable_mfa_warning')}
                     </p>
                   </div>
                 </div>
@@ -762,7 +762,7 @@ export default function SettingsContent() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">当前密码 *</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('current_password')} *</label>
                   <input
                     type="password"
                     value={mfaDisablePassword}
@@ -773,12 +773,12 @@ export default function SettingsContent() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">验证码 (可选)</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('verification_code_optional')}</label>
                   <input
                     type="text"
                     value={mfaDisableCode}
                     onChange={(e) => setMfaDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="输入6位验证码"
+                    placeholder={t('verification_code_placeholder')}
                     className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
@@ -789,7 +789,7 @@ export default function SettingsContent() {
                   onClick={() => setShowMFADisable(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
-                  取消
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleMFADisable}
@@ -801,7 +801,7 @@ export default function SettingsContent() {
                   ) : (
                     <Shield size={16} />
                   )}
-                  禁用
+                  {t('disable')}
                 </button>
               </div>
             </div>

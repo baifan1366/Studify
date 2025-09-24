@@ -776,6 +776,24 @@ CREATE TABLE IF NOT EXISTS community_checkin (
 -- COMMUNITY QUIZ SYSTEM (Part 4)
 -- =========================
 
+-- Subject table for quiz categorization
+CREATE TABLE IF NOT EXISTS community_quiz_subject (
+  id bigserial PRIMARY KEY,
+  code text UNIQUE NOT NULL,
+  translations jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Grade table for quiz level classification
+CREATE TABLE IF NOT EXISTS community_quiz_grade (
+  id bigserial PRIMARY KEY,
+  code text UNIQUE NOT NULL,
+  translations jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS community_quiz (
   id bigserial PRIMARY KEY,
   public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -787,8 +805,11 @@ CREATE TABLE IF NOT EXISTS community_quiz (
   difficulty int CHECK (difficulty BETWEEN 1 AND 5),
   max_attempts int NOT NULL DEFAULT 1,
   visibility text CHECK (visibility IN ('public','private')) DEFAULT 'public',
-  quiz_mode text CHECK (quiz_mode IN ('practice', 'strict')) DEFAULT 'practice',
   time_limit_minutes int,
+  subject_id bigint REFERENCES community_quiz_subject(id),
+  grade_id bigint REFERENCES community_quiz_grade(id),
+  search_vector_en tsvector,
+  search_vector_zh tsvector,
   is_deleted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );

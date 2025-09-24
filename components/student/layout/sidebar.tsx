@@ -44,6 +44,7 @@ import {
   CheckSquare,
   Brain,
 } from "lucide-react";
+import { useLogout } from '@/hooks/profile/use-logout';
 
 interface MenuItem {
   id: string;
@@ -186,12 +187,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: "groups", label: "Groups", icon: Users, path: "/community" },
           {
-            id: "discussions",
-            label: "Discussions",
-            icon: MessageSquare,
-            path: "/community/discussions",
-          },
-          {
             id: "quizzes",
             label: "Quizzes",
             icon: Brain,
@@ -208,12 +203,6 @@ const defaultMenuSections: MenuSection[] = [
       { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
   },
-  {
-    title: "Tools",
-    items: [
-      { id: "documents", label: "Documents", icon: Folder, path: "/documents" },
-    ],
-  },
 ];
 
 export default function AnimatedSidebar({
@@ -226,6 +215,7 @@ export default function AnimatedSidebar({
   const t = useTranslations("Sidebar");
   const pathname = usePathname();
   const router = useRouter();
+  const logoutMutation = useLogout();
   const [isHovered, setIsHovered] = useState(false);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   const [expandedSections, setExpandedSections] = useState<
@@ -314,8 +304,6 @@ export default function AnimatedSidebar({
         return t("community_label");
       case "groups":
         return t("groups_label");
-      case "discussions":
-        return t("discussions_label");
       case "quizzes":
         return t("quizzes_label");
       case "achievements":
@@ -845,12 +833,14 @@ export default function AnimatedSidebar({
         {/* Footer */}
         <div className="p-4 border-t border-white/20">
           <motion.button
-            variants={
-              showSequentialAnimation ? sequentialFloatVariants : itemVariants
-            }
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            variants={itemVariants}
             animate={
-              showSequentialAnimation
-                ? "visible"
+              !showSequentialAnimation
+                ? isExpanded
+                ? "expanded"
+                : "collapsed"
                 : isExpanded
                 ? "expanded"
                 : "collapsed"
@@ -860,7 +850,7 @@ export default function AnimatedSidebar({
               0
             )} // Last button index
             initial={showSequentialAnimation ? "hidden" : undefined}
-            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-100 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600"
+            className="w-full flex items-center p-3 rounded-xl hover:bg-transparent dark:hover:bg-transparent text-foreground transition-all duration-100 border-l-4 border-transparent hover:border-orange-400 dark:hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

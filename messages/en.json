@@ -1312,7 +1312,27 @@
     "adaptive_learning_paths": "Adaptive learning paths",
     "smart_note_taking": "Smart note-taking",
     "progress_analytics": "Progress analytics",
-    "knowledge_graphs": "Knowledge graphs"
+    "knowledge_graphs": "Knowledge graphs",
+    "auto_creation_success": "Successfully joined classroom and community!",
+    "auto_creation_classroom_only": "Successfully joined classroom!",
+    "auto_creation_community_only": "Successfully joined community group!",
+    "auto_creation_failed": "Unable to join auto-created resources",
+    "classroom_joined": "Joined classroom: {name}",
+    "community_joined": "Joined community group: {name}"
+  },
+  "StudentEnrollmentFlow": {
+    "auto_creation_starting": "Setting up your learning environment...",
+    "auto_creation_success": "Successfully joined classroom and community!",
+    "auto_creation_classroom_created": "Created new classroom: {name}",
+    "auto_creation_classroom_joined": "Joined classroom: {name}",
+    "auto_creation_community_created": "Created new community group: {name}",
+    "auto_creation_community_joined": "Joined community group: {name}",
+    "auto_creation_skipped": "No auto-creation configured for this course",
+    "auto_creation_classroom_failed": "Failed to create or join classroom",
+    "auto_creation_community_failed": "Failed to create or join community group",
+    "auto_creation_partial_success": "Some resources were created successfully",
+    "classroom_name_format": "{courseName} - Classroom",
+    "community_name_format": "{courseName} - Group"
   },
   "StudentList": {
     "title": "Student Management",
@@ -1881,7 +1901,9 @@
     "price": "Price (cents)",
     "currency": "Currency",
     "auto_create_classroom": "Auto create classroom",
+    "auto_create_classroom_description": "Automatically create a classroom when this course is approved by admin",
     "auto_create_community": "Auto create community",
+    "auto_create_community_description": "Automatically create a community discussion group when this course is approved",
     "certificate_template": "Certificate Template",
     "errors": {
       "not_logged_in": "You must be logged in to create a course.",
@@ -3110,6 +3132,14 @@
     "og_title": "Courses | Admin | Studify",
     "og_description": "Manage courses on Studify.",
     "page_title": "Courses"
+  },
+  "CourseApproval": {
+    "auto_creation_success": "Course approved successfully with auto-creation",
+    "classroom_created": "Classroom created automatically",
+    "community_created": "Community group created automatically", 
+    "auto_creation_partial_success": "Course approved but some auto-creation failed",
+    "auto_creation_failed": "Course approved but auto-creation failed",
+    "auto_creation_warnings": "Auto-creation warnings"
   },
   "AdminAIPage": {
     "metadata_title": "AI | Admin | Studify",
@@ -4371,5 +4401,35 @@
     "metadata_keywords": "profile,tutor,studify",
     "og_title": "Profile | Tutor | Studify",
     "og_description": "Manage your profile, privacy settings, and learning preferences on Studify."
+  },
+  "BannedCourseDisplay": {
+    "loading": "Loading ban information...",
+    "courseBannedTitle": "Course Access Suspended",
+    "accessRestricted": "This course is currently unavailable due to administrative action. Access has been temporarily or permanently restricted.",
+    "contactSupport": "If you believe this is an error, please contact our support team for assistance.",
+    "bannedStatus": "Suspended",
+    "temporaryBan": "Temporary",
+    "permanentBan": "Permanent",
+    "banReason": "Reason for Suspension",
+    "bannedOn": "Suspended On",
+    "expiresAt": "Expires At",
+    "temporaryBanMessage": "This suspension will be lifted {time}. You will regain access to the course once the ban period expires.",
+    "whatCanYouDo": "What can you do now?",
+    "enrollOtherCourses": "Explore and enroll in other available courses",
+    "contactSupportDetails": "Contact support if you have questions about this suspension",
+    "checkAnnouncements": "Check announcements for updates on this course",
+    "waitForExpiry": "Wait for the suspension period to end (for temporary bans)",
+    "goBack": "Go Back",
+    "browseCourses": "Browse Other Courses",
+    "footerMessage": "We appreciate your understanding and patience during this time."
+  },
+  "CourseBanNotification": {
+    "announcementTitle": "Course Suspended: {courseName}",
+    "announcementContent": "The course \"{courseName}\" has been suspended due to policy violations. Reason: {reason}. {expiryInfo} Contact support for questions.",
+    "permanentBanInfo": "This is a permanent suspension.",
+    "temporaryBanInfo": "This suspension will expire on {date}.",
+    "notificationTitle": "Course Suspension Notice",
+    "notificationMessage": "The course \"{courseName}\" you are enrolled in has been suspended. Please check the announcement for details.",
+    "systemSender": "Studify Administration"
   }
 }

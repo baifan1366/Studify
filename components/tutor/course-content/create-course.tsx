@@ -544,23 +544,33 @@ export default function CreateCourse() {
 
                                 <Separator />
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id="auto_create_classroom"
-                                            checked={autoCreateClassroom}
-                                            onChange={(e) => setAutoCreateClassroom(e.target.checked)}
-                                        />
-                                        <Label htmlFor="auto_create_classroom">{t('auto_create_classroom')}</Label>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="auto_create_classroom"
+                                                checked={autoCreateClassroom}
+                                                onChange={(e) => setAutoCreateClassroom(e.target.checked)}
+                                            />
+                                            <Label htmlFor="auto_create_classroom">{t('auto_create_classroom')}</Label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground ml-6">
+                                            {t('auto_create_classroom_description')}
+                                        </p>
                                     </div>
 
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id="auto_create_community"
-                                            checked={autoCreateCommunity}
-                                            onChange={(e) => setAutoCreateCommunity(e.target.checked)}
-                                        />
-                                        <Label htmlFor="auto_create_community">{t('auto_create_community')}</Label>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="auto_create_community"
+                                                checked={autoCreateCommunity}
+                                                onChange={(e) => setAutoCreateCommunity(e.target.checked)}
+                                            />
+                                            <Label htmlFor="auto_create_community">{t('auto_create_community')}</Label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground ml-6">
+                                            {t('auto_create_community_description')}
+                                        </p>
                                     </div>
                                 </div>
 

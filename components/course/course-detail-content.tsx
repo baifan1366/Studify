@@ -36,6 +36,7 @@ import { useFormat } from '@/hooks/use-format';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import MegaImage from '@/components/attachment/mega-blob-image';
+import BannedCourseDisplay from './banned-course-display';
 
 interface CourseDetailContentProps {
   courseSlug: string;
@@ -197,6 +198,28 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
         description: t('enrollment_success_desc', { title: course.title }),
         variant: 'default',
       });
+
+      // Show additional messages for auto-creation if applicable
+      if (course.auto_create_classroom || course.auto_create_community) {
+        setTimeout(() => {
+          let autoMessage = '';
+          if (course.auto_create_classroom && course.auto_create_community) {
+            autoMessage = t('auto_creation_success');
+          } else if (course.auto_create_classroom) {
+            autoMessage = t('auto_creation_classroom_only');
+          } else if (course.auto_create_community) {
+            autoMessage = t('auto_creation_community_only');
+          }
+          
+          if (autoMessage) {
+            toast({
+              title: "🎉 " + autoMessage,
+              description: "You can now access your classroom and community resources",
+              variant: 'default',
+            });
+          }
+        }, 2000); // Show after main success message
+      }
       
       // Refetch course and enrollment data
       refetchCourse();
@@ -207,7 +230,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
       url.searchParams.delete('success');
       window.history.replaceState({}, '', url.toString());
     }
-  }, [isSuccess, course, toast, refetchCourse, refetchEnrollment]);
+  }, [isSuccess, course, toast, refetchCourse, refetchEnrollment, t]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -297,6 +320,16 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
           </p>
         </div>
       </div>
+    );
+  }
+
+  // Check if course is banned
+  if (course.status === 'ban') {
+    return (
+      <BannedCourseDisplay 
+        courseId={course.id} 
+        courseName={course.title} 
+      />
     );
   }
 

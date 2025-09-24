@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { createAdminClient } from '@/utils/supabase/server';
+import { handleCourseApprovalAutoCreation } from '@/lib/auto-creation/course-approval-flow';
 
 // POST /api/admin/courses/[courseId]/approve - Approve a pending course
 export async function POST(
@@ -19,10 +20,13 @@ export async function POST(
     const { notes } = await request.json();
     const supabase = await createAdminClient();
 
-    // Get course details
+    // Get course details with owner profile
     const { data: course, error: courseError } = await supabase
       .from('course')
-      .select('*')
+      .select(`
+        *,
+        owner:profiles!course_owner_id_fkey(id, user_id, display_name)
+      `)
       .eq('public_id', courseId)
       .eq('is_deleted', false)
       .single();
@@ -47,6 +51,18 @@ export async function POST(
       return NextResponse.json({ message: 'Failed to approve course' }, { status: 500 });
     }
 
+    // Handle auto-creation of classroom and community
+    const autoCreationResult = await handleCourseApprovalAutoCreation(
+      course.id,
+      course.title,
+      course.slug,
+      course.owner_id,
+      course.auto_create_classroom || false,
+      course.auto_create_community || false
+    );
+
+    console.log('[CourseApproval] Auto-creation result:', autoCreationResult);
+
     // Log the approval action
     await supabase
       .from('audit_log')
@@ -65,7 +81,13 @@ export async function POST(
 
     return NextResponse.json({
       message: 'Course approved successfully',
-      course: updatedCourse
+      course: updatedCourse,
+      autoCreation: {
+        classroomCreated: autoCreationResult.classroomCreated,
+        communityCreated: autoCreationResult.communityCreated,
+        success: autoCreationResult.success,
+        errors: autoCreationResult.errors
+      }
     });
 
   } catch (error) {

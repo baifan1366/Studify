@@ -278,6 +278,17 @@ export interface AdminCoursesResponse {
   };
 }
 
+export interface AdminCourseApprovalResponse {
+  message: string;
+  course: AdminCourse;
+  autoCreation: {
+    classroomCreated: boolean;
+    communityCreated: boolean;
+    success: boolean;
+    errors: string[];
+  };
+}
+
 export interface AdminCourseAnalytics {
   overview: {
     totalCourses: number;

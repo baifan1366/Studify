@@ -60,6 +60,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useAttachment } from '@/hooks/course/use-attachments';
 import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
+import BannedCourseDisplay from './banned-course-display';
 
 interface CourseLearningContentProps {
   courseSlug: string;
@@ -507,6 +508,16 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">{t('CourseLearning.course_not_found')}</h1>
         <p className="text-lg text-gray-600 dark:text-gray-400">{t('CourseLearning.course_not_found_desc')}</p>
       </div>
+    );
+  }
+
+  // Check if course is banned
+  if (course.status === 'ban') {
+    return (
+      <BannedCourseDisplay 
+        courseId={course.id} 
+        courseName={course.title} 
+      />
     );
   }
 

@@ -230,12 +230,7 @@ export async function GET(request: NextRequest) {
       success: true,
       userViews: userViews || [],
       currentView,
-      lessonStats: lessonStats || {
-        total_views: 0,
-        unique_viewers: 0,
-        avg_watch_percentage: 0,
-        avg_watch_duration: 0
-      }
+      lessonStats: lessonStats
     });
 
   } catch (error) {

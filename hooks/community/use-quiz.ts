@@ -18,10 +18,19 @@ const QUIZ_API = {
 };
 
 // ✅ 所有 quiz 列表
-export const useQuizzes = () => {
+export const useQuizzes = (tab?: string) => {
+  const getQuizUrl = () => {
+    if (tab === "popular") {
+      return `${QUIZ_API.quizzes}?filter=popular`;
+    } else if (tab === "mine") {
+      return `${QUIZ_API.quizzes}?filter=mine`;
+    }
+    return QUIZ_API.quizzes;
+  };
+
   return useQuery<CommunityQuiz[], Error>({
-    queryKey: ["communityQuizzes"],
-    queryFn: () => apiGet<CommunityQuiz[]>(QUIZ_API.quizzes),
+    queryKey: ["communityQuizzes", tab],
+    queryFn: () => apiGet<CommunityQuiz[]>(getQuizUrl()),
     staleTime: 1000 * 60 * 5,
   });
 };

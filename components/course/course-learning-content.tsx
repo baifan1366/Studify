@@ -19,12 +19,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  XCircle
 } from 'lucide-react';
 import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useLessonByCourseModuleId, useAllLessonsByCourseId } from '@/hooks/course/use-course-lesson';
-import { useCourseProgress, useUpdateProgress } from '@/hooks/course/use-course-progress';
+import { useCourseProgress, useCourseProgressByLessonId, useUpdateCourseProgress, useUpdateCourseProgressByLessonId } from '@/hooks/course/use-course-progress';
 import { useUser } from '@/hooks/profile/use-user';
 import { useKnowledgeGraph } from '@/hooks/course/use-knowledge-graph';
 import { useQuiz } from '@/hooks/course/use-quiz';
@@ -177,8 +178,10 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     return allLessons.find(lesson => lesson.public_id === currentLessonId) || null;
   }, [allLessons, currentLessonId]);
 
-  // Now we can safely use currentLesson in other hooks
-  const updateProgress = useUpdateProgress();
+  // Get lesson progress and progress update hooks
+  const { data: lessonProgress } = useCourseProgressByLessonId(currentLesson?.id?.toString() || '');
+  const createProgress = useUpdateCourseProgress();
+  const updateProgressByLesson = useUpdateCourseProgressByLessonId();
   const { toast } = useToast();
 
   // Knowledge Graph and Quiz hooks
@@ -315,44 +318,86 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [currentLessonId, isFullscreen]);
 
+  // Auto-create progress record when lesson is accessed for the first time
+  useEffect(() => {
+    if (currentLesson && !lessonProgress && !createProgress.isPending) {
+      createProgress.mutate({
+        lessonId: currentLesson.id.toString(),
+        progressPct: 0,
+        timeSpentSec: 0
+      });
+    }
+  }, [currentLesson, lessonProgress, createProgress]);
+
   const handleTimeUpdate = (time: number) => {
     setCurrentVideoTimestamp(time);
     
-    // Update progress every 10 seconds
-    if (currentLessonId && time % 10 === 0) {
-      updateProgress.mutate({
-        lessonId: currentLessonId,
-        progressPct: Math.min((time / 100) * 100, 100), // Assuming time is in percentage
-        timeSpentSec: time
+    // Update progress every 10 seconds if lesson is in progress
+    if (currentLessonId && lessonProgress?.state === 'in_progress' && time % 10 === 0) {
+      updateProgressByLesson.mutate({
+        lessonId: currentLesson?.id?.toString() || '',
+        progressPct: Math.min((time / 100) * 100, 100),
+        timeSpentSec: lessonProgress.timeSpentSec + 10
+      });
+    }
+  };
+
+  // Function to start a lesson (create progress with not_started status)
+  const handleLessonStart = () => {
+    if (!currentLesson) return;
+    
+    if (!lessonProgress) {
+      // Create initial progress record
+      createProgress.mutate({
+        lessonId: currentLesson.id.toString(),
+        progressPct: 0,
+        timeSpentSec: 0
+      });
+    } else {
+      // Update existing progress to in_progress
+      updateProgressByLesson.mutate({
+        lessonId: currentLesson.id.toString(),
+        progressPct: lessonProgress.progressPct > 0 ? lessonProgress.progressPct : 1,
+        timeSpentSec: lessonProgress.timeSpentSec
       });
     }
   };
 
   const handleLessonComplete = () => {
-    if (currentLessonId) {
-      updateProgress.mutate({
-        lessonId: currentLessonId,
+    if (!currentLesson) return;
+    
+    if (!lessonProgress) {
+      // Create progress record and mark as completed
+      createProgress.mutate({
+        lessonId: currentLesson.id.toString(),
         progressPct: 100,
-        timeSpentSec: 100 // Full completion
+        timeSpentSec: 0
       });
-      
-      // Check if this completes the entire course
-      const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
-      const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
-      const isLastLesson = allLessons.findIndex((l: any) => l.public_id === currentLessonId) === allLessons.length - 1;
-      
-      if (isLastLesson && completedCount === allLessons.length - 1) {
-        // Course completed!
-        toast({
-          title: t('LessonNavigation.course_completed'),
-          description: t('LessonNavigation.course_completed_desc'),
-        });
-      } else {
-        toast({
-          title: t('LessonNavigation.lesson_completed'),
-          description: t('LessonNavigation.lesson_completed_desc'),
-        });
-      }
+    } else {
+      // Update existing progress to completed
+      updateProgressByLesson.mutate({
+        lessonId: currentLesson.id.toString(),
+        progressPct: 100,
+        timeSpentSec: lessonProgress.timeSpentSec
+      });
+    }
+    
+    // Check if this completes the entire course
+    const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
+    const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
+    const isLastLesson = allLessons.findIndex((l: any) => l.public_id === currentLessonId) === allLessons.length - 1;
+    
+    if (isLastLesson && completedCount === allLessons.length - 1) {
+      // Course completed!
+      toast({
+        title: t('LessonNavigation.course_completed'),
+        description: t('LessonNavigation.course_completed_desc'),
+      });
+    } else {
+      toast({
+        title: t('LessonNavigation.lesson_completed'),
+        description: t('LessonNavigation.lesson_completed_desc'),
+      });
     }
   };
 
@@ -536,12 +581,23 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               })}
             </div>
             {currentLesson && (
-              <button
-                onClick={handleLessonComplete}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-full transition-colors whitespace-nowrap"
-              >
-                {t('LessonNavigation.mark_complete')}
-              </button>
+              <>
+                {/* Show different buttons based on progress state */}
+                {!lessonProgress || lessonProgress.state === 'not_started' ? (
+                  <Button
+                    onClick={handleLessonStart}
+                  >
+                    {t('LessonNavigation.start_now')}
+                  </Button>
+                ) : lessonProgress.state === 'in_progress' ? (
+                  <Button
+                    onClick={handleLessonComplete}
+                  >
+                    {t('LessonNavigation.mark_complete')}
+                  </Button>
+                ) : null}
+                {/* No button shown for completed state */}
+              </>
             )}
           </div>
         </div>
@@ -565,12 +621,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         <div className="xl:col-span-1 lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('CourseContent.title')}</h3>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            {/* <div className="text-xs text-gray-500 dark:text-gray-400">
               {(() => {
                 const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
                 return progressArray.filter((p: any) => p.state === 'completed').length;
               })()} / {allLessons.length} {t('CourseContent.completed_count')}
-            </div>
+            </div> */}
           </div>
           
           {/* Progress Bar */}
@@ -707,13 +763,22 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               <>
                 {quiz.isLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="text-white/60">{t('Quiz.loading')}</div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600 mx-auto mb-4"></div>
+                    <div className="text-gray-600 dark:text-gray-400">{t('Quiz.loading')}</div>
+                  </div>
+                ) : quiz.error ? (
+                  <div className="text-center py-8">
+                    <XCircle size={48} className="text-red-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Quiz</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Failed to load quiz questions. Please try again later.
+                    </p>
                   </div>
                 ) : !quiz.questions.length ? (
                   <div className="text-center py-8">
-                    <FileText size={48} className="text-white/40 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-white mb-2">{t('Quiz.no_quiz_title')}</h3>
-                    <p className="text-white/60">
+                    <FileText size={48} className="text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('Quiz.no_quiz_title')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
                       {t('Quiz.no_quiz_message')}
                     </p>
                   </div>

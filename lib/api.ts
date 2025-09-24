@@ -379,8 +379,8 @@ export const adminApi = {
     api.delete(`/api/admin/courses/${courseId}`),
   approveCourse: (courseId: string, notes?: string) => 
     api.post(`/api/admin/courses/${courseId}/approve`, { notes }),
-  rejectCourse: (courseId: string, reason: string) => 
-    api.patch(`/api/admin/courses/${courseId}/approve`, { reason }),
+  rejectCourse: (courseId: string, rejected_message: string) => 
+    api.patch(`/api/admin/courses/${courseId}/approve`, { rejected_message }),
   getCourseAnalytics: (period: number = 30) => 
     api.get(`/api/admin/courses/analytics?period=${period}`),
   
@@ -620,3 +620,68 @@ export const videoEmbeddingsApi = {
   delete: (videoId: number) => `/api/embeddings/video-embeddings/${videoId}`,
 } as const;
 
+export const banApi = {
+  list: "/api/ban",
+  getById: (banId: string) => `/api/ban/${banId}`,
+  create: "/api/ban",
+  update: (banId: string) => `/api/ban/${banId}`,
+  delete: (banId: string) => `/api/ban/${banId}`,
+  status: (banId: string) => `/api/ban/${banId}/status`,
+  getByTarget: (targetType: string, targetId: number) => `/api/ban/target/${targetType}/${targetId}`,
+} as const;
+
+export const adminRoleApi = {
+  listRoles: "/api/roles",
+  getRolesById: (roleId: string) => `/api/roles/${roleId}`,
+  createRoles: "/api/roles",
+  updateRoles: (roleId: string) => `/api/roles/${roleId}`,
+  deleteRoles: (roleId: string) => `/api/roles/${roleId}`,
+  listPermissions: "/api/permissions",
+  getPermissionsById: (permissionId: string) => `/api/permissions/${permissionId}`,
+  createPermissions: "/api/permissions",
+  updatePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
+  deletePermissions: (permissionId: string) => `/api/permissions/${permissionId}`,
+  listRolePermissions: "/api/role-permission",
+  getRolePermissionsById: (rolePermissionId: string) => `/api/role-permission/${rolePermissionId}`,
+  createRolePermissions: "/api/role-permission",
+  updateRolePermissions: (rolePermissionId: string) => `/api/role-permission/${rolePermissionId}`,
+  deleteRolePermissions: (rolePermissionId: string) => `/api/role-permission/${rolePermissionId}`,
+  listAdminRoles: "/api/admin/admin-role",
+  createAdminRoles: "/api/admin/admin-role",
+  getAdminRolesByAdminId: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+  updateAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+  deleteAdminRoles: (adminId: string) => `/api/admin/admin-role/${adminId}`,
+} as const;
+
+// Course Progress API endpoints
+export const courseProgressApi = {
+  list: "/api/course/progress",
+  create: "/api/course/progress",
+  getByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
+  updateByLessonId: (lessonId: string) => `/api/course/progress/lesson/${lessonId}`,
+  getByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
+  updateByProgressId: (progressId: string) => `/api/course/progress/${progressId}`,
+  updateState: (progressId: string) => `/api/course/progress/${progressId}/state`,
+} as const;
+
+export const quizApi = {
+  // Student quiz endpoints
+  getLessonQuizByLessonId: (lessonId: string) => `/api/course/quiz?lessonId=${lessonId}`,
+  createSubmission: `/api/course/quiz/submit`,
+  
+  // Tutor quiz management endpoints
+  getTutorQuiz: `/api/tutor-quiz`,
+  getTutorQuizByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}`,
+  createTutorQuizByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}`,
+  getTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  updateTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  deleteTutorQuizByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}`,
+  
+  // Quiz submission management
+  getSubmissionByLessonId: (lessonId: string) => `/api/tutor-quiz/${lessonId}/submission`,
+  getSubmissionByQuizId: (lessonId: string, quizId: string) => `/api/tutor-quiz/${lessonId}/${quizId}/submission`,
+  updateSubmissionGrade: (lessonId: string, quizId: string, submissionId: string) => `/api/tutor-quiz/${lessonId}/${quizId}/submission/${submissionId}`,
+  
+  // AI Quiz generation
+  generateAIQuiz: (lessonId: string) => `/api/tutor-quiz/${lessonId}/ai-generate`,
+} as const;

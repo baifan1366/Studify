@@ -35,15 +35,49 @@ export async function POST(req: Request) {
     if (profileError || !profile) {
       console.error("Failed to get user profile:", profileError);
       
+      // Debug: Log Google OAuth user data structure
+      console.log('🔍 Google OAuth User Data:', {
+        id: user.id,
+        email: user.email,
+        user_metadata: user.user_metadata,
+        identities: user.identities?.[0]?.identity_data,
+        app_metadata: user.app_metadata
+      });
+      
+      // Enhanced Google OAuth name resolution with more fallback options
+      const googleName = user.user_metadata?.full_name || 
+                        user.user_metadata?.name ||
+                        user.user_metadata?.display_name ||
+                        user.identities?.[0]?.identity_data?.name ||
+                        user.identities?.[0]?.identity_data?.full_name ||
+                        user.identities?.[0]?.identity_data?.display_name ||
+                        user.identities?.[0]?.identity_data?.given_name + ' ' + user.identities?.[0]?.identity_data?.family_name;
+      
+      // Enhanced avatar URL resolution
+      const avatarUrl = user.user_metadata?.avatar_url ||
+                       user.user_metadata?.picture ||
+                       user.identities?.[0]?.identity_data?.avatar_url ||
+                       user.identities?.[0]?.identity_data?.picture;
+      
+      const displayName = googleName || user.email?.split('@')[0];
+      
+      console.log('📝 Creating profile with enhanced data:', {
+        name: displayName,
+        googleName,
+        avatarUrl,
+        email: user.email
+      });
+      
       // If profile doesn't exist, create it (for OAuth users)
       const { error: createError } = await supabase
         .from('profiles')
         .insert({
           user_id: user.id,
           role: 'student',
-          full_name: user.user_metadata?.full_name,
+          full_name: googleName,
           email: user.email,
-          display_name: user.user_metadata?.full_name || user.email?.split('@')[0]
+          display_name: displayName,
+          avatar_url: avatarUrl
         })
         .select()
         .single();
@@ -67,13 +101,45 @@ export async function POST(req: Request) {
       profile = newProfile;
     }
 
+    // Enhanced name resolution for Google OAuth users with more comprehensive fallbacks
+    const googleName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name ||
+                      user.user_metadata?.display_name ||
+                      user.identities?.[0]?.identity_data?.name ||
+                      user.identities?.[0]?.identity_data?.full_name ||
+                      user.identities?.[0]?.identity_data?.display_name ||
+                      (user.identities?.[0]?.identity_data?.given_name && user.identities?.[0]?.identity_data?.family_name ? 
+                        user.identities?.[0]?.identity_data?.given_name + ' ' + user.identities?.[0]?.identity_data?.family_name : null);
+    
+    // Enhanced avatar URL resolution
+    const avatarUrl = profile.avatar_url ||
+                     user.user_metadata?.avatar_url ||
+                     user.user_metadata?.picture ||
+                     user.identities?.[0]?.identity_data?.avatar_url ||
+                     user.identities?.[0]?.identity_data?.picture;
+    
+    const resolvedName = profile.display_name || 
+                        profile.full_name || 
+                        googleName || 
+                        user.email?.split('@')[0] || "";
+
     const userProfile = {
       id: user.id,
       email: user.email,
-      name: profile.full_name || user.user_metadata?.full_name || user.email || "",
-      avatar: profile.avatar_url || user.user_metadata?.avatar_url || "",
+      name: resolvedName,
+      avatar: avatarUrl || "",
       role: profile.role || "student"
     };
+
+    console.log('🎯 Final user profile:', {
+      id: userProfile.id,
+      name: userProfile.name,
+      email: userProfile.email,
+      avatar: userProfile.avatar,
+      role: userProfile.role,
+      resolvedName,
+      googleName
+    });
 
     // Redis 缓存（按你上面用的 redis client）
     await redis.set(cacheKey, JSON.stringify(userProfile), { ex: 3600 });
@@ -86,16 +152,18 @@ export async function POST(req: Request) {
     await redis.set(sessionKey, JSON.stringify({
       userId: user.id,
       role: userProfile.role,
-      name: userProfile.name,
+      name: resolvedName,
       createdAt: new Date().toISOString()
     }), { ex: 7 * 24 * 3600 }); // 7 days
+
+    console.log('🎯 Creating JWT with name:', resolvedName);
 
     // 生成 JWT token
     const token = await signAppJwt({
       sub: user.id,
       role: userProfile.role as 'student' | 'tutor' | 'admin',
       jti: jti,
-      name: userProfile.name
+      name: resolvedName
     }, 7 * 24 * 3600); // 7 days
 
     // 更新 user_metadata 写入 redis_key（需要 admin 权限）

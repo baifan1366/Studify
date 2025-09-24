@@ -6,13 +6,13 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
  
 import HeroSection from '@/components/home/hero-section';
+import ShowHeroButton from '@/components/home/show-hero-button';
 import AIAssistantPreview from '@/components/ai-assistant-preview';
 import LearningPath from '@/components/learning-path';
 import CommunityHighlights from '@/components/community-highlights';
 import LearningReport from '@/components/learning-report';
 import GamificationSection from '@/components/gamification-section';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
 import { useTranslations } from 'next-intl';
 
 export default function HomeContent() {
@@ -121,9 +121,12 @@ export default function HomeContent() {
   };
 
   return (
-    <AnimatedBackground>
+    <>
       {/* Main Content */}
       <div>
+        {/* Show Hero Button (only visible when hero is hidden) */}
+        <ShowHeroButton />
+        
         {/* Hero Section */}
         <HeroSection
           onStartLearning={handleStartLearning}
@@ -156,6 +159,6 @@ export default function HomeContent() {
           onDailyCheckin={handleDailyCheckin}
         />
       </div>
-    </AnimatedBackground>
+    </>
   );
 }

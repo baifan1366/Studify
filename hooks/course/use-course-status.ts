@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface UpdateStatusParams {
   courseId: number;
-  status: 'active' | 'pending' | 'inactive';
+  status: 'active' | 'pending' | 'inactive' | 'ban' | 'rejected';
 }
 
 export function useUpdateCourseStatus() {
@@ -22,7 +22,7 @@ export function useUpdateCourseStatus() {
       }),
     onSuccess: (data, variables) => {
       // Invalidate and refetch courses
-      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses', variables.courseId] });
       toast({
         title: 'Success',
         description: `Course status updated to ${variables.status}`,

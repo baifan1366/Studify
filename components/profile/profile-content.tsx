@@ -1,25 +1,43 @@
 "use client";
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
+import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
+import { useLearningStats, useAchievements, usePointsData, getAchievementIcon, calculateAchievementProgress, formatStudyTime } from '@/hooks/profile/use-learning-stats';
 import { useToast } from '@/hooks/use-toast';
-import AnimatedBackground from '@/components/ui/animated-background';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
 
 export default function ProfileContent() {
   const t = useTranslations('ProfileContent');
+  const tProfile = useTranslations('UserProfile');
   const router = useRouter();
   const pathname = usePathname();
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile();
-  const updateProfileMutation = useUpdateProfile();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
+  const updateProfileMutation = useUpdateProfile(userData?.id || '');
+  const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
+  const { data: learningStats, isLoading: statsLoading } = useLearningStats('all');
+  const { data: pointsData, isLoading: pointsLoading } = usePointsData();
+  const {
+    storedAccounts,
+    currentAccountId,
+    switchToAccount,
+    removeAccount,
+    addAccount,
+    isSwitching,
+    switchError
+  } = useAccountSwitcher();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [editForm, setEditForm] = useState({
     display_name: '',
     full_name: '',
@@ -186,8 +204,40 @@ export default function ProfileContent() {
     router.push(`/${locale}/community`);
   };
 
+  // Account switcher handlers
+  const handleAccountSwitch = () => {
+    setShowAccountSwitcher(!showAccountSwitcher);
+  };
+
+  const handleSwitchToAccount = (accountId: string) => {
+    if (accountId === currentAccountId || isSwitching) {
+      return;
+    }
+    
+    const targetAccount = storedAccounts.find(acc => acc.id === accountId);
+    if (targetAccount) {
+      switchToAccount(accountId, targetAccount.email);
+    }
+  };
+
+  const handleRemoveAccount = (accountId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (accountId !== currentAccountId) {
+      removeAccount(accountId);
+    }
+  };
+
+  // Get accounts formatted for display
+  const allAccounts = storedAccounts.map(account => ({
+    id: account.id,
+    email: account.email,
+    name: account.display_name || account.email.split('@')[0],
+    avatar: account.avatar_url || '',
+    isCurrent: account.id === currentAccountId,
+    role: account.role
+  }));
+
   return (
-    <AnimatedBackground>
       <div className="min-h-screen p-6 pb-32 overflow-y-auto">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -213,27 +263,25 @@ export default function ProfileContent() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
             >
-              <div className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+              <div className="bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
                 {/* Animated Background Elements */}
-                <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                  <motion.div
-                    className="absolute -top-4 -right-4 w-16 h-16 bg-blue-500/30 rounded-full blur-xl"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [0.3, 0.6, 0.3],
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  />
-                </div>
+                <motion.div
+                  className="fixed top-4 right-4 w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/30 rounded-full blur-xl pointer-events-none"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 0.6, 0.3],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
 
-                <div className="relative z-10 text-center">
+                <div className="text-center z-10">
                   {/* Avatar */}
-                  <div className="relative inline-block mb-4">
-                    <div className="w-32 h-32 rounded-full overflow-hidden bg-white/20 flex items-center justify-center mx-auto">
+                  <div className="inline-block mb-4">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-white/20 flex items-center justify-center mx-auto">
                       {avatarPreview ? (
                         <Image
                           src={avatarPreview}
@@ -256,19 +304,19 @@ export default function ProfileContent() {
                     </div>
                     <motion.button
                       onClick={handleAvatarChange}
-                      className="absolute bottom-2 right-2 w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white shadow-lg"
+                      className="mt-2 mx-auto w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white shadow-lg"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
-                      <Camera size={16} />
+                      <Camera size={14} className="sm:w-4 sm:h-4" />
                     </motion.button>
                   </div>
 
                   {/* User Info */}
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 truncate">
                     {userName}
                   </h2>
-                  <p className="text-white/70 mb-4">{userEmail}</p>
+                  <p className="text-white/70 mb-4 text-sm sm:text-base truncate">{userEmail}</p>
                   
                   {profile?.role && (
                     <span className="inline-block px-4 py-2 bg-white/20 rounded-full text-sm font-medium text-white capitalize mb-4">
@@ -279,20 +327,179 @@ export default function ProfileContent() {
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-white">{(profile as any)?.points || 0}</div>
+                      <div className="text-2xl font-bold text-white">{pointsData?.data?.currentPoints || (profile as any)?.points || 0}</div>
                       <div className="text-xs text-white/70">{t('points')}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-white">12</div>
+                      <div className="text-2xl font-bold text-white">{learningStats?.data?.summary?.completedCourses || 0}</div>
                       <div className="text-xs text-white/70">{t('courses')}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-white">5</div>
+                      <div className="text-2xl font-bold text-white">{achievementsData?.data?.stats?.unlocked || 0}</div>
                       <div className="text-xs text-white/70">{t('achievements')}</div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Account Switcher Card */}
+              {storedAccounts.length > 1 && (
+                <div className="bg-gradient-to-br from-indigo-600/20 via-blue-600/20 to-cyan-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mt-6 overflow-hidden">
+                  {/* Animated Background Elements */}
+                  <motion.div
+                    className="absolute top-4 right-4 w-12 h-12 sm:w-16 sm:h-16 bg-indigo-500/30 rounded-full blur-xl pointer-events-none"
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      opacity: [0.3, 0.5, 0.3],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+
+                  <div className="relative z-10">
+                    <motion.button
+                      onClick={handleAccountSwitch}
+                      className="w-full flex items-center justify-between p-3 hover:bg-white/10 rounded-lg transition-all duration-200 group"
+                      whileHover={{ x: 2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                          <Users size={18} className="text-white" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="font-semibold text-white text-sm sm:text-base">{tProfile('switch_account')}</span>
+                          <span className="text-xs text-white/70">
+                            {allAccounts.length} {tProfile('accounts').toLowerCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <motion.div
+                        animate={{ rotate: showAccountSwitcher ? 90 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronRight size={16} className="text-white/70 group-hover:text-white/90 transition-colors" />
+                      </motion.div>
+                    </motion.button>
+
+                    {/* Account List Dropdown */}
+                    <AnimatePresence>
+                      {showAccountSwitcher && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          className="overflow-hidden mt-4"
+                        >
+                          <div className="space-y-2">
+                            {/* Show switching loading state */}
+                            {isSwitching && (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 size={20} className="text-blue-400 animate-spin" />
+                                <span className="ml-2 text-sm text-white/70">
+                                  {tProfile('switching_account')}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Show error if any */}
+                            {switchError && (
+                              <div className="mb-3 p-3 bg-red-500/20 border border-red-400/30 rounded-lg">
+                                <p className="text-xs text-red-300">{switchError}</p>
+                              </div>
+                            )}
+
+                            {allAccounts.map((account) => (
+                              <motion.div
+                                key={account.id}
+                                className="relative group"
+                                whileHover={{ x: 2, scale: 1.01 }}
+                              >
+                                <button
+                                  onClick={() => handleSwitchToAccount(account.id)}
+                                  disabled={isSwitching}
+                                  className={`w-full flex items-center space-x-3 p-3 rounded-lg backdrop-blur-sm transition-all duration-200 ${
+                                    account.isCurrent 
+                                      ? 'bg-gradient-to-r from-emerald-500/30 to-teal-500/30 ring-2 ring-emerald-400/50' 
+                                      : 'hover:bg-white/10'
+                                  } ${isSwitching ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                  <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center ring-2 ring-white/30">
+                                    {account.avatar ? (
+                                      <Image
+                                        src={account.avatar}
+                                        alt={account.name}
+                                        width={40}
+                                        height={40}
+                                        className="w-full h-full object-cover rounded-full"
+                                      />
+                                    ) : (
+                                      <UserCircle size={20} className="text-white/70" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="text-sm font-semibold text-white truncate">
+                                        {account.name}
+                                      </div>
+                                      {account.role && (
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                          account.role === 'admin' 
+                                            ? 'bg-purple-500/30 text-purple-200'
+                                            : account.role === 'tutor'
+                                            ? 'bg-blue-500/30 text-blue-200'
+                                            : 'bg-gray-500/30 text-gray-200'
+                                        }`}>
+                                          {account.role}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-white/60 truncate">
+                                      {account.email}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    {account.isCurrent && (
+                                      <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                        <Check size={12} className="text-white" />
+                                      </div>
+                                    )}
+                                    {!account.isCurrent && allAccounts.length > 1 && (
+                                      <button
+                                        onClick={(e) => handleRemoveAccount(account.id, e)}
+                                        className="w-5 h-5 rounded-full hover:bg-red-500/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                        title={tProfile('remove_account')}
+                                      >
+                                        <X size={12} className="text-red-400" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </button>
+                              </motion.div>
+                            ))}
+                            
+                            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent my-3"></div>
+                            <motion.button
+                              onClick={addAccount}
+                              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gradient-to-r hover:from-blue-500/20 hover:to-cyan-500/20 transition-all duration-200 text-blue-300 group"
+                              whileHover={{ x: 2, scale: 1.01 }}
+                            >
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                                <User size={16} className="text-white" />
+                              </div>
+                              <span className="text-sm font-semibold">{tProfile('add_account')}</span>
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
             </motion.div>
 
             {/* Main Content */}
@@ -303,58 +510,56 @@ export default function ProfileContent() {
               transition={{ delay: 0.4, duration: 0.6 }}
             >
               {/* Personal Information */}
-              <div className="relative bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                  <motion.div
-                    className="absolute -bottom-4 -left-4 w-20 h-20 bg-emerald-500/30 rounded-full blur-xl"
-                    animate={{
-                      scale: [1.2, 1, 1.2],
-                      opacity: [0.4, 0.2, 0.4],
-                    }}
-                    transition={{
-                      duration: 5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 1
-                    }}
-                  />
-                </div>
+              <div className="bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
+                <motion.div
+                  className="fixed bottom-4 left-4 w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500/30 rounded-full blur-xl pointer-events-none"
+                  animate={{
+                    scale: [1.2, 1, 1.2],
+                    opacity: [0.4, 0.2, 0.4],
+                  }}
+                  transition={{
+                    duration: 5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 1
+                  }}
+                />
 
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                      <User size={20} />
+                <div className="z-10">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                    <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
+                      <User size={18} className="sm:w-5 sm:h-5" />
                       {t('personal_info')}
                     </h3>
                     {!isEditing ? (
                       <motion.button
                         onClick={handleEdit}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-medium"
+                        className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-xs sm:text-sm font-medium self-start sm:self-auto"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Edit3 size={16} />
+                        <Edit3 size={14} className="sm:w-4 sm:h-4" />
                         {t('edit')}
                       </motion.button>
                     ) : (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <motion.button
                           onClick={handleSave}
                           disabled={updateProfileMutation.isPending}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium"
+                          className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-xs sm:text-sm font-medium"
                           whileHover={{ scale: updateProfileMutation.isPending ? 1 : 1.05 }}
                           whileTap={{ scale: updateProfileMutation.isPending ? 1 : 0.95 }}
                         >
-                          <Save size={16} />
+                          <Save size={14} className="sm:w-4 sm:h-4" />
                           {updateProfileMutation.isPending ? 'Saving...' : t('save')}
                         </motion.button>
                         <motion.button
                           onClick={handleCancel}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-white text-sm font-medium"
+                          className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-gray-600 hover:bg-gray-700 rounded-lg text-white text-xs sm:text-sm font-medium"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          <X size={16} />
+                          <X size={14} className="sm:w-4 sm:h-4" />
                           {t('cancel')}
                         </motion.button>
                       </div>
@@ -463,24 +668,22 @@ export default function ProfileContent() {
 
               {/* Interests Section */}
               {(broadField || subFields.length > 0) && (
-                <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                    <motion.div
-                      className="absolute -top-4 -right-4 w-16 h-16 bg-purple-500/30 rounded-full blur-xl"
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.3, 0.7, 0.3],
-                      }}
-                      transition={{
-                        duration: 6,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 2
-                      }}
-                    />
-                  </div>
+                <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
+                  <motion.div
+                    className="fixed top-4 right-4 w-12 h-12 sm:w-16 sm:h-16 bg-purple-500/30 rounded-full blur-xl pointer-events-none"
+                    animate={{
+                      scale: [1, 1.3, 1],
+                      opacity: [0.3, 0.7, 0.3],
+                    }}
+                    transition={{
+                      duration: 6,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: 2
+                    }}
+                  />
 
-                  <div className="relative z-10">
+                  <div className="z-10">
                     <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                       <Award size={20} />
                       {t('interests')} {/* You may need to add this to translations */}
@@ -524,51 +727,214 @@ export default function ProfileContent() {
                 </div>
               )}
 
+              {/* Learning Statistics */}
+              <div className="bg-gradient-to-br from-indigo-600/20 via-blue-600/20 to-cyan-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <TrendingUp size={18} className="sm:w-5 sm:h-5" />
+                    Learning Progress
+                  </h3>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-white/10 rounded-lg">
+                      <Clock size={24} className="text-blue-400 mx-auto mb-2" />
+                      <div className="text-xl font-bold text-white">{formatStudyTime(learningStats?.data?.summary?.totalStudyMinutes || 0)}</div>
+                      <div className="text-xs text-white/70">Study Time</div>
+                    </div>
+                    <div className="text-center p-4 bg-white/10 rounded-lg">
+                      <Target size={24} className="text-green-400 mx-auto mb-2" />
+                      <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.completedLessons || 0}</div>
+                      <div className="text-xs text-white/70">Lessons Done</div>
+                    </div>
+                    <div className="text-center p-4 bg-white/10 rounded-lg">
+                      <Zap size={24} className="text-orange-400 mx-auto mb-2" />
+                      <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.studyStreak || 0}</div>
+                      <div className="text-xs text-white/70">Day Streak</div>
+                    </div>
+                    <div className="text-center p-4 bg-white/10 rounded-lg">
+                      <Trophy size={24} className="text-yellow-400 mx-auto mb-2" />
+                      <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.avgProgress || 0}%</div>
+                      <div className="text-xs text-white/70">Avg Progress</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Achievements System */}
+              <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
+                <div className="z-10">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
+                      <Award size={18} className="sm:w-5 sm:h-5" />
+                      Achievements
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                        {achievementsData?.data?.stats?.unlocked || 0} / {achievementsData?.data?.stats?.total || 0}
+                      </Badge>
+                      <Badge variant="outline" className="text-white/70 border-white/30">
+                        {achievementsData?.data?.stats?.totalPointsEarned || 0} pts earned
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <Tabs defaultValue="recent" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 bg-white/10">
+                      <TabsTrigger value="recent">Recent</TabsTrigger>
+                      <TabsTrigger value="unlocked">Unlocked</TabsTrigger>
+                      <TabsTrigger value="progress">In Progress</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="recent" className="mt-4">
+                      <div className="space-y-3">
+                        {achievementsData?.data?.stats?.recentUnlocks?.slice(0, 5).map((achievement, index) => (
+                          <motion.div
+                            key={achievement.id}
+                            className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/15 transition-all duration-200"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                          >
+                            <div className="text-3xl">{getAchievementIcon(achievement.category)}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold text-white">{achievement.name}</h4>
+                                <Badge className="text-xs bg-green-500/20 text-green-300 border-green-500/30">
+                                  +{achievement.pointsReward} pts
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-white/70">{achievement.description}</p>
+                              <p className="text-xs text-white/50 mt-1">
+                                Unlocked {achievement.unlockedAt ? new Date(achievement.unlockedAt).toLocaleDateString() : 'Recently'}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )) || (
+                          <div className="text-center py-8 text-white/60">
+                            <Trophy size={48} className="mx-auto mb-4 text-white/30" />
+                            <p>No recent achievements. Keep learning to unlock more!</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="unlocked" className="mt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {achievementsData?.data?.achievements?.filter(a => a.isUnlocked).map((achievement, index) => (
+                          <motion.div
+                            key={achievement.id}
+                            className="flex items-center gap-4 p-4 bg-white/10 rounded-lg"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <div className="text-2xl">{getAchievementIcon(achievement.category)}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold text-white text-sm">{achievement.name}</h4>
+                                <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                                  +{achievement.pointsReward}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-white/70">{achievement.description}</p>
+                            </div>
+                          </motion.div>
+                        )) || (
+                          <div className="col-span-2 text-center py-8 text-white/60">
+                            <Award size={48} className="mx-auto mb-4 text-white/30" />
+                            <p>No achievements unlocked yet. Start learning to earn your first badge!</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="progress" className="mt-4">
+                      <div className="space-y-4">
+                        {achievementsData?.data?.achievements?.filter(a => !a.isUnlocked && a.currentValue > 0).map((achievement, index) => (
+                          <motion.div
+                            key={achievement.id}
+                            className="p-4 bg-white/5 rounded-lg border border-white/10"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                          >
+                            <div className="flex items-center gap-4 mb-3">
+                              <div className="text-2xl opacity-50">{getAchievementIcon(achievement.category)}</div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-white/90">{achievement.name}</h4>
+                                  <Badge variant="outline" className="text-xs text-white/60 border-white/30">
+                                    {achievement.pointsReward} pts
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-white/70">{achievement.description}</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm text-white/80">
+                                <span>Progress: {achievement.currentValue} / {achievement.targetValue}</span>
+                                <span>{Math.round(achievement.progress)}%</span>
+                              </div>
+                              <Progress value={achievement.progress} className="h-2" />
+                            </div>
+                          </motion.div>
+                        )) || (
+                          <div className="text-center py-8 text-white/60">
+                            <Target size={48} className="mx-auto mb-4 text-white/30" />
+                            <p>No achievements in progress. Complete lessons and activities to start earning achievements!</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </div>
+
               {/* Quick Actions */}
-              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6 mb-8">
-                <div className="relative z-10">
-                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <Settings size={20} />
+              <div className="bg-gradient-to-br from-gray-600/20 via-slate-600/20 to-zinc-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-8 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <Settings size={18} className="sm:w-5 sm:h-5" />
                     {t('quick_actions')}
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     <motion.button
                       onClick={handleNavigateToCourses}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <BookOpen size={20} className="text-blue-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('my_courses')}</div>
-                        <div className="text-sm text-white/70">{t('view_enrolled')}</div>
+                      <BookOpen size={18} className="sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('my_courses')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_enrolled')}</div>
                       </div>
                     </motion.button>
 
                     <motion.button
                       onClick={handleNavigateToAchievements}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Award size={20} className="text-yellow-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('achievements')}</div>
-                        <div className="text-sm text-white/70">{t('view_badges')}</div>
+                      <Award size={18} className="sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('achievements')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_badges')}</div>
                       </div>
                     </motion.button>
 
                     <motion.button
                       onClick={handleNavigateToCommunity}
-                      className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Users size={20} className="text-green-400" />
-                      <div className="text-left">
-                        <div className="font-medium">{t('community')}</div>
-                        <div className="text-sm text-white/70">{t('join_groups')}</div>
+                      <Users size={18} className="sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('community')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('join_groups')}</div>
                       </div>
                     </motion.button>
                   </div>
@@ -578,6 +944,5 @@ export default function ProfileContent() {
           </div>
         </div>
       </div>
-    </AnimatedBackground>
   );
 }

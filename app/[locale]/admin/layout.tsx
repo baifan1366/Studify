@@ -1,4 +1,5 @@
 import LayoutWrapper from "@/components/admin/layout/layout-wrapper";
+import { RoleCheck } from "@/components/admin/layout/role-check";
 
 export default async function AdminLayout({
   children,
@@ -7,9 +8,11 @@ export default async function AdminLayout({
 }) {
   return (
     <LayoutWrapper>
-      <div className="p-4">
-        {children}
-      </div>
+      <RoleCheck>
+        <div className="p-4">
+          {children}
+        </div>
+      </RoleCheck>
     </LayoutWrapper>
   );
 }

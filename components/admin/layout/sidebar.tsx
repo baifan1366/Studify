@@ -66,7 +66,7 @@ const defaultMenuSections: MenuSection[] = [
     title: 'Home',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/admin/dashboard' },
-      { id: 'messages', label: 'Messages', icon: Mail, path: '/admin/messages' },
+      { id: 'ban-list', label: 'Ban List', icon: Shield, path: '/admin/ban' },
       { id: 'announcements', label: 'Announcements', icon: Bell, path: '/admin/announcements' },
     ]
   },
@@ -81,7 +81,6 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: 'all-users', label: 'All Users', icon: Users, path: '/admin/users' },
           { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield, path: '/admin/roles' },
-          { id: 'banned-users', label: 'Banned Users', icon: Users, path: '/admin/users/banned' },
         ]
       },
       {
@@ -92,19 +91,16 @@ const defaultMenuSections: MenuSection[] = [
         subItems: [
           { id: 'courses', label: 'Courses', icon: BookOpen, path: '/admin/courses' },
           { id: 'community-posts', label: 'Community Posts', icon: MessageSquare, path: '/admin/community' },
-          { id: 'classrooms', label: 'Classrooms', icon: Users, path: '/admin/classrooms' },
-          { id: 'content-reports', label: 'Reports', icon: AlertTriangle, path: '/admin/reports' },
         ]
       },
       {
         id: 'reports',
         label: 'Reports',
         icon: FileText,
-        path: '/admin/reports',
+        path: '/admin/reports/users',
         subItems: [
           { id: 'user-reports', label: 'User Reports', icon: FileText, path: '/admin/reports/users' },
           { id: 'content-reports-detail', label: 'Content Reports', icon: FileText, path: '/admin/reports/content' },
-          { id: 'audit-logs', label: 'Audit Logs', icon: Activity, path: '/admin/reports/audit' },
         ]
       },
     ]

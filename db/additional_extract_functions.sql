@@ -1,8 +1,12 @@
 -- =========================
--- 完整的更新版extract_content_text函数
+-- 安全更新 extract_content_text 函数
 -- =========================
 
-CREATE OR REPLACE FUNCTION extract_content_text(
+-- 先删除旧的函数（如果存在）
+DROP FUNCTION IF EXISTS extract_content_text(text, bigint);
+
+-- 重新创建函数
+CREATE FUNCTION extract_content_text(
   p_content_type text,
   p_content_id bigint
 ) RETURNS text
@@ -143,7 +147,6 @@ BEGIN
         END IF;
       END IF;
       
-    -- 新增的内容类型
     WHEN 'classroom' THEN
       SELECT c.name, c.description
       INTO classroom_data

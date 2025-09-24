@@ -6,7 +6,7 @@ import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
 import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
-import UserProfilePopover from '@/components/user-profile-popover';
+import UserProfilePopover from '@/components/tutor/layout/user-profile-popover';
 
 interface ClassroomHeaderProps {
   title?: string;

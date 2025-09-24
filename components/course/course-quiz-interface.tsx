@@ -13,11 +13,13 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import CourseQuizAnalysis from './course-quiz-analysis';
 
 interface QuizQuestion {
-  id: string;
-  question: string;
-  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_blank';
+  id: number;
+  public_id: string;
+  question_text: string;
+  question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay';
   options?: string[];
   correct_answer: string | string[];
   points: number;
@@ -30,7 +32,7 @@ interface QuizQuestion {
 interface CourseQuizInterfaceProps {
   lessonId: string;
   questions: QuizQuestion[];
-  onSubmitAnswer: (questionId: string, answer: string) => Promise<void>;
+  onSubmitAnswer: (questionId: string, answer: string | boolean) => Promise<void>;
   onQuizComplete: () => void;
 }
 
@@ -41,9 +43,10 @@ export default function CourseQuizInterface({
   onQuizComplete 
 }: CourseQuizInterfaceProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, boolean>>({});
+  const [answers, setAnswers] = useState<Record<number, string | boolean>>({});
+  const [submittedAnswers, setSubmittedAnswers] = useState<Record<number, boolean>>({});
   const [showResults, setShowResults] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
   const [startTime] = useState(Date.now());
   const { toast } = useToast();
@@ -63,7 +66,7 @@ export default function CourseQuizInterface({
     return () => clearInterval(timer);
   }, [startTime]);
 
-  const handleAnswerChange = (answer: string) => {
+  const handleAnswerChange = (answer: string | boolean) => {
     setAnswers(prev => ({
       ...prev,
       [currentQuestion.id]: answer
@@ -72,7 +75,8 @@ export default function CourseQuizInterface({
 
   const handleSubmitAnswer = async () => {
     const answer = answers[currentQuestion.id];
-    if (!answer) {
+    // Check if answer is provided (handle both string and boolean answers)
+    if (answer === undefined || answer === null || answer === '') {
       toast({
         title: 'Please select an answer',
         description: 'You must provide an answer before submitting.',
@@ -82,7 +86,7 @@ export default function CourseQuizInterface({
     }
 
     try {
-      await onSubmitAnswer(currentQuestion.id, answer);
+      await onSubmitAnswer(currentQuestion.public_id, answer);
       setSubmittedAnswers(prev => ({
         ...prev,
         [currentQuestion.id]: true
@@ -128,6 +132,16 @@ export default function CourseQuizInterface({
     setAnswers({});
     setSubmittedAnswers({});
     setShowResults(false);
+    setShowAnalysis(false);
+    setTimeSpent(0);
+  };
+
+  const handleViewAnalysis = () => {
+    setShowAnalysis(true);
+  };
+
+  const handleBackToResults = () => {
+    setShowAnalysis(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -139,7 +153,7 @@ export default function CourseQuizInterface({
   const renderQuestion = () => {
     if (!currentQuestion) return null;
 
-    switch (currentQuestion.type) {
+    switch (currentQuestion.question_type) {
       case 'multiple_choice':
         return (
           <div className="space-y-3">
@@ -149,8 +163,8 @@ export default function CourseQuizInterface({
                 onClick={() => handleAnswerChange(option)}
                 className={`w-full text-left p-4 rounded-lg border transition-all ${
                   answers[currentQuestion.id] === option
-                    ? 'border-blue-400 bg-blue-500/20 text-blue-300'
-                    : 'border-white/20 bg-white/5 text-white/80 hover:bg-white/10'
+                    ? 'border-blue-400 bg-blue-500/20 text-blue-600 dark:text-blue-300'
+                    : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -159,7 +173,7 @@ export default function CourseQuizInterface({
                   <div className={`w-4 h-4 rounded-full border-2 ${
                     answers[currentQuestion.id] === option
                       ? 'border-blue-400 bg-blue-400'
-                      : 'border-white/40'
+                      : 'border-gray-400 dark:border-gray-500'
                   }`}>
                     {answers[currentQuestion.id] === option && (
                       <div className="w-full h-full rounded-full bg-white scale-50" />
@@ -181,8 +195,8 @@ export default function CourseQuizInterface({
                 onClick={() => handleAnswerChange(option.toLowerCase())}
                 className={`w-full text-left p-4 rounded-lg border transition-all ${
                   answers[currentQuestion.id] === option.toLowerCase()
-                    ? 'border-blue-400 bg-blue-500/20 text-blue-300'
-                    : 'border-white/20 bg-white/5 text-white/80 hover:bg-white/10'
+                    ? 'border-blue-400 bg-blue-500/20 text-blue-600 dark:text-blue-300'
+                    : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -191,7 +205,7 @@ export default function CourseQuizInterface({
                   <div className={`w-4 h-4 rounded-full border-2 ${
                     answers[currentQuestion.id] === option.toLowerCase()
                       ? 'border-blue-400 bg-blue-400'
-                      : 'border-white/40'
+                      : 'border-gray-400 dark:border-gray-500'
                   }`}>
                     {answers[currentQuestion.id] === option.toLowerCase() && (
                       <div className="w-full h-full rounded-full bg-white scale-50" />
@@ -209,10 +223,10 @@ export default function CourseQuizInterface({
         return (
           <div>
             <textarea
-              value={answers[currentQuestion.id] || ''}
+              value={typeof answers[currentQuestion.id] === 'string' ? answers[currentQuestion.id] : ''}
               onChange={(e) => handleAnswerChange(e.target.value)}
               placeholder="Type your answer here..."
-              className="w-full h-32 bg-white/10 border border-white/20 rounded-lg p-4 text-white placeholder-white/50 resize-none focus:outline-none focus:border-blue-400"
+              className="w-full h-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
             />
           </div>
         );
@@ -222,6 +236,29 @@ export default function CourseQuizInterface({
     }
   };
 
+  if (showAnalysis) {
+    return (
+      <div>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Quiz Analysis</h2>
+          <button
+            onClick={handleBackToResults}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
+          >
+            ← Back to Results
+          </button>
+        </div>
+        <CourseQuizAnalysis
+          lessonId={lessonId}
+          userScore={score}
+          totalQuestions={totalQuestions}
+          correctAnswers={correctAnswers}
+          timeSpent={timeSpent}
+        />
+      </div>
+    );
+  }
+
   if (showResults) {
     return (
       <motion.div
@@ -230,7 +267,7 @@ export default function CourseQuizInterface({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/20 text-center">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 text-center shadow-lg">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -239,21 +276,21 @@ export default function CourseQuizInterface({
             <Award size={64} className="text-yellow-400 mx-auto mb-4" />
           </motion.div>
           
-          <h2 className="text-3xl font-bold text-white mb-2">Quiz Complete!</h2>
-          <p className="text-white/70 mb-6">Great job completing the quiz</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Quiz Complete!</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">Great job completing the quiz</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white/10 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-300">{score}%</div>
-              <div className="text-white/70 text-sm">Score</div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-300">{score}%</div>
+              <div className="text-gray-600 dark:text-gray-400 text-sm">Score</div>
             </div>
-            <div className="bg-white/10 rounded-lg p-4">
-              <div className="text-2xl font-bold text-green-300">{correctAnswers}/{totalQuestions}</div>
-              <div className="text-white/70 text-sm">Correct</div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-300">{correctAnswers}/{totalQuestions}</div>
+              <div className="text-gray-600 dark:text-gray-400 text-sm">Correct</div>
             </div>
-            <div className="bg-white/10 rounded-lg p-4">
-              <div className="text-2xl font-bold text-purple-300">{formatTime(timeSpent)}</div>
-              <div className="text-white/70 text-sm">Time</div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-300">{formatTime(timeSpent)}</div>
+              <div className="text-gray-600 dark:text-gray-400 text-sm">Time</div>
             </div>
           </div>
 
@@ -280,10 +317,17 @@ export default function CourseQuizInterface({
             <div className="flex gap-4 justify-center mt-6">
               <button
                 onClick={handleRetakeQuiz}
-                className="flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
               >
                 <RotateCcw size={20} />
                 Retake Quiz
+              </button>
+              <button
+                onClick={handleViewAnalysis}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+              >
+                <Brain size={20} />
+                View Analysis
               </button>
               <button
                 onClick={onQuizComplete}
@@ -305,19 +349,19 @@ export default function CourseQuizInterface({
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-white">Lesson Quiz</h2>
-            <div className="flex items-center gap-2 text-white/70">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Lesson Quiz</h2>
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
               <Clock size={16} />
               <span>{formatTime(timeSpent)}</span>
             </div>
           </div>
-          <div className="text-white/70">
+          <div className="text-gray-600 dark:text-gray-400">
             Question {currentQuestionIndex + 1} of {totalQuestions}
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-white/10 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <motion.div
             className="bg-blue-500 h-2 rounded-full"
             initial={{ width: 0 }}
@@ -331,7 +375,7 @@ export default function CourseQuizInterface({
       <AnimatePresence mode="wait">
         <motion.div
           key={currentQuestionIndex}
-          className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/20 mb-6"
+          className="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 mb-6 shadow-lg"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
@@ -344,8 +388,8 @@ export default function CourseQuizInterface({
                 {currentQuestion?.points} points
               </span>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-4">
-              {currentQuestion?.question}
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              {currentQuestion?.question_text}
             </h3>
           </div>
 
@@ -376,7 +420,7 @@ export default function CourseQuizInterface({
         <button
           onClick={handlePreviousQuestion}
           disabled={currentQuestionIndex === 0}
-          className="px-6 py-3 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:text-white/50 text-white rounded-lg font-medium transition-colors"
+          className="px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
         >
           Previous
         </button>
@@ -390,8 +434,8 @@ export default function CourseQuizInterface({
                 index === currentQuestionIndex
                   ? 'bg-blue-500 text-white'
                   : submittedAnswers[questions[index]?.id]
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/40'
-                  : 'bg-white/20 text-white/70 hover:bg-white/30'
+                  ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-300 border border-green-300 dark:border-green-700'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
               }`}
             >
               {index + 1}
@@ -411,7 +455,7 @@ export default function CourseQuizInterface({
           <button
             onClick={handleSubmitAnswer}
             disabled={!answers[currentQuestion?.id]}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-medium transition-colors"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 text-white rounded-lg font-medium transition-colors"
           >
             Submit Answer
           </button>

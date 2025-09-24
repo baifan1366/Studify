@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/utils/auth/server-guard';
 import { avatarUploader } from '@/lib/avatar-upload';
 import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const supabase = await createClient();
     
-    // Check if authorization failed
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    let userId: string | null = null;
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      userId = authData?.user?.id ?? null;
+    } catch (err) {
+      // 未登录则继续
     }
-    
-    const { user } = authResult;
     
     const formData = await request.formData();
     const file = formData.get('avatar') as File;
@@ -45,14 +45,13 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     
     // Upload to Cloudinary
-    const avatar_url = await avatarUploader.uploadAvatar(buffer, user.id);
+    const avatar_url = await avatarUploader.uploadAvatar(buffer, userId!);
 
     // Update profile in database
-    const supabase = await createClient();
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ avatar_url })
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (updateError) {
       console.error('Database update error:', updateError);

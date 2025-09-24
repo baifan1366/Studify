@@ -8,16 +8,15 @@ interface CourseDetailPageProps {
   }>;
 }
 
-export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('CoursePage');
 
   return {
-    title: t('metadata_title', { courseSlug: slug }),
+    title: t('metadata_title'),
     description: t('metadata_description'),
     keywords: t('metadata_keywords').split(','),
     openGraph: {
-      title: t('og_title', { courseSlug: slug }),
+      title: t('og_title'),
       description: t('og_description'),
       type: 'website',
     },

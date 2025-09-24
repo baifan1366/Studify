@@ -35,11 +35,26 @@ export async function GET(request: Request) {
     const userId = jwtPayload.sub;
     const cacheKey = `user:${userId}`;
 
-    // 1. Check Redis cache first
+    // 1. Check Redis cache first - but invalidate stale caches for Google OAuth users
     try {
-      const cachedUser = await redis.get(cacheKey);
-      if (cachedUser) {
-        return NextResponse.json(cachedUser);
+      const cachedUserStr = await redis.get(cacheKey);
+      if (cachedUserStr && typeof cachedUserStr === 'string') {
+        const cachedUser = JSON.parse(cachedUserStr);
+        console.log('📦 Cached user data:', {
+          id: cachedUser.id,
+          name: cachedUser.profile?.display_name,
+          email: cachedUser.email,
+          hasProfile: !!cachedUser.profile
+        });
+        
+        // If cached user has incomplete name info, skip cache and refetch
+        if (cachedUser.profile && (!cachedUser.profile.display_name || cachedUser.profile.display_name === cachedUser.email?.split('@')[0])) {
+          console.log('⚠️ Cached user has incomplete name info, refetching...');
+          await redis.del(cacheKey); // Clear stale cache
+        } else {
+          console.log('✅ Using cached user data');
+          return NextResponse.json(cachedUser);
+        }
       }
     } catch (error) {
       console.error('Redis error:', error);
@@ -69,10 +84,57 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
+    console.log('👤 User info from /api/auth/me:', {
+      userId: user.id,
+      email: user.email,
+      userMetadata: user.user_metadata,
+      identities: user.identities?.map(identity => ({
+        provider: identity.provider,
+        identity_data: identity.identity_data
+      })),
+      profileExists: !!profile,
+      profileDisplayName: profile?.display_name,
+      profileFullName: profile?.full_name
+    });
+
+    // Enhanced name resolution similar to sync API
+    const googleName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name ||
+                      user.user_metadata?.display_name ||
+                      user.identities?.[0]?.identity_data?.name ||
+                      user.identities?.[0]?.identity_data?.full_name ||
+                      user.identities?.[0]?.identity_data?.display_name ||
+                      (user.identities?.[0]?.identity_data?.given_name && user.identities?.[0]?.identity_data?.family_name ? 
+                        user.identities?.[0]?.identity_data?.given_name + ' ' + user.identities?.[0]?.identity_data?.family_name : null);
+
+    const resolvedDisplayName = profile?.display_name || 
+                               profile?.full_name || 
+                               googleName || 
+                               user.email?.split('@')[0] || "";
+
+    // Enhanced avatar URL resolution
+    const avatarUrl = profile?.avatar_url ||
+                     user.user_metadata?.avatar_url ||
+                     user.user_metadata?.picture ||
+                     user.identities?.[0]?.identity_data?.avatar_url ||
+                     user.identities?.[0]?.identity_data?.picture;
+
     const userInfo = {
       ...user,
-      profile,
+      profile: profile ? {
+        ...profile,
+        display_name: resolvedDisplayName,
+        avatar_url: avatarUrl
+      } : null,
     };
+
+    console.log('✅ Final user info from /api/auth/me:', {
+      id: userInfo.id,
+      email: userInfo.email,
+      display_name: userInfo.profile?.display_name,
+      avatar_url: userInfo.profile?.avatar_url,
+      role: userInfo.profile?.role
+    });
 
     // 3. Store in Redis for future requests (e.g., cache for 1 hour)
     try {

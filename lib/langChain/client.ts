@@ -44,6 +44,10 @@ const getSiteInfo = () => ({
  * @returns ChatOpenAI实例
  */
 export async function getLLM(config: Partial<GrokConfig> = {}) {
+  // Set dummy OPENAI_API_KEY to prevent LangChain internal checks
+  // This is safe because we override the baseURL to OpenRouter
+
+
   const finalConfig = { ...DEFAULT_GROK_CONFIG, ...config };
   const { siteUrl, siteName } = getSiteInfo();
 
@@ -51,6 +55,8 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
   const { key: apiKey, name: keyName } = await apiKeyManager.getAvailableKey(
     finalConfig.keySelectionStrategy
   );
+
+  console.log(`🔑 Using OpenRouter key: ${keyName} (${apiKey.substring(0, 12)}...${apiKey.substring(apiKey.length - 4)})`);
 
   // 构造模型参数
   const modelParams: any = {
@@ -72,10 +78,11 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
 
   const chatOpenAI = new ChatOpenAI({
     ...modelParams,
-    openAIApiKey: apiKey,
+    openAIApiKey: apiKey, // LangChain still needs this parameter
     configuration: {
       baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: {
+        "Authorization": `Bearer ${apiKey}`, // OpenRouter 需要这个头
         "HTTP-Referer": siteUrl, // 用于OpenRouter排名统计
         "X-Title": siteName, // 用于OpenRouter排名显示
       },
@@ -113,6 +120,7 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
 export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
+    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -126,6 +134,7 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
 export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
+    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
     enableReasoning: true, // 启用推理提升分析质量
@@ -138,6 +147,7 @@ export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
 export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
+    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
   });

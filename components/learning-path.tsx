@@ -18,7 +18,7 @@ interface LearningPathProps {
   onGenerateStudyPlan?: () => void;
 }
 
-export default function LearningPath({ onGenerateStudyPlan }: LearningPathProps) {
+export default function homLearningPath({ onGenerateStudyPlan }: LearningPathProps) {
   const t = useTranslations('LearningPath');
   const progress = 65; // Example progress percentage
   

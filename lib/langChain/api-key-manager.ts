@@ -43,7 +43,7 @@ export class ApiKeyManager {
     
     // 方法1: 从环境变量加载多个keys
     for (let i = 1; i <= 20; i++) {
-      const key = process.env[`OPENROUTER_API_KEY_${i}`];
+      const key = process.env[`OPEN_ROUTER_KEY_${i}`];
       if (key && key.trim()) {
         keyConfigs.push({
           key: key.trim(),
@@ -56,7 +56,7 @@ export class ApiKeyManager {
     }
 
     // 方法2: 从逗号分隔的字符串加载
-    const keysString = process.env.OPENROUTER_API_KEYS;
+    const keysString = process.env.OPEN_ROUTER_KEYS;
     if (keysString && keyConfigs.length === 0) {
       const keys = keysString.split(',').map(k => k.trim()).filter(k => k);
       keys.forEach((key, index) => {
@@ -70,29 +70,10 @@ export class ApiKeyManager {
       });
     }
 
-    // 方法3: 从JSON配置加载
-    const keysJsonString = process.env.OPENROUTER_API_KEYS_CONFIG;
-    if (keysJsonString && keyConfigs.length === 0) {
-      try {
-        const keysConfig = JSON.parse(keysJsonString);
-        keysConfig.forEach((config: any, index: number) => {
-          keyConfigs.push({
-            key: config.key,
-            name: config.name || `json_key_${(index + 1).toString().padStart(2, '0')}`,
-            rateLimit: config.rateLimit || 200,
-            isActive: config.isActive !== false,
-            errorCount: 0
-          });
-        });
-      } catch (error) {
-        console.error('❌ Failed to parse OPENROUTER_API_KEYS_CONFIG:', error);
-      }
-    }
-
     // fallback to single key
-    if (keyConfigs.length === 0 && process.env.OPENROUTER_API_KEY) {
+    if (keyConfigs.length === 0 && process.env.OPEN_ROUTER_KEY) {
       keyConfigs.push({
-        key: process.env.OPENROUTER_API_KEY,
+        key: process.env.OPEN_ROUTER_KEY,
         name: 'fallback_key',
         rateLimit: 200,
         isActive: true,
@@ -380,9 +361,12 @@ export class ApiKeyManager {
       model,
       temperature: 0.3,
       maxRetries,
-      openAIApiKey: apiKey,
+      openAIApiKey: apiKey, // LangChain still needs this parameter
       configuration: {
         baseURL: "https://openrouter.ai/api/v1",
+        defaultHeaders: {
+          "Authorization": `Bearer ${apiKey}`, // OpenRouter 需要这个头
+        },
       },
       callbacks: [{
         handleLLMEnd: async () => {

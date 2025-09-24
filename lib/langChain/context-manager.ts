@@ -363,7 +363,8 @@ export class ContextManager {
   async getContentRelatedContext(
     contentType: string,
     contentId: number,
-    config: Partial<ContextConfig> = {}
+    config: Partial<ContextConfig> = {},
+    contentTypesOverride?: string[]
   ): Promise<string> {
     // 获取原始内容
     const { data: originalContent } = await this.supabase
@@ -382,7 +383,7 @@ export class ContextManager {
       originalContent.content_text,
       config,
       undefined,
-      ['course', 'lesson', 'quiz_question', 'course_note']
+      contentTypesOverride || ['course', 'lesson', 'quiz_question', 'course_note', 'post']
     );
 
     return result.context;

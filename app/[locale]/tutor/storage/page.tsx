@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import { StoragePageLayout } from '@/components/tutor/storage/storage-page-layout';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('TutorStoragePage');
@@ -21,7 +22,7 @@ export default async function TutorStoragePage() {
 
   return (
     <div>
-      <h1>{t('page_title')}</h1>
+      <StoragePageLayout />
     </div>
   );
 }

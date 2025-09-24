@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
+import { 
+  parseSearchQueryParams, 
+  validateSearchParams, 
+  getSearchVectorColumn, 
+  buildTsQuery,
+  DEFAULT_SEARCH_PARAMS 
+} from "@/utils/quiz/search-utils";
 
 type Body = {
   title: string;
@@ -9,6 +16,8 @@ type Body = {
   tags?: string[];
   max_attempts?: number;
   visibility?: 'public' | 'private';
+  subject_id?: number;
+  grade_id?: number;
 };
 
 /** 使用你提供的 slugify（严格按你给的实现） */
@@ -27,6 +36,30 @@ export async function GET(req: Request) {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
     const filter = searchParams.get("filter");
+    
+    // Parse search parameters
+    const searchQuery = parseSearchQueryParams(searchParams);
+    const validationErrors = validateSearchParams(searchQuery);
+    
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        { error: validationErrors.join(', ') }, 
+        { status: 400 }
+      );
+    }
+    
+    // Apply defaults
+    const {
+      query,
+      locale = 'en',
+      subject_id,
+      grade_id,
+      difficulty,
+      limit = DEFAULT_SEARCH_PARAMS.limit,
+      offset = DEFAULT_SEARCH_PARAMS.offset,
+      sort = DEFAULT_SEARCH_PARAMS.sort,
+      order = DEFAULT_SEARCH_PARAMS.order
+    } = searchQuery;
 
     let quizzes;
     let quizError;
@@ -53,7 +86,19 @@ export async function GET(req: Request) {
           max_attempts, 
           visibility,
           author_id,
-          created_at
+          subject_id,
+          grade_id,
+          created_at,
+          community_quiz_subject!subject_id(
+            id,
+            code,
+            translations
+          ),
+          community_quiz_grade!grade_id(
+            id,
+            code,
+            translations
+          )
         `)
         .eq("author_id", userId)
         .eq("is_deleted", false)
@@ -76,8 +121,20 @@ export async function GET(req: Request) {
           max_attempts, 
           visibility,
           author_id,
+          subject_id,
+          grade_id,
           created_at,
-          community_quiz_attempt(id)
+          community_quiz_attempt(id),
+          community_quiz_subject!subject_id(
+            id,
+            code,
+            translations
+          ),
+          community_quiz_grade!grade_id(
+            id,
+            code,
+            translations
+          )
         `)
         .eq("visibility", "public")
         .eq("is_deleted", false);
@@ -89,7 +146,11 @@ export async function GET(req: Request) {
         const quizzesWithCounts = result.data?.map(quiz => ({
           ...quiz,
           attempts_count: quiz.community_quiz_attempt?.length || 0,
-          community_quiz_attempt: undefined // 移除这个字段，不返回给前端
+          community_quiz_attempt: undefined, // 移除这个字段，不返回给前端
+          subject: quiz.community_quiz_subject || null,
+          grade: quiz.community_quiz_grade || null,
+          community_quiz_subject: undefined,
+          community_quiz_grade: undefined
         })) || [];
 
         // 按 attempts 数量降序，然后按创建时间降序排序
@@ -146,15 +207,20 @@ export async function GET(req: Request) {
       console.warn("Failed to fetch author profiles:", profileError);
     }
 
-    // 将作者信息合并到quiz数据中
-    const quizzesWithAuthors = quizzes.map(quiz => {
+    // 将作者信息合并到quiz数据中，并格式化subject/grade数据
+    const quizzesWithAuthors = quizzes.map((quiz: any) => {
       const author = profiles?.find(profile => profile.user_id === quiz.author_id);
       return {
         ...quiz,
         author: author ? {
           display_name: author.display_name,
           avatar_url: author.avatar_url
-        } : null
+        } : null,
+        subject: quiz.community_quiz_subject || null,
+        grade: quiz.community_quiz_grade || null,
+        // Remove the nested objects to clean up the response
+        community_quiz_subject: undefined,
+        community_quiz_grade: undefined
       };
     });
 
@@ -186,7 +252,9 @@ export async function POST(req: Request) {
       difficulty = 1, 
       tags = [], 
       max_attempts = 1, 
-      visibility = 'public' 
+      visibility = 'public',
+      subject_id = null,
+      grade_id = null
     } = body;
 
     if (!title || typeof title !== "string") {
@@ -225,6 +293,8 @@ export async function POST(req: Request) {
           max_attempts,
           visibility,
           author_id: userId, // 关键：记录是谁创建的
+          subject_id,
+          grade_id
         })
         .select("slug, public_id")
         .single();

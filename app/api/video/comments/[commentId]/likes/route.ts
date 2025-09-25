@@ -42,9 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // TypeScript: after auth check, authResult is guaranteed to be AuthResult type
-    const auth = authResult as { user: any; payload: any };
-    const userId = auth.user.profile?.user_id || auth.user.id || auth.payload.sub;
+    const userId = authResult.user?.profile?.id;
 
     // Check if user already liked/disliked this comment
     const { data: existingLike } = await supabase
@@ -178,9 +176,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // TypeScript: after auth check, authResult is guaranteed to be AuthResult type
-    const auth = authResult as { user: any; payload: any };
-    const userId = auth.user.profile?.user_id || auth.user.id || auth.payload.sub;
+    const userId = authResult.user?.profile?.id;
 
     // Get user's current like status
     const { data: userLike } = await supabase

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name text,
   full_name text,
+  display_name text,
   email text,
   role text NOT NULL CHECK (role IN ('admin','student','tutor')),
   avatar_url text,

@@ -20,7 +20,10 @@ import {
   UserCheck,
   ClipboardList,
   Video,
-  Route
+  Route,
+  MessageCircle,
+  Brain,
+  Award,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useLogout } from '@/hooks/profile/use-logout';
@@ -77,7 +80,32 @@ const defaultMenuSections: MenuSection[] = [
       { id: 'classroom', label: 'Classroom', icon: Users, path: '/tutor/classroom' },
       { id: 'students', label: 'Students', icon: GraduationCap, path: '/tutor/student' },
     ]
-  }
+  },{
+    title: "Community",
+    items: [
+      {
+        id: "community",
+        label: "Community",
+        icon: Users,
+        subItems: [
+          { id: "groups", label: "Groups", icon: Users, path: "/tutor/community" },
+          {
+            id: "quizzes",
+            label: "Quizzes",
+            icon: Brain,
+            path: "/tutor/community/quizzes",
+          },
+          {
+            id: "achievements",
+            label: "Achievements",
+            icon: Award,
+            path: "/tutor/community/achievements",
+          },
+        ],
+      },
+      { id: "chat", label: "Chat", icon: MessageCircle, path: "/tutor/chat" },
+    ],
+  },
 ];
 
 export default function AnimatedSidebar({

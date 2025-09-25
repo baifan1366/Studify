@@ -236,7 +236,7 @@ async function handleUpdate(
     const { quizSlug } = await paramsPromise;
 
     // Auth: must be logged in
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 

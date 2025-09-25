@@ -5,7 +5,7 @@ import { authorize } from "@/utils/auth/server-guard";
 export async function GET(request: Request) {
   const supabaseClient = await createServerClient();
 
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

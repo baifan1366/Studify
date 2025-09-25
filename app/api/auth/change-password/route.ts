@@ -6,7 +6,7 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function PATCH(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student','tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

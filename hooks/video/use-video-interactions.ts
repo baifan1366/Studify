@@ -25,19 +25,37 @@ interface DanmakuMessage {
 
 interface VideoComment {
   id: string;
-  userId: string;
+  public_id?: string;
+  user_id: string;
+  userId?: string; // Backward compatibility
   username: string;
-  displayName: string;
-  avatarUrl: string;
+  displayName?: string;
+  display_name?: string;
+  avatarUrl?: string;
+  avatar_url?: string;
+  avatar?: string; // Backward compatibility
   content: string;
   videoTimeSec?: number;
-  likesCount: number;
-  repliesCount: number;
+  video_time_sec?: number;
+  likesCount?: number;
+  likes_count: number;
+  likes?: number; // Backward compatibility
+  repliesCount?: number;
+  replies_count: number;
   parentId?: string;
+  parent_id?: string;
   replyToUserId?: string;
+  reply_to_user_id?: string;
   replyToUserName?: string;
-  createdAt: string;
-  updatedAt: string;
+  reply_to_user_name?: string;
+  createdAt?: string;
+  created_at: string;
+  updatedAt?: string;
+  updated_at?: string;
+  timestamp?: number; // Backward compatibility
+  isLiked?: boolean;
+  is_liked?: boolean;
+  replies?: VideoComment[];
 }
 
 interface VideoView {

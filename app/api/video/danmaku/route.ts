@@ -61,8 +61,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (lessonError || !lesson) {
+      console.error('POST danmaku - Lesson lookup failed:', {
+        lessonId,
+        lessonError,
+        lesson
+      });
       return NextResponse.json(
-        { error: 'Lesson not found' },
+        { error: 'Lesson not found', details: lessonError?.message },
         { status: 404 }
       );
     }
@@ -101,9 +106,9 @@ export async function POST(request: NextRequest) {
       })
       .select(`
         *,
-        profiles!inner(
+        author:profiles!video_danmaku_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name,
           avatar_url
         )
@@ -162,8 +167,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (lessonError || !lesson) {
+      console.error('GET danmaku - Lesson lookup failed:', {
+        lessonId,
+        lessonError,
+        lesson
+      });
       return NextResponse.json(
-        { error: 'Lesson not found' },
+        { error: 'Lesson not found', details: lessonError?.message },
         { status: 404 }
       );
     }
@@ -173,9 +183,9 @@ export async function GET(request: NextRequest) {
       .from('video_danmaku')
       .select(`
         *,
-        profiles!inner(
+        author:profiles!video_danmaku_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name,
           avatar_url
         )

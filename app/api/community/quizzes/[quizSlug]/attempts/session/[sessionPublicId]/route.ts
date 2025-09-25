@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ quizSlug: string; sessionPublicId: string }> }
 ) {
   try {
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 

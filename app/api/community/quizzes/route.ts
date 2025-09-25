@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     // 根据 filter 参数决定查询逻辑
     if (filter === "mine") {
       // 获取当前用户创建的所有 quiz（需要验证身份）
-      const authResult = await authorize("student");
+      const authResult = await authorize(["student", "tutor"]);
       if (authResult instanceof NextResponse) {
         return NextResponse.json([], { status: 200 }); // 未登录返回空数组
       }
@@ -286,7 +286,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     // 1. 校验身份
-    const authResult = await authorize("student");
+    const authResult = await authorize(["student", "tutor"]);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

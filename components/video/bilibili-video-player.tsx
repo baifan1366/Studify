@@ -72,13 +72,14 @@ interface VideoPlayerProps {
   lessonId: string; // Required for API calls
   title: string;
   poster?: string;
+  initialTime?: number;
   // Legacy props for backward compatibility - will be replaced by API data
   danmakuMessages?: DanmakuMessage[];
   comments?: Comment[];
   videoStats?: VideoStatsType;
   currentUserLiked?: boolean;
   // Callbacks
-  onTimeUpdate?: (time: number) => void;
+  onTimeUpdate?: (time: number, duration?: number) => void;
   onShare?: () => void;
   onDownload?: () => void;
 }
@@ -89,6 +90,7 @@ export default function BilibiliVideoPlayer({
   lessonId,
   title,
   poster,
+  initialTime = 0,
   danmakuMessages = [],
   comments = [],
   videoStats,
@@ -264,7 +266,8 @@ export default function BilibiliVideoPlayer({
   };
 
   const isCommentOwner = (comment: any) => {
-    return currentUser && (comment.user_id === currentUser.id || comment.userId === currentUser.id);
+    const commentUserId = comment.user_id || comment.userId;
+    return currentUser && (commentUserId === currentUser.id);
   };
 
   // Control visibility timer
@@ -363,15 +366,46 @@ export default function BilibiliVideoPlayer({
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const newTime = videoRef.current.currentTime;
+      setCurrentTime(newTime);
+      
+      // Call parent onTimeUpdate if provided
+      if (onTimeUpdate) {
+        onTimeUpdate(newTime, duration);
+      }
+      
+      // Auto-track video view progress every 10 seconds
+      if (Math.floor(newTime) % 10 === 0 && newTime > 0) {
+        trackViewMutation.mutate({
+          lessonId,
+          attachmentId,
+          watchDurationSec: Math.floor(newTime),
+          totalDurationSec: Math.floor(duration),
+          lastPositionSec: Math.floor(newTime),
+          isCompleted: newTime >= duration * 0.95 // 95% completion
+        });
+      }
     }
-  }, []);
+  }, [duration, onTimeUpdate, lessonId, attachmentId, trackViewMutation]);
 
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
     }
   }, []);
+
+  // Handle initialTime when video metadata is loaded
+  useEffect(() => {
+    if (videoRef.current && duration > 0 && initialTime > 0) {
+      videoRef.current.currentTime = initialTime;
+      setCurrentTime(initialTime);
+      
+      // Track view with initial time if provided
+      if (onTimeUpdate) {
+        onTimeUpdate(initialTime, duration);
+      }
+    }
+  }, [duration, initialTime, onTimeUpdate]);
 
   const handleProgressClick = useCallback((e: React.MouseEvent) => {
     if (progressRef.current && videoRef.current) {
@@ -854,12 +888,12 @@ export default function BilibiliVideoPlayer({
             <button 
               onClick={handleLike}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                currentUserLiked 
+                (isLiked || currentUserLiked) 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
                   : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white'
               }`}
             >
-              <Heart size={16} className={currentUserLiked ? 'fill-current' : ''} />
+              <Heart size={16} className={(isLiked || currentUserLiked) ? 'fill-current' : ''} />
               <span>{t('VideoPlayer.like')} {videoStats?.likes ? `(${videoStats.likes})` : ''}</span>
             </button>
             <button 
@@ -955,31 +989,76 @@ export default function BilibiliVideoPlayer({
               {/* Comments List - Only show for direct videos */}
               {videoSourceInfo.type === 'direct' && (
                 <div className="space-y-4">
-                  {realComments.map((comment: any) => (
-                    <div key={comment.id} className="flex gap-3">
+                  {realComments.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
+                      <p className="text-lg mb-2">{t('VideoPlayer.no_comments')}</p>
+                      <p className="text-sm">{t('VideoPlayer.be_first_comment')}</p>
+                    </div>
+                  ) : (
+                  realComments.map((comment: any) => {
+                    const commentId = comment.id || comment.public_id;
+                    const avatar = comment.avatar || comment.avatarUrl || comment.avatar_url || '/default-avatar.png';
+                    const username = comment.username || comment.display_name || comment.displayName || 'Anonymous';
+                    const timestamp = comment.created_at || comment.createdAt || comment.timestamp;
+                    const likesCount = comment.likes_count || comment.likesCount || comment.likes || 0;
+                    const isLiked = comment.is_liked || comment.isLiked || false;
+                    
+                    return (
+                    <div key={commentId} className="flex gap-3">
                     <img
-                      src={comment.avatar}
-                      alt={comment.username}
+                      src={avatar}
+                      alt={username}
                       className="w-8 h-8 rounded-full"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/default-avatar.png';
+                      }}
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm">{comment.username}</span>
+                        <span className="font-semibold text-sm">{username}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(comment.created_at || comment.timestamp).toLocaleString()}
+                          {timestamp ? new Date(timestamp).toLocaleString() : ''}
                         </span>
                       </div>
-                      <p className="text-gray-900 dark:text-gray-100 mb-2">{comment.content}</p>
+                      {/* Comment content or editing interface */}
+                      {editingCommentId === commentId ? (
+                        <div className="mb-2">
+                          <textarea
+                            value={editingContent}
+                            onChange={(e) => setEditingContent(e.target.value)}
+                            className="w-full p-2 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            rows={3}
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                            >
+                              {t('VideoPlayer.save')}
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                            >
+                              {t('VideoPlayer.cancel')}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-gray-900 dark:text-gray-100 mb-2">{comment.content}</p>
+                      )}
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                         <button 
-                          onClick={() => handleToggleCommentLike(comment.id || comment.public_id)}
-                          className={`flex items-center gap-1 hover:text-blue-600 ${comment.isLiked ? 'text-blue-600' : ''}`}
+                          onClick={() => handleToggleCommentLike(commentId)}
+                          className={`flex items-center gap-1 hover:text-blue-600 ${isLiked ? 'text-blue-600' : ''}`}
                         >
-                          <Heart size={14} className={comment.isLiked ? 'fill-current' : ''} />
-                          <span>{comment.likes_count || comment.likes || 0}</span>
+                          <Heart size={14} className={isLiked ? 'fill-current' : ''} />
+                          <span>{likesCount}</span>
                         </button>
                         <button 
-                          onClick={() => handleReplyToComment(comment.id || comment.public_id)}
+                          onClick={() => handleReplyToComment(commentId)}
                           className="hover:text-blue-600"
                         >
                           {t('VideoPlayer.reply')}
@@ -987,14 +1066,14 @@ export default function BilibiliVideoPlayer({
                         {isCommentOwner(comment) && (
                           <>
                             <button 
-                              onClick={() => handleEditComment(comment.id || comment.public_id, comment.content)}
+                              onClick={() => handleEditComment(commentId, comment.content)}
                               className="hover:text-blue-600 flex items-center gap-1"
                             >
                               <Edit size={12} />
                               {t('VideoPlayer.edit')}
                             </button>
                             <button 
-                              onClick={() => handleDeleteComment(comment.id || comment.public_id)}
+                              onClick={() => handleDeleteComment(commentId)}
                               className="hover:text-red-600 flex items-center gap-1"
                             >
                               <Trash2 size={12} />
@@ -1008,32 +1087,80 @@ export default function BilibiliVideoPlayer({
                         </button>
                       </div>
                       
+                      {/* Reply interface */}
+                      {replyingToId === commentId && (
+                        <div className="mt-3 pl-4 border-l-2 border-blue-500 space-y-3">
+                          <div className="flex gap-2">
+                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                              R
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-xs text-blue-600 mb-1">
+                                {t('VideoPlayer.replying_to', { username })}
+                              </div>
+                              <textarea
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                placeholder={t('VideoPlayer.comment_placeholder')}
+                                className="w-full p-2 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                                rows={2}
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={handleSendReply}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                                >
+                                  {t('VideoPlayer.send_reply')}
+                                </button>
+                                <button
+                                  onClick={handleCancelReply}
+                                  className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                                >
+                                  {t('VideoPlayer.cancel_reply')}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Replies */}
                       {comment.replies && comment.replies.length > 0 && (
                         <div className="mt-3 pl-4 border-l-2 border-gray-100 dark:border-gray-700 space-y-3">
-                          {comment.replies.map((reply: any) => (
-                            <div key={reply.id} className="flex gap-2">
+                          {comment.replies.map((reply: any) => {
+                            const replyAvatar = reply.avatar || reply.avatarUrl || reply.avatar_url || '/default-avatar.png';
+                            const replyUsername = reply.username || reply.display_name || reply.displayName || 'Anonymous';
+                            const replyTimestamp = reply.created_at || reply.createdAt || reply.timestamp;
+                            
+                            return (
+                            <div key={reply.id || reply.public_id} className="flex gap-2">
                               <img
-                                src={reply.avatar}
-                                alt={reply.username}
+                                src={replyAvatar}
+                                alt={replyUsername}
                                 className="w-6 h-6 rounded-full"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/default-avatar.png';
+                                }}
                               />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-semibold text-xs">{reply.username}</span>
+                                  <span className="font-semibold text-xs">{replyUsername}</span>
                                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {new Date(reply.timestamp).toLocaleString()}
+                                    {replyTimestamp ? new Date(replyTimestamp).toLocaleString() : ''}
                                   </span>
                                 </div>
                                 <p className="text-sm text-gray-900 dark:text-gray-100">{reply.content}</p>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
                   </div>
-                  ))}
+                  );
+                  }))}
                 </div>
               )}
             </div>

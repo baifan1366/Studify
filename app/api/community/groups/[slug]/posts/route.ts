@@ -8,7 +8,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -183,7 +183,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

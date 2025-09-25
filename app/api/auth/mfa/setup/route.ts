@@ -22,7 +22,7 @@ function generateBackupCodes(): string[] {
 export async function GET(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student','tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student','tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

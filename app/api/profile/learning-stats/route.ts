@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 // GET /api/profile/learning-stats - 获取用户学习统计数据
@@ -10,12 +10,12 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     
-    const { user } = authResult;
-    const client = await createServerClient();
+    const { payload } = authResult;
+    const supabase = await createAdminClient();
     const url = new URL(request.url);
     const period = url.searchParams.get('period') || 'week'; // week, month, all
 
-    const userId = user.profile?.id || user.id;
+    const userId = payload.profileId;
 
     // 计算日期范围
     let startDate: string;
@@ -32,100 +32,126 @@ export async function GET(request: NextRequest) {
         startDate = '1970-01-01T00:00:00.000Z'; // All time
     }
 
-    // 获取学习时长统计（从study_session表）
-    const { data: studyTimeData, error: studyTimeError } = await client
-      .from('study_session')
-      .select('duration_minutes, session_start, activity_type')
-      .eq('user_id', userId)
-      .eq('is_deleted', false)
-      .gte('session_start', startDate);
+    // 获取学习时长统计（从study_session表 - 表可能不存在，所以提供fallback）
+    let studyTimeData: any[] = [];
+    try {
+      const { data, error } = await supabase
+        .from('study_session')
+        .select('duration_minutes, session_start, activity_type')
+        .eq('user_id', userId)
+        .eq('is_deleted', false)
+        .gte('session_start', startDate);
 
-    if (studyTimeError) {
-      console.error('Error fetching study time data:', studyTimeError);
+      if (error) {
+        console.warn('Study session table not found or accessible:', error);
+        studyTimeData = [];
+      } else {
+        studyTimeData = data || [];
+      }
+    } catch (error) {
+      console.warn('Study session query failed:', error);
+      studyTimeData = [];
     }
 
     // 计算总学习时长
-    const totalStudyMinutes = studyTimeData?.reduce((sum, session) => sum + (session.duration_minutes || 0), 0) || 0;
+    const totalStudyMinutes = studyTimeData?.reduce((sum: number, session: any) => sum + (session.duration_minutes || 0), 0) || 0;
     const totalStudyHours = Math.round((totalStudyMinutes / 60) * 10) / 10;
 
     // 按活动类型分组
-    const activityBreakdown = studyTimeData?.reduce((acc, session) => {
+    const activityBreakdown = studyTimeData?.reduce((acc: any, session: any) => {
       const type = session.activity_type || 'other';
       acc[type] = (acc[type] || 0) + (session.duration_minutes || 0);
       return acc;
     }, {} as Record<string, number>) || {};
 
-    // 获取课程完成统计
-    const { data: courseCompletionData, error: courseError } = await client
-      .from('course_enrollment')
-      .select(`
-        status,
-        completed_at,
-        course:course_id (
-          title,
-          thumbnail_url,
-          total_lessons
-        )
-      `)
-      .eq('user_id', userId)
-      .gte('completed_at', startDate);
+    // 获取课程完成统计 (使用fallback查询)
+    let completedCourses: any[] = [];
+    try {
+      const { data: courseCompletionData, error: courseError } = await supabase
+        .from('course_enrollment')
+        .select(`
+          status,
+          completed_at,
+          course:course_id (
+            title,
+            thumbnail_url,
+            total_lessons
+          )
+        `)
+        .eq('user_id', userId)
+        .gte('completed_at', startDate);
 
-    if (courseError) {
-      console.error('Error fetching course completion data:', courseError);
+      if (courseError) {
+        console.warn('Course enrollment query failed:', courseError);
+      } else {
+        completedCourses = courseCompletionData?.filter((enrollment: any) => 
+          enrollment.status === 'completed' && enrollment.completed_at
+        ) || [];
+      }
+    } catch (error) {
+      console.warn('Course enrollment table access failed:', error);
+      completedCourses = [];
     }
 
-    const completedCourses = courseCompletionData?.filter(enrollment => 
-      enrollment.status === 'completed' && enrollment.completed_at
-    ) || [];
+    // 获取课程进度统计 (简化查询避免复杂join)
+    let progressData: any[] = [];
+    try {
+      const { data, error } = await supabase
+        .from('course_progress')
+        .select('progress_pct, state, time_spent_sec')
+        .eq('user_id', userId)
+        .eq('is_deleted', false);
 
-    // 获取课程进度统计
-    const { data: progressData, error: progressError } = await client
-      .from('course_progress')
-      .select(`
-        progress_pct,
-        state,
-        time_spent_sec,
-        lesson:lesson_id (
-          title,
-          course:course_id (
-            title
-          )
-        )
-      `)
-      .eq('user_id', userId);
-
-    if (progressError) {
-      console.error('Error fetching progress data:', progressError);
+      if (error) {
+        console.warn('Course progress query failed:', error);
+      } else {
+        progressData = data || [];
+      }
+    } catch (error) {
+      console.warn('Course progress table access failed:', error);
+      progressData = [];
     }
 
     // 计算平均进度
     const avgProgress = progressData && progressData.length > 0 
-      ? Math.round((progressData.reduce((sum, p) => sum + (p.progress_pct || 0), 0) / progressData.length) * 10) / 10
+      ? Math.round((progressData.reduce((sum: number, p: any) => sum + (p.progress_pct || 0), 0) / progressData.length) * 10) / 10
       : 0;
 
     // 计算已完成和进行中的课程数量
-    const completedLessons = progressData?.filter(p => p.state === 'completed').length || 0;
-    const inProgressLessons = progressData?.filter(p => p.state === 'in_progress').length || 0;
+    const completedLessons = progressData?.filter((p: any) => p.state === 'completed').length || 0;
+    const inProgressLessons = progressData?.filter((p: any) => p.state === 'in_progress').length || 0;
 
-    // 获取学习连续天数
-    const { data: recentSessions, error: streakError } = await client
-      .from('study_session')
-      .select('session_start')
-      .eq('user_id', userId)
-      .eq('is_deleted', false)
-      .order('session_start', { ascending: false })
-      .limit(30);
+    // 获取学习连续天数 (使用fallback)
+    let recentSessions: any[] = [];
+    try {
+      const { data, error } = await supabase
+        .from('study_session')
+        .select('session_start')
+        .eq('user_id', userId)
+        .eq('is_deleted', false)
+        .order('session_start', { ascending: false })
+        .limit(30);
+
+      if (error) {
+        console.warn('Study session streak query failed:', error);
+      } else {
+        recentSessions = data || [];
+      }
+    } catch (error) {
+      console.warn('Study session streak table access failed:', error);
+      recentSessions = [];
+    }
 
     let studyStreak = 0;
     if (recentSessions && recentSessions.length > 0) {
       const today = new Date().toDateString();
-      const sessionDates = recentSessions.map(s => new Date(s.session_start).toDateString());
+      const sessionDates = recentSessions.map((s: any) => new Date(s.session_start).toDateString());
       const uniqueDates = [...new Set(sessionDates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
       
       // 计算连续学习天数
       let currentDate = new Date();
       for (const dateStr of uniqueDates) {
-        const sessionDate = new Date(dateStr);
+        const sessionDate = new Date(dateStr as string);
         const daysDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
         
         if (daysDiff === studyStreak) {
@@ -139,36 +165,79 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 获取积分统计
-    const { data: pointsData, error: pointsError } = await client
-      .from('community_points_ledger')
-      .select('points, reason, created_at')
-      .eq('user_id', userId)
-      .eq('is_deleted', false)
-      .gte('created_at', startDate);
+    // 获取积分统计 (使用fallback)
+    let pointsEarned = 0;
+    let pointsSpent = 0;
+    try {
+      const { data: pointsData, error: pointsError } = await supabase
+        .from('community_points_ledger')
+        .select('points, reason, created_at')
+        .eq('user_id', userId)
+        .eq('is_deleted', false)
+        .gte('created_at', startDate);
 
-    const pointsEarned = pointsData?.filter(p => p.points > 0).reduce((sum, p) => sum + p.points, 0) || 0;
-    const pointsSpent = Math.abs(pointsData?.filter(p => p.points < 0).reduce((sum, p) => sum + p.points, 0) || 0);
+      if (pointsError) {
+        console.warn('Points ledger query failed:', pointsError);
+      } else {
+        pointsEarned = pointsData?.filter((p: any) => p.points > 0).reduce((sum: number, p: any) => sum + p.points, 0) || 0;
+        pointsSpent = Math.abs(pointsData?.filter((p: any) => p.points < 0).reduce((sum: number, p: any) => sum + p.points, 0) || 0);
+      }
+    } catch (error) {
+      console.warn('Points ledger table access failed:', error);
+      pointsEarned = 0;
+      pointsSpent = 0;
+    }
 
-    // 获取成就统计
-    const { data: achievementsData, error: achievementsError } = await client
-      .from('community_user_achievement')
-      .select(`
-        unlocked,
-        unlocked_at,
-        achievement:achievement_id (
-          name,
-          description,
-          rule
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('is_deleted', false);
+    // 获取成就统计 (使用fallback)
+    let unlockedAchievements: any[] = [];
+    let recentAchievements: any[] = [];
+    try {
+      const { data: achievementsData, error: achievementsError } = await supabase
+        .from('community_user_achievement')
+        .select(`
+          unlocked,
+          unlocked_at,
+          achievement:achievement_id (
+            name,
+            description,
+            rule
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('is_deleted', false);
 
-    const unlockedAchievements = achievementsData?.filter(a => a.unlocked) || [];
-    const recentAchievements = unlockedAchievements.filter(a => 
-      a.unlocked_at && new Date(a.unlocked_at) >= new Date(startDate)
-    );
+      if (achievementsError) {
+        console.warn('Achievements query failed:', achievementsError);
+      } else {
+        unlockedAchievements = achievementsData?.filter((a: any) => a.unlocked) || [];
+        recentAchievements = unlockedAchievements.filter((a: any) => 
+          a.unlocked_at && new Date(a.unlocked_at) >= new Date(startDate)
+        );
+      }
+    } catch (error) {
+      console.warn('Achievements table access failed:', error);
+      unlockedAchievements = [];
+      recentAchievements = [];
+    }
+
+    // 获取用户当前积分
+    let currentPoints = 0;
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.warn('Profile points query failed:', profileError);
+      } else {
+        currentPoints = profileData?.points || 0;
+      }
+    } catch (error) {
+      console.warn('Profile table access failed:', error);
+      currentPoints = 0;
+    }
 
     // 每日学习时长趋势（最近7天）
     const dailyStats = Array.from({ length: 7 }, (_, i) => {
@@ -176,9 +245,9 @@ export async function GET(request: NextRequest) {
       date.setDate(date.getDate() - i);
       const dateStr = date.toDateString();
       
-      const dayMinutes = studyTimeData?.filter(session => 
+      const dayMinutes = studyTimeData?.filter((session: any) => 
         new Date(session.session_start).toDateString() === dateStr
-      ).reduce((sum, session) => sum + (session.duration_minutes || 0), 0) || 0;
+      ).reduce((sum: number, session: any) => sum + (session.duration_minutes || 0), 0) || 0;
 
       return {
         date: date.toISOString().split('T')[0],
@@ -200,7 +269,7 @@ export async function GET(request: NextRequest) {
           studyStreak,
           pointsEarned,
           pointsSpent,
-          currentPoints: user.profile?.points || 0,
+          currentPoints: currentPoints,
           unlockedAchievements: unlockedAchievements.length,
           recentAchievements: recentAchievements.length
         },

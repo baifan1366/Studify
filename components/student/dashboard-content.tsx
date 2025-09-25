@@ -23,6 +23,8 @@ import { useFullProfile } from '@/hooks/profile/use-profile';
 import { useDashboard, RecentCourse, UpcomingEvent } from '@/hooks/dashboard/use-dashboard';
 import { useLearningStats, useAchievements, formatStudyTime } from '@/hooks/profile/use-learning-stats';
 import { useLearningPaths } from '@/hooks/dashboard/use-learning-paths';
+import { useContinueWatching, useContinueWatchingActions } from '@/hooks/learning/use-learning-progress';
+import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +38,8 @@ export default function DashboardContent() {
   const { data: learningStats, isLoading: statsLoading } = useLearningStats('week');
   const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
   const { data: learningPaths, isLoading: learningPathsLoading } = useLearningPaths({ limit: 3, activeOnly: true });
+  const { data: continueWatchingItems, isLoading: continueWatchingLoading } = useContinueWatching();
+  const { generateContinueWatchingUrl, formatProgress, formatTimeRemaining, formatLastAccessed } = useContinueWatchingActions();
 
   const user = userData;
   const profile = fullProfileData?.profile || user?.profile;
@@ -140,34 +144,96 @@ export default function DashboardContent() {
               <div className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
                 <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                   <PlayCircle size={20} />
-                  Continue Learning
+                  {continueWatchingItems && continueWatchingItems.length > 0 ? 'Continue Watching' : 'Continue Learning'}
                 </h3>
                 
                 <div className="space-y-4">
-                  {recentCourses.map((course: RecentCourse) => (
-                    <div
-                      key={course.id}
-                      className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
-                    >
-                      <div className="w-16 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center">
-                        <BookOpen size={20} className="text-white/70" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-white">{course.title}</h4>
-                        <p className="text-sm text-white/60">Last accessed: {course.lastAccessed}</p>
-                        <div className="w-full bg-white/20 rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${course.progress}%` }}
-                          />
+                  {/* Continue Watching Items */}
+                  {continueWatchingItems && continueWatchingItems.length > 0 ? (
+                    continueWatchingItems.slice(0, 3).map((item) => (
+                      <Link
+                        key={`${item.course_slug}-${item.lesson_public_id}`}
+                        href={generateContinueWatchingUrl(item)}
+                        className="block"
+                      >
+                        <div className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer group">
+                          {/* Thumbnail */}
+                          <div className="relative w-16 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center overflow-hidden">
+                            {item.course_thumbnail ? (
+                              <img
+                                src={item.course_thumbnail}
+                                alt={item.course_title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <PlayCircle size={20} className="text-white/70" />
+                            )}
+                            {/* Continue watching indicator */}
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <PlayCircle size={16} className="text-white" />
+                            </div>
+                          </div>
+                          
+                          {/* Content Info */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-white truncate">{item.lesson_title}</h4>
+                            <p className="text-sm text-white/60 truncate">{item.course_title}</p>
+                            <p className="text-xs text-orange-400">{item.module_title}</p>
+                            
+                            {/* Progress Bar */}
+                            <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
+                              <div 
+                                className="bg-gradient-to-r from-orange-400 to-red-500 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${item.progress_pct}%` }}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Progress Info */}
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-medium text-white">{formatProgress(item.progress_pct)}</p>
+                            <p className="text-xs text-white/60">{formatTimeRemaining(item.progress_pct, item.video_duration_sec)}</p>
+                            <p className="text-xs text-white/40">{formatLastAccessed(item.last_accessed_at)}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    /* Fallback to recent courses if no continue watching items */
+                    recentCourses.map((course: RecentCourse) => (
+                      <div
+                        key={course.id}
+                        className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
+                      >
+                        <div className="w-16 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center">
+                          <BookOpen size={20} className="text-white/70" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white">{course.title}</h4>
+                          <p className="text-sm text-white/60">Last accessed: {course.lastAccessed}</p>
+                          <div className="w-full bg-white/20 rounded-full h-2 mt-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${course.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-white">{course.progress}%</p>
+                          <p className="text-xs text-white/60">Complete</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-white">{course.progress}%</p>
-                        <p className="text-xs text-white/60">Complete</p>
-                      </div>
+                    ))
+                  )}
+                  
+                  {/* Show message when no items to continue */}
+                  {!continueWatchingLoading && (!continueWatchingItems || continueWatchingItems.length === 0) && recentCourses.length === 0 && (
+                    <div className="text-center py-8">
+                      <PlayCircle size={48} className="text-white/30 mx-auto mb-4" />
+                      <p className="text-white/60">No courses in progress</p>
+                      <p className="text-sm text-white/40 mt-1">Start a course to see your progress here!</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </motion.div>

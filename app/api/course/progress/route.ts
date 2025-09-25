@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 export async function POST(request: NextRequest) {
@@ -9,8 +9,8 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
     
-    const supabase = await createClient();
-    const user = authResult.user;
+    const supabase = await createAdminClient();
+    const userId = authResult.user?.profile?.id;
     
     const { lessonId, progressPct, timeSpentSec } = await request.json();
 
@@ -21,17 +21,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get lesson details with course price info
+    // First check if lesson exists
     const { data: lesson, error: lessonError } = await supabase
       .from('course_lesson')
-      .select('*, course!inner(id, title, price, public_id)')
+      .select('id, public_id, course_id, title, position, is_deleted')
       .eq('public_id', lessonId)
       .eq('is_deleted', false)
       .single();
 
     if (lessonError || !lesson) {
+      console.error('Lesson lookup error:', lessonError);
+      console.error('Lesson ID:', lessonId);
       return NextResponse.json(
-        { error: 'Lesson not found' },
+        { error: 'Lesson not found', details: lessonError?.message },
+        { status: 404 }
+      );
+    }
+
+    // Then get course details
+    const { data: course, error: courseError } = await supabase
+      .from('course')
+      .select('id, title, price_cents, is_free, public_id')
+      .eq('id', lesson.course_id)
+      .eq('is_deleted', false)
+      .single();
+
+    if (courseError || !course) {
+      console.error('Course lookup error:', courseError);
+      return NextResponse.json(
+        { error: 'Course not found for this lesson' },
         { status: 404 }
       );
     }
@@ -40,13 +58,13 @@ export async function POST(request: NextRequest) {
     const { data: enrollment } = await supabase
       .from('course_enrollment')
       .select('id')
-      .eq('course_id', lesson.course.id)
-      .eq('user_id', user.id)
+      .eq('course_id', course.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .single();
 
     // If not enrolled and course is paid, check enrollment
-    if (!enrollment && lesson.course.price > 0) {
+    if (!enrollment && !course.is_free && course.price_cents > 0) {
       return NextResponse.json(
         { error: 'Not enrolled in this course' },
         { status: 403 }
@@ -55,12 +73,12 @@ export async function POST(request: NextRequest) {
 
     // For free courses (price = 0) or enrolled users, allow access
     // Auto-enroll in free courses if not already enrolled
-    if (!enrollment && lesson.course.price === 0) {
+    if (!enrollment && (course.is_free || course.price_cents === 0)) {
       await supabase
         .from('course_enrollment')
         .insert({
-          user_id: user.profile?.id || user.id,
-          course_id: lesson.course.id,
+          user_id: userId,
+          course_id: course.id,
           status: 'active',
           enrolled_at: new Date().toISOString()
         });
@@ -74,17 +92,18 @@ export async function POST(request: NextRequest) {
       state = 'completed';
     }
 
-    // Upsert progress record
+    // Upsert progress record (update both timestamp fields for compatibility)
+    const now = new Date().toISOString();
     const { data: progress, error: progressError } = await supabase
       .from('course_progress')
       .upsert({
-        user_id: user.profile?.id || user.id,
+        user_id: userId,
         lesson_id: lesson.id,
         state,
         progress_pct: progressPct,
-        last_seen_at: new Date().toISOString(),
+        last_seen_at: now,
         time_spent_sec: timeSpentSec || 0,
-        completion_date: progressPct >= 100 ? new Date().toISOString() : null
+        completion_date: progressPct >= 100 ? now : null
       }, {
         onConflict: 'user_id,lesson_id'
       })
@@ -102,8 +121,8 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('course_analytics')
       .insert({
-        user_id: user.profile?.id || user.id,
-        course_id: lesson.course.id,
+        user_id: userId,
+        course_id: course.id,
         lesson_id: lesson.id,
         event_type: progressPct >= 100 ? 'lesson_complete' : 'lesson_progress',
         event_data: {
@@ -140,8 +159,8 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     
-    const supabase = await createClient();
-    const user = authResult.user;
+    const supabase = await createAdminClient();
+    const userId = authResult.user?.profile?.id;
     
     const { searchParams } = new URL(request.url);
     const courseId = searchParams.get('courseId');
@@ -165,7 +184,7 @@ export async function GET(request: NextRequest) {
           course!inner(public_id, title)
         )
       `)
-      .eq('user_id', user.profile?.id || user.id);
+      .eq('user_id', userId);
 
     if (lessonId) {
       // Get specific lesson progress
@@ -184,12 +203,31 @@ export async function GET(request: NextRequest) {
 
       query = query.eq('lesson_id', lesson.id);
     } else if (courseId) {
-      // Get all progress for a course
-      const { data: course } = await supabase
+      // Get all progress for a course (courseId can be slug or public_id)
+      let course = null;
+      
+      // First try to find by slug
+      const { data: courseBySlug } = await supabase
         .from('course')
         .select('id')
-        .eq('public_id', courseId)
+        .eq('slug', courseId)
         .single();
+      
+      if (courseBySlug) {
+        course = courseBySlug;
+      } else {
+        // If not found by slug, try by public_id (only if it looks like a UUID)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+        if (isUUID) {
+          const { data: courseByPublicId } = await supabase
+            .from('course')
+            .select('id')
+            .eq('public_id', courseId)
+            .single();
+          
+          course = courseByPublicId;
+        }
+      }
 
       if (!course) {
         return NextResponse.json(
@@ -198,7 +236,22 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      query = query.eq('course_lesson.course.id', course.id);
+      // Get lessons for this course first, then filter progress
+      const { data: lessons } = await supabase
+        .from('course_lesson')
+        .select('id')
+        .eq('course_id', course.id)
+        .eq('is_deleted', false);
+      
+      if (!lessons || lessons.length === 0) {
+        return NextResponse.json({
+          success: true,
+          progress: []
+        });
+      }
+      
+      const lessonIds = lessons.map(l => l.id);
+      query = query.in('lesson_id', lessonIds);
     }
 
     const { data: progressData, error } = await query;
@@ -210,7 +263,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const formattedProgress = progressData.map(p => ({
+    const formattedProgress = progressData.map((p: any) => ({
       lessonId: p.course_lesson.public_id,
       lessonTitle: p.course_lesson.title,
       lessonPosition: p.course_lesson.position,
@@ -218,7 +271,7 @@ export async function GET(request: NextRequest) {
       courseTitle: p.course_lesson.course.title,
       state: p.state,
       progressPct: p.progress_pct,
-      lastSeenAt: p.last_seen_at,
+      lastSeenAt: p.last_accessed_at || p.last_seen_at,
       timeSpentSec: p.time_spent_sec,
       completionDate: p.completion_date
     }));

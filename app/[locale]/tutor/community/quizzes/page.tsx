@@ -1,9 +1,15 @@
-import { Metadata } from "next";
-import { useTranslations } from "next-intl";
+import React from 'react';
+import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import QuizContent from '@/components/community/quiz/quiz-content';
+
+/**
+ * Tutor Community Quizzes Page Component
+ * Browse and participate in community quizzes as a tutor
+ */
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('RootPage');
+  const t = await getTranslations('QuizzesPage');
 
   return {
     title: t('metadata_title'),
@@ -17,7 +23,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function Page() {
-  const t = useTranslations("HomePage");
-  return <h1>{t("title")}</h1>;
+export default function TutorQuizzesPage() {
+  return <QuizContent />;
 }

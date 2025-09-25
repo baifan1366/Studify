@@ -84,9 +84,9 @@ export async function GET(request: NextRequest) {
         target_id,
         target_type,
         count:id.count(),
-        target_course:course(id, title, description, tutor_id, created_at, tutor_profile:profiles(id, full_name, avatar_url)),
-        target_post:community_post(id, title, body, user_id, created_at, author_profile:profiles(id, full_name, avatar_url)),
-        target_comment:community_comment(id, body, user_id, created_at, author_profile:profiles(id, full_name, avatar_url))
+        target_course:course!inner(id, title, description, tutor_id, created_at, tutor_profile:profiles!inner(id, full_name, avatar_url)),
+        target_post:community_post!inner(id, title, body, user_id, created_at, author_profile:profiles!inner(id, full_name, avatar_url)),
+        target_comment:community_comment!inner(id, body, user_id, created_at, author_profile:profiles!inner(id, full_name, avatar_url))
       `)
       .eq('status', 'pending')
       .gte('created_at', timeFilter || '1970-01-01')
@@ -138,33 +138,36 @@ export async function GET(request: NextRequest) {
         report_count: report.count || 1,
       };
       
-      if (report.target_type === 'course' && report.target_course) {
+      if (report.target_type === 'course' && report.target_course && Array.isArray(report.target_course) && report.target_course.length > 0) {
+        const course = report.target_course[0];
         contentData = {
           ...contentData,
-          title: report.target_course.title,
-          content: report.target_course.description,
-          author_id: report.target_course.tutor_id,
-          created_at: report.target_course.created_at,
-          author_profile: report.target_course.tutor_profile,
+          title: course.title,
+          content: course.description,
+          author_id: course.tutor_id,
+          created_at: course.created_at,
+          author_profile: Array.isArray(course.tutor_profile) && course.tutor_profile.length > 0 ? course.tutor_profile[0] : null,
         };
-      } else if (report.target_type === 'post' && report.target_post) {
+      } else if (report.target_type === 'post' && report.target_post && Array.isArray(report.target_post) && report.target_post.length > 0) {
+        const post = report.target_post[0];
         contentData = {
           ...contentData,
-          title: report.target_post.title,
-          content: report.target_post.body,
-          author_id: report.target_post.user_id,
-          created_at: report.target_post.created_at,
-          author_profile: report.target_post.author_profile,
+          title: post.title,
+          content: post.body,
+          author_id: post.user_id,
+          created_at: post.created_at,
+          author_profile: Array.isArray(post.author_profile) && post.author_profile.length > 0 ? post.author_profile[0] : null,
         };
-      } else if (report.target_type === 'comment' && report.target_comment) {
+      } else if (report.target_type === 'comment' && report.target_comment && Array.isArray(report.target_comment) && report.target_comment.length > 0) {
+        const comment = report.target_comment[0];
         contentData = {
           ...contentData,
           title: null,
-          content: report.target_comment.body,
-          body: report.target_comment.body,
-          author_id: report.target_comment.user_id,
-          created_at: report.target_comment.created_at,
-          author_profile: report.target_comment.author_profile,
+          content: comment.body,
+          body: comment.body,
+          author_id: comment.user_id,
+          created_at: comment.created_at,
+          author_profile: Array.isArray(comment.author_profile) && comment.author_profile.length > 0 ? comment.author_profile[0] : null,
         };
       }
       

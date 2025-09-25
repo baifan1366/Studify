@@ -16,7 +16,7 @@ export async function GET(
     const { conversationId } = await params;
     
     // Authorize user
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -178,7 +178,7 @@ export async function POST(
     const { conversationId } = await params;
     
     // Authorize user
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

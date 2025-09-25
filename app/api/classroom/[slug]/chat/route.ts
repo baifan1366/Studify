@@ -16,7 +16,7 @@ export async function GET(
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Authorize user
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -250,7 +250,7 @@ export async function POST(
     }
 
     // Authorize user
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

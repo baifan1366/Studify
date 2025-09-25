@@ -3,7 +3,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET() {
-  const authResult = await authorize('student');
+  const authResult = await authorize(['student', 'tutor']);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -128,7 +128,7 @@ async function generateUniqueSlug(supabaseClient: any, baseSlug: string): Promis
 }
 
 export async function POST(request: Request) {
-  const authResult = await authorize('student');
+  const authResult = await authorize(['student', 'tutor']);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

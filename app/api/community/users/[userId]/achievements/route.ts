@@ -7,8 +7,8 @@ export async function GET(
   context: { params: Promise<{ userId: string }> }
 ): Promise<NextResponse> {
   try {
-    // 1. 权限验证（比如：学生用户才能看自己的成就）
-    const authResult = await authorize("student");
+    // 1. 权限验证
+    const authResult = await authorize(["student", "tutor"]);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

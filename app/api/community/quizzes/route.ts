@@ -73,7 +73,7 @@ export async function GET(req: Request) {
       }
       const { sub: userId } = authResult;
 
-      const result = await supabase
+      let queryBuilder = supabase
         .from("community_quiz")
         .select(`
           id, 
@@ -101,14 +101,26 @@ export async function GET(req: Request) {
           )
         `)
         .eq("author_id", userId)
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false });
+        .eq("is_deleted", false);
+
+      // Apply filters
+      if (subject_id) {
+        queryBuilder = queryBuilder.eq("subject_id", subject_id);
+      }
+      if (grade_id) {
+        queryBuilder = queryBuilder.eq("grade_id", grade_id);
+      }
+      if (difficulty) {
+        queryBuilder = queryBuilder.eq("difficulty", difficulty);
+      }
+
+      const result = await queryBuilder.order("created_at", { ascending: false });
 
       quizzes = result.data;
       quizError = result.error;
     } else if (filter === "popular") {
       // 获取所有公开 quiz，按热度排序（根据 attempts 数量和创建时间）
-      const result = await supabase
+      let queryBuilder = supabase
         .from("community_quiz")
         .select(`
           id, 
@@ -139,6 +151,19 @@ export async function GET(req: Request) {
         .eq("visibility", "public")
         .eq("is_deleted", false);
 
+      // Apply filters
+      if (subject_id) {
+        queryBuilder = queryBuilder.eq("subject_id", subject_id);
+      }
+      if (grade_id) {
+        queryBuilder = queryBuilder.eq("grade_id", grade_id);
+      }
+      if (difficulty) {
+        queryBuilder = queryBuilder.eq("difficulty", difficulty);
+      }
+
+      const result = await queryBuilder;
+
       if (result.error) {
         quizError = result.error;
       } else {
@@ -163,7 +188,7 @@ export async function GET(req: Request) {
       }
     } else {
       // 默认：返回所有公开 quiz
-      const result = await supabase
+      let queryBuilder = supabase
         .from("community_quiz")
         .select(`
           id, 
@@ -176,11 +201,35 @@ export async function GET(req: Request) {
           max_attempts, 
           visibility,
           author_id,
-          created_at
+          subject_id,
+          grade_id,
+          created_at,
+          community_quiz_subject!subject_id(
+            id,
+            code,
+            translations
+          ),
+          community_quiz_grade!grade_id(
+            id,
+            code,
+            translations
+          )
         `)
         .eq("visibility", "public")
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false });
+        .eq("is_deleted", false);
+
+      // Apply filters
+      if (subject_id) {
+        queryBuilder = queryBuilder.eq("subject_id", subject_id);
+      }
+      if (grade_id) {
+        queryBuilder = queryBuilder.eq("grade_id", grade_id);
+      }
+      if (difficulty) {
+        queryBuilder = queryBuilder.eq("difficulty", difficulty);
+      }
+
+      const result = await queryBuilder.order("created_at", { ascending: false });
 
       quizzes = result.data;
       quizError = result.error;

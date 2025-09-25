@@ -5,7 +5,9 @@ import {
   validateSearchParams, 
   getSearchVectorColumn, 
   buildTsQuery,
-  DEFAULT_SEARCH_PARAMS 
+  DEFAULT_SEARCH_PARAMS,
+  getTextSearchConfig,
+  sanitizeSearchQuery
 } from "@/utils/quiz/search-utils";
 
 export async function GET(req: Request) {
@@ -45,9 +47,9 @@ export async function GET(req: Request) {
       );
     }
 
-    // Build the search query
-    const tsQuery = buildTsQuery(query, locale as any);
-    if (!tsQuery) {
+    // Build the search query (plain text for Supabase textSearch)
+    const plainQuery = sanitizeSearchQuery(query);
+    if (!plainQuery) {
       return NextResponse.json([], { status: 200 });
     }
 
@@ -81,9 +83,10 @@ export async function GET(req: Request) {
       .eq("visibility", visibility)
       .eq("is_deleted", false);
 
-    // Apply full-text search
+    // Apply full-text search using the appropriate config
     const searchColumn = getSearchVectorColumn(locale);
-    queryBuilder = queryBuilder.textSearch(searchColumn, tsQuery);
+    const config = getTextSearchConfig(locale);
+    queryBuilder = queryBuilder.textSearch(searchColumn, plainQuery, { config, type: 'plain' });
 
     // Apply filters
     if (subject_id) {

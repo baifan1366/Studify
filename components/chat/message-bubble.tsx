@@ -6,6 +6,7 @@ import { Message } from '@/hooks/chat/use-chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
 import { Reply } from 'lucide-react';
+import SharedPostMessage from './shared-post-message';
 
 interface MessageBubbleProps {
   message: Message;
@@ -101,6 +102,8 @@ export function MessageBubble({ message, className, onReply }: MessageBubbleProp
               <span className="italic text-muted-foreground">
                 This message was deleted
               </span>
+            ) : message.type === 'share_post' ? (
+              <SharedPostMessage postId={message.content} />
             ) : (
               <>
                 {/* Show content if not starting with "Shared:" or if no attachment */}

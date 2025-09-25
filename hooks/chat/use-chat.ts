@@ -49,7 +49,7 @@ export interface Message {
   senderName: string;
   senderAvatar?: string;
   timestamp: string;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'share_post';
   fileName?: string;
   fileSize?: string;
   isFromMe: boolean;
@@ -85,7 +85,7 @@ export interface MessagesResponse {
 
 export interface SendMessageRequest {
   content: string;
-  type?: 'text' | 'image' | 'file';
+  type?: 'text' | 'image' | 'file' | 'share_post';
   fileName?: string;
   fileSize?: string;
   reply_to_id?: number;

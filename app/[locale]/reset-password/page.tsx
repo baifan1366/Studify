@@ -11,10 +11,12 @@ import {
   AlertCircle,
   ArrowLeft 
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useResetPassword } from '@/hooks/auth/use-password-reset';
 import { useToast } from '@/hooks/use-toast';
 
 function ResetPasswordForm() {
+  const t = useTranslations('ResetPassword');
   const searchParams = useSearchParams();
   const router = useRouter();
   const [token, setToken] = useState('');
@@ -37,11 +39,11 @@ function ResetPasswordForm() {
   }, [searchParams]);
 
   const passwordRequirements = [
-    { text: '至少8个字符', met: newPassword.length >= 8 },
-    { text: '包含大写字母', met: /[A-Z]/.test(newPassword) },
-    { text: '包含小写字母', met: /[a-z]/.test(newPassword) },
-    { text: '包含数字', met: /\d/.test(newPassword) },
-    { text: '包含特殊字符', met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) },
+    { text: t('requirement_min_length'), met: newPassword.length >= 8 },
+    { text: t('requirement_uppercase'), met: /[A-Z]/.test(newPassword) },
+    { text: t('requirement_lowercase'), met: /[a-z]/.test(newPassword) },
+    { text: t('requirement_number'), met: /\d/.test(newPassword) },
+    { text: t('requirement_special'), met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) },
   ];
 
   const isValidPassword = passwordRequirements.every(req => req.met);
@@ -78,17 +80,17 @@ function ResetPasswordForm() {
         >
           <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            无效的重置链接
+            {t('invalid_token_title')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            重置链接无效或已过期。请重新申请密码重置。
+            {t('invalid_token_description')}
           </p>
           <button
             onClick={() => router.push('/sign-in')}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <ArrowLeft size={16} />
-            返回登录
+            {t('back_to_login')}
           </button>
         </motion.div>
       </div>
@@ -105,10 +107,10 @@ function ResetPasswordForm() {
         <div className="text-center mb-8">
           <Key size={48} className="mx-auto text-blue-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            重置密码
+            {t('title')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            请输入您的新密码
+            {t('subtitle')}
           </p>
         </div>
 
@@ -116,7 +118,7 @@ function ResetPasswordForm() {
           {/* New Password */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              新密码 *
+              {t('new_password')} {t('required')}
             </label>
             <div className="relative">
               <input
@@ -139,7 +141,7 @@ function ResetPasswordForm() {
           {/* Password Requirements */}
           {newPassword && (
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">密码要求：</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('password_requirements')}</h4>
               <div className="space-y-1">
                 {passwordRequirements.map((req, index) => (
                   <div key={index} className="flex items-center gap-2 text-xs">
@@ -160,7 +162,7 @@ function ResetPasswordForm() {
           {/* Confirm Password */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              确认新密码 *
+              {t('confirm_password')} {t('required')}
             </label>
             <div className="relative">
               <input
@@ -185,7 +187,7 @@ function ResetPasswordForm() {
             {confirmPassword && !passwordsMatch && (
               <div className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs">
                 <AlertCircle size={12} />
-                <span>密码不匹配</span>
+                <span>{t('passwords_mismatch')}</span>
               </div>
             )}
           </div>
@@ -203,7 +205,7 @@ function ResetPasswordForm() {
             ) : (
               <Key size={16} />
             )}
-            重置密码
+            {t('reset_password_button')}
           </motion.button>
         </form>
 
@@ -213,7 +215,7 @@ function ResetPasswordForm() {
             className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center justify-center gap-1 mx-auto"
           >
             <ArrowLeft size={14} />
-            返回登录
+            {t('back_to_login')}
           </button>
         </div>
       </motion.div>

@@ -192,7 +192,7 @@ export function CommunityList() {
                     </div>
                   ))}
                 </div>
-              ) : stats?.top_authors?.length > 0 ? (
+              ) : stats?.top_authors && stats.top_authors.length > 0 ? (
                 <div className="space-y-3">
                   {stats.top_authors.map((author, index) => (
                     <div key={index} className="flex items-center justify-between">
@@ -234,7 +234,7 @@ export function CommunityList() {
                     </div>
                   ))}
                 </div>
-              ) : stats?.top_commented_posts?.length > 0 ? (
+              ) : stats?.top_commented_posts && stats.top_commented_posts.length > 0 ? (
                 <div className="space-y-3">
                   {stats.top_commented_posts.map((post, index) => (
                     <div key={post.id} className="space-y-2">

@@ -1609,3 +1609,57 @@ CREATE TABLE IF NOT EXISTS group_message_read_status (
 create index IF not exists idx_group_message_read_status_message_id on public.group_message_read_status using btree (message_id) TABLESPACE pg_default;
 
 create index IF not exists idx_group_message_read_status_user_id on public.group_message_read_status using btree (user_id) TABLESPACE pg_default;
+
+-- Direct Conversations table
+CREATE TABLE IF NOT EXISTS direct_conversations (
+  id bigserial not null,
+  public_id uuid not null default uuid_generate_v4 (),
+  participant1_id bigint not null,
+  participant2_id bigint not null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  is_deleted boolean not null default false,
+  deleted_at timestamp with time zone null,
+  constraint direct_conversations_pkey primary key (id),
+  constraint unique_conversation unique (participant1_id, participant2_id),
+  constraint direct_conversations_participant1_id_fkey foreign KEY (participant1_id) references profiles (id) on delete CASCADE,
+  constraint direct_conversations_participant2_id_fkey foreign KEY (participant2_id) references profiles (id) on delete CASCADE,
+  constraint ordered_participants check ((participant1_id < participant2_id))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_direct_conversations_participants on public.direct_conversations using btree (participant1_id, participant2_id) TABLESPACE pg_default;
+
+create index IF not exists idx_direct_conversations_updated_at on public.direct_conversations using btree (updated_at desc) TABLESPACE pg_default;
+
+create trigger update_direct_conversations_updated_at BEFORE
+update on direct_conversations for EACH row
+execute FUNCTION update_updated_at_column ();
+
+-- Group Conversations table
+CREATE TABLE IF NOT EXISTS group_conversations (
+  id bigserial not null,
+  name text not null,
+  description text null,
+  avatar_url text null,
+  created_by bigint not null,
+  is_deleted boolean not null default false,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  constraint group_conversations_pkey primary key (id),
+  constraint group_conversations_created_by_fkey foreign KEY (created_by) references profiles (id) on delete CASCADE,
+  constraint group_conversations_description_check check ((length(description) <= 500)),
+  constraint group_conversations_name_check check (
+    (
+      (length(name) >= 1)
+      and (length(name) <= 100)
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_group_conversations_created_by on public.group_conversations using btree (created_by) TABLESPACE pg_default;
+
+create index IF not exists idx_group_conversations_created_at on public.group_conversations using btree (created_at desc) TABLESPACE pg_default;
+
+create index IF not exists idx_group_conversations_is_deleted on public.group_conversations using btree (is_deleted) TABLESPACE pg_default
+where
+  (is_deleted = false);

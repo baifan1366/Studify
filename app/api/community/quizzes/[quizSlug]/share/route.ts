@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 import crypto from "crypto";
@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { quizSlug } = await params;
 
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 
@@ -109,7 +109,7 @@ export async function GET(
   try {
     const { quizSlug } = await params;
 
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 
@@ -170,7 +170,7 @@ export async function DELETE(
   try {
     const { quizSlug } = await params;
 
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 

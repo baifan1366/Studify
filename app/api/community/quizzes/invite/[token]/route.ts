@@ -115,7 +115,7 @@ export async function POST(
   try {
     const { token } = await params;
 
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 

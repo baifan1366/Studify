@@ -5,7 +5,7 @@ import { authorize } from "@/utils/auth/server-guard";
 export async function GET(): Promise<NextResponse> {
   try {
     // 1. 权限验证（假设只允许登录用户访问）
-    const authResult = await authorize("student");
+    const authResult = await authorize(["student", "tutor"]);
     if (authResult instanceof NextResponse) {
       return authResult; // 如果未授权，直接返回错误响应
     }

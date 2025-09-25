@@ -7,7 +7,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     console.log("[API] Authorization failed.");
     return authResult;
@@ -159,7 +159,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -258,7 +258,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -443,7 +443,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ slug: string; postSlug: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

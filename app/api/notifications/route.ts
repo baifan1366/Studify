@@ -5,7 +5,7 @@ import { notificationService } from '@/lib/notifications/notification-service';
 // GET /api/notifications - Get user notifications with pagination
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

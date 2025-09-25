@@ -57,7 +57,7 @@ const defaultMenuSections: MenuSection[] = [
     title: 'Home',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/tutor/dashboard' },
-      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tutor/notifications' },
+      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tutor/notification' },
       { id: 'storage', label: 'Storage', icon: PackageOpen, path: '/tutor/storage' },
     ]
   },

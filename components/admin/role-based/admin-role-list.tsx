@@ -107,7 +107,8 @@ export function AdminRoleList() {
       filtered = filtered.filter(admin => {
         return admin.roles.some(role => {
           const rolePermission = rolePermissions?.find(rp => rp.public_id === role.role_permission_id);
-          const roleData = roles?.find(r => r.public_id === rolePermission?.role_id);
+          // Try both numeric ID and public_id for compatibility
+          const roleData = roles?.find(r => r.id.toString() === rolePermission?.role_id || r.public_id === rolePermission?.role_id);
           return roleData?.title.toLowerCase() === roleFilter.toLowerCase();
         });
       });
@@ -120,8 +121,9 @@ export function AdminRoleList() {
     const rolePermission = rolePermissions?.find(rp => rp.public_id === rolePermissionId);
     if (!rolePermission) return t('unknown_role');
     
-    const role = roles?.find(r => r.public_id === rolePermission.role_id);
-    const permission = permissions?.find(p => p.public_id === rolePermission.permission_id);
+    // Try both numeric ID and public_id for compatibility
+    const role = roles?.find(r => r.id.toString() === rolePermission.role_id || r.public_id === rolePermission.role_id);
+    const permission = permissions?.find(p => p.id.toString() === rolePermission.permission_id || p.public_id === rolePermission.permission_id);
     
     return `${role?.title || 'Role'} - ${permission?.title || 'Permission'}`;
   };
@@ -213,7 +215,8 @@ export function AdminRoleList() {
 
   const getRoleColor = (rolePermissionId: string) => {
     const rolePermission = rolePermissions?.find(rp => rp.public_id === rolePermissionId);
-    const role = roles?.find(r => r.public_id === rolePermission?.role_id);
+    // Try both numeric ID and public_id for compatibility
+    const role = roles?.find(r => r.id.toString() === rolePermission?.role_id || r.public_id === rolePermission?.role_id);
     
     const colors: Record<string, string> = {
       'admin': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
@@ -228,7 +231,8 @@ export function AdminRoleList() {
   const availableRoles = useMemo(() => {
     const uniqueRoles = new Set<string>();
     rolePermissions?.forEach(rp => {
-      const role = roles?.find(r => r.public_id === rp.role_id);
+      // Try both numeric ID and public_id for compatibility
+      const role = roles?.find(r => r.id.toString() === rp.role_id || r.public_id === rp.role_id);
       if (role) uniqueRoles.add(role.title);
     });
     return Array.from(uniqueRoles);
@@ -279,7 +283,7 @@ export function AdminRoleList() {
       </div>
 
       {/* Filters and Search */}
-      <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <Card className="border-gray-200 dark:border-gray-700 bg-transparent">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -314,7 +318,7 @@ export function AdminRoleList() {
       </Card>
 
       {/* Admin List */}
-      <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <Card className="border-gray-200 dark:border-gray-700 bg-transparent">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
             <Users className="w-5 h-5" />

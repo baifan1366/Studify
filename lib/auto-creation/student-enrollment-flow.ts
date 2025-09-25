@@ -128,8 +128,6 @@ async function handleClassroomAutoCreation(
         .insert({
           name: classroomName,
           description: `Auto-created classroom for ${course.title}`,
-          slug: course.slug + '-classroom',
-          visibility: 'private',
           owner_id: course.owner_id,
           class_code: generateClassCode(),
         })
@@ -188,19 +186,18 @@ async function handleClassroomAutoCreation(
     let wasJoined = false;
 
     if (!existingMembership) {
-      console.log('[ClassroomAutoCreation] User not a member, joining classroom');
+      console.log(`[ClassroomAutoCreation] User ${userId} not a member, joining classroom ${classroomId}`);
       
       const { error: joinError } = await supabase
         .from('classroom_member')
         .insert({
           classroom_id: classroomId,
           user_id: userId,
-          role: 'student', // Student joins as member
-          status: 'active'
+          role: 'student' // Student joins as member
         });
 
       if (joinError) {
-        console.error('[ClassroomAutoCreation] Failed to join classroom:', joinError);
+        console.error(`[ClassroomAutoCreation] Failed to join classroom ${classroomId} for user ${userId}:`, joinError);
         return { 
           success: false, 
           created: wasCreated, 
@@ -342,7 +339,7 @@ async function handleCommunityAutoCreation(
     let wasJoined = false;
 
     if (!existingMember) {
-      console.log('[CommunityAutoCreation] User not a member, joining community group');
+      console.log(`[CommunityAutoCreation] User ${userId} not a member, joining community group ${groupId}`);
       
       const { error: joinError } = await supabase
         .from('community_group_member')
@@ -353,7 +350,7 @@ async function handleCommunityAutoCreation(
         });
 
       if (joinError) {
-        console.error('[CommunityAutoCreation] Failed to join community group:', joinError);
+        console.error(`[CommunityAutoCreation] Failed to join community group ${groupId} for user ${userId}:`, joinError);
         return { 
           success: false, 
           created: wasCreated, 

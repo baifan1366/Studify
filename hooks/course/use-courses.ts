@@ -17,6 +17,7 @@ export function useCourses(owner_id?: number) {
       const url = owner_id ? coursesApi.listByOwnerId(owner_id) : coursesApi.list;
       return apiGet<Course[]>(url);
     },
+    enabled: owner_id ? true : false, // Only fetch when owner_id is provided for tutor-specific courses
   });
 }
 

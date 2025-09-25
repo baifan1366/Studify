@@ -28,11 +28,7 @@ export async function GET(
     const { data: user, error } = await supabase
       .from('profiles')
       .select(`
-        *,
-        course_enrollment(count),
-        classroom_member(count),
-        community_post(count),
-        community_comment(count)
+        *
       `)
       .eq('user_id', userId)
       .eq('is_deleted', false)
@@ -43,6 +39,49 @@ export async function GET(
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
+    // Get stats separately for better performance
+    const [enrollmentStats, postStats, commentStats, purchaseStats] = await Promise.all([
+      // Course enrollments
+      supabase
+        .from('course_enrollment')
+        .select('id, amount_paid')
+        .eq('user_id', user.id),
+        
+      // Community posts
+      supabase
+        .from('community_post')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false),
+        
+      // Community comments
+      supabase
+        .from('community_comment')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false),
+        
+      // Purchase orders total
+      supabase
+        .from('course_order')
+        .select('amount_cents')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+    ]);
+
+    // Calculate stats
+    const totalSpent = purchaseStats.data?.reduce((sum, order) => sum + (order.amount_cents || 0), 0) || 0;
+    
+    // Add computed stats to user object
+    const userWithStats = {
+      ...user,
+      total_enrolled_courses: enrollmentStats.data?.length || 0,
+      total_posts: postStats.data?.length || 0,
+      total_comments: commentStats.data?.length || 0,
+      total_spent: totalSpent
+    };
+
+
     // Get recent activity from audit log
     const { data: recentActivity } = await supabase
       .from('audit_log')
@@ -51,10 +90,7 @@ export async function GET(
       .order('created_at', { ascending: false })
       .limit(10);
 
-    return NextResponse.json({
-      user,
-      recentActivity: recentActivity || []
-    });
+    return NextResponse.json(userWithStats);
 
   } catch (error) {
     console.error('Admin user GET error:', error);

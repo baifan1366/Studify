@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import { ClassroomListPage } from '@/components/tutor/classroom/classroom-list';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('TutorClassroomPage');
@@ -21,7 +22,7 @@ export default async function TutorClassroomPage() {
 
   return (
     <div>
-      <h1>{t('page_title')}</h1>
+      <ClassroomListPage />
     </div>
   );
 }

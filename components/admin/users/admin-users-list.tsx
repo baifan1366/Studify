@@ -125,7 +125,7 @@ export function AdminUsersList() {
               <span className="text-white">{t('promote_to_admin')}</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl">
+          <DialogContent className="sm:max-w-md border-gray-200 dark:border-gray-700 shadow-2xl">
             <DialogHeader className="space-y-4 pb-4">
               <DialogTitle className="text-xl font-semibold text-center text-gray-900 dark:text-gray-100">
                 {t('promote_dialog_title')}

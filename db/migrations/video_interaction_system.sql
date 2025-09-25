@@ -126,11 +126,7 @@ CREATE TABLE IF NOT EXISTS video_comments (
   -- Metadata
   is_deleted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  
-  -- Index for threading
-  INDEX CONCURRENTLY IF NOT EXISTS idx_video_comments_parent ON video_comments(parent_id) WHERE parent_id IS NOT NULL,
-  INDEX CONCURRENTLY IF NOT EXISTS idx_video_comments_lesson ON video_comments(lesson_id) WHERE is_deleted = false
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- Video Comment Likes
@@ -151,12 +147,7 @@ CREATE TABLE IF NOT EXISTS video_comment_likes (
   UNIQUE(user_id, comment_id)
 );
 
--- Indexes for Performance
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_video_views_user_lesson ON video_views(user_id, lesson_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_video_views_lesson ON video_views(lesson_id) WHERE is_deleted = false;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_video_likes_lesson ON video_likes(lesson_id) WHERE is_deleted = false;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_video_danmaku_lesson_time ON video_danmaku(lesson_id, video_time_sec) WHERE is_deleted = false AND is_approved = true;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_video_comments_lesson_created ON video_comments(lesson_id, created_at DESC) WHERE is_deleted = false;
+-- Indexes for Performance (moved to end of file to avoid duplication)
 
 -- Triggers for updating comment counts
 CREATE OR REPLACE FUNCTION update_video_comment_counts()
@@ -226,48 +217,6 @@ ALTER TABLE video_danmaku ENABLE ROW LEVEL SECURITY;
 ALTER TABLE video_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE video_comment_likes ENABLE ROW LEVEL SECURITY;
 
--- Views policy - users can only see their own views
-CREATE POLICY video_views_policy ON video_views
-  FOR ALL USING (
-    auth.uid()::text = (SELECT auth_user_id::text FROM profiles WHERE id = user_id)
-  );
-
--- Likes policy - users can see all likes but only modify their own
-CREATE POLICY video_likes_select_policy ON video_likes
-  FOR SELECT USING (true);
-
-CREATE POLICY video_likes_modify_policy ON video_likes
-  FOR ALL USING (
-    auth.uid()::text = (SELECT auth_user_id::text FROM profiles WHERE id = user_id)
-  );
-
--- Danmaku policy - users can see approved danmaku, only modify their own
-CREATE POLICY video_danmaku_select_policy ON video_danmaku
-  FOR SELECT USING (is_approved = true AND is_deleted = false);
-
-CREATE POLICY video_danmaku_modify_policy ON video_danmaku
-  FOR ALL USING (
-    auth.uid()::text = (SELECT auth_user_id::text FROM profiles WHERE id = user_id)
-  );
-
--- Comments policy - users can see all approved comments, only modify their own
-CREATE POLICY video_comments_select_policy ON video_comments
-  FOR SELECT USING (is_approved = true AND is_deleted = false);
-
-CREATE POLICY video_comments_modify_policy ON video_comments
-  FOR ALL USING (
-    auth.uid()::text = (SELECT auth_user_id::text FROM profiles WHERE id = user_id)
-  );
-
--- Comment likes policy - users can see all likes but only modify their own
-CREATE POLICY video_comment_likes_select_policy ON video_comment_likes
-  FOR SELECT USING (true);
-
-CREATE POLICY video_comment_likes_modify_policy ON video_comment_likes
-  FOR ALL USING (
-    auth.uid()::text = (SELECT auth_user_id::text FROM profiles WHERE id = user_id)
-  );
-
 -- Comments on tables
 COMMENT ON TABLE video_views IS 'Tracks video viewing sessions and watch progress';
 COMMENT ON TABLE video_likes IS 'Video likes and dislikes by users';
@@ -279,3 +228,29 @@ COMMENT ON COLUMN video_views.watch_percentage IS 'Automatically calculated perc
 COMMENT ON COLUMN video_danmaku.video_time_sec IS 'Video timestamp when danmaku should appear';
 COMMENT ON COLUMN video_comments.video_time_sec IS 'Optional video timestamp for time-linked comments';
 COMMENT ON COLUMN video_comments.is_pinned IS 'Whether comment is pinned by instructor/moderator';
+
+-- ===========================
+-- INDEXES
+-- ===========================
+
+-- Video Comments indexes for threading and performance
+CREATE INDEX IF NOT EXISTS idx_video_comments_parent ON video_comments(parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_video_comments_lesson ON video_comments(lesson_id) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_video_comments_user ON video_comments(user_id) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_video_comments_created ON video_comments(created_at DESC) WHERE is_deleted = false;
+
+-- Video Comment Likes indexes
+CREATE INDEX IF NOT EXISTS idx_video_comment_likes_comment ON video_comment_likes(comment_id);
+CREATE INDEX IF NOT EXISTS idx_video_comment_likes_user ON video_comment_likes(user_id);
+
+-- Video Views indexes
+CREATE INDEX IF NOT EXISTS idx_video_views_user_lesson ON video_views(user_id, lesson_id);
+CREATE INDEX IF NOT EXISTS idx_video_views_lesson ON video_views(lesson_id) WHERE is_deleted = false;
+
+-- Video Likes indexes
+CREATE INDEX IF NOT EXISTS idx_video_likes_user_lesson ON video_likes(user_id, lesson_id);
+CREATE INDEX IF NOT EXISTS idx_video_likes_lesson ON video_likes(lesson_id) WHERE is_deleted = false;
+
+-- Video Danmaku indexes
+CREATE INDEX IF NOT EXISTS idx_video_danmaku_lesson_time ON video_danmaku(lesson_id, video_time_sec) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_video_danmaku_user ON video_danmaku(user_id) WHERE is_deleted = false;

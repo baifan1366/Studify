@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -43,6 +43,7 @@ import { useCourseBySlug } from '@/hooks/course/use-courses';
 import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useLessonByCourseModuleId, useAllLessonsByCourseId } from '@/hooks/course/use-course-lesson';
 import { useCourseProgress, useCourseProgressByLessonId, useUpdateCourseProgress, useUpdateCourseProgressByLessonId } from '@/hooks/course/use-course-progress';
+import { useLessonProgress, useVideoProgressTracker } from '@/hooks/learning/use-learning-progress';
 import { useUser } from '@/hooks/profile/use-user';
 import { useKnowledgeGraph } from '@/hooks/course/use-knowledge-graph';
 import { useQuiz } from '@/hooks/course/use-quiz';
@@ -77,14 +78,17 @@ interface ModuleLessonsProps {
   onLessonClick: (lessonId: string) => void;
   progress: any;
   t: (key: string) => string;
+  allLessons: any[]; // Add allLessons prop to avoid N+1 queries
 }
 
-function ModuleLessons({ courseId, module, isExpanded, onToggle, currentLessonId, onLessonClick, progress, t }: ModuleLessonsProps) {
-  // Fetch lessons for this specific module using dedicated hook
-  const { data: moduleLessons, isLoading: lessonsLoading } = useLessonByCourseModuleId(
-    courseId,
-    module.id
-  );
+function ModuleLessons({ courseId, module, isExpanded, onToggle, currentLessonId, onLessonClick, progress, t, allLessons }: ModuleLessonsProps) {
+  // Filter lessons from already fetched data instead of making separate API calls
+  const moduleLessons = useMemo(() => {
+    if (!allLessons || !Array.isArray(allLessons)) return [];
+    return allLessons.filter(lesson => lesson.moduleId === module.id);
+  }, [allLessons, module.id]);
+  
+  const lessonsLoading = false; // No loading since we use existing data
 
   return (
     <div className="border border-gray-100 dark:border-gray-700 rounded-lg">
@@ -190,11 +194,14 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const [showCourseContent, setShowCourseContent] = useState(false); // For mobile course content sidebar
 
   const { data: course, isLoading: courseLoading } = useCourseBySlug(courseSlug);
-  const { data: courseModules, isLoading: modulesLoading } = useModuleByCourseId(course?.id || 0);
+  
+  // Memoize course ID to prevent unnecessary re-renders
+  const courseIdMemo = useMemo(() => course?.id || 0, [course?.id]);
+  const { data: courseModules, isLoading: modulesLoading } = useModuleByCourseId(courseIdMemo);
   const { data: progress } = useCourseProgress(courseSlug);
   
-  // Use dedicated hook to fetch all lessons from all modules
-  const { data: allLessons = [] } = useAllLessonsByCourseId(course?.id || 0, courseModules || []);
+  // Use dedicated hook to fetch all lessons from all modules - only when we have course and modules
+  const { data: allLessons = [] } = useAllLessonsByCourseId(courseIdMemo, courseModules || []);
 
   // Get current lesson - define this before hooks that depend on it
   const currentLesson = React.useMemo(() => {
@@ -202,15 +209,30 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     return allLessons.find(lesson => lesson.public_id === currentLessonId) || null;
   }, [allLessons, currentLessonId]);
 
-  // Get lesson progress and progress update hooks
-  const { data: lessonProgress } = useCourseProgressByLessonId(currentLesson?.public_id || '');
+  // Memoize current lesson ID to prevent unnecessary API calls
+  const currentLessonIdMemo = useMemo(() => currentLesson?.public_id || '', [currentLesson?.public_id]);
+  
+  // Get lesson progress and progress update hooks - only call when we have a valid lesson ID
+  const { data: lessonProgress } = useCourseProgressByLessonId(currentLessonIdMemo);
+  const { data: enhancedLessonProgress, isLoading: progressLoading } = useLessonProgress(currentLessonIdMemo);
   const createProgress = useUpdateCourseProgress();
   const updateProgressByLesson = useUpdateCourseProgressByLessonId();
   const { toast } = useToast();
 
-  // Knowledge Graph and Quiz hooks
+  // Enhanced video progress tracking
+  const {
+    trackProgress,
+    markAsStarted,
+    markAsCompleted,
+    isUpdating: isProgressUpdating
+  } = useVideoProgressTracker(currentLesson?.public_id || '', {
+    updateInterval: 10, // Save position every 10 seconds
+    autoSave: true
+  });
+
+  // Knowledge Graph and Quiz hooks - only call when needed
   const knowledgeGraph = useKnowledgeGraph({ courseSlug });
-  const quiz = useQuiz({ lessonId: currentLesson?.public_id || '' });
+  const quiz = useQuiz({ lessonId: currentLessonIdMemo });
 
   // Video player hooks
   const { addMessage: addDanmaku, messages: danmakuMessages } = useDanmaku({
@@ -232,7 +254,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     return currentLesson.attachments[0];
   }, [currentLesson]);
 
-  // Fetch attachment data if we have an attachment ID
+  // Fetch attachment data if we have an attachment ID - only when needed
   const { data: attachment, isLoading: attachmentLoading } = useAttachment(attachmentId);
 
   // Helper function to toggle module expansion
@@ -271,26 +293,36 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         }, 100);
       }
     }
-  }, [currentLessonId, allLessons]);
+  }, [currentLessonId, allLessons.length]); // Only depend on length to avoid array reference changes
 
   // Initialize first few modules as expanded
+  const moduleIds = useMemo(() => 
+    courseModules?.map(m => m.id) || [], 
+    [courseModules]
+  );
+  
   React.useEffect(() => {
-    if (courseModules && courseModules.length > 0 && expandedModules.size === 0) {
+    if (moduleIds.length > 0 && expandedModules.size === 0) {
       // Expand first 2 modules by default
       const initialExpanded = new Set<number>();
-      courseModules.slice(0, 2).forEach(module => {
-        initialExpanded.add(module.id);
+      moduleIds.slice(0, 2).forEach(moduleId => {
+        initialExpanded.add(moduleId);
       });
       setExpandedModules(initialExpanded);
     }
-  }, [courseModules]);
+  }, [moduleIds.join(','), expandedModules.size]); // Use joined string to avoid array reference issues
 
-  // Set initial lesson if not provided
+  // Set initial lesson if not provided - only once when lessons are first loaded
+  const firstLessonId = useMemo(() => 
+    allLessons.length > 0 ? allLessons[0].public_id : null, 
+    [allLessons.length > 0 ? allLessons[0]?.public_id : null]
+  );
+  
   useEffect(() => {
-    if (!currentLessonId && allLessons.length > 0) {
-      setCurrentLessonId(allLessons[0].public_id);
+    if (!currentLessonId && firstLessonId) {
+      setCurrentLessonId(firstLessonId);
     }
-  }, [allLessons, currentLessonId]);
+  }, [firstLessonId, currentLessonId]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -344,14 +376,14 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
 
   // Auto-create progress record when lesson is accessed for the first time
   useEffect(() => {
-    if (currentLesson && !lessonProgress && !createProgress.isPending) {
+    if (currentLessonIdMemo && !lessonProgress && !createProgress.isPending) {
       createProgress.mutate({
-        lessonId: currentLesson.public_id,
+        lessonId: currentLessonIdMemo,
         progressPct: 0,
         timeSpentSec: 0
       });
     }
-  }, [currentLesson, lessonProgress, createProgress]);
+  }, [currentLessonIdMemo, lessonProgress, createProgress.isPending]); // Depend on specific properties to avoid object reference issues
 
   // Responsive design detection
   useEffect(() => {
@@ -372,10 +404,21 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     }
   }, [isMobileView]);
 
-  const handleTimeUpdate = (time: number) => {
+  const handleTimeUpdate = (time: number, duration?: number) => {
     setCurrentVideoTimestamp(time);
     
-    // Update progress every 10 seconds if lesson is in progress
+    // Use enhanced progress tracking for video lessons
+    if (currentLesson?.kind === 'video' && duration) {
+      trackProgress(time, duration);
+      
+      // Auto-mark as completed when reaching 95% or end
+      const progressPct = (time / duration) * 100;
+      if (progressPct >= 95 && lessonProgress?.state !== 'completed') {
+        markAsCompleted(duration);
+      }
+    }
+    
+    // Legacy progress update for backward compatibility
     if (currentLessonId && lessonProgress?.state === 'in_progress' && time % 10 === 0) {
       updateProgressByLesson.mutate({
         lessonId: currentLesson?.public_id || '',
@@ -389,6 +432,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const handleLessonStart = () => {
     if (!currentLesson) return;
     
+    // Use enhanced progress tracking for video lessons
+    if (currentLesson.kind === 'video') {
+      markAsStarted();
+    }
+    
+    // Legacy progress handling for backward compatibility
     if (!lessonProgress) {
       // Create initial progress record
       createProgress.mutate({
@@ -409,6 +458,13 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const handleLessonComplete = () => {
     if (!currentLesson) return;
     
+    // Use enhanced progress tracking for video lessons
+    if (currentLesson.kind === 'video') {
+      const duration = enhancedLessonProgress?.video_duration_sec || currentLesson.duration_sec || 0;
+      markAsCompleted(duration);
+    }
+    
+    // Legacy progress handling for backward compatibility
     if (!lessonProgress) {
       // Create progress record and mark as completed
       createProgress.mutate({
@@ -707,6 +763,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
             onTimeUpdate={handleTimeUpdate}
+            initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
         ) : 
         /* 3. Video with YouTube/external link - use BilibiliVideoPlayer */
@@ -717,6 +774,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
             onTimeUpdate={handleTimeUpdate}
+            initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
         ) : 
         /* Loading states */
@@ -737,6 +795,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
             onTimeUpdate={handleTimeUpdate}
+            initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
         ) : currentLesson?.kind === 'video' ? (
           <BilibiliVideoPlayer
@@ -745,6 +804,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
             onTimeUpdate={handleTimeUpdate}
+            initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
         ) : (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
@@ -967,7 +1027,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               courseModules.map((module: any) => (
                 <ModuleLessons
                   key={module.id}
-                  courseId={course?.id || 0}
+                  courseId={courseIdMemo}
                   module={module}
                   isExpanded={expandedModules.has(module.id)}
                   onToggle={() => toggleModuleExpansion(module.id)}
@@ -975,6 +1035,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
                   onLessonClick={setCurrentLessonId}
                   progress={progress}
                   t={t}
+                  allLessons={allLessons}
                 />
               ))
             ) : (

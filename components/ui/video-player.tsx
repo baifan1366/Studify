@@ -5,13 +5,13 @@ import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForwar
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
-
 interface VideoPlayerProps {
   attachmentId: number
   title?: string
   className?: string
   autoPlay?: boolean
   controls?: boolean
+  initialTime?: number
   onTimeUpdate?: (currentTime: number, duration: number) => void
   onEnded?: () => void
 }
@@ -22,6 +22,7 @@ export default function VideoPlayer({
   className,
   autoPlay = false,
   controls = true,
+  initialTime = 0,
   onTimeUpdate,
   onEnded
 }: VideoPlayerProps) {
@@ -189,6 +190,24 @@ export default function VideoPlayer({
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
+
+  // Set initial time when video is loaded
+  useEffect(() => {
+    if (videoRef.current && initialTime > 0) {
+      const setInitialTimeHandler = () => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = initialTime;
+          setCurrentTime(initialTime);
+        }
+      };
+      
+      if (videoRef.current.readyState >= 1) {
+        setInitialTimeHandler();
+      } else {
+        videoRef.current.addEventListener('loadedmetadata', setInitialTimeHandler, { once: true });
+      }
+    }
+  }, [initialTime]);
 
   // Cleanup timeout on unmount
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp, ShoppingBag, DollarSign, ArrowDownToLine, CreditCard, BarChart2, FileText } from 'lucide-react';
+import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp, ShoppingBag, DollarSign, ArrowDownToLine, CreditCard, BarChart2, FileText, Filter, SortDesc, Search, Download, Receipt, Calendar as CalendarIcon, Star, ExternalLink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
@@ -53,6 +53,12 @@ export default function ProfileContent() {
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  
+  // Purchase history state
+  const [purchaseFilter, setPurchaseFilter] = useState<'all' | 'course' | 'plugin' | 'resource'>('all');
+  const [purchaseSort, setPurchaseSort] = useState<'date' | 'amount' | 'name'>('date');
+  const [purchaseSearchTerm, setPurchaseSearchTerm] = useState('');
+  const [showAllPurchases, setShowAllPurchases] = useState(false);
 
   const user = userData;
   const profile = fullProfileData?.profile || user?.profile;
@@ -894,7 +900,7 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* Purchase Records - Only for students */}
+              {/* Enhanced Purchase History - Only for students */}
               {profile?.role === 'student' && (
               <div className="bg-gradient-to-br from-emerald-600/20 via-green-600/20 to-teal-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
                 <div className="z-10">
@@ -903,29 +909,89 @@ export default function ProfileContent() {
                     {t('purchase_history')}
                   </h3>
 
-                  {/* Purchase Stats */}
-                  <div className="stats stats-horizontal shadow mb-6 bg-white/10 backdrop-blur-sm">
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('total_spent')}</div>
-                      <div className="stat-value text-emerald-400">
+                  {/* Enhanced Purchase Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <motion.div 
+                      className="bg-gradient-to-br from-emerald-500/30 to-teal-500/30 rounded-xl p-6 backdrop-blur-sm border border-emerald-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-emerald-500/30 rounded-xl flex items-center justify-center">
+                          <DollarSign size={24} className="text-emerald-300" />
+                        </div>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
+                          Total
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold text-white mb-1">
                         {purchaseData?.stats ? formatPurchaseCurrency(purchaseData.stats.total_spent_cents, purchaseData.purchases?.[0]?.currency || 'MYR') : 'RM 0'}
                       </div>
-                      <div className="stat-desc text-white/60">{t('lifetime_purchases')}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('courses_owned')}</div>
-                      <div className="stat-value text-blue-400">{purchaseData?.stats?.courses_owned || 0}</div>
-                      <div className="stat-desc text-white/60">{t('active_orders')}: {purchaseData?.stats?.active_orders || 0}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('last_purchase')}</div>
-                      <div className="stat-value text-purple-400 text-lg">
+                      <div className="text-emerald-300/70 text-sm">{t('total_spent')}</div>
+                      <div className="text-white/50 text-xs mt-2">{t('lifetime_purchases')}</div>
+                    </motion.div>
+
+                    <motion.div 
+                      className="bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl p-6 backdrop-blur-sm border border-blue-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-blue-500/30 rounded-xl flex items-center justify-center">
+                          <BookOpen size={24} className="text-blue-300" />
+                        </div>
+                        <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30">
+                          Owned
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold text-white mb-1">
+                        {purchaseData?.stats?.courses_owned || 0}
+                      </div>
+                      <div className="text-blue-300/70 text-sm">{t('courses_owned')}</div>
+                      <div className="text-white/50 text-xs mt-2">{t('active_orders')}: {purchaseData?.stats?.active_orders || 0}</div>
+                    </motion.div>
+
+                    <motion.div 
+                      className="bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-xl p-6 backdrop-blur-sm border border-purple-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-purple-500/30 rounded-xl flex items-center justify-center">
+                          <CalendarIcon size={24} className="text-purple-300" />
+                        </div>
+                        <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30">
+                          Recent
+                        </Badge>
+                      </div>
+                      <div className="text-lg font-bold text-white mb-1">
                         {purchaseData?.stats?.last_purchase ? formatPurchaseDate(purchaseData.stats.last_purchase.date) : '--'}
                       </div>
-                      <div className="stat-desc text-white/60">
+                      <div className="text-purple-300/70 text-sm">{t('last_purchase')}</div>
+                      <div className="text-white/50 text-xs mt-2 truncate">
                         {purchaseData?.stats?.last_purchase?.item_name || '--'}
                       </div>
-                    </div>
+                    </motion.div>
+
+                    <motion.div 
+                      className="bg-gradient-to-br from-orange-500/30 to-red-500/30 rounded-xl p-6 backdrop-blur-sm border border-orange-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-orange-500/30 rounded-xl flex items-center justify-center">
+                          <Receipt size={24} className="text-orange-300" />
+                        </div>
+                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/30">
+                          Total
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold text-white mb-1">
+                        {purchaseData?.purchases?.length || 0}
+                      </div>
+                      <div className="text-orange-300/70 text-sm">Orders</div>
+                      <div className="text-white/50 text-xs mt-2">All time transactions</div>
+                    </motion.div>
                   </div>
 
                   {/* Purchase History Cards */}

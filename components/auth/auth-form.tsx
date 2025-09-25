@@ -427,12 +427,14 @@ export function AuthForm({
           <div className="mt-2 text-center text-sm">
             {/* Hide Google login for add account mode */}
             {authMode !== 'add' && (
-              <Button
+              <motion.button
                 onClick={handleGoogleLogin}
                 disabled={loading}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
               >
                 {loading ? "Loading..." : "Continue with Google"}
-              </Button>
+              </motion.button>
             )}    
           </div>
 

@@ -122,13 +122,15 @@ export function RolePermissionManagement({ trigger }: RolePermissionManagementPr
   };
 
   const getRoleName = (roleId: string) => {
-    const role = roles?.find(r => r.public_id === roleId);
+    // Try both numeric ID and public_id for compatibility
+    const role = roles?.find(r => r.id.toString() === roleId || r.public_id === roleId);
     return role?.title || t('unknown_role');
   };
 
   const getPermissionName = (permissionId: string) => {
-    const permission = permissions?.find(p => p.public_id === permissionId);
-    return permission?.title || t('unknown_role');
+    // Try both numeric ID and public_id for compatibility
+    const permission = permissions?.find(p => p.id.toString() === permissionId || p.public_id === permissionId);
+    return permission?.title || t('unknown_permission');
   };
 
   const isSubmitting = createRolePermission.isPending || updateRolePermission.isPending;

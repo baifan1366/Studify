@@ -3376,6 +3376,7 @@
   },
   "RolePermissionManagement": {
     "unknown_role": "Unknown Role",
+    "unknown_permission": "Unknown Permission",
     "title": "Role-Permission Management",
     "manage_role_permissions": "Manage Role Permissions",
     "create_connection": "Create Role-Permission Connection",

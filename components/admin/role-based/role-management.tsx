@@ -116,7 +116,7 @@ export function RoleManagement({ trigger }: RoleManagementProps) {
             </Button>
           )}
         </DialogTrigger>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border-gray-200 dark:border-gray-700">
           <DialogHeader>
             <DialogTitle>{t('title')}</DialogTitle>
           </DialogHeader>
@@ -147,11 +147,11 @@ export function RoleManagement({ trigger }: RoleManagementProps) {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button type="submit" disabled={isSubmitting}>
                       {editingRole ? t('update_role_button') : t('create_role_button')}
                     </Button>
                     {editingRole && (
-                      <Button type="button" variant="outline" onClick={resetForm} className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <Button type="button" variant="ghost" onClick={resetForm} className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800">
                         {t('cancel')}
                       </Button>
                     )}

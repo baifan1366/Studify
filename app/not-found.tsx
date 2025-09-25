@@ -1,5 +1,9 @@
 import Image from 'next/image';
-import NotFoundClient from '@/components/not-found-client';
+import dynamic from 'next/dynamic';
+
+const NotFoundClient = dynamic(() => import('@/components/not-found-client'), {
+  ssr: false,
+});
 
 export default function NotFound() {
 
@@ -12,7 +16,8 @@ export default function NotFound() {
             <Image
               src="/Studify App Logo Design.png"
               alt="Studify Logo"
-              fill
+              width={128}   
+              height={128}
               className="object-contain"
               priority
             />

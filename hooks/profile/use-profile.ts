@@ -28,6 +28,7 @@ export function useFullProfile(profileId: string) {
     enabled: !!profileId,
   });
 }
+
 /**
  * Hook for updating user profile information
  */
@@ -66,6 +67,69 @@ export function useUpdateSettings(profileId: string) {
       // Refresh profile queries after successful settings update
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'full', profileId] });
+    },
+  });
+}
+
+// ============================================================================
+// NEW HOOKS FOR CURRENT USER (without profileId parameter)
+// ============================================================================
+
+/**
+ * Hook for fetching current user's full profile data with all settings
+ * No profileId needed - fetches current authenticated user's profile
+ */
+export function useCurrentUserProfile() {
+  return useQuery<any>({
+    queryKey: ["profile", "current-user"],
+    queryFn: () => apiGet<any>(`/api/profile`),
+    staleTime: 5 * 60 * 1000,  // 5 minutes
+    gcTime: 10 * 60 * 1000,    // 10 minutes
+  });
+}
+
+/**
+ * Hook for updating current user's profile information
+ * No profileId needed - updates current authenticated user's profile
+ */
+export function useUpdateCurrentUserProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation<any, Error, Record<string, any>>({
+    mutationFn: (profileData) =>
+      apiSend({
+        url: `/api/profile`,
+        method: 'PATCH',
+        body: profileData,
+      }),
+    onSuccess: () => {
+      // Refresh both profile queries after successful update
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'current-user'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    },
+  });
+}
+
+/**
+ * Hook for updating current user's settings/preferences
+ * No profileId needed - updates current authenticated user's settings
+ */
+export function useUpdateCurrentUserSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation<any, Error, Record<string, any>>({
+    mutationFn: (settingsData) =>
+      apiSend({
+        url: `/api/profile`,
+        method: 'PATCH',
+        body: settingsData,
+      }),
+    onSuccess: () => {
+      // Refresh profile queries after successful settings update
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'current-user'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
     },
   });
 }

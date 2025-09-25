@@ -52,11 +52,11 @@ export async function GET(request: NextRequest) {
           course!inner(
             id,
             title,
-            tutor_id
+            owner_id
           )
         )
       `)
-      .eq('course_lesson.course.tutor_id', profileId)
+      .eq('course_lesson.course.owner_id', profileId)
       .eq('is_deleted', false)
       .order('position', { ascending: true });
 

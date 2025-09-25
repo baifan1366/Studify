@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
+import NotificationsPage from "@/components/tutor/notifications/notifications-page";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('TutorNotificationsPage');
@@ -21,7 +22,7 @@ export default async function TutorNotificationsPage() {
 
   return (
     <div>
-      <h2>{t('page_title')}</h2>
+      <NotificationsPage />
     </div>
   );
 }

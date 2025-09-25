@@ -107,12 +107,6 @@ export function PdfRenderer({
               {fileSize > 0 && ` (${(fileSize / 1024 / 1024).toFixed(1)}MB)`}
             </span>
           </div>
-          {onDownload && (
-            <Button onClick={onDownload} variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          )}
         </div>
       )}
 

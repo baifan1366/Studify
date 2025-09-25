@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   MediaDeviceMenu,
   StartAudio,
@@ -8,7 +9,8 @@ import {
   DisconnectButton,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Volume2, Settings } from 'lucide-react';
+import { Volume2, VolumeX, Settings, Smile, LogOut } from 'lucide-react';
+import { useCreateRecording } from '@/hooks/classroom/use-recordings';
 
 interface BottomControlsProps {
   colors: { primary: string; light: string; dark: string };
@@ -17,11 +19,11 @@ interface BottomControlsProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onEndSession: () => void;
-  sessionDuration: number;
-  formatDuration: (s: number) => string;
   addReaction: (type: string) => void;
   reactionEmojis: Record<string, string>;
   onOpenDevices?: () => void;
+  classroomSlug?: string;
+  sessionId?: string;
 }
 
 export default function BottomControls({
@@ -31,12 +33,157 @@ export default function BottomControls({
   onStartRecording,
   onStopRecording,
   onEndSession,
-  sessionDuration,
-  formatDuration,
   addReaction,
   reactionEmojis,
   onOpenDevices,
+  classroomSlug,
+  sessionId,
 }: BottomControlsProps) {
+  const [showReactionPanel, setShowReactionPanel] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  
+  // Recording hook
+  const createRecording = classroomSlug ? useCreateRecording(classroomSlug) : null;
+
+  // 开始录制函数
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true
+      });
+
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        console.log('Recording stopped:', {
+          size: blob.size,
+          type: blob.type,
+          classroomSlug,
+          sessionId,
+          hasCreateRecording: !!createRecording
+        });
+        
+        if (createRecording && sessionId && classroomSlug && userRole === 'tutor') {
+          try {
+            const file = new File([blob], `recording_${Date.now()}.webm`, { type: 'video/webm' });
+            console.log('Uploading recording:', {
+              fileName: file.name,
+              fileSize: file.size,
+              sessionId,
+              classroomSlug,
+              userRole
+            });
+            
+            await createRecording.mutateAsync({
+              file,
+              session_id: sessionId,
+              duration_sec: Math.floor(blob.size / 1000) // 粗略估算时长
+            });
+            console.log('Recording uploaded successfully');
+          } catch (error) {
+            console.error('Failed to upload recording:', error);
+            // Show user-friendly error message
+            const errorMessage = error instanceof Error ? error.message : '未知错误';
+            alert(`录制上传失败: ${errorMessage}`);
+          }
+        } else {
+          console.warn('Cannot upload recording - missing data or insufficient permissions:', {
+            hasCreateRecording: !!createRecording,
+            sessionId,
+            classroomSlug,
+            userRole,
+            isAuthorized: userRole === 'tutor'
+          });
+          if (userRole !== 'tutor') {
+            alert('只有导师可以上传录制文件');
+          }
+        }
+        setRecordedChunks([]);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setRecordedChunks(chunks);
+      
+      // Call parent's onStartRecording callback
+      onStartRecording();
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      // If screen recording fails, make sure to reset state
+      onStopRecording();
+    }
+  };
+
+  // 停止录制函数
+  const handleStopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      setMediaRecorder(null);
+    }
+    
+    // Call parent's onStopRecording callback
+    onStopRecording();
+  };
+
+  // 快捷键功能
+  useEffect(() => {
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case 'c':
+            e.preventDefault();
+            addReaction('clap');
+            break;
+          case 't':
+            e.preventDefault();
+            addReaction('thumbs_up');
+            break;
+          case 'l':
+            e.preventDefault();
+            addReaction('laugh');
+            break;
+          case 'h':
+            e.preventDefault();
+            addReaction('heart');
+            break;
+          case 'y':
+            e.preventDefault();
+            addReaction('party');
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [addReaction]);
+
+  // 点击外部关闭表情面板
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showReactionPanel) {
+        const target = e.target as Element;
+        if (!target.closest('.reaction-panel-container')) {
+          setShowReactionPanel(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showReactionPanel]);
+
   // 根据主题主色计算按钮对比度（无需引入额外库）
   const hex = colors.primary.startsWith('#') ? colors.primary.slice(1) : colors.primary;
   const r = parseInt(hex.substring(0, 2), 16) || 0;
@@ -51,6 +198,18 @@ export default function BottomControls({
     : 'bg-gray-800 text-white hover:bg-gray-700';
   const roundBtn = `${baseBtn} h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center`;
   const pillBtn = `${baseBtn} h-9 md:h-10 px-2 md:px-3 rounded-full`;
+
+  // 获取快捷键提示
+  const getShortcutKey = (reactionKey: string) => {
+    const keyMap: Record<string, string> = {
+      'clap': 'C',
+      'thumbs_up': 'T', 
+      'laugh': 'L',
+      'heart': 'H',
+      'party': 'Y'
+    };
+    return keyMap[reactionKey] || '';
+  };
   return (
     <motion.div
       className="fixed left-1/2 z-50 -translate-x-1/2"
@@ -58,7 +217,7 @@ export default function BottomControls({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
       style={{
-        width: '100%',
+        width: '80%',
         // Respect iOS/Android safe area bottom spacing while keeping a consistent offset
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
       }}
@@ -72,35 +231,67 @@ export default function BottomControls({
             backdropFilter: 'blur(6px)',
           }}
         >
-          {/* 左侧: Reactions */}
-          <div className="flex items-center justify-start gap-2 w-28 sm:w-40 md:w-64 shrink-0 select-none">
-            {Object.entries(reactionEmojis).map(([k, e]) => (
-              <button
-                key={k}
-                onClick={() => addReaction(k)}
-                className="p-2 rounded-full hover:scale-105 transition-transform h-9 w-9 md:h-10 md:w-10 flex items-center justify-center"
-                aria-label={`reaction-${k}`}
-              >
-                <span className="text-xl leading-none">{e}</span>
-              </button>
-            ))}
+          {/* 左侧: Reaction 按钮 */}
+          <div className="flex items-center justify-start gap-2 flex-1 max-w-xs shrink-0 select-none relative reaction-panel-container">
+            <button
+              onClick={() => setShowReactionPanel(!showReactionPanel)}
+              className={`${roundBtn} relative`}
+              title="表情反应 (Ctrl+Shift+快捷键)"
+            >
+              <Smile className="w-4 h-4" />
+            </button>
+            
+            {/* 表情面板 */}
+            <AnimatePresence>
+              {showReactionPanel && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute bottom-full mb-2 left-0 bg-black/80 backdrop-blur-sm rounded-lg p-2 flex gap-1 border border-white/10 z-10"
+                >
+                  {Object.entries(reactionEmojis).map(([k, e]) => (
+                    <button
+                      key={k}
+                      onClick={() => {
+                        addReaction(k);
+                        setShowReactionPanel(false);
+                      }}
+                      className="p-2 rounded hover:bg-white/10 transition-colors w-10 h-10 flex items-center justify-center"
+                      title={`${e} (Ctrl+Shift+${getShortcutKey(k)})`}
+                    >
+                      <span className="text-xl leading-none">{e}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 中间: LiveKit 控件（自定义 Control Bar，使用 flex 居中） */}
-          <div className="flex flex-1 justify-center px-2 pointer-events-auto">
-            <div className="lk-controls no-scrollbar w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg min-w-[240px] flex items-center justify-center gap-1 sm:gap-2 bg-transparent flex-nowrap overflow-x-auto">
+          <div className="flex flex-[2] justify-center px-2 pointer-events-auto">
+            <div className="lk-controls no-scrollbar w-full flex items-center justify-center gap-1 sm:gap-2 bg-transparent flex-nowrap overflow-x-auto">
               {/* 由于浏览器自动播放策略，首次需 StartAudio 以启用音频 */}
               <StartAudio label="Enable Audio" className={`${pillBtn} text-sm md:text-base`} />
 
-              {/* 麦克风与摄像头开关 */}
-              <TrackToggle
-                source={Track.Source.Microphone}
-                className={roundBtn}
-              />
-              <TrackToggle
-                source={Track.Source.Camera}
-                className={roundBtn}
-              />
+              {/* 音频控制组 - 麦克风开关 + 音频设备选择 */}
+              <div className="flex items-center bg-white/10 rounded-full">
+                <TrackToggle
+                  source={Track.Source.Microphone}
+                  className={`${roundBtn} rounded-r-none border-r border-white/20`}
+                />
+                <MediaDeviceMenu kind="audioinput" className="h-9 w-9 md:h-10 md:w-10 rounded-l-none" />
+              </div>
+
+              {/* 视频控制组 - 摄像头开关 + 视频设备选择 */}
+              <div className="flex items-center bg-white/10 rounded-full">
+                <TrackToggle
+                  source={Track.Source.Camera}
+                  className={`${roundBtn} rounded-r-none border-r border-white/20`}
+                />
+                <MediaDeviceMenu kind="videoinput" className="h-9 w-9 md:h-10 md:w-10 rounded-l-none" />
+              </div>
 
               {/* 屏幕共享 */}
               <TrackToggle
@@ -109,45 +300,62 @@ export default function BottomControls({
               />
 
               {/* 离开房间 */}
-              <DisconnectButton className={`${pillBtn} bg-red-600 text-white hover:bg-red-500 text-sm md:text-base`} />
+              <DisconnectButton className={`${pillBtn} bg-red-600 text-white hover:bg-red-500 text-sm md:text-base flex items-center gap-2`}>
+                <LogOut className="w-4 h-4" />
+                <span>离开</span>
+              </DisconnectButton>
             </div>
           </div>
 
-          {/* 右侧: tutor 操作 + DeviceMenu + timer */}
-          <div className="flex items-center justify-end gap-2 md:gap-3 w-28 sm:w-40 md:w-64 ml-auto shrink-0">
-            {/* 单独的设备选择菜单 */}
-            <MediaDeviceMenu kind="audioinput" />
-            <MediaDeviceMenu kind="videoinput" />
-
-            {userRole === 'tutor' && (
-              <>
-                <button
-                  onClick={isRecording ? onStopRecording : onStartRecording}
-                  className={`h-10 w-10 flex items-center justify-center rounded-full ${isRecording ? 'bg-red-500' : 'bg-gray-700'} text-white`}
-                  title={isRecording ? 'Stop Recording' : 'Start Recording'}
-                >
-                  REC
-                </button>
-                <button
-                  onClick={onEndSession}
-                  className="h-10 px-3 rounded-full bg-gray-700 text-white hover:bg-gray-600 flex items-center justify-center"
-                >
-                  End
-                </button>
-              </>
+          {/* 右侧: tutor 操作 + 音量控制 */}
+          <div className="flex items-center justify-end gap-2 flex-1 max-w-xs shrink-0">
+            {/* Debug: Show userRole */}
+            {process.env.NODE_ENV === 'development' && (
+              <span className="text-xs text-white/50 mr-2">Role: {userRole}</span>
             )}
+            {/* Recording button - only show for tutors */}
+            {userRole === 'tutor' && (
+              <button
+                onClick={isRecording ? handleStopRecording : handleStartRecording}
+                className="h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-500 border-2 border-white"
+                title={isRecording ? 'Stop Recording' : 'Start Recording'}
+                disabled={createRecording?.isPending}
+                style={{ minWidth: '40px', minHeight: '40px' }}
+              >
+                <span className="text-xs font-bold">
+                  {createRecording?.isPending ? 'SAVE' : 'REC'}
+                </span>
+              </button>
+            )}
+            
+            {userRole === 'tutor' && (
+              <button
+                onClick={onEndSession}
+                className={`${pillBtn} bg-red-600 hover:bg-red-500 text-white`}
+                title="End Session"
+              >
+                End
+              </button>
+            )}
+            
+            {/* 音量控制按钮 */}
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className={`${roundBtn}`}
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            
             {onOpenDevices && (
               <button
                 onClick={onOpenDevices}
-                className="h-10 w-10 rounded-full bg-gray-700 text-white hover:bg-gray-600 flex items-center justify-center"
-                title="Devices"
+                className={`${roundBtn}`}
+                title="Device Settings"
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="w-4 h-4" />
               </button>
             )}
-            <div className="text-xs md:text-sm text-white/80 font-mono h-9 md:h-10 flex items-center">
-              {formatDuration(sessionDuration)} <Volume2 className="inline-block ml-2 -mt-1" />
-            </div>
           </div>
         </div>
       </div>

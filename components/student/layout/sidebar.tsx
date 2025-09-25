@@ -90,6 +90,7 @@ const defaultMenuSections: MenuSection[] = [
         icon: Bell,
         path: "/notifications",
       },
+      { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
   },
   {
@@ -111,18 +112,6 @@ const defaultMenuSections: MenuSection[] = [
             label: "Create Classroom",
             icon: PlusCircle,
             path: "/classroom/create",
-          },
-          {
-            id: "join-classroom",
-            label: "Join Classroom",
-            icon: UserPlus,
-            path: "/classroom/join",
-          },
-          {
-            id: "assignments",
-            label: "Assignments",
-            icon: ClipboardList,
-            path: "/classroom/assignments",
           },
           {
             id: "live-sessions",
@@ -155,18 +144,18 @@ const defaultMenuSections: MenuSection[] = [
             icon: BookMarked,
             path: "/my/courses",
           },
-          {
-            id: "favorites",
-            label: "Favorites",
-            icon: Heart,
-            path: "/courses/favorites",
-          },
-          {
-            id: "progress",
-            label: "Progress",
-            icon: TrendingUp,
-            path: "/courses/progress",
-          },
+          // {
+          //   id: "favorites",
+          //   label: "Favorites",
+          //   icon: Heart,
+          //   path: "/courses/favorites",
+          // },
+          // {
+          //   id: "progress",
+          //   label: "Progress",
+          //   icon: TrendingUp,
+          //   path: "/courses/progress",
+          // },
         ],
       },
       {
@@ -200,7 +189,6 @@ const defaultMenuSections: MenuSection[] = [
           },
         ],
       },
-      { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
   },
 ];

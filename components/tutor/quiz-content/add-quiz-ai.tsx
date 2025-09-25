@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useGenerateQuiz, validateQuizRequest } from '@/hooks/ai/use-generate-quiz';
+import { useCreateQuiz, convertAIQuestionsToQuizFormat, validateQuizQuestions } from '@/hooks/course/use-create-quiz';
 import { Bot, Sparkles, RefreshCw, Check, AlertCircle, Edit, Trash2, Wand2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -79,13 +81,17 @@ export function AddQuizAI({
     includeExplanations: true,
   });
   const [customPrompt, setCustomPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
+  
+  // AI Generation Hook
+  const generateQuizMutation = useGenerateQuiz();
+  
+  // Quiz Creation Hook
+  const createQuizMutation = useCreateQuiz();
   
   // Generated Questions State
   const [generatedQuestions, setGeneratedQuestions] = useState<QuizQuestion[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSettingsChange = (field: keyof AIQuizSettings, value: any) => {
@@ -124,51 +130,64 @@ export function AddQuizAI({
   };
 
   const handleGenerateQuiz = async () => {
-    setIsGenerating(true);
+    // Clear any previous errors
+    setErrors({});
     setGenerationStep(t('preparing_request'));
     
+    // Build the quiz generation request
+    const quizRequest = {
+      topic: lessonTitle || aiSettings.focusTopics || 'General Knowledge',
+      num_questions: aiSettings.numQuestions,
+      difficulty: aiSettings.difficulty,
+      question_types: aiSettings.questionTypes,
+      focus_topics: aiSettings.focusTopics,
+      include_explanations: aiSettings.includeExplanations,
+      lesson_content: lessonDescription,
+      custom_instructions: customPrompt,
+      lessonId: lessonId,
+    };
+
+    // Validate request
+    const validationErrors = validateQuizRequest(quizRequest);
+    if (validationErrors.length > 0) {
+      setErrors({ generation: validationErrors.join(', ') });
+      setGenerationStep('');
+      return;
+    }
+
+    setGenerationStep(t('contacting_ai'));
+    
     try {
-      // Step 1: Prepare AI prompt
-      const prompt = customPrompt || generateDefaultPrompt();
-      
-      setGenerationStep(t('contacting_ai'));
-      
-      // Step 2: Call AI API (placeholder for now)
-      // TODO: Implement actual AI API integration
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call AI API using the hook
+      const generatedQuiz = await generateQuizMutation.mutateAsync(quizRequest);
       
       setGenerationStep(t('processing_response'));
       
-      // Step 3: Process AI response (mock data for now)
-      const mockQuestions: QuizQuestion[] = Array.from({ length: aiSettings.numQuestions }, (_, i) => ({
-        id: `ai-${Date.now()}-${i}`,
-        question_text: t('sample_question', { number: i + 1 }),
-        question_type: aiSettings.questionTypes[i % aiSettings.questionTypes.length],
-        options: aiSettings.questionTypes[i % aiSettings.questionTypes.length] === 'multiple_choice' 
-          ? ['Option A', 'Option B', 'Option C', 'Option D'] 
-          : [],
-        correct_answer: aiSettings.questionTypes[i % aiSettings.questionTypes.length] === 'multiple_choice' 
-          ? 'Option A' 
-          : aiSettings.questionTypes[i % aiSettings.questionTypes.length] === 'true_false' 
-            ? true 
-            : 'Sample answer',
-        explanation: aiSettings.includeExplanations ? t('sample_explanation') : '',
-        points: Math.ceil(aiSettings.difficulty * 2),
-        difficulty: aiSettings.difficulty,
-        position: i + 1,
+      // Convert the generated quiz to our component's QuizQuestion format
+      const convertedQuestions: QuizQuestion[] = generatedQuiz.questions.map(q => ({
+        id: q.id,
+        question_text: q.question_text,
+        question_type: q.question_type as QuestionType,
+        options: q.options || [],
+        correct_answer: q.correct_answer,
+        explanation: q.explanation || '',
+        points: q.points,
+        difficulty: q.difficulty,
+        position: q.position,
       }));
       
       setGenerationStep(t('finalizing'));
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setGeneratedQuestions(mockQuestions);
+      setGeneratedQuestions(convertedQuestions);
       setGenerationStep('');
       
     } catch (error) {
-      setErrors({ generation: t('generation_error') });
+      console.error('Quiz generation failed:', error);
+      setErrors({ 
+        generation: error instanceof Error 
+          ? error.message 
+          : t('generation_error') 
+      });
       setGenerationStep('');
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -195,15 +214,31 @@ export function AddQuizAI({
       return;
     }
 
-    setIsSubmitting(true);
+    if (!lessonId) {
+      setErrors({ submit: 'Lesson ID is required to create quiz questions' });
+      return;
+    }
+
+    // Convert AI questions to database format
+    const questionsToCreate = convertAIQuestionsToQuizFormat(generatedQuestions);
+    
+    // Validate questions before submission
+    const validationErrors = validateQuizQuestions(questionsToCreate);
+    if (validationErrors.length > 0) {
+      setErrors({ submit: validationErrors.join(', ') });
+      return;
+    }
+
+    setErrors({});
+    
     try {
-      // TODO: Implement actual API call using hooks
-      // const { createQuizByLessonId } = useCreateQuizByLessonId({ lessonId: lessonId || '' });
+      // Save questions to database using the hook
+      await createQuizMutation.mutateAsync({
+        lessonId,
+        questions: questionsToCreate
+      });
       
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Reset form
+      // Reset form on success
       setGeneratedQuestions([]);
       setAiSettings({
         numQuestions: 5,
@@ -218,9 +253,12 @@ export function AddQuizAI({
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
-      setErrors({ submit: t('submit_error') });
-    } finally {
-      setIsSubmitting(false);
+      console.error('Failed to create quiz:', error);
+      setErrors({ 
+        submit: error instanceof Error 
+          ? error.message 
+          : t('submit_error') 
+      });
     }
   };
 
@@ -477,11 +515,11 @@ export function AddQuizAI({
               <div className="flex justify-center">
                 <Button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || aiSettings.questionTypes.length === 0}
+                  disabled={generateQuizMutation.isPending || aiSettings.questionTypes.length === 0}
                   size="lg"
                   className="w-full sm:w-auto"
                 >
-                  {isGenerating ? (
+                  {generateQuizMutation.isPending ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                       {generationStep || t('generating')}
@@ -581,7 +619,7 @@ export function AddQuizAI({
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting}
+              disabled={createQuizMutation.isPending}
             >
               {t('cancel')}
             </Button>
@@ -590,9 +628,9 @@ export function AddQuizAI({
               <Button
                 type="button"
                 onClick={handleSubmitQuiz}
-                disabled={isSubmitting}
+                disabled={createQuizMutation.isPending}
               >
-                {isSubmitting ? (
+                {createQuizMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                     {t('creating')}

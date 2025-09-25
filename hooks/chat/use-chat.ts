@@ -545,3 +545,54 @@ export function useTypingIndicator(conversationId: string | undefined) {
     stopTyping: () => {},
   };
 }
+
+/**
+ * Hook for deleting a conversation
+ */
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ conversationId, type }: { conversationId: string; type: 'direct' | 'group' }) => {
+      // API expects body: { conversationId, type }
+      return await apiSend({
+        url: `/api/chat/conversations`,
+        method: 'DELETE',
+        body: { conversationId, type },
+      });
+    },
+    onMutate: async ({ conversationId }) => {
+      // 取消相关的 refetch
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+
+      // 备份旧数据
+      const previousConversations = queryClient.getQueryData<ConversationsResponse>(['conversations']);
+
+      // 从 cache 里乐观删除
+      queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          conversations: old.conversations.filter(conv => conv.id !== conversationId),
+          pagination: {
+            ...old.pagination,
+            total: old.pagination.total - 1,
+          },
+        };
+      });
+
+      return { previousConversations };
+    },
+    onError: (err, { conversationId }, context) => {
+      // 出错时回滚
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations'], context.previousConversations);
+      }
+    },
+    onSuccess: () => {
+      // 删除成功后刷新会话列表
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+

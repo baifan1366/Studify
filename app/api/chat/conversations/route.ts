@@ -308,3 +308,143 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    // Authorize user
+    const authResult = await authorize(['student', 'tutor']);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
+    const userId = authResult.sub;
+    const supabase = await createAdminClient();
+
+    // Get user's profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
+    // Parse request body
+    const { conversationId, type } = await request.json();
+
+    if (!conversationId || !type) {
+      return NextResponse.json(
+        { error: 'conversationId and type are required' },
+        { status: 400 }
+      );
+    }
+
+    if (type === 'direct') {
+      // Normalize conversationId: can be numeric internal id or 'user_{participantId}'
+      let directConversationId: number | null = null;
+      let otherParticipantId: number | null = null;
+
+      if (typeof conversationId === 'string' && conversationId.startsWith('user_')) {
+        // Extract other participant profile id
+        const pid = parseInt(conversationId.replace('user_', ''));
+        if (Number.isNaN(pid)) {
+          return NextResponse.json({ error: 'Invalid direct conversation id' }, { status: 400 });
+        }
+        otherParticipantId = pid;
+        // Use RPC to get or create the conversation internal id
+        const { data: convIdFromRpc, error: rpcError } = await supabase
+          .rpc('create_or_get_conversation', {
+            user1_id: profile.id,
+            user2_id: otherParticipantId
+          });
+        if (rpcError || !convIdFromRpc) {
+          console.error('Error resolving direct conversation via RPC:', rpcError);
+          return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+        }
+        directConversationId = convIdFromRpc as number;
+      } else if (typeof conversationId === 'number') {
+        directConversationId = conversationId;
+      } else if (typeof conversationId === 'string' && /^\d+$/.test(conversationId)) {
+        directConversationId = parseInt(conversationId, 10);
+      }
+
+      if (!directConversationId) {
+        return NextResponse.json({ error: 'Invalid conversation id' }, { status: 400 });
+      }
+
+      // Check ownership (must be participant)
+      const { data: conv, error: convError } = await supabase
+        .from('direct_conversations')
+        .select('id, participant1_id, participant2_id, is_deleted')
+        .eq('id', directConversationId)
+        .single();
+
+      if (convError || !conv) {
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      }
+
+      if (conv.participant1_id !== profile.id && conv.participant2_id !== profile.id) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+      }
+
+      // Soft delete
+      const { error: updateError } = await supabase
+        .from('direct_conversations')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .eq('id', directConversationId);
+
+      if (updateError) {
+        console.error('Error deleting direct conversation:', updateError);
+        return NextResponse.json({ error: 'Failed to delete conversation' }, { status: 500 });
+      }
+    } else if (type === 'group') {
+      // Normalize group id: can be numeric internal id or 'group_{id}'
+      let groupId: number | null = null;
+      if (typeof conversationId === 'string' && conversationId.startsWith('group_')) {
+        const gid = parseInt(conversationId.replace('group_', ''));
+        if (!Number.isNaN(gid)) groupId = gid; 
+      } else if (typeof conversationId === 'number') {
+        groupId = conversationId; 
+      } else if (typeof conversationId === 'string' && /^\d+$/.test(conversationId)) {
+        groupId = parseInt(conversationId, 10);
+      }
+
+      if (!groupId) {
+        return NextResponse.json({ error: 'Invalid group conversation id' }, { status: 400 });
+      }
+
+      // Check membership
+      const { data: membership, error: membershipError } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('conversation_id', groupId)
+        .eq('user_id', profile.id)
+        .is('left_at', null)
+        .single();
+
+      if (membershipError || !membership) {
+        return NextResponse.json({ error: 'Not a member of this group' }, { status: 403 });
+      }
+
+      // Soft delete
+      const { error: updateError } = await supabase
+        .from('group_conversations')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .eq('id', groupId);
+
+      if (updateError) {
+        console.error('Error deleting group conversation:', updateError);
+        return NextResponse.json({ error: 'Failed to delete conversation' }, { status: 500 });
+      }
+    } else {
+      return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

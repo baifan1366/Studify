@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useConversations, useMarkAsRead, useCreateConversation } from '@/hooks/chat/use-chat';
+import { useConversations, useMarkAsRead, useCreateConversation, useDeleteConversation } from '@/hooks/chat/use-chat';
 import { 
   Search, 
   MessageCircle, 
@@ -82,6 +82,7 @@ export function ChatDashboard() {
   const { data: conversationsData, isLoading, error } = useConversations();
   const markAsReadMutation = useMarkAsRead();
   const createConversationMutation = useCreateConversation();
+  const deleteConversationMutation = useDeleteConversation();
   
   // Use notification hooks
   const { notifyNewMessage, requestNotificationPermission } = useChatNotifications();
@@ -209,6 +210,24 @@ export function ChatDashboard() {
       console.error('Failed to create conversation:', error);
     }
   };
+
+  const handleDeleteConversation = (conversationId: string, type: 'direct' | 'group') => {
+    if (!confirm("Are you sure you want to delete this chat?")) return;
+
+    deleteConversationMutation.mutate(
+      { conversationId, type },
+      {
+        onSuccess: () => {
+          setSelectedConversation(null);
+        },
+        onError: (err) => {
+          console.error("Delete failed:", err);
+          alert("Failed to delete chat");
+        },
+      }
+    );
+  };
+
 
   const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedMembers.length === 0) {
@@ -521,7 +540,11 @@ export function ChatDashboard() {
                   <DropdownMenuContent>
                     <DropdownMenuItem>View Profile</DropdownMenuItem>
                     <DropdownMenuItem>Block User</DropdownMenuItem>
-                    <DropdownMenuItem>Delete Chat</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteConversation(selectedConv.id, selectedConv.type)}
+                    >
+                      Delete Chat
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

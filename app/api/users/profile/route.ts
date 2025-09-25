@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authorize } from "@/lib/server-guard";
+import { authorize } from "@/utils/auth/server-guard";
+import { createClient } from "@/utils/supabase/server";
 
 /**
  * GET /api/users/profile
@@ -7,13 +8,17 @@ import { authorize } from "@/lib/server-guard";
  */
 export async function GET(request: NextRequest) {
   try {
-    const { user, supabase } = await authorize(request, "student");
-
+    const authResult = await authorize(['student', 'tutor', 'admin']);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const userId = authResult.sub
+    const supabase = await createClient();
     // Get current user's profile from profiles table
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('is_deleted', false)
       .single();
 
@@ -38,14 +43,19 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { user, supabase } = await authorize(request, "student");
+    const authResult = await authorize(['student', 'tutor', 'admin']);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const userId = authResult.sub
+    const supabase = await createClient();
     const body = await request.json();
 
     // Update user's profile
     const { data: profile, error } = await supabase
       .from('profiles')
       .update(body)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('is_deleted', false)
       .select()
       .single();

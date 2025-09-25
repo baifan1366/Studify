@@ -33,6 +33,15 @@ export interface ChatAttachment {
   custom_message?: string;
 }
 
+export interface ReplyTo {
+  id: string;
+  content: string;
+  isDeleted: boolean;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -50,6 +59,8 @@ export interface Message {
   deletedAt?: string;
   attachmentId?: number;
   attachment?: ChatAttachment;
+  replyToId?: number;
+  replyTo?: ReplyTo;
 }
 
 export interface ConversationsResponse {
@@ -77,6 +88,7 @@ export interface SendMessageRequest {
   type?: 'text' | 'image' | 'file';
   fileName?: string;
   fileSize?: string;
+  reply_to_id?: number;
 }
 
 /**
@@ -161,6 +173,10 @@ export function useSendMessage() {
         fileSize: data.fileSize,
         isFromMe: true,
         status: 'sending',
+        isEdited: false,
+        isDeleted: false,
+        replyToId: data.reply_to_id,
+        replyTo: data.reply_to_id ? undefined : undefined, // Will be populated by frontend if needed
       };
       
       queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {

@@ -5,13 +5,15 @@ import { cn } from '@/lib/utils';
 import { Message } from '@/hooks/chat/use-chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
+import { Reply } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
   className?: string;
+  onReply?: (message: Message) => void;
 }
 
-export function MessageBubble({ message, className }: MessageBubbleProps) {
+export function MessageBubble({ message, className, onReply }: MessageBubbleProps) {
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -48,10 +50,34 @@ export function MessageBubble({ message, className }: MessageBubbleProps) {
           </span>
         )}
 
+        {/* Reply block (if this message is replying to another) */}
+        {message.replyTo && (
+          <div className={cn(
+            "mb-2 border-l-2 pl-3 py-2 rounded-r-md text-sm opacity-80",
+            message.isFromMe 
+              ? "border-primary/30 bg-primary/10" 
+              : "border-muted-foreground/30 bg-muted/50"
+          )}>
+            <div className="flex items-center gap-1 mb-1">
+              <Reply className="h-3 w-3" />
+              <span className="text-xs font-medium">
+                {message.replyTo.senderName}
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {message.replyTo.isDeleted ? (
+                <span className="italic">This message was deleted</span>
+              ) : (
+                <span className="line-clamp-2">{message.replyTo.content}</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Message bubble */}
         <div
           className={cn(
-            'rounded-lg px-3 py-2 max-w-full transition-all duration-200',
+            'rounded-lg px-3 py-2 max-w-full transition-all duration-200 group-hover:shadow-sm relative',
             message.isFromMe
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted',
@@ -88,8 +114,23 @@ export function MessageBubble({ message, className }: MessageBubbleProps) {
           {/* Edited indicator */}
           {message.isEdited && !message.isDeleted && (
             <div className="text-xs opacity-70 mt-1">
-              edited
+              (edited)
             </div>
+          )}
+
+          {/* Reply button (visible on hover) */}
+          {onReply && !message.isDeleted && (
+            <button
+              onClick={() => onReply(message)}
+              className={cn(
+                "absolute -top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                "bg-background border rounded-full p-1 shadow-sm hover:bg-muted",
+                message.isFromMe ? "-left-8" : "-right-8"
+              )}
+              title="Reply to this message"
+            >
+              <Reply className="h-3 w-3" />
+            </button>
           )}
         </div>
 

@@ -28,6 +28,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 import { useUser } from '@/hooks/profile/use-user';
 import { useCurrentUserProfile, useUpdateCurrentUserSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +43,7 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'lan
 
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
+  const { theme, setTheme } = useTheme();
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
   const updateSettingsMutation = useUpdateCurrentUserSettings();
@@ -114,12 +116,12 @@ export default function SettingsContent() {
         showProgress: privacySettings.show_progress ?? true,
         dataCollection: privacySettings.data_collection ?? true,
         
-        // Appearance settings
-        theme: profile.theme || 'system',
+        // Appearance settings  
+        theme: theme || profile.theme || 'system',
         language: profile.language || 'en',
       }));
     }
-  }, [profile]);
+  }, [profile, theme]);
 
   const tabs = [
     { id: 'account', label: t('account'), icon: User },
@@ -160,6 +162,8 @@ export default function SettingsContent() {
     // Appearance settings
     if (key === 'theme') {
       updateData.theme = value;
+      // Apply theme change immediately using next-themes
+      setTheme(value);
     }
     if (key === 'language') {
       updateData.language = value;

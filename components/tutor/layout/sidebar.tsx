@@ -88,22 +88,22 @@ const defaultMenuSections: MenuSection[] = [
         label: "Community",
         icon: Users,
         subItems: [
-          { id: "groups", label: "Groups", icon: Users, path: "/community" },
+          { id: "groups", label: "Groups", icon: Users, path: "/tutor/community" },
           {
             id: "quizzes",
             label: "Quizzes",
             icon: Brain,
-            path: "/community/quizzes",
+            path: "/tutor/community/quizzes",
           },
           {
             id: "achievements",
             label: "Achievements",
             icon: Award,
-            path: "/community/achievements",
+            path: "/tutor/community/achievements",
           },
         ],
       },
-      { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
+      { id: "chat", label: "Chat", icon: MessageCircle, path: "/tutor/chat" },
     ],
   },
 ];

@@ -4,19 +4,19 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ contentType: string; contentId: string }> }
+  context: { params: Promise<{ contentType: string; contentId: string }> }
 ) {
   try {
     // Authorize admin user
-    const authResult = await authorize('admin');
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    const authResult = await authorize('admin');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
 
-    const userId = authResult.sub;
+    const userId = authResult.sub;
     
     const supabaseServer = await createClient();
-    const { contentType, contentId } = await params;
+    const { contentType, contentId } = await context.params;
     
     // Validate parameters
     if (!contentType || !contentId) {

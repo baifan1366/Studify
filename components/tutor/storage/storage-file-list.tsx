@@ -237,13 +237,8 @@ export function StorageFileList({
 
   const handleDownload = (attachment: CourseAttachment) => {
     if (attachment.url) {
-      const link = document.createElement('a')
-      link.href = attachment.url
-      link.download = attachment.title
-      link.target = '_blank'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // Open MEGA URL in new tab for download
+      window.open(attachment.url, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -576,14 +571,12 @@ export function StorageFileList({
                   className="flex items-center justify-center h-20 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
                   onClick={() => handlePreview(attachment)}
                 >
-                  {attachment.type === 'video' ? (
-                    <div className="relative">
-                      {getFileIcon(attachment.type)}
-                      <PlayCircle className="h-4 w-4 absolute -top-1 -right-1 text-blue-400" />
-                    </div>
-                  ) : (
-                    getFileIcon(attachment.type)
-                  )}
+                  <div className="flex items-center gap-1">
+                    {getFileIcon(attachment.type)}
+                    {attachment.type === 'video' && (
+                      <PlayCircle className="h-4 w-4 text-blue-400" />
+                    )}
+                  </div>
                 </div>
 
                 {/* File details */}

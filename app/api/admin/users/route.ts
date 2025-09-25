@@ -72,14 +72,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Failed to fetch users' }, { status: 500 });
     }
 
+    // Enhance users with stats for each user
+    const usersWithStats = await Promise.all(
+      (users || []).map(async (user) => {
+        const [purchaseStats] = await Promise.all([
+          // Get total spent for sorting purposes
+          supabase
+            .from('course_order')
+            .select('amount_cents')
+            .eq('user_id', user.id)
+            .eq('status', 'completed')
+        ]);
+        
+        const totalSpent = purchaseStats.data?.reduce((sum, order) => sum + (order.amount_cents || 0), 0) || 0;
+        
+        return {
+          ...user,
+          total_spent: totalSpent
+        };
+      })
+    );
+
     return NextResponse.json({
-      users,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
-      }
+      users: usersWithStats,
+      total: count || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((count || 0) / limit)
     });
 
   } catch (error) {

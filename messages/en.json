@@ -532,7 +532,13 @@
     "password_label": "Password",
     "password_placeholder": "Enter your password",
     "forgot_password_link": "Forgot password?",
-    "passwordRequirements": "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+    "passwordRequirements": "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
+    "choose_account_type": "Choose Account Type",
+    "select_account_type_description": "Please select what type of account you'd like to create",
+    "student": "Student",
+    "student_description": "Learn from expert tutors and join courses",
+    "tutor": "Tutor",
+    "tutor_description": "Create courses and teach students"
   },
   "AuthStudentSignUpPage": {
     "metadata_title": "Sign Up",
@@ -4100,6 +4106,9 @@
     "process_videos": "Process Videos",
     "delete_all": "Delete All",
     "confirm_bulk_delete": "Confirm Bulk Delete",
+    "file_name": "File Name",
+    "file_size": "File Size",
+    "actions": "Actions",
     "bulk_delete_warning": "Are you sure you want to delete {count} selected files?",
     "deleting_progress": "Deleting files...",
     "deleted": "Deleted",

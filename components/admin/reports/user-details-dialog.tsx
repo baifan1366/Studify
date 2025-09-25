@@ -148,16 +148,16 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: UserDetailsDia
                     <Card className="bg-transparent p-4">
                       <div className="flex items-start gap-4">
                         <Avatar className="w-16 h-16">
-                          <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
+                          <AvatarImage src={profile.avatar_url} alt={profile.full_name || profile.display_name} />
                           <AvatarFallback className="text-lg">
-                            {profile.full_name?.charAt(0).toUpperCase() || profile.email.charAt(0).toUpperCase()}
+                            {(profile.full_name || profile.display_name || profile.email).charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         
                         <div className="flex-1 space-y-3">
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                              {profile.full_name || t('no_name_provided')}
+                              {profile.full_name || profile.display_name || t('no_name_provided')}
                             </h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
                               {profile.bio || t('no_bio_provided')}

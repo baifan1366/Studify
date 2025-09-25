@@ -109,13 +109,13 @@ export function UserReportsList() {
   };
 
   // Handle user actions
-  const handleViewUser = (userId: string) => {
-    setSelectedUserId(userId);
+  const handleViewUser = (userUuid: string) => {
+    setSelectedUserId(userUuid);
     setShowUserDetails(true);
   };
 
-  const handleBanUser = (userId: string) => {
-    setSelectedUserId(userId);
+  const handleBanUser = (userUuid: string) => {
+    setSelectedUserId(userUuid);
     setShowBanDialog(true);
   };
 
@@ -341,14 +341,14 @@ export function UserReportsList() {
                   <div className="lg:col-span-3">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-10 h-10">
-                        <AvatarImage src={user.avatar_url} alt={user.full_name} />
+                        <AvatarImage src={user.avatar_url} alt={user.full_name || user.display_name} />
                         <AvatarFallback>
-                          {user.full_name}
+                          {(user.full_name || user.display_name || user.email).charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {user.full_name || t('no_name')}
+                          {user.full_name || user.display_name || t('no_name')}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                           {user.email}
@@ -394,13 +394,13 @@ export function UserReportsList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewUser(user.id)}>
+                        <DropdownMenuItem onClick={() => handleViewUser(user.user_id)}>
                           <Eye className="h-4 w-4 mr-2" />
                           {t('view_details')}
                         </DropdownMenuItem>
                         {user.status !== 'banned' && (
                           <DropdownMenuItem
-                            onClick={() => handleBanUser(user.id)}
+                            onClick={() => handleBanUser(user.user_id)}
                             className="text-red-600 dark:text-red-400"
                           >
                             <Ban className="h-4 w-4 mr-2" />

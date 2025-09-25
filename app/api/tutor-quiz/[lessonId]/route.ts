@@ -52,12 +52,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
           course!inner(
             id,
             title,
-            tutor_id
+            owner_id
           )
         )
       `)
       .eq('lesson_id', lessonId)
-      .eq('course_lesson.course.tutor_id', profileId)
+      .eq('course_lesson.course.owner_id', profileId)
       .eq('is_deleted', false)
       .order('position', { ascending: true });
 
@@ -131,11 +131,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
                 id,
                 course!inner(
                     id,
-                    tutor_id
+                    owner_id
                 )
             `)
             .eq('id', lessonId)
-            .eq('course.tutor_id', profileId)
+            .eq('course.owner_id', profileId)
             .single();
         
         if (lessonError || !lesson) {
@@ -147,6 +147,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
         }
   
         const payload = {
+            user_id: profileId,
             question_text: body.question_text,
             question_type: body.question_type,
             options: body.options,

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { CreateClassroomPage } from '@/components/classroom/create-classroom-page';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,5 +18,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function Page() {
-  return <CreateClassroomPage />;
+  return <div></div>;
 }

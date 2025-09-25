@@ -29,7 +29,7 @@ import { Separator } from '@/components/ui/separator';
 import { useUserProfile } from '@/hooks/profile/use-profile';
 import { useCourses } from '@/hooks/course/use-courses';
 import { useStudentsByTutorId } from '@/hooks/students/use-student';
-import { useClassrooms } from '@/hooks/tutor-classroom/use-classroom';
+// import { useClassrooms } from '@/hooks/tutor-classroom/use-classroom';
 import Link from 'next/link';
 
 interface DashboardContentProps {}
@@ -47,14 +47,14 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
   const { data: studentsData, isLoading: studentsLoading } = useStudentsByTutorId(profile?.id || 0);
   
   // Fetch tutor's classrooms
-  const { data: classroomsData, isLoading: classroomsLoading } = useClassrooms();
+  // const { data: classroomsData, isLoading: classroomsLoading } = useClassrooms();
 
-  const isLoading = profileLoading || coursesLoading || studentsLoading || classroomsLoading;
+  const isLoading = profileLoading || coursesLoading || studentsLoading;
 
   // Calculate analytics
   const totalCourses = courses?.length || 0;
   const totalStudents = studentsData?.total_students || 0;
-  const totalClassrooms = classroomsData?.classrooms?.length || 0;
+  // const totalClassrooms = classroomsData?.classrooms?.length || 0;
   const activeCourses = courses?.filter(course => course.status === 'active').length || 0;
   const pendingCourses = courses?.filter(course => course.status === 'pending').length || 0;
   
@@ -202,7 +202,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
             <Video className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalClassrooms}</div>
+            <div className="text-2xl font-bold">0</div>
             <p className="text-xs text-muted-foreground">
               {t('active_classrooms')}
             </p>

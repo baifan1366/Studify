@@ -588,6 +588,15 @@
     "already_confirmed": "Already confirmed?",
     "sign_in_link": "Sign in"
   },
+  "OnboardingStudentPage": {
+    "metadata_title": "Student Onboarding | Studify",
+    "metadata_description": "Complete your student profile setup and personalize your learning experience on Studify",
+    "metadata_keywords": "student onboarding,profile setup,learning preferences,personalization,education",
+    "og_title": "Student Onboarding | Studify",
+    "og_description": "Join Studify as a student and start your personalized learning journey",
+    "profile_title": "Complete your profile",
+    "profile_description": "Tell us more about yourself."
+  },
   "OnboardingStudentStep1Page": {
     "welcome_title": "Welcome to Studify!",
     "welcome_description": "Let's get your profile set up. What's your full name?",
@@ -608,12 +617,22 @@
     "preferences_note": "You can change your preferences at any time from your profile settings."
   },
   "OnboardingTutorStep1Page": {
+    "metadata_title": "Tutor Onboarding - Step 1 | Studify",
+    "metadata_description": "Start your tutor profile setup on Studify - Step 1: Basic Information",
+    "metadata_keywords": "tutor onboarding,teacher registration,profile setup,teaching platform,education",
+    "og_title": "Tutor Onboarding - Step 1 | Studify",
+    "og_description": "Begin your journey as a tutor on Studify - Set up your profile",
     "welcome_title": "Welcome, Tutor!",
     "welcome_description": "Let's get your profile set up so you can start teaching.",
     "full_name_label": "Full Name",
     "full_name_placeholder": "Enter your full name"
   },
   "OnboardingTutorStep2Page": {
+    "metadata_title": "Tutor Onboarding - Step 2 | Studify",
+    "metadata_description": "Share your expertise and qualifications - Step 2 of tutor onboarding on Studify",
+    "metadata_keywords": "tutor expertise,teaching qualifications,experience,credentials,education platform",
+    "og_title": "Tutor Onboarding - Step 2 | Studify",
+    "og_description": "Share your teaching expertise and qualifications on Studify",
     "expertise_title": "Your Expertise",
     "expertise_description": "Tell us about your teaching experience and qualifications.",
     "qualifications_label": "Qualifications",
@@ -622,6 +641,11 @@
     "experience_placeholder": "Describe your teaching experience."
   },
   "OnboardingTutorStep3Page": {
+    "metadata_title": "Tutor Onboarding - Step 3 | Studify",
+    "metadata_description": "Set your availability and rates - Final step of tutor onboarding on Studify",
+    "metadata_keywords": "tutor availability,teaching schedule,hourly rates,tutoring services,online teaching",
+    "og_title": "Tutor Onboarding - Step 3 | Studify",
+    "og_description": "Complete your tutor profile by setting availability and rates on Studify",
     "availability_title": "Set Your Availability",
     "availability_description": "Let students know when you're available to teach.",
     "hourly_rate_label": "Hourly Rate (USD)",

@@ -3,6 +3,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getTranslations } from "next-intl/server";
+import { Metadata } from 'next';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('OnboardingTutorStep3Page');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default async function Step3Page({
   params,

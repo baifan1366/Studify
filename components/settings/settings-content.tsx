@@ -43,8 +43,8 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'lan
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
-  const updateSettingsMutation = useUpdateSettings();
+  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.profile?.id || '');
+  const updateSettingsMutation = useUpdateSettings(userData?.profile?.id || '');
   const { toast } = useToast();
   const { fontSize, setFontSize } = useFontSize();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');

@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   id bigserial PRIMARY KEY,
   public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name text,
   full_name text,
   email text,
   role text NOT NULL CHECK (role IN ('admin','student','tutor')),

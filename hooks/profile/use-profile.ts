@@ -21,13 +21,13 @@ export function useUserProfile() {
  */
 export function useFullProfile(profileId: string) {
   return useQuery<any>({
-    queryKey: ["profile", "full"],
+    queryKey: ["profile", "full", profileId],
     queryFn: () => apiGet<any>(`/api/profile/${profileId}`),
     staleTime: 5 * 60 * 1000,  // 5 minutes
     gcTime: 10 * 60 * 1000,    // 10 minutes
+    enabled: !!profileId,
   });
 }
-
 /**
  * Hook for updating user profile information
  */
@@ -52,20 +52,20 @@ export function useUpdateProfile(profileId: string) {
 /**
  * Hook for updating user settings/preferences
  */
-export function useUpdateSettings() {
+export function useUpdateSettings(profileId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<any, Error, Record<string, any>>({
     mutationFn: (settingsData) =>
       apiSend({
-        url: '/api/profile',
+        url: `/api/profile/${profileId}`,
         method: 'PATCH',
         body: settingsData,
       }),
     onSuccess: () => {
       // Refresh profile queries after successful settings update
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['profile', 'full'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'full', profileId] });
     },
   });
 }

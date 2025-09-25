@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { contentType: string; contentId: string } }
+  context: { params: Promise<{ contentType: string; contentId: string }> }
 ) {
   try {
     // Authorize admin user
@@ -15,7 +15,7 @@ export async function GET(
     
     const userId = authResult.sub;    
     const supabaseServer = await createClient();
-    const { contentType, contentId } = params;
+    const { contentType, contentId } = await context.params;
     
     // Validate parameters
     if (!contentType || !contentId) {
@@ -75,22 +75,29 @@ export async function GET(
     }
     
     // Transform reports to match expected interface
-    const transformedReports = reports?.map(report => ({
-      id: report.public_id || report.id.toString(),
-      reason: report.reason,
-      description: report.description,
-      status: report.status,
-      created_at: report.created_at,
-      updated_at: report.updated_at,
-      reporter_id: report.reporter_id,
-      target_type: report.target_type,
-      target_id: report.target_id,
-      reporter_profile: report.reporter_profile ? {
-        id: report.reporter_profile.id,
-        full_name: report.reporter_profile.full_name,
-        avatar_url: report.reporter_profile.avatar_url,
-      } : null,
-    })) || [];
+    const transformedReports = reports?.map(report => {
+      // Handle reporter_profile which might be an array or single object
+      const reporterProfile = Array.isArray(report.reporter_profile) 
+        ? report.reporter_profile[0] 
+        : report.reporter_profile;
+      
+      return {
+        id: report.public_id || report.id.toString(),
+        reason: report.reason,
+        description: report.description,
+        status: report.status,
+        created_at: report.created_at,
+        updated_at: report.updated_at,
+        reporter_id: report.reporter_id,
+        target_type: report.target_type,
+        target_id: report.target_id,
+        reporter_profile: reporterProfile ? {
+          id: reporterProfile.id,
+          full_name: reporterProfile.full_name,
+          avatar_url: reporterProfile.avatar_url,
+        } : null,
+      };
+    }) || [];
     
     return NextResponse.json(transformedReports);
     

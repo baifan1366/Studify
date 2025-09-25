@@ -4831,5 +4831,39 @@
     "validation_custom_date_required": "Custom date is required",
     "validation_custom_date_future": "Custom date must be in the future",
     "validation_duration_positive": "Duration must be greater than 0"
+  },
+  "ResetPassword": {
+    "title": "Reset Password",
+    "subtitle": "Please enter your new password",
+    "new_password": "New Password",
+    "confirm_password": "Confirm New Password",
+    "password_requirements": "Password Requirements:",
+    "requirement_min_length": "At least 8 characters",
+    "requirement_uppercase": "Contains uppercase letter",
+    "requirement_lowercase": "Contains lowercase letter",
+    "requirement_number": "Contains number",
+    "requirement_special": "Contains special character",
+    "passwords_mismatch": "Passwords do not match",
+    "reset_password_button": "Reset Password",
+    "back_to_login": "Back to Login",
+    "invalid_token_title": "Invalid Reset Link",
+    "invalid_token_description": "The reset link is invalid or has expired. Please request a new password reset.",
+    "required": "*"
+  },
+  "ChangePasswordModal": {
+    "title": "Change Password",
+    "current_password": "Current Password",
+    "new_password": "New Password", 
+    "confirm_password": "Confirm New Password",
+    "password_requirements": "Password Requirements:",
+    "requirement_min_length": "At least 8 characters",
+    "requirement_uppercase": "Contains uppercase letter",
+    "requirement_lowercase": "Contains lowercase letter", 
+    "requirement_number": "Contains number",
+    "requirement_special": "Contains special character",
+    "passwords_mismatch": "Passwords do not match",
+    "cancel": "Cancel",
+    "change_password_button": "Change Password",
+    "required": "*"
   }
 }

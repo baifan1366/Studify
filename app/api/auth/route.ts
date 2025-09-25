@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
         role: profileData.role,
         avatar_url: profileData.avatar_url,
         bio: profileData.bio,
+        currency: profileData.currency,
         timezone: profileData.timezone,
         status: profileData.status,
         banned_reason: profileData.banned_reason,

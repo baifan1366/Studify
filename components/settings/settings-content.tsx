@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
-import { useFullProfile, useUpdateSettings } from '@/hooks/profile/use-profile';
+import { useCurrentUserProfile, useUpdateCurrentUserSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { useFontSize } from '@/context/font-size-context';
 import { FontSizeDemo } from './font-size-demo';
@@ -43,8 +43,8 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'lan
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
-  const updateSettingsMutation = useUpdateSettings();
+  const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
+  const updateSettingsMutation = useUpdateCurrentUserSettings();
   const { toast } = useToast();
   const { fontSize, setFontSize } = useFontSize();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');

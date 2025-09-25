@@ -6,7 +6,7 @@ import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, 
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
-import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
+import { useCurrentUserProfile, useUpdateCurrentUserProfile } from '@/hooks/profile/use-profile';
 import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
 import { useLearningStats, useAchievements, usePointsData, getAchievementIcon, calculateAchievementProgress, formatStudyTime } from '@/hooks/profile/use-learning-stats';
 import { usePurchaseData, formatCurrency as formatPurchaseCurrency, formatPurchaseDate } from '@/hooks/profile/use-purchase-data';
@@ -23,8 +23,8 @@ export default function ProfileContent() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
-  const updateProfileMutation = useUpdateProfile(userData?.id || '');
+  const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
+  const updateProfileMutation = useUpdateCurrentUserProfile();
   const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
   const { data: learningStats, isLoading: statsLoading } = useLearningStats('all');
   const { data: pointsData, isLoading: pointsLoading } = usePointsData();

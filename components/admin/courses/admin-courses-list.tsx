@@ -191,11 +191,10 @@ export default function AdminCoursesList() {
       </div>
 
       {/* Compact Filters */}
-      <div className="flex items-center gap-4 bg-card border rounded-lg p-4">
+      <div className="flex items-center gap-4 bg-transparent border rounded-lg p-4">
         {/* Search Bar */}
         <div className="flex-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t('search_courses_placeholder')}
               value={filters.search || ''}

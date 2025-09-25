@@ -132,7 +132,7 @@ export function DocumentPreview({
       onDownload()
     } else if (response?.url) {
       // Large file - open MEGA URL in new tab
-      window.open(response.url, '_blank')
+      window.open(response.url, '_blank', 'noopener,noreferrer')
     } else if (blobUrl && response?.blob) {
       // Small file - download blob directly
       const link = document.createElement('a')
@@ -165,7 +165,7 @@ export function DocumentPreview({
 
   const handleOpenLink = () => {
     if (response?.url) {
-      window.open(response.url, '_blank')
+      window.open(response.url, '_blank', 'noopener,noreferrer')
     }
   }
 

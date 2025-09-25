@@ -30,7 +30,6 @@ export default async function SignInPage({
         buttonText={mode === 'add' ? t('add_account_button') : t('sign_in_button')}
         footerText={t('no_account_question')}
         footerLinkText={t('sign_up_link')}
-        footerLinkHref="/sign-up"
         locale={locale}
         authMode={mode}
         redirectUrl={redirect}

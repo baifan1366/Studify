@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the profile ID (bigint) from the user UUID
+    // Get the user's profile ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
@@ -62,7 +62,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the profile ID (bigint) from the user UUID
+    // Get the user's profile ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')

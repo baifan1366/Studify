@@ -8,11 +8,13 @@ import { studentOnboardingQuestions } from "./questions";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import { useOnboardingStep } from "@/context/OnboardingStepContext"; // Import useOnboardingStep
+import { useTranslations } from "next-intl";
 
 export default function OnboardingStepPage() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
+  const t = useTranslations('OnboardingStudentPage');
 
   const { updateCurrentStep, setTotalSteps } = useOnboardingStep(); // Use the context
 
@@ -96,8 +98,8 @@ export default function OnboardingStepPage() {
 
   return (
     <OnboardingStep
-      title="Complete your profile"
-      description="Tell us more about yourself."
+      title={t('profile_title')}
+      description={t('profile_description')}
       action={handleNext}
       prevAction={handlePrevious}
       isLoading={isPending}

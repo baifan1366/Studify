@@ -21,7 +21,6 @@ export default async function TutorClassroomPage() {
 
   return (
     <div>
-      <h1>{t('page_title')}</h1>
     </div>
   );
 }

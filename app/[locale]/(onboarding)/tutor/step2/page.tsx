@@ -3,13 +3,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getTranslations } from "next-intl/server";
+import { Metadata } from 'next';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('OnboardingTutorStep2Page');
+
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords').split(','),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 export default async function Step2Page({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
   const t = await getTranslations("OnboardingTutorStep2Page");
 
   return (

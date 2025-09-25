@@ -1,23 +1,38 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Home, ArrowLeft } from 'lucide-react';
 
 export default function NotFound() {
-  const router = useRouter();
-  const t = useTranslations('NotFoundPage');
+  const [isClient, setIsClient] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [isStudent, setIsStudent] = useState(true)
+  //check pathname include /tutor/ or not
+  const pathname = usePathname();
+  const isTutor = pathname.includes('/tutor/');
+  
+  // Ensure we're on the client side before using hooks
+  useEffect(() => {
+    setIsClient(true);
+    setIsStudent(!isTutor);
+  }, []);
+
+  // Only use router and translations if we're on the client
+  const router = isClient ? useRouter() : null;
+  const t = isClient ? useTranslations('NotFoundPage') : null;
 
   useEffect(() => {
+    if (!isClient || !router) return;
+    
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          router.replace('/home');
+          router.replace(isStudent ? '/home' : '/tutor/dashboard');
           return 0;
         }
         return prev - 1;
@@ -25,15 +40,70 @@ export default function NotFound() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router]);
+  }, [router, isClient]);
 
   const goHome = () => {
-    router.replace('/home');
+    if (router) {
+      router.replace(isStudent ? '/home' : '/tutor/dashboard');
+    }
   };
 
   const goBack = () => {
-    router.back();
+    if (router) {
+      router.back();
+    }
   };
+
+  // Provide fallback content during SSR/prerendering
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center">
+          {/* Logo */}
+          <div className="mb-8 flex justify-center">
+            <div className="relative w-24 h-24 md:w-32 md:h-32">
+              <Image
+                src="/Studify App Logo Design.png"
+                alt="Studify Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+          
+          {/* Error Code */}
+          <div className="mb-6">
+            <h1 className="text-8xl md:text-9xl font-bold text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text">
+              404
+            </h1>
+            <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+              Error 404
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/20">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200 mb-4">
+              Page Not Found
+            </h2>
+            
+            <p className="text-slate-600 dark:text-slate-400 mb-2">
+              Oops! The page you're looking for doesn't exist
+            </p>
+            
+            <p className="text-sm text-slate-500 dark:text-slate-500 mb-8">
+              The link you followed may be broken, or the page may have been removed.
+            </p>
+
+            <div className="text-sm text-blue-700 dark:text-blue-300 mb-8">
+              Loading...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
@@ -57,29 +127,29 @@ export default function NotFound() {
             404
           </h1>
           <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            {t('error_code')}
+            {t?.('error_code') || 'Error 404'}
           </div>
         </div>
 
         {/* Main Content */}
         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/20">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200 mb-4">
-            {t('title')}
+            {t?.('title') || 'Page Not Found'}
           </h2>
           
           <p className="text-slate-600 dark:text-slate-400 mb-2">
-            {t('subtitle')}
+            {t?.('subtitle') || "Oops! The page you're looking for doesn't exist"}
           </p>
           
           <p className="text-sm text-slate-500 dark:text-slate-500 mb-8">
-            {t('description')}
+            {t?.('description') || 'The link you followed may be broken, or the page may have been removed.'}
           </p>
 
           {/* Countdown */}
           <div className="mb-8">
             <div className="bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl p-4 border border-blue-200/50 dark:border-blue-800/50">
               <div className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                {t('redirecting', { seconds: countdown })}
+                {t?.('redirecting', { seconds: countdown }) || `Redirecting to home in ${countdown} seconds...`}
               </div>
               
               {/* Progress Bar */}
@@ -99,7 +169,7 @@ export default function NotFound() {
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
             >
               <Home className="w-4 h-4 mr-2" />
-              {t('go_home_now')}
+              {t?.('go_home_now') || 'Go to Home Now'}
             </Button>
             
             <Button 
@@ -108,7 +178,7 @@ export default function NotFound() {
               className="border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 px-6 py-2.5 rounded-xl transition-all duration-200"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Go Back
+              {t?.('go_back') || 'Go Back'}
             </Button>
           </div>
         </div>

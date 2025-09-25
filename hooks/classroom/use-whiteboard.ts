@@ -256,7 +256,7 @@ export function useCreateWhiteboardEvent(classroomSlug: string, whiteboardId: st
 // Combined hook for whiteboard management with real-time events
 export function useWhiteboardManager(classroomSlug: string, whiteboardId?: string) {
   const [lastEventTimestamp, setLastEventTimestamp] = useState<string>();
-  const eventStreamRef = useRef<string>();
+  const eventStreamRef = useRef<string | undefined>(undefined);
 
   const createWhiteboard = useCreateWhiteboard(classroomSlug);
   const deleteWhiteboard = useDeleteWhiteboard(classroomSlug);

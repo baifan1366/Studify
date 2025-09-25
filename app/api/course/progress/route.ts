@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
           course!inner(public_id, title)
         )
       `)
-      .eq('user_id', user.profile?.id || user.id);
+      .eq('user_id', userId);
 
     if (lessonId) {
       // Get specific lesson progress

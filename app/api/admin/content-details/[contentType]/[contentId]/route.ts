@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { contentType: string; contentId: string } }
+  { params }: { params: Promise<{ contentType: string; contentId: string }> }
 ) {
   try {
     // Authorize admin user
@@ -16,7 +16,7 @@ export async function GET(
     const userId = authResult.sub;
     
     const supabaseServer = await createClient();
-    const { contentType, contentId } = params;
+    const { contentType, contentId } = await params;
     
     // Validate parameters
     if (!contentType || !contentId) {

@@ -40,7 +40,7 @@ export function ChatConversation({ conversationId }: ChatConversationProps) {
           
           <Avatar className="h-10 w-10">
             <AvatarImage src={undefined} />
-            <AvatarFallback>
+            <AvatarFallback>  
               {participantName.split(' ').map((n: string) => n[0]).join('')}
             </AvatarFallback>
           </Avatar>

@@ -703,24 +703,20 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           <BilibiliVideoPlayer
             attachmentId={attachment.id}
             src={currentLesson.content_url} // Fallback for external videos
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : 
         /* 3. Video with YouTube/external link - use BilibiliVideoPlayer */
         currentLesson?.kind === 'video' && currentLesson?.content_url ? (
           <BilibiliVideoPlayer
             src={currentLesson.content_url}
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : 
         /* Loading states */
@@ -728,7 +724,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
-              <p className="text-xl">Loading {currentLesson?.kind}...</p>
+              <p className="text-xl">{t('LessonContent.loading', { kind: currentLesson?.kind || 'content' })}</p>
               <p className="text-sm mt-2">{currentLesson?.title}</p>
             </div>
           </div>
@@ -737,31 +733,27 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         currentLesson?.kind === 'video' && attachmentId && !attachment ? (
           <BilibiliVideoPlayer
             src={currentLesson.content_url} // Fallback to external video
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : currentLesson?.kind === 'video' ? (
           <BilibiliVideoPlayer
             src={currentLesson?.content_url} // May be empty, will show no content state
-            title={currentLesson.title || 'Course Lesson'}
+            lessonId={currentLesson.public_id}
+            title={currentLesson.title || t('VideoPlayer.default_lesson_title')}
             poster={course?.thumbnail_url || undefined}
-            danmakuMessages={danmakuMessages}
-            comments={comments}
-            onDanmakuSend={handleDanmakuSend}
-            onCommentSend={handleCommentSend}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
               <FileText size={64} className="mx-auto mb-4" />
-              <p className="text-xl">Content coming soon</p>
+              <p className="text-xl">{t('LessonContent.content_coming_soon')}</p>
               <p className="text-sm mt-2">{currentLesson?.title}</p>
               <p className="text-xs mt-1 opacity-80">
-                {currentLesson?.kind ? `${currentLesson.kind} lesson` : 'No content type specified'}
+                {currentLesson?.kind ? `${currentLesson.kind} ${t('LessonContent.lesson_suffix')}` : t('LessonContent.no_content_specified')}
               </p>
             </div>
           </div>
@@ -1099,9 +1091,9 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
                 ) : quiz.error ? (
                   <div className="text-center py-8">
                     <XCircle size={48} className="text-red-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Quiz</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('LessonContent.error_loading_quiz')}</h3>
                     <p className="text-gray-600 dark:text-gray-400">
-                      Failed to load quiz questions. Please try again later.
+                      {t('LessonContent.quiz_load_error')}
                     </p>
                   </div>
                 ) : !quiz.questions.length ? (

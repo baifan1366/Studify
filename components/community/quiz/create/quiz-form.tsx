@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateQuiz } from "@/hooks/community/use-quiz";
+import { useCreateQuiz, useQuizSubjects, useQuizGrades } from "@/hooks/community/use-quiz";
 import { useRouter, useParams } from "next/navigation";
+import { useLocale } from "next-intl";
+import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
 
 export default function QuizForm() {
   const [title, setTitle] = useState("");
@@ -17,10 +19,16 @@ export default function QuizForm() {
   const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>();
+  const [selectedGradeId, setSelectedGradeId] = useState<number | undefined>();
+  
   const router = useRouter();
   const params = useParams(); // { locale: 'en', ... } 在 app/[locale] 结构下可用
+  const locale = useLocale();
 
   const create = useCreateQuiz();
+  const { data: subjects, isLoading: subjectsLoading } = useQuizSubjects();
+  const { data: grades, isLoading: gradesLoading } = useQuizGrades();
 
   const handleSubmit = () => {
     create.mutate(
@@ -30,7 +38,9 @@ export default function QuizForm() {
         difficulty, 
         tags, 
         visibility, 
-        max_attempts: maxAttempts 
+        max_attempts: maxAttempts,
+        subject_id: selectedSubjectId,
+        grade_id: selectedGradeId
       },
       {
         onSuccess: (data: any) => {
@@ -89,6 +99,48 @@ export default function QuizForm() {
             )
           }
         />
+      </div>
+
+      {/* Subject Selection */}
+      <div>
+        <Label className="block mb-2 font-medium">Subject</Label>
+        <Select 
+          value={selectedSubjectId?.toString() || "none"} 
+          onValueChange={(value) => setSelectedSubjectId(value === "none" ? undefined : Number(value))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select a subject"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No subject</SelectItem>
+            {subjects?.map((subject) => (
+              <SelectItem key={subject.id} value={subject.id.toString()}>
+                {getSubjectName(subject, locale)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Grade Selection */}
+      <div>
+        <Label className="block mb-2 font-medium">Grade Level</Label>
+        <Select 
+          value={selectedGradeId?.toString() || "none"} 
+          onValueChange={(value) => setSelectedGradeId(value === "none" ? undefined : Number(value))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={gradesLoading ? "Loading grades..." : "Select a grade level"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No grade level</SelectItem>
+            {grades?.map((grade) => (
+              <SelectItem key={grade.id} value={grade.id.toString()}>
+                {getGradeName(grade, locale)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Visibility Setting */}

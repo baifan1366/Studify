@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp } from 'lucide-react';
+import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp, ShoppingBag, DollarSign, ArrowDownToLine, CreditCard, BarChart2, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
 import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
 import { useLearningStats, useAchievements, usePointsData, getAchievementIcon, calculateAchievementProgress, formatStudyTime } from '@/hooks/profile/use-learning-stats';
+import { usePurchaseData, formatCurrency as formatPurchaseCurrency, formatPurchaseDate } from '@/hooks/profile/use-purchase-data';
+import { useEarningsData, formatCurrency as formatEarningsCurrency, formatTransactionDate, getTransactionDisplayName } from '@/hooks/profile/use-earnings-data';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -26,6 +28,8 @@ export default function ProfileContent() {
   const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
   const { data: learningStats, isLoading: statsLoading } = useLearningStats('all');
   const { data: pointsData, isLoading: pointsLoading } = usePointsData();
+  const { data: purchaseData, isLoading: purchaseLoading } = usePurchaseData();
+  const { data: earningsData, isLoading: earningsLoading } = useEarningsData();
   const {
     storedAccounts,
     currentAccountId,
@@ -188,20 +192,63 @@ export default function ProfileContent() {
     input.click();
   };
 
-  // Quick Actions handlers
+  // Quick Actions handlers with role-specific routing
   const handleNavigateToCourses = () => {
     const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/course`);
+    const userRole = profile?.role || 'student';
+    
+    switch (userRole) {
+      case 'tutor':
+        router.push(`/${locale}/tutor/courses`);
+        break;
+      case 'admin':
+        router.push(`/${locale}/admin/courses`);
+        break;
+      default:
+        router.push(`/${locale}/course`);
+    }
   };
 
   const handleNavigateToAchievements = () => {
     const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/achievements`);
+    const userRole = profile?.role || 'student';
+    
+    // Achievements might not be available for all roles
+    if (userRole === 'student') {
+      router.push(`/${locale}/achievements`);
+    } else {
+      // Redirect to their respective dashboards instead
+      router.push(`/${locale}/${userRole}/dashboard`);
+    }
   };
 
   const handleNavigateToCommunity = () => {
     const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/community`);
+    const userRole = profile?.role || 'student';
+    
+    switch (userRole) {
+      case 'admin':
+        router.push(`/${locale}/admin/community`);
+        break;
+      default:
+        router.push(`/${locale}/community`);
+    }
+  };
+
+  const handleNavigateToDashboard = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    const userRole = profile?.role || 'student';
+    
+    switch (userRole) {
+      case 'tutor':
+        router.push(`/${locale}/tutor/dashboard`);
+        break;
+      case 'admin':
+        router.push(`/${locale}/admin/dashboard`);
+        break;
+      default:
+        router.push(`/${locale}/home`);
+    }
   };
 
   // Account switcher handlers
@@ -727,40 +774,363 @@ export default function ProfileContent() {
                 </div>
               )}
 
-              {/* Learning Statistics */}
+              {/* Statistics - Role specific */}
               <div className="bg-gradient-to-br from-indigo-600/20 via-blue-600/20 to-cyan-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
                 <div className="z-10">
                   <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
                     <TrendingUp size={18} className="sm:w-5 sm:h-5" />
-                    Learning Progress
+                    {profile?.role === 'admin' ? t('platform_statistics') : 
+                     profile?.role === 'tutor' ? t('teaching_statistics') : t('learning_progress')}
                   </h3>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-white/10 rounded-lg">
-                      <Clock size={24} className="text-blue-400 mx-auto mb-2" />
-                      <div className="text-xl font-bold text-white">{formatStudyTime(learningStats?.data?.summary?.totalStudyMinutes || 0)}</div>
-                      <div className="text-xs text-white/70">Study Time</div>
-                    </div>
-                    <div className="text-center p-4 bg-white/10 rounded-lg">
-                      <Target size={24} className="text-green-400 mx-auto mb-2" />
-                      <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.completedLessons || 0}</div>
-                      <div className="text-xs text-white/70">Lessons Done</div>
-                    </div>
-                    <div className="text-center p-4 bg-white/10 rounded-lg">
-                      <Zap size={24} className="text-orange-400 mx-auto mb-2" />
-                      <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.studyStreak || 0}</div>
-                      <div className="text-xs text-white/70">Day Streak</div>
-                    </div>
-                    <div className="text-center p-4 bg-white/10 rounded-lg">
-                      <Trophy size={24} className="text-yellow-400 mx-auto mb-2" />
-                      <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.avgProgress || 0}%</div>
-                      <div className="text-xs text-white/70">Avg Progress</div>
-                    </div>
+                    {profile?.role === 'student' ? (
+                      // Student statistics
+                      <>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Clock size={24} className="text-blue-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{formatStudyTime(learningStats?.data?.summary?.totalStudyMinutes || 0)}</div>
+                          <div className="text-xs text-white/70">Study Time</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Target size={24} className="text-green-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.completedLessons || 0}</div>
+                          <div className="text-xs text-white/70">Lessons Done</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Zap size={24} className="text-orange-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.studyStreak || 0}</div>
+                          <div className="text-xs text-white/70">Day Streak</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Trophy size={24} className="text-yellow-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.avgProgress || 0}%</div>
+                          <div className="text-xs text-white/70">Avg Progress</div>
+                        </div>
+                      </>
+                    ) : profile?.role === 'tutor' ? (
+                      // Tutor statistics
+                      <>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <BookOpen size={24} className="text-blue-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0</div>
+                          <div className="text-xs text-white/70">{t('courses_created')}</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Users size={24} className="text-green-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0</div>
+                          <div className="text-xs text-white/70">{t('students_taught')}</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Clock size={24} className="text-orange-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0h</div>
+                          <div className="text-xs text-white/70">{t('teaching_hours')}</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Award size={24} className="text-yellow-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">5.0</div>
+                          <div className="text-xs text-white/70">{t('avg_rating')}</div>
+                        </div>
+                      </>
+                    ) : (
+                      // Admin statistics
+                      <>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Users size={24} className="text-blue-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0</div>
+                          <div className="text-xs text-white/70">{t('total_users')}</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <BookOpen size={24} className="text-green-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0</div>
+                          <div className="text-xs text-white/70">{t('total_courses')}</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <TrendingUp size={24} className="text-orange-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0</div>
+                          <div className="text-xs text-white/70">{t('active_sessions')}</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <Settings size={24} className="text-yellow-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">0</div>
+                          <div className="text-xs text-white/70">{t('reports_pending')}</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Achievements System */}
+              {/* Purchase Records - Only for students */}
+              {profile?.role === 'student' && (
+              <div className="bg-gradient-to-br from-emerald-600/20 via-green-600/20 to-teal-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <ShoppingBag size={18} className="sm:w-5 sm:h-5" />
+                    {t('purchase_history')}
+                  </h3>
+
+                  {/* Purchase Stats */}
+                  <div className="stats stats-horizontal shadow mb-6 bg-white/10 backdrop-blur-sm">
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('total_spent')}</div>
+                      <div className="stat-value text-emerald-400">
+                        {purchaseData?.stats ? formatPurchaseCurrency(purchaseData.stats.total_spent_cents) : '$0'}
+                      </div>
+                      <div className="stat-desc text-white/60">{t('lifetime_purchases')}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('courses_owned')}</div>
+                      <div className="stat-value text-blue-400">{purchaseData?.stats?.courses_owned || 0}</div>
+                      <div className="stat-desc text-white/60">{t('active_subscriptions')}: {purchaseData?.stats?.active_subscriptions || 0}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('last_purchase')}</div>
+                      <div className="stat-value text-purple-400 text-lg">
+                        {purchaseData?.stats?.last_purchase ? formatPurchaseDate(purchaseData.stats.last_purchase.date) : '--'}
+                      </div>
+                      <div className="stat-desc text-white/60">
+                        {purchaseData?.stats?.last_purchase?.item_name || '--'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Purchase History Table */}
+                  <div className="overflow-x-auto">
+                    <table className="table table-zebra bg-white/5">
+                      <thead>
+                        <tr className="border-white/20">
+                          <th className="text-white/80">{t('purchase_date')}</th>
+                          <th className="text-white/80">{t('course_name')}</th>
+                          <th className="text-white/80">{t('purchase_type')}</th>
+                          <th className="text-white/80">{t('purchase_amount')}</th>
+                          <th className="text-white/80">{t('purchase_status')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {purchaseLoading ? (
+                          <tr>
+                            <td colSpan={5} className="text-center py-8">
+                              <Loader2 size={24} className="animate-spin mx-auto text-white/60" />
+                            </td>
+                          </tr>
+                        ) : purchaseData?.purchases?.length ? (
+                          purchaseData.purchases.map((purchase) => (
+                            <tr key={purchase.id} className="hover:bg-white/10 border-white/10">
+                              <td className="text-white/90">{formatPurchaseDate(purchase.created_at)}</td>
+                              <td className="text-white/90">{purchase.item_name}</td>
+                              <td>
+                                <div className={`badge ${
+                                  purchase.purchase_type === 'course' ? 'badge-primary' : 
+                                  purchase.purchase_type === 'subscription' ? 'badge-secondary' : 'badge-info'
+                                }`}>
+                                  {purchase.purchase_type === 'course' ? t('course_type') : 
+                                   purchase.purchase_type === 'subscription' ? t('subscription_type') : t('tutoring_type')}
+                                </div>
+                              </td>
+                              <td className="text-emerald-400 font-semibold">
+                                {formatPurchaseCurrency(purchase.amount_cents)}
+                                {purchase.purchase_type === 'subscription' ? '/mo' : ''}
+                              </td>
+                              <td>
+                                <div className={`badge ${
+                                  purchase.status === 'completed' ? 'badge-success' : 
+                                  purchase.status === 'pending' ? 'badge-warning' : 'badge-info'
+                                }`}>
+                                  {purchase.status === 'completed' ? t('status_completed') : 
+                                   purchase.status === 'pending' ? t('status_pending') : t('status_active')}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="text-center py-8 text-white/60">
+                              No purchase history available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* View All Button */}
+                  <div className="mt-4 text-center">
+                    <button className="btn btn-outline btn-success">
+                      {t('view_all_purchases')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Cashflow Section - Only for tutors */}
+              {profile?.role === 'tutor' && (
+              <div className="bg-gradient-to-br from-yellow-600/20 via-orange-600/20 to-amber-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <DollarSign size={18} className="sm:w-5 sm:h-5" />
+                    {t('earnings_cashflow')}
+                  </h3>
+
+                  {/* Earnings Stats */}
+                  <div className="stats stats-horizontal shadow mb-6 bg-white/10 backdrop-blur-sm">
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('total_earnings')}</div>
+                      <div className="stat-value text-yellow-400">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.total_earnings_cents) : '$0'}
+                      </div>
+                      <div className="stat-desc text-green-400">
+                        ↗︎ +{earningsData?.stats?.growth_percentage || 0}% this month
+                      </div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('this_month')}</div>
+                      <div className="stat-value text-orange-400">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.monthly_earnings_cents) : '$0'}
+                      </div>
+                      <div className="stat-desc text-white/60">
+                        From {earningsData?.stats?.students_count || 0} students
+                      </div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('pending_payout')}</div>
+                      <div className="stat-value text-amber-400">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.pending_payout_cents) : '$0'}
+                      </div>
+                      <div className="stat-desc text-white/60">To be released Dec 1</div>
+                    </div>
+                  </div>
+
+                  {/* Monthly Breakdown */}
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <TrendingUp size={16} />
+                      {t('monthly_breakdown')}
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {earningsLoading ? (
+                        <div className="col-span-full flex justify-center py-8">
+                          <Loader2 size={24} className="animate-spin text-white/60" />
+                        </div>
+                      ) : earningsData?.monthly_breakdown?.length ? (
+                        earningsData.monthly_breakdown.map((monthData, index) => (
+                          <div key={`${monthData.month}-${monthData.year}`} className="card bg-white/5 border border-white/10">
+                            <div className="card-body p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="text-white/70 text-sm">{monthData.month} {monthData.year}</div>
+                                  <div className={`text-2xl font-bold ${
+                                    index === 0 ? 'text-yellow-400' : 
+                                    index === 1 ? 'text-orange-400' : 'text-amber-400'
+                                  }`}>
+                                    {formatEarningsCurrency(monthData.total_cents)}
+                                  </div>
+                                </div>
+                                <div className={`badge ${monthData.status === 'current' ? 'badge-success' : 'badge-ghost'}`}>
+                                  {monthData.status === 'current' ? t('current_month') : t('paid_month')}
+                                </div>
+                              </div>
+                              <div className="text-white/60 text-xs mt-2">
+                                {t('course_sales')}: {formatEarningsCurrency(monthData.course_sales_cents)}<br/>
+                                {t('tutoring_income')}: {formatEarningsCurrency(monthData.tutoring_cents)}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full text-center py-8 text-white/60">
+                          No earnings data available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recent Transactions */}
+                  <div className="mb-4">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <FileText size={16} />
+                      {t('recent_transactions')}
+                    </h4>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="table table-zebra bg-white/5">
+                        <thead>
+                          <tr className="border-white/20">
+                            <th className="text-white/80">{t('purchase_date')}</th>
+                            <th className="text-white/80">{t('student_course')}</th>
+                            <th className="text-white/80">{t('transaction_type')}</th>
+                            <th className="text-white/80">{t('transaction_amount')}</th>
+                            <th className="text-white/80">{t('transaction_status')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {earningsLoading ? (
+                            <tr>
+                              <td colSpan={5} className="text-center py-8">
+                                <Loader2 size={24} className="animate-spin mx-auto text-white/60" />
+                              </td>
+                            </tr>
+                          ) : earningsData?.recent_transactions?.length ? (
+                            earningsData.recent_transactions.map((transaction) => (
+                              <tr key={transaction.id} className="hover:bg-white/10 border-white/10">
+                                <td className="text-white/90">{formatTransactionDate(transaction.created_at)}</td>
+                                <td className="text-white/90">{getTransactionDisplayName(transaction)}</td>
+                                <td>
+                                  <div className={`badge ${
+                                    transaction.source_type === 'tutoring_session' ? 'badge-info' : 'badge-primary'
+                                  }`}>
+                                    {transaction.source_type === 'tutoring_session' ? t('tutoring_session') : t('course_sale')}
+                                  </div>
+                                </td>
+                                <td className="text-yellow-400 font-semibold">
+                                  {formatEarningsCurrency(transaction.amount_cents)}
+                                </td>
+                                <td>
+                                  <div className={`badge ${
+                                    transaction.status === 'released' ? 'badge-success' :
+                                    transaction.status === 'pending' ? 'badge-warning' : 'badge-ghost'
+                                  }`}>
+                                    {transaction.status === 'released' ? 'Paid' : 
+                                     transaction.status === 'pending' ? t('status_pending') : 'On Hold'}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="text-center py-8 text-white/60">
+                                No recent transactions
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-3">
+                    <button className="btn btn-primary">
+                      <ArrowDownToLine size={16} />
+                      {t('download_report')}
+                    </button>
+                    <button className="btn btn-outline btn-warning">
+                      <CreditCard size={16} />
+                      {t('payout_settings')}
+                    </button>
+                    <button className="btn btn-outline btn-info">
+                      <BarChart2 size={16} />
+                      {t('analytics')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Achievements System - Only for students */}
+              {profile?.role === 'student' && (
               <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
                 <div className="z-10">
                   <div className="flex justify-between items-center mb-6">
@@ -889,6 +1259,7 @@ export default function ProfileContent() {
                   </Tabs>
                 </div>
               </div>
+              )}
 
               {/* Quick Actions */}
               <div className="bg-gradient-to-br from-gray-600/20 via-slate-600/20 to-zinc-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-8 overflow-hidden">
@@ -899,6 +1270,24 @@ export default function ProfileContent() {
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {/* Dashboard - Always visible for all roles */}
+                    <motion.button
+                      onClick={handleNavigateToDashboard}
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <TrendingUp size={18} className="sm:w-5 sm:h-5 text-purple-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">Dashboard</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">
+                          {profile?.role === 'admin' ? 'Admin Control Panel' : 
+                           profile?.role === 'tutor' ? 'Teaching Dashboard' : 'Learning Dashboard'}
+                        </div>
+                      </div>
+                    </motion.button>
+
+                    {/* Courses - Role specific */}
                     <motion.button
                       onClick={handleNavigateToCourses}
                       className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
@@ -907,35 +1296,45 @@ export default function ProfileContent() {
                     >
                       <BookOpen size={18} className="sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
                       <div className="text-left min-w-0">
-                        <div className="font-medium text-sm sm:text-base truncate">{t('my_courses')}</div>
-                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_enrolled')}</div>
+                        <div className="font-medium text-sm sm:text-base truncate">
+                          {profile?.role === 'admin' ? 'Manage Courses' : 
+                           profile?.role === 'tutor' ? 'My Courses' : t('my_courses')}
+                        </div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">
+                          {profile?.role === 'admin' ? 'Course Administration' : 
+                           profile?.role === 'tutor' ? 'Teaching Materials' : t('view_enrolled')}
+                        </div>
                       </div>
                     </motion.button>
 
+                    {/* Community/Achievements - Role specific */}
                     <motion.button
-                      onClick={handleNavigateToAchievements}
+                      onClick={profile?.role === 'student' ? handleNavigateToAchievements : handleNavigateToCommunity}
                       className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Award size={18} className="sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
-                      <div className="text-left min-w-0">
-                        <div className="font-medium text-sm sm:text-base truncate">{t('achievements')}</div>
-                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_badges')}</div>
-                      </div>
-                    </motion.button>
-
-                    <motion.button
-                      onClick={handleNavigateToCommunity}
-                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Users size={18} className="sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
-                      <div className="text-left min-w-0">
-                        <div className="font-medium text-sm sm:text-base truncate">{t('community')}</div>
-                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('join_groups')}</div>
-                      </div>
+                      {profile?.role === 'student' ? (
+                        <>
+                          <Award size={18} className="sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
+                          <div className="text-left min-w-0">
+                            <div className="font-medium text-sm sm:text-base truncate">{t('achievements')}</div>
+                            <div className="text-xs sm:text-sm text-white/70 truncate">{t('view_badges')}</div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Users size={18} className="sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                          <div className="text-left min-w-0">
+                            <div className="font-medium text-sm sm:text-base truncate">
+                              {profile?.role === 'admin' ? 'Community Management' : t('community')}
+                            </div>
+                            <div className="text-xs sm:text-sm text-white/70 truncate">
+                              {profile?.role === 'admin' ? 'Moderate Community' : t('join_groups')}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </motion.button>
                   </div>
                 </div>

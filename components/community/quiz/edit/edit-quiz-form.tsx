@@ -13,9 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Edit3, FileText, CheckCircle2, List, Save, ArrowLeft, Plus, X, Check, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useQuiz, useUpdateQuiz } from "@/hooks/community/use-quiz";
+import { useQuiz, useUpdateQuiz, useQuizSubjects, useQuizGrades } from "@/hooks/community/use-quiz";
 import { useQuizQuestions, useUpdateQuizQuestion, useDeleteQuizQuestion } from "@/hooks/community/use-quiz-questions";
 import { CommunityQuiz, CommunityQuizQuestion } from "@/interface/community/quiz-interface";
+import { useLocale } from "next-intl";
+import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
 
 interface EditQuizFormProps {
   quizSlug: string;
@@ -31,6 +33,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>();
+  const [selectedGradeId, setSelectedGradeId] = useState<number | undefined>();
   
   // Questions state
   const [editingQuestion, setEditingQuestion] = useState<CommunityQuizQuestion | null>(null);
@@ -45,10 +49,13 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   
   const router = useRouter();
   const params = useParams();
+  const locale = useLocale();
   
   // Hooks
   const { data: quiz, isLoading, error } = useQuiz(quizSlug);
   const { data: questions, isLoading: questionsLoading } = useQuizQuestions(quizSlug);
+  const { data: subjects, isLoading: subjectsLoading } = useQuizSubjects();
+  const { data: grades, isLoading: gradesLoading } = useQuizGrades();
   const updateQuiz = useUpdateQuiz(quizSlug);
   const updateQuestion = useUpdateQuizQuestion(quizSlug);
   const deleteQuestion = useDeleteQuizQuestion(quizSlug);
@@ -62,6 +69,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       setVisibility(quiz.visibility || 'public');
       setMaxAttempts(quiz.max_attempts || 1);
       setTimeLimitMinutes(quiz.time_limit_minutes || null);
+      setSelectedSubjectId(quiz.subject_id || undefined);
+      setSelectedGradeId(quiz.grade_id || undefined);
       
       // Handle tags
       if (quiz.tags && Array.isArray(quiz.tags)) {
@@ -119,6 +128,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       visibility,
       max_attempts: maxAttempts,
       time_limit_minutes: timeLimitMinutes,
+      subject_id: selectedSubjectId,
+      grade_id: selectedGradeId,
     };
 
     updateQuiz.mutate(updateData, {
@@ -392,6 +403,48 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               <p className="text-sm text-muted-foreground">
                 Note: Tags editing is temporarily disabled on the backend
               </p>
+            </div>
+
+            {/* Subject Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Select 
+                value={selectedSubjectId?.toString() || "none"} 
+                onValueChange={(value) => setSelectedSubjectId(value === "none" ? undefined : Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select a subject"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No subject</SelectItem>
+                  {subjects?.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.id.toString()}>
+                      {getSubjectName(subject, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Grade Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="grade">Grade Level</Label>
+              <Select 
+                value={selectedGradeId?.toString() || "none"} 
+                onValueChange={(value) => setSelectedGradeId(value === "none" ? undefined : Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={gradesLoading ? "Loading grades..." : "Select a grade level"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No grade level</SelectItem>
+                  {grades?.map((grade) => (
+                    <SelectItem key={grade.id} value={grade.id.toString()}>
+                      {getGradeName(grade, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Visibility */}

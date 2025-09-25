@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { authorize } from '@/lib/auth/server-guard';
+import { createClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // Authorize admin access
-    const { user } = await authorize('admin');
-    
-    const supabase = createClient();
-    const postId = parseInt(params.postId);
+    const authResult = await authorize('admin');
+    if (authResult instanceof NextResponse) {
+        return authResult;
+    }    
+    const userId = authResult.sub;
+    const supabase = await createClient();
+    const postId = parseInt((await params).postId);
     const { searchParams } = new URL(request.url);
 
     if (isNaN(postId)) {

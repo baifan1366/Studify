@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { authorize } from '@/lib/auth/server-guard';
+import { createClient } from '@/utils/supabase/server';
+import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(request: NextRequest) {
   try {
     // Authorize admin access
-    const { user } = await authorize('admin');
-    
-    const supabase = createClient();
+    const authResult = await authorize('admin');
+    if (authResult instanceof NextResponse) {
+        return authResult;
+    }    
+    const userId = authResult.sub;
+    const supabase = await createClient();
 
     // Get community statistics
     const [

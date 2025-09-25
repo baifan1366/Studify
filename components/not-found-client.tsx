@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Home, ArrowLeft } from 'lucide-react';
@@ -9,15 +9,28 @@ import { Home, ArrowLeft } from 'lucide-react';
 export default function NotFoundClient() {
   const router = useRouter();
   const locale = useLocale();
+  const pathname = usePathname();
   const t = useTranslations('NotFoundPage');
   const [countdown, setCountdown] = useState(5);
+  const [isClient, setIsClient] = useState(false);
+  
+  // Check if current path includes /tutor/
+  const isTutor = pathname.includes('/tutor/');
+  const redirectPath = isTutor ? `/${locale}/tutor/dashboard` : `/${locale}/home`;
+
+  // Set client-side flag
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
+    if (!isClient) return;
+    
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          router.replace(`/${locale}/home`);
+          router.replace(redirectPath);
           return 0;
         }
         return prev - 1;
@@ -25,15 +38,32 @@ export default function NotFoundClient() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router, locale]);
+  }, [router, redirectPath, isClient]);
 
   const goHome = () => {
-    router.replace(`/${locale}/home`);
+    if (isClient) {
+      router.replace(redirectPath);
+    }
   };
 
   const goBack = () => {
-    router.back();
+    if (isClient) {
+      router.back();
+    }
   };
+
+  // Don't render anything until client-side hydration
+  if (!isClient) {
+    return (
+      <div className="mb-8">
+        <div className="bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl p-4 border border-blue-200/50 dark:border-blue-800/50">
+          <div className="text-sm text-blue-700 dark:text-blue-300 mb-3 font-medium">
+            Loading...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

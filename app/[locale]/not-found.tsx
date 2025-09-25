@@ -1,9 +1,7 @@
-import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import NotFoundClient from './not-found-client';
+import NotFoundClient from '@/components/not-found-client';
 
-export default async function NotFound() {
-  const t = await getTranslations('NotFoundPage');
+export default function NotFound() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
@@ -27,22 +25,22 @@ export default async function NotFound() {
             404
           </h1>
           <div className="text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">
-            {t('error_code')}
+            Error 404
           </div>
         </div>
 
         {/* Main Content Card */}
         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/20 hover:shadow-2xl transition-all duration-300">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200 mb-4">
-            {t('title')}
+            Page Not Found
           </h2>
           
           <p className="text-slate-600 dark:text-slate-400 mb-2 font-medium">
-            {t('subtitle')}
+            Oops! The page you're looking for doesn't exist
           </p>
           
           <p className="text-sm text-slate-500 dark:text-slate-500 mb-8 leading-relaxed">
-            {t('description')}
+            The link you followed may be broken, or the page may have been removed.
           </p>
 
           {/* Client-side Interactive Components */}

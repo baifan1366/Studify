@@ -333,13 +333,13 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                               </div>
                             )}
                             {!account.isCurrent && allAccounts.length > 1 && (
-                              <button
+                              <div
                                 onClick={(e) => handleRemoveAccount(account.id, e)}
-                                className="w-5 h-5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                className="w-5 h-5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer"
                                 title="Remove account"
                               >
                                 <X size={12} className="text-red-500" />
-                              </button>
+                              </div>
                             )}
                           </div>
                         </button>

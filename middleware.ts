@@ -33,9 +33,9 @@ const PROFILE_KEY = (userId: string) => `profile:${userId}`;
 const debugLog = (message: string, data?: any) => {
   if (process.env.NODE_ENV !== 'production') {
     if (data !== undefined) {
-      console.log(`[middleware] ${message}`, data);
+      //console.log(`[middleware] ${message}`, data);
     } else {
-      console.log(`[middleware] ${message}`);
+      //console.log(`[middleware] ${message}`);
     }
   }
 };

@@ -39,7 +39,127 @@ interface EarningsData {
   recent_transactions: EarningsRecord[];
 }
 
-// GET /api/tutor/earnings - 获取导师收入数据
+// 处理新的tutor_earnings表数据
+function handleNewEarningsData(earningsData: any[], months: number, page: number, limit: number, offset: number) {
+  // 计算统计数据
+  const totalEarnings = earningsData.reduce((sum, earning) => sum + earning.tutor_amount_cents, 0);
+  const pendingEarnings = earningsData
+    .filter(e => e.status === 'pending')
+    .reduce((sum, earning) => sum + earning.tutor_amount_cents, 0);
+  
+  // 获取当月收入
+  const currentDate = new Date();
+  const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const monthlyEarnings = earningsData
+    .filter(e => new Date(e.created_at) >= currentMonthStart)
+    .reduce((sum, earning) => sum + earning.tutor_amount_cents, 0);
+
+  // 获取上月收入计算增长率
+  const lastMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+  const lastMonthEarnings = earningsData
+    .filter(e => {
+      const date = new Date(e.created_at);
+      return date >= lastMonthStart && date <= lastMonthEnd;
+    })
+    .reduce((sum, earning) => sum + earning.tutor_amount_cents, 0);
+  
+  const growthPercentage = lastMonthEarnings > 0 
+    ? Math.round(((monthlyEarnings - lastMonthEarnings) / lastMonthEarnings) * 100)
+    : 0;
+
+  // 统计学生数量
+  const uniqueStudents = new Set(
+    earningsData
+      .filter(e => e.metadata?.student_id)
+      .map(e => e.metadata.student_id)
+  ).size;
+
+  // 统计课程销售数量
+  const coursesSold = earningsData.filter(e => e.source_type === 'course_sale').length;
+
+  const stats: EarningsStats = {
+    total_earnings_cents: totalEarnings,
+    monthly_earnings_cents: monthlyEarnings,
+    pending_payout_cents: pendingEarnings,
+    students_count: uniqueStudents,
+    growth_percentage: growthPercentage,
+    courses_sold: coursesSold
+  };
+
+  // 生成月度分解数据
+  const monthlyData = new Map<string, MonthlyEarnings>();
+  earningsData.forEach(earning => {
+    const date = new Date(earning.created_at);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!monthlyData.has(monthKey)) {
+      monthlyData.set(monthKey, {
+        month: date.toLocaleDateString('en-US', { month: 'long' }),
+        year: date.getFullYear(),
+        total_cents: 0,
+        course_sales_cents: 0,
+        tutoring_cents: 0,
+        commission_cents: 0,
+        status: date.getMonth() === currentDate.getMonth() && 
+                date.getFullYear() === currentDate.getFullYear() ? 'current' : 'paid'
+      });
+    }
+
+    const monthData = monthlyData.get(monthKey)!;
+    monthData.total_cents += earning.tutor_amount_cents;
+    
+    if (earning.source_type === 'course_sale') {
+      monthData.course_sales_cents += earning.tutor_amount_cents;
+    } else if (earning.source_type === 'tutoring_session') {
+      monthData.tutoring_cents += earning.tutor_amount_cents;
+    } else if (earning.source_type === 'commission_bonus') {
+      monthData.commission_cents += earning.tutor_amount_cents;
+    }
+  });
+
+  const monthlyBreakdown = Array.from(monthlyData.values())
+    .sort((a, b) => {
+      const dateA = new Date(a.year, new Date(`${a.month} 1, ${a.year}`).getMonth());
+      const dateB = new Date(b.year, new Date(`${b.month} 1, ${b.year}`).getMonth());
+      return dateB.getTime() - dateA.getTime();
+    })
+    .slice(0, months);
+
+  // 生成最近交易记录
+  const recentTransactions: EarningsRecord[] = earningsData
+    .slice(offset, offset + limit)
+    .map(earning => ({
+      id: earning.public_id,
+      source_type: earning.source_type,
+      student_name: earning.metadata?.student_name || 'Unknown Student',
+      course_name: earning.metadata?.course_title || 'Unknown Course',
+      amount_cents: earning.tutor_amount_cents,
+      currency: earning.currency,
+      status: earning.status,
+      created_at: earning.created_at,
+      order_id: earning.metadata?.order_public_id
+    }));
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      stats,
+      monthly_breakdown: monthlyBreakdown,
+      recent_transactions: recentTransactions,
+      pagination: {
+        page,
+        limit,
+        total: earningsData.length,
+        totalPages: Math.ceil(earningsData.length / limit),
+        hasNext: offset + limit < earningsData.length,
+        hasPrev: page > 1
+      }
+    }
+  });
+}
+
+// GET /api/tutor/earnings - 获取导师收入数据  
 export async function GET(request: NextRequest) {
   try {
     const authResult = await authorize('tutor');
@@ -59,11 +179,32 @@ export async function GET(request: NextRequest) {
 
     const tutorId = user.profile?.id || user.id;
 
+    // 首先尝试从新的tutor_earnings表获取数据
+    const { data: newEarningsData, error: newEarningsError } = await client
+      .from('tutor_earnings')
+      .select(`
+        *,
+        tutor_payouts (
+          id,
+          amount_cents,
+          status,
+          created_at
+        )
+      `)
+      .eq('tutor_id', tutorId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false });
+
+    if (!newEarningsError && newEarningsData && newEarningsData.length > 0) {
+      // 使用新的数据库结构
+      return handleNewEarningsData(newEarningsData, months, page, limit, offset);
+    }
+
     // 获取导师的课程ID列表
     const { data: tutorCourses, error: coursesError } = await client
       .from('course')
       .select('id, title')
-      .eq('tutor_id', tutorId)
+      .eq('owner_id', tutorId)
       .eq('is_deleted', false);
 
     if (coursesError) {

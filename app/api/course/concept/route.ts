@@ -13,22 +13,47 @@ export async function GET(request: NextRequest) {
     const user = authResult.user;
     
     const { searchParams } = new URL(request.url);
-    const courseId = searchParams.get('courseId');
+    const courseId = searchParams.get('courseId') || searchParams.get('courseSlug');
 
     if (!courseId) {
       return NextResponse.json(
-        { error: 'Course ID is required' },
+        { error: 'Course ID or slug is required' },
         { status: 400 }
       );
     }
 
-    // Get course details
-    const { data: course, error: courseError } = await supabase
+
+    // Get course details (handle both slug and public_id)
+    let course = null;
+    let courseError = null;
+    
+    // First try to find by slug
+    const { data: courseBySlug, error: slugError } = await supabase
       .from('course')
       .select('*')
-      .eq('public_id', courseId)
+      .eq('slug', courseId)
       .eq('is_deleted', false)
       .single();
+    
+    if (courseBySlug) {
+      course = courseBySlug;
+    } else {
+      // If not found by slug, try by public_id (only if it looks like a UUID)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+      if (isUUID) {
+        const { data: courseByPublicId, error: publicIdError } = await supabase
+          .from('course')
+          .select('*')
+          .eq('public_id', courseId)
+          .eq('is_deleted', false)
+          .single();
+        
+        course = courseByPublicId;
+        courseError = publicIdError;
+      } else {
+        courseError = slugError;
+      }
+    }
 
     if (courseError || !course) {
       return NextResponse.json(
@@ -37,7 +62,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is enrolled
+    // Check if user is enrolled in the course or if it's a free course
     const { data: enrollment } = await supabase
       .from('course_enrollment')
       .select('id')
@@ -46,11 +71,24 @@ export async function GET(request: NextRequest) {
       .eq('status', 'active')
       .single();
 
-    if (!enrollment) {
+    // If not enrolled and course is paid, check enrollment
+    if (!enrollment && !course.is_free && course.price_cents > 0) {
       return NextResponse.json(
         { error: 'Not enrolled in this course' },
         { status: 403 }
       );
+    }
+
+    // For free courses, auto-enroll if not already enrolled
+    if (!enrollment && (course.is_free || course.price_cents === 0)) {
+      await supabase
+        .from('course_enrollment')
+        .insert({
+          user_id: user.id,
+          course_id: course.id,
+          status: 'active',
+          enrolled_at: new Date().toISOString()
+        });
     }
 
     // Get concepts for this course
@@ -172,19 +210,44 @@ export async function POST(request: NextRequest) {
 
     if (!courseId || !name) {
       return NextResponse.json(
-        { error: 'Course ID and name are required' },
+        { error: 'Course ID/slug and name are required' },
         { status: 400 }
       );
     }
 
-    // Get course details and check ownership
-    const { data: course, error: courseError } = await supabase
+    // Get course details and check ownership (handle both slug and public_id)
+    let course = null;
+    let courseError = null;
+    
+    // First try to find by slug
+    const { data: courseBySlug, error: slugError } = await supabase
       .from('course')
       .select('*')
-      .eq('public_id', courseId)
+      .eq('slug', courseId)
       .eq('owner_id', user.id)
       .eq('is_deleted', false)
       .single();
+    
+    if (courseBySlug) {
+      course = courseBySlug;
+    } else {
+      // If not found by slug, try by public_id (only if it looks like a UUID)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+      if (isUUID) {
+        const { data: courseByPublicId, error: publicIdError } = await supabase
+          .from('course')
+          .select('*')
+          .eq('public_id', courseId)
+          .eq('owner_id', user.id)
+          .eq('is_deleted', false)
+          .single();
+        
+        course = courseByPublicId;
+        courseError = publicIdError;
+      } else {
+        courseError = slugError;
+      }
+    }
 
     if (courseError || !course) {
       return NextResponse.json(

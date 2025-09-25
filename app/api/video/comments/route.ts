@@ -45,8 +45,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (lessonError || !lesson) {
+      console.error('POST comments - Lesson lookup failed:', {
+        lessonId,
+        lessonError,
+        lesson
+      });
       return NextResponse.json(
-        { error: 'Lesson not found' },
+        { error: 'Lesson not found', details: lessonError?.message },
         { status: 404 }
       );
     }
@@ -85,15 +90,15 @@ export async function POST(request: NextRequest) {
       })
       .select(`
         *,
-        profiles!inner(
+        author:profiles!video_comments_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name,
           avatar_url
         ),
         reply_to_user:profiles!video_comments_reply_to_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name
         )
       `)
@@ -153,8 +158,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (lessonError || !lesson) {
+      console.error('GET comments - Lesson lookup failed:', {
+        lessonId,
+        lessonError,
+        lesson
+      });
       return NextResponse.json(
-        { error: 'Lesson not found' },
+        { error: 'Lesson not found', details: lessonError?.message },
         { status: 404 }
       );
     }
@@ -164,15 +174,15 @@ export async function GET(request: NextRequest) {
       .from('video_comments')
       .select(`
         *,
-        profiles!inner(
+        author:profiles!video_comments_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name,
           avatar_url
         ),
         reply_to_user:profiles!video_comments_reply_to_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name
         )
       `)
@@ -348,9 +358,9 @@ export async function PATCH(request: NextRequest) {
       .eq('id', comment.id)
       .select(`
         *,
-        profiles!inner(
+        author:profiles!video_comments_user_id_fkey(
           id,
-          username,
+          full_name,
           display_name,
           avatar_url
         )

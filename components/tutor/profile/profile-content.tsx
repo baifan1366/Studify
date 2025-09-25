@@ -2,18 +2,20 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp, ShoppingBag, DollarSign, ArrowDownToLine, CreditCard, BarChart2, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
 import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
-import { useEarningsData, formatCurrency as formatEarningsCurrency, formatTransactionDate, getTransactionDisplayName } from '@/hooks/profile/use-earnings-data';
+import { usePurchaseData, formatCurrency as formatPurchaseCurrency, formatPurchaseDate } from '@/hooks/profile/use-purchase-data';
 import { useProfileCurrency, useUpdateProfileCurrency, getSupportedCurrencies as getProfileSupportedCurrencies } from '@/hooks/profile/use-profile-currency';
+import { useEarningsData, formatCurrency as formatEarningsCurrency, formatTransactionDate, getTransactionDisplayName } from '@/hooks/profile/use-earnings-data';
+import { useStripeConnectAccount, useCreateStripeConnectAccount, useGetOnboardingLink, useGetDashboardLink, isAccountFullySetup, getAccountStatusText, getAccountStatusColor } from '@/hooks/tutor/use-stripe-connect';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { User, Camera, Users, ChevronRight, Loader2, UserCircle, Check, X, TrendingUp, Settings, DollarSign, BarChart2, ArrowDownToLine, CreditCard, FileText, Edit3, Save, Mail, MapPin, Award, BookOpen } from 'lucide-react';
 import Image from 'next/image';
 
 export default function ProfileContent() {
@@ -37,6 +39,13 @@ export default function ProfileContent() {
     switchError
   } = useAccountSwitcher();
   const { toast } = useToast();
+  
+  // Stripe Connect hooks
+  const { data: stripeConnectData, isLoading: stripeLoading } = useStripeConnectAccount();
+  const createStripeAccount = useCreateStripeConnectAccount();
+  const getOnboardingLink = useGetOnboardingLink();
+  const getDashboardLink = useGetDashboardLink();
+  
   const [isEditing, setIsEditing] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -231,6 +240,27 @@ export default function ProfileContent() {
     }
   };
 
+  // Stripe Connect handlers
+  const handleCreateStripeAccount = () => {
+    const currentUrl = window.location.origin + pathname;
+    createStripeAccount.mutate({
+      return_url: `${currentUrl}?stripe=complete`,
+      refresh_url: `${currentUrl}?stripe=refresh`,
+    });
+  };
+
+  const handleCompleteOnboarding = () => {
+    const currentUrl = window.location.origin + pathname;
+    getOnboardingLink.mutate({
+      return_url: `${currentUrl}?stripe=complete`,
+      refresh_url: `${currentUrl}?stripe=refresh`,
+    });
+  };
+
+  const handleOpenStripeDashboard = () => {
+    getDashboardLink.mutate();
+  };
+
   // Get accounts formatted for display
   const allAccounts = storedAccounts.map(account => ({
     id: account.id,
@@ -242,8 +272,8 @@ export default function ProfileContent() {
   }));
 
   return (
-      <div className="min-h-screen p-6 pb-32 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen p-6 pb-32 overflow-y-auto">
+      <div className="max-w-6xl mx-auto">
           {/* Header */}
           <motion.div
             className="mb-8"

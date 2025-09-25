@@ -74,12 +74,26 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
   }, [isOpen, onClose, triggerRef]);
 
   const handleProfileClick = () => {
-    router.push('/profile');
+    const userRole = profile?.role || 'student';
+    if (userRole === 'admin') {
+      router.push('/admin/profile');
+    } else if (userRole === 'tutor') {
+      router.push('/tutor/profile');
+    } else {
+      router.push('/profile');
+    }
     onClose();
   };
 
   const handleSettingsClick = () => {
-    router.push('/settings');
+    const userRole = profile?.role || 'student';
+    if (userRole === 'admin') {
+      router.push('/admin/settings');
+    } else if (userRole === 'tutor') {
+      router.push('/tutor/settings');
+    } else {
+      router.push('/settings');
+    }
     onClose();
   };
 

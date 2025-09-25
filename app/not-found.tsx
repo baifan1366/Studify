@@ -11,22 +11,23 @@ export default function NotFound() {
   const [isClient, setIsClient] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [isStudent, setIsStudent] = useState(true)
+  
   //check pathname include /tutor/ or not
   const pathname = usePathname();
   const isTutor = pathname.includes('/tutor/');
   
-  // Ensure we're on the client side before using hooks
+  // Always call hooks - this is required by Rules of Hooks
+  const router = useRouter();
+  const t = useTranslations('NotFoundPage');
+  
+  // Ensure we're on the client side before using router functionality
   useEffect(() => {
     setIsClient(true);
     setIsStudent(!isTutor);
-  }, []);
-
-  // Only use router and translations if we're on the client
-  const router = isClient ? useRouter() : null;
-  const t = isClient ? useTranslations('NotFoundPage') : null;
+  }, [isTutor]);
 
   useEffect(() => {
-    if (!isClient || !router) return;
+    if (!isClient) return;
     
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -40,16 +41,16 @@ export default function NotFound() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router, isClient]);
+  }, [router, isClient, isStudent]);
 
   const goHome = () => {
-    if (router) {
+    if (isClient) {
       router.replace(isStudent ? '/home' : '/tutor/dashboard');
     }
   };
 
   const goBack = () => {
-    if (router) {
+    if (isClient) {
       router.back();
     }
   };
@@ -127,29 +128,29 @@ export default function NotFound() {
             404
           </h1>
           <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            {t?.('error_code') || 'Error 404'}
+            {t('error_code')}
           </div>
         </div>
 
         {/* Main Content */}
         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20 dark:border-slate-700/20">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200 mb-4">
-            {t?.('title') || 'Page Not Found'}
+            {t('title')}
           </h2>
           
           <p className="text-slate-600 dark:text-slate-400 mb-2">
-            {t?.('subtitle') || "Oops! The page you're looking for doesn't exist"}
+            {t('subtitle')}
           </p>
           
           <p className="text-sm text-slate-500 dark:text-slate-500 mb-8">
-            {t?.('description') || 'The link you followed may be broken, or the page may have been removed.'}
+            {t('description')}
           </p>
 
           {/* Countdown */}
           <div className="mb-8">
             <div className="bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl p-4 border border-blue-200/50 dark:border-blue-800/50">
               <div className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                {t?.('redirecting', { seconds: countdown }) || `Redirecting to home in ${countdown} seconds...`}
+                {t('redirecting', { seconds: countdown })}
               </div>
               
               {/* Progress Bar */}
@@ -169,7 +170,7 @@ export default function NotFound() {
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
             >
               <Home className="w-4 h-4 mr-2" />
-              {t?.('go_home_now') || 'Go to Home Now'}
+              {t('go_home_now')}
             </Button>
             
             <Button 
@@ -178,7 +179,7 @@ export default function NotFound() {
               className="border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 px-6 py-2.5 rounded-xl transition-all duration-200"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              {t?.('go_back') || 'Go Back'}
+              {t('go_back')}
             </Button>
           </div>
         </div>

@@ -76,13 +76,13 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
 
   const handleProfileClick = () => {
     const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/profile`);
+    router.push(`/${locale}/admin/profile`);
     onClose();
   };
 
   const handleSettingsClick = () => {
     const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/settings`);
+    router.push(`/${locale}/admin/settings`);
     onClose();
   };
 

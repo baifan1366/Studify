@@ -76,25 +76,13 @@ export async function GET(req: Request) {
       let queryBuilder = supabase
         .from("community_quiz")
         .select(`
-          id, 
-          public_id, 
-          slug, 
-          title, 
-          description, 
-          tags, 
-          difficulty, 
-          max_attempts, 
-          visibility,
-          author_id,
-          subject_id,
-          grade_id,
-          created_at,
-          community_quiz_subject!subject_id(
+          *,
+          subject:community_quiz_subject!subject_id(
             id,
             code,
             translations
           ),
-          community_quiz_grade!grade_id(
+          grade:community_quiz_grade!grade_id(
             id,
             code,
             translations
@@ -123,26 +111,14 @@ export async function GET(req: Request) {
       let queryBuilder = supabase
         .from("community_quiz")
         .select(`
-          id, 
-          public_id, 
-          slug, 
-          title, 
-          description, 
-          tags, 
-          difficulty, 
-          max_attempts, 
-          visibility,
-          author_id,
-          subject_id,
-          grade_id,
-          created_at,
+          *,
           community_quiz_attempt(id),
-          community_quiz_subject!subject_id(
+          subject:community_quiz_subject!subject_id(
             id,
             code,
             translations
           ),
-          community_quiz_grade!grade_id(
+          grade:community_quiz_grade!grade_id(
             id,
             code,
             translations
@@ -168,15 +144,31 @@ export async function GET(req: Request) {
         quizError = result.error;
       } else {
         // 计算每个 quiz 的 attempt 数量并排序
-        const quizzesWithCounts = result.data?.map(quiz => ({
-          ...quiz,
-          attempts_count: quiz.community_quiz_attempt?.length || 0,
-          community_quiz_attempt: undefined, // 移除这个字段，不返回给前端
-          subject: quiz.community_quiz_subject || null,
-          grade: quiz.community_quiz_grade || null,
-          community_quiz_subject: undefined,
-          community_quiz_grade: undefined
-        })) || [];
+        const quizzesWithCounts = result.data?.map(quiz => {
+          // Handle the case where Supabase returns arrays for foreign key relationships
+          const subjectData = Array.isArray(quiz.subject) 
+            ? quiz.subject[0] 
+            : quiz.subject;
+          const gradeData = Array.isArray(quiz.grade) 
+            ? quiz.grade[0] 
+            : quiz.grade;
+            
+          return {
+            ...quiz,
+            attempts_count: quiz.community_quiz_attempt?.length || 0,
+            community_quiz_attempt: undefined, // 移除这个字段，不返回给前端
+            subject: subjectData ? {
+              id: subjectData.id,
+              code: subjectData.code,
+              translations: subjectData.translations
+            } : null,
+            grade: gradeData ? {
+              id: gradeData.id,
+              code: gradeData.code,
+              translations: gradeData.translations
+            } : null
+          };
+        }) || [];
 
         // 按 attempts 数量降序，然后按创建时间降序排序
         quizzes = quizzesWithCounts.sort((a, b) => {
@@ -191,25 +183,13 @@ export async function GET(req: Request) {
       let queryBuilder = supabase
         .from("community_quiz")
         .select(`
-          id, 
-          public_id, 
-          slug, 
-          title, 
-          description, 
-          tags, 
-          difficulty, 
-          max_attempts, 
-          visibility,
-          author_id,
-          subject_id,
-          grade_id,
-          created_at,
-          community_quiz_subject!subject_id(
+          *,
+          subject:community_quiz_subject!subject_id(
             id,
             code,
             translations
           ),
-          community_quiz_grade!grade_id(
+          grade:community_quiz_grade!grade_id(
             id,
             code,
             translations
@@ -259,17 +239,32 @@ export async function GET(req: Request) {
     // 将作者信息合并到quiz数据中，并格式化subject/grade数据
     const quizzesWithAuthors = quizzes.map((quiz: any) => {
       const author = profiles?.find(profile => profile.user_id === quiz.author_id);
+      
+      // Handle the case where Supabase returns arrays for foreign key relationships
+      const subjectData = Array.isArray(quiz.subject) 
+        ? quiz.subject[0] 
+        : quiz.subject;
+      const gradeData = Array.isArray(quiz.grade) 
+        ? quiz.grade[0] 
+        : quiz.grade;
+        
       return {
         ...quiz,
         author: author ? {
           display_name: author.display_name,
           avatar_url: author.avatar_url
         } : null,
-        subject: quiz.community_quiz_subject || null,
-        grade: quiz.community_quiz_grade || null,
-        // Remove the nested objects to clean up the response
-        community_quiz_subject: undefined,
-        community_quiz_grade: undefined
+        // Ensure subject and grade include the code field
+        subject: subjectData ? {
+          id: subjectData.id,
+          code: subjectData.code,
+          translations: subjectData.translations
+        } : null,
+        grade: gradeData ? {
+          id: gradeData.id,
+          code: gradeData.code,
+          translations: gradeData.translations
+        } : null
       };
     });
 

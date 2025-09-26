@@ -185,13 +185,18 @@ export default function PostCard({ post }: { post: Post }) {
         {post.hashtags && post.hashtags.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-start w-full">
             {post.hashtags.map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="outline"
-                className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+              <Link
+                key={tag.id || tag.name}
+                href={`/community/hashtags/${tag.name}`}
+                className="hover:underline"
               >
-                #{tag.name}
-              </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+                >
+                  #{tag.name}
+                </Badge>
+              </Link>
             ))}
           </div>
         )}

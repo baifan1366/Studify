@@ -5,11 +5,18 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body;
+    const { email, captchaToken } = body;
 
     if (!email) {
       return NextResponse.json(
         { error: 'Email is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!captchaToken) {
+      return NextResponse.json(
+        { error: 'CAPTCHA verification is required' },
         { status: 400 }
       );
     }
@@ -23,11 +30,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // For hCaptcha, Supabase handles verification directly (recommended approach)
+
+    // hCaptcha tokens are passed directly to Supabase - no server verification needed
+
     const supabase = await createClient();
 
-    // Use Supabase's built-in password reset functionality
+    // Use Supabase's built-in password reset functionality with captcha token
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
+      captchaToken: captchaToken // Pass the captcha token to Supabase
     });
 
     if (error) {

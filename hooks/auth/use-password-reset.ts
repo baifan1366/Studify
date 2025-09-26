@@ -3,6 +3,8 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ResetPasswordRequestData {
   email: string;
+  captchaToken: string;
+  captchaType?: 'recaptcha' | 'hcaptcha';
 }
 
 interface ResetPasswordData {
@@ -21,7 +23,7 @@ export function useRequestPasswordReset() {
 
   return useMutation({
     mutationFn: async (data: ResetPasswordRequestData) => {
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -38,6 +38,7 @@ import { useMFAStatus, useMFADisable } from '@/hooks/auth/use-mfa';
 import { useRequestPasswordReset } from '@/hooks/auth/use-password-reset';
 import MFASetupModal from './mfa-setup-modal';
 import ChangePasswordModal from './change-password-modal';
+import ForgotPasswordModal from '@/components/auth/forgot-password-modal';
 
 type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'data';
 
@@ -53,6 +54,7 @@ export default function SettingsContent() {
   const [showMFASetup, setShowMFASetup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showMFADisable, setShowMFADisable] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [mfaDisableCode, setMfaDisableCode] = useState('');
   const [mfaDisablePassword, setMfaDisablePassword] = useState('');
   
@@ -235,9 +237,7 @@ export default function SettingsContent() {
   };
 
   const handleForgotPassword = () => {
-    if (user?.email) {
-      requestPasswordReset.mutate({ email: user.email });
-    }
+    setShowForgotPassword(true);
   };
 
   const renderTabContent = () => {
@@ -725,6 +725,12 @@ export default function SettingsContent() {
       <ChangePasswordModal 
         isOpen={showChangePassword} 
         onClose={() => setShowChangePassword(false)}
+      />
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        defaultEmail={userData?.email || ''}
       />
 
       {/* MFA Disable Modal */}

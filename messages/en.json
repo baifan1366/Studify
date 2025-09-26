@@ -4998,6 +4998,23 @@
     "minutes": "minutes",
     "last_watched": "Last watched"
   },
+  "ForgotPassword": {
+    "title": "Forgot Password",
+    "description": "Enter your email address and we'll send you a link to reset your password.",
+    "email_label": "Email Address",
+    "email_placeholder": "Enter your email address",
+    "email_required": "Email is required",
+    "invalid_email": "Please enter a valid email address",
+    "send_reset_link": "Send Reset Link",
+    "sending_button": "Sending...",
+    "back_to_login": "Back to Login",
+    "email_sent_title": "Check Your Email",
+    "email_sent_description": "We've sent a password reset link to your email address. Please check your inbox and click the link to reset your password.",
+    "check_spam_folder": "Don't see the email? Check your spam folder or try again.",
+    "request_failed": "Failed to send reset email. Please try again.",
+    "captcha_required": "Please complete the CAPTCHA verification",
+    "captcha_failed": "CAPTCHA verification failed. Please try again."
+  },
   "ResetPassword": {
     "title": "Reset Password",
     "subtitle": "Please enter your new password",
@@ -5067,5 +5084,19 @@
     "results_found": "{count} results found",
     "search_time": "({time}s)",
     "match": "match"
+  },
+  "ForgotPasswordPage": {
+    "metadata_title": "Forgot Password | Studify",
+    "metadata_description": "Forgot your Studify password? Enter your email address to receive a secure password reset link and regain access to your learning account.",
+    "metadata_keywords": "forgot password, password recovery, email reset, account recovery, Studify, learning platform",
+    "og_title": "Forgot Password | Studify",
+    "og_description": "Secure Password Recovery for Your Learning Account"
+  },
+  "ResetPasswordPage": {
+    "metadata_title": "Reset Password | Studify",
+    "metadata_description": "Reset your Studify account password securely. Enter your new password and regain access to your personalized learning platform.",
+    "metadata_keywords": "reset password, password recovery, account security, Studify, learning platform",
+    "og_title": "Reset Password | Studify",
+    "og_description": "Secure Password Reset for Your Learning Journey"
   }
 }

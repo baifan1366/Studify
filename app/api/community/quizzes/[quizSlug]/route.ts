@@ -22,15 +22,35 @@ export async function GET(
     // 获取 quiz 基本信息（保持你原来字段）
     const { data: quiz, error: quizError } = await supabase
       .from("community_quiz")
-      .select(
-        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, time_limit_minutes, subject_id, grade_id, author_id, created_at`
-      )
+      .select(`
+        *,
+        subject:community_quiz_subject!subject_id(
+          id,
+          code,
+          translations
+        ),
+        grade:community_quiz_grade!grade_id(
+          id,
+          code,
+          translations
+        )
+      `)
       .eq("slug", quizSlug)
       .maybeSingle();
 
     if (quizError || !quiz) {
+      console.error("Quiz fetch error:", quizError);
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
+    
+    // Debug log to check if subject and grade are fetched
+    console.log("Quiz data fetched:", {
+      slug: quiz.slug,
+      subject_id: quiz.subject_id,
+      grade_id: quiz.grade_id,
+      subject: quiz.subject,
+      grade: quiz.grade
+    });
 
     // 权限检查（private quiz）
     if (quiz.visibility === "private" && userId) {
@@ -206,11 +226,30 @@ export async function GET(
     }
 
     // 构建返回数据
+    // Handle the case where Supabase returns arrays for foreign key relationships
+    const subjectData = Array.isArray(quiz.subject) 
+      ? quiz.subject[0] 
+      : quiz.subject;
+    const gradeData = Array.isArray(quiz.grade) 
+      ? quiz.grade[0] 
+      : quiz.grade;
+      
     const quizWithDetails = {
       ...quiz,
       author: author
         ? { display_name: author.display_name, avatar_url: author.avatar_url }
         : null,
+      // Ensure subject and grade include the code field
+      subject: subjectData ? {
+        id: subjectData.id,
+        code: subjectData.code,
+        translations: subjectData.translations
+      } : null,
+      grade: gradeData ? {
+        id: gradeData.id,
+        code: gradeData.code,
+        translations: gradeData.translations
+      } : null,
       question_count: questionCount || 0,
       attempt_count: attemptCount || 0,
       like_count: likeCount || 0,

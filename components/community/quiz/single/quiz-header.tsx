@@ -2,13 +2,21 @@ import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, Play, Share2, Lock, Eye, CheckCircle, Pencil } from "lucide-react";
+import { Heart, Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap } from "lucide-react";
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { Hashtag } from "@/interface/community/post-interface";
 import ShareQuizModal from "@/components/community/quiz/share-quiz-modal";
 import { useUser } from "@/hooks/profile/use-user";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 import { useRouter, useParams } from "next/navigation";
+
+// Helper function to format code for display
+function formatCode(code: string): string {
+  return code
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
 
 export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const { data: currentUser } = useUser();
@@ -40,6 +48,24 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
         </div>
       </div>
       <p className="text-lg text-muted-foreground mb-4">{quiz.description}</p>
+      
+      {/* Subject and Grade badges */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {quiz.subject && quiz.subject.code && (
+          <Badge variant="outline" className="flex items-center gap-1">
+            <BookOpen className="h-3 w-3" />
+            {formatCode(quiz.subject.code)}
+          </Badge>
+        )}
+        {quiz.grade && quiz.grade.code && (
+          <Badge variant="outline" className="flex items-center gap-1">
+            <GraduationCap className="h-3 w-3" />
+            {formatCode(quiz.grade.code)}
+          </Badge>
+        )}
+      </div>
+      
+      {/* Tags */}
       <div className="flex flex-wrap gap-2 mb-6">
         {quiz.tags?.map((tag: string | Hashtag) => (
           <Badge

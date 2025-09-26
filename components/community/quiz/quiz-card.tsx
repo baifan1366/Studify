@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Lock, CheckCircle, User, Eye } from "lucide-react";
+import { Play, Lock, CheckCircle, User, Eye, BookOpen, GraduationCap } from "lucide-react";
 import type { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 import { useUser } from "@/hooks/profile/use-user";
@@ -19,10 +19,28 @@ interface QuizCardProps {
   quiz: CommunityQuiz;
 }
 
+// Helper function to format code for display
+function formatCode(code: string): string {
+  // Convert snake_case to Title Case
+  return code
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export default function QuizCard({ quiz }: QuizCardProps) {
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const { data: currentUser } = useUser();
   const router = useRouter();
+  
+  // Debug log to check quiz data
+  console.log("QuizCard received quiz data:", {
+    title: quiz.title,
+    subject: quiz.subject,
+    grade: quiz.grade,
+    subject_id: quiz.subject_id,
+    grade_id: quiz.grade_id
+  });
 
   // difficulty label: convert number -> text if needed
   const difficultyLabel =
@@ -31,15 +49,15 @@ export default function QuizCard({ quiz }: QuizCardProps) {
         ? "Easy"
         : quiz.difficulty === 2
         ? "Medium"
-        : quiz.difficulty >= 3
+        : quiz.difficulty === 3
         ? "Hard"
+        : quiz.difficulty === 4
+        ? "Very Hard"
+        : quiz.difficulty === 5
+        ? "Expert"
         : String(quiz.difficulty)
       : String(quiz.difficulty);
 
-  // normalize tags to strings
-  const tagStrings = (quiz.tags || []).map((t) =>
-    typeof t === "string" ? t : (t as any).name || String(t)
-  );
 
   // 确定按钮状态
   const canAttempt = attemptStatus?.canAttempt ?? true;
@@ -89,13 +107,17 @@ export default function QuizCard({ quiz }: QuizCardProps) {
         )}
         
         <div className="flex flex-wrap gap-2 mt-3">
-          {tagStrings.slice(0, 3).map((tag, i) => (
-            <Badge key={i} variant="outline">
-              {tag}
+          {quiz.subject && quiz.subject.code && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <BookOpen className="h-3 w-3" />
+              {formatCode(quiz.subject.code)}
             </Badge>
-          ))}
-          {tagStrings.length > 3 && (
-            <Badge variant="outline">+{tagStrings.length - 3}</Badge>
+          )}
+          {quiz.grade && quiz.grade.code && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <GraduationCap className="h-3 w-3" />
+              {formatCode(quiz.grade.code)}
+            </Badge>
           )}
         </div>
       </CardContent>

@@ -457,3 +457,84 @@ export async function PATCH(
   return handleUpdate(req, params);
 }
 
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ quizSlug: string }> }
+) {
+  try {
+    const { quizSlug } = await params;
+
+    // Auth: must be logged in
+    const auth = await authorize(["student", "tutor"]);
+    if (auth instanceof NextResponse) return auth;
+    const { sub: userId } = auth;
+
+    const supabase = await createClient();
+
+    // Fetch quiz basic info
+    const { data: quiz, error: quizErr } = await supabase
+      .from("community_quiz")
+      .select("id, author_id, title, is_deleted")
+      .eq("slug", quizSlug)
+      .eq("is_deleted", false) // Only allow deletion of non-deleted quizzes
+      .maybeSingle();
+
+    if (quizErr || !quiz) {
+      return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+    }
+
+    // Permission: only author can delete
+    const isAuthor = quiz.author_id === userId;
+    if (!isAuthor) {
+      return NextResponse.json({ error: "Only the quiz author can delete this quiz" }, { status: 403 });
+    }
+
+    // Soft delete: set is_deleted = true
+    const { data: updateData, error: deleteErr } = await supabase
+      .from("community_quiz")
+      .update({
+        is_deleted: true
+        // 注意：community_quiz 表没有 updated_at 字段，所以不更新它
+      })
+      .eq("id", quiz.id)
+      .select();
+
+    if (deleteErr) {
+      console.error("Delete quiz error:", {
+        error: deleteErr,
+        quizId: quiz.id,
+        userId: userId,
+        quizAuthorId: quiz.author_id,
+        isAuthor: quiz.author_id === userId
+      });
+      return NextResponse.json({
+        error: "Failed to delete quiz",
+        details: deleteErr.message,
+        code: deleteErr.code
+      }, { status: 500 });
+    }
+
+    if (!updateData || updateData.length === 0) {
+      console.error("No rows updated during delete:", {
+        quizId: quiz.id,
+        userId: userId
+      });
+      return NextResponse.json({
+        error: "Failed to delete quiz - no rows updated"
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      message: "Quiz deleted successfully",
+      quiz_title: quiz.title 
+    }, { status: 200 });
+
+  } catch (err: any) {
+    console.error("Delete quiz error:", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+

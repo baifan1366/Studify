@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap } from "lucide-react";
+import { Heart, Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap, Trash2 } from "lucide-react";
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { Hashtag } from "@/interface/community/post-interface";
 import ShareQuizModal from "@/components/community/quiz/share-quiz-modal";
+import DeleteQuizModal from "@/components/community/quiz/delete-quiz-modal";
 import { useUser } from "@/hooks/profile/use-user";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 import { useRouter, useParams } from "next/navigation";
@@ -25,6 +26,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const params = useParams();
   const isAuthor = currentUser?.id === quiz.author_id;
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   return (
     <div className="mb-8">
@@ -236,6 +238,34 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
             Edit
           </Button>
         )}
+
+        {/* 删除按钮：仅作者可见 */}
+        {isAuthor && (
+          <>
+            <Button 
+              variant="outline" 
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteModal(true);
+              }}
+            >
+              <Trash2 className="h-5 w-5 mr-2" />
+              Delete
+            </Button>
+            
+            <DeleteQuizModal 
+              quizSlug={quiz.slug} 
+              quizTitle={quiz.title}
+              isOpen={showDeleteModal}
+              onOpenChange={setShowDeleteModal}
+              onDeleteSuccess={() => {
+                const locale = (params as any)?.locale || 'en';
+                router.push(`/${locale}/community/quizzes`);
+              }}
+            />
+          </>
+        )}
         
         <Button variant="ghost" size="icon">
           <Heart className="h-6 w-6" />
@@ -244,3 +274,4 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
     </div>
   );
 }
+

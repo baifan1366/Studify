@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Card,
   CardHeader,
@@ -10,10 +11,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Lock, CheckCircle, User, Eye, BookOpen, GraduationCap } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Play, Lock, CheckCircle, User, Eye, BookOpen, GraduationCap, MoreVertical, Trash2, Edit } from "lucide-react";
 import type { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 import { useUser } from "@/hooks/profile/use-user";
+import DeleteQuizModal from "@/components/community/quiz/delete-quiz-modal";
 
 interface QuizCardProps {
   quiz: CommunityQuiz;
@@ -32,6 +40,8 @@ export default function QuizCard({ quiz }: QuizCardProps) {
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const { data: currentUser } = useUser();
   const router = useRouter();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isModalClosing, setIsModalClosing] = useState(false);
   
   // Debug log to check quiz data
   console.log("QuizCard received quiz data:", {
@@ -66,7 +76,22 @@ export default function QuizCard({ quiz }: QuizCardProps) {
   const isPrivate = quiz.visibility === 'private';
   const isAuthor = attemptStatus?.isAuthor || currentUser?.id === quiz.author_id;
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    // 防止在 Modal 关闭过程中触发导航
+    if (isModalClosing) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
+    // 检查点击是否来自 Modal 相关元素
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="dialog"]') || target.closest('[data-radix-popper-content-wrapper]')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
     router.push(`/community/quizzes/${quiz.slug}`);
   };
 
@@ -75,13 +100,51 @@ export default function QuizCard({ quiz }: QuizCardProps) {
       className="h-full flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative cursor-pointer" 
       onClick={handleCardClick}
     >
-      <div className="absolute top-3 right-3 flex gap-2">
+      <div className="absolute top-3 right-3 flex gap-2 items-center">
         <Badge className="bg-red-500 text-white">{difficultyLabel}</Badge>
         {isPrivate && (
           <Badge className="bg-orange-500 text-white flex items-center gap-1">
             <Lock className="h-3 w-3" />
             Private
           </Badge>
+        )}
+        
+        {/* Author actions dropdown */}
+        {isAuthor && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 bg-white/80 hover:bg-white shadow-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/community/quizzes/${quiz.slug}/edit`);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Quiz
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowDeleteModal(true);
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Quiz
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
       <CardHeader>
@@ -224,6 +287,28 @@ export default function QuizCard({ quiz }: QuizCardProps) {
           )}
         </div>
       </CardFooter>
+      
+      {/* Delete Modal */}
+      {isAuthor && (
+        <DeleteQuizModal 
+          quizSlug={quiz.slug} 
+          quizTitle={quiz.title}
+          isOpen={showDeleteModal}
+          onOpenChange={(open) => {
+            if (!open) {
+              // 设置关闭状态，防止事件冒泡触发导航
+              setIsModalClosing(true);
+              setTimeout(() => {
+                setIsModalClosing(false);
+              }, 100); // 短暂延迟确保事件处理完成
+            }
+            setShowDeleteModal(open);
+          }}
+          onDeleteSuccess={() => {
+            // The quiz will be removed from the list automatically due to cache invalidation
+          }}
+        />
+      )}
     </Card>
   );
 }

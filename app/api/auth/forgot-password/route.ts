@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Use Supabase's built-in password reset functionality with captcha token
     // Use auth callback URL to handle the token exchange properly
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?type=recovery&next=/${locale}/auth/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?type=recovery&next=/${locale}/reset-password`,
       captchaToken: captchaToken // Pass the captcha token to Supabase
     });
 

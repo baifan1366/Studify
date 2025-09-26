@@ -10,6 +10,7 @@ import {
   Check,
   AlertCircle
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useChangePassword } from '@/hooks/auth/use-password-reset';
 
 interface ChangePasswordModalProps {
@@ -19,6 +20,7 @@ interface ChangePasswordModalProps {
 }
 
 export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswordModalProps) {
+  const t = useTranslations('ChangePasswordModal');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,11 +31,11 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
   const changePassword = useChangePassword();
 
   const passwordRequirements = [
-    { text: '至少8个字符', met: newPassword.length >= 8 },
-    { text: '包含大写字母', met: /[A-Z]/.test(newPassword) },
-    { text: '包含小写字母', met: /[a-z]/.test(newPassword) },
-    { text: '包含数字', met: /\d/.test(newPassword) },
-    { text: '包含特殊字符', met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) },
+    { text: t('requirement_min_length'), met: newPassword.length >= 8 },
+    { text: t('requirement_uppercase'), met: /[A-Z]/.test(newPassword) },
+    { text: t('requirement_lowercase'), met: /[a-z]/.test(newPassword) },
+    { text: t('requirement_number'), met: /\d/.test(newPassword) },
+    { text: t('requirement_special'), met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) },
   ];
 
   const isValidPassword = passwordRequirements.every(req => req.met);
@@ -82,13 +84,13 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
         <motion.div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md"
+          className="rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md"
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
@@ -97,7 +99,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Key size={20} className="text-blue-500" />
-              修改密码
+              {t('title')}
             </h2>
             <button
               onClick={handleClose}
@@ -112,7 +114,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
             {/* Current Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                当前密码 *
+                {t('current_password')} {t('required')}
               </label>
               <div className="relative">
                 <input
@@ -135,7 +137,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
             {/* New Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                新密码 *
+                {t('new_password')} {t('required')}
               </label>
               <div className="relative">
                 <input
@@ -158,7 +160,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
             {/* Password Requirements */}
             {newPassword && (
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">密码要求：</h4>
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('password_requirements')}</h4>
                 <div className="space-y-1">
                   {passwordRequirements.map((req, index) => (
                     <div key={index} className="flex items-center gap-2 text-xs">
@@ -179,7 +181,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
             {/* Confirm Password */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                确认新密码 *
+                {t('confirm_password')} {t('required')}
               </label>
               <div className="relative">
                 <input
@@ -204,7 +206,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
               {confirmPassword && !passwordsMatch && (
                 <div className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs">
                   <AlertCircle size={12} />
-                  <span>密码不匹配</span>
+                  <span>{t('passwords_mismatch')}</span>
                 </div>
               )}
             </div>
@@ -218,7 +220,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
               >
-                取消
+                {t('cancel')}
               </motion.button>
               <motion.button
                 type="submit"
@@ -232,7 +234,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 ) : (
                   <Key size={16} />
                 )}
-                修改密码
+                {t('change_password_button')}
               </motion.button>
             </div>
           </form>

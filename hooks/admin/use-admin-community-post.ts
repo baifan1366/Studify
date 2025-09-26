@@ -70,6 +70,32 @@ export interface CommunityCommentsResponse {
   limit: number;
 }
 
+export interface CommunityStatsResponse {
+  total_posts: number;
+  total_comments: number;
+  total_groups: number;
+  total_reports: number;
+  posts_with_reports: number;
+  comments_with_reports: number;
+  top_authors: Array<{
+    author: {
+      full_name: string;
+      email: string;
+      avatar_url?: string;
+    };
+    post_count: number;
+  }>;
+  top_commented_posts: Array<{
+    id: number;
+    title: string;
+    comment_count: number;
+    author: {
+      full_name: string;
+      email: string;
+    };
+  }>;
+}
+
 // Hooks for fetching community posts
 export function useAdminCommunityPosts(params?: {
   page?: number;
@@ -140,9 +166,9 @@ export function useAdminPostComments(postId?: number, params?: {
 
 // Hook for community analytics/stats
 export function useAdminCommunityStats() {
-  return useQuery({
+  return useQuery<CommunityStatsResponse>({
     queryKey: ['admin-community-stats'],
-    queryFn: () => apiGet('/api/admin/community-post/stats'),
+    queryFn: () => apiGet<CommunityStatsResponse>('/api/admin/community-post/stats'),
   });
 }
 

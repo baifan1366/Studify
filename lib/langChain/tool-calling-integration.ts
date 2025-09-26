@@ -246,12 +246,12 @@ export class StudifyToolCallingAgent {
   /**
    * Get tools based on configuration
    */
-  protected getSelectedTools(): DynamicTool[] {
+  protected getSelectedTools(): any[] {
     if (this.config.enabledTools === 'all') {
       return getAllTools();
     }
 
-    let tools: DynamicTool[] = [];
+    let tools: any[] = [];
 
     // Add tools by categories
     if (this.config.toolCategories) {

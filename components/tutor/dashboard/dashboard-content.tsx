@@ -101,7 +101,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
       description: t('course_management_desc'),
       icon: BookOpen,
       items: [t('create_courses'), t('manage_modules'), t('track_progress')],
-      href: '/tutor/courses',
+      href: '/tutor/teaching/course-content',
     },
     {
       title: t('classroom_system'),
@@ -115,14 +115,14 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
       description: t('quiz_system_desc'),
       icon: FileText,
       items: [t('create_quizzes'), t('ai_generation'), t('track_results')],
-      href: '/tutor/quiz',
+      href: '/tutor/teaching/quiz-content',
     },
     {
       title: t('student_management'),
       description: t('student_management_desc'),
       icon: GraduationCap,
       items: [t('enrollment_tracking'), t('progress_monitoring'), t('status_updates')],
-      href: '/tutor/students',
+      href: '/tutor/student',
     },
   ];
 
@@ -230,42 +230,6 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         </Card>
       </motion.div>
 
-      {/* Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="mb-8"
-      >
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-          {t('quick_actions')}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action, index) => (
-            <Card key={index} className="hover:shadow-md transition-shadow cursor-pointer">
-              <Link href={action.href}>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className={`${action.color} p-3 rounded-lg`}>
-                      <action.icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className={`font-medium ${action.textColor}`}>
-                        {action.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {action.description}
-                      </p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
-          ))}
-        </div>
-      </motion.div>
-
       {/* Feature Showcase */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -340,7 +304,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                     </Badge>
                   </div>
                 ))}
-                <Link href="/tutor/courses">
+                <Link href="/tutor/teaching/course-content">
                   <Button variant="ghost" className="w-full mt-4">
                     {t('view_all_courses')}
                   </Button>
@@ -350,7 +314,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
               <div className="text-center py-6">
                 <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500 dark:text-gray-400">{t('no_courses_yet')}</p>
-                <Link href="/tutor/courses/create">
+                <Link href="/tutor/teaching/course-content">
                   <Button className="mt-2">
                     <Plus className="h-4 w-4 mr-2" />
                     {t('create_first_course')}

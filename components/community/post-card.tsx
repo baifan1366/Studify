@@ -15,16 +15,19 @@ import {
   Users,
   Clock,
   Paperclip,
+  Send,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Post } from "@/interface/community/post-interface";
 import Link from "next/link";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
 import { useToggleReaction } from "@/hooks/community/use-reactions";
+import SharePostDialog from "./share-post-dialog";
 
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
   const toggleReactionMutation = useToggleReaction(post.group?.slug || '', post.slug || '');
+  const [showShareDialog, setShowShareDialog] = React.useState(false);
 
   const handleReaction = (emoji: string) => {
     if (!post.group?.slug || !post.slug) return;
@@ -159,6 +162,14 @@ export default function PostCard({ post }: { post: Post }) {
               <MessageSquare className="mr-1 h-4 w-4" />
               <span className="text-xs">{post.comments_count || 0}</span>
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-white/10 hover:text-white px-2"
+              onClick={() => setShowShareDialog(true)}
+            >
+              <Send className="mr-1 h-4 w-4" />
+            </Button>
           </div>
           <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
             <Button
@@ -185,6 +196,12 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         )}
       </CardFooter>
+      
+      <SharePostDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        post={post}
+      />
     </Card>
   );
 }

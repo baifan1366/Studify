@@ -379,6 +379,27 @@ export const useUserGroups = () => {
   };
 };
 
+// All user groups hook (no limit, for modal)
+export const useAllUserGroups = () => {
+  const {
+    data: groups,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<Group[], Error>({
+    queryKey: ["allUserGroups"],
+    queryFn: () => apiGet<Group[]>(`${COMMUNITY_API.groups}?filter=joined&limit=100`), // Get all joined groups
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return {
+    groups,
+    isLoading,
+    isError,
+    error,
+  };
+};
+
 // Suggested groups hook
 export const useSuggestedGroups = () => {
   const {

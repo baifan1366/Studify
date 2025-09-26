@@ -37,13 +37,11 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const supabase = await createAdminClient();
-
-    // Create a regular client for password verification
-    const regularSupabase = await createClient();
+    // Create a regular client for password verification and update
+    const supabase = await createClient();
     
     // Verify current password by attempting to sign in
-    const { error: signInError } = await regularSupabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: profile?.email || user.email,
       password: currentPassword
     });
@@ -55,11 +53,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Update password
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      user.id,
-      { password: newPassword }
-    );
+    // Update password using the regular client (preferred method)
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    });
 
     if (updateError) {
       console.error('Error updating password:', updateError);
@@ -69,8 +66,9 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Update last password change timestamp
-    const { error: profileUpdateError } = await supabase
+    // Update last password change timestamp using admin client
+    const adminSupabase = await createAdminClient();
+    const { error: profileUpdateError } = await adminSupabase
       .from('profiles')
       .update({ last_password_change: new Date().toISOString() })
       .eq('user_id', user.id);

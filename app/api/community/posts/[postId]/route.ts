@@ -4,7 +4,7 @@ import { authorize } from "@/utils/auth/server-guard";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // 验证用户权限
@@ -14,7 +14,7 @@ export async function GET(
     }
     
     const supabase = await createAdminClient();
-    const { postId } = params;
+    const { postId } = await params;
 
     // 获取当前用户的 profile.id（数值型）
     const { data: profile, error: profileError } = await supabase

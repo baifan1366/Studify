@@ -8,7 +8,7 @@ import { createClient } from "@/utils/supabase/server";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const authResult = await authorize(['student', 'tutor', 'admin']);
@@ -16,7 +16,7 @@ export async function GET(
       return authResult;
     }
 
-    const { userId } = params;
+    const { userId } = await params;
     const supabase = await createClient();
 
     // Determine if userId is a number (profile.id) or UUID (user_id)

@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/';
   const type = searchParams.get('type');
 
+  console.log('[AUTH CALLBACK] Parameters:', { code: !!code, next, type, origin });
+
   if (code) {
     const supabase = await createClient();
     
@@ -19,13 +21,17 @@ export async function GET(request: NextRequest) {
       let redirectPath = next;
       
       if (type === 'recovery') {
-        // Password reset flow - redirect to reset password page
-        redirectPath = '/reset-password';
+        // Password reset flow - use the next parameter which contains the locale
+        // If next parameter is provided (e.g., /en/reset-password), use it
+        // Otherwise, fallback to /en/reset-password
+        redirectPath = next && next !== '/' ? next : '/en/reset-password';
+        console.log('[AUTH CALLBACK] Password reset redirect:', { next, redirectPath });
       } else if (type === 'signup') {
         // Email verification flow - redirect to onboarding or dashboard
         redirectPath = next;
       }
       
+      console.log('[AUTH CALLBACK] Final redirect:', `${origin}${redirectPath}`);
       // Redirect to the appropriate page
       return NextResponse.redirect(`${origin}${redirectPath}`);
     }

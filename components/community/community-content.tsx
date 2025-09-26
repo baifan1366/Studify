@@ -113,12 +113,6 @@ export default function CommunityContent() {
                     </p>
                   </div>
                 </div>
-                <Link href="/community/create">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('create_post_button')}
-                  </Button>
-                </Link>
               </div>
 
               {/* Post & Hashtag Search Bar */}

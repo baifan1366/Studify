@@ -62,6 +62,7 @@ export async function GET(
     const actualConversationId = conversation;
 
     // Fetch messages from direct_messages table with read status and attachments
+    // Include deleted messages to show "This message was deleted"
     const { data: messages, error: messagesError } = await supabase
       .from('direct_messages')
       .select(`
@@ -72,6 +73,8 @@ export async function GET(
         created_at,
         delivered_at,
         is_edited,
+        is_deleted,
+        deleted_at,
         attachment_id,
         sender:profiles!direct_messages_sender_id_fkey (
           id,
@@ -93,7 +96,6 @@ export async function GET(
         )
       `)
       .eq('conversation_id', actualConversationId)
-      .eq('is_deleted', false)
       .order('created_at', { ascending: true });
 
     if (messagesError) {
@@ -142,6 +144,8 @@ export async function GET(
         isFromMe,
         status,
         isEdited: msg.is_edited || false,
+        isDeleted: msg.is_deleted || false,
+        deletedAt: msg.deleted_at,
         attachmentId: msg.attachment_id,
         attachment: msg.attachment ? {
           id: Array.isArray(msg.attachment) ? msg.attachment[0]?.id : (msg.attachment as any)?.id,

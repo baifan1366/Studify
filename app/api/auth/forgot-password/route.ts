@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Construct the redirect URL
-    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?type=recovery&next=/${locale}/reset-password`;
+    // Construct the redirect URL - direct to reset password page, not callback
+    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/reset-password`;
     
     console.log('[FORGOT PASSWORD] Sending reset email:', {
       email: email.replace(/(.{2}).*(@.*)/, '$1***$2'), // Mask email for privacy
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Use Supabase's built-in password reset functionality with captcha token
-    // Use auth callback URL to handle the token exchange properly
+    // Direct redirect to reset password page (implicit flow)
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
       captchaToken: captchaToken // Pass the captcha token to Supabase

@@ -8,13 +8,15 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useCurrentUserProfile, useUpdateCurrentUserProfile } from '@/hooks/profile/use-profile';
 import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
-import { useLearningStats, useAchievements, usePointsData, getAchievementIcon, calculateAchievementProgress, formatStudyTime } from '@/hooks/profile/use-learning-stats';
+import { useLearningStats, usePointsData, formatStudyTime } from '@/hooks/profile/use-learning-stats';
 import { usePurchaseData, formatCurrency as formatPurchaseCurrency, formatPurchaseDate } from '@/hooks/profile/use-purchase-data';
 import { useProfileCurrency, useUpdateProfileCurrency, getSupportedCurrencies as getProfileSupportedCurrencies } from '@/hooks/profile/use-profile-currency';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AchievementsSection from '@/components/student/achievements-section';
+import StudentAchievementStats from '@/components/student/achievement-stats';
 import Image from 'next/image';
 
 export default function ProfileContent() {
@@ -25,7 +27,7 @@ export default function ProfileContent() {
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
   const updateProfileMutation = useUpdateCurrentUserProfile();
-  const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
+  // Remove old achievementsData - now handled by AchievementsSection component
   const { data: learningStats, isLoading: statsLoading } = useLearningStats('all');
   const { data: pointsData, isLoading: pointsLoading } = usePointsData();
   const { data: purchaseData, isLoading: purchaseLoading } = usePurchaseData();
@@ -392,7 +394,7 @@ export default function ProfileContent() {
                       <div className="text-xs text-white/70">{t('courses')}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-white">{achievementsData?.data?.stats?.unlocked || 0}</div>
+                      <StudentAchievementStats />
                       <div className="text-xs text-white/70">{t('achievements')}</div>
                     </div>
                   </div>
@@ -1115,134 +1117,7 @@ export default function ProfileContent() {
 
               {/* Achievements System - Only for students */}
               {profile?.role === 'student' && (
-              <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
-                <div className="z-10">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
-                      <Award size={18} className="sm:w-5 sm:h-5" />
-                      Achievements
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                        {achievementsData?.data?.stats?.unlocked || 0} / {achievementsData?.data?.stats?.total || 0}
-                      </Badge>
-                      <Badge variant="outline" className="text-white/70 border-white/30">
-                        {achievementsData?.data?.stats?.totalPointsEarned || 0} pts earned
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <Tabs defaultValue="recent" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 bg-white/10">
-                      <TabsTrigger value="recent">Recent</TabsTrigger>
-                      <TabsTrigger value="unlocked">Unlocked</TabsTrigger>
-                      <TabsTrigger value="progress">In Progress</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="recent" className="mt-4">
-                      <div className="space-y-3">
-                        {achievementsData?.data?.stats?.recentUnlocks?.slice(0, 5).map((achievement, index) => (
-                          <motion.div
-                            key={achievement.id}
-                            className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/15 transition-all duration-200"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <div className="text-3xl">{getAchievementIcon(achievement.category)}</div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-semibold text-white">{achievement.name}</h4>
-                                <Badge className="text-xs bg-green-500/20 text-green-300 border-green-500/30">
-                                  +{achievement.pointsReward} pts
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-white/70">{achievement.description}</p>
-                              <p className="text-xs text-white/50 mt-1">
-                                Unlocked {achievement.unlockedAt ? new Date(achievement.unlockedAt).toLocaleDateString() : 'Recently'}
-                              </p>
-                            </div>
-                          </motion.div>
-                        )) || (
-                          <div className="text-center py-8 text-white/60">
-                            <Trophy size={48} className="mx-auto mb-4 text-white/30" />
-                            <p>No recent achievements. Keep learning to unlock more!</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="unlocked" className="mt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {achievementsData?.data?.achievements?.filter(a => a.isUnlocked).map((achievement, index) => (
-                          <motion.div
-                            key={achievement.id}
-                            className="flex items-center gap-4 p-4 bg-white/10 rounded-lg"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.05 }}
-                          >
-                            <div className="text-2xl">{getAchievementIcon(achievement.category)}</div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-semibold text-white text-sm">{achievement.name}</h4>
-                                <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                                  +{achievement.pointsReward}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-white/70">{achievement.description}</p>
-                            </div>
-                          </motion.div>
-                        )) || (
-                          <div className="col-span-2 text-center py-8 text-white/60">
-                            <Award size={48} className="mx-auto mb-4 text-white/30" />
-                            <p>No achievements unlocked yet. Start learning to earn your first badge!</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="progress" className="mt-4">
-                      <div className="space-y-4">
-                        {achievementsData?.data?.achievements?.filter(a => !a.isUnlocked && a.currentValue > 0).map((achievement, index) => (
-                          <motion.div
-                            key={achievement.id}
-                            className="p-4 bg-white/5 rounded-lg border border-white/10"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <div className="flex items-center gap-4 mb-3">
-                              <div className="text-2xl opacity-50">{getAchievementIcon(achievement.category)}</div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-semibold text-white/90">{achievement.name}</h4>
-                                  <Badge variant="outline" className="text-xs text-white/60 border-white/30">
-                                    {achievement.pointsReward} pts
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-white/70">{achievement.description}</p>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex justify-between text-sm text-white/80">
-                                <span>Progress: {achievement.currentValue} / {achievement.targetValue}</span>
-                                <span>{Math.round(achievement.progress)}%</span>
-                              </div>
-                              <Progress value={achievement.progress} className="h-2" />
-                            </div>
-                          </motion.div>
-                        )) || (
-                          <div className="text-center py-8 text-white/60">
-                            <Target size={48} className="mx-auto mb-4 text-white/30" />
-                            <p>No achievements in progress. Complete lessons and activities to start earning achievements!</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </div>
+                <AchievementsSection className="mb-6" />
               )}
 
               {/* Quick Actions */}

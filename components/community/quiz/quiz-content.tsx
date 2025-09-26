@@ -2,6 +2,7 @@
 import { useState } from "react";
 import QuizHeader, { QuizFilters } from "./header";
 import QuizList from "./quiz-list";
+import QuizzesSidebar from "./quizzes-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -75,25 +76,33 @@ export default function QuizContent() {
   const loading = usingSearch ? isSearchLoading : isListLoading;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Community Quizzes</h1>
-      <QuizHeader
-        search={search}
-        setSearch={setSearch}
-        tab={tab}
-        setTab={setTab}
-        filters={filters}
-        setFilters={setFilters}
-      />
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <QuizCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : (
-        <QuizList quizzes={dataToShow || []} />
-      )}
+    <div className="flex gap-6 max-w-[1400px] mx-auto px-4 py-8">
+      {/* Main Content */}
+      <div className="flex-1">
+        <h1 className="text-3xl font-bold mb-6">Community Quizzes</h1>
+        <QuizHeader
+          search={search}
+          setSearch={setSearch}
+          tab={tab}
+          setTab={setTab}
+          filters={filters}
+          setFilters={setFilters}
+        />
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-8">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <QuizCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <QuizList quizzes={dataToShow || []} />
+        )}
+      </div>
+      
+      {/* Sidebar */}
+      <div className="hidden lg:block">
+        <QuizzesSidebar />
+      </div>
     </div>
   );
 }

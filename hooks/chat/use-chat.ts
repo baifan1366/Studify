@@ -33,6 +33,15 @@ export interface ChatAttachment {
   custom_message?: string;
 }
 
+export interface ReplyTo {
+  id: string;
+  content: string;
+  isDeleted: boolean;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -40,7 +49,7 @@ export interface Message {
   senderName: string;
   senderAvatar?: string;
   timestamp: string;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'share_post';
   fileName?: string;
   fileSize?: string;
   isFromMe: boolean;
@@ -50,6 +59,8 @@ export interface Message {
   deletedAt?: string;
   attachmentId?: number;
   attachment?: ChatAttachment;
+  replyToId?: number;
+  replyTo?: ReplyTo;
 }
 
 export interface ConversationsResponse {
@@ -74,9 +85,10 @@ export interface MessagesResponse {
 
 export interface SendMessageRequest {
   content: string;
-  type?: 'text' | 'image' | 'file';
+  type?: 'text' | 'image' | 'file' | 'share_post';
   fileName?: string;
   fileSize?: string;
+  reply_to_id?: number;
 }
 
 /**
@@ -161,6 +173,10 @@ export function useSendMessage() {
         fileSize: data.fileSize,
         isFromMe: true,
         status: 'sending',
+        isEdited: false,
+        isDeleted: false,
+        replyToId: data.reply_to_id,
+        replyTo: data.reply_to_id ? undefined : undefined, // Will be populated by frontend if needed
       };
       
       queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
@@ -529,3 +545,54 @@ export function useTypingIndicator(conversationId: string | undefined) {
     stopTyping: () => {},
   };
 }
+
+/**
+ * Hook for deleting a conversation
+ */
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ conversationId, type }: { conversationId: string; type: 'direct' | 'group' }) => {
+      // API expects body: { conversationId, type }
+      return await apiSend({
+        url: `/api/chat/conversations`,
+        method: 'DELETE',
+        body: { conversationId, type },
+      });
+    },
+    onMutate: async ({ conversationId }) => {
+      // 取消相关的 refetch
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+
+      // 备份旧数据
+      const previousConversations = queryClient.getQueryData<ConversationsResponse>(['conversations']);
+
+      // 从 cache 里乐观删除
+      queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          conversations: old.conversations.filter(conv => conv.id !== conversationId),
+          pagination: {
+            ...old.pagination,
+            total: old.pagination.total - 1,
+          },
+        };
+      });
+
+      return { previousConversations };
+    },
+    onError: (err, { conversationId }, context) => {
+      // 出错时回滚
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations'], context.previousConversations);
+      }
+    },
+    onSuccess: () => {
+      // 删除成功后刷新会话列表
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+

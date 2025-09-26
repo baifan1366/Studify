@@ -61,8 +61,7 @@ export async function GET(
 
     const actualConversationId = conversation;
 
-    // Fetch messages from direct_messages table with read status and attachments
-    // Include deleted messages to show "This message was deleted"
+    // First, fetch basic messages without reply_to join to avoid schema cache issues
     const { data: messages, error: messagesError } = await supabase
       .from('direct_messages')
       .select(`
@@ -76,6 +75,7 @@ export async function GET(
         is_deleted,
         deleted_at,
         attachment_id,
+        reply_to_id,
         sender:profiles!direct_messages_sender_id_fkey (
           id,
           display_name,
@@ -100,7 +100,70 @@ export async function GET(
 
     if (messagesError) {
       console.error('Error fetching messages:', messagesError);
-      return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
+      console.error('Error details:', {
+        message: messagesError.message,
+        details: messagesError.details,
+        hint: messagesError.hint,
+        code: messagesError.code
+      });
+      return NextResponse.json({ 
+        error: 'Failed to fetch messages',
+        details: messagesError.message 
+      }, { status: 500 });
+    }
+
+    // Collect unique reply_to_ids for separate query
+    const replyToIds = new Set<number>();
+    messages?.forEach(msg => {
+      if (msg.reply_to_id) {
+        replyToIds.add(msg.reply_to_id);
+      }
+    });
+
+    // Fetch reply_to messages and their senders if any exist
+    let replyToMessages: { [key: number]: any } = {};
+    let replyToSenderProfiles: { [key: number]: any } = {};
+    
+    if (replyToIds.size > 0) {
+      // First, get the reply_to messages
+      const { data: replyMessages, error: replyError } = await supabase
+        .from('direct_messages')
+        .select(`
+          id,
+          content,
+          is_deleted,
+          sender_id
+        `)
+        .in('id', Array.from(replyToIds));
+
+      if (!replyError && replyMessages) {
+        // Store reply messages by ID
+        replyMessages.forEach(replyMsg => {
+          replyToMessages[replyMsg.id] = replyMsg;
+        });
+
+        // Collect unique sender_ids from reply messages
+        const replyToSenderIds = new Set<number>();
+        replyMessages.forEach(replyMsg => {
+          if (replyMsg.sender_id) {
+            replyToSenderIds.add(replyMsg.sender_id);
+          }
+        });
+
+        // Fetch profiles for reply_to senders
+        if (replyToSenderIds.size > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, display_name, avatar_url')
+            .in('id', Array.from(replyToSenderIds));
+
+          if (!profilesError && profiles) {
+            profiles.forEach(profile => {
+              replyToSenderProfiles[profile.id] = profile;
+            });
+          }
+        }
+      }
     }
 
     // Transform messages to match expected format with status
@@ -128,6 +191,24 @@ export async function GET(
         status = 'read';
       }
 
+      // Process reply_to information with separately fetched data
+      let replyTo = undefined;
+      if (msg.reply_to_id) {
+        const replyToData = replyToMessages[msg.reply_to_id];
+        if (replyToData) {
+          const senderProfile = replyToSenderProfiles[replyToData.sender_id];
+          
+          replyTo = {
+            id: replyToData.id?.toString(),
+            content: replyToData.content,
+            isDeleted: replyToData.is_deleted || false,
+            senderId: replyToData.sender_id?.toString(),
+            senderName: senderProfile?.display_name || 'Unknown User',
+            senderAvatar: senderProfile?.avatar_url,
+          };
+        }
+      }
+
       return {
         id: msg.id.toString(),
         content: msg.content,
@@ -147,6 +228,8 @@ export async function GET(
         isDeleted: msg.is_deleted || false,
         deletedAt: msg.deleted_at,
         attachmentId: msg.attachment_id,
+        replyToId: msg.reply_to_id,
+        replyTo,
         attachment: msg.attachment ? {
           id: Array.isArray(msg.attachment) ? msg.attachment[0]?.id : (msg.attachment as any)?.id,
           file_name: Array.isArray(msg.attachment) ? msg.attachment[0]?.file_name : (msg.attachment as any)?.file_name,
@@ -201,7 +284,7 @@ export async function POST(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    const { content, type = 'text' } = await request.json();
+    const { content, type = 'text', reply_to_id } = await request.json();
 
     if (!content || !content.trim()) {
       return NextResponse.json({ 
@@ -241,6 +324,22 @@ export async function POST(
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
+    // Validate reply_to_id if provided
+    if (reply_to_id) {
+      const { data: replyToMessage, error: replyError } = await supabase
+        .from('direct_messages')
+        .select('id, conversation_id')
+        .eq('id', reply_to_id)
+        .eq('conversation_id', actualConversationId)
+        .single();
+
+      if (replyError || !replyToMessage) {
+        return NextResponse.json({ 
+          error: 'Reply to message not found or not in this conversation' 
+        }, { status: 400 });
+      }
+    }
+
     // Insert the message into direct_messages table
     const { data: newMessageData, error: messageError } = await supabase
       .from('direct_messages')
@@ -251,6 +350,7 @@ export async function POST(
         message_type: type,
         delivered_at: new Date().toISOString(), // Mark as delivered immediately for demo
         attachment_id: null, // TODO: Handle file attachments
+        reply_to_id: reply_to_id || null,
       })
       .select(`
         id,
@@ -261,6 +361,7 @@ export async function POST(
         delivered_at,
         is_edited,
         attachment_id,
+        reply_to_id,
         sender:profiles!direct_messages_sender_id_fkey (
           id,
           display_name,
@@ -288,7 +389,10 @@ export async function POST(
       isFromMe: true,
       status: 'sent' as const,
       isEdited: false,
+      isDeleted: false,
       attachmentId: newMessageData.attachment_id,
+      replyToId: newMessageData.reply_to_id,
+      replyTo: undefined, // Will be populated by frontend if needed
     };
 
     return NextResponse.json({ message: newMessage }, { status: 201 });

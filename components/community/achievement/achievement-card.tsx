@@ -1,7 +1,8 @@
+// To be removed
 "use client";
 import React from "react";
 import { Trophy, Lock } from "lucide-react";
-import { Achievement } from "@/interface/community/achievement-interface";
+import { Achievement } from "@/hooks/community/use-achievements";
 
 type Props = {
   achievement: Achievement;

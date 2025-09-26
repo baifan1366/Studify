@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useConversations, useMarkAsRead, useCreateConversation } from '@/hooks/chat/use-chat';
+import { useConversations, useMarkAsRead, useCreateConversation, useDeleteConversation } from '@/hooks/chat/use-chat';
 import { 
   Search, 
   MessageCircle, 
@@ -39,6 +39,9 @@ import { ChatPanel } from './chat-panel';
 import { MultipleTypingIndicator } from './typing-indicator';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useChatNotifications, useRealtimeChatNotifications } from '@/hooks/chat/use-chat-notifications';
+import { ProfileModal } from '@/components/chat/profile-modal';
+import { ProfileData } from '@/interface/profile-interface';
+import { useProfile } from '@/hooks/profiles/use-profile';
 
 // Mock data - replace with real API calls
 interface Conversation {
@@ -78,10 +81,18 @@ export function ChatDashboard() {
   // Typing indicator state
   const [typingUsers, setTypingUsers] = useState<{ id: string; name: string; avatar?: string }[]>([]);
   
+  // Profile modal state
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Fetch profile data using the hook
+  const { data: selectedProfile, isLoading: isProfileLoading, error: profileError } = useProfile(selectedUserId);
+  
   // Use chat hooks
   const { data: conversationsData, isLoading, error } = useConversations();
   const markAsReadMutation = useMarkAsRead();
   const createConversationMutation = useCreateConversation();
+  const deleteConversationMutation = useDeleteConversation();
   
   // Use notification hooks
   const { notifyNewMessage, requestNotificationPermission } = useChatNotifications();
@@ -210,6 +221,24 @@ export function ChatDashboard() {
     }
   };
 
+  const handleDeleteConversation = (conversationId: string, type: 'direct' | 'group') => {
+    if (!confirm("Are you sure you want to delete this chat?")) return;
+
+    deleteConversationMutation.mutate(
+      { conversationId, type },
+      {
+        onSuccess: () => {
+          setSelectedConversation(null);
+        },
+        onError: (err) => {
+          console.error("Delete failed:", err);
+          alert("Failed to delete chat");
+        },
+      }
+    );
+  };
+
+
   const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedMembers.length === 0) {
       return;
@@ -295,6 +324,25 @@ export function ChatDashboard() {
 
   const handleRemoveMember = (userId: string) => {
     setSelectedMembers(selectedMembers.filter(m => m.id !== userId));
+  };
+
+  const handleProfileClick = (participantId: string) => {
+    // Set the user ID to fetch profile data
+    setSelectedUserId(participantId);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleSendMessageFromProfile = (profileId: number) => {
+    // The user is already in the chat, so just close the modal
+    setIsProfileModalOpen(false);
+    console.log('Already in chat with user:', profileId);
+  };
+
+  const handleViewFullProfile = (profileId: number) => {
+    // Navigate to full profile page
+    console.log('Navigate to full profile:', profileId);
+    // router.push(`/profile/${profileId}`);
+    setIsProfileModalOpen(false);
   };
 
   // Debounced user search
@@ -485,7 +533,10 @@ export function ChatDashboard() {
             {/* Chat Header */}
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+                <Avatar 
+                  className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                  onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
+                >
                   <AvatarImage src={selectedConv.participant.avatar} />
                   <AvatarFallback>
                     {selectedConv.type === 'group' ? (
@@ -496,7 +547,16 @@ export function ChatDashboard() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-semibold">{selectedConv.participant.name}</h2>
+                  <h2 
+                    className={`font-semibold ${
+                      selectedConv.type === 'direct' 
+                        ? 'cursor-pointer hover:text-primary transition-colors' 
+                        : ''
+                    }`}
+                    onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
+                  >
+                    {selectedConv.participant.name}
+                  </h2>
                   {selectedConv.type === 'direct' && (
                     <p className="text-sm text-muted-foreground">
                       {selectedConv.participant.isOnline ? 'Online' : 'Offline'}
@@ -519,9 +579,30 @@ export function ChatDashboard() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem>View Profile</DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
+                    >
+                      View Profile
+                    </DropdownMenuItem>
                     <DropdownMenuItem>Block User</DropdownMenuItem>
-                    <DropdownMenuItem>Delete Chat</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        if (!selectedConv) return;
+                        const ok = window.confirm('Delete this chat? This will hide it from your list.');
+                        if (!ok) return;
+                        try {
+                          await deleteConversationMutation.mutateAsync({
+                            conversationId: selectedConv.id,
+                            type: selectedConv.type,
+                          } as any);
+                          setSelectedConversation(null);
+                        } catch (e) {
+                          console.error('Failed to delete conversation:', e);
+                        }
+                      }}
+                    >
+                      Delete Chat
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -757,6 +838,14 @@ export function ChatDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        profile={selectedProfile || null}
+        isOpen={isProfileModalOpen}
+        onOpenChange={setIsProfileModalOpen}
+        onSendMessage={handleSendMessageFromProfile}
+      />
     </div>
   );
 }

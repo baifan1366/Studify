@@ -10,6 +10,30 @@ import {
   sanitizeSearchQuery
 } from "@/utils/quiz/search-utils";
 
+/** Helper function to filter out quizzes with no questions */
+async function filterQuizzesWithQuestions(supabase: any, quizzes: any[]) {
+  if (!quizzes || quizzes.length === 0) {
+    return [];
+  }
+
+  const quizIds = quizzes.map((quiz: any) => quiz.id);
+  const { data: questionCounts, error } = await supabase
+    .from("community_quiz_question")
+    .select("quiz_id")
+    .in("quiz_id", quizIds);
+
+  if (error || !questionCounts) {
+    console.error("Error fetching question counts for search:", error);
+    return quizzes; // Return all quizzes if we can't check question counts
+  }
+
+  // Get quiz IDs that have at least one question
+  const quizIdsWithQuestions = new Set(questionCounts.map((q: any) => q.quiz_id));
+  
+  // Filter quizzes to only include those with questions
+  return quizzes.filter((quiz: any) => quizIdsWithQuestions.has(quiz.id));
+}
+
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
@@ -123,8 +147,15 @@ export async function GET(req: Request) {
       return NextResponse.json([], { status: 200 });
     }
 
+    // Filter out quizzes with no questions for public search results
+    const filteredQuizzes = await filterQuizzesWithQuestions(supabase, quizzes);
+    
+    if (filteredQuizzes.length === 0) {
+      return NextResponse.json([], { status: 200 });
+    }
+
     // Get author information
-    const authorIds = [...new Set(quizzes.map(quiz => quiz.author_id))];
+    const authorIds = [...new Set(filteredQuizzes.map(quiz => quiz.author_id))];
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
       .select("user_id, display_name, avatar_url")
@@ -135,7 +166,7 @@ export async function GET(req: Request) {
     }
 
     // Format the response
-    const quizzesWithAuthors = quizzes.map((quiz: any) => {
+    const quizzesWithAuthors = filteredQuizzes.map((quiz: any) => {
       const author = profiles?.find(profile => profile.user_id === quiz.author_id);
       return {
         ...quiz,

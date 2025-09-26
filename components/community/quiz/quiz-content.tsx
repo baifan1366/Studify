@@ -3,38 +3,11 @@ import { useState } from "react";
 import QuizHeader, { QuizFilters } from "./header";
 import QuizList from "./quiz-list";
 import QuizzesSidebar from "./quizzes-sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
 import { useQuizzes, useSearchQuizzes } from "@/hooks/community/use-quiz";
 import { useLocale } from "next-intl";
-
-function QuizCardSkeleton() {
-  return (
-    <Card className="h-full flex flex-col justify-between">
-      <CardHeader>
-        <Skeleton className="h-6 w-3/4 rounded-md" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-full rounded-md" />
-          <Skeleton className="h-4 w-5/6 rounded-md" />
-        </div>
-        <div className="flex flex-wrap gap-2 mt-4">
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-6 w-24 rounded-full" />
-        </div>
-      </CardContent>
-      <CardFooter className="mt-auto flex justify-end">
-        <Skeleton className="h-9 w-24 rounded-lg" />
-      </CardFooter>
-    </Card>
-  );
-}
+import { QuizCardSkeleton } from "@/components/community/skeletons";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export default function QuizContent() {
   const [search, setSearch] = useState("");
@@ -94,8 +67,14 @@ export default function QuizContent() {
               <QuizCardSkeleton key={i} />
             ))}
           </div>
+        ) : dataToShow && dataToShow.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-400">
+              {usingSearch ? "No quizzes found for your search" : "No quizzes available"}
+            </p>
+          </div>
         ) : (
-          <QuizList quizzes={dataToShow || []} />
+          <QuizList quizzes={dataToShow || []} showWarning={tab === "mine"} />
         )}
       </div>
       

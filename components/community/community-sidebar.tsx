@@ -4,7 +4,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AttemptItemSkeleton, GroupCardSkeleton } from "@/components/community/skeletons";
 import { Users, Plus, Lock, Globe, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import {
@@ -12,6 +12,8 @@ import {
   useSuggestedGroups,
 } from "@/hooks/community/use-community";
 import { Group } from "@/interface/community/group-interface";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const GroupCard = ({
   group,
@@ -79,7 +81,7 @@ export default function CommunitySidebar() {
         <CardContent className="space-y-2">
           {loadingUserGroups ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full bg-white/10" />
+              <AttemptItemSkeleton key={i} />
             ))
           ) : userGroups && userGroups.length > 0 ? (
             userGroups.map((group) => (
@@ -121,7 +123,7 @@ export default function CommunitySidebar() {
         <CardContent className="space-y-2">
           {loadingSuggested ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full bg-white/10" />
+              <AttemptItemSkeleton key={i} />
             ))
           ) : suggestedGroups && suggestedGroups.length > 0 ? (
             suggestedGroups.map((group) => (

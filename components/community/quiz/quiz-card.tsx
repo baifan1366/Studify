@@ -17,14 +17,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Play, Lock, CheckCircle, User, Eye, BookOpen, GraduationCap, MoreVertical, Trash2, Edit } from "lucide-react";
+import { Play, Lock, CheckCircle, User, Eye, BookOpen, GraduationCap, MoreVertical, Trash2, Edit, AlertTriangle } from "lucide-react";
 import type { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 import { useUser } from "@/hooks/profile/use-user";
 import DeleteQuizModal from "@/components/community/quiz/delete-quiz-modal";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface QuizCardProps {
-  quiz: CommunityQuiz;
+  quiz: CommunityQuiz & { question_count?: number };
+  showWarning?: boolean; // For "My Quizzes" tab
 }
 
 // Helper function to format code for display
@@ -36,7 +39,7 @@ function formatCode(code: string): string {
     .join(' ');
 }
 
-export default function QuizCard({ quiz }: QuizCardProps) {
+export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const { data: currentUser } = useUser();
   const router = useRouter();
@@ -107,6 +110,17 @@ export default function QuizCard({ quiz }: QuizCardProps) {
             <Lock className="h-3 w-3" />
             Private
           </Badge>
+        )}
+        
+        {/* Warning indicator for quizzes with no questions */}
+        {showWarning && quiz.question_count === 0 && (
+          <div className="relative group">
+            <AlertTriangle className="h-5 w-5 text-amber-500 cursor-help" />
+            <div className="absolute bottom-full right-0 mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+              This quiz is not valid and will not be shown to community users as it has no question inside.
+              <div className="absolute top-full right-4 border-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
         )}
         
         {/* Author actions dropdown */}

@@ -8,8 +8,8 @@ interface ResetPasswordRequestData {
 }
 
 interface ResetPasswordData {
-  token: string;
-  newPassword: string;
+  token?: string;
+  password: string;
 }
 
 interface ChangePasswordData {

@@ -11,6 +11,8 @@ import { useCreateQuiz, useQuizSubjects, useQuizGrades } from "@/hooks/community
 import { useRouter, useParams } from "next/navigation";
 import { useLocale } from "next-intl";
 import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export default function QuizForm() {
   const [title, setTitle] = useState("");
@@ -25,12 +27,23 @@ export default function QuizForm() {
   const router = useRouter();
   const params = useParams(); // { locale: 'en', ... } 在 app/[locale] 结构下可用
   const locale = useLocale();
+  const { toast: toastHook } = useToast();
 
   const create = useCreateQuiz();
   const { data: subjects, isLoading: subjectsLoading } = useQuizSubjects();
   const { data: grades, isLoading: gradesLoading } = useQuizGrades();
 
   const handleSubmit = () => {
+    // Validate fields
+    if (!title.trim()) {
+      toast.error("Please enter a quiz title");
+      return;
+    }
+    if (!description.trim()) {
+      toast.error("Please enter a description");
+      return;
+    }
+
     create.mutate(
       { 
         title, 
@@ -48,14 +61,15 @@ export default function QuizForm() {
           const slug = data?.slug;
           const locale = (params as any)?.locale ?? "en";
           if (!slug) {
-            alert("Created but no slug returned");
+            toast.error("Quiz created but no slug returned");
             return;
           }
+          toast.success("Quiz created successfully! Now add questions.");
           // 跳转到该 quiz 的 create-question 页面
           router.push(`/${locale}/community/quizzes/${slug}/create-question`);
         },
         onError: (err: any) => {
-          alert(err?.message ?? "Create failed");
+          toast.error(err?.message || "Failed to create quiz");
         },
       }
     );

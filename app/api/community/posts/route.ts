@@ -104,6 +104,12 @@ export async function GET(request: Request) {
       .select("id, post_id, url, file_name, mime_type")
       .in("post_id", postPublicIds);
 
+    // Get hashtags for accessible posts
+    const { data: postHashtags } = await supabaseClient
+      .from("post_hashtags")
+      .select("post_id, hashtags(id, name)")
+      .in("post_id", postPublicIds);
+
     // Process posts to add reaction and comment counts
     const processedPosts = accessiblePosts.map((post) => {
       // Aggregate reactions
@@ -124,11 +130,18 @@ export async function GET(request: Request) {
       // Get files for this post
       const files = postFiles?.filter((f) => f.post_id === post.public_id) || [];
 
+      // Get hashtags for this post
+      const hashtags = postHashtags?.filter((ph) => ph.post_id === post.public_id)
+        .map((ph) => ph.hashtags)
+        .filter(Boolean)
+        .flat() || [];
+
       return {
         ...post,
         reactions: reactionCounts,
         comments_count: commentsCount,
         files: files,
+        hashtags: hashtags,
       };
     });
 

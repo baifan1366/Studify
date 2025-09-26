@@ -95,7 +95,7 @@ export default function QuizContent() {
             ))}
           </div>
         ) : (
-          <QuizList quizzes={dataToShow || []} />
+          <QuizList quizzes={dataToShow || []} showWarning={tab === "mine"} />
         )}
       </div>
       

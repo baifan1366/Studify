@@ -8,26 +8,61 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/';
   const type = searchParams.get('type');
 
+  console.log('[AUTH CALLBACK] Parameters:', { code: !!code, next, type, origin });
+
   if (code) {
     const supabase = await createClient();
     
+    console.log('[AUTH CALLBACK] Attempting session exchange:', {
+      codeLength: code.length,
+      codePrefix: code.substring(0, 10) + '...',
+      type,
+      next
+    });
+    
     // Exchange the code for a session
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    console.log('[AUTH CALLBACK] Session exchange result:', {
+      success: !error && !!data?.session,
+      hasError: !!error,
+      errorMessage: error?.message,
+      errorCode: error?.status,
+      hasSession: !!data?.session,
+      userEmail: data?.session?.user?.email
+    });
     
     if (!error && data?.session) {
       // Determine redirect based on the type of auth flow
       let redirectPath = next;
       
       if (type === 'recovery') {
-        // Password reset flow - redirect to reset password page
-        redirectPath = '/reset-password';
+        // Password reset flow - use the next parameter which contains the locale
+        // If next parameter is provided (e.g., /en/reset-password), use it
+        // Otherwise, fallback to /en/reset-password
+        redirectPath = next && next !== '/' ? next : '/en/reset-password';
+        console.log('[AUTH CALLBACK] Password reset redirect:', { 
+          next, 
+          redirectPath, 
+          sessionUser: data.session.user?.email,
+          sessionId: data.session.access_token?.substring(0, 20) + '...'
+        });
       } else if (type === 'signup') {
         // Email verification flow - redirect to onboarding or dashboard
         redirectPath = next;
       }
       
+      console.log('[AUTH CALLBACK] Final redirect:', `${origin}${redirectPath}`);
       // Redirect to the appropriate page
       return NextResponse.redirect(`${origin}${redirectPath}`);
+    } else {
+      console.log('[AUTH CALLBACK] Session exchange failed:', {
+        hasError: !!error,
+        errorMessage: error?.message,
+        hasSession: !!data?.session,
+        type,
+        next
+      });
     }
   }
 

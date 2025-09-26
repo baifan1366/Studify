@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import {
 import { Group } from "@/interface/community/group-interface";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
+import AllMyGroupsModal from "./all-my-groups-modal";
 
 const GroupCard = ({
   group,
@@ -56,11 +57,13 @@ const GroupCard = ({
 );
 
 export default function CommunitySidebar() {
+  const [showAllGroupsModal, setShowAllGroupsModal] = useState(false);
   const { groups: userGroups, isLoading: loadingUserGroups } = useUserGroups();
   const { groups: suggestedGroups, isLoading: loadingSuggested } =
     useSuggestedGroups();
 
   return (
+    <>
     <div className="w-80 space-y-6">
       {/* User's Groups */}
       <Card className="bg-white/5 border-white/10">
@@ -101,16 +104,14 @@ export default function CommunitySidebar() {
             </div>
           )}
           {userGroups && userGroups.length > 3 && (
-            <Link href="/community/groups">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-blue-400 hover:bg-blue-400/10"
-              >
-                View All Groups
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-blue-400 hover:bg-blue-400/10"
+              onClick={() => setShowAllGroupsModal(true)}
+            >
+              View All Groups
+            </Button>
           )}
         </CardContent>
       </Card>
@@ -166,5 +167,12 @@ export default function CommunitySidebar() {
         </CardContent>
       </Card>
     </div>
+    
+    {/* All My Groups Modal */}
+    <AllMyGroupsModal
+      isOpen={showAllGroupsModal}
+      onClose={() => setShowAllGroupsModal(false)}
+    />
+    </>
   );
 }

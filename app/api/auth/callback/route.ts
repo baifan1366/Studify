@@ -4,11 +4,30 @@ import { createClient } from '@/utils/supabase/server';
 // Handle Supabase auth callbacks (email confirmations, password resets, etc.)
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/';
+  const code = searchParams.get('code') || searchParams.get('token_hash');
+  const redirectTo = searchParams.get('redirect_to');
+  let next = searchParams.get('next') ?? '/';
+  
+  // Parse next from redirect_to if needed
+  if (!searchParams.get('next') && redirectTo) {
+    try {
+      const redirectUrl = new URL(decodeURIComponent(redirectTo));
+      next = redirectUrl.searchParams.get('next') ?? '/';
+    } catch (e) {
+      console.log('[AUTH CALLBACK] Failed to parse redirect_to:', redirectTo);
+    }
+  }
+  
   const type = searchParams.get('type');
 
-  console.log('[AUTH CALLBACK] Parameters:', { code: !!code, next, type, origin });
+  console.log('[AUTH CALLBACK] Parameters:', { 
+    code: !!code, 
+    next, 
+    type, 
+    origin,
+    rawRedirectTo: searchParams.get('redirect_to'),
+    allParams: Object.fromEntries(searchParams.entries())
+  });
 
   if (code) {
     const supabase = await createClient();

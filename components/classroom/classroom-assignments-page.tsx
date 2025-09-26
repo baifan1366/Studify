@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
 import { 
   ArrowLeft, 
   Plus, 
@@ -73,6 +75,8 @@ interface Assignment {
 export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignmentsPageProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('ClassroomAssignments');
+  const { data: currentUser } = useUser();
   const [classroom, setClassroom] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
@@ -116,7 +120,11 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    router.push(`/classroom/${classroomSlug}`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}`
+      : `/classroom/${classroomSlug}`;
+    router.push(route);
   };
 
   const resetForm = () => {
@@ -188,7 +196,11 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
   const handleViewFullSubmissions = (assignmentId: string) => {
     // Navigate to full submissions page
-    router.push(`/classroom/${classroomSlug}/assignment/${assignmentId}/submissions`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}/assignment/${assignmentId}/submissions`
+      : `/classroom/${classroomSlug}/assignment/${assignmentId}/submissions`;
+    router.push(route);
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -262,13 +274,13 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
       <div className="mb-8">
         <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          {t('back_to_dashboard')}
         </Button>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Assignments</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('assignments')}</h1>
             <p className="text-muted-foreground">
-              Manage assignments for {classroom.name}
+              {t('manage_assignments_for', { classroom: classroom.name })}
             </p>
           </div>
           {canManageAssignments && (
@@ -292,7 +304,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
         <div className="grid gap-4 md:grid-cols-4">
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Assignments</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('total_assignments')}</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -301,7 +313,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Published</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('published')}</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
@@ -310,7 +322,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Drafts</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('drafts')}</CardTitle>
               <AlertCircle className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
@@ -319,7 +331,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Submission Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('avg_submission_rate')}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -335,9 +347,9 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
         {/* Assignments List */}
         <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
-            <CardTitle>All Assignments</CardTitle>
+            <CardTitle>{t('all_assignments')}</CardTitle>
             <CardDescription>
-              View and manage classroom assignments
+              {t('view_and_manage_assignments')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -465,11 +477,19 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                             classroomColor={classroom?.color}
                             onEditSubmission={() => {
                               // Navigate to assignment submission page
-                              router.push(`/classroom/${classroomSlug}/assignment/${assignment.id}/submit`);
+                              const isTutor = currentUser?.role === 'tutor';
+                              const route = isTutor 
+                                ? `/tutor/classroom/${classroomSlug}/assignment/${assignment.id}/submit`
+                                : `/classroom/${classroomSlug}/assignment/${assignment.id}/submit`;
+                              router.push(route);
                             }}
                             onViewAssignment={() => {
                               // Navigate to full assignment view
-                              router.push(`/classroom/${classroomSlug}/assignment/${assignment.id}`);
+                              const isTutor = currentUser?.role === 'tutor';
+                              const route = isTutor 
+                                ? `/tutor/classroom/${classroomSlug}/assignment/${assignment.id}`
+                                : `/classroom/${classroomSlug}/assignment/${assignment.id}`;
+                              router.push(route);
                             }}
                           />
                         ) : (
@@ -481,7 +501,11 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                             classroomColor={classroom?.color}
                             onGradeSubmission={(submissionId) => {
                               // Handle grading action - could navigate to full submissions page
-                              router.push(`/classroom/${classroomSlug}/assignment/${assignment.id}/submissions`);
+                              const isTutor = currentUser?.role === 'tutor';
+                              const route = isTutor 
+                                ? `/tutor/classroom/${classroomSlug}/assignment/${assignment.id}/submissions`
+                                : `/classroom/${classroomSlug}/assignment/${assignment.id}/submissions`;
+                              router.push(route);
                             }}
                           />
                         )}

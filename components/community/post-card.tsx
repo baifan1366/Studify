@@ -15,19 +15,28 @@ import {
   Users,
   Clock,
   Paperclip,
+  Send,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Post } from "@/interface/community/post-interface";
 import Link from "next/link";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
 import { useToggleReaction } from "@/hooks/community/use-reactions";
+import SharePostDialog from "./share-post-dialog";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
   const toggleReactionMutation = useToggleReaction(post.group?.slug || '', post.slug || '');
+  const [showShareDialog, setShowShareDialog] = React.useState(false);
+  const { toast: toastHook } = useToast();
 
   const handleReaction = (emoji: string) => {
-    if (!post.group?.slug || !post.slug) return;
+    if (!post.group?.slug || !post.slug) {
+      toast.error("Cannot react to this post");
+      return;
+    }
     
     toggleReactionMutation.mutate({
       groupSlug: post.group.slug,
@@ -35,6 +44,13 @@ export default function PostCard({ post }: { post: Post }) {
       emoji,
       target_type: "post",
       target_id: post.id.toString(),
+    }, {
+      onSuccess: () => {
+        toast.success(`Reacted with ${emoji}`);
+      },
+      onError: () => {
+        toast.error("Failed to add reaction");
+      }
     });
   };
 
@@ -45,10 +61,10 @@ export default function PostCard({ post }: { post: Post }) {
       (now.getTime() - postDate.getTime()) / (1000 * 60 * 60)
     );
 
-    if (diffInHours < 1) return "Just now";
-    if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInHours < 1) return t('just_now');
+    if (diffInHours < 24) return t('hours_ago', { hours: diffInHours });
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
+    if (diffInDays < 7) return t('days_ago', { days: diffInDays });
     return postDate.toLocaleDateString();
   };
 
@@ -80,7 +96,7 @@ export default function PostCard({ post }: { post: Post }) {
               </Link>
             </CardTitle>
             <p className="text-sm text-gray-300 mt-1">
-              by {post.author?.display_name || "Unknown"}
+              by {post.author?.display_name || t('unknown_user')}
             </p>
           </div>
         </div>
@@ -159,6 +175,14 @@ export default function PostCard({ post }: { post: Post }) {
               <MessageSquare className="mr-1 h-4 w-4" />
               <span className="text-xs">{post.comments_count || 0}</span>
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-white/10 hover:text-white px-2"
+              onClick={() => setShowShareDialog(true)}
+            >
+              <Send className="mr-1 h-4 w-4" />
+            </Button>
           </div>
           <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
             <Button
@@ -174,17 +198,28 @@ export default function PostCard({ post }: { post: Post }) {
         {post.hashtags && post.hashtags.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-start w-full">
             {post.hashtags.map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="outline"
-                className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+              <Link
+                key={tag.id || tag.name}
+                href={`/community/hashtags/${tag.name}`}
+                className="hover:underline"
               >
-                #{tag.name}
-              </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+                >
+                  #{tag.name}
+                </Badge>
+              </Link>
             ))}
           </div>
         )}
       </CardFooter>
+      
+      <SharePostDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        post={post}
+      />
     </Card>
   );
 }

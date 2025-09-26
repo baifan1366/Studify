@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -16,10 +17,13 @@ import {
   useCreateQuizQuestion,
   useQuizQuestions,
 } from "@/hooks/community/use-quiz-questions";
+import { useUpdateQuiz } from "@/hooks/community/use-quiz";
+import { useUser } from "@/hooks/profile/use-user";
+import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+import { X, Save } from "lucide-react";
 
 interface Props {
   quizSlug: string;
@@ -33,9 +37,22 @@ export default function QuestionForm({ quizSlug }: Props) {
   const [options, setOptions] = useState<string[]>([]);
   const [correctAnswers, setCorrectAnswers] = useState<(string | number)[]>([]);
   const [explanation, setExplanation] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
+  const router = useRouter();
+  const { data: user } = useUser();
+  const { toast } = useToast();
   const { data: questions } = useQuizQuestions(quizSlug);
   const { mutate: createQuestion } = useCreateQuizQuestion(quizSlug);
+  const { mutate: updateQuiz } = useUpdateQuiz(quizSlug);
+
+  const resetForm = () => {
+    setQuestionText("");
+    setQuestionType("single_choice");
+    setOptions([]);
+    setCorrectAnswers([]);
+    setExplanation("");
+  };
 
   const handleSubmit = () => {
     // ✅ 前端验证
@@ -69,6 +86,11 @@ export default function QuestionForm({ quizSlug }: Props) {
       options: questionType === "fill_in_blank" ? [] : options,
       correctAnswers,
       explanation,
+    }, {
+      onSuccess: () => {
+        // Reset form fields after successful submission
+        resetForm();
+      }
     });
   };
 
@@ -94,6 +116,45 @@ export default function QuestionForm({ quizSlug }: Props) {
       } else {
         setCorrectAnswers([...correctAnswers, index]);
       }
+    }
+  };
+
+  const handleSaveAndQuit = async () => {
+    if (!questions || questions.length === 0) {
+      toast({
+        title: "No questions to save",
+        description: "Please add at least one question before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    
+    try {
+      // Quiz is already saved when questions are added, just show success and navigate
+      toast({
+        title: "Quiz saved successfully!",
+        description: `Your quiz has been saved with ${questions.length} questions.`,
+        variant: "success",
+      });
+      
+      // Navigate based on user role
+      const userRole = user?.profile?.role;
+      if (userRole === "tutor") {
+        router.push("/tutor/community/quizzes");
+      } else {
+        router.push("/community/quizzes");
+      }
+    } catch (error) {
+      console.error("Save and quit error:", error);
+      toast({
+        title: "Failed to save quiz",
+        description: "An error occurred while saving the quiz.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -252,10 +313,30 @@ export default function QuestionForm({ quizSlug }: Props) {
           className="min-h-[80px]"
         />
 
-        {/* Submit */}
-        <Button onClick={handleSubmit} className="w-full">
-          Save Question
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <Button onClick={handleSubmit} className="flex-1">
+            Add Question
+          </Button>
+          <Button 
+            onClick={handleSaveAndQuit}
+            disabled={isSaving || !questions || questions.length === 0}
+            variant="outline"
+            className="flex-1 flex items-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save & Quit
+              </>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

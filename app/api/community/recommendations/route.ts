@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   
   try {
     // Authorize using app JWT and role guard
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

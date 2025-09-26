@@ -68,6 +68,19 @@ export async function GET(
       .in("post_id", postIds)
       .eq("is_deleted", false);
 
+    // 获取 post files
+    const postPublicIds = accessiblePosts.map((p) => p.public_id);
+    const { data: postFiles } = await supabase
+      .from("community_post_files")
+      .select("id, post_id, url, file_name, mime_type")
+      .in("post_id", postPublicIds);
+
+    // 获取 hashtags
+    const { data: postHashtags } = await supabase
+      .from("post_hashtags")
+      .select("post_id, hashtags(id, name)")
+      .in("post_id", postPublicIds);
+
     // 构建完整帖子对象
     const processedPosts: Post[] = accessiblePosts.map((post) => {
       const postReactions =
@@ -91,12 +104,23 @@ export async function GET(
       // group 也取第一个
       const groupObj = Array.isArray(post.group) ? post.group[0] : post.group;
 
+      // 获取该帖子的文件
+      const files = postFiles?.filter((f) => f.post_id === post.public_id) || [];
+
+      // 获取该帖子的hashtags
+      const hashtags = postHashtags?.filter((ph) => ph.post_id === post.public_id)
+        .map((ph) => ph.hashtags)
+        .filter(Boolean)
+        .flat() || [];
+
       return {
         ...post,
         author: authorObj,
         group: groupObj, // ✅ 单个对象，匹配 interface
         reactions: reactionCounts,
         comments_count,
+        files: files,
+        hashtags: hashtags,
       };
     });
 

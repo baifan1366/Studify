@@ -463,6 +463,35 @@ export class NotificationService {
 export const notificationService = new NotificationService();
 
 /**
+ * Direct OneSignal notification sender for AI Coach system
+ * Bypasses database storage and sends directly to OneSignal
+ */
+export async function sendNotification({
+  userIds,
+  title,
+  message,
+  data
+}: {
+  userIds: string[];
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+}): Promise<{ id: string }> {
+  try {
+    return await oneSignalService.sendToUsers(
+      userIds,
+      title,
+      message,
+      data || {},
+      {}
+    );
+  } catch (error) {
+    console.error('Failed to send OneSignal notification:', error);
+    throw error;
+  }
+}
+
+/**
  * Helper function to create notifications for all users
  * Used for system-wide announcements
  */

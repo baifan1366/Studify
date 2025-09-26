@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
-import { serverGuard } from "@/utils/auth/server-guard";
+import { authorize } from "@/utils/auth/server-guard";
 
 interface BanNotificationRequest {
   courseId: number;
@@ -11,12 +11,9 @@ interface BanNotificationRequest {
 export async function POST(request: NextRequest) {
   try {
     // Verify admin authentication
-    const authResult = await serverGuard(request, ['admin']);
-    if (!authResult.success) {
-      return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
-      );
+    const authResult = await authorize('admin');
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
     const body: BanNotificationRequest = await request.json();

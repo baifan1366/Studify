@@ -2,19 +2,21 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp, ShoppingBag, DollarSign, ArrowDownToLine, CreditCard, BarChart2, FileText } from 'lucide-react';
+import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings, ChevronRight, Check, Loader2, UserCircle, Trophy, Target, Zap, Clock, TrendingUp, ShoppingBag, DollarSign, ArrowDownToLine, CreditCard, BarChart2, FileText, Filter, SortDesc, Search, Download, Receipt, Calendar as CalendarIcon, Star, ExternalLink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
-import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
+import { useCurrentUserProfile, useUpdateCurrentUserProfile } from '@/hooks/profile/use-profile';
 import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
-import { useLearningStats, useAchievements, usePointsData, getAchievementIcon, calculateAchievementProgress, formatStudyTime } from '@/hooks/profile/use-learning-stats';
+import { useLearningStats, usePointsData, formatStudyTime } from '@/hooks/profile/use-learning-stats';
 import { usePurchaseData, formatCurrency as formatPurchaseCurrency, formatPurchaseDate } from '@/hooks/profile/use-purchase-data';
-import { useEarningsData, formatCurrency as formatEarningsCurrency, formatTransactionDate, getTransactionDisplayName } from '@/hooks/profile/use-earnings-data';
+import { useProfileCurrency, useUpdateProfileCurrency, getSupportedCurrencies as getProfileSupportedCurrencies } from '@/hooks/profile/use-profile-currency';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AchievementsSection from '@/components/student/achievements-section';
+import StudentAchievementStats from '@/components/student/achievement-stats';
 import Image from 'next/image';
 
 export default function ProfileContent() {
@@ -23,13 +25,14 @@ export default function ProfileContent() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
-  const updateProfileMutation = useUpdateProfile(userData?.id || '');
-  const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
+  const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
+  const updateProfileMutation = useUpdateCurrentUserProfile();
+  // Remove old achievementsData - now handled by AchievementsSection component
   const { data: learningStats, isLoading: statsLoading } = useLearningStats('all');
   const { data: pointsData, isLoading: pointsLoading } = usePointsData();
   const { data: purchaseData, isLoading: purchaseLoading } = usePurchaseData();
-  const { data: earningsData, isLoading: earningsLoading } = useEarningsData();
+  const { data: profileCurrency } = useProfileCurrency();
+  const updateProfileCurrency = useUpdateProfileCurrency();
   const {
     storedAccounts,
     currentAccountId,
@@ -47,10 +50,17 @@ export default function ProfileContent() {
     full_name: '',
     bio: '',
     timezone: '',
+    currency: 'MYR',
     avatar_url: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  
+  // Purchase history state
+  const [purchaseFilter, setPurchaseFilter] = useState<'all' | 'course' | 'plugin' | 'resource'>('all');
+  const [purchaseSort, setPurchaseSort] = useState<'date' | 'amount' | 'name'>('date');
+  const [purchaseSearchTerm, setPurchaseSearchTerm] = useState('');
+  const [showAllPurchases, setShowAllPurchases] = useState(false);
 
   const user = userData;
   const profile = fullProfileData?.profile || user?.profile;
@@ -71,10 +81,11 @@ export default function ProfileContent() {
         full_name: (profile as any)?.full_name || '',
         bio: (profile as any)?.bio || '',
         timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur',
+        currency: (profile as any)?.currency || profileCurrency?.currency || 'MYR',
         avatar_url: profile.avatar_url || ''
       });
     }
-  }, [profile]);
+  }, [profile, profileCurrency]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -142,6 +153,7 @@ export default function ProfileContent() {
         full_name: (profile as any)?.full_name || '',
         bio: (profile as any)?.bio || '',
         timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur',
+        currency: (profile as any)?.currency || profileCurrency?.currency || 'MYR',
         avatar_url: profile.avatar_url || ''
       });
     }
@@ -382,7 +394,7 @@ export default function ProfileContent() {
                       <div className="text-xs text-white/70">{t('courses')}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-white">{achievementsData?.data?.stats?.unlocked || 0}</div>
+                      <StudentAchievementStats />
                       <div className="text-xs text-white/70">{t('achievements')}</div>
                     </div>
                   </div>
@@ -689,6 +701,35 @@ export default function ProfileContent() {
                         </div>
                       )}
                     </div>
+
+                    {/* Currency */}
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">
+                        <DollarSign size={16} className="inline mr-1" />
+                        {t('preferred_currency')}
+                      </label>
+                      {isEditing ? (
+                        <select
+                          value={editForm.currency}
+                          onChange={(e) => setEditForm({...editForm, currency: e.target.value})}
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {getProfileSupportedCurrencies().map((curr) => (
+                            <option key={curr.code} value={curr.code}>
+                              {curr.symbol} {curr.name} ({curr.code})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white">
+                          {(() => {
+                            const currencyCode = (profile as any)?.currency || profileCurrency?.currency || 'MYR';
+                            const currency = getProfileSupportedCurrencies().find(c => c.code === currencyCode);
+                            return currency ? `${currency.symbol} ${currency.name} (${currency.code})` : currencyCode;
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Bio */}
@@ -861,7 +902,7 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* Purchase Records - Only for students */}
+              {/* Enhanced Purchase History - Only for students */}
               {profile?.role === 'student' && (
               <div className="bg-gradient-to-br from-emerald-600/20 via-green-600/20 to-teal-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
                 <div className="z-10">
@@ -870,395 +911,213 @@ export default function ProfileContent() {
                     {t('purchase_history')}
                   </h3>
 
-                  {/* Purchase Stats */}
-                  <div className="stats stats-horizontal shadow mb-6 bg-white/10 backdrop-blur-sm">
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('total_spent')}</div>
-                      <div className="stat-value text-emerald-400">
-                        {purchaseData?.stats ? formatPurchaseCurrency(purchaseData.stats.total_spent_cents) : '$0'}
+                  {/* Enhanced Purchase Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <motion.div 
+                      className="bg-gradient-to-br from-emerald-500/30 to-teal-500/30 rounded-xl p-6 backdrop-blur-sm border border-emerald-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-emerald-500/30 rounded-xl flex items-center justify-center">
+                          <DollarSign size={24} className="text-emerald-300" />
+                        </div>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
+                          Total
+                        </Badge>
                       </div>
-                      <div className="stat-desc text-white/60">{t('lifetime_purchases')}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('courses_owned')}</div>
-                      <div className="stat-value text-blue-400">{purchaseData?.stats?.courses_owned || 0}</div>
-                      <div className="stat-desc text-white/60">{t('active_subscriptions')}: {purchaseData?.stats?.active_subscriptions || 0}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('last_purchase')}</div>
-                      <div className="stat-value text-purple-400 text-lg">
+                      <div className="text-2xl font-bold text-white mb-1">
+                        {purchaseData?.stats ? formatPurchaseCurrency(purchaseData.stats.total_spent_cents, purchaseData.purchases?.[0]?.currency || 'MYR') : 'RM 0'}
+                      </div>
+                      <div className="text-emerald-300/70 text-sm">{t('total_spent')}</div>
+                      <div className="text-white/50 text-xs mt-2">{t('lifetime_purchases')}</div>
+                    </motion.div>
+
+                    <motion.div 
+                      className="bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl p-6 backdrop-blur-sm border border-blue-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-blue-500/30 rounded-xl flex items-center justify-center">
+                          <BookOpen size={24} className="text-blue-300" />
+                        </div>
+                        <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30">
+                          Owned
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold text-white mb-1">
+                        {purchaseData?.stats?.courses_owned || 0}
+                      </div>
+                      <div className="text-blue-300/70 text-sm">{t('courses_owned')}</div>
+                      <div className="text-white/50 text-xs mt-2">{t('active_orders')}: {purchaseData?.stats?.active_orders || 0}</div>
+                    </motion.div>
+
+                    <motion.div 
+                      className="bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-xl p-6 backdrop-blur-sm border border-purple-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-purple-500/30 rounded-xl flex items-center justify-center">
+                          <CalendarIcon size={24} className="text-purple-300" />
+                        </div>
+                        <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30">
+                          Recent
+                        </Badge>
+                      </div>
+                      <div className="text-lg font-bold text-white mb-1">
                         {purchaseData?.stats?.last_purchase ? formatPurchaseDate(purchaseData.stats.last_purchase.date) : '--'}
                       </div>
-                      <div className="stat-desc text-white/60">
+                      <div className="text-purple-300/70 text-sm">{t('last_purchase')}</div>
+                      <div className="text-white/50 text-xs mt-2 truncate">
                         {purchaseData?.stats?.last_purchase?.item_name || '--'}
                       </div>
-                    </div>
+                    </motion.div>
+
+                    <motion.div 
+                      className="bg-gradient-to-br from-orange-500/30 to-red-500/30 rounded-xl p-6 backdrop-blur-sm border border-orange-400/20"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 bg-orange-500/30 rounded-xl flex items-center justify-center">
+                          <Receipt size={24} className="text-orange-300" />
+                        </div>
+                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/30">
+                          Total
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold text-white mb-1">
+                        {purchaseData?.purchases?.length || 0}
+                      </div>
+                      <div className="text-orange-300/70 text-sm">Orders</div>
+                      <div className="text-white/50 text-xs mt-2">All time transactions</div>
+                    </motion.div>
                   </div>
 
-                  {/* Purchase History Table */}
-                  <div className="overflow-x-auto">
-                    <table className="table table-zebra bg-white/5">
-                      <thead>
-                        <tr className="border-white/20">
-                          <th className="text-white/80">{t('purchase_date')}</th>
-                          <th className="text-white/80">{t('course_name')}</th>
-                          <th className="text-white/80">{t('purchase_type')}</th>
-                          <th className="text-white/80">{t('purchase_amount')}</th>
-                          <th className="text-white/80">{t('purchase_status')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {purchaseLoading ? (
-                          <tr>
-                            <td colSpan={5} className="text-center py-8">
-                              <Loader2 size={24} className="animate-spin mx-auto text-white/60" />
-                            </td>
-                          </tr>
-                        ) : purchaseData?.purchases?.length ? (
-                          purchaseData.purchases.map((purchase) => (
-                            <tr key={purchase.id} className="hover:bg-white/10 border-white/10">
-                              <td className="text-white/90">{formatPurchaseDate(purchase.created_at)}</td>
-                              <td className="text-white/90">{purchase.item_name}</td>
-                              <td>
-                                <div className={`badge ${
-                                  purchase.purchase_type === 'course' ? 'badge-primary' : 
-                                  purchase.purchase_type === 'subscription' ? 'badge-secondary' : 'badge-info'
+                  {/* Purchase History Cards */}
+                  <div className="mb-4">
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <FileText size={16} />
+                      {t('recent_purchases')}
+                    </h4>
+                    
+                    {purchaseLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 size={24} className="animate-spin text-white/60" />
+                      </div>
+                    ) : purchaseData?.purchases?.length ? (
+                      <div className="space-y-3">
+                        {purchaseData.purchases.slice(0, 5).map((purchase) => (
+                          <motion.div
+                            key={purchase.id}
+                            className="group bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-white/20 rounded-xl p-4 transition-all duration-300"
+                            whileHover={{ scale: 1.01, y: -1 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <div className="flex items-center justify-between">
+                              {/* Left side - Course info */}
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br flex items-center justify-center ${
+                                  purchase.purchase_type === 'course' ? 'from-blue-500 to-cyan-500' :
+                                  purchase.purchase_type === 'plugin' ? 'from-purple-500 to-pink-500' : 
+                                  'from-orange-500 to-red-500'
                                 }`}>
-                                  {purchase.purchase_type === 'course' ? t('course_type') : 
-                                   purchase.purchase_type === 'subscription' ? t('subscription_type') : t('tutoring_type')}
+                                  {purchase.purchase_type === 'course' ? (
+                                    <BookOpen size={20} className="text-white" />
+                                  ) : purchase.purchase_type === 'plugin' ? (
+                                    <Zap size={20} className="text-white" />
+                                  ) : (
+                                    <FileText size={20} className="text-white" />
+                                  )}
                                 </div>
-                              </td>
-                              <td className="text-emerald-400 font-semibold">
-                                {formatPurchaseCurrency(purchase.amount_cents)}
-                                {purchase.purchase_type === 'subscription' ? '/mo' : ''}
-                              </td>
-                              <td>
-                                <div className={`badge ${
-                                  purchase.status === 'completed' ? 'badge-success' : 
-                                  purchase.status === 'pending' ? 'badge-warning' : 'badge-info'
+                                
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="text-white font-semibold text-sm truncate group-hover:text-emerald-400 transition-colors">
+                                    {purchase.item_name}
+                                  </h5>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      purchase.purchase_type === 'course' ? 'bg-blue-500/20 text-blue-300' :
+                                      purchase.purchase_type === 'plugin' ? 'bg-purple-500/20 text-purple-300' :
+                                      'bg-orange-500/20 text-orange-300'
+                                    }`}>
+                                      {purchase.purchase_type === 'course' ? t('course_type') : 
+                                       purchase.purchase_type === 'plugin' ? t('plugin_type') : t('resource_type')}
+                                    </div>
+                                    <span className="text-white/60 text-xs">
+                                      {formatPurchaseDate(purchase.created_at)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right side - Price and status */}
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <div className="text-emerald-400 font-bold text-lg">
+                                    {formatPurchaseCurrency(purchase.amount_cents, purchase.currency)}
+                                  </div>
+                                  <div className="text-white/60 text-xs">
+                                    {purchase.currency}
+                                  </div>
+                                </div>
+                                
+                                <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+                                  purchase.status === 'paid' ? 'bg-green-500/20 text-green-300' :
+                                  purchase.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                                  purchase.status === 'failed' ? 'bg-red-500/20 text-red-300' :
+                                  'bg-gray-500/20 text-gray-300'
                                 }`}>
-                                  {purchase.status === 'completed' ? t('status_completed') : 
-                                   purchase.status === 'pending' ? t('status_pending') : t('status_active')}
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    purchase.status === 'paid' ? 'bg-green-400' :
+                                    purchase.status === 'pending' ? 'bg-yellow-400' :
+                                    purchase.status === 'failed' ? 'bg-red-400' :
+                                    'bg-gray-400'
+                                  }`} />
+                                  {purchase.status === 'paid' ? t('status_paid') : 
+                                   purchase.status === 'pending' ? t('status_pending') : 
+                                   purchase.status === 'failed' ? t('status_failed') : t('status_refunded')}
                                 </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="text-center py-8 text-white/60">
-                              No purchase history available
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <ShoppingBag size={48} className="text-white/20 mx-auto mb-4" />
+                        <p className="text-white/60 text-lg">{t('no_purchase_history')}</p>
+                        <p className="text-white/40 text-sm mt-1">{t('no_purchase_history_desc')}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* View All Button */}
-                  <div className="mt-4 text-center">
-                    <button className="btn btn-outline btn-success">
-                      {t('view_all_purchases')}
-                    </button>
-                  </div>
+                  {purchaseData?.purchases?.length && purchaseData.purchases.length > 5 && (
+                    <div className="mt-6 text-center">
+                      <motion.button 
+                        className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-emerald-500/25 flex items-center gap-2 mx-auto"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <ArrowDownToLine size={18} />
+                        {t('view_all_purchases')}
+                        <Badge className="bg-white/20 text-white ml-2">
+                          +{purchaseData.purchases.length - 5}
+                        </Badge>
+                      </motion.button>
+                    </div>
+                  )}
                 </div>
               </div>
               )}
 
-              {/* Cashflow Section - Only for tutors */}
-              {profile?.role === 'tutor' && (
-              <div className="bg-gradient-to-br from-yellow-600/20 via-orange-600/20 to-amber-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
-                <div className="z-10">
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
-                    <DollarSign size={18} className="sm:w-5 sm:h-5" />
-                    {t('earnings_cashflow')}
-                  </h3>
-
-                  {/* Earnings Stats */}
-                  <div className="stats stats-horizontal shadow mb-6 bg-white/10 backdrop-blur-sm">
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('total_earnings')}</div>
-                      <div className="stat-value text-yellow-400">
-                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.total_earnings_cents) : '$0'}
-                      </div>
-                      <div className="stat-desc text-green-400">
-                        ↗︎ +{earningsData?.stats?.growth_percentage || 0}% this month
-                      </div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('this_month')}</div>
-                      <div className="stat-value text-orange-400">
-                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.monthly_earnings_cents) : '$0'}
-                      </div>
-                      <div className="stat-desc text-white/60">
-                        From {earningsData?.stats?.students_count || 0} students
-                      </div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title text-white/70">{t('pending_payout')}</div>
-                      <div className="stat-value text-amber-400">
-                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.pending_payout_cents) : '$0'}
-                      </div>
-                      <div className="stat-desc text-white/60">To be released Dec 1</div>
-                    </div>
-                  </div>
-
-                  {/* Monthly Breakdown */}
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                      <TrendingUp size={16} />
-                      {t('monthly_breakdown')}
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {earningsLoading ? (
-                        <div className="col-span-full flex justify-center py-8">
-                          <Loader2 size={24} className="animate-spin text-white/60" />
-                        </div>
-                      ) : earningsData?.monthly_breakdown?.length ? (
-                        earningsData.monthly_breakdown.map((monthData, index) => (
-                          <div key={`${monthData.month}-${monthData.year}`} className="card bg-white/5 border border-white/10">
-                            <div className="card-body p-4">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="text-white/70 text-sm">{monthData.month} {monthData.year}</div>
-                                  <div className={`text-2xl font-bold ${
-                                    index === 0 ? 'text-yellow-400' : 
-                                    index === 1 ? 'text-orange-400' : 'text-amber-400'
-                                  }`}>
-                                    {formatEarningsCurrency(monthData.total_cents)}
-                                  </div>
-                                </div>
-                                <div className={`badge ${monthData.status === 'current' ? 'badge-success' : 'badge-ghost'}`}>
-                                  {monthData.status === 'current' ? t('current_month') : t('paid_month')}
-                                </div>
-                              </div>
-                              <div className="text-white/60 text-xs mt-2">
-                                {t('course_sales')}: {formatEarningsCurrency(monthData.course_sales_cents)}<br/>
-                                {t('tutoring_income')}: {formatEarningsCurrency(monthData.tutoring_cents)}
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="col-span-full text-center py-8 text-white/60">
-                          No earnings data available
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Recent Transactions */}
-                  <div className="mb-4">
-                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                      <FileText size={16} />
-                      {t('recent_transactions')}
-                    </h4>
-                    
-                    <div className="overflow-x-auto">
-                      <table className="table table-zebra bg-white/5">
-                        <thead>
-                          <tr className="border-white/20">
-                            <th className="text-white/80">{t('purchase_date')}</th>
-                            <th className="text-white/80">{t('student_course')}</th>
-                            <th className="text-white/80">{t('transaction_type')}</th>
-                            <th className="text-white/80">{t('transaction_amount')}</th>
-                            <th className="text-white/80">{t('transaction_status')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {earningsLoading ? (
-                            <tr>
-                              <td colSpan={5} className="text-center py-8">
-                                <Loader2 size={24} className="animate-spin mx-auto text-white/60" />
-                              </td>
-                            </tr>
-                          ) : earningsData?.recent_transactions?.length ? (
-                            earningsData.recent_transactions.map((transaction) => (
-                              <tr key={transaction.id} className="hover:bg-white/10 border-white/10">
-                                <td className="text-white/90">{formatTransactionDate(transaction.created_at)}</td>
-                                <td className="text-white/90">{getTransactionDisplayName(transaction)}</td>
-                                <td>
-                                  <div className={`badge ${
-                                    transaction.source_type === 'tutoring_session' ? 'badge-info' : 'badge-primary'
-                                  }`}>
-                                    {transaction.source_type === 'tutoring_session' ? t('tutoring_session') : t('course_sale')}
-                                  </div>
-                                </td>
-                                <td className="text-yellow-400 font-semibold">
-                                  {formatEarningsCurrency(transaction.amount_cents)}
-                                </td>
-                                <td>
-                                  <div className={`badge ${
-                                    transaction.status === 'released' ? 'badge-success' :
-                                    transaction.status === 'pending' ? 'badge-warning' : 'badge-ghost'
-                                  }`}>
-                                    {transaction.status === 'released' ? 'Paid' : 
-                                     transaction.status === 'pending' ? t('status_pending') : 'On Hold'}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5} className="text-center py-8 text-white/60">
-                                No recent transactions
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-3">
-                    <button className="btn btn-primary">
-                      <ArrowDownToLine size={16} />
-                      {t('download_report')}
-                    </button>
-                    <button className="btn btn-outline btn-warning">
-                      <CreditCard size={16} />
-                      {t('payout_settings')}
-                    </button>
-                    <button className="btn btn-outline btn-info">
-                      <BarChart2 size={16} />
-                      {t('analytics')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              )}
 
               {/* Achievements System - Only for students */}
               {profile?.role === 'student' && (
-              <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
-                <div className="z-10">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
-                      <Award size={18} className="sm:w-5 sm:h-5" />
-                      Achievements
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                        {achievementsData?.data?.stats?.unlocked || 0} / {achievementsData?.data?.stats?.total || 0}
-                      </Badge>
-                      <Badge variant="outline" className="text-white/70 border-white/30">
-                        {achievementsData?.data?.stats?.totalPointsEarned || 0} pts earned
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <Tabs defaultValue="recent" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 bg-white/10">
-                      <TabsTrigger value="recent">Recent</TabsTrigger>
-                      <TabsTrigger value="unlocked">Unlocked</TabsTrigger>
-                      <TabsTrigger value="progress">In Progress</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="recent" className="mt-4">
-                      <div className="space-y-3">
-                        {achievementsData?.data?.stats?.recentUnlocks?.slice(0, 5).map((achievement, index) => (
-                          <motion.div
-                            key={achievement.id}
-                            className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/15 transition-all duration-200"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <div className="text-3xl">{getAchievementIcon(achievement.category)}</div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-semibold text-white">{achievement.name}</h4>
-                                <Badge className="text-xs bg-green-500/20 text-green-300 border-green-500/30">
-                                  +{achievement.pointsReward} pts
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-white/70">{achievement.description}</p>
-                              <p className="text-xs text-white/50 mt-1">
-                                Unlocked {achievement.unlockedAt ? new Date(achievement.unlockedAt).toLocaleDateString() : 'Recently'}
-                              </p>
-                            </div>
-                          </motion.div>
-                        )) || (
-                          <div className="text-center py-8 text-white/60">
-                            <Trophy size={48} className="mx-auto mb-4 text-white/30" />
-                            <p>No recent achievements. Keep learning to unlock more!</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="unlocked" className="mt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {achievementsData?.data?.achievements?.filter(a => a.isUnlocked).map((achievement, index) => (
-                          <motion.div
-                            key={achievement.id}
-                            className="flex items-center gap-4 p-4 bg-white/10 rounded-lg"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.05 }}
-                          >
-                            <div className="text-2xl">{getAchievementIcon(achievement.category)}</div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-semibold text-white text-sm">{achievement.name}</h4>
-                                <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                                  +{achievement.pointsReward}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-white/70">{achievement.description}</p>
-                            </div>
-                          </motion.div>
-                        )) || (
-                          <div className="col-span-2 text-center py-8 text-white/60">
-                            <Award size={48} className="mx-auto mb-4 text-white/30" />
-                            <p>No achievements unlocked yet. Start learning to earn your first badge!</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="progress" className="mt-4">
-                      <div className="space-y-4">
-                        {achievementsData?.data?.achievements?.filter(a => !a.isUnlocked && a.currentValue > 0).map((achievement, index) => (
-                          <motion.div
-                            key={achievement.id}
-                            className="p-4 bg-white/5 rounded-lg border border-white/10"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <div className="flex items-center gap-4 mb-3">
-                              <div className="text-2xl opacity-50">{getAchievementIcon(achievement.category)}</div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-semibold text-white/90">{achievement.name}</h4>
-                                  <Badge variant="outline" className="text-xs text-white/60 border-white/30">
-                                    {achievement.pointsReward} pts
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-white/70">{achievement.description}</p>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex justify-between text-sm text-white/80">
-                                <span>Progress: {achievement.currentValue} / {achievement.targetValue}</span>
-                                <span>{Math.round(achievement.progress)}%</span>
-                              </div>
-                              <Progress value={achievement.progress} className="h-2" />
-                            </div>
-                          </motion.div>
-                        )) || (
-                          <div className="text-center py-8 text-white/60">
-                            <Target size={48} className="mx-auto mb-4 text-white/30" />
-                            <p>No achievements in progress. Complete lessons and activities to start earning achievements!</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </div>
+                <AchievementsSection className="mb-6" />
               )}
 
               {/* Quick Actions */}

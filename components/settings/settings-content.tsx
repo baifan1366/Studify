@@ -28,8 +28,9 @@ import {
   Trash2
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 import { useUser } from '@/hooks/profile/use-user';
-import { useFullProfile, useUpdateSettings } from '@/hooks/profile/use-profile';
+import { useCurrentUserProfile, useUpdateCurrentUserSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { useFontSize } from '@/context/font-size-context';
 import { FontSizeDemo } from './font-size-demo';
@@ -37,20 +38,23 @@ import { useMFAStatus, useMFADisable } from '@/hooks/auth/use-mfa';
 import { useRequestPasswordReset } from '@/hooks/auth/use-password-reset';
 import MFASetupModal from './mfa-setup-modal';
 import ChangePasswordModal from './change-password-modal';
+import ForgotPasswordModal from '@/components/auth/forgot-password-modal';
 
 type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'data';
 
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
+  const { theme, setTheme } = useTheme();
   const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
-  const updateSettingsMutation = useUpdateSettings();
+  const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
+  const updateSettingsMutation = useUpdateCurrentUserSettings();
   const { toast } = useToast();
   const { fontSize, setFontSize } = useFontSize();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [showMFASetup, setShowMFASetup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showMFADisable, setShowMFADisable] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [mfaDisableCode, setMfaDisableCode] = useState('');
   const [mfaDisablePassword, setMfaDisablePassword] = useState('');
   
@@ -114,12 +118,12 @@ export default function SettingsContent() {
         showProgress: privacySettings.show_progress ?? true,
         dataCollection: privacySettings.data_collection ?? true,
         
-        // Appearance settings
-        theme: profile.theme || 'system',
+        // Appearance settings  
+        theme: theme || profile.theme || 'system',
         language: profile.language || 'en',
       }));
     }
-  }, [profile]);
+  }, [profile, theme]);
 
   const tabs = [
     { id: 'account', label: t('account'), icon: User },
@@ -160,6 +164,8 @@ export default function SettingsContent() {
     // Appearance settings
     if (key === 'theme') {
       updateData.theme = value;
+      // Apply theme change immediately using next-themes
+      setTheme(value);
     }
     if (key === 'language') {
       updateData.language = value;
@@ -231,9 +237,7 @@ export default function SettingsContent() {
   };
 
   const handleForgotPassword = () => {
-    if (user?.email) {
-      requestPasswordReset.mutate({ email: user.email });
-    }
+    setShowForgotPassword(true);
   };
 
   const renderTabContent = () => {
@@ -721,6 +725,12 @@ export default function SettingsContent() {
       <ChangePasswordModal 
         isOpen={showChangePassword} 
         onClose={() => setShowChangePassword(false)}
+      />
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        defaultEmail={userData?.email || ''}
       />
 
       {/* MFA Disable Modal */}

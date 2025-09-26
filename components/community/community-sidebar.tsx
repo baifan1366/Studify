@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AttemptItemSkeleton, GroupCardSkeleton } from "@/components/community/skeletons";
 import { Users, Plus, Lock, Globe, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import {
@@ -12,6 +12,9 @@ import {
   useSuggestedGroups,
 } from "@/hooks/community/use-community";
 import { Group } from "@/interface/community/group-interface";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import AllMyGroupsModal from "./all-my-groups-modal";
 
 const GroupCard = ({
   group,
@@ -54,11 +57,13 @@ const GroupCard = ({
 );
 
 export default function CommunitySidebar() {
+  const [showAllGroupsModal, setShowAllGroupsModal] = useState(false);
   const { groups: userGroups, isLoading: loadingUserGroups } = useUserGroups();
   const { groups: suggestedGroups, isLoading: loadingSuggested } =
     useSuggestedGroups();
 
   return (
+    <>
     <div className="w-80 space-y-6">
       {/* User's Groups */}
       <Card className="bg-white/5 border-white/10">
@@ -79,7 +84,7 @@ export default function CommunitySidebar() {
         <CardContent className="space-y-2">
           {loadingUserGroups ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full bg-white/10" />
+              <AttemptItemSkeleton key={i} />
             ))
           ) : userGroups && userGroups.length > 0 ? (
             userGroups.map((group) => (
@@ -99,16 +104,14 @@ export default function CommunitySidebar() {
             </div>
           )}
           {userGroups && userGroups.length > 3 && (
-            <Link href="/community/groups">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-blue-400 hover:bg-blue-400/10"
-              >
-                View All Groups
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-blue-400 hover:bg-blue-400/10"
+              onClick={() => setShowAllGroupsModal(true)}
+            >
+              View All Groups
+            </Button>
           )}
         </CardContent>
       </Card>
@@ -121,7 +124,7 @@ export default function CommunitySidebar() {
         <CardContent className="space-y-2">
           {loadingSuggested ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full bg-white/10" />
+              <AttemptItemSkeleton key={i} />
             ))
           ) : suggestedGroups && suggestedGroups.length > 0 ? (
             suggestedGroups.map((group) => (
@@ -164,5 +167,12 @@ export default function CommunitySidebar() {
         </CardContent>
       </Card>
     </div>
+    
+    {/* All My Groups Modal */}
+    <AllMyGroupsModal
+      isOpen={showAllGroupsModal}
+      onClose={() => setShowAllGroupsModal(false)}
+    />
+    </>
   );
 }

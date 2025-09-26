@@ -884,10 +884,10 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={t('chat.input.placeholder') || "Enter your question... (Press Enter to send)"}
+              placeholder={t('chat.input.placeholder')}
               className="min-h-[36px] max-h-[120px] resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
               disabled={isTyping}
-              aria-label={t('chat.input.aria_label') || "Enter message"}
+              aria-label={t('chat.input.aria_label')}
             />
           </div>
           <Button
@@ -1022,8 +1022,8 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
     } catch (error) {
       console.error('Camera access error:', error);
       toast({
-        title: t('camera.error.title') || "Camera Access Failed",
-        description: t('camera.error.description') || "Please allow camera access to take photos",
+        title: t('camera.error.title'),
+        description: t('camera.error.description'),
         variant: "destructive"
       });
     }
@@ -1090,8 +1090,8 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
         if (hasContent) {
           onResult(response);
           toast({
-            title: t('upload.success.title') || "Upload Successful",
-            description: t('upload.success.description') || "Your image has been analyzed successfully.",
+            title: t('upload.success.title'),
+            description: t('upload.success.description'),
           });
         } else {
           console.error('❌ Problem Solving Response structure:', {
@@ -1101,7 +1101,7 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
             analysis: response.analysis,
             toolsUsed: response.toolsUsed
           });
-          throw new Error(`解题分析返回空内容: ${JSON.stringify({
+          throw new Error(`${t('errors.solve_failed')} - Empty content: ${JSON.stringify({
             hasResult: !!response.result,
             hasAnswer: !!response.answer, 
             hasAnalysis: !!response.analysis,
@@ -1110,21 +1110,21 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
         }
       } else {
         console.error('❌ Problem Solving API response failed:', response);
-        throw new Error('解题服务请求失败: ' + (response?.error || 'Unknown error'));
+        throw new Error(`${t('errors.solve_failed')}: ` + (response?.error || t('chat.error.unknown')));
       }
     } catch (error) {
       console.error('❌ Solve problem error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : t('chat.error.unknown');
       console.error('Error details:', {
         message: errorMessage,
         stack: error instanceof Error ? error.stack : 'No stack trace',
         response: error
       });
       
-      setUploadError(`解题失败: ${errorMessage}`);
+      setUploadError(`${t('errors.solve_failed')}: ${errorMessage}`);
       toast({
-        title: t('upload.error.title') || "Upload Failed",
-        description: errorMessage.includes('fetch') ? '网络连接失败，请检查网络连接' : errorMessage,
+        title: t('upload.error.title'),
+        description: errorMessage.includes('fetch') ? t('chat.error.network_error') : errorMessage,
         variant: "destructive"
       });
     }
@@ -1179,7 +1179,7 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
               <div className="relative inline-block">
                 <img 
                   src={previewUrl} 
-                  alt="Preview" 
+                  alt={t('common.preview')} 
                   className="max-h-32 max-w-full rounded-lg shadow-sm"
                 />
                 <Button
@@ -1208,15 +1208,15 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
               <div>
                 <div className="text-base font-medium text-slate-700 dark:text-slate-300 mb-1">
                   {isDragging 
-                    ? (t('upload.drop_here') || "Drop your file here") 
-                    : (t('features.solve_problem.upload_text') || "Click to upload image or drag here")
+                    ? t('upload.drop_here') 
+                    : t('features.solve_problem.upload_text')
                   }
                 </div>
                 <div className="text-sm text-slate-500 dark:text-slate-500">
-                  {t('features.solve_problem.supported_formats') || "Supports PNG, JPG, JPEG, GIF, WebP formats"}
+                  {t('features.solve_problem.supported_formats')}
                 </div>
                 <div className="text-xs text-slate-400 dark:text-slate-400 mt-1">
-                  {t('upload.max_size') || "Maximum file size: 10MB"}
+                  {t('upload.max_size')}
                 </div>
               </div>
             </div>

@@ -11,8 +11,6 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    const userId = authResult.payload.sub;
-
     const body = await request.json();
     const { learningPath, title, description } = body;
 
@@ -22,6 +20,20 @@ export async function POST(request: NextRequest) {
 
     // 保存学习路径到数据库
     const supabase = await createAdminClient();
+
+    // 获取用户的profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', authResult.payload.sub)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Profile lookup error:', profileError);
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
     const { data, error } = await supabase
       .from('learning_paths')
       .insert({
@@ -68,13 +80,26 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
-    const userId = authResult.payload.sub;
-
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
     const activeOnly = searchParams.get('active_only') === 'true';
 
     const supabase = await createAdminClient();
+
+    // 获取用户的profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', authResult.payload.sub)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Profile lookup error:', profileError);
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
+
     let query = supabase
       .from('learning_paths')
       .select('*')
@@ -115,8 +140,6 @@ export async function DELETE(request: NextRequest) {
       return authResult;
     }
 
-    const userId = authResult.payload.sub;
-
     const { searchParams } = new URL(request.url);
     const pathId = searchParams.get('id');
 
@@ -125,6 +148,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = await createAdminClient();
+
+    // 获取用户的profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', authResult.payload.sub)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Profile lookup error:', profileError);
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
+
     const { error } = await supabase
       .from('learning_paths')
       .delete()

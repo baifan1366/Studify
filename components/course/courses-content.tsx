@@ -8,6 +8,7 @@ import { useEnrolledCoursesByUserId } from '@/hooks/course/use-enrolled-courses'
 import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
 import { useUser } from '@/hooks/profile/use-user';
 import { usePointsData, useRedeemCourse } from '@/hooks/profile/use-learning-stats';
+import { useProfileCurrency, useUpdateProfileCurrency, getSupportedCurrencies as getProfileSupportedCurrencies, getCurrencySymbol } from '@/hooks/profile/use-profile-currency';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,8 @@ export default function CoursesContent() {
   const { data: enrolledCourses } = useEnrolledCoursesByUserId(userId as number);
   const { data: currencies, isLoading: currenciesLoading } = useCurrencies();
   const { data: pointsData } = usePointsData();
+  const { data: profileCurrency, isLoading: profileCurrencyLoading } = useProfileCurrency();
+  const updateProfileCurrency = useUpdateProfileCurrency();
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
   const redeemCourse = useRedeemCourse();
@@ -37,25 +40,13 @@ export default function CoursesContent() {
   const [isRedeemingNow, setIsRedeemingNow] = useState(false);
   const t = useTranslations('CoursesContent');
   const locale = useLocale();
-  const [currency, setCurrency] = useState('MYR');
+  
+  // Use profile currency or fallback to MYR
+  const currency = profileCurrency?.currency || 'MYR';
 
-  // Initialize currency from localStorage on client side
-  useEffect(() => {
-    const savedCurrency = localStorage.getItem('preferred-currency');
-    if (savedCurrency) {
-      setCurrency(savedCurrency);
-    }
-  }, []);
-
-  // Handle currency change with persistence and feedback
+  // Handle currency change with profile update
   const handleCurrencyChange = (newCurrency: string) => {
-    setCurrency(newCurrency);
-    localStorage.setItem('preferred-currency', newCurrency);
-    toast({
-      title: t('currency_updated'),
-      description: t('currency_changed_to', { currency: newCurrency }),
-      duration: 2000,
-    });
+    updateProfileCurrency.mutate({ currency: newCurrency });
   };
   const router = useRouter();
 
@@ -293,38 +284,6 @@ export default function CoursesContent() {
         <p className="text-lg text-black/70 mb-8 dark:text-white/70">
           {t('find_your_next_learning_adventure_from_our_curated_collection')}
         </p>
-
-        {/* Currency Selector */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-2 min-w-[120px]">
-              <span className="mr-2">💱</span>
-              {currency}
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('change_currency')}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {currencies && getSupportedCurrencies(currencies).map((curr) => (
-              <DropdownMenuItem 
-                key={curr.code}
-                onClick={() => handleCurrencyChange(curr.code)}
-                className={`flex items-center justify-between ${
-                  currency === curr.code ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-sm">{curr.symbol}</span>
-                  <span>{curr.code}</span>
-                </span>
-                {currency === curr.code && (
-                  <span className="text-blue-500 text-sm">✓</span>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       {/* Filter Tabs */}

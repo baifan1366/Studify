@@ -141,7 +141,7 @@ export default function GroupDetailContent({
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       <UserPlus className="w-4 h-4 mr-2" />
-                      {isJoining ? "Joining..." : "Request to Join"}
+                      {isJoining ? t('joining') : t('request_to_join')}
                     </Button>
                   </CardContent>
                 </Card>
@@ -198,7 +198,7 @@ export default function GroupDetailContent({
                         {group.name}
                       </CardTitle>
                       <CardDescription className="text-gray-300 mt-2 text-base">
-                        {group.description || "No description available"}
+                        {group.description || t('no_description_available')}
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export default function GroupDetailContent({
                               className="border-red-400 text-red-400 hover:bg-red-400/10"
                             >
                               <UserMinus className="w-4 h-4 mr-1" />
-                              {isLeaving ? "Leaving..." : "Leave"}
+                              {isLeaving ? t('leaving') : t('leave')}
                             </Button>
                           )}
                         </div>
@@ -266,7 +266,7 @@ export default function GroupDetailContent({
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                           <UserPlus className="w-4 h-4 mr-1" />
-                          {isJoining ? "Joining..." : "Join Group"}
+                          {isJoining ? t('joining') : t('join_group')}
                         </Button>
                       )}
                     </div>

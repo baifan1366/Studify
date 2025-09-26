@@ -37,21 +37,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate lessonId is a number (internal ID)
-    if (typeof lessonId !== 'number') {
+    // Get lesson details - support both public_id (UUID) and internal id (number)
+    let lesson;
+    let lessonError;
+    
+    if (typeof lessonId === 'string' && lessonId.includes('-')) {
+      // It's a UUID (public_id)
+      const result = await supabase
+        .from('course_lesson')
+        .select('*, course!inner(*)')
+        .eq('public_id', lessonId)
+        .eq('is_deleted', false)
+        .single();
+      lesson = result.data;
+      lessonError = result.error;
+    } else if (typeof lessonId === 'number') {
+      // It's a number (internal id)
+      const result = await supabase
+        .from('course_lesson')
+        .select('*, course!inner(*)')
+        .eq('id', lessonId)
+        .eq('is_deleted', false)
+        .single();
+      lesson = result.data;
+      lessonError = result.error;
+    } else {
       return NextResponse.json(
-        { error: 'Invalid lesson ID - must be a number' },
+        { error: 'Invalid lesson ID format' },
         { status: 400 }
       );
     }
-
-    // Get lesson details using internal ID
-    const { data: lesson, error: lessonError } = await supabase
-      .from('course_lesson')
-      .select('*, course!inner(*)')
-      .eq('id', lessonId)
-      .eq('is_deleted', false)
-      .single();
 
     if (lessonError || !lesson) {
       return NextResponse.json(
@@ -170,20 +185,37 @@ export async function GET(request: NextRequest) {
     }
 
     if (lessonIdParam) {
-      const lessonId = parseInt(lessonIdParam);
-      if (isNaN(lessonId)) {
-        return NextResponse.json(
-          { error: 'Invalid lesson ID - must be a number' },
-          { status: 400 }
-        );
-      }
+      // Check if lessonIdParam is a UUID (public_id) or number (internal id)
+      let lesson;
+      let lessonError;
       
-      // Get the lesson info using internal ID
-      const { data: lesson, error: lessonError } = await supabase
-        .from('course_lesson')
-        .select('id, public_id, title, course_id')
-        .eq('id', lessonId)
-        .single();
+      if (lessonIdParam.includes('-')) {
+        // It's a UUID (public_id)
+        const result = await supabase
+          .from('course_lesson')
+          .select('id, public_id, title, course_id')
+          .eq('public_id', lessonIdParam)
+          .single();
+        lesson = result.data;
+        lessonError = result.error;
+      } else {
+        // It's a number (internal id)
+        const lessonId = parseInt(lessonIdParam);
+        if (isNaN(lessonId)) {
+          return NextResponse.json(
+            { error: 'Invalid lesson ID format' },
+            { status: 400 }
+          );
+        }
+        
+        const result = await supabase
+          .from('course_lesson')
+          .select('id, public_id, title, course_id')
+          .eq('id', lessonId)
+          .single();
+        lesson = result.data;
+        lessonError = result.error;
+      }
 
       if (lessonError) {
         console.error('❌ Lesson lookup error:', lessonError);
@@ -194,7 +226,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (!lesson) {
-        console.error('❌ No lesson found for public_id:', lessonId);
+        console.error('❌ No lesson found for public_id:', lessonIdParam);
         return NextResponse.json(
           { error: 'Lesson not found' },
           { status: 404 }

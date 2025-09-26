@@ -1,45 +1,81 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/server";
 import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(_: Request, { params }: { params: Promise<{ lessonId: string }> }) {
   try {
+    console.log('[TutorQuiz] Starting lesson-specific quiz fetch request');
+    
     const authResult = await authorize('tutor');
     if (authResult instanceof NextResponse) {
+      console.log('[TutorQuiz] Authorization failed');
       return authResult;
     }
     
-    const client = await createServerClient();
+    const supabase = await createClient();
     const { lessonId } = await params;
-    const { data: { user } } = await client.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
+      console.log('[TutorQuiz] No authenticated user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = user.id;
+    console.log('[TutorQuiz] User authenticated:', user.id, 'for lesson:', lessonId);
 
-    const { data: questions, error: questionsError } = await client
-      .from('course_quiz_question')
-      .select('*')
-      .eq("user_id", userId)
-      .eq("lesson_id", lessonId)
-      .eq('is_deleted', false)
-      .order('position', { ascending: true });
+    // Get user's profile ID first
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
 
-    if (questionsError) {
+    if (profileError) {
+      console.error('[TutorQuiz] Failed to fetch user profile:', profileError);
       return NextResponse.json(
-        { error: 'Failed to fetch quiz questions' },
+        { error: 'Failed to fetch user profile' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(questions);
+    const profileId = profile.id;
+    console.log('[TutorQuiz] User profile ID:', profileId);
+
+    // Verify lesson ownership and fetch questions
+    const { data: questions, error: questionsError } = await supabase
+      .from('course_quiz_question')
+      .select(`
+        *,
+        course_lesson!inner(
+          id,
+          title,
+          course!inner(
+            id,
+            title,
+            owner_id
+          )
+        )
+      `)
+      .eq('lesson_id', lessonId)
+      .eq('course_lesson.course.owner_id', profileId)
+      .eq('is_deleted', false)
+      .order('position', { ascending: true });
+
+    if (questionsError) {
+      console.error('[TutorQuiz] Database error fetching questions:', questionsError);
+      return NextResponse.json(
+        { error: 'Failed to fetch quiz questions: ' + questionsError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log('[TutorQuiz] Successfully fetched', questions?.length || 0, 'quiz questions for lesson', lessonId);
+    return NextResponse.json(questions || []);
 
   } catch (error) {
-    console.error('Quiz fetch error:', error);
+    console.error('[TutorQuiz] Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error: ' + (error as Error).message },
       { status: 500 }
     );
   }
@@ -47,27 +83,71 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
 
 export async function POST(req: Request, { params }: { params: Promise<{ lessonId: string }> }) {
     try {
+        console.log('[TutorQuiz] Starting quiz creation request');
+        
         const authResult = await authorize('tutor');
         if (authResult instanceof NextResponse) {
+            console.log('[TutorQuiz] Authorization failed');
             return authResult;
         }
         
-        const client = await createServerClient();
+        const supabase = await createClient();
         const { lessonId } = await params;
-        const { data: { user } } = await client.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
+            console.log('[TutorQuiz] No authenticated user found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const userId = user.id;
+        console.log('[TutorQuiz] User authenticated:', user.id, 'creating quiz for lesson:', lessonId);
+
+        // Get user's profile ID
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+        if (profileError) {
+            console.error('[TutorQuiz] Failed to fetch user profile:', profileError);
+            return NextResponse.json(
+                { error: 'Failed to fetch user profile' },
+                { status: 500 }
+            );
+        }
+
+        const profileId = profile.id;
         const body = await req.json();
     
         if (!body.lesson_id) {
             return NextResponse.json({ error: "lesson_id is required" }, { status: 422 });
         }
+        
+        // Verify lesson ownership before creating quiz
+        const { data: lesson, error: lessonError } = await supabase
+            .from('course_lesson')
+            .select(`
+                id,
+                course!inner(
+                    id,
+                    owner_id
+                )
+            `)
+            .eq('id', lessonId)
+            .eq('course.owner_id', profileId)
+            .single();
+        
+        if (lessonError || !lesson) {
+            console.error('[TutorQuiz] Lesson ownership verification failed:', lessonError);
+            return NextResponse.json(
+                { error: 'Lesson not found or access denied' },
+                { status: 403 }
+            );
+        }
   
         const payload = {
+            user_id: profileId,
             question_text: body.question_text,
             question_type: body.question_type,
             options: body.options,
@@ -80,7 +160,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
             updated_at: new Date().toISOString(),
             is_deleted: false,
             lesson_id: lessonId,
-            user_id: userId,
         };
     
         if (!payload.question_text) {
@@ -91,18 +170,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
             return NextResponse.json({ error: "question_type is required" }, { status: 422 });
         }
     
-        const { data, error } = await client
+        const { data, error } = await supabase
             .from("course_quiz_question")
             .insert([payload])
             .select("*")
             .single();
     
         if (error) {
+            console.error('[TutorQuiz] Failed to create quiz question:', error);
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
-  
-      return NextResponse.json({ data }, { status: 201 });
+        
+        console.log('[TutorQuiz] Successfully created quiz question:', data.id);
+        return NextResponse.json({ data }, { status: 201 });
     } catch (e: any) {
-      return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+        console.error('[TutorQuiz] Unexpected error in POST:', e);
+        return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
     }
 }

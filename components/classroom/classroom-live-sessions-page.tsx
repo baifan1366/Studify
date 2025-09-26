@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
 import { 
   ArrowLeft, 
   Plus, 
@@ -43,6 +45,8 @@ interface ClassroomLiveSessionsPageProps {
 export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessionsPageProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('ClassroomLiveSessions');
+  const { data: currentUser } = useUser();
   const [classroom, setClassroom] = useState<any>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -67,7 +71,11 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    router.push(`/classroom/${classroomSlug}`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}`
+      : `/classroom/${classroomSlug}`;
+    router.push(route);
   };
 
   const [activeSession, setActiveSession] = useState<any>(null);
@@ -96,8 +104,11 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         description: `Redirecting to "${session.title}"...`,
       });
 
-      // Redirect to live session room URL
-      const roomUrl = `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
+      // Redirect to live session room URL with role-based routing
+      const isTutor = currentUser?.role === 'tutor';
+      const roomUrl = isTutor 
+        ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
+        : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
       console.log('🔗 [LiveSessionsPage] Redirecting to room URL:', roomUrl);
       router.push(roomUrl);
       

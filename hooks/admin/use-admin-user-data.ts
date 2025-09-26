@@ -5,13 +5,22 @@ import { apiGet, apiSend } from "@/lib/api-config";
 
 // User profile data with additional admin info
 export interface AdminUserProfile {
-  id: string;
-  email: string;
+  id: number; // profiles table primary key
+  public_id: string; // public UUID
+  user_id: string; // auth.users UUID reference
+  display_name?: string;
   full_name?: string;
+  email: string;
   role: 'student' | 'tutor' | 'admin';
   status: 'active' | 'inactive' | 'banned' | 'pending';
   created_at: string;
   updated_at: string;
+  banned_reason?: string;
+  banned_at?: string;
+  points?: number;
+  onboarded?: boolean;
+  profile_completion?: number;
+  last_login?: string;
   avatar_url?: string;
   phone?: string;
   bio?: string;

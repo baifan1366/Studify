@@ -90,54 +90,12 @@ const defaultMenuSections: MenuSection[] = [
         icon: Bell,
         path: "/notifications",
       },
+      { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
   },
   {
     title: "Learning",
     items: [
-      {
-        id: "classroom",
-        label: "Classroom",
-        icon: Presentation,
-        subItems: [
-          {
-            id: "my-classrooms",
-            label: "My Classrooms",
-            icon: BookOpen,
-            path: "/classroom",
-          },
-          {
-            id: "create-classroom",
-            label: "Create Classroom",
-            icon: PlusCircle,
-            path: "/classroom/create",
-          },
-          {
-            id: "join-classroom",
-            label: "Join Classroom",
-            icon: UserPlus,
-            path: "/classroom/join",
-          },
-          {
-            id: "assignments",
-            label: "Assignments",
-            icon: ClipboardList,
-            path: "/classroom/assignments",
-          },
-          {
-            id: "live-sessions",
-            label: "Live Sessions",
-            icon: Video,
-            path: "/classroom/live-sessions",
-          },
-          {
-            id: "mistake-book",
-            label: "Mistake Book",
-            icon: FileQuestion,
-            path: "/classroom/mistake-book",
-          },
-        ],
-      },
       {
         id: "courses",
         label: "Courses",
@@ -156,30 +114,56 @@ const defaultMenuSections: MenuSection[] = [
             path: "/my/courses",
           },
           {
-            id: "favorites",
-            label: "Favorites",
-            icon: Heart,
-            path: "/courses/favorites",
+            id: "learning-progress",
+            label: "Learning Progress",
+            icon: TrendingUp,
+            path: "/learning-progress",
+          },
+        // {
+        //   id: "favorites",
+        //   label: "Favorites",
+        //   icon: Heart,
+        //   path: "/courses/favorites",
+        // },
+        ],
+      },
+      // {
+      //   id: "learning-path",
+      //   label: "Learning Path",
+      //   icon: Route,
+      //   path: "/learning-path",
+      // },
+      {
+        id: "classroom",
+        label: "Classroom",
+        icon: Presentation,
+        subItems: [
+          {
+            id: "my-classrooms",
+            label: "My Classrooms",
+            icon: BookOpen,
+            path: "/classroom",
           },
           {
-            id: "progress",
-            label: "Progress",
-            icon: TrendingUp,
-            path: "/courses/progress",
+            id: "create-classroom",
+            label: "Create Classroom",
+            icon: PlusCircle,
+            path: "/classroom/create",
+          },
+          // {
+          //   id: "live-sessions",
+          //   label: "Live Sessions",
+          //   icon: Video,
+          //   path: "/classroom/live-sessions",
+          // },
+          {
+            id: "mistake-book",
+            label: "Mistake Book",
+            icon: FileQuestion,
+            path: "/classroom/mistake-book",
           },
         ],
       },
-      {
-        id: "learning-path",
-        label: "Learning Path",
-        icon: Route,
-        path: "/learning-path",
-      },
-    ],
-  },
-  {
-    title: "Community",
-    items: [
       {
         id: "community",
         label: "Community",
@@ -200,9 +184,8 @@ const defaultMenuSections: MenuSection[] = [
           },
         ],
       },
-      { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
     ],
-  },
+  }
 ];
 
 export default function AnimatedSidebar({
@@ -296,8 +279,8 @@ export default function AnimatedSidebar({
         return t("my_courses_label");
       case "favorites":
         return t("favorites_label");
-      case "progress":
-        return t("progress_label");
+      case "learning-progress":
+        return t("learning_progress_label");
       case "learning-path":
         return t("learning_path_label");
       case "community":

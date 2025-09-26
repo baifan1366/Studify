@@ -74,12 +74,26 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
   }, [isOpen, onClose, triggerRef]);
 
   const handleProfileClick = () => {
-    router.push('/profile');
+    const userRole = profile?.role || 'student';
+    if (userRole === 'admin') {
+      router.push('/admin/profile');
+    } else if (userRole === 'tutor') {
+      router.push('/tutor/profile');
+    } else {
+      router.push('/profile');
+    }
     onClose();
   };
 
   const handleSettingsClick = () => {
-    router.push('/settings');
+    const userRole = profile?.role || 'student';
+    if (userRole === 'admin') {
+      router.push('/admin/settings');
+    } else if (userRole === 'tutor') {
+      router.push('/tutor/settings');
+    } else {
+      router.push('/settings');
+    }
     onClose();
   };
 
@@ -121,7 +135,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
       {isOpen && (
         <motion.div
           ref={popoverRef}
-          className="absolute top-full right-0 mt-2 w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-600/30 overflow-hidden z-50"
+          className="absolute top-full right-0 mt-2 w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-600/30 overflow-hidden z-[9999]"
           initial={{ opacity: 0, y: -10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -319,13 +333,13 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                               </div>
                             )}
                             {!account.isCurrent && allAccounts.length > 1 && (
-                              <button
+                              <div
                                 onClick={(e) => handleRemoveAccount(account.id, e)}
-                                className="w-5 h-5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                className="w-5 h-5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer"
                                 title="Remove account"
                               >
                                 <X size={12} className="text-red-500" />
-                              </button>
+                              </div>
                             )}
                           </div>
                         </button>

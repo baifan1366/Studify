@@ -121,21 +121,33 @@ export const useUpdateQuiz = (slug: string) => {
   });
 };
 
-// // ✅ 删除 quiz
-// export const useDeleteQuiz = (slug: string) => {
-//   const queryClient = useQueryClient();
+// ✅ 删除 quiz
+export const useDeleteQuiz = (slug: string) => {
+  const queryClient = useQueryClient();
 
-//   return useMutation({
-//     mutationFn: () =>
-//       apiSend({
-//         url: QUIZ_API.quizDetail(slug),
-//         method: "DELETE",
-//       }),
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["communityQuizzes"] });
-//     },
-//   });
-// };
+  return useMutation({
+    mutationFn: () =>
+      apiSend<{ message: string; quiz_title: string; details?: string; code?: string }>({
+        url: QUIZ_API.quizDetail(slug),
+        method: "DELETE",
+      }),
+    onSuccess: (data) => {
+      console.log("Quiz deleted successfully:", data);
+      // 清除相关缓存
+      queryClient.invalidateQueries({ queryKey: ["communityQuizzes"] });
+      queryClient.invalidateQueries({ queryKey: ["communityQuiz", slug] });
+      queryClient.removeQueries({ queryKey: ["communityQuiz", slug] });
+    },
+    onError: (error: any) => {
+      console.error("Delete quiz error:", {
+        error,
+        slug,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+    },
+  });
+};
 
 // // ✅ 点赞 quiz
 // export const useLikeQuiz = (slug: string) => {

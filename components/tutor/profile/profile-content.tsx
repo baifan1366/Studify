@@ -1,26 +1,59 @@
 "use client";
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { User, Camera, Edit3, Save, X, Mail, Calendar, MapPin, Award, BookOpen, Users, Settings } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile, useUpdateProfile } from '@/hooks/profile/use-profile';
+import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
+import { usePurchaseData, formatCurrency as formatPurchaseCurrency, formatPurchaseDate } from '@/hooks/profile/use-purchase-data';
+import { useProfileCurrency, useUpdateProfileCurrency, getSupportedCurrencies as getProfileSupportedCurrencies } from '@/hooks/profile/use-profile-currency';
+import { useEarningsData, formatCurrency as formatEarningsCurrency, formatTransactionDate, getTransactionDisplayName } from '@/hooks/profile/use-earnings-data';
+import { useStripeConnectAccount, useCreateStripeConnectAccount, useGetOnboardingLink, useGetDashboardLink, isAccountFullySetup, getAccountStatusText, getAccountStatusColor } from '@/hooks/tutor/use-stripe-connect';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { User, Camera, Users, ChevronRight, Loader2, UserCircle, Check, X, TrendingUp, Settings, DollarSign, BarChart2, ArrowDownToLine, CreditCard, FileText, Edit3, Save, Mail, MapPin, Award, BookOpen } from 'lucide-react';
 import Image from 'next/image';
 
 export default function ProfileContent() {
   const t = useTranslations('ProfileContent');
+  const tProfile = useTranslations('UserProfile');
+  const router = useRouter();
+  const pathname = usePathname();
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
   const updateProfileMutation = useUpdateProfile(userData?.id || '');
+  const { data: earningsData, isLoading: earningsLoading } = useEarningsData();
+  const { data: profileCurrency } = useProfileCurrency();
+  const updateProfileCurrency = useUpdateProfileCurrency();
+  const {
+    storedAccounts,
+    currentAccountId,
+    switchToAccount,
+    removeAccount,
+    addAccount,
+    isSwitching,
+    switchError
+  } = useAccountSwitcher();
   const { toast } = useToast();
+  
+  // Stripe Connect hooks
+  const { data: stripeConnectData, isLoading: stripeLoading } = useStripeConnectAccount();
+  const createStripeAccount = useCreateStripeConnectAccount();
+  const getOnboardingLink = useGetOnboardingLink();
+  const getDashboardLink = useGetDashboardLink();
+  
   const [isEditing, setIsEditing] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [editForm, setEditForm] = useState({
     display_name: '',
     full_name: '',
     bio: '',
     timezone: '',
+    currency: 'MYR',
     avatar_url: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -45,10 +78,11 @@ export default function ProfileContent() {
         full_name: (profile as any)?.full_name || '',
         bio: (profile as any)?.bio || '',
         timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur',
+        currency: (profile as any)?.currency || profileCurrency?.currency || 'MYR',
         avatar_url: profile.avatar_url || ''
       });
     }
-  }, [profile]);
+  }, [profile, profileCurrency]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -116,6 +150,7 @@ export default function ProfileContent() {
         full_name: (profile as any)?.full_name || '',
         bio: (profile as any)?.bio || '',
         timezone: (profile as any)?.timezone || 'Asia/Kuala_Lumpur',
+        currency: (profile as any)?.currency || profileCurrency?.currency || 'MYR',
         avatar_url: profile.avatar_url || ''
       });
     }
@@ -166,9 +201,79 @@ export default function ProfileContent() {
     input.click();
   };
 
+  // Quick Actions handlers - Tutor specific
+  const handleNavigateToCourses = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    router.push(`/${locale}/tutor/courses`);
+  };
+
+  const handleNavigateToCommunity = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    router.push(`/${locale}/community`);
+  };
+
+  const handleNavigateToDashboard = () => {
+    const locale = pathname.split('/')[1] || 'en';
+    router.push(`/${locale}/tutor/dashboard`);
+  };
+
+  // Account switcher handlers
+  const handleAccountSwitch = () => {
+    setShowAccountSwitcher(!showAccountSwitcher);
+  };
+
+  const handleSwitchToAccount = (accountId: string) => {
+    if (accountId === currentAccountId || isSwitching) {
+      return;
+    }
+    
+    const targetAccount = storedAccounts.find(acc => acc.id === accountId);
+    if (targetAccount) {
+      switchToAccount(accountId, targetAccount.email);
+    }
+  };
+
+  const handleRemoveAccount = (accountId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (accountId !== currentAccountId) {
+      removeAccount(accountId);
+    }
+  };
+
+  // Stripe Connect handlers
+  const handleCreateStripeAccount = () => {
+    const currentUrl = window.location.origin + pathname;
+    createStripeAccount.mutate({
+      return_url: `${currentUrl}?stripe=complete`,
+      refresh_url: `${currentUrl}?stripe=refresh`,
+    });
+  };
+
+  const handleCompleteOnboarding = () => {
+    const currentUrl = window.location.origin + pathname;
+    getOnboardingLink.mutate({
+      return_url: `${currentUrl}?stripe=complete`,
+      refresh_url: `${currentUrl}?stripe=refresh`,
+    });
+  };
+
+  const handleOpenStripeDashboard = () => {
+    getDashboardLink.mutate();
+  };
+
+  // Get accounts formatted for display
+  const allAccounts = storedAccounts.map(account => ({
+    id: account.id,
+    email: account.email,
+    name: account.display_name || account.email.split('@')[0],
+    avatar: account.avatar_url || '',
+    isCurrent: account.id === currentAccountId,
+    role: account.role
+  }));
+
   return (
-      <div className="min-h-screen p-6 pb-32 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen p-6 pb-32 overflow-y-auto">
+      <div className="max-w-6xl mx-auto">
           {/* Header */}
           <motion.div
             className="mb-8"
@@ -252,8 +357,185 @@ export default function ProfileContent() {
                       {profile.role}
                     </span>
                   )}
+
+                  {/* Tutor Stats */}
+                  <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-white">{earningsData?.stats?.students_count || 0}</div>
+                      <div className="text-xs text-white/70">{t('students_taught')}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-white">{earningsData?.stats?.courses_sold || 0}</div>
+                      <div className="text-xs text-white/70">{t('courses_created')}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-white">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.total_earnings_cents, 'MYR').replace('RM ', '') : '0'}
+                      </div>
+                      <div className="text-xs text-white/70">{t('total_earnings')}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {/* Account Switcher Card */}
+              {storedAccounts.length > 1 && (
+                <div className="bg-gradient-to-br from-indigo-600/20 via-blue-600/20 to-cyan-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mt-6 overflow-hidden">
+                  {/* Animated Background Elements */}
+                  <motion.div
+                    className="absolute top-4 right-4 w-12 h-12 sm:w-16 sm:h-16 bg-indigo-500/30 rounded-full blur-xl pointer-events-none"
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      opacity: [0.3, 0.5, 0.3],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+
+                  <div className="relative z-10">
+                    <motion.button
+                      onClick={handleAccountSwitch}
+                      className="w-full flex items-center justify-between p-3 hover:bg-white/10 rounded-lg transition-all duration-200 group"
+                      whileHover={{ x: 2 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                          <Users size={18} className="text-white" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="font-semibold text-white text-sm sm:text-base">{tProfile('switch_account')}</span>
+                          <span className="text-xs text-white/70">
+                            {allAccounts.length} {tProfile('accounts').toLowerCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <motion.div
+                        animate={{ rotate: showAccountSwitcher ? 90 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronRight size={16} className="text-white/70 group-hover:text-white/90 transition-colors" />
+                      </motion.div>
+                    </motion.button>
+
+                    {/* Account List Dropdown */}
+                    <AnimatePresence>
+                      {showAccountSwitcher && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          className="overflow-hidden mt-4"
+                        >
+                          <div className="space-y-2">
+                            {/* Show switching loading state */}
+                            {isSwitching && (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 size={20} className="text-blue-400 animate-spin" />
+                                <span className="ml-2 text-sm text-white/70">
+                                  {tProfile('switching_account')}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Show error if any */}
+                            {switchError && (
+                              <div className="mb-3 p-3 bg-red-500/20 border border-red-400/30 rounded-lg">
+                                <p className="text-xs text-red-300">{switchError}</p>
+                              </div>
+                            )}
+
+                            {allAccounts.map((account) => (
+                              <motion.div
+                                key={account.id}
+                                className="relative group"
+                                whileHover={{ x: 2, scale: 1.01 }}
+                              >
+                                <button
+                                  onClick={() => handleSwitchToAccount(account.id)}
+                                  disabled={isSwitching}
+                                  className={`w-full flex items-center space-x-3 p-3 rounded-lg backdrop-blur-sm transition-all duration-200 ${
+                                    account.isCurrent 
+                                      ? 'bg-gradient-to-r from-emerald-500/30 to-teal-500/30 ring-2 ring-emerald-400/50' 
+                                      : 'hover:bg-white/10'
+                                  } ${isSwitching ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                  <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center ring-2 ring-white/30">
+                                    {account.avatar ? (
+                                      <Image
+                                        src={account.avatar}
+                                        alt={account.name}
+                                        width={40}
+                                        height={40}
+                                        className="w-full h-full object-cover rounded-full"
+                                      />
+                                    ) : (
+                                      <UserCircle size={20} className="text-white/70" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="text-sm font-semibold text-white truncate">
+                                        {account.name}
+                                      </div>
+                                      {account.role && (
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                          account.role === 'admin' 
+                                            ? 'bg-purple-500/30 text-purple-200'
+                                            : account.role === 'tutor'
+                                            ? 'bg-blue-500/30 text-blue-200'
+                                            : 'bg-gray-500/30 text-gray-200'
+                                        }`}>
+                                          {account.role}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-white/60 truncate">
+                                      {account.email}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    {account.isCurrent && (
+                                      <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                        <Check size={12} className="text-white" />
+                                      </div>
+                                    )}
+                                    {!account.isCurrent && allAccounts.length > 1 && (
+                                      <button
+                                        onClick={(e) => handleRemoveAccount(account.id, e)}
+                                        className="w-5 h-5 rounded-full hover:bg-red-500/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                        title={tProfile('remove_account')}
+                                      >
+                                        <X size={12} className="text-red-400" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </button>
+                              </motion.div>
+                            ))}
+                            
+                            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent my-3"></div>
+                            <motion.button
+                              onClick={addAccount}
+                              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gradient-to-r hover:from-blue-500/20 hover:to-cyan-500/20 transition-all duration-200 text-blue-300 group"
+                              whileHover={{ x: 2, scale: 1.01 }}
+                            >
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                                <User size={16} className="text-white" />
+                              </div>
+                              <span className="text-sm font-semibold">{tProfile('add_account')}</span>
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
             </motion.div>
 
             {/* Main Content */}
@@ -396,6 +678,35 @@ export default function ProfileContent() {
                         </div>
                       )}
                     </div>
+
+                    {/* Currency */}
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">
+                        <DollarSign size={16} className="inline mr-1" />
+                        {t('preferred_currency')}
+                      </label>
+                      {isEditing ? (
+                        <select
+                          value={editForm.currency}
+                          onChange={(e) => setEditForm({...editForm, currency: e.target.value})}
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {getProfileSupportedCurrencies().map((curr) => (
+                            <option key={curr.code} value={curr.code}>
+                              {curr.symbol} {curr.name} ({curr.code})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white">
+                          {(() => {
+                            const currencyCode = (profile as any)?.currency || profileCurrency?.currency || 'MYR';
+                            const currency = getProfileSupportedCurrencies().find(c => c.code === currencyCode);
+                            return currency ? `${currency.symbol} ${currency.name} (${currency.code})` : currencyCode;
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Bio */}
@@ -440,14 +751,14 @@ export default function ProfileContent() {
                   <div className="z-10">
                     <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                       <Award size={20} />
-                      {t('interests')} {/* You may need to add this to translations */}
+                      {t('interests')}
                     </h3>
 
                     <div className="space-y-4">
                       {broadField && (
                         <div>
                           <label className="block text-sm font-medium text-white/80 mb-2">
-                            {t('main_interest')} {/* You may need to add this to translations */}
+                            {t('main_interest')}
                           </label>
                           <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
                             <span className="inline-block px-3 py-1 bg-blue-500/30 rounded-full text-sm font-medium text-white">
@@ -460,7 +771,7 @@ export default function ProfileContent() {
                       {subFields.length > 0 && (
                         <div>
                           <label className="block text-sm font-medium text-white/80 mb-2">
-                            {t('specific_interests')} {/* You may need to add this to translations */}
+                            {t('specific_interests')}
                           </label>
                           <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg">
                             <div className="flex flex-wrap gap-2">
@@ -480,6 +791,261 @@ export default function ProfileContent() {
                   </div>
                 </div>
               )}
+
+              {/* Earnings & Cashflow Section */}
+              <div className="bg-gradient-to-br from-yellow-600/20 via-orange-600/20 to-amber-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-6 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <DollarSign size={18} className="sm:w-5 sm:h-5" />
+                    {t('earnings_cashflow')}
+                  </h3>
+
+                  {/* Earnings Stats */}
+                  <div className="stats stats-horizontal shadow mb-6 bg-white/10 backdrop-blur-sm">
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('total_earnings')}</div>
+                      <div className="stat-value text-yellow-400">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.total_earnings_cents, earningsData.recent_transactions?.[0]?.currency || 'MYR') : 'RM 0'}
+                      </div>
+                      <div className="stat-desc text-green-400">
+                        ↗︎ +{earningsData?.stats?.growth_percentage || 0}% this month
+                      </div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('this_month')}</div>
+                      <div className="stat-value text-orange-400">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.monthly_earnings_cents, earningsData.recent_transactions?.[0]?.currency || 'MYR') : 'RM 0'}
+                      </div>
+                      <div className="stat-desc text-white/60">
+                        From {earningsData?.stats?.students_count || 0} students
+                      </div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title text-white/70">{t('pending_payout')}</div>
+                      <div className="stat-value text-amber-400">
+                        {earningsData?.stats ? formatEarningsCurrency(earningsData.stats.pending_payout_cents, earningsData.recent_transactions?.[0]?.currency || 'MYR') : 'RM 0'}
+                      </div>
+                      <div className="stat-desc text-white/60">To be released Dec 1</div>
+                    </div>
+                  </div>
+
+                  {/* Monthly Breakdown */}
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <TrendingUp size={16} />
+                      {t('monthly_breakdown')}
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {earningsLoading ? (
+                        <div className="col-span-full flex justify-center py-8">
+                          <Loader2 size={24} className="animate-spin text-white/60" />
+                        </div>
+                      ) : earningsData?.monthly_breakdown?.length ? (
+                        earningsData.monthly_breakdown.map((monthData, index) => (
+                          <div key={`${monthData.month}-${monthData.year}`} className="card bg-white/5 border border-white/10">
+                            <div className="card-body p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="text-white/70 text-sm">{monthData.month} {monthData.year}</div>
+                                  <div className={`text-2xl font-bold ${
+                                    index === 0 ? 'text-yellow-400' : 
+                                    index === 1 ? 'text-orange-400' : 'text-amber-400'
+                                  }`}>
+                                    {formatEarningsCurrency(monthData.total_cents, 'MYR')}
+                                  </div>
+                                </div>
+                                <div className={`badge ${monthData.status === 'current' ? 'badge-success' : 'badge-ghost'}`}>
+                                  {monthData.status === 'current' ? t('current_month') : t('paid_month')}
+                                </div>
+                              </div>
+                              <div className="text-white/60 text-xs mt-2">
+                                {t('course_sales')}: {formatEarningsCurrency(monthData.course_sales_cents, 'MYR')}<br/>
+                                {t('tutoring_income')}: {formatEarningsCurrency(monthData.tutoring_cents, 'MYR')}<br/>
+                                {t('commission')}: {formatEarningsCurrency(monthData.commission_cents, 'MYR')}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full text-center py-8 text-white/60">
+                          No earnings data available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recent Transactions */}
+                  <div className="mb-4">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <FileText size={16} />
+                      {t('recent_transactions')}
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      {earningsLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 size={24} className="animate-spin text-white/60" />
+                        </div>
+                      ) : earningsData?.recent_transactions?.length ? (
+                        earningsData.recent_transactions.slice(0, 5).map((transaction) => (
+                          <motion.div
+                            key={transaction.id}
+                            className="group bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-white/20 rounded-xl p-4 transition-all duration-300"
+                            whileHover={{ scale: 1.01, y: -1 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <div className="flex items-center justify-between">
+                              {/* Left side - Transaction info */}
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br flex items-center justify-center ${
+                                  transaction.source_type === 'course_sale' ? 'from-blue-500 to-cyan-500' : 'from-green-500 to-teal-500'
+                                }`}>
+                                  {transaction.source_type === 'course_sale' ? (
+                                    <BookOpen size={20} className="text-white" />
+                                  ) : (
+                                    <Users size={20} className="text-white" />
+                                  )}
+                                </div>
+                                
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="text-white font-semibold text-sm truncate group-hover:text-yellow-400 transition-colors">
+                                    {getTransactionDisplayName(transaction)}
+                                  </h5>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      transaction.source_type === 'course_sale' ? 'bg-blue-500/20 text-blue-300' : 'bg-green-500/20 text-green-300'
+                                    }`}>
+                                      {transaction.source_type === 'course_sale' ? t('course_sale') : t('tutoring_session')}
+                                    </div>
+                                    <span className="text-white/60 text-xs">
+                                      {formatTransactionDate(transaction.created_at)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right side - Amount and status */}
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <div className="text-yellow-400 font-bold text-lg">
+                                    {formatEarningsCurrency(transaction.amount_cents, transaction.currency)}
+                                  </div>
+                                  <div className="text-white/60 text-xs">
+                                    {transaction.currency}
+                                  </div>
+                                </div>
+                                
+                                <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+                                  transaction.status === 'released' ? 'bg-green-500/20 text-green-300' :
+                                  transaction.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                                  'bg-gray-500/20 text-gray-300'
+                                }`}>
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    transaction.status === 'released' ? 'bg-green-400' :
+                                    transaction.status === 'pending' ? 'bg-yellow-400' :
+                                    'bg-gray-400'
+                                  }`} />
+                                  {transaction.status === 'released' ? 'Paid' : 
+                                   transaction.status === 'pending' ? t('status_pending') : 'On Hold'}
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="text-center py-12">
+                          <DollarSign size={48} className="text-white/20 mx-auto mb-4" />
+                          <p className="text-white/60 text-lg">No recent transactions</p>
+                          <p className="text-white/40 text-sm mt-1">Start teaching to earn your first income</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-3">
+                    <motion.button 
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <ArrowDownToLine size={16} />
+                      {t('download_report')}
+                    </motion.button>
+                    <motion.button 
+                      className="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-amber-500/25 flex items-center gap-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <CreditCard size={16} />
+                      {t('payout_settings')}
+                    </motion.button>
+                    <motion.button 
+                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25 flex items-center gap-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <BarChart2 size={16} />
+                      {t('analytics')}
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-gradient-to-br from-gray-600/20 via-slate-600/20 to-zinc-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-4 sm:p-6 mb-8 overflow-hidden">
+                <div className="z-10">
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                    <Settings size={18} className="sm:w-5 sm:h-5" />
+                    {t('quick_actions')}
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {/* Dashboard */}
+                    <motion.button
+                      onClick={handleNavigateToDashboard}
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <TrendingUp size={18} className="sm:w-5 sm:h-5 text-purple-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">Dashboard</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">Teaching Dashboard</div>
+                      </div>
+                    </motion.button>
+
+                    {/* My Courses */}
+                    <motion.button
+                      onClick={handleNavigateToCourses}
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <BookOpen size={18} className="sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">My Courses</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">Teaching Materials</div>
+                      </div>
+                    </motion.button>
+
+                    {/* Community */}
+                    <motion.button
+                      onClick={handleNavigateToCommunity}
+                      className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Users size={18} className="sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{t('community')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('join_groups')}</div>
+                      </div>
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>

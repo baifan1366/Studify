@@ -6,6 +6,7 @@ import { userProfileTool } from './user-profile-tool';
 import { classroomTool } from './classroom-tool';
 import { contentAnalysisTool } from './content-analysis-tool';
 import { recommendationTool } from './recommendation-tool';
+import { quizGenerationTool } from './quiz-generation-tool';
 import { calculatorTool, dateTimeTool, textProcessingTool } from './utility-tools';
 
 // === TOOL REGISTRY ===
@@ -17,6 +18,7 @@ export const AVAILABLE_TOOLS = {
   get_classroom_data: classroomTool,
   analyze_content: contentAnalysisTool,
   recommend_content: recommendationTool,
+  generate_quiz: quizGenerationTool,
   calculate: calculatorTool,
   get_datetime: dateTimeTool,
   process_text: textProcessingTool
@@ -26,6 +28,7 @@ export const AVAILABLE_TOOLS = {
 export const TOOL_CATEGORIES = {
   SEARCH_AND_QA: ['search', 'answer_question'],
   CONTENT_ANALYSIS: ['analyze_content'],
+  CONTENT_GENERATION: ['generate_quiz'],
   DATA_ACCESS: ['get_course_data', 'get_user_profile', 'get_classroom_data'],
   RECOMMENDATIONS: ['recommend_content'],
   UTILITIES: ['calculate', 'get_datetime', 'process_text']
@@ -54,6 +57,7 @@ export {
   classroomTool,
   contentAnalysisTool,
   recommendationTool,
+  quizGenerationTool,
   calculatorTool,
   dateTimeTool,
   textProcessingTool

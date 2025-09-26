@@ -5,7 +5,7 @@ import { notificationService } from '@/lib/notifications/notification-service';
 // GET /api/notifications/settings - Get user notification settings
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 // PUT /api/notifications/settings - Update user notification settings
 export async function PUT(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

@@ -13,6 +13,7 @@ interface ExtendedUser extends User {
     id: string;
     user_id: string;
     display_name?: string;
+    full_name?: string;
     email: string;
     avatar_url?: string;
     role?: string;
@@ -20,6 +21,12 @@ interface ExtendedUser extends User {
     updated_at: string;
     two_factor_enabled?: boolean;
     totp_enabled_at?: string;
+    points?: number;
+    status?: string;
+    timezone?: string;
+    currency?: string;
+    onboarded?: boolean;
+    onboarded_step?: number;
   };
 }
 

@@ -88,7 +88,7 @@ export default function ClassroomHeader({
             <div className="flex items-center gap-3">
               <img 
                 src="/favicon.png" 
-                alt="Studify Logo" 
+                alt={t('logo_alt') || 'Studify Logo'} 
                 className="w-8 h-8 rounded-md"
               />
               <h1 className="text-xl font-bold text-foreground">
@@ -104,7 +104,7 @@ export default function ClassroomHeader({
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
         >
-          <ThemeSwitcher />
+          {/* <ThemeSwitcher /> */}
           <NotificationBell />
 
           {/* Profile Button */}
@@ -112,7 +112,7 @@ export default function ClassroomHeader({
             <motion.button
               ref={profileButtonRef}
               onClick={handleProfileClick}
-              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
+              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -120,7 +120,7 @@ export default function ClassroomHeader({
                 {userAvatar ? (
                   <Image
                     src={userAvatar}
-                    alt="Profile"
+                    alt={t('profile_alt') || 'Profile'}
                     width={32}
                     height={32}
                     className="w-full h-full object-cover rounded-full"

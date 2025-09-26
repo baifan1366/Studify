@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useMessages, useSendMessage, useMarkAsRead } from '@/hooks/chat/use-chat';
+import { useMessages, useSendMessage, useMarkAsRead, useEditMessage, useDeleteMessage, Message } from '@/hooks/chat/use-chat';
 import { useChatUpload } from '@/hooks/chat/use-chat-upload';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -13,11 +13,18 @@ import {
   Download,
   MoreVertical,
   Upload,
-  X
+  X,
+  Save,
+  Trash2,
+  Reply
 } from 'lucide-react';
 import { MessageStatus } from './message-status';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
 import { MessageTimestamp, SeenStatus } from './message-timestamp';
+import { MessageBubble } from './message-bubble';
+import { ProfileModal } from './profile-modal';
+import { ProfileData } from '@/interface/profile-interface';
+import { useProfile } from '@/hooks/profiles/use-profile';
 import { generateTimestampGroups, MessageTimestamp as TimestampData } from '@/utils/chat/timestamp-utils';
 import { useChatNotifications } from '@/hooks/chat/use-chat-notifications';
 import { Button } from '@/components/ui/button';
@@ -43,21 +50,6 @@ export interface ChatAttachment {
   custom_message?: string;
 }
 
-export interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar?: string;
-  timestamp: string;
-  type: 'text' | 'image' | 'file';
-  fileName?: string;
-  fileSize?: string;
-  isFromMe: boolean;
-  status: 'sending' | 'sent' | 'delivered' | 'read';
-  attachment?: ChatAttachment; 
-  attachmentId?: number;
-}
 
 interface ChatPanelProps {
   conversationId: string;
@@ -66,9 +58,19 @@ interface ChatPanelProps {
 export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Profile modal state
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Fetch profile data using the hook
+  const { data: selectedProfile, isLoading: isProfileLoading, error: profileError } = useProfile(selectedUserId);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,8 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   // Use chat hooks
   const { data: messagesData, refetch: refetchMessages } = useMessages(conversationId);
   const sendMessageMutation = useSendMessage();
+  const editMessageMutation = useEditMessage();
+  const deleteMessageMutation = useDeleteMessage();
   const markAsReadMutation = useMarkAsRead();
   const { uploadFile, uploadProgress, isUploading } = useChatUpload();
   const { notifyNewMessage } = useChatNotifications();
@@ -93,6 +97,28 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const handleSendMessage = async () => {
     const trimmedMessage = newMessage.trim();
     
+    // Handle editing mode
+    if (editingMessageId) {
+      if (!trimmedMessage) return;
+      
+      try {
+        await editMessageMutation.mutateAsync({
+          conversationId,
+          messageId: editingMessageId,
+          content: trimmedMessage,
+        });
+        
+        // Exit editing mode
+        setEditingMessageId(null);
+        setEditingContent('');
+        setNewMessage('');
+      } catch (error) {
+        console.error('Failed to edit message:', error);
+      }
+      return;
+    }
+    
+    // Handle normal sending
     if (!trimmedMessage && !selectedFile) return;
 
     try {
@@ -113,6 +139,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
         const messageData = {
           content: trimmedMessage,
           type: 'text' as const,
+          reply_to_id: replyingToMessage ? parseInt(replyingToMessage.id) : undefined,
         };
 
         await sendMessageMutation.mutateAsync({
@@ -121,6 +148,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
         });
         
         setNewMessage('');
+        setReplyingToMessage(null); // Clear reply state
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -131,6 +159,9 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    } else if (e.key === 'Escape' && editingMessageId) {
+      // Cancel editing on Escape
+      handleCancelEdit();
     }
   };
 
@@ -186,6 +217,78 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
     }
   };
 
+  // Handle edit message
+  const handleEditMessage = (message: Message) => {
+    // Don't allow editing deleted messages
+    if (message.isDeleted) {
+      return;
+    }
+    
+    setEditingMessageId(message.id);
+    setEditingContent(message.content);
+    setNewMessage(message.content);
+    // Focus input after state update
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  // Handle delete message
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await deleteMessageMutation.mutateAsync({
+        conversationId,
+        messageId,
+      });
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+    }
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingContent('');
+    setNewMessage('');
+  };
+
+  // Handle reply to message
+  const handleReplyToMessage = (message: Message) => {
+    setReplyingToMessage(message);
+    inputRef.current?.focus();
+  };
+
+  // Cancel reply
+  const handleCancelReply = () => {
+    setReplyingToMessage(null);
+  };
+
+  const handleProfileClick = (senderId: string) => {
+    // Find the message to get the user_id (assuming senderId is actually user_id)
+    const message = messages.find(m => m.senderId === senderId);
+    if (!message) {
+      console.error('Message not found for sender:', senderId);
+      return;
+    }
+    
+    // Set the user ID to fetch profile data
+    setSelectedUserId(senderId);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleSendMessageFromProfile = (profileId: number) => {
+    // The user is already in the chat, so just close the modal
+    setIsProfileModalOpen(false);
+    console.log('Already in chat with user:', profileId);
+  };
+
+  const handleViewFullProfile = (profileId: number) => {
+    // Navigate to full profile page
+    console.log('Navigate to full profile:', profileId);
+    // router.push(`/profile/${profileId}`);
+    setIsProfileModalOpen(false);
+  };
+
   // Convert messages to timestamp format
   const messagesWithTimestamps: TimestampData[] = useMemo(() => {
     return messages.map(msg => ({
@@ -229,93 +332,71 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
 
                 {/* Message */}
                 <div className={cn(
-                  'flex gap-3 mb-4',
+                  'flex gap-3 mb-4 group',
                   message.isFromMe ? 'justify-end' : 'justify-start'
                 )}>
-                  {!message.isFromMe && (
-                    <Avatar className="h-8 w-8 self-end flex-shrink-0">
-                      <AvatarImage src={message.senderAvatar} />
-                      <AvatarFallback className="text-xs">
-                        {message.senderName.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-
-                  <div className="flex flex-col max-w-xs lg:max-w-md">
-                    {!message.isFromMe && (
-                      <span className="text-xs text-muted-foreground mb-1 ml-3">
-                        {message.senderName}
-                      </span>
-                    )}
-
-                    <div
-                      className={cn(
-                        'rounded-lg px-3 py-2 max-w-full',
-                        message.isFromMe
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      )}
-                    >
-                      {/* Render attachment first if available */}
-                      {(message as Message).attachment && (
-                        <div className={message.content && !message.content.startsWith('Shared:') ? 'mb-2' : ''}>
-                          <ChatAttachmentViewer 
-                            attachment={(message as Message).attachment!}
-                            showDownloadButton={true}
-                            compact={false}
-                          />
-                        </div>
-                      )}
+                  <div className="flex items-start gap-2 w-full max-w-xs lg:max-w-md">
+                    {/* Message Bubble */}
+                    <div className={cn(
+                      "flex-1",
+                      editingMessageId === message.id && 'ring-2 ring-yellow-400 rounded-lg'
+                    )}>
+                      <MessageBubble 
+                        message={message} 
+                        className={cn(
+                          timestampGroup?.showTimestamp && "mb-2"
+                        )}
+                        onReply={handleReplyToMessage}
+                        onProfileClick={handleProfileClick}
+                      />
                       
-                      {/* Render message content if it's not a default attachment message */}
-                      {message.content && !message.content.startsWith('📎 Shared:') && (
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                          {message.content}
-                        </p>
+                      {/* Timestamp */}
+                      {timestampGroup?.showTimestamp && (
+                        <MessageTimestamp
+                          timestamp={new Date(message.timestamp)}
+                          showTimestamp={true}
+                          showDateSeparator={false}
+                          className={cn(
+                            'mt-1',
+                            message.isFromMe ? 'text-right' : 'text-left'
+                          )}
+                        />
                       )}
                     </div>
 
-                    {/* Timestamp and Status */}
-                    {timestampGroup?.showTimestamp && (
-                      <MessageTimestamp
-                        timestamp={new Date(message.timestamp)}
-                        showTimestamp={true}
-                        showDateSeparator={false}
-                        className={cn(
-                          'mt-1',
-                          message.isFromMe ? 'text-right' : 'text-left'
-                        )}
-                      />
-                    )}
-                    
-                    {/* Message Status */}
-                    {message.isFromMe && (
-                      <div className="flex items-center justify-end gap-1 mt-1">
-                        <MessageStatus status={message.status} />
-                        {message.status === 'read' && (
-                          <SeenStatus 
-                            seenTime={new Date()} 
-                            className="text-xs" 
-                          />
-                        )}
-                      </div>
+                    {/* Edit/Delete Menu - Only show for own messages and not deleted */}
+                    {message.isFromMe && !message.isDeleted && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem 
+                            onClick={() => handleEditMessage(message)}
+                            className="cursor-pointer"
+                          >
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteMessage(message.id)}
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer">
+                            <span>Forward</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
-
-                  {message.isFromMe && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>Delete</DropdownMenuItem>
-                        <DropdownMenuItem>Forward</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
                 </div>
               </div>
             );
@@ -347,12 +428,62 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {/* Editing Mode Indicator */}
+        {editingMessageId && (
+          <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200">
+            <div className="flex items-center justify-between">
+              <span>✏️ Editing message</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleCancelEdit}
+                className="h-6 px-2 text-xs"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Reply Preview */}
+        {replyingToMessage && (
+          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Reply className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  <span className="text-blue-600 dark:text-blue-400 font-medium text-xs">
+                    Replying to {replyingToMessage.senderName}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground line-clamp-2 pl-5">
+                  {replyingToMessage.isDeleted ? (
+                    <span className="italic">This message was deleted</span>
+                  ) : (
+                    replyingToMessage.content
+                  )}
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleCancelReply}
+                className="h-6 w-6 p-0 flex-shrink-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        )}
+        
         <motion.div
           className={`rounded-2xl border transition-all duration-200 relative ${
             isFocused 
               ? 'border-primary shadow-md' 
               : 'border-border hover:border-primary/50'
-          } ${isDragOver ? 'border-primary bg-primary/5' : ''}`}
+          } ${isDragOver ? 'border-primary bg-primary/5' : ''} ${
+            editingMessageId ? 'border-yellow-400 shadow-lg' : ''
+          }`}
         >
           {/* File Preview */}
           {selectedFile && (
@@ -409,12 +540,21 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
 
           <div className="flex items-center p-3" style={{ paddingLeft: '15px' }}>
             <input
+              ref={inputRef}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder={selectedFile ? "Add a message (optional)..." : "Type a message..."}
+              placeholder={
+                editingMessageId 
+                  ? "Edit your message..." 
+                  : replyingToMessage
+                    ? `Reply to ${replyingToMessage.senderName}...`
+                    : selectedFile 
+                      ? "Add a message (optional)..." 
+                      : "Type a message..."
+              }
               className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-sm"
               maxLength={500}
             />
@@ -431,16 +571,23 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
               {(newMessage.trim().length > 0 || selectedFile) && (
                 <motion.button
                   onClick={handleSendMessage}
-                  disabled={sendMessageMutation.isPending}
-                  className="ml-1 p-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full shadow-md disabled:opacity-50"
+                  disabled={sendMessageMutation.isPending || editMessageMutation.isPending}
+                  className={cn(
+                    "ml-1 p-2 text-primary-foreground rounded-full shadow-md disabled:opacity-50",
+                    editingMessageId 
+                      ? "bg-gradient-to-r from-green-500 to-green-600" 
+                      : "bg-gradient-to-r from-primary to-primary/80"
+                  )}
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   exit={{ scale: 0, rotate: 180 }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {sendMessageMutation.isPending ? (
+                  {(sendMessageMutation.isPending || editMessageMutation.isPending) ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : editingMessageId ? (
+                    <Save className="w-4 h-4" />
                   ) : (
                     <Send className="w-4 h-4" />
                   )}
@@ -469,6 +616,14 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
         />
       </motion.div>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        profile={selectedProfile || null}
+        isOpen={isProfileModalOpen}
+        onOpenChange={setIsProfileModalOpen}
+        onSendMessage={handleSendMessageFromProfile}
+      />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useCreateClassroom } from '@/hooks/classroom/use-create-classroom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 export function CreateClassroomPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('CreateClassroom');
+  const { data: currentUser } = useUser();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -48,7 +52,11 @@ export function CreateClassroomPage() {
         title: "Success",
         description: `Classroom "${result.classroom.name}" created successfully!`,
       });
-      router.push(`/classroom/${result.classroom.slug}`);
+      const isTutor = currentUser?.role === 'tutor';
+      const route = isTutor 
+        ? `/tutor/classroom/${result.classroom.slug}`
+        : `/classroom/${result.classroom.slug}`;
+      router.push(route);
     } catch (error: any) {
       toast({
         title: "Error",

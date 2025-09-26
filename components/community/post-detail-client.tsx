@@ -18,6 +18,7 @@ import {
   X,
   UploadCloud,
   Pencil,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { Post, PostFile } from "@/interface/community/post-interface";
@@ -45,6 +46,7 @@ import { useTranslations } from "next-intl";
 import { useUpdatePost, useDeletePost } from "@/hooks/community/use-community";
 import { validateFiles } from "@/utils/file-validation";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
+import SharePostDialog from "./share-post-dialog";
 
 // Reaction button component
 const ReactionButton = ({
@@ -723,6 +725,7 @@ const PostDetailContent = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<"flat" | "tree">("tree");
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const { formatRelativeTime } = useFormat();
   const t = useTranslations("CommunityPostDetail");
   const toggleReactionMutation = useToggleReaction(groupSlug, postSlug);
@@ -912,6 +915,14 @@ const PostDetailContent = ({
             <MessageSquare className="mr-1 h-4 w-4" />
             <span className="text-xs">{comments.length}</span>
           </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-gray-300 px-2 hover:bg-white/10 hover:text-white"
+            onClick={() => setShowShareDialog(true)}
+          >
+            <Send className="mr-1 h-4 w-4" />
+          </Button>
         </div>
       </CardContent>
 
@@ -992,6 +1003,12 @@ const PostDetailContent = ({
           </div>
         )}
       </CardContent>
+      
+      <SharePostDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        post={post}
+      />
     </Card>
   );
 };

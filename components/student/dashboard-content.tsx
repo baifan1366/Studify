@@ -19,28 +19,40 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
-import { useFullProfile } from '@/hooks/profile/use-profile';
 import { useDashboard, RecentCourse, UpcomingEvent } from '@/hooks/dashboard/use-dashboard';
 import { useLearningStats, useAchievements, formatStudyTime } from '@/hooks/profile/use-learning-stats';
+import { useUserPreferences } from '@/hooks/profile/use-user-preferences';
+import { useDashboardTrends } from '@/hooks/dashboard/use-dashboard-trends';
 import { useLearningPaths } from '@/hooks/dashboard/use-learning-paths';
+import { useContinueWatching, useContinueWatchingActions } from '@/hooks/learning/use-learning-progress';
+import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import Mermaid from '@/components/ui/mermaid';
+import UniversalSearch from '@/components/search/universal-search';
+import DailyCoachCard from '@/components/ai-coach/daily-coach-card';
+import EveningReflectionModal from '@/components/ai-coach/evening-reflection-modal';
 
 export default function DashboardContent() {
   const t = useTranslations('Dashboard');
-  const { data: userData } = useUser();
-  const { data: fullProfileData, isLoading: profileLoading } = useFullProfile(userData?.id || '');
+  const { data: userData, isLoading: userLoading } = useUser();
   const { data: dashboardData, isLoading: dashboardLoading } = useDashboard();
   const { data: learningStats, isLoading: statsLoading } = useLearningStats('week');
   const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
   const { data: learningPaths, isLoading: learningPathsLoading } = useLearningPaths({ limit: 3, activeOnly: true });
+  const { data: continueWatchingItems, isLoading: continueWatchingLoading } = useContinueWatching();
+  const { generateContinueWatchingUrl, formatProgress, formatTimeRemaining, formatLastAccessed } = useContinueWatchingActions();
+  const { data: userPreferences, isLoading: preferencesLoading } = useUserPreferences();
+  const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
+  
+  // Evening reflection modal state
+  const [showReflectionModal, setShowReflectionModal] = React.useState(false);
 
   const user = userData;
-  const profile = fullProfileData?.profile || user?.profile;
+  const profile = user?.profile;
 
-  if (profileLoading || dashboardLoading || statsLoading) {
+  if (userLoading || dashboardLoading || statsLoading || preferencesLoading || trendsLoading) {
     return (
         <div className="min-h-screen p-6">
           <div className="max-w-7xl mx-auto">
@@ -70,6 +82,7 @@ export default function DashboardContent() {
   const recentCourses = dashboardData?.recentCourses || [];
   const upcomingEvents = dashboardData?.upcomingEvents || [];
 
+
   return (
       <div className="min-h-screen p-6 pb-32">
         <div className="max-w-7xl mx-auto">
@@ -81,11 +94,43 @@ export default function DashboardContent() {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl font-bold text-white mb-2">
-              Welcome back, {profile?.display_name || user?.email?.split('@')[0] || 'Student'}! 👋
+              {profile?.display_name || user?.email?.split('@')[0] ? 
+                t('welcome_back', { name: profile?.display_name || user?.email?.split('@')[0] || 'Student' }) : 
+                t('welcome_back_default')
+              }
             </h1>
             <p className="text-white/70">
-              Ready to continue your learning journey?
+              {t('learning_journey')}
             </p>
+          </motion.div>
+
+          {/* Universal Search */}
+          <motion.div
+            className="mb-8 relative z-50"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    {t('search_title')}
+                  </h2>
+                  <p className="text-white/70 text-sm">
+                    {t('search_description')}
+                  </p>
+                </div>
+              </div>
+              
+              <UniversalSearch
+                placeholder={t('search_placeholder')}
+                className="max-w-2xl relative"
+              />
+            </div>
           </motion.div>
 
           {/* Stats Cards */}
@@ -96,11 +141,11 @@ export default function DashboardContent() {
             transition={{ delay: 0.2, duration: 0.6 }}
           >
             {[
-              { label: 'Courses Enrolled', value: stats.coursesEnrolled, icon: BookOpen, color: 'blue', trend: null },
-              { label: 'Completed', value: stats.coursesCompleted, icon: Award, color: 'green', trend: '+2 this week' },
-              { label: 'Study Hours', value: `${stats.totalStudyTime}h`, icon: Clock, color: 'purple', trend: '+5.2h this week' },
-              { label: 'Current Streak', value: `${stats.currentStreak} days`, icon: TrendingUp, color: 'orange', trend: stats.currentStreak > 0 ? '🔥 Keep going!' : 'Start today!' },
-              { label: 'Points', value: stats.points, icon: Star, color: 'yellow', trend: `+${stats.pointsEarned} earned` }
+              { label: t('courses_enrolled'), value: stats.coursesEnrolled, icon: BookOpen, color: 'blue', trend: null },
+              { label: t('completed'), value: stats.coursesCompleted, icon: Award, color: 'green', trend: trendsData?.courseCompletion?.trend || t('no_change_week') },
+              { label: t('study_hours'), value: `${stats.totalStudyTime}h`, icon: Clock, color: 'purple', trend: trendsData?.studyTime?.trend || t('same_last_week') },
+              { label: t('current_streak'), value: `${stats.currentStreak} ${t('days')}`, icon: TrendingUp, color: 'orange', trend: trendsData?.streak?.trend || (stats.currentStreak > 0 ? t('keep_going') : t('start_today')) },
+              { label: t('points'), value: stats.points, icon: Star, color: 'yellow', trend: trendsData?.points?.trend || t('no_points_earned') }
             ].map((stat, index) => (
               <div
                 key={stat.label}
@@ -116,10 +161,10 @@ export default function DashboardContent() {
                   </div>
                   <stat.icon size={24} className={`text-${stat.color}-400`} />
                 </div>
-                {stat.label === 'Study Hours' && stats.avgProgress > 0 && (
+                {stat.label === t('study_hours') && stats.avgProgress > 0 && (
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                      <span>Avg Progress</span>
+                      <span>{t('avg_progress')}</span>
                       <span>{stats.avgProgress}%</span>
                     </div>
                     <Progress value={stats.avgProgress} className="h-1" />
@@ -140,34 +185,96 @@ export default function DashboardContent() {
               <div className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
                 <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                   <PlayCircle size={20} />
-                  Continue Learning
+                  {continueWatchingItems && continueWatchingItems.length > 0 ? t('continue_watching') : t('continue_learning')}
                 </h3>
                 
                 <div className="space-y-4">
-                  {recentCourses.map((course: RecentCourse) => (
-                    <div
-                      key={course.id}
-                      className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
-                    >
-                      <div className="w-16 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center">
-                        <BookOpen size={20} className="text-white/70" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-white">{course.title}</h4>
-                        <p className="text-sm text-white/60">Last accessed: {course.lastAccessed}</p>
-                        <div className="w-full bg-white/20 rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${course.progress}%` }}
-                          />
+                  {/* Continue Watching Items */}
+                  {continueWatchingItems && continueWatchingItems.length > 0 ? (
+                    continueWatchingItems.slice(0, 3).map((item) => (
+                      <Link
+                        key={`${item.course_slug}-${item.lesson_public_id}`}
+                        href={generateContinueWatchingUrl(item)}
+                        className="block"
+                      >
+                        <div className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer group">
+                          {/* Thumbnail */}
+                          <div className="relative w-16 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center overflow-hidden">
+                            {item.course_thumbnail ? (
+                              <img
+                                src={item.course_thumbnail}
+                                alt={item.course_title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <PlayCircle size={20} className="text-white/70" />
+                            )}
+                            {/* Continue watching indicator */}
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <PlayCircle size={16} className="text-white" />
+                            </div>
+                          </div>
+                          
+                          {/* Content Info */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-white truncate">{item.lesson_title}</h4>
+                            <p className="text-sm text-white/60 truncate">{item.course_title}</p>
+                            <p className="text-xs text-orange-400">{item.module_title}</p>
+                            
+                            {/* Progress Bar */}
+                            <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
+                              <div 
+                                className="bg-gradient-to-r from-orange-400 to-red-500 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${item.progress_pct}%` }}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Progress Info */}
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-medium text-white">{formatProgress(item.progress_pct)}</p>
+                            <p className="text-xs text-white/60">{formatTimeRemaining(item.progress_pct, item.video_duration_sec)}</p>
+                            <p className="text-xs text-white/40">{formatLastAccessed(item.last_accessed_at)}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    /* Fallback to recent courses if no continue watching items */
+                    recentCourses.map((course: RecentCourse) => (
+                      <div
+                        key={course.id}
+                        className="flex items-center gap-4 p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
+                      >
+                        <div className="w-16 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center">
+                          <BookOpen size={20} className="text-white/70" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white">{course.title}</h4>
+                          <p className="text-sm text-white/60">{t('last_accessed')} {course.lastAccessed}</p>
+                          <div className="w-full bg-white/20 rounded-full h-2 mt-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${course.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-white">{course.progress}%</p>
+                          <p className="text-xs text-white/60">{t('complete')}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-white">{course.progress}%</p>
-                        <p className="text-xs text-white/60">Complete</p>
-                      </div>
+                    ))
+                  )}
+                  
+                  {/* Show message when no items to continue */}
+                  {!continueWatchingLoading && (!continueWatchingItems || continueWatchingItems.length === 0) && recentCourses.length === 0 && (
+                    <div className="text-center py-8">
+                      <PlayCircle size={48} className="text-white/30 mx-auto mb-4" />
+                      <p className="text-white/60">{t('no_courses_progress')}</p>
+                      <p className="text-sm text-white/40 mt-1">{t('start_course_hint')}</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -266,11 +373,27 @@ export default function DashboardContent() {
                 
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
                   <div className="flex justify-between text-xs text-white/60">
-                    <span>Weekly Goal: 10h</span>
+                    <span>Weekly Goal: {userPreferences?.preferences?.weekly_study_goal_hours || 10}h</span>
                     <span>{dailyStats.reduce((sum, day) => sum + day.hours, 0).toFixed(1)}h completed</span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="flex-1 bg-white/10 rounded-full h-1.5">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min((dailyStats.reduce((sum, day) => sum + day.hours, 0) / (userPreferences?.preferences?.weekly_study_goal_hours || 10)) * 100, 100)}%` 
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              {/* Daily Learning Coach */}
+              <DailyCoachCard 
+                className="mb-6"
+                onReflectionClick={() => setShowReflectionModal(true)}
+              />
               
               {/* My Learning Paths */}
               {learningPaths && learningPaths.length > 0 && (
@@ -304,7 +427,7 @@ export default function DashboardContent() {
                             </div>
                             {path.mermaid_diagram && (
                               <div className="mt-3 p-3 bg-white/5 rounded-lg">
-                                <div className="text-xs text-white/60 mb-2">学习路径图:</div>
+                                <div className="text-xs text-white/60 mb-2">Learning Path:</div>
                                 <div className="max-h-32 overflow-hidden">
                                   <Mermaid 
                                     chart={path.mermaid_diagram}
@@ -312,7 +435,7 @@ export default function DashboardContent() {
                                   />
                                 </div>
                                 <div className="text-xs text-white/50 mt-1">
-                                  💡 点击查看完整路径图
+                                  💡 Click to view full path
                                 </div>
                               </div>
                             )}
@@ -324,7 +447,7 @@ export default function DashboardContent() {
                     {learningPaths.length > 2 && (
                       <div className="text-center pt-2">
                         <button className="text-xs text-white/60 hover:text-white/80 transition-colors">
-                          查看全部 {learningPaths.length} 个学习路径 →
+                          View all {learningPaths.length} learning paths →
                         </button>
                       </div>
                     )}
@@ -334,6 +457,12 @@ export default function DashboardContent() {
             </motion.div>
           </div>
         </div>
+        
+        {/* Evening Reflection Modal */}
+        <EveningReflectionModal 
+          isOpen={showReflectionModal}
+          onClose={() => setShowReflectionModal(false)}
+        />
       </div>
   );
 }

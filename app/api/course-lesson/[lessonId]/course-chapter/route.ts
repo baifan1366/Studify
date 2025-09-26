@@ -3,12 +3,13 @@ import { createServerClient } from "@/utils/supabase/server";
 import { courseChapterSchema } from "@/lib/validations/course-chapter";
 import { z } from "zod";
 
-// Helper function to validate lesson ownership
-async function validateLessonOwnership(client: any, lessonId: number, ownerId?: number) {
+// Helper function to validate lesson ownership and get internal ID
+async function validateLessonOwnership(client: any, lessonId: string, ownerId?: number) {
   const { data: lesson, error: lessonError } = await client
     .from("course_lesson")
     .select(`
       id,
+      public_id,
       course_id,
       course:course_id (
         id,
@@ -16,7 +17,7 @@ async function validateLessonOwnership(client: any, lessonId: number, ownerId?: 
         status
       )
     `)
-    .eq("id", lessonId)
+    .eq("public_id", lessonId)
     .eq("is_deleted", false)
     .single();
 
@@ -36,24 +37,26 @@ async function validateLessonOwnership(client: any, lessonId: number, ownerId?: 
 export async function GET(req: Request, { params }: { params: Promise<{ lessonId: string }> }) {
   try {
     const { lessonId } = await params;
-    const lessonIdNum = parseInt(lessonId, 10);
     const url = new URL(req.url);
     const ownerId = url.searchParams.get('owner_id');
     const ownerIdNum = ownerId ? parseInt(ownerId, 10) : undefined;
 
     const client = await createServerClient();
 
-    // Validate lesson ownership
-    const validation = await validateLessonOwnership(client, lessonIdNum, ownerIdNum);
+    // Validate lesson ownership and get internal ID
+    const validation = await validateLessonOwnership(client, lessonId, ownerIdNum);
     if (validation.error) {
       return NextResponse.json({ error: validation.error }, { status: validation.status });
     }
+
+    // Use the internal lesson ID (bigint) for querying chapters
+    const internalLessonId = validation.lesson.id;
 
     // Fetch chapters for the lesson
     const { data: chapters, error } = await client
       .from("course_chapter")
       .select("*")
-      .eq("lesson_id", lessonIdNum)
+      .eq("lesson_id", internalLessonId)
       .eq("is_deleted", false)
       .order("order_index", { ascending: true });
 
@@ -71,15 +74,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ lessonId
 export async function POST(req: Request, { params }: { params: Promise<{ lessonId: string }> }) {
   try {
     const { lessonId } = await params;
-    const lessonIdNum = parseInt(lessonId, 10);
     const body = await req.json();
     const client = await createServerClient();
 
-    // Validate lesson ownership
-    const validation = await validateLessonOwnership(client, lessonIdNum, body.owner_id);
+    // Validate lesson ownership and get internal ID
+    const validation = await validateLessonOwnership(client, lessonId, body.owner_id);
     if (validation.error) {
       return NextResponse.json({ error: validation.error }, { status: validation.status });
     }
+
+    // Use the internal lesson ID (bigint)
+    const internalLessonId = validation.lesson.id;
 
     // Check if course status allows chapter creation (only inactive courses)
     if (validation.lesson.course.status !== 'inactive') {
@@ -107,7 +112,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
       const { data: lastChapter } = await client
         .from("course_chapter")
         .select("order_index")
-        .eq("lesson_id", lessonIdNum)
+        .eq("lesson_id", internalLessonId)
         .eq("is_deleted", false)
         .order("order_index", { ascending: false })
         .limit(1)
@@ -120,7 +125,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
     const { data: chapter, error } = await client
       .from("course_chapter")
       .insert({
-        lesson_id: lessonIdNum,
+        lesson_id: internalLessonId,
         title: validatedData.title,
         description: validatedData.description,
         start_time_sec: validatedData.start_time_sec,

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
 import { 
   ArrowLeft, 
   Plus, 
@@ -74,6 +76,8 @@ interface Quiz {
 export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('ClassroomQuiz');
+  const { data: currentUser } = useUser();
   const [classroom, setClassroom] = useState<any>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -145,7 +149,11 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    router.push(`/classroom/${classroomSlug}`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}`
+      : `/classroom/${classroomSlug}`;
+    router.push(route);
   };
 
   const resetForm = () => {
@@ -267,17 +275,29 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
 
   const handleViewResults = (quizId: string) => {
     // Navigate to quiz results page
-    router.push(`/classroom/${classroomSlug}/quiz/${quizId}/results`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}/quiz/${quizId}/results`
+      : `/classroom/${classroomSlug}/quiz/${quizId}/results`;
+    router.push(route);
   };
 
   const handleTakeQuiz = (quizId: string) => {
     // Navigate to quiz taking page
-    router.push(`/classroom/${classroomSlug}/quiz/${quizId}/take`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}/quiz/${quizId}/take`
+      : `/classroom/${classroomSlug}/quiz/${quizId}/take`;
+    router.push(route);
   };
 
   const handleEditQuestions = (quizId: string) => {
     // Navigate to quiz builder page
-    router.push(`/classroom/${classroomSlug}/quiz/${quizId}/edit`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}/quiz/${quizId}/edit`
+      : `/classroom/${classroomSlug}/quiz/${quizId}/edit`;
+    router.push(route);
   };
 
   const getStatusBadgeVariant = (status: string) => {

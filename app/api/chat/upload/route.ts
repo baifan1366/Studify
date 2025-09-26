@@ -6,7 +6,7 @@ import { uploadFileToBucket } from '@/utils/attachment/upload-utils';
 export async function POST(request: NextRequest) {
   try {
     // Authorize user
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

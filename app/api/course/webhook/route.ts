@@ -4,6 +4,123 @@ import { createAdminClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import { handleStudentEnrollmentFlow } from "@/lib/auto-creation/student-enrollment-flow";
 
+// Platform commission rate (10%)
+const PLATFORM_COMMISSION_RATE = 0.10;
+
+// Function to handle tutor earnings allocation
+async function handleTutorEarnings(supabase: any, course: any, order: any, session: any) {
+  try {
+    console.log(`[Earnings] Processing earnings for course: ${course.title}, order: ${order.public_id}`);
+    
+    // Get course owner (tutor)
+    const { data: tutor, error: tutorError } = await supabase
+      .from('profiles')
+      .select('id, public_id, full_name, display_name')
+      .eq('id', course.owner_id)
+      .single();
+
+    if (tutorError || !tutor) {
+      console.error('[Earnings] Failed to find course owner/tutor:', tutorError);
+      return;
+    }
+
+    // Check if tutor has Stripe Connect account
+    const { data: stripeAccount, error: accountError } = await supabase
+      .from('tutor_stripe_accounts')
+      .select('*')
+      .eq('tutor_id', tutor.id)
+      .eq('is_deleted', false)
+      .single();
+
+    if (accountError || !stripeAccount) {
+      console.error('[Earnings] Tutor does not have Stripe Connect account:', tutor.id);
+      // Still record the earning but mark as pending transfer
+    }
+
+    const grossAmount = order.total_cents;
+    const platformFee = Math.floor(grossAmount * PLATFORM_COMMISSION_RATE);
+    const tutorAmount = grossAmount - platformFee;
+    const currency = order.currency || 'MYR';
+
+    console.log(`[Earnings] Gross: ${grossAmount}, Platform Fee: ${platformFee}, Tutor: ${tutorAmount}`);
+
+    // Create tutor earnings record
+    const { data: earningsRecord, error: earningsError } = await supabase
+      .from('tutor_earnings')
+      .insert({
+        tutor_id: tutor.id,
+        source_type: 'course_sale',
+        source_id: order.id,
+        gross_amount_cents: grossAmount,
+        platform_fee_cents: platformFee,
+        tutor_amount_cents: tutorAmount,
+        currency: currency,
+        status: 'pending', // Will be released after 7 days
+        release_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        payment_intent_id: session.payment_intent,
+        metadata: {
+          course_id: course.id,
+          course_title: course.title,
+          student_id: order.buyer_id,
+          order_public_id: order.public_id,
+        }
+      })
+      .select()
+      .single();
+
+    if (earningsError) {
+      console.error('[Earnings] Failed to create earnings record:', earningsError);
+      return;
+    }
+
+    console.log(`[Earnings] Created earnings record: ${earningsRecord.public_id}`);
+
+    // If tutor has Stripe Connect account and it's enabled, create transfer
+    if (stripeAccount && stripeAccount.charges_enabled && stripeAccount.payouts_enabled) {
+      try {
+        console.log(`[Earnings] Creating Stripe transfer to: ${stripeAccount.stripe_account_id}`);
+        
+        const transfer = await stripe.transfers.create({
+          amount: tutorAmount,
+          currency: currency.toLowerCase(),
+          destination: stripeAccount.stripe_account_id,
+          transfer_group: `course_sale_${order.public_id}`,
+          metadata: {
+            tutor_id: tutor.id.toString(),
+            course_id: course.id.toString(),
+            order_id: order.id.toString(),
+            earnings_id: earningsRecord.id.toString(),
+          },
+        });
+
+        // Update earnings record with transfer ID
+        await supabase
+          .from('tutor_earnings')
+          .update({
+            stripe_transfer_id: transfer.id,
+            status: 'released', // Mark as released since transfer is created
+            metadata: {
+              ...earningsRecord.metadata,
+              stripe_transfer_id: transfer.id,
+            }
+          })
+          .eq('id', earningsRecord.id);
+
+        console.log(`[Earnings] Stripe transfer created: ${transfer.id}`);
+
+      } catch (stripeError) {
+        console.error('[Earnings] Failed to create Stripe transfer:', stripeError);
+        // Keep the earnings record as pending
+      }
+    }
+
+    console.log('[Earnings] Tutor earnings processing completed successfully');
+
+  } catch (error) {
+    console.error('[Earnings] Error processing tutor earnings:', error);
+  }
+}
+
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
@@ -126,6 +243,10 @@ export async function POST(request: NextRequest) {
           await supabase.rpc("increment_course_students", {
             course_id: course.id,
           });
+
+          // 🚀 NEW: Handle tutor earnings allocation
+          console.log("[Webhook] Processing tutor earnings for course sale");
+          await handleTutorEarnings(supabase, course, order, session);
         }
 
         break;

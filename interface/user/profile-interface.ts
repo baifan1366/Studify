@@ -9,6 +9,7 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   timezone: string;
+  currency: string;
   status: "active" | "banned";
   banned_reason: string | null;
   banned_at: string | null;

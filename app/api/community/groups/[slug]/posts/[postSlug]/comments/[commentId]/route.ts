@@ -9,7 +9,7 @@ export async function PATCH(
   }: { params: Promise<{ slug: string; postSlug: string; commentId: string }> }
 ) {
   try {
-    const authResult = await authorize("student");
+    const authResult = await authorize(["student", "tutor"]);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -127,7 +127,7 @@ export async function DELETE(
     params,
   }: { params: Promise<{ slug: string; postSlug: string; commentId: string }> }
 ) {
-  const authResult = await authorize("student");
+  const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

@@ -214,7 +214,7 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
           if (autoMessage) {
             toast({
               title: "🎉 " + autoMessage,
-              description: "You can now access your classroom and community resources",
+              description: t('CourseDetail.access_classroom_community'),
               variant: 'default',
             });
           }

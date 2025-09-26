@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ quizSlug: string; attemptId: string }> }
 ) {
   try {
-    const auth = await authorize("student");
+    const auth = await authorize(["student", "tutor"]);
     if (auth instanceof NextResponse) return auth;
     const { sub: userId } = auth;
 

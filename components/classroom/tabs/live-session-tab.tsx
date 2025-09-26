@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
+import { useToast } from '@/hooks/use-toast';
+import { useCreateLiveSession } from '@/hooks/classroom/use-create-live-session';
 import { Video, Calendar, Plus, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CreateLiveSessionDialog } from '@/components/classroom/Dialog/create-livesession-dialog';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
-import { useCreateLiveSession } from '@/hooks/classroom/use-create-live-session';
-import { useToast } from '@/hooks/use-toast';
 
-// Dynamic import for client-side only
 const LiveClassroom = lazy(() => import('@/components/classroom/live-session/live-classroom'));
 
 interface LiveSessionTabProps {
@@ -22,7 +24,16 @@ interface LiveSessionTabProps {
   classroom?: any;
 }
 
-export function LiveSessionTab({ liveSessionsData, isOwnerOrTutor, classroomSlug, navigateToSection, router, classroom }: LiveSessionTabProps) {
+export function LiveSessionTab({
+  liveSessionsData,
+  isOwnerOrTutor,
+  classroomSlug,
+  navigateToSection,
+  router,
+  classroom
+}: LiveSessionTabProps) {
+  const t = useTranslations('LiveSessionTab');
+  const { data: currentUser } = useUser();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<any>(null);
@@ -97,9 +108,12 @@ export function LiveSessionTab({ liveSessionsData, isOwnerOrTutor, classroomSlug
         description: `Redirecting to "${session.title}"...`,
       });
 
-      // Redirect to live session room URL
-      const roomUrl = `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
-      console.log('🔗 [LiveSessionTab] Redirecting to room URL:', roomUrl);
+      // Redirect to live session room URL with role-based routing
+      const isTutor = currentUser?.role === 'tutor';
+      const roomUrl = isTutor 
+        ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
+        : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
+      console.log(' [LiveSessionTab] Redirecting to room URL:', roomUrl);
       router.push(roomUrl);
       
     } catch (error) {

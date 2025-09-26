@@ -10,22 +10,27 @@ export interface Achievement {
   code: string;
   name: string;
   description?: string;
+  rule?: any; // jsonb field from database
+  created_at?: string;
+  updated_at?: string;
+  // User achievement fields (from community_user_achievement)
+  current_value?: number;
   unlocked?: boolean;
   unlocked_at?: string;
 }
 
 // TODOL : move to lib/api.ts
 const COMMUNITY_ACHIEVEMENT_API = {
-  all: "/api/community/achievements", // 获取所有成就定义
+  all: "/api/community/achievements", // Get all achievement definitions
   user: (userId: string | number) =>
-    `/api/community/users/${userId}/achievements`, // 获取某用户成就
+    `/api/community/users/${userId}/achievements`, // Get user achievements
   unlock: (achievementId: number) =>
-    `/api/community/achievements/${achievementId}/unlock`, // 解锁成就
+    `/api/community/achievements/${achievementId}/unlock`, // Unlock achievement
   revoke: (achievementId: number) =>
-    `/api/community/achievements/${achievementId}/revoke`, // 撤销成就
+    `/api/community/achievements/${achievementId}/revoke`, // Revoke achievement
 };
 
-//get all achievements
+// Get all achievements
 export const useAchievements = () => {
   const {
     data: achievements,
@@ -45,6 +50,9 @@ export const useAchievements = () => {
     error,
   };
 };
+
+// Default export for convenience
+export default useAchievements;
 
 //get user achievements
 export const useUserAchievements = (userId: string | number) => {

@@ -92,9 +92,9 @@ export default function ClassroomHeader({
             </div>
           </motion.div>
         </div>
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <ThemeSwitcher />
-        </div>
+        </div> */}
         {/* Right side - Actions */}
         <motion.div
           className="flex items-center space-x-4"
@@ -108,7 +108,7 @@ export default function ClassroomHeader({
             <motion.button
               ref={profileButtonRef}
               onClick={handleProfileClick}
-              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-accent transition-colors"
+              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >

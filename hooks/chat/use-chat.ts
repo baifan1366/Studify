@@ -23,6 +23,25 @@ export interface Conversation {
   description?: string;
 }
 
+export interface ChatAttachment {
+  id: number;
+  file_name: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  file_url: string;
+  custom_message?: string;
+}
+
+export interface ReplyTo {
+  id: string;
+  content: string;
+  isDeleted: boolean;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -30,11 +49,18 @@ export interface Message {
   senderName: string;
   senderAvatar?: string;
   timestamp: string;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'share_post';
   fileName?: string;
   fileSize?: string;
   isFromMe: boolean;
   status: 'sending' | 'sent' | 'delivered' | 'read';
+  isEdited?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  attachmentId?: number;
+  attachment?: ChatAttachment;
+  replyToId?: number;
+  replyTo?: ReplyTo;
 }
 
 export interface ConversationsResponse {
@@ -59,9 +85,10 @@ export interface MessagesResponse {
 
 export interface SendMessageRequest {
   content: string;
-  type?: 'text' | 'image' | 'file';
+  type?: 'text' | 'image' | 'file' | 'share_post';
   fileName?: string;
   fileSize?: string;
+  reply_to_id?: number;
 }
 
 /**
@@ -146,6 +173,10 @@ export function useSendMessage() {
         fileSize: data.fileSize,
         isFromMe: true,
         status: 'sending',
+        isEdited: false,
+        isDeleted: false,
+        replyToId: data.reply_to_id,
+        replyTo: data.reply_to_id ? undefined : undefined, // Will be populated by frontend if needed
       };
       
       queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
@@ -332,6 +363,178 @@ export function useRealtimeMessages(conversationId: string | undefined) {
 }
 
 /**
+ * Hook for editing messages
+ */
+export function useEditMessage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      messageId, 
+      content 
+    }: { 
+      conversationId: string; 
+      messageId: string;
+      content: string;
+    }) => {
+      return await apiSend({
+        url: `/api/chat/conversations/${conversationId}/messages/${messageId}`,
+        method: 'PATCH',
+        body: { content }
+      });
+    },
+    onMutate: async ({ conversationId, messageId, content }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['messages', conversationId] });
+      
+      // Snapshot the previous value
+      const previousMessages = queryClient.getQueryData(['messages', conversationId]);
+      
+      // Optimistically update the message
+      queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          messages: old.messages.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content, isEdited: true }
+              : msg
+          ),
+        };
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousMessages };
+    },
+    onError: (err, { conversationId }, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousMessages) {
+        queryClient.setQueryData(['messages', conversationId], context.previousMessages);
+      }
+    },
+    onSuccess: (data, { conversationId, messageId }) => {
+      // Update with server response
+      queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          messages: old.messages.map(msg => 
+            msg.id === messageId ? (data as any).message : msg
+          ),
+        };
+      });
+      
+      // Update conversations cache if this was the last message
+      queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          conversations: old.conversations.map(conv => {
+            if (conv.id === conversationId && conv.lastMessage) {
+              // Check if the edited message was the last message
+              const editedMessage = (data as any).message;
+              if (conv.lastMessage.timestamp === editedMessage.timestamp) {
+                return {
+                  ...conv,
+                  lastMessage: {
+                    ...conv.lastMessage,
+                    content: editedMessage.content,
+                  },
+                };
+              }
+            }
+            return conv;
+          }),
+        };
+      });
+    },
+    onSettled: (data, error, { conversationId }) => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    },
+  });
+}
+
+/**
+ * Hook for deleting messages
+ */
+export function useDeleteMessage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      messageId 
+    }: { 
+      conversationId: string; 
+      messageId: string;
+    }) => {
+      return await apiSend({
+        url: `/api/chat/conversations/${conversationId}/messages/${messageId}`,
+        method: 'DELETE'
+      });
+    },
+    onMutate: async ({ conversationId, messageId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['messages', conversationId] });
+      
+      // Snapshot the previous value
+      const previousMessages = queryClient.getQueryData(['messages', conversationId]);
+      
+      // Optimistically mark the message as deleted (soft delete)
+      queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          messages: old.messages.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, isDeleted: true, deletedAt: new Date().toISOString() }
+              : msg
+          ),
+        };
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousMessages };
+    },
+    onError: (err, { conversationId }, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousMessages) {
+        queryClient.setQueryData(['messages', conversationId], context.previousMessages);
+      }
+    },
+    onSuccess: (data, { conversationId, messageId }) => {
+      // Keep the message in cache but mark as deleted (already done optimistically)
+      // No need to update cache again since it's already done in onMutate
+      
+      // Update conversations cache if the deleted message was the last message
+      queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          conversations: old.conversations.map(conv => {
+            if (conv.id === conversationId && conv.lastMessage) {
+              // If this was the last message, we need to find the new last message
+              // For now, we'll invalidate the conversations to refetch
+              return conv;
+            }
+            return conv;
+          }),
+        };
+      });
+      
+      // Invalidate conversations to update last message
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+    onSettled: (data, error, { conversationId }) => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    },
+  });
+}
+
+/**
  * Hook for typing indicators
  */
 export function useTypingIndicator(conversationId: string | undefined) {
@@ -342,3 +545,54 @@ export function useTypingIndicator(conversationId: string | undefined) {
     stopTyping: () => {},
   };
 }
+
+/**
+ * Hook for deleting a conversation
+ */
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ conversationId, type }: { conversationId: string; type: 'direct' | 'group' }) => {
+      // API expects body: { conversationId, type }
+      return await apiSend({
+        url: `/api/chat/conversations`,
+        method: 'DELETE',
+        body: { conversationId, type },
+      });
+    },
+    onMutate: async ({ conversationId }) => {
+      // 取消相关的 refetch
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+
+      // 备份旧数据
+      const previousConversations = queryClient.getQueryData<ConversationsResponse>(['conversations']);
+
+      // 从 cache 里乐观删除
+      queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          conversations: old.conversations.filter(conv => conv.id !== conversationId),
+          pagination: {
+            ...old.pagination,
+            total: old.pagination.total - 1,
+          },
+        };
+      });
+
+      return { previousConversations };
+    },
+    onError: (err, { conversationId }, context) => {
+      // 出错时回滚
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations'], context.previousConversations);
+      }
+    },
+    onSuccess: () => {
+      // 删除成功后刷新会话列表
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+

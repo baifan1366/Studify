@@ -7,7 +7,7 @@ import { authenticator } from 'otplib';
 export async function POST(request: NextRequest) {
   try {
     // Authorize the request
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student','tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, GraduationCap, BookOpen } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,14 @@ import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { useAccountSwitcher } from "@/hooks/auth/use-account-switcher";
 import { useTranslations } from 'next-intl';
 import MFAVerificationForm from "./mfa-verification-form";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // HCaptcha configuration
 const HCAPTCHA_SITE_KEY = "d26a2d9a-3b10-4210-86a6-c8e4d872db56";
@@ -29,7 +37,7 @@ interface AuthFormProps {
   buttonText: string;
   footerText: string;
   footerLinkText: string;
-  footerLinkHref: string;
+  footerLinkHref?: string;
   locale: string;
   authMode?: string;
   redirectUrl?: string;
@@ -60,6 +68,7 @@ export function AuthForm({
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [requiresMFA, setRequiresMFA] = useState(false);
   const [loginCredentials, setLoginCredentials] = useState<{email: string; password: string} | null>(null);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
   const captchaRef = useRef<HCaptcha>(null);
   const { toast } = useToast();
 
@@ -113,6 +122,17 @@ export function AuthForm({
     setRequiresMFA(false);
     setLoginCredentials(null);
     setError(null);
+  };
+
+  const handleFooterLinkClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowRoleDialog(true);
+  };
+
+  const handleRoleSelection = (selectedRole: 'student' | 'tutor') => {
+    setShowRoleDialog(false);
+    const signUpPath = selectedRole === 'student' ? `/${locale}/student/sign-up` : `/${locale}/tutor/sign-up`;
+    router.push(signUpPath);
   };
 
   const resetCaptcha = () => {
@@ -404,30 +424,43 @@ export function AuthForm({
             </motion.button>
           </form>
 
+          <div className="mt-2 text-center text-sm">
+            {/* Hide Google login for add account mode */}
+            {authMode !== 'add' && (
+              <motion.button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {loading ? "Loading..." : "Continue with Google"}
+              </motion.button>
+            )}    
+          </div>
+
           <div className="mt-6 text-center text-sm">
             <span className="text-gray-600 dark:text-gray-300">{footerText} </span>
-            <Link 
-              href={footerLinkHref} 
-              className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200"
-            >
-              {footerLinkText}
-            </Link>
+            {footerLinkHref ? (
+              <Link
+                href={footerLinkHref}
+                className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200"
+              >
+                {footerLinkText}
+              </Link>
+            ) : (
+              <button
+                onClick={handleFooterLinkClick}
+                className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200 underline"
+              >
+                {footerLinkText}
+              </button>
+            )}
           </div>
-          {/* Hide Google login for add account mode */}
-          {authMode !== 'add' && (
-            <button
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
-            >
-              {loading ? "Loading..." : "Continue with Google"}
-            </button>
-          )}
           
           {/* Show message for add account mode */}
           {authMode === 'add' && (
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
+              <p className="text-sm text-[#FF6B00] dark:text-[#FF6B00] text-center">
                 {t('add_account_notice')}
               </p>
             </div>
@@ -436,11 +469,48 @@ export function AuthForm({
           )}
         </motion.div>
 
-        <div className="mt-6 flex justify-center">
-          <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200">
-            <ThemeSwitcher />
-          </div>
-        </div>
+        {/* Role Selection Dialog */}
+        <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-center">{t('choose_account_type')}</DialogTitle>
+              <DialogDescription className="text-center">
+                {t('select_account_type_description')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleRoleSelection('student')}
+                className="flex flex-col items-center p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-[#FF6B00] dark:hover:border-[#FF6B00] transition-colors duration-200 group"
+              >
+                <BookOpen className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
+                <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
+                  {t('student')}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
+                  {t('student_description')}
+                </p>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleRoleSelection('tutor')}
+                className="flex flex-col items-center p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-[#FF6B00] dark:hover:border-[#FF6B00] transition-colors duration-200 group"
+              >
+                <GraduationCap className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
+                <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
+                  {t('tutor')}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
+                  {t('tutor_description')}
+                </p>
+              </motion.button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

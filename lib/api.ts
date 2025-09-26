@@ -685,3 +685,15 @@ export const quizApi = {
   // AI Quiz generation
   generateAIQuiz: (lessonId: string) => `/api/tutor-quiz/${lessonId}/ai-generate`,
 } as const;
+
+// Learning Progress API endpoints
+export const learningProgressApi = {
+  // Get progress data
+  getLessonProgress: (lessonId: string) => `/api/learning-progress?lessonId=${lessonId}`,
+  getCourseProgress: (courseSlug: string) => `/api/learning-progress?courseSlug=${courseSlug}`,
+  getContinueWatching: () => `/api/learning-progress?type=continue-watching`,
+  
+  // Update progress
+  updateProgress: "/api/learning-progress",
+  updateVideoPosition: "/api/learning-progress",
+} as const;

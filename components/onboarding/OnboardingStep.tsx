@@ -4,6 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Spinner } from "../ui/spinner";
 import { ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
+import { useTranslations } from 'next-intl';
 
 export interface OnboardingStepProps {
   title: string;
@@ -28,6 +29,7 @@ const OnboardingStep: React.FC<OnboardingStepProps> = ({
   isLoading,
   disableNext,
 }) => {
+  const t = useTranslations('OnboardingStep');
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <motion.div
@@ -100,7 +102,7 @@ const OnboardingStep: React.FC<OnboardingStepProps> = ({
                 whileTap={{ scale: 0.98 }}
               >
                 <ArrowLeft size={18} />
-                Previous
+                {t('previous') || 'Previous'}
               </motion.button>
             ) : (
               <div />
@@ -119,7 +121,7 @@ const OnboardingStep: React.FC<OnboardingStepProps> = ({
                 whileTap={!(isLoading || disableNext) ? { scale: 0.98 } : {}}
               >
                 {isLoading && <Spinner className="w-4 h-4" />}
-                Next
+                {t('next') || 'Next'}
                 {!isLoading && <ArrowRight size={18} />}
               </motion.button>
             ) : (
@@ -135,7 +137,7 @@ const OnboardingStep: React.FC<OnboardingStepProps> = ({
                 whileTap={!(isLoading || disableNext) ? { scale: 0.98 } : {}}
               >
                 {isLoading && <Spinner className="w-4 h-4" />}
-                Complete Setup
+                {t('complete_setup') || 'Complete Setup'}
                 {!isLoading && <CheckCircle size={18} />}
               </motion.button>
             )}

@@ -49,8 +49,8 @@ export default function CourseCardEnhanced({
 
   const handleWishlist = () => {
     toast({
-      title: "Added to Wishlist",
-      description: `${course.title} has been added to your wishlist`,
+      title: t('CourseCard.wishlist_added'),
+      description: t('CourseCard.wishlist_description', { title: course.title }),
     });
   };
 
@@ -66,15 +66,15 @@ export default function CourseCardEnhanced({
         // Fallback to clipboard
         navigator.clipboard.writeText(window.location.origin + `/course/${course.slug}`);
         toast({
-          title: "Link Copied",
-          description: "Course link copied to clipboard",
+          title: t('CourseCard.link_copied'),
+          description: t('CourseCard.link_copied_description'),
         });
       }
     } else {
       navigator.clipboard.writeText(window.location.origin + `/course/${course.slug}`);
       toast({
-        title: "Link Copied",
-        description: "Course link copied to clipboard",
+        title: t('CourseCard.link_copied'),
+        description: t('CourseCard.link_copied_description'),
       });
     }
   };

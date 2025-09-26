@@ -33,6 +33,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ profil
       role: body.role,
       avatar_url: body.avatar_url,
       bio: body.bio,
+      currency: body.currency,
       timezone: body.timezone,
       status: body.status,
       banned_reason: body.banned_reason,

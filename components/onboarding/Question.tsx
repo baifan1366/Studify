@@ -4,8 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
+import { useTranslations } from 'next-intl';
 
 export default function QuestionComponent({ question, onChange, value }: { question: Question, onChange: (id: string, value: any) => void, value: any }) {
+  const t = useTranslations('OnboardingQuestion');
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -18,7 +20,7 @@ export default function QuestionComponent({ question, onChange, value }: { quest
       {question.type === "text" && (
         <Input 
           name={question.id} 
-          placeholder="Enter your answer" 
+          placeholder={t('enter_answer') || 'Enter your answer'} 
           onChange={(e) => onChange(question.id, e.target.value)} 
           value={value || ''}
           className="bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-blue-400 focus:ring-blue-400/20"

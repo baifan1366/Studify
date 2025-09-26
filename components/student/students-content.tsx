@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { useStudents } from '@/hooks/profile/use-students';
@@ -8,13 +9,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 export default function StudentsContent() {
+  const t = useTranslations('StudentsContent');
   const [user, setUser] = useState<User | null>(null);
   
   const { isLoading } = useStudents();
   const { toast } = useToast();
   const [sidebarWidth, setSidebarWidth] = useState(80);
-
-  // Fetch user authentication data
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -32,8 +32,8 @@ export default function StudentsContent() {
       } catch (error) {
         console.error('Error fetching user:', error);
         toast({
-          title: "Error",
-          description: "Failed to load user data",
+          title: t('error') || "Error",
+          description: t('failed_load_user') || "Failed to load user data",
           variant: "destructive",
         });
       }
@@ -44,15 +44,15 @@ export default function StudentsContent() {
 
   const handleViewProfile = (studentId: number) => {
     toast({
-      title: "Profile View",
-      description: `Opening profile for student ${studentId}`,
+      title: t('profile_view') || "Profile View",
+      description: t('opening_profile', { studentId }) || `Opening profile for student ${studentId}`,
     });
   };
 
   const handleSendMessage = (studentId: number) => {
     toast({
-      title: "Message",
-      description: `Opening message for student ${studentId}`,
+      title: t('message') || "Message",
+      description: t('opening_message', { studentId }) || `Opening message for student ${studentId}`,
     });
   };
 
@@ -70,10 +70,10 @@ export default function StudentsContent() {
     <>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
-              Students Management
+              {t('title') || 'Students Management'}
             </h1>
             <p className="text-lg text-white/70 mb-8 dark:text-white/70">
-              Manage student profiles, track progress, and monitor performance
+              {t('subtitle') || 'Manage student profiles, track progress, and monitor performance'}
             </p>
           </div>
 
@@ -124,7 +124,7 @@ export default function StudentsContent() {
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/70 dark:text-white/70">Progress</span>
+                      <span className="text-white/70 dark:text-white/70">{t('progress') || 'Progress'}</span>
                       <span className="text-white dark:text-white">{student.progress}%</span>
                     </div>
                     <div className="w-full bg-white/20 rounded-full h-2">
@@ -142,13 +142,13 @@ export default function StudentsContent() {
                       onClick={() => handleViewProfile(student.id)}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                     >
-                      View Profile
+                      {t('view_profile') || 'View Profile'}
                     </button>
                     <button 
                       onClick={() => handleSendMessage(student.id)}
                       className="flex-1 bg-white/20 hover:bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                     >
-                      Message
+                      {t('message_button') || 'Message'}
                     </button>
                   </div>
                 </motion.div>

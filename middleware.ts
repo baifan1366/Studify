@@ -15,6 +15,8 @@ const PUBLIC_PATHS = [
   /^\/api\/currency/, // public currency API
   /^\/api\/video-processing\/warmup/, // warmup endpoints
   /\/sign-in$/, // sign-in pages
+  /\/forgot-password$/, // forgot-password pages
+  /\/reset-password$/, // reset-password pages
   /\/verify-email$/, // email verification
   /\/(student|tutor|admin)\/sign-up$/, // role-based signup
   /\/(student|tutor|admin)(\/onboarding.*)?$/, // onboarding pages
@@ -33,9 +35,9 @@ const PROFILE_KEY = (userId: string) => `profile:${userId}`;
 const debugLog = (message: string, data?: any) => {
   if (process.env.NODE_ENV !== 'production') {
     if (data !== undefined) {
-      console.log(`[middleware] ${message}`, data);
+      //console.log(`[middleware] ${message}`, data);
     } else {
-      console.log(`[middleware] ${message}`);
+      //console.log(`[middleware] ${message}`);
     }
   }
 };

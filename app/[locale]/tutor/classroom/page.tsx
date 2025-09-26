@@ -1,4 +1,6 @@
-import { Metadata } from "next";
+import React from 'react';
+import { Metadata } from 'next';
+import { ClassroomListPage } from '@/components/classroom/classroom-list-page';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,12 +18,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function TutorClassroomPage() {
-  const t = await getTranslations('TutorClassroomPage');
-
-  return (
-    <div>
-      <h1>{t('page_title')}</h1>
-    </div>
-  );
+export default function Page() {
+  return <ClassroomListPage />;
 }

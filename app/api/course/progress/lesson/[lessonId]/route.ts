@@ -12,6 +12,19 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get the user's profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
+
     // First, get the numeric lesson ID from the public_id
     const { data: lesson, error: lessonError } = await supabase
       .from('course_lesson')
@@ -27,7 +40,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
     const { data, error } = await supabase
       .from("course_progress")
       .select("*")
-      .eq("user_id", user?.id)
+      .eq("user_id", userId)
       .eq("lesson_id", lesson.id)
       .single();
 
@@ -48,6 +61,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
     if(authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Get the user's profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
 
     // First, get the numeric lesson ID from the public_id
     const { data: lesson, error: lessonError } = await supabase
@@ -77,7 +103,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
       .from("course_progress")
       .update(updates)
       .eq("lesson_id", lesson.id)
-      .eq("user_id", user?.id)
+      .eq("user_id", userId)
       .select("*")
       .single();
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTheme } from "next-themes"
 import { Moon, Sun } from "lucide-react"
 
 interface ThemeSwitcherProps {
@@ -9,6 +10,7 @@ interface ThemeSwitcherProps {
 
 export function ThemeSwitcher({ className = "" }: ThemeSwitcherProps) {
   const [mounted, setMounted] = useState(false)
+  const { theme, setTheme, resolvedTheme } = useTheme()
   
   useEffect(() => {
     setMounted(true)
@@ -22,6 +24,8 @@ export function ThemeSwitcher({ className = "" }: ThemeSwitcherProps) {
     )
   }
 
+  const isDark = resolvedTheme === 'dark'
+
   return (
     <div className="flex items-center space-x-2">
       <Sun className="h-4 w-4 text-amber-600 dark:text-amber-400 transition-colors" />
@@ -29,15 +33,9 @@ export function ThemeSwitcher({ className = "" }: ThemeSwitcherProps) {
         <input 
           type="checkbox" 
           className="sr-only peer"
-          defaultChecked={document.documentElement.classList.contains('dark')}
+          checked={isDark}
           onChange={(e) => {
-            if (e.target.checked) {
-              document.documentElement.classList.add('dark')
-              localStorage.theme = 'dark'
-            } else {
-              document.documentElement.classList.remove('dark')
-              localStorage.theme = 'light'
-            }
+            setTheme(e.target.checked ? 'dark' : 'light')
           }}
         />
         <div className={[

@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { AssignmentSubmissions } from './assignment-submissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 
 interface Assignment {
   id: number;
@@ -27,14 +27,15 @@ interface AssignmentSubmissionsPageProps {
 export function AssignmentSubmissionsPageComponent({ 
   assignmentId, 
   classroomSlug 
-}: AssignmentSubmissionsPageProps) {
+}: AssignmentSubmissionsPageProps) {  
+  const router = useRouter();
+  const t = useTranslations('AssignmentSubmissions');
+  const { data: currentUser } = useUser();
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { data: userData } = useUser();
   const { data: membersData } = useClassroomMembers(classroomSlug);
-  const router = useRouter();
-
   useEffect(() => {
     const fetchAssignment = async () => {
       try {
@@ -71,7 +72,11 @@ export function AssignmentSubmissionsPageComponent({
   }, [assignmentId, classroomSlug]);
 
   const handleBack = () => {
-    router.push(`/classroom/${classroomSlug}`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}`
+      : `/classroom/${classroomSlug}`;
+    router.push(route);
   };
 
   if (loading) {

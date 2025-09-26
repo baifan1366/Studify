@@ -1,5 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
+import ClassroomDashboard from '@/components/classroom/classroom-dashboard';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -20,5 +21,5 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  return <div></div>;
+  return <ClassroomDashboard classroomSlug={slug} />;
 }

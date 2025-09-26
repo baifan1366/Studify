@@ -104,7 +104,7 @@ export default function ClassroomHeader({
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
         >
-          <ThemeSwitcher />
+          {/* <ThemeSwitcher /> */}
           <NotificationBell />
 
           {/* Profile Button */}

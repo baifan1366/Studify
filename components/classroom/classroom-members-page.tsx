@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
 import { 
   ArrowLeft, 
   UserPlus, 
@@ -46,6 +48,8 @@ interface ClassroomMembersPageProps {
 export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('ClassroomMembers');
+  const { data: currentUser } = useUser();
   const [classroom, setClassroom] = useState<any>(null);
 
   const { data: classroomsData } = useClassrooms();
@@ -61,7 +65,11 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    router.push(`/classroom/${classroomSlug}`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}`
+      : `/classroom/${classroomSlug}`;
+    router.push(route);
   };
 
   const handleCopyClassCode = () => {

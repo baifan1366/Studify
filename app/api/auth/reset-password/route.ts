@@ -5,7 +5,7 @@ import { createClient, createAdminClient } from '@/utils/supabase/server';
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { password } = body;
+    const { password, token } = body;
 
     if (!password) {
       return NextResponse.json(
@@ -21,20 +21,50 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Create a regular client to get the current user from the session
     const supabase = await createClient();
-    
-    // Get the current user (should be authenticated via the reset token)
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'No authenticated user found. Please use the reset link again.' },
-        { status: 401 }
-      );
+    let user = null;
+
+    // Handle both token-based and session-based flows
+    if (token) {
+      // Token-based flow: Exchange access token for user session
+      const { data: tokenData, error: tokenError } = await supabase.auth.getUser(token);
+      
+      if (tokenError || !tokenData.user) {
+        return NextResponse.json(
+          { error: 'Invalid or expired reset token' },
+          { status: 401 }
+        );
+      }
+      
+      user = tokenData.user;
+      
+      // Set the session using the provided token
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: '' // Not needed for password reset
+      });
+      
+      if (sessionError) {
+        return NextResponse.json(
+          { error: 'Failed to establish session' },
+          { status: 401 }
+        );
+      }
+    } else {
+      // Session-based flow: Get current authenticated user
+      const { data: { user: sessionUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !sessionUser) {
+        return NextResponse.json(
+          { error: 'No authenticated user found. Please use the reset link again.' },
+          { status: 401 }
+        );
+      }
+      
+      user = sessionUser;
     }
 
-    // Update the password using the regular client (user must be authenticated)
+    // Update the password using the established session
     const { data, error } = await supabase.auth.updateUser({ 
       password: password 
     });

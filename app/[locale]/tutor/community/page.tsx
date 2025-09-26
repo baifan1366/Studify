@@ -4,8 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import CommunityContent from '@/components/community/community-content';
 
 /**
- * Tutor Community Main Page Component
- * Browse community groups, posts, and activities as a tutor
+ * Community Main Page Component
+ * Browse community groups, posts, and activities
  */
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,6 +23,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function TutorCommunityPage() {
+export default function CommunityPage() {
   return <CommunityContent />;
 }

@@ -92,9 +92,9 @@ export default function ClassroomHeader({
             </div>
           </motion.div>
         </div>
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <ThemeSwitcher />
-        </div>
+        </div> */}
         {/* Right side - Actions */}
         <motion.div
           className="flex items-center space-x-4"

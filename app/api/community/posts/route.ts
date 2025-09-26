@@ -97,6 +97,13 @@ export async function GET(request: Request) {
       .in("post_id", postIds)
       .eq("is_deleted", false);
 
+    // Get post files for accessible posts
+    const postPublicIds = accessiblePosts.map((p) => p.public_id);
+    const { data: postFiles } = await supabaseClient
+      .from("community_post_files")
+      .select("id, post_id, url, file_name, mime_type")
+      .in("post_id", postPublicIds);
+
     // Process posts to add reaction and comment counts
     const processedPosts = accessiblePosts.map((post) => {
       // Aggregate reactions
@@ -114,10 +121,14 @@ export async function GET(request: Request) {
       const commentsCount =
         commentCounts?.filter((c) => c.post_id === post.id).length || 0;
 
+      // Get files for this post
+      const files = postFiles?.filter((f) => f.post_id === post.public_id) || [];
+
       return {
         ...post,
         reactions: reactionCounts,
         comments_count: commentsCount,
+        files: files,
       };
     });
 

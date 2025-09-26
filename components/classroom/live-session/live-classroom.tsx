@@ -1,28 +1,83 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+
+// CSS Debugging - 确保关键样式被应用
+if (typeof window !== 'undefined') {
+  // 添加全局样式确保层级和尺寸
+  const debugStyle = document.createElement('style');
+  debugStyle.textContent = `
+    /* 强制ParticipantsList层级 */
+    .participants-list-container {
+      z-index: 200 !important;
+      position: absolute !important;
+    }
+    
+    /* 强制Panel智能宽度 */
+    .panel-container {
+      min-width: 200px !important;
+      max-width: 600px !important;
+      flex-shrink: 0 !important;
+    }
+    
+    /* 强制VideoArea层级 */
+    .video-area-container {
+      z-index: 10 !important;
+      position: relative !important;
+      flex-shrink: 0 !important;
+    }
+  `;
+  if (!document.head.querySelector('#layout-debug-styles')) {
+    debugStyle.id = 'layout-debug-styles';
+    document.head.appendChild(debugStyle);
+  }
+}
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, 
-  MessageCircle, 
-  Hand, 
-  Grid3X3, 
-  Presentation, 
-  Focus, 
-  Video, 
-  VideoOff, 
+  Camera, 
+  CameraOff, 
   Mic, 
   MicOff, 
+  Monitor, 
+  MonitorOff, 
+  Volume2, 
+  VolumeX, 
+  PhoneOff, 
   Settings, 
+  Users, 
+  MessageCircle, 
+  Grid3X3, 
+  LayoutGrid, 
+  Maximize, 
   MoreVertical,
-  MoreHorizontal,
+  Zap,
   Clock,
-  Maximize,
-  Loader2
+  Smile,
+  ThumbsUp,
+  Heart,
+  Trophy,
+  Sparkles,
+  Timer,
+  Play,
+  Pause,
+  Square,
+  Send,
+  Loader2,
+  Video,
+  VideoOff,
+  MoreHorizontal,
+  Presentation,
+  Hand,
+  PenTool
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { LiveblocksChatPanel } from './liveblocks-chat-panel';
+import { WhiteboardPanel } from './whiteboard-panel';
+import { WhiteboardCanvas } from './whiteboard-canvas';
 import { 
   LiveKitRoom, 
   useDataChannel,
@@ -67,11 +122,49 @@ export default function RedesiLiveClassroom({
   const [isRecording, setIsRecording] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-  const [sessionDuration, setSessionDuration] = useState(2347); 
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState(2347);
+  
+  // 白板工具栏状态
+  const [whiteboardTool, setWhiteboardTool] = useState<'pen' | 'eraser' | 'rectangle' | 'circle' | 'text'>('pen');
+  const [whiteboardColor, setWhiteboardColor] = useState('#000000');
+  const [whiteboardBrushSize, setWhiteboardBrushSize] = useState(4);
+  
+  // 白板画布引用 - 存储所有canvas引用
+  const whiteboardCanvasRefs = useRef<{ [key: string]: any }>({});
+
+  // 白板清除功能
+  const handleClearWhiteboard = () => {
+    Object.values(whiteboardCanvasRefs.current).forEach((canvasRef: any) => {
+      if (canvasRef?.clearCanvas) {
+        canvasRef.clearCanvas();
+      }
+    });
+  };
+
+  // 白板保存功能
+  const handleSaveWhiteboard = async () => {
+    // 获取第一个可用的canvas引用
+    const firstCanvasRef = Object.values(whiteboardCanvasRefs.current).find((ref: any) => ref?.saveCanvas);
+    if (firstCanvasRef?.saveCanvas) {
+      await firstCanvasRef.saveCanvas();
+    }
+  };
+
+  // 白板下载功能
+  const handleDownloadWhiteboard = () => {
+    // 获取第一个可用的canvas引用
+    const firstCanvasRef = Object.values(whiteboardCanvasRefs.current).find((ref: any) => ref?.downloadCanvas);
+    if (firstCanvasRef?.downloadCanvas) {
+      firstCanvasRef.downloadCanvas();
+    }
+  }; 
   const [reactions, setReactions] = useState<Array<{ id: number; type: string; at: number }>>([]);
   const [floatingReactions, setFloatingReactions] = useState<Array<{ id: number; type: string; x: number; y: number }>>([]);
   const [reactionEmojis, setReactionEmojis] = useState<Array<{ id: string; emoji: string; timestamp: number }>>([]);
   const [focusedParticipant, setFocusedParticipant] = useState<any>(null);
+  const [panelWidth, setPanelWidth] = useState(35); // panel宽度百分比，默认35%
+  const [isResizing, setIsResizing] = useState(false);
   const [localMediaState, setLocalMediaState] = useState<{
     camera: boolean;
     microphone: boolean;
@@ -177,6 +270,43 @@ export default function RedesiLiveClassroom({
     toast.info('课堂已结束');
   };
 
+  // Panel拖拽调节大小处理
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault();
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const containerWidth = window.innerWidth;
+    const newPanelWidth = ((containerWidth - e.clientX) / containerWidth) * 100;
+    
+    // 限制panel宽度在20%到60%之间
+    const clampedWidth = Math.max(20, Math.min(60, newPanelWidth));
+    setPanelWidth(clampedWidth);
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
   const handleToggleRecording = useCallback(() => {
     // Simple state toggle - actual recording logic is handled in BottomControls
     setIsRecording(!isRecording);
@@ -279,6 +409,8 @@ export default function RedesiLiveClassroom({
           setIsChatOpen={setIsChatOpen}
           isParticipantsOpen={isParticipantsOpen}
           setIsParticipantsOpen={setIsParticipantsOpen}
+          isWhiteboardOpen={isWhiteboardOpen}
+          setIsWhiteboardOpen={setIsWhiteboardOpen}
           sessionDuration={sessionDuration}
           reactions={reactions}
           floatingReactions={floatingReactions}
@@ -293,6 +425,18 @@ export default function RedesiLiveClassroom({
           localMediaState={localMediaState}
           addReaction={addReaction}
           formatDuration={formatDuration}
+          panelWidth={panelWidth}
+          handleMouseDown={handleMouseDown}
+          isResizing={isResizing}
+          whiteboardTool={whiteboardTool}
+          setWhiteboardTool={setWhiteboardTool}
+          whiteboardColor={whiteboardColor}
+          setWhiteboardColor={setWhiteboardColor}
+          whiteboardBrushSize={whiteboardBrushSize}
+          setWhiteboardBrushSize={setWhiteboardBrushSize}
+          handleClearWhiteboard={handleClearWhiteboard}
+          handleSaveWhiteboard={handleSaveWhiteboard}
+          whiteboardCanvasRefs={whiteboardCanvasRefs}
         />
       </LiveKitRoom>
     </div>
@@ -315,6 +459,8 @@ interface LiveClassroomContentProps {
   setIsChatOpen: (open: boolean) => void;
   isParticipantsOpen: boolean;
   setIsParticipantsOpen: (open: boolean) => void;
+  isWhiteboardOpen: boolean;
+  setIsWhiteboardOpen: (open: boolean) => void;
   sessionDuration: number;
   reactions: Array<{ id: number; type: string; at: number }>;
   floatingReactions: Array<{ id: number; type: string; x: number; y: number }>;
@@ -329,6 +475,20 @@ interface LiveClassroomContentProps {
   addReaction: (type: string) => void;
   reactionEmojiMap: Record<string, string>;
   formatDuration: (seconds: number) => string;
+  panelWidth: number;
+  handleMouseDown: (e: React.MouseEvent) => void;
+  isResizing: boolean;
+  // 白板工具栏状态
+  whiteboardTool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
+  setWhiteboardTool: (tool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text') => void;
+  whiteboardColor: string;
+  setWhiteboardColor: (color: string) => void;
+  whiteboardBrushSize: number;
+  setWhiteboardBrushSize: (size: number) => void;
+  // 白板操作函数
+  handleClearWhiteboard: () => void;
+  handleSaveWhiteboard: () => Promise<void>;
+  whiteboardCanvasRefs: React.MutableRefObject<{ [key: string]: any }>;
 }
 
 function LiveClassroomContent({
@@ -347,6 +507,8 @@ function LiveClassroomContent({
   setIsChatOpen,
   isParticipantsOpen,
   setIsParticipantsOpen,
+  isWhiteboardOpen,
+  setIsWhiteboardOpen,
   sessionDuration,
   reactions,
   floatingReactions,
@@ -360,7 +522,19 @@ function LiveClassroomContent({
   localMediaState,
   addReaction,
   formatDuration,
-  reactionEmojiMap
+  reactionEmojiMap,
+  panelWidth,
+  handleMouseDown,
+  isResizing,
+  whiteboardTool,
+  setWhiteboardTool,
+  whiteboardColor,
+  setWhiteboardColor,
+  whiteboardBrushSize,
+  setWhiteboardBrushSize,
+  handleClearWhiteboard,
+  handleSaveWhiteboard,
+  whiteboardCanvasRefs
 }: LiveClassroomContentProps) {
   const room = useRoomContext();
   const livekitParticipants = useParticipants();
@@ -670,7 +844,7 @@ function LiveClassroomContent({
   }, [connectionError, onRefreshToken]);
 
   return (
-    <>
+    <div className="h-full flex flex-col">
       {/* Floating Reactions */}
       <FloatingReactions reactions={floatingReactions} reactionEmojis={reactionEmojis} />
       
@@ -687,28 +861,109 @@ function LiveClassroomContent({
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar 
-          participants={participants}
-          isParticipantsOpen={isParticipantsOpen}
-          setIsParticipantsOpen={setIsParticipantsOpen}
-          isChatOpen={isChatOpen}
-          setIsChatOpen={setIsChatOpen}
-          userRole={userRole}
-        />
-
-        {/* Video Area */}
-        <div className="flex-1 relative p-4 z-[10]">
-          <VideoArea 
-            layout={layout}
+        {/* Sidebar - 固定宽度，不被panel影响 */}
+        <div className="flex-shrink-0">
+          <Sidebar 
             participants={participants}
-            focusedParticipant={focusedParticipant}
-            setFocusedParticipant={setFocusedParticipant}
+            isParticipantsOpen={isParticipantsOpen}
+            setIsParticipantsOpen={setIsParticipantsOpen}
+            isChatOpen={isChatOpen}
+            setIsChatOpen={setIsChatOpen}
+            isWhiteboardOpen={isWhiteboardOpen}
+            setIsWhiteboardOpen={setIsWhiteboardOpen}
+            userRole={userRole}
           />
         </div>
 
-        {/* Chat Panel */}
-        <ChatPanel isOpen={isChatOpen} />
+        {/* 中间内容区域 - 包含video area和panel */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Video Area - 固定高度，动态宽度 */}
+          <div 
+            className="relative p-4 z-[10] transition-all duration-300 flex-shrink-0"
+            style={{
+              width: (isChatOpen || isWhiteboardOpen) 
+                ? `calc(100% - ${panelWidth}% - 4px)` // 减去分隔条宽度
+                : '100%',
+              height: '100%' // 固定高度
+            }}
+          >
+            <VideoArea 
+              layout={layout}
+              participants={participants}
+              focusedParticipant={focusedParticipant}
+              setFocusedParticipant={setFocusedParticipant}
+              isWhiteboardOpen={isWhiteboardOpen}
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              panelsOpen={isChatOpen || isWhiteboardOpen}
+              whiteboardTool={whiteboardTool}
+              whiteboardColor={whiteboardColor}
+              whiteboardBrushSize={whiteboardBrushSize}
+            />
+          </div>
+
+          {/* 拖拽分隔条 */}
+          {(isChatOpen || isWhiteboardOpen) && (
+            <div
+              className={`w-1 bg-slate-600/20 hover:bg-slate-500/40 cursor-col-resize z-[15] flex-shrink-0 ${
+                isResizing ? 'bg-slate-400/60' : ''
+              } transition-colors`}
+              onMouseDown={handleMouseDown}
+            />
+          )}
+
+          {/* Right Panel Container - 固定高度，自适应宽度 */}
+          {(isChatOpen || isWhiteboardOpen) && (
+            <div 
+              className="panel-container relative transition-all duration-300 flex-shrink-0 overflow-hidden"
+              style={{ 
+                width: `${panelWidth}%`,
+                height: '100%',
+                minWidth: '200px', 
+                maxWidth: '600px',
+                zIndex: 10,
+                flexShrink: 0,
+                overflow: 'hidden'
+              }}
+            >
+              <div className="w-full h-full flex flex-col">
+                {/* Chat Panel - Liveblocks Integration */}
+                <div className={`flex-1 ${isChatOpen ? 'block' : 'hidden'} overflow-hidden`}>
+                  <LiveblocksChatPanel 
+                    isOpen={isChatOpen}
+                    classroomSlug={classroomSlug}
+                    sessionId={sessionId}
+                    userInfo={{
+                      id: `${classroomSlug}-${sessionId}`, // 使用教室和会话ID作为唯一ID
+                      name: originalParticipantName,
+                      avatar: '', // 可以后续添加头像支持
+                      role: userRole
+                    }}
+                  />
+                </div>
+
+                {/* Whiteboard Panel */}
+                <div className={`flex-1 ${isWhiteboardOpen ? 'block' : 'hidden'} overflow-hidden`}>
+                  <WhiteboardPanel
+                    isOpen={isWhiteboardOpen}
+                    classroomSlug={classroomSlug}
+                    sessionId={sessionId}
+                    userRole={userRole}
+                    currentTool={whiteboardTool}
+                    setCurrentTool={setWhiteboardTool}
+                    currentColor={whiteboardColor}
+                    setCurrentColor={setWhiteboardColor}
+                    currentBrushSize={whiteboardBrushSize}
+                    setCurrentBrushSize={setWhiteboardBrushSize}
+                    onClearCanvas={handleClearWhiteboard}
+                    onDownloadCanvas={handleSaveWhiteboard}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom Control Bar */}
@@ -728,8 +983,26 @@ function LiveClassroomContent({
       {userRole === 'tutor' && (
         <EnhancedParticipantsList participants={participants} />
       )}
+
+      {/* Participants List Overlay - Independent positioned element */}
+      <AnimatePresence>
+        {isParticipantsOpen && (
+          <motion.div
+            className="participants-list-container absolute left-16 top-0 w-80 h-full bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 pointer-events-auto"
+            style={{ 
+              zIndex: 200
+            }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ParticipantsList participants={participants} userRole={userRole} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       
-    </>
+    </div>
   );
 }
 
@@ -737,7 +1010,11 @@ function LiveClassroomContent({
 function EnhancedParticipantsList({ participants }: any) {
   return (
     <motion.div 
-      className="absolute top-20 right-6 w-80 bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4 z-30"
+      className="participants-list-container absolute top-20 right-6 w-80 bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4"
+      style={{
+        zIndex: 200,
+        position: 'absolute'
+      }}
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
@@ -892,10 +1169,10 @@ function LayoutControls({ layout, setLayout }: any) {
 }
 
 // Sidebar Component
-function Sidebar({ participants, isParticipantsOpen, setIsParticipantsOpen, isChatOpen, setIsChatOpen, userRole }: any) {
+function Sidebar({ participants, isParticipantsOpen, setIsParticipantsOpen, isChatOpen, setIsChatOpen, isWhiteboardOpen, setIsWhiteboardOpen, userRole }: any) {
   return (
     <motion.aside 
-      className="w-16 bg-slate-800/30 backdrop-blur-sm border-r border-slate-700/50 flex flex-col z-20"
+      className="w-16 h-full bg-slate-800/30 backdrop-blur-sm border-r border-slate-700/50 flex flex-col z-20"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
@@ -932,6 +1209,21 @@ function Sidebar({ participants, isParticipantsOpen, setIsParticipantsOpen, isCh
           <MessageCircle className="w-5 h-5" />
         </motion.button>
 
+        {/* Whiteboard Toggle */}
+        <motion.button
+          onClick={() => setIsWhiteboardOpen(!isWhiteboardOpen)}
+          className={`p-3 rounded-xl transition-all ${
+            isWhiteboardOpen 
+              ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30' 
+              : 'bg-slate-700/50 text-slate-400 hover:bg-slate-600/50 hover:text-slate-200'
+          }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          title="白板"
+        >
+          <PenTool className="w-5 h-5" />
+        </motion.button>
+
         {/* Hand Raise */}
         <motion.button
           className="p-3 rounded-xl bg-slate-700/50 text-slate-400 hover:bg-slate-600/50 hover:text-slate-200 transition-all"
@@ -942,20 +1234,6 @@ function Sidebar({ participants, isParticipantsOpen, setIsParticipantsOpen, isCh
         </motion.button>
       </div>
 
-      {/* Participants List (when open) */}
-      <AnimatePresence>
-        {isParticipantsOpen && (
-          <motion.div
-            className="absolute left-16 top-0 w-80 h-full bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 z-[100] pointer-events-auto"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ParticipantsList participants={participants} userRole={userRole} />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.aside>
   );
 }
@@ -1116,10 +1394,16 @@ function ParticipantCard({ participant, userRole }: any) {
 }
 
 // Video Area Component
-function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant }: any) {
+function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
   return (
     <motion.div 
-      className="h-full bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative z-[10]"
+      className="video-area-container h-full bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative flex-shrink-0"
+      style={{
+        zIndex: 10,
+        position: 'relative',
+        flexShrink: 0,
+        overflow: 'hidden'
+      }}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: 0.2 }}
@@ -1130,12 +1414,28 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             key="grid" 
             participants={participants} 
             setFocusedParticipant={setFocusedParticipant}
+            isWhiteboardOpen={isWhiteboardOpen}
+            classroomSlug={classroomSlug}
+            sessionId={sessionId}
+            userRole={userRole}
+            panelsOpen={panelsOpen}
+            whiteboardTool={whiteboardTool}
+            whiteboardColor={whiteboardColor}
+            whiteboardBrushSize={whiteboardBrushSize}
           />
         )}
         {layout === 'presentation' && (
           <PresentationVideoLayout 
             key="presentation" 
-            participants={participants} 
+            participants={participants}
+            isWhiteboardOpen={isWhiteboardOpen}
+            classroomSlug={classroomSlug}
+            sessionId={sessionId}
+            userRole={userRole}
+            panelsOpen={panelsOpen}
+            whiteboardTool={whiteboardTool}
+            whiteboardColor={whiteboardColor}
+            whiteboardBrushSize={whiteboardBrushSize}
           />
         )}
         {layout === 'focus' && (
@@ -1144,6 +1444,14 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             participants={participants}
             focusedParticipant={focusedParticipant}
             setFocusedParticipant={setFocusedParticipant}
+            isWhiteboardOpen={isWhiteboardOpen}
+            classroomSlug={classroomSlug}
+            sessionId={sessionId}
+            userRole={userRole}
+            panelsOpen={panelsOpen}
+            whiteboardTool={whiteboardTool}
+            whiteboardColor={whiteboardColor}
+            whiteboardBrushSize={whiteboardBrushSize}
           />
         )}
       </AnimatePresence>
@@ -1152,7 +1460,10 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
 }
 
 // Grid Video Layout - 智能网格算法（Google Meet风格）
-function GridVideoLayout({ participants, setFocusedParticipant }: any) {
+function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
+  // 计算总项目数量（参与者 + 白板）
+  const totalItems = participants.length + (isWhiteboardOpen ? 1 : 0);
+  
   const getGridClasses = (count: number) => {
     if (count <= 1) return 'grid-cols-1';
     if (count <= 2) return 'grid-cols-2';
@@ -1192,13 +1503,38 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
 
   return (
     <motion.div 
-      className="h-full pl-8 pr-8 pb-4 pt-4 z-10"
+      className="h-full pl-8 pr-8 pb-4 pt-4 z-10 flex-shrink-0 overflow-hidden"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
     >
-      <div className={`grid gap-2 md:gap-4 h-full w-full ${getGridClasses(participants.length)} ${getGridRows(participants.length)} auto-rows-fr`}>
+      <div className={`grid gap-2 md:gap-4 h-full w-full ${getGridClasses(totalItems)} ${getGridRows(totalItems)} auto-rows-fr`}>
+        {/* 白板项目（如果打开） */}
+        {isWhiteboardOpen && (
+          <div className="relative w-full aspect-video flex-shrink-0">
+            <motion.div 
+              className="w-full h-full relative rounded-xl overflow-hidden bg-white border border-slate-300/60"
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
+            >
+              <WhiteboardCanvas 
+                classroomSlug={classroomSlug}
+                sessionId={sessionId}
+                userRole={userRole}
+                participantName={"Whiteboard"}
+                currentTool={whiteboardTool}
+                currentColor={whiteboardColor}
+                currentBrushSize={whiteboardBrushSize}
+              />
+              <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+                白板
+              </div>
+            </motion.div>
+          </div>
+        )}
+        
+        {/* 参与者项目 */}
         {participants.map((participant: any, index: number) => (
           <div 
             key={participant.sid || participant.identity || `participant-${index}`}
@@ -1208,7 +1544,12 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
               participant={participant}
               size="grid"
               onFocus={() => setFocusedParticipant(participant)}
+              isWhiteboardOpen={false} // 在网格中不需要重复显示白板
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
               showFocusButton={true}
+              panelsOpen={panelsOpen}
             />
           </div>
         ))}
@@ -1218,75 +1559,162 @@ function GridVideoLayout({ participants, setFocusedParticipant }: any) {
 }
 
 // Presentation Video Layout - 左边大容器，右边缩小到三分之一
-function PresentationVideoLayout({ participants }: any) {
+function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
   const presenter = participants.find((p: any) => p.metadata?.includes('tutor')) || participants[0];
   const others = participants.filter((p: any) => p.sid !== presenter?.sid);
 
   return (
     <motion.div 
-      className="h-full flex p-4"
+      className="h-full flex p-4 flex-shrink-0 overflow-hidden"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="w-3/4">
-        <VideoTile participant={presenter} size="large" />
-      </div>
-      {others.length > 0 && (
-        <>
-          <div className="w-px bg-slate-600/30 mx-2"></div>
-          <div className="w-1/4 flex justify-end">
-            <div className="flex flex-col space-y-4 h-full max-h-[calc(100vh-200px)] overflow-y-auto max-w-sm ">
-              {others.map((participant: any, index: number) => (
-                <VideoTile 
-                  key={participant.sid || participant.identity || `other-${index}`}
-                  participant={participant}
-                  size="normal"
-                />
-              ))}
-            </div>
+      {/* 左边大容器 - 白板优先，否则显示主讲人 */}
+      <div className={`pr-2 transition-all duration-300 ${
+        panelsOpen ? 'w-4/5' : 'w-3/4'
+      }`}>
+        {isWhiteboardOpen ? (
+          <div className="w-full h-full flex-shrink-0">
+            <motion.div 
+              className="w-full h-full relative rounded-xl overflow-hidden bg-white border border-slate-300/60"
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.2 }}
+            >
+              <WhiteboardCanvas 
+                classroomSlug={classroomSlug}
+                sessionId={sessionId}
+                userRole={userRole}
+                participantName={"Whiteboard"}
+                currentTool={whiteboardTool}
+                currentColor={whiteboardColor}
+                currentBrushSize={whiteboardBrushSize}
+              />
+              <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+                白板
+              </div>
+            </motion.div>
           </div>
-        </>
-      )}
+        ) : (
+          <VideoTile 
+            participant={presenter} 
+            size="large"
+            isWhiteboardOpen={false}
+            classroomSlug={classroomSlug}
+            sessionId={sessionId}
+            userRole={userRole}
+            panelsOpen={panelsOpen}
+          />
+        )}
+      </div>
+      
+      {/* 右边容器 - 参与者列表，panel开启时更窄 */}
+      <div className={`pl-2 transition-all duration-300 flex-shrink-0 ${
+        panelsOpen ? 'w-1/5' : 'w-1/4'
+      }`}>
+        <div className="flex flex-col space-y-2 h-full overflow-y-auto">
+          {/* 如果白板打开，主讲人移到右边 */}
+          {isWhiteboardOpen && presenter && (
+            <VideoTile 
+              participant={presenter}
+              size="normal"
+              isWhiteboardOpen={false}
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              panelsOpen={panelsOpen}
+            />
+          )}
+          
+          {/* 其他参与者 */}
+          {others.map((participant: any, index: number) => (
+            <VideoTile 
+              key={participant.sid || participant.identity || `other-${index}`}
+              participant={participant}
+              size="normal"
+              isWhiteboardOpen={false}
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              panelsOpen={panelsOpen}
+            />
+          ))}
+        </div>
+      </div>
     </motion.div>
   );
 }
 
-// Focus Video Layout
-function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant }: any) {
+// Focus Video Layout - 只显示一个容器
+function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
   const focused = focusedParticipant || participants[0];
 
   return (
     <motion.div 
-      className="h-full p-4"
+      className="h-full p-4 flex-shrink-0 overflow-hidden"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
     >
       <div className="w-full h-full relative">
-        <VideoTile participant={focused} size="large" />
+        {/* 白板优先显示，否则显示聚焦的参与者 */}
+        {isWhiteboardOpen ? (
+          <div className="w-full h-full flex-shrink-0">
+            <motion.div 
+              className="w-full h-full relative rounded-xl overflow-hidden bg-white border border-slate-300/60"
+              whileHover={{ scale: 1.005 }}
+              transition={{ duration: 0.2 }}
+            >
+              <WhiteboardCanvas 
+                classroomSlug={classroomSlug}
+                sessionId={sessionId}
+                userRole={userRole}
+                participantName={"Whiteboard"}
+                currentTool={whiteboardTool}
+                currentColor={whiteboardColor}
+                currentBrushSize={whiteboardBrushSize}
+              />
+              <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+                白板
+              </div>
+            </motion.div>
+          </div>
+        ) : (
+          <VideoTile 
+            participant={focused} 
+            size="large" 
+            isWhiteboardOpen={false}
+            classroomSlug={classroomSlug}
+            sessionId={sessionId}
+            userRole={userRole}
+            panelsOpen={panelsOpen}
+          />
+        )}
+        
         <motion.button
           onClick={() => setFocusedParticipant(null)}
-          className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg hover:bg-slate-700/80 transition-colors"
+          className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg hover:bg-slate-700/80 transition-colors z-20"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          Exit Focus
+          退出聚焦
         </motion.button>
       </div>
     </motion.div>
   );
 }
 
-function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = false }: any) {
+function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = false, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen }: any) {
   const sizeClasses: Record<string, string> = {
-    thumbnail: 'w-32 h-20',
-    small: 'w-48 h-32',
-    normal: 'w-74 h-48',
-    large: 'w-full h-full',
-    grid: 'w-full h-full'
+    thumbnail: 'w-full max-w-32 h-20 flex-shrink-0',
+    small: 'w-full max-w-48 h-32 md:max-w-56 md:h-36 flex-shrink-0',
+    normal: panelsOpen 
+      ? 'w-full h-32 md:h-36 lg:h-40 flex-shrink-0' // panel开启时更紧凑，固定高度
+      : 'w-full h-40 md:h-48 lg:h-56 flex-shrink-0', // panel关闭时更宽松，固定高度
+    large: 'w-full h-full flex-shrink-0', // 固定高度，不伸缩
+    grid: 'w-full aspect-video flex-shrink-0' // 使用固定宽高比，不伸缩
   };
 
   // Use the original LiveKit participant object for track operations
@@ -1370,7 +1798,7 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
 
         ) : (
           <div 
-            className={`w-full h-full ${size === 'grid' ? 'min-h-[300px]' : 'min-h-screen'} flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800`}
+            className={`${sizeClasses[size]} flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800`}
           >
             <VideoOff className="w-20 h-20 mb-2 text-slate-400" />
             <span className="text-m font-large">No Camera</span>
@@ -1409,66 +1837,6 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
         </div>
       </motion.div>
     </div>
-  );
-}
-
-
-// Chat Panel Component
-function ChatPanel({ isOpen }: any) {
-  const [messages] = useState([
-    { id: 1, user: 'Jane Smith', message: 'Great explanation!', time: '2:34 PM' },
-    { id: 2, user: 'Mike Johnson', message: 'Can you repeat the last part?', time: '2:35 PM' },
-    { id: 3, user: 'Sarah Wilson', message: 'Thanks for sharing the resources', time: '2:36 PM' },
-  ]);
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="w-80 bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="p-4 border-b border-slate-700/50">
-            <h3 className="text-lg font-medium text-white flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Chat
-            </h3>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className="bg-slate-700/30 rounded-lg p-3">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-sm font-medium text-white">{message.user}</span>
-                  <span className="text-xs text-slate-400">{message.time}</span>
-                </div>
-                <p className="text-sm text-slate-200">{message.message}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-4 border-t border-slate-700/50">
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Type a message..."
-                className="flex-1 bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <motion.button 
-                className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Send
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 

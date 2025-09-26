@@ -31,6 +31,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import Mermaid from '@/components/ui/mermaid';
 import UniversalSearch from '@/components/search/universal-search';
+import DailyCoachCard from '@/components/ai-coach/daily-coach-card';
+import EveningReflectionModal from '@/components/ai-coach/evening-reflection-modal';
 
 export default function DashboardContent() {
   const t = useTranslations('Dashboard');
@@ -43,6 +45,9 @@ export default function DashboardContent() {
   const { generateContinueWatchingUrl, formatProgress, formatTimeRemaining, formatLastAccessed } = useContinueWatchingActions();
   const { data: userPreferences, isLoading: preferencesLoading } = useUserPreferences();
   const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
+  
+  // Evening reflection modal state
+  const [showReflectionModal, setShowReflectionModal] = React.useState(false);
 
   const user = userData;
   const profile = user?.profile;
@@ -384,6 +389,12 @@ export default function DashboardContent() {
                 </div>
               </div>
               
+              {/* Daily Learning Coach */}
+              <DailyCoachCard 
+                className="mb-6"
+                onReflectionClick={() => setShowReflectionModal(true)}
+              />
+              
               {/* My Learning Paths */}
               {learningPaths && learningPaths.length > 0 && (
                 <div className="relative bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
@@ -446,6 +457,12 @@ export default function DashboardContent() {
             </motion.div>
           </div>
         </div>
+        
+        {/* Evening Reflection Modal */}
+        <EveningReflectionModal 
+          isOpen={showReflectionModal}
+          onClose={() => setShowReflectionModal(false)}
+        />
       </div>
   );
 }

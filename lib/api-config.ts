@@ -230,6 +230,29 @@ export async function apiUploadFile(url: string, file: File) {
   return res.json(); // { id, url }
 }
 
+// Convenience functions for common HTTP methods
+export async function apiPost<TResponse = unknown, TBody = any>(
+  url: string, 
+  body: TBody
+): Promise<TResponse> {
+  return apiSend<TResponse, TBody>({
+    url,
+    method: 'POST',
+    body
+  });
+}
+
+export async function apiPatch<TResponse = unknown, TBody = any>(
+  url: string, 
+  body: TBody
+): Promise<TResponse> {
+  return apiSend<TResponse, TBody>({
+    url,
+    method: 'PATCH',
+    body
+  });
+}
+
 export async function apiPostFormData<T>(url: string, formData: FormData): Promise<T> {
   const res = await fetch(url, {
     method: "POST",

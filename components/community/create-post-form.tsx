@@ -17,6 +17,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useGroupPosts } from "@/hooks/community/use-community";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface CreatePostFormProps {
   groupSlug: string;
@@ -65,15 +67,23 @@ export default function CreatePostForm({
     e.preventDefault();
 
     // Validation
-    if (
-      !formData.title.trim() ||
-      formData.title.length < 5 ||
-      formData.title.length > 200
-    ) {
+    if (!formData.title.trim()) {
+      toast.error("Please enter a post title");
+      return;
+    }
+    
+    if (formData.title.length < 5) {
+      toast.error("Title must be at least 5 characters");
+      return;
+    }
+    
+    if (formData.title.length > 200) {
+      toast.error("Title cannot exceed 200 characters");
       return;
     }
 
     if (!formData.body.trim()) {
+      toast.error("Please enter post content");
       return;
     }
 
@@ -91,17 +101,18 @@ export default function CreatePostForm({
           hashtags: [],
           files: [],
         });
-        if (onSuccess) {
-          onSuccess(newPost.slug);
-        } else {
-          router.push(`/community/${groupSlug}/${newPost.slug}`);
-        }
+        toast.success("Post created successfully!");
+        onSuccess?.(newPost.slug);
+        router.push(`/community/${groupSlug}/posts/${newPost.slug}`);
       },
+      onError: (error: any) => {
+        toast.error(error?.message || "Failed to create post");
+      }
     });
   };
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className="bg-white/5 backdrop-blur-lg border border-white/10 shadow-xl">
       <CardHeader>
         <CardTitle className="text-white">Create New Post</CardTitle>
         <CardDescription className="text-gray-300">

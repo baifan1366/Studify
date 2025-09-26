@@ -4,7 +4,9 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AttemptItemSkeleton, StatsCardSkeleton } from "@/components/community/skeletons";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { 
   FileText, 
   Clock, 
@@ -188,7 +190,7 @@ export default function QuizzesSidebar() {
           <CardContent className="space-y-2">
             {loadingAttempts ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full bg-white/10" />
+                <AttemptItemSkeleton key={i} />
               ))
             ) : attempts && attempts.length > 0 ? (
               <>
@@ -236,7 +238,9 @@ export default function QuizzesSidebar() {
           <CardContent className="space-y-2">
             {loadingShared ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full bg-white/10" />
+                <div key={i} className="p-3 rounded-lg bg-white/5">
+                  <AttemptItemSkeleton />
+                </div>
               ))
             ) : sharedQuizzes && sharedQuizzes.length > 0 ? (
               sharedQuizzes.slice(0, 5).map((quiz) => (

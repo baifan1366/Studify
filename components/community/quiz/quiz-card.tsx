@@ -22,6 +22,8 @@ import type { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { useUserAttemptStatus } from "@/hooks/community/use-quiz";
 import { useUser } from "@/hooks/profile/use-user";
 import DeleteQuizModal from "@/components/community/quiz/delete-quiz-modal";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface QuizCardProps {
   quiz: CommunityQuiz & { question_count?: number };

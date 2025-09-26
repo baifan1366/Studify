@@ -4,8 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import QuizContent from '@/components/community/quiz/quiz-content';
 
 /**
- * Tutor Community Quizzes Page Component
- * Browse and participate in community quizzes as a tutor
+ * Community Quizzes Page Component
+ * Browse and participate in community quizzes
  */
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,6 +23,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function TutorQuizzesPage() {
+export default function QuizzesPage() {
   return <QuizContent />;
 }

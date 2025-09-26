@@ -97,37 +97,6 @@ const defaultMenuSections: MenuSection[] = [
     title: "Learning",
     items: [
       {
-        id: "classroom",
-        label: "Classroom",
-        icon: Presentation,
-        subItems: [
-          {
-            id: "my-classrooms",
-            label: "My Classrooms",
-            icon: BookOpen,
-            path: "/classroom",
-          },
-          {
-            id: "create-classroom",
-            label: "Create Classroom",
-            icon: PlusCircle,
-            path: "/classroom/create",
-          },
-          {
-            id: "live-sessions",
-            label: "Live Sessions",
-            icon: Video,
-            path: "/classroom/live-sessions",
-          },
-          {
-            id: "mistake-book",
-            label: "Mistake Book",
-            icon: FileQuestion,
-            path: "/classroom/mistake-book",
-          },
-        ],
-      },
-      {
         id: "courses",
         label: "Courses",
         icon: GraduationCap,
@@ -164,11 +133,37 @@ const defaultMenuSections: MenuSection[] = [
       //   icon: Route,
       //   path: "/learning-path",
       // },
-    ],
-  },
-  {
-    title: "Community",
-    items: [
+      {
+        id: "classroom",
+        label: "Classroom",
+        icon: Presentation,
+        subItems: [
+          {
+            id: "my-classrooms",
+            label: "My Classrooms",
+            icon: BookOpen,
+            path: "/classroom",
+          },
+          {
+            id: "create-classroom",
+            label: "Create Classroom",
+            icon: PlusCircle,
+            path: "/classroom/create",
+          },
+          // {
+          //   id: "live-sessions",
+          //   label: "Live Sessions",
+          //   icon: Video,
+          //   path: "/classroom/live-sessions",
+          // },
+          {
+            id: "mistake-book",
+            label: "Mistake Book",
+            icon: FileQuestion,
+            path: "/classroom/mistake-book",
+          },
+        ],
+      },
       {
         id: "community",
         label: "Community",
@@ -190,7 +185,7 @@ const defaultMenuSections: MenuSection[] = [
         ],
       },
     ],
-  },
+  }
 ];
 
 export default function AnimatedSidebar({

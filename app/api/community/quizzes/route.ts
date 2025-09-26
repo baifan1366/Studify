@@ -31,6 +31,30 @@ function makeBaseSlug(title: string) {
     .substring(0, 50);
 }
 
+/** Helper function to filter out quizzes with no questions */
+async function filterQuizzesWithQuestions(supabase: any, quizzes: any[]) {
+  if (!quizzes || quizzes.length === 0) {
+    return [];
+  }
+
+  const quizIds = quizzes.map((quiz: any) => quiz.id);
+  const { data: questionCounts, error } = await supabase
+    .from("community_quiz_question")
+    .select("quiz_id")
+    .in("quiz_id", quizIds);
+
+  if (error || !questionCounts) {
+    console.error("Error fetching question counts:", error);
+    return quizzes; // Return all quizzes if we can't check question counts
+  }
+
+  // Get quiz IDs that have at least one question
+  const quizIdsWithQuestions = new Set(questionCounts.map((q: any) => q.quiz_id));
+  
+  // Filter quizzes to only include those with questions
+  return quizzes.filter((quiz: any) => quizIdsWithQuestions.has(quiz.id));
+}
+
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
@@ -76,25 +100,13 @@ export async function GET(req: Request) {
       let queryBuilder = supabase
         .from("community_quiz")
         .select(`
-          id, 
-          public_id, 
-          slug, 
-          title, 
-          description, 
-          tags, 
-          difficulty, 
-          max_attempts, 
-          visibility,
-          author_id,
-          subject_id,
-          grade_id,
-          created_at,
-          community_quiz_subject!subject_id(
+          *,
+          subject:community_quiz_subject!subject_id(
             id,
             code,
             translations
           ),
-          community_quiz_grade!grade_id(
+          grade:community_quiz_grade!grade_id(
             id,
             code,
             translations
@@ -120,29 +132,18 @@ export async function GET(req: Request) {
       quizError = result.error;
     } else if (filter === "popular") {
       // 获取所有公开 quiz，按热度排序（根据 attempts 数量和创建时间）
+      // Only show quizzes with at least 1 question for community users
       let queryBuilder = supabase
         .from("community_quiz")
         .select(`
-          id, 
-          public_id, 
-          slug, 
-          title, 
-          description, 
-          tags, 
-          difficulty, 
-          max_attempts, 
-          visibility,
-          author_id,
-          subject_id,
-          grade_id,
-          created_at,
+          *,
           community_quiz_attempt(id),
-          community_quiz_subject!subject_id(
+          subject:community_quiz_subject!subject_id(
             id,
             code,
             translations
           ),
-          community_quiz_grade!grade_id(
+          grade:community_quiz_grade!grade_id(
             id,
             code,
             translations
@@ -167,19 +168,38 @@ export async function GET(req: Request) {
       if (result.error) {
         quizError = result.error;
       } else {
+        // Filter out quizzes with no questions for community view
+        const validQuizzes = await filterQuizzesWithQuestions(supabase, result.data || []);
+        
         // 计算每个 quiz 的 attempt 数量并排序
-        const quizzesWithCounts = result.data?.map(quiz => ({
-          ...quiz,
-          attempts_count: quiz.community_quiz_attempt?.length || 0,
-          community_quiz_attempt: undefined, // 移除这个字段，不返回给前端
-          subject: quiz.community_quiz_subject || null,
-          grade: quiz.community_quiz_grade || null,
-          community_quiz_subject: undefined,
-          community_quiz_grade: undefined
-        })) || [];
+        const quizzesWithCounts = validQuizzes?.map((quiz: any) => {
+          // Handle the case where Supabase returns arrays for foreign key relationships
+          const subjectData = Array.isArray(quiz.subject) 
+            ? quiz.subject[0] 
+            : quiz.subject;
+          const gradeData = Array.isArray(quiz.grade) 
+            ? quiz.grade[0] 
+            : quiz.grade;
+            
+          return {
+            ...quiz,
+            attempts_count: quiz.community_quiz_attempt?.length || 0,
+            community_quiz_attempt: undefined, // 移除这个字段，不返回给前端
+            subject: subjectData ? {
+              id: subjectData.id,
+              code: subjectData.code,
+              translations: subjectData.translations
+            } : null,
+            grade: gradeData ? {
+              id: gradeData.id,
+              code: gradeData.code,
+              translations: gradeData.translations
+            } : null
+          };
+        }) || [];
 
         // 按 attempts 数量降序，然后按创建时间降序排序
-        quizzes = quizzesWithCounts.sort((a, b) => {
+        quizzes = quizzesWithCounts.sort((a: any, b: any) => {
           if (a.attempts_count !== b.attempts_count) {
             return b.attempts_count - a.attempts_count;
           }
@@ -188,28 +208,17 @@ export async function GET(req: Request) {
       }
     } else {
       // 默认：返回所有公开 quiz
+      // Only show quizzes with at least 1 question for community users
       let queryBuilder = supabase
         .from("community_quiz")
         .select(`
-          id, 
-          public_id, 
-          slug, 
-          title, 
-          description, 
-          tags, 
-          difficulty, 
-          max_attempts, 
-          visibility,
-          author_id,
-          subject_id,
-          grade_id,
-          created_at,
-          community_quiz_subject!subject_id(
+          *,
+          subject:community_quiz_subject!subject_id(
             id,
             code,
             translations
           ),
-          community_quiz_grade!grade_id(
+          grade:community_quiz_grade!grade_id(
             id,
             code,
             translations
@@ -231,8 +240,12 @@ export async function GET(req: Request) {
 
       const result = await queryBuilder.order("created_at", { ascending: false });
 
-      quizzes = result.data;
-      quizError = result.error;
+      if (result.error) {
+        quizError = result.error;
+      } else {
+        // Filter out quizzes with no questions for community view
+        quizzes = await filterQuizzesWithQuestions(supabase, result.data || []);
+      }
     }
 
     if (quizError) {
@@ -243,8 +256,25 @@ export async function GET(req: Request) {
       return NextResponse.json([], { status: 200 });
     }
 
+    // For mine filter, add question count to each quiz for frontend warning logic
+    if (filter === "mine" && quizzes && quizzes.length > 0) {
+      const quizIds = quizzes.map((quiz: any) => quiz.id);
+      const { data: questionCounts, error: questionError } = await supabase
+        .from("community_quiz_question")
+        .select("quiz_id")
+        .in("quiz_id", quizIds);
+
+      if (!questionError && questionCounts) {
+        // Add question count to each quiz
+        quizzes = quizzes.map((quiz: any) => ({
+          ...quiz,
+          question_count: questionCounts.filter((q: any) => q.quiz_id === quiz.id).length
+        }));
+      }
+    }
+
     // 获取所有作者的ID
-    const authorIds = [...new Set(quizzes.map(quiz => quiz.author_id))];
+    const authorIds = [...new Set(quizzes.map((quiz: any) => quiz.author_id))];
 
     // 获取作者信息
     const { data: profiles, error: profileError } = await supabase
@@ -258,18 +288,33 @@ export async function GET(req: Request) {
 
     // 将作者信息合并到quiz数据中，并格式化subject/grade数据
     const quizzesWithAuthors = quizzes.map((quiz: any) => {
-      const author = profiles?.find(profile => profile.user_id === quiz.author_id);
+      const author = profiles?.find((profile: any) => profile.user_id === quiz.author_id);
+      
+      // Handle the case where Supabase returns arrays for foreign key relationships
+      const subjectData = Array.isArray(quiz.subject) 
+        ? quiz.subject[0] 
+        : quiz.subject;
+      const gradeData = Array.isArray(quiz.grade) 
+        ? quiz.grade[0] 
+        : quiz.grade;
+        
       return {
         ...quiz,
         author: author ? {
           display_name: author.display_name,
           avatar_url: author.avatar_url
         } : null,
-        subject: quiz.community_quiz_subject || null,
-        grade: quiz.community_quiz_grade || null,
-        // Remove the nested objects to clean up the response
-        community_quiz_subject: undefined,
-        community_quiz_grade: undefined
+        // Ensure subject and grade include the code field
+        subject: subjectData ? {
+          id: subjectData.id,
+          code: subjectData.code,
+          translations: subjectData.translations
+        } : null,
+        grade: gradeData ? {
+          id: gradeData.id,
+          code: gradeData.code,
+          translations: gradeData.translations
+        } : null
       };
     });
 

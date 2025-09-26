@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { 
   Users, 
   Calendar, 
@@ -21,6 +22,7 @@ import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-liv
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { useClassroomAssignments, ClassroomAssignment } from '@/hooks/classroom/use-classroom-assignments';
 import { ChatTabs } from './tabs/chat-tabs';
+import { useUser } from '@/hooks/profile/use-user'
 
 const LiveClassroom = dynamic(() => import('@/components/classroom/live-session/live-classroom'));
 import { Assignment as AssignmentInterface } from '@/interface/classroom/asg-interface';
@@ -86,10 +88,14 @@ const AnimatedTabsContent = ({ children, value, className = "", ...props }: any)
 };
 
 export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboardProps) {
+  const t = useTranslations('ClassroomDashboard');
   const router = useRouter();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [activeSession, setActiveSession] = useState<any>(null);
+  
+  // Get current user data to check role
+  const { data: currentUser } = useUser();
   
   // useRef for scroll behavior and DOM manipulation
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -167,14 +173,19 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     if (classroom?.class_code) {
       navigator.clipboard.writeText(classroom.class_code);
       toast({
-        title: "Copied!",
-        description: "Class code copied to clipboard",
+        title: t('copied'),
+        description: t('class_code_copied'),
       });
     }
   };
 
   const navigateToSection = (section: string) => {
-    router.push(`/classroom/${classroomSlug}/${section}`);
+    // Check if current user is a tutor and add /tutor/ prefix
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroomSlug}/${section}`
+      : `/classroom/${classroomSlug}/${section}`;
+    router.push(route);
   };
 
   const handleJoinSession = async (session: any) => {
@@ -190,8 +201,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
       if (sessionIdentifier === 'unknown') {
         toast({
-          title: "Invalid Session",
-          description: "Session has no valid identifier",
+          title: t('invalid_session'),
+          description: t('invalid_session_desc'),
           variant: "destructive"
         });
         return;
@@ -200,8 +211,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       // Basic status validation
       if (session.status === 'cancelled') {
         toast({
-          title: "Session Cancelled",
-          description: "This session has been cancelled.",
+          title: t('session_cancelled'),
+          description: t('session_cancelled_desc'),
           variant: "destructive"
         });
         return;
@@ -209,20 +220,23 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
       // Show joining toast
       toast({
-        title: "Joining Session",
-        description: `Redirecting to "${session.title}"...`,
+        title: t('joining_session'),
+        description: t('redirecting_to', { title: session.title }),
       });
 
-      // Redirect to live session room URL
-      const roomUrl = `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
+      // Redirect to live session room URL with role-based routing
+      const isTutor = currentUser?.role === 'tutor';
+      const roomUrl = isTutor 
+        ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
+        : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
       console.log('🔗 [Dashboard] Redirecting to room URL:', roomUrl);
       router.push(roomUrl);
       
     } catch (error) {
       console.error('❌ [Dashboard] Error in handleJoinSession:', error);
       toast({
-        title: "Failed to Join",
-        description: "Unable to join the session. Please try again.",
+        title: t('failed_to_join'),
+        description: t('failed_to_join_desc'),
         variant: "destructive"
       });
     }
@@ -231,8 +245,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const handleLeaveSession = () => {
     setActiveSession(null);
     toast({
-      title: "Left Session",
-      description: "You have left the live session.",
+      title: t('left_session'),
+      description: t('left_session_desc'),
     });
   };
 
@@ -266,7 +280,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{classroom.name}</h1>
             <p className="text-muted-foreground mt-1">
-              {classroom.description || 'No description provided'}
+              {classroom.description || t('no_description')}
             </p>
             <div className="flex items-center gap-4 mt-4">
               <Badge variant={classroom.visibility === 'public' ? 'default' : 'secondary'}>
@@ -278,7 +292,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <span className="text-sm">{(() => {
                   const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
                   return members.length;
-                })() || 0} members</span>
+                })() || 0} {t('members')}</span>
               </div>
             </div>
           </div>
@@ -290,11 +304,11 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 className="flex items-center gap-2"
               >
                 <Copy className="h-4 w-4" />
-                Class Code: {classroom.class_code}
+                {t('class_code')}: {classroom.class_code}
               </Button>
               <Button variant="outline" onClick={() => navigateToSection('members')}>
                 <Settings className="h-4 w-4 mr-2" />
-                Manage
+                {t('manage')}
               </Button>
             </div>
           )}
@@ -429,7 +443,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           >
             <Video className="h-5 w-5" />
           </motion.div>
-          Live Session Active
+          {t('live_session_active')}
           
           {/* Pulsing dot indicator */}
           <motion.div
@@ -456,7 +470,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             <div>
               <p className="font-medium">{session.title}</p>
               <p className="text-sm text-muted-foreground">
-                Started at {new Date(session.starts_at).toLocaleTimeString()}
+                {t('started_at')} {new Date(session.starts_at).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
             <Button 
@@ -466,7 +480,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               className="relative z-40 pointer-events-auto"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
-              Join Session (Debug)
+              {t('join_session')}
             </Button>
           </div>
         ))}
@@ -484,50 +498,50 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               isActive={activeTab === 'overview'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
-              Overview
+              {t('overview')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="recent" 
               isActive={activeTab === 'recent'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
-              Recent Activity
+              {t('recent_activity')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="members" 
               isActive={activeTab === 'members'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
-              Members
+              {t('members')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="live-sessions" 
               isActive={activeTab === 'live-sessions'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
-              Live Sessions
+              {t('schedule')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="assignments" 
               isActive={activeTab === 'assignments'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
-              Assignments
+              {t('assignments')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="quizzes" 
               isActive={activeTab === 'quizzes'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
-              Quizzes
+              {t('quizzes')}
             </AnimatedTabsTrigger>
-            <AnimatedTabsTrigger 
+            {/* <AnimatedTabsTrigger 
               value="chat" 
               isActive={activeTab === 'chat'}
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
             >
               Chat
-            </AnimatedTabsTrigger>
+            </AnimatedTabsTrigger> */}
           </TabsList>
         </div>
 
@@ -543,7 +557,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Members</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('members')}</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -552,7 +566,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                   return members.length;
                 })() || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Active members
+                  {t('active_members')}
                 </p>
               </CardContent>
             </Card>
@@ -566,13 +580,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Live Sessions</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('live_sessions')}</CardTitle>
                 <Video className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{upcomingSessions.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Upcoming sessions
+                  {t('upcoming_sessions')}
                 </p>
               </CardContent>
             </Card>
@@ -586,13 +600,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Assignments</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('assignments')}</CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{typedAssignments.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Active assignments
+                  {t('active_assignments')}
                 </p>
               </CardContent>
             </Card>
@@ -606,13 +620,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Quizzes</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('quizzes')}</CardTitle>
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{sampleQuizzes.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Available quizzes
+                  {t('available_quizzes')}
                 </p>
               </CardContent>
             </Card>
@@ -629,20 +643,20 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             >
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Upcoming Sessions</CardTitle>
-                  <CardDescription>Scheduled live sessions</CardDescription>
+                  <CardTitle>{t('upcoming_sessions')}</CardTitle>
+                  <CardDescription>{t('scheduled_live_sessions')}</CardDescription>
                 </div>
                 {isOwnerOrTutor && (
                   <Button size="sm" onClick={() => navigateToSection('live')}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Schedule
+                    {t('schedule')}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {upcomingSessions.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">
-                    No upcoming sessions
+                    {t('no_upcoming_sessions')}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -655,7 +669,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                             {new Date(session.starts_at).toLocaleTimeString()}
                           </p>
                         </div>
-                        <Badge variant="outline">Scheduled</Badge>
+                        <Badge variant="outline">{t('scheduled')}</Badge>
                       </div>
                     ))}
                   </div>
@@ -667,25 +681,24 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             <Card 
               style={{
                 backgroundColor: cardStyling.backgroundColor,
-                borderColor: cardStyling.borderColor
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Recent Assignments</CardTitle>
-                  <CardDescription>Latest classroom assignments</CardDescription>
+                  <CardTitle>{t('assignments')}</CardTitle>
+                  <CardDescription>{t('active_assignments')}</CardDescription>
                 </div>
                 {isOwnerOrTutor && (
                   <Button size="sm" onClick={() => navigateToSection('assignment')}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create
+                    {t('create')}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {!typedAssignments?.length ? (
                   <p className="text-muted-foreground text-center py-4">
-                    No assignments yet
+                    {t('no_assignments')}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -694,10 +707,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                         <div>
                           <p className="font-medium">{assignment.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            Due: {new Date(assignment.due_date).toLocaleDateString()}
+                            {t('due')}: {new Date(assignment.due_date).toLocaleDateString()}
                           </p>
                         </div>
-                        <Badge variant="outline">Active</Badge>
+                        <Badge variant="outline">{t('active')}</Badge>
                       </div>
                     ))}
                   </div>
@@ -753,7 +766,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           />
         </AnimatedTabsContent>
 
-        <AnimatedTabsContent value="chat" className="space-y-6">
+        {/* <AnimatedTabsContent value="chat" className="space-y-6">
           <ChatTabs
             classroomSlug={classroomSlug}
             currentUserId={(() => {
@@ -771,7 +784,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             className="relative w-full h-[600px] border-0 shadow-none bg-transparent"
             classroom={classroom}
           />
-        </AnimatedTabsContent>
+        </AnimatedTabsContent> */}
 
         <AnimatedTabsContent value="recent" className="space-y-6">
           <Card 
@@ -781,12 +794,12 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             }}
           >
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest classroom activities and updates</CardDescription>
+              <CardTitle>{t('recent_activity')}</CardTitle>
+              <CardDescription>{t('latest_activities')}</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground text-center py-8">
-                Activity feed coming soon...
+                {t('activity_feed_coming_soon')}
               </p>
             </CardContent>
           </Card>

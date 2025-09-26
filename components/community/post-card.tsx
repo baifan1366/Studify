@@ -23,14 +23,20 @@ import Link from "next/link";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
 import { useToggleReaction } from "@/hooks/community/use-reactions";
 import SharePostDialog from "./share-post-dialog";
+import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
   const toggleReactionMutation = useToggleReaction(post.group?.slug || '', post.slug || '');
   const [showShareDialog, setShowShareDialog] = React.useState(false);
+  const { toast: toastHook } = useToast();
 
   const handleReaction = (emoji: string) => {
-    if (!post.group?.slug || !post.slug) return;
+    if (!post.group?.slug || !post.slug) {
+      toast.error("Cannot react to this post");
+      return;
+    }
     
     toggleReactionMutation.mutate({
       groupSlug: post.group.slug,
@@ -38,6 +44,13 @@ export default function PostCard({ post }: { post: Post }) {
       emoji,
       target_type: "post",
       target_id: post.id.toString(),
+    }, {
+      onSuccess: () => {
+        toast.success(`Reacted with ${emoji}`);
+      },
+      onError: () => {
+        toast.error("Failed to add reaction");
+      }
     });
   };
 
@@ -185,13 +198,18 @@ export default function PostCard({ post }: { post: Post }) {
         {post.hashtags && post.hashtags.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-start w-full">
             {post.hashtags.map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="outline"
-                className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+              <Link
+                key={tag.id || tag.name}
+                href={`/community/hashtags/${tag.name}`}
+                className="hover:underline"
               >
-                #{tag.name}
-              </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+                >
+                  #{tag.name}
+                </Badge>
+              </Link>
             ))}
           </div>
         )}

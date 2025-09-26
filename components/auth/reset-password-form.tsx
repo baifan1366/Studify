@@ -5,8 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   Key, 
-  Eye, 
-  EyeOff, 
   Check, 
   AlertCircle,
   ArrowLeft 
@@ -15,6 +13,7 @@ import { useTranslations } from 'next-intl';
 import { useResetPassword } from '@/hooks/auth/use-password-reset';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 function ResetPasswordFormContent() {
   const t = useTranslations('ResetPassword');
@@ -31,11 +30,40 @@ function ResetPasswordFormContent() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const tokenParam = searchParams.get('token');
-    if (tokenParam) {
-      setToken(tokenParam);
+    // 获取重置密码的 token
+    let resetToken = null;
+    
+    // 方法1: 检查标准的 token 参数
+    resetToken = searchParams.get('token');
+    
+    // 方法2: 检查 access_token 参数  
+    if (!resetToken) {
+      resetToken = searchParams.get('access_token');
+    }
+    
+    // 方法3: 检查所有参数，找到类似 token 的（处理邮件模板错误的情况）
+    if (!resetToken) {
+      const allParams = Array.from(searchParams.entries());
+      for (const [key, value] of allParams) {
+        // 如果参数名看起来像 token (长度 > 30)
+        if (key.length > 30 && key.startsWith('pkce_')) {
+          resetToken = key;
+          break;
+        }
+        // 如果参数值看起来像 token
+        if (value && value.length > 30) {
+          resetToken = value;
+          break;
+        }
+      }
+    }
+    
+    console.log('[RESET PASSWORD] Extracted token:', resetToken ? resetToken.substring(0, 20) + '...' : 'none');
+    
+    if (resetToken) {
+      setToken(resetToken);
     } else {
-      setIsValidToken(false);
+      setToken('no-token-found');
     }
   }, [searchParams]);
 
@@ -57,10 +85,13 @@ function ResetPasswordFormContent() {
     if (!canSubmit) return;
 
     try {
-      await resetPassword.mutateAsync({
-        token,
-        newPassword
-      });
+      // Only send token if it's a real access token, not the session placeholder
+      const resetData: any = { password: newPassword };
+      if (token && token !== 'session-authenticated') {
+        resetData.token = token;
+      }
+      
+      await resetPassword.mutateAsync(resetData);
       
       // Redirect to login with success message
       setTimeout(() => {
@@ -121,20 +152,14 @@ function ResetPasswordFormContent() {
               {t('new_password')} {t('required')}
             </label>
             <div className="relative">
-              <input
+              <Input
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 required
+                autoFocus
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
             </div>
           </div>
 
@@ -165,7 +190,7 @@ function ResetPasswordFormContent() {
               {t('confirm_password')} {t('required')}
             </label>
             <div className="relative">
-              <input
+              <Input
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -176,13 +201,6 @@ function ResetPasswordFormContent() {
                 }`}
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
             </div>
             {confirmPassword && !passwordsMatch && (
               <div className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs">
@@ -193,12 +211,10 @@ function ResetPasswordFormContent() {
           </div>
 
           {/* Submit Button */}
-          <motion.button
+          <Button
             type="submit"
+            className="w-full"
             disabled={!canSubmit || resetPassword.isPending}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 mt-6"
-            whileHover={{ scale: canSubmit ? 1.01 : 1 }}
-            whileTap={{ scale: canSubmit ? 0.99 : 1 }}
           >
             {resetPassword.isPending ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -206,7 +222,7 @@ function ResetPasswordFormContent() {
               <Key size={16} />
             )}
             {t('reset_password_button')}
-          </motion.button>
+          </Button>
         </form>
 
         <div className="mt-6 text-center">

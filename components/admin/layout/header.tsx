@@ -91,9 +91,9 @@ export default function ClassroomHeader({
             </div>
           </motion.div>
         </div>
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <ThemeSwitcher />
-        </div>
+        </div> */}
         <div className="flex items-center gap-4">
             <motion.button
               ref={profileButtonRef}

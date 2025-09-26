@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { routing } from '@/i18n/routing';
 
 // Send forgot password email using Supabase's resetPasswordForEmail
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, captchaToken } = body;
+
+    // Get the user's locale from the request header or cookie, fallback to default
+    const acceptLanguage = request.headers.get('accept-language');
+    const cookieLocale = request.cookies.get('next-intl-locale')?.value;
+    let locale = cookieLocale || routing.defaultLocale;
+
+    // Validate that the detected locale is supported
+    if (!routing.locales.includes(locale as any)) {
+      locale = routing.defaultLocale;
+    }
 
     if (!email) {
       return NextResponse.json(
@@ -37,8 +48,9 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
 
     // Use Supabase's built-in password reset functionality with captcha token
+    // Use auth callback URL to handle the token exchange properly
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?type=recovery&next=/${locale}/auth/reset-password`,
       captchaToken: captchaToken // Pass the captcha token to Supabase
     });
 

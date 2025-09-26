@@ -31,11 +31,30 @@ function ResetPasswordFormContent() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const tokenParam = searchParams.get('token');
+    // Check if user has an authenticated session (they should after callback)
+    // If not, they may have an access token in URL fragments
+    const tokenParam = searchParams.get('access_token');
+    
+    // Also check URL fragments (after #) for tokens
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const hashAccessToken = hashParams.get('access_token');
+        
+        if (hashAccessToken) {
+          setToken(hashAccessToken);
+          return;
+        }
+      }
+    }
+    
     if (tokenParam) {
       setToken(tokenParam);
     } else {
-      setIsValidToken(false);
+      // No token found - user should be authenticated via session from callback
+      // Set a placeholder token to indicate session-based auth
+      setToken('session-authenticated');
     }
   }, [searchParams]);
 
@@ -57,10 +76,13 @@ function ResetPasswordFormContent() {
     if (!canSubmit) return;
 
     try {
-      await resetPassword.mutateAsync({
-        token,
-        newPassword
-      });
+      // Only send token if it's a real access token, not the session placeholder
+      const resetData: any = { newPassword };
+      if (token && token !== 'session-authenticated') {
+        resetData.token = token;
+      }
+      
+      await resetPassword.mutateAsync(resetData);
       
       // Redirect to login with success message
       setTimeout(() => {

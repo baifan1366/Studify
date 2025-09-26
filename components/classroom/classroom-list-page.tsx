@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useUser } from '@/hooks/profile/use-user';
 import { Plus, Users, Calendar, BookOpen } from 'lucide-react';
 import { useClassrooms } from '@/hooks/classroom/use-create-live-session';
 import { useJoinClassroom } from '@/hooks/classroom/use-join-classroom';
@@ -18,6 +20,8 @@ import { type Classroom } from '@/interface/classroom/classroom-interface';
 export function ClassroomListPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('ClassroomList');
+  const { data: currentUser } = useUser();
   const [joinCode, setJoinCode] = useState('');
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
 
@@ -25,7 +29,11 @@ export function ClassroomListPage() {
   const joinClassroomMutation = useJoinClassroom();
 
   const handleCreateClassroom = () => {
-    router.push('/classroom/create');
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? '/tutor/classroom/create'
+      : '/classroom/create';
+    router.push(route);
   };
 
   const handleJoinClassroom = async () => {
@@ -56,7 +64,11 @@ export function ClassroomListPage() {
   };
 
   const handleClassroomClick = (classroom: any) => {
-    router.push(`/classroom/${classroom.slug}`);
+    const isTutor = currentUser?.role === 'tutor';
+    const route = isTutor 
+      ? `/tutor/classroom/${classroom.slug}`
+      : `/classroom/${classroom.slug}`;
+    router.push(route);
   };
 
   if (isLoading) {
@@ -85,9 +97,9 @@ export function ClassroomListPage() {
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Classrooms</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('my_classrooms')}</h1>
           <p className="text-muted-foreground">
-            Manage your classrooms and join new ones
+            {t('manage_classrooms_description')}
           </p>
         </div>
         <div className="flex gap-4">
@@ -95,22 +107,22 @@ export function ClassroomListPage() {
             <DialogTrigger asChild>
               <Button variant="outline">
                 <Users className="mr-2 h-4 w-4" />
-                Join Classroom
+                {t('join_classroom')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Join Classroom</DialogTitle>
+                <DialogTitle>{t('join_classroom')}</DialogTitle>
                 <DialogDescription>
-                  Enter the class code provided by your instructor
+                  {t('enter_class_code_description')}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="classCode">Class Code</Label>
+                  <Label htmlFor="classCode">{t('class_code')}</Label>
                   <Input
                     id="classCode"
-                    placeholder="Enter 8-character code"
+                    placeholder={t('enter_code_placeholder')}
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     maxLength={8}
@@ -121,14 +133,14 @@ export function ClassroomListPage() {
                   className="w-full"
                   disabled={joinClassroomMutation.isPending}
                 >
-                  {joinClassroomMutation.isPending ? 'Joining...' : 'Join Classroom'}
+                  {joinClassroomMutation.isPending ? t('joining') : t('join_classroom')}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
           <Button onClick={handleCreateClassroom}>
             <Plus className="mr-2 h-4 w-4" />
-            Create Classroom
+            {t('create_classroom')}
           </Button>
         </div>
       </div>
@@ -136,18 +148,18 @@ export function ClassroomListPage() {
       {classrooms.length === 0 ? (
         <div className="text-center py-12">
           <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-semibold">No classrooms yet</h3>
+          <h3 className="mt-4 text-lg font-semibold">{t('no_classrooms_yet')}</h3>
           <p className="text-muted-foreground">
-            Create your first classroom or join one using a class code
+            {t('create_or_join_description')}
           </p>
           <div className="mt-6 flex justify-center gap-4">
             <Button onClick={handleCreateClassroom}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Classroom
+              {t('create_classroom')}
             </Button>
             <Button variant="outline" onClick={() => setIsJoinDialogOpen(true)}>
               <Users className="mr-2 h-4 w-4" />
-              Join Classroom
+              {t('join_classroom')}
             </Button>
           </div>
         </div>
@@ -187,7 +199,7 @@ export function ClassroomListPage() {
                   <div>
                     <CardTitle className="text-lg">{classroom.name}</CardTitle>
                     <CardDescription className="mt-1">
-                      {classroom.description || 'No description'}
+                      {classroom.description || t('no_description')}
                     </CardDescription>
                   </div>
                   <Badge variant={classroom.visibility === 'public' ? 'default' : 'secondary'}>
@@ -199,7 +211,7 @@ export function ClassroomListPage() {
                   <div className="flex justify-between items-center text-sm text-muted-foreground">
                     <div className="flex items-center">
                       <Users className="mr-1 h-4 w-4" />
-                      {classroom.member_count} members
+                      {t('members_count', { count: classroom.member_count })}
                     </div>
                     <div className="flex items-center">
                       <Badge variant="outline" className="text-xs">
@@ -211,7 +223,7 @@ export function ClassroomListPage() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center">
                         <Calendar className="mr-1 h-3 w-3" />
-                        Joined {new Date(classroom.joined_at).toLocaleDateString()}
+                        {t('joined_date', { date: new Date(classroom.joined_at).toLocaleDateString() })}
                       </div>
                       <div className="flex items-center">
                         <Badge variant="secondary" className="text-xs font-mono">

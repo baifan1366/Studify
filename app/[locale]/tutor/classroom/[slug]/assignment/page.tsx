@@ -1,11 +1,11 @@
 import React from 'react';
 import { Metadata } from 'next';
-import ClassroomDashboard from '@/components/classroom/classroom-dashboard';
+import { ClassroomAssignmentsPage } from '@/components/classroom/classroom-assignments-page';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const t = await getTranslations('ClassroomDashboard');
+  const t = await getTranslations('ClassroomAssignmentsPage');
 
   return {
     title: t('metadata_title'),
@@ -21,5 +21,5 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  return <ClassroomDashboard classroomSlug={slug} />;
+  return <ClassroomAssignmentsPage classroomSlug={slug} />;
 }

@@ -37,6 +37,14 @@ export default function QuestionForm({ quizSlug }: Props) {
   const { data: questions } = useQuizQuestions(quizSlug);
   const { mutate: createQuestion } = useCreateQuizQuestion(quizSlug);
 
+  const resetForm = () => {
+    setQuestionText("");
+    setQuestionType("single_choice");
+    setOptions([]);
+    setCorrectAnswers([]);
+    setExplanation("");
+  };
+
   const handleSubmit = () => {
     // ✅ 前端验证
     if (questionType !== "fill_in_blank") {
@@ -69,6 +77,11 @@ export default function QuestionForm({ quizSlug }: Props) {
       options: questionType === "fill_in_blank" ? [] : options,
       correctAnswers,
       explanation,
+    }, {
+      onSuccess: () => {
+        // Reset form fields after successful submission
+        resetForm();
+      }
     });
   };
 
@@ -254,7 +267,7 @@ export default function QuestionForm({ quizSlug }: Props) {
 
         {/* Submit */}
         <Button onClick={handleSubmit} className="w-full">
-          Save Question
+          Add Question
         </Button>
       </CardContent>
     </Card>

@@ -135,7 +135,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
       {isOpen && (
         <motion.div
           ref={popoverRef}
-          className="absolute top-full right-0 mt-2 w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-600/30 overflow-hidden z-50"
+          className="absolute top-full right-0 mt-2 w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-600/30 overflow-hidden z-[9999]"
           initial={{ opacity: 0, y: -10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}

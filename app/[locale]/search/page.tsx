@@ -8,15 +8,16 @@ export const metadata: Metadata = {
 };
 
 interface SearchPageProps {
-  searchParams: {
+  searchParams: Promise<{
     q?: string;
     types?: string;
     context?: string;
-  };
+  }>;
 }
 
-export default function SearchPage({ searchParams }: SearchPageProps) {
-  const { q = '', types = '', context = 'general' } = searchParams;
+export default async function SearchPage({ searchParams }: SearchPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const { q = '', types = '', context = 'general' } = resolvedSearchParams;
   
   const initialFilters = {
     contentTypes: types ? types.split(',') : [],

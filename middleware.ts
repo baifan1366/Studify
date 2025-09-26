@@ -15,6 +15,8 @@ const PUBLIC_PATHS = [
   /^\/api\/currency/, // public currency API
   /^\/api\/video-processing\/warmup/, // warmup endpoints
   /\/sign-in$/, // sign-in pages
+  /\/forgot-password$/, // forgot-password pages
+  /\/reset-password$/, // reset-password pages
   /\/verify-email$/, // email verification
   /\/(student|tutor|admin)\/sign-up$/, // role-based signup
   /\/(student|tutor|admin)(\/onboarding.*)?$/, // onboarding pages

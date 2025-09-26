@@ -284,39 +284,6 @@ export default function CoursesContent() {
         <p className="text-lg text-black/70 mb-8 dark:text-white/70">
           {t('find_your_next_learning_adventure_from_our_curated_collection')}
         </p>
-
-        {/* Currency Selector */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-2 min-w-[120px]">
-              <span className="mr-2">💱</span>
-              {currency}
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('change_currency')}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {getProfileSupportedCurrencies().map((curr) => (
-              <DropdownMenuItem 
-                key={curr.code}
-                onClick={() => handleCurrencyChange(curr.code)}
-                className={`flex items-center justify-between ${
-                  currency === curr.code ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-sm">{curr.symbol}</span>
-                  <span>{curr.name}</span>
-                  <span className="text-xs text-gray-500">({curr.code})</span>
-                </span>
-                {currency === curr.code && (
-                  <span className="text-blue-500 text-sm">✓</span>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       {/* Filter Tabs */}

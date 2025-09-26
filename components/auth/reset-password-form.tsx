@@ -14,8 +14,9 @@ import {
 import { useTranslations } from 'next-intl';
 import { useResetPassword } from '@/hooks/auth/use-password-reset';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button'
 
-function ResetPasswordForm() {
+function ResetPasswordFormContent() {
   const t = useTranslations('ResetPassword');
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -72,9 +73,9 @@ function ResetPasswordForm() {
 
   if (!isValidToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#FDF5E6] dark:bg-[#0D1F1A] transition-colors duration-200 w-screen flex items-center justify-center p-4">
         <motion.div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full text-center"
+          className="bg-[#FDF5E6] dark:bg-[#0D1F1A] rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full text-center"
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
         >
@@ -85,22 +86,21 @@ function ResetPasswordForm() {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {t('invalid_token_description')}
           </p>
-          <button
+          <Button
             onClick={() => router.push('/sign-in')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <ArrowLeft size={16} />
             {t('back_to_login')}
-          </button>
+          </Button>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FDF5E6] dark:bg-[#0D1F1A] transition-colors duration-200 w-screen flex items-center justify-center p-4">
       <motion.div
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full"
+        className="bg-[#FDF5E6] dark:bg-[#0D1F1A] rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
       >
@@ -223,14 +223,14 @@ function ResetPasswordForm() {
   );
 }
 
-export default function ResetPasswordPage() {
+export default function ResetPasswordForm() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
       </div>
     }>
-      <ResetPasswordForm />
+      <ResetPasswordFormContent />
     </Suspense>
   );
 }

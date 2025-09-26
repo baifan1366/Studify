@@ -22,6 +22,9 @@ import { MessageStatus } from './message-status';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
 import { MessageTimestamp, SeenStatus } from './message-timestamp';
 import { MessageBubble } from './message-bubble';
+import { ProfileModal } from './profile-modal';
+import { ProfileData } from '@/interface/profile-interface';
+import { useProfile } from '@/hooks/profiles/use-profile';
 import { generateTimestampGroups, MessageTimestamp as TimestampData } from '@/utils/chat/timestamp-utils';
 import { useChatNotifications } from '@/hooks/chat/use-chat-notifications';
 import { Button } from '@/components/ui/button';
@@ -55,12 +58,19 @@ interface ChatPanelProps {
 export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Profile modal state
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Fetch profile data using the hook
+  const { data: selectedProfile, isLoading: isProfileLoading, error: profileError } = useProfile(selectedUserId);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -253,6 +263,32 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
     setReplyingToMessage(null);
   };
 
+  const handleProfileClick = (senderId: string) => {
+    // Find the message to get the user_id (assuming senderId is actually user_id)
+    const message = messages.find(m => m.senderId === senderId);
+    if (!message) {
+      console.error('Message not found for sender:', senderId);
+      return;
+    }
+    
+    // Set the user ID to fetch profile data
+    setSelectedUserId(senderId);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleSendMessageFromProfile = (profileId: number) => {
+    // The user is already in the chat, so just close the modal
+    setIsProfileModalOpen(false);
+    console.log('Already in chat with user:', profileId);
+  };
+
+  const handleViewFullProfile = (profileId: number) => {
+    // Navigate to full profile page
+    console.log('Navigate to full profile:', profileId);
+    // router.push(`/profile/${profileId}`);
+    setIsProfileModalOpen(false);
+  };
+
   // Convert messages to timestamp format
   const messagesWithTimestamps: TimestampData[] = useMemo(() => {
     return messages.map(msg => ({
@@ -311,6 +347,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                           timestampGroup?.showTimestamp && "mb-2"
                         )}
                         onReply={handleReplyToMessage}
+                        onProfileClick={handleProfileClick}
                       />
                       
                       {/* Timestamp */}
@@ -579,6 +616,14 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
         />
       </motion.div>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        profile={selectedProfile || null}
+        isOpen={isProfileModalOpen}
+        onOpenChange={setIsProfileModalOpen}
+        onSendMessage={handleSendMessageFromProfile}
+      />
     </div>
   );
 }

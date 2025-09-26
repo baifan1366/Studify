@@ -12,9 +12,10 @@ interface MessageBubbleProps {
   message: Message;
   className?: string;
   onReply?: (message: Message) => void;
+  onProfileClick?: (senderId: string) => void;
 }
 
-export function MessageBubble({ message, className, onReply }: MessageBubbleProps) {
+export function MessageBubble({ message, className, onReply, onProfileClick }: MessageBubbleProps) {
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -35,7 +36,10 @@ export function MessageBubble({ message, className, onReply }: MessageBubbleProp
     )}>
       {/* Avatar */}
       {!message.isFromMe && (
-        <Avatar className="h-8 w-8 flex-shrink-0">
+        <Avatar 
+          className="h-8 w-8 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+          onClick={() => onProfileClick?.(message.senderId)}
+        >
           <AvatarImage src={message.senderAvatar} />
           <AvatarFallback className="text-xs">
             {message.senderName.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -46,7 +50,10 @@ export function MessageBubble({ message, className, onReply }: MessageBubbleProp
       <div className="flex flex-col max-w-xs lg:max-w-md">
         {/* Sender name (only for messages not from me) */}
         {!message.isFromMe && (
-          <span className="text-xs text-muted-foreground mb-1 ml-3">
+          <span 
+            className="text-xs text-muted-foreground mb-1 ml-3 cursor-pointer hover:text-primary transition-colors"
+            onClick={() => onProfileClick?.(message.senderId)}
+          >
             {message.senderName}
           </span>
         )}

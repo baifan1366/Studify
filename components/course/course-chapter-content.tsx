@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Clock, Play, BookOpen } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useChapters } from '@/hooks/course/use-course-chapter';
 
@@ -16,6 +17,7 @@ export default function CourseChapterContent({
   currentTimestamp = 0,
   onSeekTo
 }: CourseChapterContentProps) {
+  const t = useTranslations();
   const { data: chapters = [] } = useChapters(currentLessonId || 0);
 
   const formatTime = (seconds: number) => {
@@ -68,7 +70,7 @@ export default function CourseChapterContent({
                       size="sm"
                       onClick={() => handleSeekToChapter(chapter.start_time_sec!)}
                       className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                      title="Jump to chapter"
+                      title={t('CourseCard.jump_to_chapter')}
                     >
                       <Play size={14} />
                     </Button>

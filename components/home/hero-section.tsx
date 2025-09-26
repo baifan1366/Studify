@@ -121,8 +121,8 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
       <button
         onClick={handleCloseClick}
         className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all duration-200 backdrop-blur-sm"
-        title={t('close_button_title') || 'Close hero section'}
-        aria-label={t('close_button_aria') || 'Close hero section'}
+        title={t('close_button_title')}
+        aria-label={t('close_button_aria')}
       >
         <X size={20} />
       </button>

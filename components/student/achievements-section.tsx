@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Award, Trophy, Target, Star, Lock, Hash } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +44,7 @@ const calculateProgress = (achievement: Achievement): number => {
 };
 
 export default function AchievementsSection({ className = '' }: AchievementsSectionProps) {
+  const t = useTranslations('AchievementsSection');
   const { data: userData } = useUser();
   const userId = userData?.id || '';
   
@@ -109,14 +111,14 @@ export default function AchievementsSection({ className = '' }: AchievementsSect
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
             <Award size={18} className="sm:w-5 sm:h-5" />
-            Achievements
+            {t('title') || 'Achievements'}
           </h3>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
               {stats.unlocked} / {stats.total}
             </Badge>
             <Badge variant="outline" className="text-white/70 border-white/30">
-              {stats.totalPoints} pts earned
+              {t('points_earned', { points: stats.totalPoints }) || `${stats.totalPoints} pts earned`}
             </Badge>
           </div>
         </div>
@@ -124,9 +126,9 @@ export default function AchievementsSection({ className = '' }: AchievementsSect
         {/* Tabs */}
         <Tabs defaultValue="recent" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-white/10">
-            <TabsTrigger value="recent">Recent</TabsTrigger>
-            <TabsTrigger value="unlocked">Unlocked</TabsTrigger>
-            <TabsTrigger value="progress">In Progress</TabsTrigger>
+            <TabsTrigger value="recent">{t('recent') || 'Recent'}</TabsTrigger>
+            <TabsTrigger value="unlocked">{t('unlocked') || 'Unlocked'}</TabsTrigger>
+            <TabsTrigger value="progress">{t('in_progress') || 'In Progress'}</TabsTrigger>
           </TabsList>
           
           {/* Recent Tab */}
@@ -155,7 +157,7 @@ export default function AchievementsSection({ className = '' }: AchievementsSect
                         <p className="text-sm text-white/70">{achievement.description}</p>
                       )}
                       <p className="text-xs text-white/50 mt-1">
-                        Unlocked {achievement.unlocked_at ? new Date(achievement.unlocked_at).toLocaleDateString() : 'Recently'}
+                        {t('unlocked_date', { date: achievement.unlocked_at ? new Date(achievement.unlocked_at).toLocaleDateString() : t('recently') || 'Recently' }) || `Unlocked ${achievement.unlocked_at ? new Date(achievement.unlocked_at).toLocaleDateString() : 'Recently'}`}
                       </p>
                     </div>
                   </motion.div>
@@ -163,7 +165,7 @@ export default function AchievementsSection({ className = '' }: AchievementsSect
               ) : (
                 <div className="text-center py-8 text-white/60">
                   <Trophy size={48} className="mx-auto mb-4 text-white/30" />
-                  <p>No recent achievements. Keep learning to unlock more!</p>
+                  <p>{t('no_recent_achievements') || 'No recent achievements. Keep learning to unlock more!'}</p>
                 </div>
               )}
             </div>

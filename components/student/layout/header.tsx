@@ -88,7 +88,7 @@ export default function ClassroomHeader({
             <div className="flex items-center gap-3">
               <img 
                 src="/favicon.png" 
-                alt="Studify Logo" 
+                alt={t('logo_alt') || 'Studify Logo'} 
                 className="w-8 h-8 rounded-md"
               />
               <h1 className="text-xl font-bold text-foreground">
@@ -120,7 +120,7 @@ export default function ClassroomHeader({
                 {userAvatar ? (
                   <Image
                     src={userAvatar}
-                    alt="Profile"
+                    alt={t('profile_alt') || 'Profile'}
                     width={32}
                     height={32}
                     className="w-full h-full object-cover rounded-full"

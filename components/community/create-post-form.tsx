@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +31,7 @@ export default function CreatePostForm({
   onSuccess,
   onCancel,
 }: CreatePostFormProps) {
+  const t = useTranslations('CommunityContent');
   const [formData, setFormData] = useState({
     title: "",
     body: "",
@@ -200,7 +202,7 @@ export default function CreatePostForm({
               {isCreatingPost && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              {isCreatingPost ? "Publishing..." : "Publish Post"}
+              {isCreatingPost ? t('publishing') : t('publish_post')}
             </Button>
             {onCancel && (
               <Button

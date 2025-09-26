@@ -144,26 +144,26 @@ const defaultMenuSections: MenuSection[] = [
             icon: BookMarked,
             path: "/my/courses",
           },
-          // {
-          //   id: "favorites",
-          //   label: "Favorites",
-          //   icon: Heart,
-          //   path: "/courses/favorites",
-          // },
-          // {
-          //   id: "progress",
-          //   label: "Progress",
-          //   icon: TrendingUp,
-          //   path: "/courses/progress",
-          // },
+          {
+            id: "learning-progress",
+            label: "Learning Progress",
+            icon: TrendingUp,
+            path: "/learning-progress",
+          },
+        // {
+        //   id: "favorites",
+        //   label: "Favorites",
+        //   icon: Heart,
+        //   path: "/courses/favorites",
+        // },
         ],
       },
-      {
-        id: "learning-path",
-        label: "Learning Path",
-        icon: Route,
-        path: "/learning-path",
-      },
+      // {
+      //   id: "learning-path",
+      //   label: "Learning Path",
+      //   icon: Route,
+      //   path: "/learning-path",
+      // },
     ],
   },
   {
@@ -284,8 +284,8 @@ export default function AnimatedSidebar({
         return t("my_courses_label");
       case "favorites":
         return t("favorites_label");
-      case "progress":
-        return t("progress_label");
+      case "learning-progress":
+        return t("learning_progress_label");
       case "learning-path":
         return t("learning_path_label");
       case "community":

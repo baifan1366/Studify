@@ -48,10 +48,10 @@ export default function PostCard({ post }: { post: Post }) {
       (now.getTime() - postDate.getTime()) / (1000 * 60 * 60)
     );
 
-    if (diffInHours < 1) return "Just now";
-    if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInHours < 1) return t('just_now');
+    if (diffInHours < 24) return t('hours_ago', { hours: diffInHours });
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
+    if (diffInDays < 7) return t('days_ago', { days: diffInDays });
     return postDate.toLocaleDateString();
   };
 
@@ -83,7 +83,7 @@ export default function PostCard({ post }: { post: Post }) {
               </Link>
             </CardTitle>
             <p className="text-sm text-gray-300 mt-1">
-              by {post.author?.display_name || "Unknown"}
+              by {post.author?.display_name || t('unknown_user')}
             </p>
           </div>
         </div>

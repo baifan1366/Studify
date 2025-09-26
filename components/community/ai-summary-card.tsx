@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ interface AISummaryCardProps {
 }
 
 export default function AISummaryCard({ query, resultIds, locale = "en", className }: AISummaryCardProps) {
+  const t = useTranslations('AISummaryCard');
   const { 
     summarizeSearch,
     isSearching,
@@ -182,9 +184,9 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
               className="bg-white/10 hover:bg-white/20 text-white"
               onClick={handleCopy}
               disabled={!cachedResult}
-              title="Copy summary"
+              title={t('copy_summary')}
             >
-              <Copy className="w-4 h-4 mr-1.5" /> Copy
+              <Copy className="w-4 h-4 mr-1.5" /> {t('copy')}
             </Button>
           </div>
         </div>
@@ -244,7 +246,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                     variant="ghost"
                     className="text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/10"
                     onClick={handleCopyTldr}
-                    title="Copy summary at a glance"
+                    title={t('copy_summary_glance')}
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -316,7 +318,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                         onClick={toggleThemes}
                         className="text-gray-300 hover:text-white"
                       >
-                        {showThemes ? "Hide" : "Show"}
+                        {showThemes ? t('hide') : t('show')}
                       </Button>
                     </div>
                     {showThemes && (
@@ -349,7 +351,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                         onClick={toggleCitations}
                         className="text-gray-300 hover:text-white"
                       >
-                        {showCitations ? "Hide" : "Show"}
+                        {showCitations ? t('hide') : t('show')}
                       </Button>
                     </div>
                     {showCitations && (

@@ -103,20 +103,20 @@ export default function CommunityContent() {
                   <div>
                     <h1 className="text-3xl font-bold text-white">
                       {debouncedQuery.trim().length > 0
-                        ? "Search Results"
-                        : "Community Feed"}
+                        ? t('search_results')
+                        : t('community_feed_title')}
                     </h1>
                     <p className="text-gray-400">
                       {debouncedQuery.trim().length > 0
-                        ? "Posts matching your search"
-                        : "Discover popular posts from all groups"}
+                        ? t('posts_matching_search')
+                        : t('discover_popular_posts')}
                     </p>
                   </div>
                 </div>
                 <Link href="/community/create">
                   <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                     <Plus className="w-4 h-4 mr-2" />
-                    Create Post
+                    {t('create_post_button')}
                   </Button>
                 </Link>
               </div>
@@ -127,7 +127,7 @@ export default function CommunityContent() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search posts or hashtags..."
+                  placeholder={t('search_placeholder')}
                   className="w-full px-4 py-3 rounded-2xl bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -173,21 +173,21 @@ export default function CommunityContent() {
                     <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-white mb-2">
                       {debouncedQuery.trim().length > 0
-                        ? "No results found"
-                        : "No posts yet"}
+                        ? t('no_results_found')
+                        : t('no_posts_yet')}
                     </h3>
                     <p className="text-gray-400 mb-6">
                       {debouncedQuery.trim().length > 0
-                        ? "Try searching with different keywords or hashtags."
-                        : "Be the first to share something with the community!"}
+                        ? t('try_different_keywords')
+                        : t('be_first_to_share')}
                     </p>
                     <div className="flex gap-3 justify-center">
                       <Link href="/community/create">
                         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                           <Plus className="w-4 h-4 mr-2" />
                           {debouncedQuery.trim().length > 0
-                            ? "Create Post"
-                            : "Create Group"}
+                            ? t('create_post')
+                            : t('create_group')}
                         </Button>
                       </Link>
                     </div>

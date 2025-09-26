@@ -60,7 +60,7 @@ export default function ShowHeroButton({ onShowHero }: ShowHeroButtonProps) {
         className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
       >
         <Eye size={16} />
-        <span className="text-sm">{t('show_hero_button') || 'Show Welcome Section'}</span>
+        <span className="text-sm">{t('show_hero_button')}</span>
       </Button>
     </motion.div>
   );

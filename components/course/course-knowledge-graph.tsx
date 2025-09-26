@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { 
   Brain, 
   Maximize2, 
@@ -53,6 +54,7 @@ export default function CourseKnowledgeGraph({
   onConceptClick,
   className = '' 
 }: CourseKnowledgeGraphProps) {
+  const t = useTranslations();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -207,28 +209,28 @@ export default function CourseKnowledgeGraph({
               <button
                 onClick={handleZoomIn}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title="Zoom In"
+                title={t('CourseKnowledgeGraph.zoom_in')}
               >
                 <ZoomIn size={16} className="text-white/70" />
               </button>
               <button
                 onClick={handleZoomOut}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title="Zoom Out"
+                title={t('CourseKnowledgeGraph.zoom_out')}
               >
                 <ZoomOut size={16} className="text-white/70" />
               </button>
               <button
                 onClick={handleReset}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title="Reset View"
+                title={t('CourseKnowledgeGraph.reset_view')}
               >
                 <RotateCcw size={16} className="text-white/70" />
               </button>
               <button
                 onClick={toggleFullscreen}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                title={isFullscreen ? t('CourseKnowledgeGraph.exit_fullscreen') : t('CourseKnowledgeGraph.fullscreen')}
               >
                 {isFullscreen ? (
                   <Minimize2 size={16} className="text-white/70" />

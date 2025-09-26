@@ -254,14 +254,14 @@ export default function VideoAIAssistant({
         await videoPlayer.seekTo(timestamp);
         toast({
           title: t('notifications.jump_timestamp.title'),
-          description: `Jumped to ${formatTimestamp(timestamp)}`,
+          description: t('notifications.jump_timestamp.jumped_to', { timestamp: formatTimestamp(timestamp) }),
           duration: 2000,
         });
       } catch (error) {
         console.error('Failed to jump to timestamp:', error);
         toast({
           title: t('notifications.error.title'),
-          description: `Failed to jump to ${formatTimestamp(timestamp)}`,
+          description: t('notifications.jump_timestamp.failed_to_jump', { timestamp: formatTimestamp(timestamp) }),
           variant: "destructive",
           duration: 2000,
         });

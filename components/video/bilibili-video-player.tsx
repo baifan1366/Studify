@@ -364,26 +364,43 @@ export default function BilibiliVideoPlayer({
     }
   }, [isPlaying]);
 
+  // Track initial view start
+  const hasTrackedViewStart = useRef(false);
+  
+  // Save progress when video is paused
+  const handlePause = useCallback(() => {
+    setIsPlaying(false);
+    // Trigger final progress save when user pauses
+    if (onTimeUpdate && videoRef.current) {
+      onTimeUpdate(videoRef.current.currentTime, duration);
+    }
+  }, [onTimeUpdate, duration]);
+  
+  const handlePlay = useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+  
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
       const newTime = videoRef.current.currentTime;
       setCurrentTime(newTime);
       
-      // Call parent onTimeUpdate if provided
+      // Call parent onTimeUpdate if provided (parent handles all progress saving)
       if (onTimeUpdate) {
         onTimeUpdate(newTime, duration);
       }
       
-      // Auto-track video view progress every 10 seconds
-      if (Math.floor(newTime) % 10 === 0 && newTime > 0) {
+      // Only track view start once (no continuous tracking)
+      if (!hasTrackedViewStart.current && newTime > 5) {
         trackViewMutation.mutate({
           lessonId,
           attachmentId,
           watchDurationSec: Math.floor(newTime),
           totalDurationSec: Math.floor(duration),
           lastPositionSec: Math.floor(newTime),
-          isCompleted: newTime >= duration * 0.95 // 95% completion
+          isCompleted: false
         });
+        hasTrackedViewStart.current = true;
       }
     }
   }, [duration, onTimeUpdate, lessonId, attachmentId, trackViewMutation]);
@@ -598,8 +615,8 @@ export default function BilibiliVideoPlayer({
             src={videoSourceInfo.src}
             poster={poster}
             className="w-full h-full object-contain"
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
+            onPlay={handlePlay}
+            onPause={handlePause}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onClick={togglePlay}
@@ -609,11 +626,11 @@ export default function BilibiliVideoPlayer({
           <div className="w-full h-full flex items-center justify-center bg-gray-900">
             <div className="text-center text-white/60">
               <Play size={64} className="mx-auto mb-4" />
-              <p className="text-xl mb-2">No video content available</p>
+              <p className="text-xl mb-2">{t('VideoPlayer.no_video_content')}</p>
               <p className="text-sm">{title}</p>
               {src && (
                 <p className="text-xs mt-2 opacity-60">
-                  Source: {videoSourceInfo.type === 'youtube' ? 'YouTube' : videoSourceInfo.type === 'vimeo' ? 'Vimeo' : 'Unknown format'}
+                  {t('VideoPlayer.source')}: {videoSourceInfo.type === 'youtube' ? t('VideoPlayer.youtube') : videoSourceInfo.type === 'vimeo' ? t('VideoPlayer.vimeo') : t('VideoPlayer.unknown_format')}
                 </p>
               )}
             </div>
@@ -648,7 +665,7 @@ export default function BilibiliVideoPlayer({
                     className={`p-2 rounded-lg transition-colors ${
                       danmakuEnabled ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/70'
                     }`}
-                    title="Toggle Danmaku (D)"
+                    title={t('VideoPlayer.toggle_danmaku_shortcut')}
                   >
                     <MessageCircle size={20} />
                   </button>
@@ -657,7 +674,7 @@ export default function BilibiliVideoPlayer({
                     className={`p-2 rounded-lg transition-colors ${
                       subtitlesEnabled ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/70'
                     }`}
-                    title="Toggle Subtitles"
+                    title={t('VideoPlayer.toggle_subtitles')}
                   >
                     <Subtitles size={20} />
                   </button>
@@ -666,7 +683,7 @@ export default function BilibiliVideoPlayer({
                     className={`p-2 rounded-lg transition-colors ${
                       autoTranslate ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/70'
                     }`}
-                    title="Auto Translate"
+                    title={t('VideoPlayer.auto_translate')}
                   >
                     <Languages size={20} />
                   </button>
@@ -711,7 +728,7 @@ export default function BilibiliVideoPlayer({
                     <button
                       onClick={() => skipTime(-10)}
                       className="text-white hover:text-blue-400 transition-colors"
-                      title="Backward 10s (←)"
+                      title={t('VideoPlayer.backward_10s')}
                     >
                       <SkipBack size={24} />
                     </button>
@@ -719,7 +736,7 @@ export default function BilibiliVideoPlayer({
                     <button
                       onClick={togglePlay}
                       className="text-white hover:text-blue-400 transition-colors"
-                      title="Play/Pause (Space)"
+                      title={t('VideoPlayer.play_pause_space')}
                     >
                       {isPlaying ? <Pause size={32} /> : <Play size={32} />}
                     </button>
@@ -727,7 +744,7 @@ export default function BilibiliVideoPlayer({
                     <button
                       onClick={() => skipTime(10)}
                       className="text-white hover:text-blue-400 transition-colors"
-                      title="Forward 10s (→)"
+                      title={t('VideoPlayer.forward_10s')}
                     >
                       <SkipForward size={24} />
                     </button>
@@ -736,7 +753,7 @@ export default function BilibiliVideoPlayer({
                       <button
                         onClick={toggleMute}
                         className="text-white hover:text-blue-400 transition-colors"
-                        title="Mute (M)"
+                        title={t('VideoPlayer.mute_shortcut')}
                       >
                         {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
                       </button>
@@ -760,7 +777,7 @@ export default function BilibiliVideoPlayer({
                     <button
                       onClick={() => setShowDanmakuInput(!showDanmakuInput)}
                       className="text-white hover:text-blue-400 transition-colors"
-                      title="Send Danmaku"
+                      title={t('VideoPlayer.send_danmaku')}
                     >
                       <Send size={20} />
                     </button>
@@ -769,7 +786,7 @@ export default function BilibiliVideoPlayer({
                       <button
                         onClick={() => setShowSettings(!showSettings)}
                         className="text-white hover:text-blue-400 transition-colors"
-                        title="Settings"
+                        title={t('VideoPlayer.settings')}
                       >
                         <Settings size={20} />
                       </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -404,27 +404,85 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     }
   }, [isMobileView]);
 
+  // Store current progress state for batch saving
+  const currentProgressRef = useRef({
+    currentTime: 0,
+    duration: 0,
+    lessonId: ''
+  });
+
+  // Function to save current progress to database
+  const saveCurrentProgress = React.useCallback(() => {
+    const { currentTime, duration, lessonId } = currentProgressRef.current;
+    if (lessonId && currentTime > 0 && duration > 0) {
+      const progressPct = Math.min((currentTime / duration) * 100, 100);
+      
+      // Force save using trackProgress with force=true
+      trackProgress(currentTime, duration, true);
+      
+      console.log(`💾 Saved progress: ${Math.round(progressPct)}% at ${Math.round(currentTime)}s for lesson ${lessonId}`);
+    }
+  }, [trackProgress]);
+
+  // Save progress when switching lessons
+  useEffect(() => {
+    return () => {
+      // Save progress when lesson changes or component unmounts
+      saveCurrentProgress();
+    };
+  }, [currentLessonId, saveCurrentProgress]);
+
+  // Save progress on page unload/refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveCurrentProgress();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveCurrentProgress();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Final save on cleanup
+      saveCurrentProgress();
+    };
+  }, [saveCurrentProgress]);
+
+  // Optional: Periodic backup save every 2 minutes (much less frequent)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentProgressRef.current.currentTime > 0) {
+        saveCurrentProgress();
+      }
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [saveCurrentProgress]);
+
   const handleTimeUpdate = (time: number, duration?: number) => {
     setCurrentVideoTimestamp(time);
     
-    // Use enhanced progress tracking for video lessons
+    // Only update local state, no API calls during playback
     if (currentLesson?.kind === 'video' && duration) {
-      trackProgress(time, duration);
+      // Update current progress reference for later saving
+      currentProgressRef.current = {
+        currentTime: time,
+        duration: duration,
+        lessonId: currentLesson.public_id
+      };
       
       // Auto-mark as completed when reaching 95% or end
       const progressPct = (time / duration) * 100;
       if (progressPct >= 95 && lessonProgress?.state !== 'completed') {
         markAsCompleted(duration);
       }
-    }
-    
-    // Legacy progress update for backward compatibility
-    if (currentLessonId && lessonProgress?.state === 'in_progress' && time % 10 === 0) {
-      updateProgressByLesson.mutate({
-        lessonId: currentLesson?.public_id || '',
-        progressPct: Math.min((time / 100) * 100, 100),
-        timeSpentSec: lessonProgress.timeSpentSec + 10
-      });
     }
   };
 
@@ -1135,7 +1193,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
             )}
             {activeTab === 'notes' && (
               <CourseNoteContent
-                currentLessonId={currentLesson?.public_id}
+                currentLessonId={currentLesson?.id}
                 currentTimestamp={currentVideoTimestamp}
                 onTimeUpdate={handleTimeUpdate}
                 lessonKind={currentLesson?.kind}

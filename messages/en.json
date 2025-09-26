@@ -7,6 +7,13 @@
     "og_title": "Home | Studify",
     "og_description": "Personalized Learning, Powered by AI and Real-time Tutoring"
   },
+  "MistakeBookPage": {
+    "metadata_title": "Mistake Book | Studify",
+    "metadata_description": "Your personalized mistake book with AI-powered recommendations, progress tracking, and community features",
+    "metadata_keywords": "mistake book,mistakes,learning,education,AI tutoring,progress tracking,study dashboard",
+    "og_title": "Mistake Book | Studify",
+    "og_description": "Personalized Mistake Book, Powered by AI and Real-time Tutoring"
+  },
   "NotFoundPage": {
     "title": "Page Not Found",
     "subtitle": "Oops! The page you're looking for doesn't exist",

@@ -150,12 +150,12 @@ const defaultMenuSections: MenuSection[] = [
             icon: PlusCircle,
             path: "/classroom/create",
           },
-          {
-            id: "live-sessions",
-            label: "Live Sessions",
-            icon: Video,
-            path: "/classroom/live-sessions",
-          },
+          // {
+          //   id: "live-sessions",
+          //   label: "Live Sessions",
+          //   icon: Video,
+          //   path: "/classroom/live-sessions",
+          // },
           {
             id: "mistake-book",
             label: "Mistake Book",
@@ -185,32 +185,7 @@ const defaultMenuSections: MenuSection[] = [
         ],
       },
     ],
-  },
-  {
-    title: "Community",
-    items: [
-      {
-        id: "community",
-        label: "Community",
-        icon: Users,
-        subItems: [
-          { id: "groups", label: "Groups", icon: Users, path: "/community" },
-          {
-            id: "quizzes",
-            label: "Quizzes",
-            icon: Brain,
-            path: "/community/quizzes",
-          },
-          {
-            id: "achievements",
-            label: "Achievements",
-            icon: Award,
-            path: "/community/achievements",
-          },
-        ],
-      },
-    ],
-  },
+  }
 ];
 
 export default function AnimatedSidebar({

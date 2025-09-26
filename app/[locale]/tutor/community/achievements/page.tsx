@@ -3,8 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import AchievementsContent from '@/components/community/achievement/achievements-content';
 
 /**
- * Tutor Achievements Page Component
- * Track learning milestones and unlock rewards as a tutor
+ * Achievements Page Component
+ * Track learning milestones and unlock rewards
  */
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,6 +22,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function TutorAchievementsPage() {
+export default function AchievementsPage() {
   return <AchievementsContent />;
 }

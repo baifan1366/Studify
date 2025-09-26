@@ -226,7 +226,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (!lesson) {
-        console.error('❌ No lesson found for public_id:', lessonId);
+        console.error('❌ No lesson found for public_id:', lessonIdParam);
         return NextResponse.json(
           { error: 'Lesson not found' },
           { status: 404 }

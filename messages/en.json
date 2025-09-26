@@ -983,7 +983,8 @@
   },
   "CommunityPostCard": {
     "by_prefix": "by ",
-    "view_post_button": "View Post"
+    "view_post_button": "View Post",
+    "days_ago":"Days Ago" 
   },
   "CommunityNewPostForm": {
     "drop_here": "Drop files here",

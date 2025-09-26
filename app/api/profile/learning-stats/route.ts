@@ -15,7 +15,19 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const period = url.searchParams.get('period') || 'week'; // week, month, all
 
-    const userId = payload.profileId;
+    // 获取用户的profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', payload.sub)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Profile lookup error:', profileError);
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = profile.id;
 
     // 计算日期范围
     let startDate: string;

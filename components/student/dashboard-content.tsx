@@ -22,6 +22,8 @@ import { useUser } from '@/hooks/profile/use-user';
 import { useFullProfile } from '@/hooks/profile/use-profile';
 import { useDashboard, RecentCourse, UpcomingEvent } from '@/hooks/dashboard/use-dashboard';
 import { useLearningStats, useAchievements, formatStudyTime } from '@/hooks/profile/use-learning-stats';
+import { useUserPreferences } from '@/hooks/profile/use-user-preferences';
+import { useDashboardTrends } from '@/hooks/dashboard/use-dashboard-trends';
 import { useLearningPaths } from '@/hooks/dashboard/use-learning-paths';
 import { useContinueWatching, useContinueWatchingActions } from '@/hooks/learning/use-learning-progress';
 import Link from 'next/link';
@@ -40,11 +42,13 @@ export default function DashboardContent() {
   const { data: learningPaths, isLoading: learningPathsLoading } = useLearningPaths({ limit: 3, activeOnly: true });
   const { data: continueWatchingItems, isLoading: continueWatchingLoading } = useContinueWatching();
   const { generateContinueWatchingUrl, formatProgress, formatTimeRemaining, formatLastAccessed } = useContinueWatchingActions();
+  const { data: userPreferences, isLoading: preferencesLoading } = useUserPreferences();
+  const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
 
   const user = userData;
   const profile = fullProfileData?.profile || user?.profile;
 
-  if (profileLoading || dashboardLoading || statsLoading) {
+  if (profileLoading || dashboardLoading || statsLoading || preferencesLoading || trendsLoading) {
     return (
         <div className="min-h-screen p-6">
           <div className="max-w-7xl mx-auto">
@@ -101,10 +105,10 @@ export default function DashboardContent() {
           >
             {[
               { label: 'Courses Enrolled', value: stats.coursesEnrolled, icon: BookOpen, color: 'blue', trend: null },
-              { label: 'Completed', value: stats.coursesCompleted, icon: Award, color: 'green', trend: '+2 this week' },
-              { label: 'Study Hours', value: `${stats.totalStudyTime}h`, icon: Clock, color: 'purple', trend: '+5.2h this week' },
-              { label: 'Current Streak', value: `${stats.currentStreak} days`, icon: TrendingUp, color: 'orange', trend: stats.currentStreak > 0 ? '🔥 Keep going!' : 'Start today!' },
-              { label: 'Points', value: stats.points, icon: Star, color: 'yellow', trend: `+${stats.pointsEarned} earned` }
+              { label: 'Completed', value: stats.coursesCompleted, icon: Award, color: 'green', trend: trendsData?.courseCompletion?.trend || 'No change this week' },
+              { label: 'Study Hours', value: `${stats.totalStudyTime}h`, icon: Clock, color: 'purple', trend: trendsData?.studyTime?.trend || 'Same as last week' },
+              { label: 'Current Streak', value: `${stats.currentStreak} days`, icon: TrendingUp, color: 'orange', trend: trendsData?.streak?.trend || (stats.currentStreak > 0 ? '🔥 Keep going!' : 'Start today!') },
+              { label: 'Points', value: stats.points, icon: Star, color: 'yellow', trend: trendsData?.points?.trend || 'No points earned' }
             ].map((stat, index) => (
               <div
                 key={stat.label}
@@ -332,8 +336,18 @@ export default function DashboardContent() {
                 
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
                   <div className="flex justify-between text-xs text-white/60">
-                    <span>Weekly Goal: 10h</span>
+                    <span>Weekly Goal: {userPreferences?.preferences?.weekly_study_goal_hours || 10}h</span>
                     <span>{dailyStats.reduce((sum, day) => sum + day.hours, 0).toFixed(1)}h completed</span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="flex-1 bg-white/10 rounded-full h-1.5">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min((dailyStats.reduce((sum, day) => sum + day.hours, 0) / (userPreferences?.preferences?.weekly_study_goal_hours || 10)) * 100, 100)}%` 
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -370,7 +384,7 @@ export default function DashboardContent() {
                             </div>
                             {path.mermaid_diagram && (
                               <div className="mt-3 p-3 bg-white/5 rounded-lg">
-                                <div className="text-xs text-white/60 mb-2">学习路径图:</div>
+                                <div className="text-xs text-white/60 mb-2">Learning Path:</div>
                                 <div className="max-h-32 overflow-hidden">
                                   <Mermaid 
                                     chart={path.mermaid_diagram}
@@ -378,7 +392,7 @@ export default function DashboardContent() {
                                   />
                                 </div>
                                 <div className="text-xs text-white/50 mt-1">
-                                  💡 点击查看完整路径图
+                                  💡 Click to view full path
                                 </div>
                               </div>
                             )}
@@ -390,7 +404,7 @@ export default function DashboardContent() {
                     {learningPaths.length > 2 && (
                       <div className="text-center pt-2">
                         <button className="text-xs text-white/60 hover:text-white/80 transition-colors">
-                          查看全部 {learningPaths.length} 个学习路径 →
+                          View all {learningPaths.length} learning paths →
                         </button>
                       </div>
                     )}

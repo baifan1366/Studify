@@ -10,9 +10,12 @@ import {
   ArrowRight,
   Calendar,
   Award,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useLearningStats } from '@/hooks/profile/use-learning-stats';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LearningReportProps {
   onViewProgress?: () => void;
@@ -20,26 +23,173 @@ interface LearningReportProps {
 
 export default function LearningReport({ onViewProgress }: LearningReportProps) {
   const t = useTranslations('LearningReport');
-  // Mock data for charts
-  const weeklyData = [
-    { day: 'Mon', hours: 2.5 },
-    { day: 'Tue', hours: 3.2 },
-    { day: 'Wed', hours: 1.8 },
-    { day: 'Thu', hours: 4.1 },
-    { day: 'Fri', hours: 2.9 },
-    { day: 'Sat', hours: 3.7 },
-    { day: 'Sun', hours: 2.3 }
-  ];
+  
+  // 获取真实的学习统计数据
+  const { data: learningStats, isLoading } = useLearningStats('week');
 
-  const masteryLevels = [
-    { subject: 'Math', level: 85, color: 'text-blue-400' },
-    { subject: 'Physics', level: 72, color: 'text-green-400' },
-    { subject: 'Chemistry', level: 68, color: 'text-purple-400' },
-    { subject: 'Biology', level: 91, color: 'text-orange-400' },
-    { subject: 'English', level: 79, color: 'text-pink-400' }
-  ];
+  // 处理每日学习时长数据
+  const weeklyData = React.useMemo(() => {
+    if (!learningStats?.data?.charts?.dailyStudyTime) {
+      return [];
+    }
+    
+    return learningStats.data.charts.dailyStudyTime.map(day => ({
+      day: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      hours: day.hours,
+      date: day.date
+    }));
+  }, [learningStats]);
 
-  const maxHours = Math.max(...weeklyData.map(d => d.hours));
+  // 生成学科掌握度数据（基于课程进度和活动类型）
+  const masteryLevels = React.useMemo(() => {
+    if (!learningStats?.data?.charts?.activityBreakdown) {
+      return [];
+    }
+
+    const breakdown = learningStats.data.charts.activityBreakdown;
+    const subjects = [
+      { subject: 'Video Watching', level: Math.min((breakdown.video_watching || 0) / 10, 100), color: 'text-blue-400' },
+      { subject: 'Quiz Taking', level: Math.min((breakdown.quiz_taking || 0) / 5, 100), color: 'text-green-400' },
+      { subject: 'Reading', level: Math.min((breakdown.reading || 0) / 8, 100), color: 'text-purple-400' },
+      { subject: 'Practice', level: Math.min((breakdown.practice || 0) / 6, 100), color: 'text-orange-400' },
+    ].filter(subject => subject.level > 0);
+
+    return subjects;
+  }, [learningStats]);
+
+  const maxHours = weeklyData.length > 0 ? Math.max(...weeklyData.map(d => d.hours)) : 1;
+
+  // 加载状态
+  if (isLoading) {
+    return (
+      <motion.section
+        className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
+      >
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-3 mb-6">
+          <Skeleton className="w-12 h-12 rounded-lg" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Learning Duration Chart Skeleton */}
+          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-5 w-48" />
+              <div className="flex items-center gap-1">
+                <Skeleton className="w-4 h-4" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+
+            {/* Bar Chart Skeleton */}
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-8 h-4" />
+                  <div className="flex-1">
+                    <Skeleton className={`h-6 rounded-full`} style={{ width: `${Math.random() * 60 + 20}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Summary Stats Skeleton */}
+            <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-white/10">
+              <div className="text-center space-y-2">
+                <div className="flex items-center justify-center gap-1">
+                  <Skeleton className="w-4 h-4" />
+                  <Skeleton className="h-6 w-12" />
+                </div>
+                <Skeleton className="h-3 w-20 mx-auto" />
+              </div>
+              <div className="text-center space-y-2">
+                <div className="flex items-center justify-center gap-1">
+                  <Skeleton className="w-4 h-4" />
+                  <Skeleton className="h-6 w-12" />
+                </div>
+                <Skeleton className="h-3 w-20 mx-auto" />
+              </div>
+            </div>
+          </div>
+
+          {/* Mastery Level Skeleton */}
+          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-5 w-44" />
+              <div className="flex items-center gap-1">
+                <Skeleton className="w-4 h-4" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+
+            {/* Mastery Bars Skeleton */}
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="w-full h-3 rounded-full" />
+                </div>
+              ))}
+            </div>
+
+            {/* AI Insights Skeleton */}
+            <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Skeleton className="w-4 h-4" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Stats Row Skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white/5 rounded-lg p-4 text-center border border-white/10">
+              <Skeleton className="h-8 w-12 mx-auto mb-1" />
+              <Skeleton className="h-3 w-20 mx-auto" />
+            </div>
+          ))}
+        </div>
+
+        {/* CTA Button Skeleton */}
+        <div className="text-center mt-6">
+          <Skeleton className="h-12 w-64 mx-auto rounded-xl" />
+        </div>
+      </motion.section>
+    );
+  }
+
+  // 获取统计数据
+  const stats = learningStats?.data?.summary;
+  if (!stats) {
+    return (
+      <motion.section
+        className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
+      >
+        <div className="text-center py-8 text-white/70">
+          No learning data available yet. Start learning to see your progress!
+        </div>
+      </motion.section>
+    );
+  }
 
   return (
     <motion.section
@@ -102,14 +252,14 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-cyan-400 mb-1">
                 <Clock size={16} />
-                <span className="text-lg font-bold">20.5h</span>
+                <span className="text-lg font-bold">{stats.totalStudyHours.toFixed(1)}h</span>
               </div>
               <span className="text-xs text-white/60">{t('total_this_week')}</span>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
                 <Target size={16} />
-                <span className="text-lg font-bold">2.9h</span>
+                <span className="text-lg font-bold">{(stats.totalStudyHours / 7).toFixed(1)}h</span>
               </div>
               <span className="text-xs text-white/60">{t('daily_average')}</span>
             </div>
@@ -193,7 +343,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           className="bg-white/5 rounded-lg p-4 text-center border border-white/10"
           whileHover={{ scale: 1.05 }}
         >
-          <div className="text-2xl font-bold text-blue-400 mb-1">47</div>
+          <div className="text-2xl font-bold text-blue-400 mb-1">{stats.completedLessons}</div>
           <div className="text-xs text-white/60">{t('lessons_completed')}</div>
         </motion.div>
         
@@ -201,7 +351,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           className="bg-white/5 rounded-lg p-4 text-center border border-white/10"
           whileHover={{ scale: 1.05 }}
         >
-          <div className="text-2xl font-bold text-green-400 mb-1">12</div>
+          <div className="text-2xl font-bold text-green-400 mb-1">{stats.studyStreak}</div>
           <div className="text-xs text-white/60">{t('streak_days')}</div>
         </motion.div>
         
@@ -209,7 +359,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           className="bg-white/5 rounded-lg p-4 text-center border border-white/10"
           whileHover={{ scale: 1.05 }}
         >
-          <div className="text-2xl font-bold text-purple-400 mb-1">89%</div>
+          <div className="text-2xl font-bold text-purple-400 mb-1">{Math.round(stats.avgProgress)}%</div>
           <div className="text-xs text-white/60">{t('accuracy_rate')}</div>
         </motion.div>
         
@@ -217,7 +367,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           className="bg-white/5 rounded-lg p-4 text-center border border-white/10"
           whileHover={{ scale: 1.05 }}
         >
-          <div className="text-2xl font-bold text-orange-400 mb-1">156</div>
+          <div className="text-2xl font-bold text-orange-400 mb-1">{stats.pointsEarned}</div>
           <div className="text-xs text-white/60">{t('points_earned')}</div>
         </motion.div>
       </div>

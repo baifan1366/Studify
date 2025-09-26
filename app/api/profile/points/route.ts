@@ -10,14 +10,26 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     
-    const { user } = authResult;
+    const { payload } = authResult;
     const client = await createServerClient();
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    const userId = user.profile?.id || user.id;
+    // 获取用户的profile ID
+    const { data: userProfile, error: profileLookupError } = await client
+      .from('profiles')
+      .select('id')
+      .eq('user_id', payload.sub)
+      .single();
+
+    if (profileLookupError || !userProfile) {
+      console.error('Profile lookup error:', profileLookupError);
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    const userId = userProfile.id;
 
     // 获取当前积分余额
     const { data: profile, error: profileError } = await client

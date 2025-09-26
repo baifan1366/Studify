@@ -12,7 +12,13 @@ import {
   CheckCircle,
   Gift,
   Zap,
-  Target
+  Target,
+  Users,
+  BookOpen,
+  TrendingUp,
+  Eye,
+  ChevronRight,
+  Lock
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useLearningStats, useAchievements, Achievement } from '@/hooks/profile/use-learning-stats';
@@ -24,6 +30,8 @@ interface GamificationSectionProps {
 export default function GamificationSection({ onDailyCheckin }: GamificationSectionProps) {
   const t = useTranslations('GamificationSection');
   const [checkedIn, setCheckedIn] = useState(false);
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   // 获取真实数据
   const { data: learningStatsData, isLoading: statsLoading } = useLearningStats('week');
@@ -45,9 +53,9 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
   // 获取成就图标
   const getAchievementIcon = (category: string) => {
     const iconMap: Record<string, any> = {
-      learning: Zap,
+      learning: BookOpen,
       consistency: Flame,
-      social: Award,
+      social: Users,
       mastery: Target,
       rewards: Gift,
       general: Star
@@ -72,8 +80,33 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
     return colorMap[category] || 'from-gray-500 to-gray-600';
   };
   
-  // 处理成就显示（最多4个）
-  const displayAchievements = achievements?.achievements?.slice(0, 4) || [];
+  // 处理成就显示
+  const allAchievements = achievements?.achievements || [];
+  const filteredAchievements = selectedCategory === 'all' 
+    ? allAchievements 
+    : allAchievements.filter(a => a.category === selectedCategory);
+  
+  const displayAchievements = showAllAchievements 
+    ? filteredAchievements 
+    : filteredAchievements.slice(0, 4);
+
+  // 成就统计
+  const achievementStats = {
+    total: allAchievements.length,
+    unlocked: allAchievements.filter(a => a.isUnlocked).length,
+    inProgress: allAchievements.filter(a => !a.isUnlocked && a.progress > 0).length,
+    categories: achievements?.categories || {}
+  };
+
+  // 成就分类选项
+  const categoryOptions = [
+    { value: 'all', label: 'All', icon: Award },
+    { value: 'learning', label: 'Learning', icon: BookOpen },
+    { value: 'consistency', label: 'Consistency', icon: Flame },
+    { value: 'social', label: 'Social', icon: Users },
+    { value: 'mastery', label: 'Mastery', icon: Target },
+    { value: 'rewards', label: 'Rewards', icon: Gift }
+  ];
 
   const handleCheckin = () => {
     setCheckedIn(true);
@@ -219,12 +252,61 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
           </div>
         </div>
 
-        {/* Badge Showcase */}
+        {/* Enhanced Badge Showcase */}
         <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Award size={20} className="text-purple-400" />
-            <h3 className="text-lg font-semibold text-white">{t('badge_collection_title')}</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Award size={20} className="text-purple-400" />
+              <h3 className="text-lg font-semibold text-white">{t('badge_collection_title')}</h3>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-white/60">
+              <Trophy size={14} />
+              <span>{achievementStats.unlocked}/{achievementStats.total}</span>
+            </div>
           </div>
+
+          {/* Achievement Stats */}
+          {!achievementsLoading && achievementStats.total > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <div className="text-green-400 font-bold text-sm">{achievementStats.unlocked}</div>
+                <div className="text-xs text-white/60">Earned</div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <div className="text-yellow-400 font-bold text-sm">{achievementStats.inProgress}</div>
+                <div className="text-xs text-white/60">In Progress</div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <div className="text-blue-400 font-bold text-sm">{achievementStats.total - achievementStats.unlocked}</div>
+                <div className="text-xs text-white/60">Locked</div>
+              </div>
+            </div>
+          )}
+
+          {/* Category Filter */}
+          {!achievementsLoading && showAllAchievements && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {categoryOptions.map((option) => {
+                const IconComponent = option.icon;
+                return (
+                  <motion.button
+                    key={option.value}
+                    onClick={() => setSelectedCategory(option.value)}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      selectedCategory === option.value
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <IconComponent size={12} />
+                    {option.label}
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="space-y-3">
             {achievementsLoading ? (
@@ -244,8 +326,12 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
             ) : displayAchievements.length === 0 ? (
               // 无数据状态
               <div className="bg-white/5 rounded-lg p-6 border border-white/10 text-center">
+                <Lock className="mx-auto mb-2 text-white/40" size={24} />
                 <p className="text-white/60 text-sm">
-                  {t('no_achievements') || 'No achievements available'}
+                  {selectedCategory === 'all' 
+                    ? (t('no_achievements') || 'No achievements available')
+                    : `No ${selectedCategory} achievements yet`
+                  }
                 </p>
               </div>
             ) : (
@@ -257,10 +343,10 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                 return (
                   <motion.div
                     key={achievement.public_id}
-                    className={`p-3 rounded-lg border transition-all duration-300 ${
+                    className={`p-3 rounded-lg border transition-all duration-300 cursor-pointer ${
                       achievement.isUnlocked 
-                        ? 'bg-white/10 border-white/20' 
-                        : 'bg-white/5 border-white/10'
+                        ? 'bg-white/10 border-white/20 hover:bg-white/15' 
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
                     }`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -281,7 +367,11 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
                           }`}>
                             {achievement.name}
                           </span>
-                          <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            achievement.isUnlocked 
+                              ? 'bg-green-500/20 text-green-300' 
+                              : 'bg-purple-500/20 text-purple-300'
+                          }`}>
                             {achievement.category}
                           </span>
                         </div>
@@ -318,6 +408,23 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
               })
             )}
           </div>
+
+          {/* View All Button */}
+          {!achievementsLoading && allAchievements.length > 4 && (
+            <motion.button
+              onClick={() => setShowAllAchievements(!showAllAchievements)}
+              className="w-full mt-4 p-3 bg-white/10 hover:bg-white/20 rounded-lg border border-white/20 text-white/80 text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Eye size={16} />
+              {showAllAchievements ? 'Show Less' : `View All ${allAchievements.length} Achievements`}
+              <ChevronRight 
+                size={16} 
+                className={`transition-transform ${showAllAchievements ? 'rotate-90' : ''}`} 
+              />
+            </motion.button>
+          )}
         </div>
       </div>
     </motion.section>

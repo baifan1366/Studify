@@ -8,8 +8,12 @@ export async function GET(request: NextRequest) {
     const authResponse = await authorize('student');
     if (authResponse instanceof NextResponse) return authResponse;
     
-    const { payload } = authResponse;
-    const userId = payload.profileId;
+    const { payload, user } = authResponse;
+    const userId = user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
@@ -226,8 +230,12 @@ export async function POST(request: NextRequest) {
     const authResponse = await authorize('student');
     if (authResponse instanceof NextResponse) return authResponse;
     
-    const { payload } = authResponse;
-    const userId = payload.profileId;
+    const { payload, user } = authResponse;
+    const userId = user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
     
     const body = await request.json();
     const {
@@ -362,8 +370,12 @@ export async function PUT(request: NextRequest) {
     const authResponse = await authorize('student');
     if (authResponse instanceof NextResponse) return authResponse;
     
-    const { payload } = authResponse;
-    const userId = payload.profileId;
+    const { payload, user } = authResponse;
+    const userId = user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
     
     const body = await request.json();
     const {

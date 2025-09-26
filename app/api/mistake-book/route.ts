@@ -11,7 +11,11 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    const userId = authResult.payload.sub;
+    const userId = authResult.user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
 
     const body = await request.json();
     const { 
@@ -72,7 +76,11 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
-    const userId = authResult.payload.sub;
+    const userId = authResult.user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
@@ -124,7 +132,11 @@ export async function DELETE(request: NextRequest) {
       return authResult;
     }
 
-    const userId = authResult.payload.sub;
+    const userId = authResult.user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
 
     const { searchParams } = new URL(request.url);
     const mistakeId = searchParams.get('id');

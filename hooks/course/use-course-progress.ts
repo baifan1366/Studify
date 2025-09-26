@@ -45,6 +45,8 @@ export function useCourseProgress(courseId?: string) {
       return response.data.progress as CourseProgress[];
     },
     enabled: true,
+    staleTime: 30000, // 30 seconds - progress data doesn't change frequently
+    refetchOnWindowFocus: false, // Don't refetch when switching tabs
   });
 }
 
@@ -97,6 +99,8 @@ export function useCourseProgressByLessonId(lessonId: string) {
       return response.data as CourseProgress;
     },
     enabled: !!lessonId,
+    staleTime: 30000, // 30 seconds - progress data doesn't change frequently
+    refetchOnWindowFocus: false, // Don't refetch when switching tabs
   });
 }
 

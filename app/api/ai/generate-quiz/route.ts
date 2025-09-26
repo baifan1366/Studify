@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
       }, { status: 400 });
     }
 
-    console.log(`🎯 AI Quiz Generation Request from user ${authResult.payload.profileId}:`, {
+    console.log(`🎯 AI Quiz Generation Request from user ${authResult.user.profile?.id}:`, {
       topic: body.topic,
       num_questions: body.num_questions,
       difficulty: body.difficulty,

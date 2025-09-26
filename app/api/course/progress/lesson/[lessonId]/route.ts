@@ -1,29 +1,25 @@
 //pass the lesson public_id and find current user id to get the specific progress
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/server";
+import { authorize } from "@/utils/auth/server-guard";
 
 export async function GET(_: Request, { params }: { params: Promise<{ lessonId: string }> }) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Use server guard for authentication
+    const authResponse = await authorize('student');
+    if (authResponse instanceof NextResponse) return authResponse;
+    
+    const { payload, user } = authResponse;
     const { lessonId } = await params;
 
-    if(authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get the user's profile ID
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
+    // Get user profile ID from the cached user info
+    const userId = user.profile?.id;
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    const userId = profile.id;
+    const supabase = await createAdminClient();
 
     // First, get the numeric lesson ID from the public_id
     const { data: lesson, error: lessonError } = await supabase
@@ -54,26 +50,22 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
 export async function PATCH(req: Request, { params }: { params: Promise<{ lessonId: string }> }) {
   try {
     const body = await req.json();
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    // Use server guard for authentication
+    const authResponse = await authorize('student');
+    if (authResponse instanceof NextResponse) return authResponse;
+    
+    const { payload, user } = authResponse;
     const { lessonId } = await params;
 
-    if(authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get the user's profile ID
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
+    // Get user profile ID from the cached user info
+    const userId = user.profile?.id;
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    const userId = profile.id;
+    const supabase = await createAdminClient();
 
     // First, get the numeric lesson ID from the public_id
     const { data: lesson, error: lessonError } = await supabase

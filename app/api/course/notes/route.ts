@@ -9,24 +9,14 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
     
+    const { payload, user } = authResult;
+    const userId = user.profile?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const userId = profile.id; // This is the bigint we need
     
     const { lessonId, timestampSec, content, tags } = await request.json();
 
@@ -154,24 +144,14 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
+    const { payload, user } = authResult;
+    const userId = user.profile?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const userId = profile.id; // This is the bigint we need
 
     const { searchParams } = new URL(request.url);
     const lessonIdParam = searchParams.get('lessonId');
@@ -408,24 +388,14 @@ export async function PATCH(request: NextRequest) {
       return authResult;
     }
     
+    const { payload, user } = authResult;
+    const userId = user.profile?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const userId = profile.id;
     
     const { noteId, content, tags, timestampSec } = await request.json();
 
@@ -488,24 +458,14 @@ export async function DELETE(request: NextRequest) {
       return authResult;
     }
     
+    const { payload, user } = authResult;
+    const userId = user.profile?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const userId = profile.id;
     
     const { searchParams } = new URL(request.url);
     const noteId = searchParams.get('noteId');

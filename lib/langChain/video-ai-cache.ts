@@ -204,6 +204,12 @@ export class VideoAICacheManager {
    */
   private loadFromStorage(): void {
     try {
+      // Check if localStorage is available (not in server-side environment)
+      if (typeof localStorage === 'undefined') {
+        console.log('📦 localStorage not available (server-side), skipping cache load');
+        return;
+      }
+
       const keys = Object.keys(localStorage).filter(key => key.startsWith(this.CACHE_PREFIX));
       let loadedCount = 0;
       
@@ -233,6 +239,12 @@ export class VideoAICacheManager {
    */
   private saveToStorage(): void {
     try {
+      // Check if localStorage is available (not in server-side environment)
+      if (typeof localStorage === 'undefined') {
+        console.log('📦 localStorage not available (server-side), skipping cache save');
+        return;
+      }
+
       // Get all storage keys and clean up if needed
       const existingKeys = Object.keys(localStorage).filter(key => key.startsWith(this.CACHE_PREFIX));
       
@@ -241,7 +253,7 @@ export class VideoAICacheManager {
         const entriesToRemove = existingKeys.slice(0, existingKeys.length - this.MAX_STORAGE_ENTRIES + 10);
         entriesToRemove.forEach(key => localStorage.removeItem(key));
       }
-      
+
       // Save current memory cache to storage
       for (const [cacheKey, entry] of this.memoryCache.entries()) {
         const storageKey = `${this.CACHE_PREFIX}${cacheKey}`;
@@ -269,9 +281,11 @@ export class VideoAICacheManager {
   clearAll(): void {
     this.memoryCache.clear();
     
-    // Clear localStorage
-    const keys = Object.keys(localStorage).filter(key => key.startsWith(this.CACHE_PREFIX));
-    keys.forEach(key => localStorage.removeItem(key));
+    // Clear localStorage if available
+    if (typeof localStorage !== 'undefined') {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith(this.CACHE_PREFIX));
+      keys.forEach(key => localStorage.removeItem(key));
+    }
     
     console.log('🗑️ Cleared all AI assistant cache');
   }
@@ -291,7 +305,9 @@ export class VideoAICacheManager {
       ? entries.reduce((sum, entry) => sum + entry.confidence, 0) / entries.length 
       : 0;
     
-    const storageKeys = Object.keys(localStorage).filter(key => key.startsWith(this.CACHE_PREFIX));
+    const storageKeys = typeof localStorage !== 'undefined' 
+      ? Object.keys(localStorage).filter(key => key.startsWith(this.CACHE_PREFIX))
+      : [];
     
     return {
       memoryEntries: this.memoryCache.size,

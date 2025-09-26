@@ -4,7 +4,8 @@
 import { EnhancedAIWorkflowExecutor } from './tool-calling-integration';
 import { smartSearch, answerQuestion } from './langchain-integration';
 import { createClient } from '@supabase/supabase-js';
-import { videoAICache } from './video-ai-cache';
+import { preWarmEmbeddingServers } from './embedding';
+// import { videoAICache } from './video-ai-cache';
 
 export interface VideoContext {
   courseSlug: string;
@@ -68,30 +69,41 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
     userId: number,
     conversationHistory?: Array<{role: string; content: string}>
   ): Promise<AIAssistantResponse> {
-    const startTime = Date.now();
     
+    const startTime = Date.now();
     try {
       console.log(`🎓 Video AI Assistant: Processing question for user ${userId}`);
       console.log(`📍 Context: ${videoContext.courseSlug} | Lesson: ${videoContext.currentLessonId} | Time: ${videoContext.currentTimestamp}s`);
 
-      // Check cache first
-      const cachedResponse = await videoAICache.get(question, videoContext);
-      if (cachedResponse) {
-        const processingTime = Date.now() - startTime;
-        console.log(`⚡ Cache hit! Returning cached response in ${processingTime}ms`);
-        
-        return {
-          answer: cachedResponse.answer,
-          sources: cachedResponse.sources,
-          confidence: cachedResponse.confidence,
-          webSearchUsed: false, // Cached response
-          suggestedActions: ["查看相关课程材料", "做笔记记录要点", "尝试相关练习题"],
-          relatedConcepts: [],
-          processingTime
-        };
-      }
+      // Check cache first (temporarily disabled)
+      // const cachedResponse = await videoAICache.get(question, videoContext);
+      // if (cachedResponse) {
+      //   const processingTime = Date.now() - startTime;
+      //   console.log(`⚡ Cache hit! Returning cached response in ${processingTime}ms`);
+      //   return {
+      //     success: true,
+      //     question,
+      //     answer: cachedResponse.answer,
+      //     sources: cachedResponse.sources,
+      //     confidence: cachedResponse.confidence,
+      //     webSearchUsed: false,
+      //     suggestedActions: cachedResponse.suggestedActions || [],
+      //     relatedConcepts: cachedResponse.relatedConcepts || [],
+      //     metadata: {
+      //       processingTimeMs: processingTime,
+      //       aiProcessingTimeMs: 0,
+      //       videoContext,
+      //       sourcesCount: cachedResponse.sources.length,
+      //       timestamp: new Date().toISOString(),
+      //       userId: userId?.toString(),
+      //       conversationHistoryLength: 0
+      //     }
+      //   };
+      // } else {
+        console.log(`❌ Cache miss: ${question.substring(0, 50)}...`);
+      // }
 
-      // Stage 1: Analyze question and plan retrieval strategy
+      // Stage 1: Analyze the question
       const questionAnalysis = await this.analyzeQuestion(question, videoContext, userId);
       
       // Stage 2: Gather evidence from multiple sources
@@ -126,14 +138,14 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         processingTime
       };
 
-      // Cache the response for future use
-      await videoAICache.set(
-        question, 
-        response.answer, 
-        response.sources, 
-        response.confidence,
-        videoContext
-      );
+      // Cache the response for future use (temporarily disabled)
+      // await videoAICache.set(
+      //   question, 
+      //   response.answer, 
+      //   response.sources, 
+      //   response.confidence,
+      //   videoContext
+      // );
 
       return response;
 
@@ -141,11 +153,11 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
       console.error('❌ Video AI Assistant error:', error);
       
       return {
-        answer: "抱歉，我在处理您的问题时遇到了技术问题。请稍后再试，或者尝试重新表述您的问题。",
+        answer: "I apologize, but I encountered a technical issue while processing your question. Please try again later or try rephrasing your question.",
         sources: [],
         confidence: 0,
         webSearchUsed: false,
-        suggestedActions: ["请稍后重试", "尝试重新表述问题", "查看课程材料"],
+        suggestedActions: ["Please try again later", "Try rephrasing your question", "Review course materials"],
         relatedConcepts: [],
         processingTime: Date.now() - startTime
       };
@@ -161,33 +173,37 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
     userId: number
   ): Promise<QuestionAnalysis> {
     const contextPrompt = `
-    作为教育AI助手，分析这个学生问题并制定检索策略：
+    As an educational AI assistant, analyze this student question and develop a retrieval strategy:
 
-    问题: "${question}"
+    Question: "${question}"
     
-    学习上下文:
-    - 课程: ${videoContext.courseSlug}
-    - 当前课节: ${videoContext.currentLessonId || '未指定'}
-    - 视频时间点: ${videoContext.currentTimestamp || 0} 秒
-    - 选中文本: ${videoContext.selectedText || '无'}
+    Learning context:
+    - Course: ${videoContext.courseSlug}
+    - Current lesson: ${videoContext.currentLessonId || 'Not specified'}
+    - Video timestamp: ${videoContext.currentTimestamp || 0} seconds
+    - Selected text: ${videoContext.selectedText || 'None'}
 
-    请分析并返回JSON格式的检索策略：
+    Please analyze and return a JSON-formatted retrieval strategy:
     {
-      "searchQueries": ["优化后的搜索关键词1", "搜索关键词2"],
-      "keyTerms": ["核心概念1", "核心概念2"],
+      "searchQueries": ["optimized search term 1", "search term 2"],
+      "keyTerms": ["core concept 1", "core concept 2"],
       "requiresCourseSpecific": true/false,
       "confidenceThreshold": 0.7,
       "suggestedFallback": "web_search" | "course_metadata" | "none"
     }
 
-    分析要点：
-    1. 提取核心概念和关键词
-    2. 判断是否需要课程特定内容
-    3. 设置合适的置信度阈值
-    4. 建议备用策略
+    Analysis points:
+    1. Extract core concepts and keywords
+    2. Determine if course-specific content is needed
+    3. Set appropriate confidence threshold
+    4. Suggest fallback strategy
+    
+    Please respond in English.
     `;
 
     try {
+      console.log('🤖 Starting question analysis with tools...');
+      
       const result = await this.simpleAICallWithTools(contextPrompt, {
         toolCategories: ['CONTENT_ANALYSIS'],
         userId,
@@ -196,10 +212,18 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         temperature: 0.2
       });
 
+      console.log('🤖 Question analysis result:', {
+        hasResult: !!result.result,
+        resultLength: result.result?.length || 0,
+        toolsUsed: result.toolsUsed,
+        executionTime: result.executionTime
+      });
+
       // 尝试解析JSON响应
       const jsonMatch = result.result.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        console.log('📝 Parsed analysis:', parsed);
         return {
           searchQueries: parsed.searchQueries || [question],
           keyTerms: parsed.keyTerms || [],
@@ -207,8 +231,11 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
           confidenceThreshold: parsed.confidenceThreshold || 0.7,
           suggestedFallback: parsed.suggestedFallback || 'web_search'
         };
+      } else {
+        console.warn('⚠️ No JSON found in analysis result, response:', result.result?.substring(0, 200));
       }
     } catch (error) {
+      console.error('❌ Question analysis failed:', error);
       console.warn('⚠️ Failed to parse question analysis, using fallback');
     }
 
@@ -390,8 +417,8 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
     const mockSegments = [
       {
         contentType: 'video_segment',
-        title: '核心概念讲解片段',
-        content: '这一部分主要讲解了核心概念的定义和重要性，包括实际应用场景...',
+        title: 'Core Concept Explanation Segment',
+        content: 'This section mainly explains the definition and importance of core concepts, including practical application scenarios...',
         startTime: 125,
         endTime: 187,
         timestamp: 125,
@@ -421,13 +448,31 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
    */
   private async searchCourseContent(queries: string[], courseSlug: string): Promise<any[]> {
     try {
+      console.log(`🔍 Starting course content search for queries:`, queries);
+      
+      // Pre-warm embedding servers before first search attempt
+      console.log(`🔥 Pre-warming embedding servers...`);
+      const warmupResult = await preWarmEmbeddingServers();
+      console.log(`🔥 Warmup completed:`, warmupResult);
+      
       const allResults = [];
       
       for (const query of queries) {
+        console.log(`🔍 Searching for: "${query}"`);
+        
         const results = await smartSearch(query, {
           maxResults: 3,
           enhanceResults: true,
           contentTypes: ['course', 'lesson']
+        });
+        
+        console.log(`📊 Search results for "${query}":`, {
+          resultCount: results.results?.length || 0,
+          hasEnhancedSummary: !!results.enhancedSummary,
+          resultPreviews: results.results?.slice(0, 2).map(r => ({
+            title: r.metadata?.title || 'No title',
+            contentPreview: r.pageContent?.substring(0, 50) + '...'
+          }))
         });
         
         allResults.push(...results.results);
@@ -438,8 +483,15 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         index === self.findIndex(t => t.metadata?.id === item.metadata?.id)
       );
       
+      console.log(`✅ Course content search completed:`, {
+        totalQueries: queries.length,
+        totalResults: allResults.length,
+        uniqueResults: uniqueResults.length
+      });
+      
       return uniqueResults.slice(0, 5); // 最多返回5个结果
     } catch (error) {
+      console.error('❌ Course content search failed:', error);
       console.warn('⚠️ Course content search failed, returning empty results');
       return [];
     }
@@ -463,8 +515,8 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
       if (courseData) {
         results.push({
           contentType: 'metadata',
-          title: `课程: ${courseData.title}`,
-          content: `${courseData.description}\n学习目标: ${courseData.learning_objectives?.join(', ')}\n前置要求: ${courseData.requirements?.join(', ')}`,
+          title: `Course: ${courseData.title}`,
+          content: `${courseData.description}\nLearning objectives: ${courseData.learning_objectives?.join(', ')}\nPrerequisites: ${courseData.requirements?.join(', ')}`,
           metadata: { id: `course_${courseData.id}`, type: 'course' }
         });
       }
@@ -481,7 +533,7 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         if (lessonData) {
           results.push({
             contentType: 'lesson',
-            title: `课节: ${lessonData.title}`,
+            title: `Lesson: ${lessonData.title}`,
             content: `${lessonData.description || ''}\n${lessonData.transcript || ''}`,
             metadata: { id: `lesson_${lessonData.id}`, type: 'lesson' }
           });
@@ -515,7 +567,7 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         notesData.forEach((note: any, index: number) => {
           results.push({
             contentType: 'note',
-            title: `我的笔记: ${note.course_lesson?.title || ''}`,
+            title: `My Notes: ${note.course_lesson?.title || ''}`,
             content: note.ai_summary || note.content,
             timestamp: note.timestamp_sec,
             metadata: { id: `note_${index}`, type: 'user_note' }
@@ -596,11 +648,13 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
     try {
       // 使用现有的搜索工具
       const webSearchPrompt = `
-      学生问题获得的本地答案置信度较低 (${evidence.confidence})。
-      请搜索网络资源来补充回答这个问题: "${question}"
+      The local answer to the student question has low confidence (${evidence.confidence}).
+      Please search web resources to supplement the answer to this question: "${question}"
       
-      关键词: ${analysis.keyTerms.join(', ')}
-      专注于教育内容和权威来源。
+      Keywords: ${analysis.keyTerms.join(', ')}
+      Focus on educational content and authoritative sources.
+      
+      Please provide your response in English.
       `;
 
       const result = await this.simpleAICallWithTools(webSearchPrompt, {
@@ -612,7 +666,7 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
 
       return {
         content: result.result,
-        sources: ['网络搜索结果'],
+        sources: ['Web search results'],
         confidence: 0.6 // Web search gets medium confidence
       };
 
@@ -640,43 +694,46 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
     }
 
     const synthesisPrompt = `
-    作为专业的教育AI助手，请基于收集到的信息为学生提供全面、准确的回答。
+    As a professional educational AI assistant, please provide a comprehensive and accurate answer based on the collected information.
 
-    学生问题: "${originalQuestion}"
+    Student question: "${originalQuestion}"
     ${contextText}
-    学习情境:
-    - 课程: ${videoContext.courseSlug}
-    - 课节: ${videoContext.currentLessonId || '未指定'}
-    - 时间点: ${videoContext.currentTimestamp || 0}秒
-    - 选中内容: ${videoContext.selectedText || '无'}
+    Learning context:
+    - Course: ${videoContext.courseSlug}
+    - Lesson: ${videoContext.currentLessonId || 'Not specified'}
+    - Timestamp: ${videoContext.currentTimestamp || 0} seconds
+    - Selected content: ${videoContext.selectedText || 'None'}
 
-    可用信息:
+    Available information:
     
-    课程内容证据:
+    Course content evidence:
     ${evidence.courseContent.map(item => `- ${item.title}: ${item.content?.substring(0, 200) || ''}`).join('\n')}
     
-    课程元数据:
+    Course metadata:
     ${evidence.metadata.map(item => `- ${item.title}: ${item.content?.substring(0, 200) || ''}`).join('\n')}
     
-    用户学习记录:
+    User learning records:
     ${evidence.userContext.map(item => `- ${item.title}: ${item.content?.substring(0, 200) || ''}`).join('\n')}
     
-    ${webResults ? `网络补充信息:\n${webResults.content}\n` : ''}
+    ${webResults ? `Additional web information:\n${webResults.content}\n` : ''}
 
-    请提供:
-    1. 清晰、教育性的回答 (用中文)
-    2. 针对当前学习情境的具体建议
-    3. 相关概念延伸
-    4. 后续学习建议
+    Please provide:
+    1. Clear, educational answer (in English)
+    2. Specific suggestions for the current learning context
+    3. Related concept extensions
+    4. Follow-up learning recommendations
 
-    回答要求:
-    - 语言亲和，适合学生理解
-    - 结合具体的学习情境
-    - 提供可操作的学习建议
-    - 鼓励深度思考和探索
+    Answer requirements:
+    - Use friendly language suitable for students
+    - Integrate with the specific learning context
+    - Provide actionable learning suggestions
+    - Encourage deep thinking and exploration
+    - Always respond in English
     `;
 
     try {
+      console.log('🤖 Starting answer synthesis with prompt:', synthesisPrompt.substring(0, 200) + '...');
+      
       const result = await this.simpleAICallWithTools(synthesisPrompt, {
         toolCategories: ['CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
         enableTools: true,
@@ -684,19 +741,38 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         temperature: 0.4
       });
 
-      // 解析建议操作和相关概念 (可以从AI回答中提取或使用默认值)
+      console.log('🤖 AI synthesis result:', {
+        hasResult: !!result.result,
+        resultLength: result.result?.length || 0,
+        resultPreview: result.result?.substring(0, 100) + '...',
+        toolsUsed: result.toolsUsed,
+        executionTime: result.executionTime
+      });
+
+      // Parse suggested actions and related concepts (can be extracted from AI response or use defaults)
       const suggestedActions = [
-        "查看相关课程材料",
-        "做笔记记录要点",
-        "尝试相关练习题"
+        "Review related course materials",
+        "Take notes on key points",
+        "Try related practice questions"
       ];
 
       const relatedConcepts = evidence.courseContent
         .map(item => item.title)
         .slice(0, 3);
 
+      // Ensure we have a valid answer
+      const finalAnswer = result.result && result.result.trim() ? result.result : 
+        "I understand you're asking about the content that was just explained. Based on the available course materials, let me provide a detailed explanation to help clarify the concepts.";
+
+      console.log('📝 Final answer prepared:', {
+        originalEmpty: !result.result || !result.result.trim(),
+        finalLength: finalAnswer.length,
+        suggestedActions: suggestedActions.length,
+        relatedConcepts: relatedConcepts.length
+      });
+
       return {
-        content: result.result,
+        content: finalAnswer,
         suggestedActions,
         relatedConcepts
       };
@@ -704,8 +780,8 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
     } catch (error) {
       console.error('❌ Answer synthesis failed:', error);
       return {
-        content: "基于课程内容，我尝试为您提供帮助，但目前遇到了一些技术问题。建议您查看课程资料或向老师咨询。",
-        suggestedActions: ["查看课程资料", "向老师提问", "复习相关章节"],
+        content: "Based on the course content, I'm trying to help you, but I'm currently experiencing some technical issues. I suggest you review the course materials or consult with your instructor.",
+        suggestedActions: ["Review course materials", "Ask your instructor", "Review related chapters"],
         relatedConcepts: []
       };
     }

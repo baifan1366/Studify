@@ -71,7 +71,15 @@ export async function POST(req: NextRequest): Promise<NextResponse<CreateQuizRes
     console.log(`📝 Creating quiz for lesson ${body.lessonId} with ${body.questions.length} questions`);
 
     const supabase = await createAdminClient();
-    const userId = authResult.payload.profileId;
+    const userId = authResult.user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Profile not found',
+        message: 'User profile not found'
+      }, { status: 404 });
+    }
 
     // Verify lesson exists and user has permission
     const { data: lesson, error: lessonError } = await supabase

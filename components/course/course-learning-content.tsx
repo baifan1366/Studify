@@ -214,8 +214,9 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   
   // Get lesson progress and progress update hooks - only call when we have a valid lesson ID
   const { data: lessonProgress } = useCourseProgressByLessonId(currentLessonIdMemo);
-  const { data: enhancedLessonProgress, isLoading: progressLoading } = useLessonProgress(currentLessonIdMemo);
+  const { data: enhancedLessonProgress } = useLessonProgress(currentLessonIdMemo); // Enhanced progress data
   const createProgress = useUpdateCourseProgress();
+  const updateProgress = useUpdateCourseProgressByLessonId();
   const updateProgressByLesson = useUpdateCourseProgressByLessonId();
   const { toast } = useToast();
 
@@ -225,15 +226,24 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     markAsStarted,
     markAsCompleted,
     isUpdating: isProgressUpdating
-  } = useVideoProgressTracker(currentLesson?.public_id || '', {
-    updateInterval: 10, // Save position every 10 seconds
+  } = useVideoProgressTracker(currentLessonIdMemo || '', {
+    updateInterval: 10, // Save every 10 seconds
     autoSave: true
   });
+  
+  // Store trackProgress in a ref to avoid dependency issues - only update when lessonId changes
+  const trackProgressRef = useRef(trackProgress);
+  const currentLessonRef = useRef(currentLessonIdMemo);
+  
+  // Only update ref when lesson changes to maintain throttling
+  if (currentLessonRef.current !== currentLessonIdMemo) {
+    trackProgressRef.current = trackProgress;
+    currentLessonRef.current = currentLessonIdMemo;
+  }
 
   // Knowledge Graph and Quiz hooks - only call when needed
   const knowledgeGraph = useKnowledgeGraph({ courseSlug });
   const quiz = useQuiz({ lessonId: currentLessonIdMemo });
-
   // Video player hooks
   const { addMessage: addDanmaku, messages: danmakuMessages } = useDanmaku({
     maxVisible: 100,
@@ -374,8 +384,8 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [currentLessonId, isFullscreen]);
 
-  // Auto-create progress record when lesson is accessed for the first time
-  useEffect(() => {
+  // Initialize progress when starting a lesson - triggered by user action, not useEffect
+  const initializeProgress = () => {
     if (currentLessonIdMemo && !lessonProgress && !createProgress.isPending) {
       createProgress.mutate({
         lessonId: currentLessonIdMemo,
@@ -383,7 +393,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         timeSpentSec: 0
       });
     }
-  }, [currentLessonIdMemo, lessonProgress, createProgress.isPending]); // Depend on specific properties to avoid object reference issues
+  };
 
   // Responsive design detection
   useEffect(() => {
@@ -417,12 +427,12 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     if (lessonId && currentTime > 0 && duration > 0) {
       const progressPct = Math.min((currentTime / duration) * 100, 100);
       
-      // Force save using trackProgress with force=true
-      trackProgress(currentTime, duration, true);
+      // Force save using trackProgress with force=true via ref
+      trackProgressRef.current(currentTime, duration, true);
       
       console.log(`💾 Saved progress: ${Math.round(progressPct)}% at ${Math.round(currentTime)}s for lesson ${lessonId}`);
     }
-  }, [trackProgress]);
+  }, []); // No dependencies to prevent infinite loop
 
   // Save progress when switching lessons
   useEffect(() => {
@@ -430,7 +440,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
       // Save progress when lesson changes or component unmounts
       saveCurrentProgress();
     };
-  }, [currentLessonId, saveCurrentProgress]);
+  }, [currentLessonId]); // Remove saveCurrentProgress from deps to prevent infinite loop
 
   // Save progress on page unload/refresh
   useEffect(() => {
@@ -453,7 +463,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
       // Final save on cleanup
       saveCurrentProgress();
     };
-  }, [saveCurrentProgress]);
+  }, []); // Remove saveCurrentProgress from deps to prevent infinite loop
 
   // Optional: Periodic backup save every 2 minutes (much less frequent)
   useEffect(() => {
@@ -464,13 +474,16 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
     }, 120000); // 2 minutes
 
     return () => clearInterval(interval);
-  }, [saveCurrentProgress]);
+  }, []); // Remove saveCurrentProgress from deps to prevent infinite loop
 
-  const handleTimeUpdate = (time: number, duration?: number) => {
+  // Throttle handleTimeUpdate to avoid excessive calls
+  const lastTimeUpdateRef = useRef(0);
+  
+  const handleTimeUpdate = React.useCallback((time: number, duration?: number) => {
     setCurrentVideoTimestamp(time);
     
     // Only update local state, no API calls during playback
-    if (currentLesson?.kind === 'video' && duration) {
+    if (currentLesson?.kind === 'video' && duration && duration > 0) {
       // Update current progress reference for later saving
       currentProgressRef.current = {
         currentTime: time,
@@ -478,33 +491,36 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         lessonId: currentLesson.public_id
       };
       
-      // Auto-mark as completed when reaching 95% or end
+      // Auto-mark as completed when reaching 95% or end (but not at the very beginning)
       const progressPct = (time / duration) * 100;
-      if (progressPct >= 95 && lessonProgress?.state !== 'completed') {
+      if (progressPct >= 95 && time > 30 && lessonProgress?.state !== 'completed') { // Require at least 30s watch time
         markAsCompleted(duration);
       }
+      
+      // Auto-mark as started when passing 10 seconds
+      if (progressPct > 5 && time > 10 && lessonProgress?.state === 'not_started') {
+        markAsStarted();
+      }
+      
+      // Let useVideoProgressTracker handle all throttling
+      trackProgressRef.current(time, duration);
     }
-  };
+  }, [currentLesson?.public_id, lessonProgress?.state, markAsCompleted, markAsStarted]);
 
   // Function to start a lesson (create progress with not_started status)
   const handleLessonStart = () => {
     if (!currentLesson) return;
+    
+    // Initialize progress if needed
+    initializeProgress();
     
     // Use enhanced progress tracking for video lessons
     if (currentLesson.kind === 'video') {
       markAsStarted();
     }
     
-    // Legacy progress handling for backward compatibility
-    if (!lessonProgress) {
-      // Create initial progress record
-      createProgress.mutate({
-        lessonId: currentLesson.public_id,
-        progressPct: 0,
-        timeSpentSec: 0
-      });
-    } else {
-      // Update existing progress to in_progress
+    // Update existing progress to in_progress if it exists
+    if (lessonProgress) {
       updateProgressByLesson.mutate({
         lessonId: currentLesson.public_id,
         progressPct: lessonProgress.progressPct > 0 ? lessonProgress.progressPct : 1,
@@ -516,22 +532,19 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   const handleLessonComplete = () => {
     if (!currentLesson) return;
     
+    // Initialize progress if needed before completing
+    if (!lessonProgress) {
+      initializeProgress();
+    }
+    
     // Use enhanced progress tracking for video lessons
     if (currentLesson.kind === 'video') {
       const duration = enhancedLessonProgress?.video_duration_sec || currentLesson.duration_sec || 0;
       markAsCompleted(duration);
     }
     
-    // Legacy progress handling for backward compatibility
-    if (!lessonProgress) {
-      // Create progress record and mark as completed
-      createProgress.mutate({
-        lessonId: currentLesson.public_id,
-        progressPct: 100,
-        timeSpentSec: 0
-      });
-    } else {
-      // Update existing progress to completed
+    // Update progress to completed (only if progress exists)
+    if (lessonProgress) {
       updateProgressByLesson.mutate({
         lessonId: currentLesson.public_id,
         progressPct: 100,
@@ -1107,10 +1120,10 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
         {/* Main Learning Panel */}
         <div className={`xl:col-span-3 lg:col-span-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 ${
           isMobileView && !showToolPanel ? 'hidden scale-95 opacity-0' : 'scale-100 opacity-100'
-        } ${isMobileView ? 'fixed inset-x-4 top-4 bottom-4 z-50 max-h-[90vh] overflow-hidden' : ''}`}>
+        } ${isMobileView ? 'fixed inset-x-4 top-16 bottom-16 z-50 flex flex-col max-h-[80vh]' : ''}`}>
           {/* Mobile Panel Header */}
           {isMobileView && (
-            <div className="lg:hidden flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="lg:hidden flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <h3 className="font-semibold text-gray-900 dark:text-white">{t('CourseLearning.learning_tools')}</h3>
               <Button
                 onClick={() => setShowToolPanel(false)}
@@ -1124,7 +1137,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           )}
           
           {/* Tabs */}
-          <div className={`flex flex-wrap border-b border-gray-200 dark:border-gray-700 ${isMobileView ? 'px-3' : ''}`}>
+          <div className={`flex flex-wrap border-b border-gray-200 dark:border-gray-700 ${isMobileView ? 'px-3 flex-shrink-0' : ''}`}>
             {/* Chapters Tab - Only show for video lessons */}
             {currentLesson?.kind === 'video' && (
               <Button
@@ -1183,7 +1196,7 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
           </div>
 
           {/* Tab Content */}
-          <div className="p-3 lg:p-4 max-h-64 sm:max-h-80 lg:max-h-96 overflow-y-auto">
+          <div className={`p-3 lg:p-4 overflow-y-auto ${isMobileView ? 'flex-1 min-h-0 max-h-[calc(80vh-8rem)]' : 'max-h-64 sm:max-h-80 lg:max-h-96'}`}>
             {activeTab === 'chapters' && currentLesson?.kind === 'video' && (
               <CourseChapterContent
                 currentLessonId={currentLesson?.public_id}

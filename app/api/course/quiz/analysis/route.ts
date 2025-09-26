@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(request: NextRequest) {
@@ -9,24 +9,16 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !profile) {
+    const { payload, user } = authResult;
+    
+    // Get user profile ID from the cached user info
+    const userId = user.profile?.id;
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    const userId = profile.id;
+    const supabase = await createAdminClient();
     
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');

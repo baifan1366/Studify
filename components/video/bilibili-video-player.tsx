@@ -17,6 +17,13 @@ import {
 } from '@/hooks/video/use-video-interactions';
 import { useUser } from '@/hooks/profile/use-user';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  useVideoQAPanel, 
+  useVideoTermsTooltip, 
+  useVideoTerms 
+} from '@/hooks/video/use-video-qa';
+import { VideoQAPanel } from './video-qa-panel';
+import { VideoTermsTooltip, VideoTermsIndicator } from './video-terms-tooltip';
 import {
   Play,
   Pause,
@@ -40,7 +47,10 @@ import {
   Trash2,
   MoreVertical,
   Check,
-  X
+  X,
+  Loader2,
+  Bot,
+  GraduationCap
 } from 'lucide-react';
 
 interface DanmakuMessage {
@@ -112,6 +122,7 @@ export default function BilibiliVideoPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
   // UI state
   const [showControls, setShowControls] = useState(true);
@@ -125,6 +136,17 @@ export default function BilibiliVideoPlayer({
   // Input state
   const [danmakuText, setDanmakuText] = useState('');
   const [commentText, setCommentText] = useState('');
+
+  // AI QA and Terms functionality
+  const qaPanel = useVideoQAPanel();
+  const termsTooltip = useVideoTermsTooltip();
+  
+  // Fetch terms for current time (update every 15 seconds)
+  const { data: termsData } = useVideoTerms(
+    lessonId || '', 
+    currentTime, 
+    !!lessonId && currentTime > 0
+  );
   
   // Internationalization
   const t = useTranslations();
@@ -374,14 +396,23 @@ export default function BilibiliVideoPlayer({
     if (onTimeUpdate && videoRef.current) {
       onTimeUpdate(videoRef.current.currentTime, duration);
     }
-  }, [onTimeUpdate, duration]);
+    
+    // Auto-show terms when video is paused (if there are terms available)
+    if (termsData?.terms && termsData.terms.length > 0 && termsTooltip.autoShowEnabled) {
+      setTimeout(() => {
+        termsTooltip.showTerms(termsData.terms);
+      }, 500); // Small delay for better UX
+    }
+  }, [onTimeUpdate, duration, termsData, termsTooltip]);
   
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
+    // Also hide loading when video starts playing
+    setIsLoading(false);
   }, []);
   
   const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
+    if (videoRef.current && duration > 0) {
       const newTime = videoRef.current.currentTime;
       setCurrentTime(newTime);
       
@@ -390,8 +421,8 @@ export default function BilibiliVideoPlayer({
         onTimeUpdate(newTime, duration);
       }
       
-      // Only track view start once (no continuous tracking)
-      if (!hasTrackedViewStart.current && newTime > 5) {
+      // Only track view start once when reaching 5 seconds and duration is available
+      if (!hasTrackedViewStart.current && newTime > 5 && duration > 0) {
         trackViewMutation.mutate({
           lessonId,
           attachmentId,
@@ -411,6 +442,22 @@ export default function BilibiliVideoPlayer({
     }
   }, []);
 
+  const handleLoadStart = useCallback(() => {
+    setIsLoading(true);
+  }, []);
+
+  const handleCanPlay = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
+  const handleWaiting = useCallback(() => {
+    setIsLoading(true);
+  }, []);
+
+  const handlePlaying = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
   // Handle initialTime when video metadata is loaded
   useEffect(() => {
     if (videoRef.current && duration > 0 && initialTime > 0) {
@@ -423,6 +470,15 @@ export default function BilibiliVideoPlayer({
       }
     }
   }, [duration, initialTime, onTimeUpdate]);
+
+  // Initialize loading state based on video source
+  useEffect(() => {
+    if (videoSourceInfo.src || videoSourceInfo.embedUrl) {
+      setIsLoading(true);
+    } else {
+      setIsLoading(false);
+    }
+  }, [videoSourceInfo.src, videoSourceInfo.embedUrl]);
 
   const handleProgressClick = useCallback((e: React.MouseEvent) => {
     if (progressRef.current && videoRef.current) {
@@ -521,12 +577,24 @@ export default function BilibiliVideoPlayer({
           e.preventDefault();
           setShowComments(!showComments);
           break;
+        case 'KeyQ':
+          e.preventDefault();
+          if (lessonId) {
+            qaPanel.openPanel();
+          }
+          break;
+        case 'KeyT':
+          e.preventDefault();
+          if (lessonId && termsData?.terms && termsData.terms.length > 0) {
+            termsTooltip.showTerms(termsData.terms);
+          }
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay, skipTime, handleVolumeChange, volume, toggleMute, toggleFullscreen, danmakuEnabled, showComments]);
+  }, [togglePlay, skipTime, handleVolumeChange, volume, toggleMute, toggleFullscreen, danmakuEnabled, showComments, lessonId, qaPanel, termsData, termsTooltip]);
 
   // Mouse movement handler
   useEffect(() => {
@@ -600,6 +668,7 @@ export default function BilibiliVideoPlayer({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title={title}
+            onLoad={() => setIsLoading(false)}
           />
         ) : videoSourceInfo.type === 'vimeo' && videoSourceInfo.embedUrl ? (
           <iframe
@@ -608,6 +677,7 @@ export default function BilibiliVideoPlayer({
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
             title={title}
+            onLoad={() => setIsLoading(false)}
           />
         ) : videoSourceInfo.canPlay && videoSourceInfo.src ? (
           <video
@@ -619,6 +689,10 @@ export default function BilibiliVideoPlayer({
             onPause={handlePause}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
+            onLoadStart={handleLoadStart}
+            onCanPlay={handleCanPlay}
+            onWaiting={handleWaiting}
+            onPlaying={handlePlaying}
             onClick={togglePlay}
           />
         ) : (
@@ -636,6 +710,52 @@ export default function BilibiliVideoPlayer({
             </div>
           </div>
         )}
+
+        {/* Loading Overlay */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div 
+                className="flex flex-col items-center gap-4 p-6 rounded-2xl bg-black/20 backdrop-blur-md border border-white/10"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <div className="relative">
+                  <motion.div
+                    className="absolute inset-0 w-16 h-16 rounded-full border-2 border-white/20"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <Loader2 
+                    size={48} 
+                    className="text-white animate-spin relative z-10" 
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-white text-sm font-medium mb-1">
+                    {t('VideoPlayer.loading') || 'Loading...'}
+                  </p>
+                  {(videoSourceInfo.type === 'youtube' || videoSourceInfo.type === 'vimeo') && (
+                    <p className="text-white/70 text-xs">
+                      {videoSourceInfo.type === 'youtube' 
+                        ? (t('VideoPlayer.loading_youtube') || 'Loading YouTube video...') 
+                        : (t('VideoPlayer.loading_vimeo') || 'Loading Vimeo video...')
+                      }
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Danmaku Container */}
         <div
@@ -774,6 +894,26 @@ export default function BilibiliVideoPlayer({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* AI QA Button */}
+                    {lessonId && (
+                      <button
+                        onClick={() => qaPanel.openPanel()}
+                        className={`text-white hover:text-purple-400 transition-colors ${qaPanel.isOpen ? 'text-purple-400' : ''}`}
+                        title={t('VideoPlayer.ask_ai')}
+                      >
+                        <Bot size={20} />
+                      </button>
+                    )}
+
+                    {/* Terms Indicator */}
+                    {lessonId && termsData?.terms && (
+                      <VideoTermsIndicator
+                        termsCount={termsData.terms.length}
+                        onClick={() => termsTooltip.showTerms(termsData.terms)}
+                        isActive={termsTooltip.isVisible}
+                      />
+                    )}
+
                     <button
                       onClick={() => setShowDanmakuInput(!showDanmakuInput)}
                       className="text-white hover:text-blue-400 transition-colors"
@@ -1195,8 +1335,42 @@ export default function BilibiliVideoPlayer({
           <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">F</kbd> {t('VideoPlayer.keyboard_shortcuts.fullscreen')}</span>
           <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">D</kbd> {t('VideoPlayer.keyboard_shortcuts.toggle_danmaku')}</span>
           <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">C</kbd> {t('VideoPlayer.keyboard_shortcuts.toggle_comments')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">Q</kbd> {t('VideoPlayer.keyboard_shortcuts.ask_ai')}</span>
+          <span><kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">T</kbd> {t('VideoPlayer.keyboard_shortcuts.toggle_terms')}</span>
         </div>
       </div>
+
+      {/* AI QA Panel */}
+      {lessonId && (
+        <VideoQAPanel
+          lessonId={lessonId}
+          currentTime={currentTime}
+          isOpen={qaPanel.isOpen}
+          onClose={qaPanel.closePanel}
+          onSeekTo={(time) => {
+            if (videoRef.current) {
+              videoRef.current.currentTime = time;
+            }
+          }}
+        />
+      )}
+
+      {/* Video Terms Tooltip */}
+      {lessonId && termsData?.terms && (
+        <VideoTermsTooltip
+          terms={termsData.terms}
+          isVisible={termsTooltip.isVisible}
+          autoShowEnabled={termsTooltip.autoShowEnabled}
+          onClose={termsTooltip.hideTerms}
+          onToggleAutoShow={termsTooltip.toggleAutoShow}
+          onSeekTo={(time) => {
+            if (videoRef.current) {
+              videoRef.current.currentTime = time;
+            }
+          }}
+          position="top-right"
+        />
+      )}
     </div>
   );
 }

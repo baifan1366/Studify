@@ -10,7 +10,12 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     
-    const userId = parseInt(authResult.payload.sub);
+    // Get user profile ID  
+    const userId = authResult.user.profile?.id;
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");

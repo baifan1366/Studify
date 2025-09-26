@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
     }
     
     const supabase = await createAdminClient();
-    const { payload } = authResult;
-    const tutorId = payload.profileId;
+    const { payload, user } = authResult;
+    const tutorId = user.profile?.id;
     
     if (!tutorId) {
       return NextResponse.json(
@@ -171,8 +171,8 @@ export async function GET(request: NextRequest) {
     }
     
     const supabase = await createAdminClient();
-    const { payload } = authResult;
-    const tutorId = payload.profileId;
+    const { payload, user } = authResult;
+    const tutorId = user.profile?.id;
     
     if (!tutorId) {
       return NextResponse.json(

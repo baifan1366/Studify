@@ -445,7 +445,7 @@ export const adminApi = {
 
 // Recommendations API endpoints
 export const recommendationsApi = {
-  get: '/recommendations',
+  get: 'api/recommendations',
 } as const;
 
 // Helper function to get auth headers

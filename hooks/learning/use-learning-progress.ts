@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -78,11 +79,13 @@ export function useLessonProgress(lessonId: string) {
     queryFn: async (): Promise<LearningProgressWithLesson | null> => {
       if (!lessonId) return null;
       
-      const response = await api.get(`/learning-progress?lessonId=${lessonId}`);
+      const response = await api.get(`/api/learning-progress?lessonId=${lessonId}`);
       return response.data.data;
     },
     enabled: !!lessonId,
-    staleTime: 30000, // 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduce API calls
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 }
 
@@ -93,11 +96,13 @@ export function useCourseProgress(courseSlug: string) {
     queryFn: async (): Promise<LearningProgressWithLesson[]> => {
       if (!courseSlug) return [];
       
-      const response = await api.get(`/learning-progress?courseSlug=${courseSlug}`);
+      const response = await api.get(`/api/learning-progress?courseSlug=${courseSlug}`);
       return response.data.data || [];
     },
     enabled: !!courseSlug,
-    staleTime: 60000, // 1 minute
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduce API calls
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 }
 
@@ -106,11 +111,12 @@ export function useContinueWatching() {
   return useQuery({
     queryKey: ['learning-progress', 'continue-watching'],
     queryFn: async (): Promise<ContinueWatchingItem[]> => {
-      const response = await api.get('/learning-progress?type=continue-watching');
+      const response = await api.get('/api/learning-progress?type=continue-watching');
       return response.data.data || [];
     },
-    staleTime: 30000, // 30 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes cache time
+    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce requests
   });
 }
 
@@ -121,7 +127,7 @@ export function useUpdateLearningProgress() {
 
   return useMutation({
     mutationFn: async (args: UpdateProgressArgs): Promise<LearningProgress> => {
-      const response = await api.post('/learning-progress', args);
+      const response = await api.post('/api/learning-progress', args);
       return response.data.data;
     },
     onSuccess: (data, variables) => {
@@ -163,7 +169,7 @@ export function useUpdateVideoPosition() {
 
   return useMutation({
     mutationFn: async (args: UpdateVideoPositionArgs): Promise<LearningProgress> => {
-      const response = await api.put('/learning-progress', args);
+      const response = await api.put('/api/learning-progress', args);
       return response.data.data;
     },
     onSuccess: (data, variables) => {
@@ -206,47 +212,63 @@ export function useVideoProgressTracker(
   const updatePosition = useUpdateVideoPosition();
   const updateProgress = useUpdateLearningProgress();
   
-  let lastUpdateTime = 0;
-  let lastSavedPosition = 0;
+  // Use refs to persist values across re-renders
+  const lastUpdateTimeRef = React.useRef(0);
+  const lastSavedPositionRef = React.useRef(0);
   
-  const trackProgress = (
+  // Store updatePosition in ref to avoid recreating trackProgress callback
+  const updatePositionRef = React.useRef(updatePosition);
+  updatePositionRef.current = updatePosition;
+  
+  const trackProgress = React.useCallback((
     currentTime: number,
     duration: number,
     force: boolean = false
   ) => {
-    if (!lessonId || !autoSave) return;
+    if (!lessonId || !autoSave || duration <= 0) return;
     
     const now = Date.now();
-    const timeSinceLastUpdate = (now - lastUpdateTime) / 1000;
-    const positionDifference = Math.abs(currentTime - lastSavedPosition);
+    const timeSinceLastUpdate = (now - lastUpdateTimeRef.current) / 1000;
+    const positionDifference = Math.abs(currentTime - lastSavedPositionRef.current);
+    const progressPct = Math.min((currentTime / duration) * 100, 100);
     
-    // Only update if enough time has passed or position changed significantly
-    if (force || (timeSinceLastUpdate >= updateInterval && positionDifference >= 5)) {
-      const progressPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
-      
-      updatePosition.mutate({
+    // Smart update conditions
+    const shouldUpdate = force || (
+      timeSinceLastUpdate >= updateInterval && 
+      positionDifference >= 5 && // At least 5 seconds position change
+      currentTime > 5 && // Don't save very early positions
+      progressPct >= 1 // At least 1% progress
+    );
+    
+    if (shouldUpdate) {
+      // Use ref to avoid dependency on updatePosition
+      updatePositionRef.current.mutate({
         lessonId,
         videoPositionSec: Math.floor(currentTime),
         videoDurationSec: Math.floor(duration),
-        progressPct,
+        progressPct: Math.round(progressPct * 100) / 100, // Round to 2 decimal places
       });
       
-      lastUpdateTime = now;
-      lastSavedPosition = currentTime;
+      lastUpdateTimeRef.current = now;
+      lastSavedPositionRef.current = currentTime;
     }
-  };
+  }, [lessonId, autoSave, updateInterval]); // Remove updatePosition from dependencies
   
-  const markAsStarted = () => {
-    updateProgress.mutate({
+  // Store updateProgress in ref to avoid recreation
+  const updateProgressRef = React.useRef(updateProgress);
+  updateProgressRef.current = updateProgress;
+  
+  const markAsStarted = React.useCallback(() => {
+    updateProgressRef.current.mutate({
       lessonId,
       state: 'in_progress',
       progressPct: 1,
       lessonKind: 'video',
     });
-  };
+  }, [lessonId]);
   
-  const markAsCompleted = (duration: number) => {
-    updateProgress.mutate({
+  const markAsCompleted = React.useCallback((duration: number) => {
+    updateProgressRef.current.mutate({
       lessonId,
       state: 'completed',
       progressPct: 100,
@@ -254,7 +276,7 @@ export function useVideoProgressTracker(
       videoDurationSec: Math.floor(duration),
       lessonKind: 'video',
     });
-  };
+  }, [lessonId]);
   
   return {
     trackProgress,

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,9 @@ const GroupCard = ({
 }: {
   group: Group;
   showJoinButton?: boolean;
-}) => (
+}) => {
+  const t = useTranslations('CommunitySidebar');
+  return (
   <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
     <div className="flex items-center gap-3 flex-1 min-w-0">
       <div className="flex-shrink-0">
@@ -50,13 +53,15 @@ const GroupCard = ({
         variant="outline"
         className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2"
       >
-        Join
+        {t('join')}
       </Button>
     )}
   </div>
-);
+  );
+};
 
 export default function CommunitySidebar() {
+  const t = useTranslations('CommunitySidebar');
   const [showAllGroupsModal, setShowAllGroupsModal] = useState(false);
   const { groups: userGroups, isLoading: loadingUserGroups } = useUserGroups();
   const { groups: suggestedGroups, isLoading: loadingSuggested } =
@@ -69,7 +74,7 @@ export default function CommunitySidebar() {
       <Card className="bg-white/5 border-white/10">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-white text-lg">My Groups</CardTitle>
+            <CardTitle className="text-white text-lg">{t('my_groups')}</CardTitle>
             <Link href="/community/create">
               <Button
                 size="sm"
@@ -93,12 +98,12 @@ export default function CommunitySidebar() {
           ) : (
             <div className="text-center py-6">
               <p className="text-gray-400 text-sm mb-3">
-                You haven't joined any groups yet
+                {t('no_groups')}
               </p>
               <Link href="/community/create">
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="w-4 h-4 mr-1" />
-                  Create Group
+                  {t('create_group')}
                 </Button>
               </Link>
             </div>
@@ -110,7 +115,7 @@ export default function CommunitySidebar() {
               className="w-full text-blue-400 hover:bg-blue-400/10"
               onClick={() => setShowAllGroupsModal(true)}
             >
-              View All Groups
+              {t('view_all')}
             </Button>
           )}
         </CardContent>
@@ -119,7 +124,7 @@ export default function CommunitySidebar() {
       {/* Suggested Groups */}
       <Card className="bg-white/5 border-white/10">
         <CardHeader className="pb-3">
-          <CardTitle className="text-white text-lg">Suggested Groups</CardTitle>
+          <CardTitle className="text-white text-lg">{t('suggested_groups')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {loadingSuggested ? (

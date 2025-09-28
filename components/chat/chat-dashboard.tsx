@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useConversations, useMarkAsRead, useCreateConversation, useDeleteConversation } from '@/hooks/chat/use-chat';
 import { 

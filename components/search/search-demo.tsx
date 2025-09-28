@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import UniversalSearch from './universal-search';
 import { SearchResult } from '@/hooks/search/use-universal-search';
 
 export default function SearchDemo() {
+  const t = useTranslations('SearchDemo');
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
 
@@ -57,10 +59,10 @@ export default function SearchDemo() {
           className="text-center mb-8"
         >
           <h1 className="text-4xl font-bold text-white mb-2">
-            🔍 Universal Search Demo
+            {t('title') || '🔍 Universal Search Demo'}
           </h1>
           <p className="text-white/70 text-lg">
-            Test the comprehensive search functionality across all content types
+            {t('subtitle') || 'Test the comprehensive search functionality across all content types'}
           </p>
         </motion.div>
 

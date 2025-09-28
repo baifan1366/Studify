@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardHeader,
@@ -40,6 +41,7 @@ function formatCode(code: string): string {
 }
 
 export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
+  const t = useTranslations('QuizCard');
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const { data: currentUser } = useUser();
   const router = useRouter();

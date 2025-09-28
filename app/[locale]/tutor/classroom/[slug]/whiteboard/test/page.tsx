@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import WhiteboardTest from '@/components/classroom/whiteboard/whiteboard-test';
 
 interface Props {
@@ -10,10 +11,11 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const t = await getTranslations('WhiteboardTestPage');
   
   return {
-    title: `Whiteboard Test - ${slug} | Studify`,
-    description: 'Whiteboard system testing interface',
+    title: `${t('metadata_title')} - ${slug}`,
+    description: t('metadata_description'),
   };
 }
 

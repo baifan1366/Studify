@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -21,14 +22,16 @@ interface QuizStatsProps {
 }
 
 export default function QuizStats({ quiz }: QuizStatsProps) {
+  const t = useTranslations('QuizStats');
+  
   const getDifficultyLabel = (difficulty: number) => {
     switch (difficulty) {
-      case 1: return "Beginner";
-      case 2: return "Easy";
-      case 3: return "Medium";
-      case 4: return "Hard";
-      case 5: return "Expert";
-      default: return "Unknown";
+      case 1: return t("beginner");
+      case 2: return t("easy");
+      case 3: return t("medium");
+      case 4: return t("hard");
+      case 5: return t("expert");
+      default: return t("unknown");
     }
   };
 

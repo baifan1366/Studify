@@ -2,6 +2,7 @@
 
 import CreatePostForm from '@/components/community/create-post-form';
 import { Suspense, use } from 'react';
+import { useTranslations } from 'next-intl';
 import { useGroupAccess } from '@/hooks/community/use-community';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle } from 'lucide-react';
@@ -27,16 +28,18 @@ function LoadingSkeleton() {
 }
 
 function AccessDenied({ groupName }: { groupName?: string }) {
+  const t = useTranslations('CreatePostPage');
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
       <div className="max-w-2xl mx-auto pt-8">
         <div className="bg-red-400/10 border border-red-400 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-3">
             <AlertCircle className="w-6 h-6 text-red-400" />
-            <h1 className="text-xl font-bold text-red-400">Access Denied</h1>
+            <h1 className="text-xl font-bold text-red-400">{t('access_denied')}</h1>
           </div>
           <p className="text-gray-300">
-            You must be a member of {groupName ? `the "${groupName}"` : 'this private'} group to create posts.
+            {groupName ? t('access_denied_description_with_name', { groupName }) : t('access_denied_description')}
           </p>
         </div>
       </div>
@@ -45,16 +48,18 @@ function AccessDenied({ groupName }: { groupName?: string }) {
 }
 
 function ErrorState({ error }: { error: Error }) {
+  const t = useTranslations('CreatePostPage');
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
       <div className="max-w-2xl mx-auto pt-8">
         <div className="bg-red-400/10 border border-red-400 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-3">
             <AlertCircle className="w-6 h-6 text-red-400" />
-            <h1 className="text-xl font-bold text-red-400">Error</h1>
+            <h1 className="text-xl font-bold text-red-400">{t('error')}</h1>
           </div>
           <p className="text-gray-300">
-            {error.message || 'Failed to load group information. Please try again.'}
+            {error.message || t('error_default')}
           </p>
         </div>
       </div>
@@ -65,6 +70,7 @@ function ErrorState({ error }: { error: Error }) {
 export default function CreatePostPage({ params }: CreatePostPageProps) {
   const { groupSlug } = use(params);
   const { group, canPost, isLoading, isError, error } = useGroupAccess(groupSlug);
+  const t = useTranslations('CreatePostPage');
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -82,9 +88,9 @@ export default function CreatePostPage({ params }: CreatePostPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
       <div className="max-w-2xl mx-auto pt-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Create New Post</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{t('create_new_post')}</h1>
           <p className="text-gray-300">
-            Share your thoughts with the <span className="font-semibold">{group.name}</span> community.
+            {t('share_thoughts', { groupName: group.name })}
           </p>
         </div>
         

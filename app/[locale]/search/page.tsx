@@ -1,11 +1,21 @@
 import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import SearchResultsPage from '@/components/search/search-results-page';
 
-export const metadata: Metadata = {
-  title: 'Search Results | Studify',
-  description: 'Search results across courses, lessons, posts, and more on Studify',
-  keywords: 'search,results,courses,lessons,posts,users,community,education',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('SearchPage');
+  
+  return {
+    title: t('metadata_title'),
+    description: t('metadata_description'),
+    keywords: t('metadata_keywords'),
+    openGraph: {
+      title: t('og_title'),
+      description: t('og_description'),
+      type: 'website',
+    },
+  };
+}
 
 interface SearchPageProps {
   searchParams: Promise<{

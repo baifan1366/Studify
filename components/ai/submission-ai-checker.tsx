@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ export function SubmissionAIChecker({
   className,
   onDetectionResult 
 }: SubmissionAICheckerProps) {
+  const t = useTranslations('SubmissionAIChecker');
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   
   const { classifyText, loading, result, error } = useTextClassifier({

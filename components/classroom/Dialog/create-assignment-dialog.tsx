@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -49,6 +50,7 @@ export function CreateAssignmentDialog({
   trigger,
   showTrigger = true
 }: CreateAssignmentDialogProps) {
+  const t = useTranslations('CreateAssignmentDialog');
   const [internalOpen, setInternalOpen] = useState(false);
   const [formData, setFormData] = useState<CreateAssignmentData>({
     title: '',
@@ -76,8 +78,8 @@ export function CreateAssignmentDialog({
       queryClient.invalidateQueries({ queryKey: ['classroom-assignments', classroomSlug] });
       
       toast({
-        title: "Success",
-        description: "Assignment created successfully",
+        title: t('success'),
+        description: t('assignment_created'),
       });
       
       setDialogOpen(false);
@@ -90,8 +92,8 @@ export function CreateAssignmentDialog({
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create assignment",
+        title: t('error'),
+        description: error.message || t('creation_failed'),
         variant: "destructive",
       });
     }
@@ -108,8 +110,8 @@ export function CreateAssignmentDialog({
   const handleCreateAssignment = async () => {
     if (!formData.title || !formData.description || !formData.due_date) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
+        title: t('validation_error'),
+        description: t('fill_required_fields'),
         variant: "destructive",
       });
       return;
@@ -128,16 +130,16 @@ export function CreateAssignmentDialog({
   const defaultTrigger = (
     <Button>
       <Plus className="mr-2 h-4 w-4" />
-      Create Assignment
+      {t('create_assignment')}
     </Button>
   );
 
   const dialogContent = (
     <DialogContent className="sm:max-w-[500px]">
       <DialogHeader>
-        <DialogTitle>Create Assignment</DialogTitle>
+        <DialogTitle>{t('create_assignment')}</DialogTitle>
         <DialogDescription>
-          Create a new assignment for your classroom.
+          {t('create_assignment_description')}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">

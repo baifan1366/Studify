@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { File as MegaFile } from 'megajs';
 
 // Types
@@ -187,6 +188,7 @@ export default function MegaImage({
   onLoad,
   onError 
 }: MegaImageProps) {
+  const t = useTranslations('MegaBlobImage');
   const { blobUrl, loading, error, progress } = useMegaFile(megaUrl);
 
   // Handle error callback
@@ -220,13 +222,12 @@ export default function MegaImage({
           />
         </svg>
         <p className="text-red-600 text-sm text-center">
-          Failed to load image
+          {t('failed_to_load')}
         </p>
         <p className="text-red-500 text-xs text-center mt-1">
           {error.message}
         </p>
       </div>
-    );
   }
 
   if (loading) {
@@ -237,7 +238,7 @@ export default function MegaImage({
           <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
         </div>
         <p className="text-gray-600 text-sm text-center mb-2">
-          Loading image from MEGA...
+          {t('loading')}
         </p>
         <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
           <div 

@@ -1,6 +1,6 @@
-// To be removed
 "use client";
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Trophy, Lock } from "lucide-react";
 import { Achievement } from "@/hooks/community/use-achievements";
 
@@ -9,6 +9,7 @@ type Props = {
 };
 
 export default function AchievementCard({ achievement }: Props) {
+  const t = useTranslations('AchievementCard');
   const minValue = achievement.rule?.min ?? 0;
   const currentValue = achievement.current_value ?? 0;
   const progress =
@@ -51,7 +52,7 @@ export default function AchievementCard({ achievement }: Props) {
           {achievement.description}
         </p>
 
-        {/* 进度条 */}
+        {/* Progress bar */}
         {!achievement.unlocked && (
           <div className="w-full mt-4">
             <div className="w-full bg-gray-200 rounded-full h-3">
@@ -66,10 +67,10 @@ export default function AchievementCard({ achievement }: Props) {
           </div>
         )}
 
-        {/* 解锁时间 */}
+        {/* Unlock time */}
         {achievement.unlocked && achievement.unlocked_at && (
           <p className="text-xs text-gray-400 mt-3">
-            Unlocked on {achievement.unlocked_at}
+            {t('earned_on')} {achievement.unlocked_at}
           </p>
         )}
       </div>

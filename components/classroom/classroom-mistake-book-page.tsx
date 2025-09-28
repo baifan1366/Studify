@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ interface ClassroomMistakeBookPageProps {
 export default function ClassroomMistakeBookPage({ 
   classroomSlug 
 }: ClassroomMistakeBookPageProps) {
+  const t = useTranslations('MistakeBookPage');
   const [mistakes, setMistakes] = useState<MistakeBookWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,28 +166,28 @@ export default function ClassroomMistakeBookPage({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">错题本</h1>
-          <p className="text-gray-600">记录和分析学习中的错误，提升学习效果</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('mistake_book')}</h1>
+          <p className="text-gray-600">{t('track_mistakes')}</p>
         </div>
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              添加错题
+              {t('create_mistake')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>添加新错题</DialogTitle>
+              <DialogTitle>{t('create_mistake')}</DialogTitle>
               <DialogDescription>
-                记录错误内容并添加分析，帮助巩固学习
+                {t('track_mistakes')}
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
               <div>
-                <Label htmlFor="source-type">来源类型</Label>
+                <Label htmlFor="source-type">{t('source_type')}</Label>
                 <Select 
                   value={newMistake.source_type} 
                   onValueChange={(value: 'quiz' | 'assignment' | 'manual') => 
@@ -196,18 +198,18 @@ export default function ClassroomMistakeBookPage({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="manual">手动添加</SelectItem>
-                    <SelectItem value="quiz">测验</SelectItem>
-                    <SelectItem value="assignment">作业</SelectItem>
+                    <SelectItem value="manual">{t('manual')}</SelectItem>
+                    <SelectItem value="quiz">{t('quiz')}</SelectItem>
+                    <SelectItem value="assignment">{t('assignment')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="mistake-content">错误内容</Label>
+                <Label htmlFor="mistake-content">{t('mistake_content')}</Label>
                 <Textarea
                   id="mistake-content"
-                  placeholder="描述具体的错误内容..."
+                  placeholder={t('mistake_content')}
                   value={newMistake.mistake_content}
                   onChange={(e) => setNewMistake(prev => ({ ...prev, mistake_content: e.target.value }))}
                   rows={3}

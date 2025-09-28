@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Timer, AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ export default function QuizTimer({
   showIcon = true,
   size = 'md'
 }: QuizTimerProps) {
+  const t = useTranslations('QuizTimer');
   const [displayTime, setDisplayTime] = useState<string>("");
   const [isWarning, setIsWarning] = useState(false);
   const [isCritical, setIsCritical] = useState(false);
@@ -40,7 +42,7 @@ export default function QuizTimer({
 
   useEffect(() => {
     if (remainingSeconds === null) {
-      setDisplayTime("∞"); // 无时间限制
+      setDisplayTime(t('unlimited')); // 无时间限制
       setIsWarning(false);
       setIsCritical(false);
       return;
@@ -108,12 +110,12 @@ export default function QuizTimer({
       )}
       
       <span className="font-mono">
-        {isExpired ? "时间到!" : displayTime}
+        {isExpired ? t('time_up') : displayTime}
       </span>
       
       {/* 状态文本 */}
       {isExpired && (
-        <span className="text-xs opacity-90">已自动提交</span>
+        <span className="text-xs opacity-90">{t('auto_submitted')}</span>
       )}
     </div>
   );

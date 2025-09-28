@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useWhiteboards, useCreateWhiteboard, useWhiteboardManager } from '@/hooks/classroom/use-whiteboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ interface DebugPanelProps {
 }
 
 export default function DebugPanel({ classroomSlug, sessionId }: DebugPanelProps) {
+  const t = useTranslations('WhiteboardDebugPanel');
   const [testSessionId, setTestSessionId] = useState(sessionId || '1');
   const [testWhiteboardId, setTestWhiteboardId] = useState('1');
   
@@ -23,7 +25,7 @@ export default function DebugPanel({ classroomSlug, sessionId }: DebugPanelProps
     try {
       await createWhiteboard.mutateAsync({
         session_id: testSessionId,
-        title: `Test Whiteboard - ${new Date().toLocaleTimeString()}`
+        title: `${t('test_whiteboard')} - ${new Date().toLocaleTimeString()}`
       });
     } catch (error) {
       console.error('Failed to create test whiteboard:', error);
@@ -32,20 +34,20 @@ export default function DebugPanel({ classroomSlug, sessionId }: DebugPanelProps
 
   return (
     <div className="p-4 space-y-4 bg-gray-100 rounded-lg">
-      <h3 className="text-lg font-semibold">Whiteboard Debug Panel</h3>
+      <h3 className="text-lg font-semibold">{t('debug_panel')}</h3>
       
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Parameters</CardTitle>
+            <CardTitle className="text-sm">{t('parameters')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div>
-              <label className="text-xs text-gray-500">Classroom Slug:</label>
+              <label className="text-xs text-gray-500">{t('classroom_slug')}:</label>
               <Input value={classroomSlug} disabled className="h-8" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Session ID:</label>
+              <label className="text-xs text-gray-500">{t('session_id')}:</label>
               <Input 
                 value={testSessionId} 
                 onChange={(e) => setTestSessionId(e.target.value)}

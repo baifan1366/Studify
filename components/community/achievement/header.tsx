@@ -1,14 +1,17 @@
 "use client";
 import React from "react";
+import { useTranslations } from "next-intl";
 
 export default function Header() {
+  const t = useTranslations('AchievementHeader');
+  
   return (
     <header className="mb-8">
       <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-        My Achievements
+        {t('title')}
       </h1>
       <p className="text-md text-gray-600 mt-2">
-        Track your progress and contributions within the community.
+        {t('description')}
       </p>
     </header>
   );

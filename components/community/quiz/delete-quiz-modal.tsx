@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -31,6 +32,7 @@ export default function DeleteQuizModal({
   isOpen,
   onOpenChange
 }: DeleteQuizModalProps) {
+  const t = useTranslations('DeleteQuizModal');
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
@@ -39,27 +41,26 @@ export default function DeleteQuizModal({
 
   const handleDelete = async () => {
     if (confirmText !== quizTitle) {
-      toast.error("Please type the quiz title exactly to confirm deletion");
+      toast.error(t('type_title_exact'));
       return;
     }
 
     setIsDeleting(true);
     try {
       const result = await deleteQuizMutation.mutateAsync();
-      toast.success(`Quiz "${result.quiz_title}" has been deleted successfully`);
+      toast.success(`Quiz "${result.quiz_title}" ${t('deleted_success')}`);
       onOpenChange(false);
       setConfirmText("");
       
       // Call the success callback if provided
       if (onDeleteSuccess) {
-        onDeleteSuccess();
       } else {
         // Default behavior: redirect to quizzes list
         router.push("/community/quizzes");
       }
     } catch (error: any) {
-      console.error("Delete quiz error:", error);
-      const errorMessage = error?.response?.data?.details || error?.response?.data?.error || error?.message || "Failed to delete quiz";
+      toast.error(t('delete_failed'));
+      const errorMessage = error?.response?.data?.details || error?.response?.data?.error || error?.message || t('delete_failed');
       const errorCode = error?.response?.data?.code;
       toast.error(`${errorMessage}${errorCode ? ` (Code: ${errorCode})` : ''}`);
     } finally {

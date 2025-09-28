@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Ban } from "@/interface/admin/ban-interface";
 import { useBan } from "@/hooks/ban/use-ban";
 import { useFormat } from "@/hooks/use-format";
@@ -22,6 +23,7 @@ interface BanGroup {
 }
 
 export default function BanList() {
+  const t = useTranslations('AdminBanList');
   const { data: bans = [], isLoading, error } = useBan();
   const { formatDate, formatRelativeTime } = useFormat();
   const [searchTerm, setSearchTerm] = useState("");
@@ -125,12 +127,12 @@ export default function BanList() {
         <CardHeader>
           <CardTitle className="text-red-800 dark:text-red-200 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            Error Loading Bans
+            {t('error_loading_bans')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-red-700 dark:text-red-300">
-            Failed to load ban records. Please try again.
+            {t('failed_to_load')}
           </p>
         </CardContent>
       </Card>
@@ -143,25 +145,25 @@ export default function BanList() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Ban Management
+            {t('ban_management')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Manage and review ban reports grouped by target
+            {t('manage_review_bans')}
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <Users className="h-4 w-4" />
-          <span>{groupedBans.length} groups</span>
+          <span>{groupedBans.length} {t('groups')}</span>
           <Separator orientation="vertical" className="h-4" />
           <Filter className="h-4 w-4" />
-          <span>{bans.length} total bans</span>
+          <span>{bans.length} {t('total_bans')}</span>
         </div>
       </div>
 
       {/* Search */}
       <div className="relative">
         <Input
-          placeholder="Search by reason, type, or status..."
+          placeholder={t('search_placeholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -176,12 +178,10 @@ export default function BanList() {
               <div className="text-center">
                 <AlertTriangle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                  No bans found
+                  {t('no_bans_found')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {searchTerm
-                    ? "Try adjusting your search criteria"
-                    : "No ban reports to review"}
+                  {t('no_bans_description')}
                 </p>
               </div>
             </CardContent>

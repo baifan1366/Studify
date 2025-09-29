@@ -1,4 +1,4 @@
-﻿<!-- Language Switcher -->
+<!-- Language Switcher -->
 <p align="right">
   <b>English</b> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
@@ -94,8 +94,6 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
 
 ## Screenshots / Demo
 
-> Replace with your real screenshots or a short GIF
-
 <p>
   <img src="./public/homepagess.png" alt="Dashboard" />
 </p>
@@ -182,7 +180,6 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
       npx cap run android    # or open with Android Studio: npx cap open android
       ```
     - Note: `cleartext: true` allows http during local testing; use https in production.
-  - Production
     - Deploy the web (e.g., to Vercel) and set `server.url` to the https domain (already set in this repo).
     - Then package the app:
       ```bash
@@ -194,6 +191,7 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
     - Web push continues to use `public/OneSignalSDKWorker.js`.
     - If moving to native push, integrate the respective Capacitor plugin and platform setup; this repo currently focuses on web push (OneSignal) with correct SW headers in `next.config.ts`.
 
-<p>
-  <a href="#pwa--capacitor">PWA & Capacitor</a> ·
-</p>
+## Feedback
+
+- **User Feedback Form**: https://forms.gle/cZSzsLVbRqysDcER9
+- **Issue Reporting Form**: https://forms.gle/8ZYapQ9e9MFZ7EC97

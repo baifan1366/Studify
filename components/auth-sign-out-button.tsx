@@ -5,8 +5,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from 'next-intl';
 
 export default function AuthPageSignOutButton() {
+  const t = useTranslations('AuthSignOutButton');
   const [isSigningOut, setIsSigningOut] = useState(false);
   const router = useRouter();
 
@@ -25,7 +27,7 @@ export default function AuthPageSignOutButton() {
           isLoading={isSigningOut}
           className="mr-[8px]"
         />
-        {isSigningOut ? "Signing Out..." : "Sign Out"}
+        {isSigningOut ? t('signing_out') : t('sign_out')}
       </div>
     </Button>
   );

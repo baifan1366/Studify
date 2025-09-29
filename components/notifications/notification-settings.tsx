@@ -114,10 +114,10 @@ export default function NotificationSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
-            Push Notifications
+            {t('push_notifications') || 'Push Notifications'}
           </CardTitle>
           <CardDescription>
-            Browser push notifications for real-time updates
+            {t('push_notifications_desc') || 'Browser push notifications for real-time updates'}
           </CardDescription>
         </CardHeader>
         <CardContent>

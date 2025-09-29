@@ -570,10 +570,8 @@ export default function SettingsContent() {
                   className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
                 >
                   <option value="en">English</option>
-                  <option value="zh">中文</option>
-                  <option value="ms">Bahasa Malaysia</option>
-                  <option value="id">Bahasa Indonesia</option>
-                  <option value="th">ไทย</option>
+                  <option value="zh">Chinese</option>
+                  <option value="ms">Malay</option>
                 </select>
               </div>
             </div>

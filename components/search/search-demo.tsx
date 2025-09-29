@@ -77,12 +77,12 @@ export default function SearchDemo() {
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Search className="w-5 h-5" />
-                Universal Search
+                {t('universal_search') || 'Universal Search'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <UniversalSearch
-                placeholder="Search courses, lessons, posts, users, and more..."
+                placeholder={t('search_placeholder') || 'Search courses, lessons, posts, users, and more...'}
                 onResultClick={handleResultClick}
               />
             </CardContent>
@@ -98,7 +98,7 @@ export default function SearchDemo() {
           >
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
-                <CardTitle className="text-white">Selected Result</CardTitle>
+                <CardTitle className="text-white">{t('selected_result') || 'Selected Result'}</CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedResult ? (
@@ -126,25 +126,25 @@ export default function SearchDemo() {
                         </p>
                         <div className="grid grid-cols-2 gap-4 text-xs">
                           <div>
-                            <span className="text-white/50">Relevance:</span>
+                            <span className="text-white/50">{t('relevance') || 'Relevance'}:</span>
                             <span className="text-white ml-1">
                               {(selectedResult.rank * 100).toFixed(1)}%
                             </span>
                           </div>
                           <div>
-                            <span className="text-white/50">Table:</span>
+                            <span className="text-white/50">{t('table') || 'Table'}:</span>
                             <span className="text-white ml-1">
                               {selectedResult.table_name}
                             </span>
                           </div>
                           <div>
-                            <span className="text-white/50">ID:</span>
+                            <span className="text-white/50">{t('id') || 'ID'}:</span>
                             <span className="text-white ml-1">
                               {selectedResult.record_id}
                             </span>
                           </div>
                           <div>
-                            <span className="text-white/50">Created:</span>
+                            <span className="text-white/50">{t('created') || 'Created'}:</span>
                             <span className="text-white ml-1">
                               {new Date(selectedResult.created_at).toLocaleDateString()}
                             </span>
@@ -154,7 +154,7 @@ export default function SearchDemo() {
                         {/* Additional Data */}
                         {selectedResult.additional_data && Object.keys(selectedResult.additional_data).length > 0 && (
                           <div className="mt-3 p-3 bg-white/5 rounded-lg">
-                            <h4 className="text-white/70 text-xs font-medium mb-2">Additional Data:</h4>
+                            <h4 className="text-white/70 text-xs font-medium mb-2">{t('additional_data') || 'Additional Data'}:</h4>
                             <pre className="text-white/60 text-xs overflow-x-auto">
                               {JSON.stringify(selectedResult.additional_data, null, 2)}
                             </pre>
@@ -166,7 +166,7 @@ export default function SearchDemo() {
                 ) : (
                   <div className="text-center py-8 text-white/50">
                     <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Click on a search result to view details</p>
+                    <p>{t('click_result_details') || 'Click on a search result to view details'}</p>
                   </div>
                 )}
               </CardContent>
@@ -181,7 +181,7 @@ export default function SearchDemo() {
           >
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
-                <CardTitle className="text-white">Recent Results</CardTitle>
+                <CardTitle className="text-white">{t('recent_results') || 'Recent Results'}</CardTitle>
               </CardHeader>
               <CardContent>
                 {searchHistory.length > 0 ? (
@@ -217,7 +217,7 @@ export default function SearchDemo() {
                 ) : (
                   <div className="text-center py-8 text-white/50">
                     <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Your search history will appear here</p>
+                    <p>{t('search_history_empty') || 'Your search history will appear here'}</p>
                   </div>
                 )}
               </CardContent>
@@ -234,25 +234,25 @@ export default function SearchDemo() {
         >
           <Card className="bg-white/5 backdrop-blur-sm border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">How to Test</CardTitle>
+              <CardTitle className="text-white">{t('how_to_test') || 'How to Test'}</CardTitle>
             </CardHeader>
             <CardContent className="text-white/70">
               <div className="space-y-3">
                 <div>
-                  <h4 className="text-white font-medium mb-1">1. Basic Search</h4>
-                  <p className="text-sm">Type any keywords to search across all content types</p>
+                  <h4 className="text-white font-medium mb-1">{t('basic_search_title') || '1. Basic Search'}</h4>
+                  <p className="text-sm">{t('basic_search_desc') || 'Type any keywords to search across all content types'}</p>
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-1">2. Use Filters</h4>
-                  <p className="text-sm">Click the filter icon to narrow down by content type or context</p>
+                  <h4 className="text-white font-medium mb-1">{t('use_filters_title') || '2. Use Filters'}</h4>
+                  <p className="text-sm">{t('use_filters_desc') || 'Click the filter icon to narrow down by content type or context'}</p>
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-1">3. View Results</h4>
-                  <p className="text-sm">Click on any search result to view detailed information</p>
+                  <h4 className="text-white font-medium mb-1">{t('view_results_title') || '3. View Results'}</h4>
+                  <p className="text-sm">{t('view_results_desc') || 'Click on any search result to view detailed information'}</p>
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-1">4. Search History</h4>
-                  <p className="text-sm">Your recent searches are saved and can be accessed from the history</p>
+                  <h4 className="text-white font-medium mb-1">{t('search_history_title') || '4. Search History'}</h4>
+                  <p className="text-sm">{t('search_history_desc') || 'Your recent searches are saved and can be accessed from the history'}</p>
                 </div>
               </div>
             </CardContent>

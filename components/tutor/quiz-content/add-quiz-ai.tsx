@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useGenerateQuiz, validateQuizRequest } from '@/hooks/ai/use-generate-quiz';
-import { useCreateQuiz, convertAIQuestionsToQuizFormat, validateQuizQuestions } from '@/hooks/course/use-create-quiz';
+import { useCreateQuiz } from '@/hooks/course/use-create-quiz';
 import { Bot, Sparkles, RefreshCw, Check, AlertCircle, Edit, Trash2, Wand2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -215,23 +215,36 @@ export function AddQuizAI({
     }
 
     if (!lessonId) {
-      setErrors({ submit: 'Lesson ID is required to create quiz questions' });
+      setErrors({ submit: t('lesson_id_required') });
       return;
     }
 
-    // Convert AI questions to database format
-    const questionsToCreate = convertAIQuestionsToQuizFormat(generatedQuestions);
+    // Simple validation
+    const hasInvalidQuestions = generatedQuestions.some(q => 
+      !q.question_text.trim() || 
+      (q.question_type === 'multiple_choice' && q.options.filter(opt => opt.trim() !== '').length < 2)
+    );
     
-    // Validate questions before submission
-    const validationErrors = validateQuizQuestions(questionsToCreate);
-    if (validationErrors.length > 0) {
-      setErrors({ submit: validationErrors.join(', ') });
+    if (hasInvalidQuestions) {
+      setErrors({ submit: t('invalid_questions_error') });
       return;
     }
 
     setErrors({});
     
     try {
+      // Convert questions to the format expected by the API
+      const questionsToCreate = generatedQuestions.map(q => ({
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: q.question_type === 'multiple_choice' ? q.options.filter(opt => opt.trim() !== '') : undefined,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation || '',
+        points: q.points,
+        difficulty: q.difficulty,
+        position: q.position,
+      }));
+
       // Save questions to database using the hook
       await createQuizMutation.mutateAsync({
         lessonId,

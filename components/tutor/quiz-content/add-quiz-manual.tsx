@@ -27,6 +27,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCreateQuizByLessonId } from '@/hooks/course/use-quiz';
 
 type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
 
@@ -54,6 +55,9 @@ export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQu
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Use the quiz creation hook
+  const { createQuiz, isCreating } = useCreateQuizByLessonId({ lessonId: lessonId || '' });
 
   const createEmptyQuestion = (): QuizQuestion => ({
     id: `temp-${Date.now()}-${Math.random()}`,
@@ -156,21 +160,40 @@ export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQu
       setErrors({ general: t('no_questions_error') });
       return;
     }
+    if (!lessonId) {
+      setErrors({ general: t('lesson_id_required') });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // TODO: Implement actual API call using hooks
-      // const { createQuizByLessonId } = useCreateQuizByLessonId({ lessonId: lessonId || '' });
+      // Create each question sequentially
+      for (let i = 0; i < questions.length; i++) {
+        const question = questions[i];
+        
+        // Prepare the question data for the API
+        const questionData = {
+          lesson_id: lessonId,
+          question_text: question.question_text,
+          question_type: question.question_type,
+          options: question.question_type === 'multiple_choice' ? question.options.filter(opt => opt.trim() !== '') : undefined,
+          correct_answer: question.correct_answer,
+          explanation: question.explanation || '',
+          points: question.points,
+          difficulty: question.difficulty,
+          position: i + 1, // Use the actual position in the array
+        };
+
+        await createQuiz(questionData);
+      }
       
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Reset form
+      // Reset form on success
       setQuestions([]);
       setErrors({});
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
+      console.error('Error creating quiz questions:', error);
       setErrors({ general: t('submit_error') });
     } finally {
       setIsSubmitting(false);
@@ -500,9 +523,9 @@ export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQu
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting || questions.length === 0}
+              disabled={isSubmitting || isCreating || questions.length === 0}
             >
-              {isSubmitting ? (
+              {(isSubmitting || isCreating) ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   {t('creating')}

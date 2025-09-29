@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/profile/use-user';
 import { useCurrentUserProfile, useUpdateCurrentUserSettings } from '@/hooks/profile/use-profile';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +46,8 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'lan
 export default function SettingsContent() {
   const t = useTranslations('SettingsContent');
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const pathname = usePathname();
   const { data: userData } = useUser();
   const { data: fullProfileData, isLoading: profileLoading } = useCurrentUserProfile();
   const updateSettingsMutation = useUpdateCurrentUserSettings();
@@ -169,6 +172,20 @@ export default function SettingsContent() {
     }
     if (key === 'language') {
       updateData.language = value;
+      // Set the locale cookie and redirect to update the language
+      const newPathname = pathname.replace(/^\/[a-z]{2}/, `/${value}`);
+      
+      // Set locale cookie
+      document.cookie = `locale=${value}; path=/; max-age=31536000; samesite=lax`;
+      
+      // Redirect to the new locale path
+      router.push(newPathname);
+      
+      toast({
+        title: t('language_updated'),
+        description: t('language_updated_desc'),
+      });
+      return; // Early return to avoid the database update below
     }
     
     try {

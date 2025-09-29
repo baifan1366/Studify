@@ -18,6 +18,7 @@ import {
 import { useQuizSession } from "@/hooks/community/use-quiz-session";
 import QuizTimer from "@/components/community/quiz/quiz-timer";
 import QuizDebugPanel from "@/components/community/quiz/quiz-debug-panel";
+import { toast } from "sonner";
 
 const optionStyles = [
   {
@@ -217,9 +218,19 @@ export default function QuizAttemptPage() {
       } else {
         throw new Error("Failed to obtain session identifier");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("无法开始/继续当前测验，请稍后再试");
+      
+      // Check if it's the "no questions" error
+      if (e.message === "Quiz has no questions") {
+        toast.error("Quiz has no questions", {
+          description: "Quiz has no questions. Please contact the tutor to add questions."
+        });
+      } else {
+        toast.error("Failed to start/continue quiz", {
+          description: "Please try again later, or contact support."
+        });
+      }
     } finally {
       setIsNavigatingToSession(false);
     }

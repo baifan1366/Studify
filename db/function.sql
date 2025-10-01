@@ -12,12 +12,12 @@ BEGIN
      )) THEN
     
     -- 队列embedding，低优先级
-    PERFORM queue_for_embedding_qstash('ai_agent', NEW.id, 6);
+    PERFORM queue_for_embedding('ai_agent', NEW.id, 6);
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_notification_embedding()
@@ -35,13 +35,13 @@ BEGIN
     IF NEW.payload IS NOT NULL AND 
        (NEW.payload ? 'title' OR NEW.payload ? 'message' OR NEW.payload ? 'content') THEN
       -- 队列embedding，低优先级
-      PERFORM queue_for_embedding_qstash('notification', NEW.id, 7);
+      PERFORM queue_for_embedding('notification', NEW.id, 7);
     END IF;
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.extract_content_text(p_content_type text, p_content_id bigint)
@@ -195,14 +195,13 @@ BEGIN
       END IF;
       
     WHEN 'live_session' THEN
-      SELECT ls.title, ls.description
+      SELECT ls.title
       INTO live_session_data
       FROM classroom_live_session ls 
       WHERE ls.id = p_content_id AND ls.is_deleted = false;
       
       IF FOUND THEN
-        result_text := COALESCE(live_session_data.title, '') || ' ' ||
-                      COALESCE(live_session_data.description, '');
+        result_text := COALESCE(live_session_data.title, '');
       END IF;
       
     WHEN 'assignment' THEN
@@ -333,7 +332,7 @@ EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Error extracting content for % %: %', p_content_type, p_content_id, SQLERRM;
   RETURN NULL;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_classroom_live_session_search_vector()
@@ -346,7 +345,7 @@ AS $function$
           setweight(to_tsvector('english', coalesce(NEW.status, '')), 'C');
         RETURN NEW;
       END;
-      $function$
+      $function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_live_session_embedding()
@@ -361,12 +360,12 @@ AS $function$
          )) THEN
         
         -- Queue for embedding
-        PERFORM queue_for_embedding_qstash('live_session', NEW.id, 4);
+        PERFORM queue_for_embedding('live_session', NEW.id, 4);
       END IF;
       
       RETURN COALESCE(NEW, OLD);
     END;
-    $function$
+    $function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_ai_workflow_templates_search_vector()
@@ -391,7 +390,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_learning_goal_search_vector()
@@ -407,7 +406,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_profile_completion()
@@ -419,7 +418,7 @@ BEGIN
     NEW.updated_at := now();
     RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_classroom_assignment_search_vector()
@@ -442,7 +441,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_classroom_posts_search_vector()
@@ -455,7 +454,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_course_chapter_search_vector()
@@ -469,7 +468,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_mistake_book_search_vector()
@@ -488,7 +487,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_tutoring_note_search_vector()
@@ -502,7 +501,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_community_quiz_search_vector()
@@ -522,7 +521,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_tutor_earnings_summary()
@@ -575,7 +574,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.calculate_platform_fee(gross_amount_cents integer)
@@ -586,7 +585,7 @@ BEGIN
   -- Default 10% platform fee
   RETURN GREATEST(FLOOR(gross_amount_cents * 0.10), 0);
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.search_embeddings_enhanced(query_embedding vector, content_types text[] DEFAULT NULL::text[], chunk_types text[] DEFAULT NULL::text[], languages text[] DEFAULT NULL::text[], hierarchy_levels integer[] DEFAULT NULL::integer[], min_semantic_density double precision DEFAULT NULL::double precision, has_features jsonb DEFAULT NULL::jsonb, similarity_threshold double precision DEFAULT 0.7, max_results integer DEFAULT 10)
@@ -631,7 +630,7 @@ BEGIN
   ORDER BY e.embedding <=> query_embedding
   LIMIT max_results;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.release_eligible_earnings()
@@ -654,7 +653,7 @@ BEGIN
   GET DIAGNOSTICS updated_count = ROW_COUNT;
   RETURN updated_count;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.get_tutor_monthly_breakdown(target_tutor_id bigint, months_back integer DEFAULT 3)
@@ -682,7 +681,7 @@ BEGIN
   GROUP BY date_trunc('month', te.created_at)
   ORDER BY date_trunc('month', te.created_at) DESC;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trg_after_post_insert_update_progress()
@@ -721,8 +720,8 @@ begin
   end loop;
 
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.handle_quiz_mistake()
@@ -753,8 +752,8 @@ begin
   end if;
   
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_quiz_search_vectors()
@@ -799,7 +798,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trg_after_reaction_insert_update_progress()
@@ -835,8 +834,8 @@ begin
   end loop;
 
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_quiz_search_vectors_on_subject_change()
@@ -851,7 +850,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_quiz_search_vectors_on_grade_change()
@@ -866,7 +865,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_group_conversation_with_members(group_conv_id bigint)
@@ -907,7 +906,7 @@ BEGIN
     AND gc.is_deleted = false
     GROUP BY gc.id, gc.name, gc.description, gc.avatar_url, gc.created_by, gc.created_at, gc.updated_at;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_ai_usage_summary(days_back integer DEFAULT 7)
@@ -946,7 +945,7 @@ BEGIN
     s.models
   FROM stats s;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.redeem_course_with_points(p_user_id bigint, p_course_id bigint)
@@ -1091,7 +1090,7 @@ EXCEPTION
             'error', 'Transaction failed: ' || SQLERRM
         );
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.check_and_unlock_achievement(p_user_id bigint, p_achievement_code text)
@@ -1165,7 +1164,7 @@ BEGIN
     END IF;
 
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_embedding_batch(batch_size integer DEFAULT 10)
@@ -1192,7 +1191,7 @@ BEGIN
   WHERE eq.id = batch.id
   RETURNING eq.id, eq.content_type, eq.content_id, eq.content_text, eq.content_hash;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_quiz_session_updated_at()
@@ -1203,7 +1202,7 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_video_comment_counts()
@@ -1230,7 +1229,7 @@ BEGIN
   END IF;
   RETURN NULL;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_video_segments_with_time(query_embedding_e5 vector DEFAULT NULL::vector, query_embedding_bge vector DEFAULT NULL::vector, attachment_ids bigint[] DEFAULT NULL::bigint[], start_time_min double precision DEFAULT NULL::double precision, start_time_max double precision DEFAULT NULL::double precision, match_threshold double precision DEFAULT 0.7, match_count integer DEFAULT 10, include_context boolean DEFAULT false)
@@ -1319,7 +1318,7 @@ BEGIN
   ORDER BY rs.combined_sim DESC
   LIMIT match_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_video_comment_likes_count()
@@ -1349,7 +1348,7 @@ BEGIN
   END IF;
   RETURN NULL;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.cleanup_ai_workflow_data(days_to_keep integer DEFAULT 90)
@@ -1412,7 +1411,7 @@ BEGIN
   
   RETURN deleted_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.generate_course_slug()
@@ -1426,8 +1425,8 @@ begin
     new.slug := new.slug || '-' || substring(new.public_id::text from 1 for 8);
   end if;
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.mark_message_delivered(msg_id bigint)
@@ -1439,7 +1438,7 @@ BEGIN
     SET delivered_at = now() 
     WHERE id = msg_id AND delivered_at IS NULL;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.unlock_achievement(_user_id bigint, _achievement_id bigint)
@@ -1475,8 +1474,8 @@ begin
   end if;
 
   return false;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.calculate_profile_completion(profile_row profiles)
@@ -1523,7 +1522,7 @@ BEGIN
     -- Return percentage
     RETURN (completion_score * 100) / total_fields;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_enhanced_embedding_stats()
@@ -1588,7 +1587,7 @@ BEGIN
   ) stats
   GROUP BY ();
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.after_post_insert_check_achievements()
@@ -1609,8 +1608,8 @@ begin
   perform unlock_achievement(new.author_id, 14);
 
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.cleanup_expired_video_terms()
@@ -1621,7 +1620,7 @@ BEGIN
   DELETE FROM video_terms_cache 
   WHERE expires_at < now();
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_video_qa_updated_at()
@@ -1632,7 +1631,7 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trg_after_comment_insert_update_progress()
@@ -1693,8 +1692,8 @@ begin
   end loop;
 
   return NEW;
-end;
-$function$
+END;
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.fail_embedding(p_queue_id bigint, p_error_message text)
@@ -1727,7 +1726,7 @@ BEGIN
   
   RETURN true;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.hashtags_tsvector_update()
@@ -1737,8 +1736,8 @@ AS $function$
 begin
   new.search_vector := to_tsvector('english', coalesce(new.name, ''));
   return new;
-end;
-$function$
+END;
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.search_video_qa_history(p_user_id bigint, p_search_text text DEFAULT NULL::text, p_lesson_id bigint DEFAULT NULL::bigint, p_limit integer DEFAULT 20, p_offset integer DEFAULT 0)
@@ -1776,7 +1775,7 @@ BEGIN
   ORDER BY vql.created_at DESC
   LIMIT p_limit OFFSET p_offset;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.get_segment_context(target_segment_id bigint, context_window integer DEFAULT 1)
@@ -1810,7 +1809,7 @@ BEGIN
     AND ve.is_deleted = false
   ORDER BY ve.segment_index;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.expire_old_quiz_sessions()
@@ -1824,7 +1823,7 @@ BEGIN
     AND expires_at IS NOT NULL 
     AND expires_at < now();
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.cleanup_abandoned_quiz_sessions()
@@ -1843,7 +1842,7 @@ BEGIN
   WHERE status IN ('expired', 'completed') 
     AND updated_at < now() - interval '30 days';
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_comment_embedding()
@@ -1854,12 +1853,12 @@ BEGIN
   IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (
     OLD.body IS DISTINCT FROM NEW.body
   )) THEN
-    PERFORM queue_for_embedding_qstash('comment', NEW.id, 5);
+    PERFORM queue_for_embedding('comment', NEW.id, 5);
   END IF;
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_lesson_embedding()
@@ -1872,12 +1871,12 @@ BEGIN
     OLD.description IS DISTINCT FROM NEW.description OR
     OLD.transcript IS DISTINCT FROM NEW.transcript
   )) THEN
-    PERFORM queue_for_embedding_qstash('lesson', NEW.id, 3);
+    PERFORM queue_for_embedding('lesson', NEW.id, 3);
   END IF;
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_profile_embedding()
@@ -1889,14 +1888,16 @@ BEGIN
     OLD.display_name IS DISTINCT FROM NEW.display_name OR
     OLD.full_name IS DISTINCT FROM NEW.full_name OR
     OLD.bio IS DISTINCT FROM NEW.bio OR
-    OLD.role IS DISTINCT FROM NEW.role
+    OLD.role IS DISTINCT FROM NEW.role OR
+    OLD.preferences IS DISTINCT FROM NEW.preferences OR
+    OLD.timezone IS DISTINCT FROM NEW.timezone
   )) THEN
-    PERFORM queue_for_embedding_qstash('profile', NEW.id, 3);
+    PERFORM queue_for_embedding('profile', NEW.id, 3);
   END IF;
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_post_embedding()
@@ -1908,12 +1909,12 @@ BEGIN
     OLD.title IS DISTINCT FROM NEW.title OR
     OLD.body IS DISTINCT FROM NEW.body
   )) THEN
-    PERFORM queue_for_embedding_qstash('post', NEW.id, 4);
+    PERFORM queue_for_embedding('post', NEW.id, 4);
   END IF;
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.complete_embedding(p_queue_id bigint, p_embedding vector, p_token_count integer DEFAULT NULL::integer)
@@ -1951,7 +1952,7 @@ BEGIN
   
   RETURN true;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_conversation_on_new_message()
@@ -1964,7 +1965,7 @@ BEGIN
     WHERE id = NEW.conversation_id;
     RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -1975,7 +1976,7 @@ BEGIN
     NEW.updated_at = now();
     RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.create_or_get_conversation(user1_id bigint, user2_id bigint)
@@ -2012,7 +2013,7 @@ BEGIN
     
     RETURN conv_id;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.after_comment_insert_check_achievements()
@@ -2023,8 +2024,8 @@ begin
   -- Active Commenter
   perform unlock_achievement(new.author_id, 11);
   return new;
-end;
-$function$
+END;
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.after_reaction_insert_check_achievements()
@@ -2039,8 +2040,8 @@ begin
   perform unlock_achievement(new.user_id, 13);
 
   return new;
-end;
-$function$
+END;
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_course_embedding()
@@ -2056,12 +2057,12 @@ BEGIN
     OLD.requirements IS DISTINCT FROM NEW.requirements OR
     OLD.learning_objectives IS DISTINCT FROM NEW.learning_objectives
   )) THEN
-    PERFORM queue_for_embedding_qstash('course', NEW.id, 2);
+    PERFORM queue_for_embedding('course', NEW.id, 2);
   END IF;
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.community_post_tsvector_update()
@@ -2085,8 +2086,8 @@ begin
     setweight(to_tsvector('english', coalesce(hashtags_text, '')), 'C');
 
   return new;
-end;
-$function$
+END;
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_video_processing_updated_at()
@@ -2097,7 +2098,7 @@ BEGIN
     NEW.updated_at = now();
     RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.calculate_video_processing_progress(queue_id_param bigint)
@@ -2133,7 +2134,7 @@ BEGIN
     
     RETURN progress;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.initialize_video_processing_steps(queue_id_param bigint)
@@ -2149,7 +2150,7 @@ BEGIN
         (queue_id_param, 'transcribe', 'pending'),
         (queue_id_param, 'embed', 'pending');
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_next_processing_step(queue_id_param bigint)
@@ -2175,7 +2176,7 @@ BEGIN
     
     RETURN next_step;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.complete_processing_step(queue_id_param bigint, step_name_param text, output_data_param jsonb DEFAULT NULL::jsonb)
@@ -2223,7 +2224,7 @@ BEGIN
         WHERE id = queue_id_param;
     END IF;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.universal_search_enhanced(search_query text, search_tables text[] DEFAULT ARRAY['profiles'::text, 'course'::text, 'course_lesson'::text, 'community_post'::text, 'community_comment'::text, 'classroom'::text, 'community_group'::text, 'ai_agent'::text, 'course_notes'::text, 'tutoring_tutors'::text, 'course_reviews'::text, 'announcements'::text, 'course_quiz_question'::text, 'ai_workflow_templates'::text, 'learning_goal'::text, 'classroom_assignment'::text, 'classroom_posts'::text, 'course_chapter'::text, 'mistake_book'::text, 'tutoring_note'::text, 'community_quiz'::text, 'community_quiz_question'::text], max_results integer DEFAULT 50, min_rank real DEFAULT 0.1)
@@ -2472,7 +2473,7 @@ BEGIN
     
   END LOOP;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.update_continue_watching_status()
@@ -2499,7 +2500,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.handle_step_failure(queue_id_param bigint, step_name_param text, error_message_param text, error_details_param jsonb DEFAULT NULL::jsonb)
@@ -2563,7 +2564,7 @@ BEGIN
     
     RETURN should_retry;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.cancel_video_processing(queue_id_param bigint)
@@ -2587,7 +2588,7 @@ BEGIN
         updated_at = now()
     WHERE queue_id = queue_id_param AND status = 'pending';
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.get_user_notification_preferences(p_user_id bigint, p_category_name text)
@@ -2634,7 +2635,7 @@ BEGIN
         current_time_in_tz >= pref_record.quiet_hours_start OR current_time_in_tz <= pref_record.quiet_hours_end
     END as is_quiet_hours;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.queue_for_embedding_qstash(p_content_type text, p_content_id bigint, p_priority integer DEFAULT 5)
@@ -2647,7 +2648,10 @@ DECLARE
   response text;
 BEGIN
   -- Validate content type for embedding
-  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson') THEN
+  IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson', 'comment', 'auth_user', 
+                             'classroom', 'live_session', 'assignment', 'quiz_question', 
+                             'course_note', 'course_review', 'community_group', 'ai_agent', 
+                             'notification', 'community_post') THEN
     RAISE NOTICE 'Invalid content type for embedding: %', p_content_type;
     RETURN false;
   END IF;
@@ -2681,7 +2685,7 @@ EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'QStash embedding failed, using database queue: %', SQLERRM;
   RETURN queue_for_embedding(p_content_type, p_content_id, p_priority);
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.get_continue_watching_for_user(p_user_id bigint, p_limit integer DEFAULT 5)
@@ -2706,7 +2710,7 @@ BEGIN
   ORDER BY cw.continue_score DESC
   LIMIT p_limit;
 END;
-$function$
+$function$;;
 
 
 CREATE OR REPLACE FUNCTION public.universal_search(search_query text, search_tables text[] DEFAULT ARRAY['profiles'::text, 'course'::text, 'course_lesson'::text, 'community_post'::text, 'community_comment'::text, 'classroom'::text, 'community_group'::text, 'ai_agent'::text, 'course_notes'::text, 'tutoring_tutors'::text, 'course_reviews'::text, 'announcements'::text], max_results integer DEFAULT 50, min_rank real DEFAULT 0.1)
@@ -3054,7 +3058,7 @@ BEGIN
     
   END LOOP;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_users(search_query text, user_role text DEFAULT NULL::text, max_results integer DEFAULT 20)
@@ -3081,7 +3085,7 @@ BEGIN
   ORDER BY ts_rank(p.search_vector, plainto_tsquery('english', search_query)) DESC
   LIMIT max_results;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_community_quiz_question_search_vector()
@@ -3104,7 +3108,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_daily_plan_stats()
@@ -3149,7 +3153,7 @@ BEGIN
 
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.initialize_coach_settings_for_existing_users()
@@ -3161,22 +3165,12 @@ BEGIN
   SELECT id FROM profiles 
   WHERE id NOT IN (SELECT user_id FROM coach_settings)
   ON CONFLICT (user_id) DO NOTHING;
-  
-  RAISE NOTICE 'Coach settings initialized for existing users';
 END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_nil()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_nil$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.search_courses(search_query text, course_category text DEFAULT NULL::text, course_level text DEFAULT NULL::text, max_results integer DEFAULT 20)
  RETURNS TABLE(course_id bigint, public_id uuid, title text, description text, slug text, category text, level text, price_cents integer, is_free boolean, thumbnail_url text, rank real)
- LANGUAGE plpgsql
+LANGUAGE plpgsql
 AS $function$
 BEGIN
   RETURN QUERY
@@ -3202,7 +3196,7 @@ BEGIN
   ORDER BY ts_rank(c.search_vector, plainto_tsquery('english', search_query)) DESC
   LIMIT max_results;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.log_search_query(user_id_param bigint, query_text text, search_type text DEFAULT 'universal'::text, results_count integer DEFAULT 0)
@@ -3224,7 +3218,7 @@ BEGIN
     )
   );
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_workflow_templates(search_query text, template_category text DEFAULT NULL::text, template_visibility text DEFAULT NULL::text, max_results integer DEFAULT 20)
@@ -3252,7 +3246,7 @@ BEGIN
   ORDER BY ts_rank(awt.search_vector, plainto_tsquery('english', search_query)) DESC
   LIMIT max_results;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_learning_content(search_query text, content_types text[] DEFAULT ARRAY['course'::text, 'course_lesson'::text, 'course_notes'::text, 'course_chapter'::text, 'mistake_book'::text], max_results integer DEFAULT 30)
@@ -3313,7 +3307,7 @@ BEGIN
   ORDER BY rank DESC
   LIMIT max_results;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.generate_lesson_slug()
@@ -3327,8 +3321,8 @@ begin
     new.slug := new.slug || '-' || substring(new.public_id::text from 1 for 8);
   end if;
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_video_embeddings_e5(query_embedding vector, match_threshold double precision DEFAULT 0.7, match_count integer DEFAULT 10)
@@ -3355,7 +3349,7 @@ BEGIN
   ORDER BY ve.embedding_e5_small <=> query_embedding
   LIMIT match_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.smart_contextual_search(search_query text, user_id_param bigint DEFAULT NULL::bigint, user_role_param text DEFAULT 'student'::text, search_context text DEFAULT 'general'::text, max_results integer DEFAULT 20)
@@ -3402,7 +3396,7 @@ BEGIN
   ORDER BY relevance_score DESC
   LIMIT max_results;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_video_embeddings_bge(query_embedding vector, match_threshold double precision DEFAULT 0.7, match_count integer DEFAULT 10)
@@ -3429,7 +3423,7 @@ BEGIN
   ORDER BY ve.embedding_bge_m3 <=> query_embedding
   LIMIT match_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.search_video_embeddings_hybrid(query_embedding_e5 vector DEFAULT NULL::vector, query_embedding_bge vector DEFAULT NULL::vector, match_threshold double precision DEFAULT 0.7, match_count integer DEFAULT 10, weight_e5 double precision DEFAULT 0.4, weight_bge double precision DEFAULT 0.6)
@@ -3480,7 +3474,7 @@ BEGIN
   ORDER BY similarity DESC
   LIMIT match_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.generate_content_hash(content_text text)
@@ -3490,7 +3484,7 @@ AS $function$
 BEGIN
   RETURN encode(digest(content_text, 'sha256'), 'hex');
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.queue_for_embedding(p_content_type text, p_content_id bigint, p_priority integer DEFAULT 5)
@@ -3544,71 +3538,7 @@ BEGIN
   
   RETURN true;
 END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_url()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.semantic_search(p_query_embedding vector, p_content_types text[] DEFAULT NULL::text[], p_similarity_threshold numeric DEFAULT 0.7, p_max_results integer DEFAULT 10, p_user_id bigint DEFAULT NULL::bigint)
  RETURNS TABLE(content_type text, content_id bigint, content_text text, similarity numeric, metadata jsonb)
@@ -3657,7 +3587,7 @@ BEGIN
     WHERE id = search_id;
   END IF;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_embedding_stats()
@@ -3714,7 +3644,7 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_posts_on_hashtag_change()
@@ -3730,8 +3660,8 @@ begin
     where ph.hashtag_id = new.id
   );
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_post_on_hashtag_assoc_change()
@@ -3743,8 +3673,8 @@ begin
   set updated_at = now()  -- 触发 post trigger 更新 search_vector
   where public_id = new.post_id;
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_embedding_statistics()
@@ -3768,7 +3698,7 @@ BEGIN
   FROM video_embeddings
   WHERE status = 'completed' AND is_deleted = false;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.find_incomplete_embeddings(limit_count integer DEFAULT 50)
@@ -3798,7 +3728,7 @@ BEGIN
   ORDER BY ve.created_at DESC
   LIMIT limit_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_checkin_streak()
@@ -3847,8 +3777,8 @@ begin
   end loop;
 
   return new;
-end;
-$function$
+END;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_classroom_color_palette()
@@ -3880,7 +3810,7 @@ BEGIN
     '#A3E4D7'  -- Aqua
   ];
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_next_classroom_color()
@@ -3938,7 +3868,7 @@ BEGIN
   
   RETURN selected_color;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.generate_random_classroom_color()
@@ -3980,7 +3910,7 @@ BEGIN
   
   RETURN selected_color;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.assign_classroom_color()
@@ -3995,7 +3925,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.is_valid_hex_color(color_code text)
@@ -4006,7 +3936,7 @@ AS $function$
 BEGIN
   RETURN color_code ~ '^#[0-9A-Fa-f]{6}$';
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_classroom_color_stats()
@@ -4024,7 +3954,7 @@ BEGIN
   GROUP BY c.color
   ORDER BY usage_count DESC;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_community_group_search_vector()
@@ -4040,7 +3970,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_post_interaction_stats(post_ids bigint[])
@@ -4086,7 +4016,7 @@ BEGIN
   )
   SELECT * FROM post_stats;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_user_hashtag_preferences(user_profile_id bigint, limit_count integer DEFAULT 20)
@@ -4143,7 +4073,7 @@ BEGIN
   ORDER BY usage_count DESC, last_used_at DESC
   LIMIT limit_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_ai_agent_search_vector()
@@ -4159,7 +4089,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_course_notes_search_vector()
@@ -4177,7 +4107,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_tutoring_tutors_search_vector()
@@ -4195,7 +4125,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_course_reviews_search_vector()
@@ -4209,7 +4139,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_frequent_authors(user_profile_id bigint, min_interactions integer DEFAULT 2)
@@ -4252,7 +4182,7 @@ BEGIN
   ORDER BY interaction_count DESC, last_interaction_at DESC
   LIMIT 20;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_group_posts_for_user(user_profile_id bigint, days_back integer DEFAULT 30, limit_count integer DEFAULT 50)
@@ -4298,7 +4228,7 @@ BEGIN
   ORDER BY interaction_score DESC, created_at DESC
   LIMIT limit_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_course_quiz_question_search_vector()
@@ -4320,7 +4250,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_announcements_search_vector()
@@ -4335,7 +4265,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_trending_posts(user_profile_id bigint, days_back integer DEFAULT 7, limit_count integer DEFAULT 20)
@@ -4400,7 +4330,7 @@ BEGIN
   ORDER BY trending_score DESC
   LIMIT limit_count;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.mark_messages_read(conv_id bigint, p_user_id bigint)
@@ -4420,7 +4350,7 @@ BEGIN
     ON CONFLICT (message_id, user_id) 
     DO UPDATE SET read_at = now();
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_chat_attachments_updated_at()
@@ -4431,7 +4361,7 @@ BEGIN
     NEW.updated_at = now();
     RETURN NEW;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_classroom_embedding()
@@ -4447,12 +4377,12 @@ BEGIN
      )) THEN
     
     -- 队列embedding，中等优先级
-    PERFORM queue_for_embedding_qstash('classroom', NEW.id, 4);
+    PERFORM queue_for_embedding('classroom', NEW.id, 4);
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_assignment_embedding()
@@ -4468,12 +4398,12 @@ BEGIN
      )) THEN
     
     -- 队列embedding
-    PERFORM queue_for_embedding_qstash('assignment', NEW.id, 4);
+    PERFORM queue_for_embedding('assignment', NEW.id, 4);
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_quiz_question_embedding()
@@ -4490,12 +4420,12 @@ BEGIN
      )) THEN
     
     -- 队列embedding，高优先级（学习相关）
-    PERFORM queue_for_embedding_qstash('quiz_question', NEW.id, 3);
+    PERFORM queue_for_embedding('quiz_question', NEW.id, 3);
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_course_note_embedding()
@@ -4512,12 +4442,12 @@ BEGIN
      )) THEN
     
     -- 队列embedding，高优先级（用户生成内容）
-    PERFORM queue_for_embedding_qstash('course_note', NEW.id, 3);
+    PERFORM queue_for_embedding('course_note', NEW.id, 3);
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_course_review_embedding()
@@ -4534,13 +4464,13 @@ BEGIN
     -- 只有当评论不为空时才处理
     IF NEW.comment IS NOT NULL AND LENGTH(trim(NEW.comment)) > 0 THEN
       -- 队列embedding，中等优先级
-      PERFORM queue_for_embedding_qstash('course_review', NEW.id, 5);
+      PERFORM queue_for_embedding('course_review', NEW.id, 5);
     END IF;
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.trigger_community_group_embedding()
@@ -4556,156 +4486,377 @@ BEGIN
      )) THEN
     
     -- 队列embedding
-    PERFORM queue_for_embedding_qstash('community_group', NEW.id, 5);
+    PERFORM queue_for_embedding('community_group', NEW.id, 5);
   END IF;
   
   RETURN COALESCE(NEW, OLD);
 END;
-$function$
+$function$;
+
+-- P0: AI Workflow Templates Embedding
+CREATE OR REPLACE FUNCTION public.trigger_ai_workflow_templates_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.name IS DISTINCT FROM OLD.name OR
+       NEW.description IS DISTINCT FROM OLD.description
+     )) THEN
+    
+    -- 队列embedding，高优先级（AI功能推荐）
+    PERFORM queue_for_embedding('ai_workflow_template', NEW.id, 2);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
+
+
+-- P0: Mistake Book Embedding
+CREATE OR REPLACE FUNCTION public.trigger_mistake_book_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.notes IS DISTINCT FROM OLD.notes OR
+       NEW.solution IS DISTINCT FROM OLD.solution OR
+       NEW.question_text IS DISTINCT FROM OLD.question_text
+     )) THEN
+    
+    -- 队列embedding，高优先级（个性化学习）
+    PERFORM queue_for_embedding('mistake_book', NEW.id, 2);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
+
+
+-- P0: Course Discussion Embedding
+CREATE OR REPLACE FUNCTION public.trigger_course_discussion_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.title IS DISTINCT FROM OLD.title OR
+       NEW.content IS DISTINCT FROM OLD.content
+     )) THEN
+    
+    -- 队列embedding，高优先级（学习社区核心）
+    PERFORM queue_for_embedding('course_discussion', NEW.id, 2);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
+
+
+-- P1: Community Quiz Question Embedding
+CREATE OR REPLACE FUNCTION public.trigger_community_quiz_question_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.question_text IS DISTINCT FROM OLD.question_text OR
+       NEW.explanation IS DISTINCT FROM OLD.explanation OR
+       NEW.options IS DISTINCT FROM OLD.options
+     )) THEN
+    
+    -- 队列embedding，高优先级（题目推荐）
+    PERFORM queue_for_embedding('community_quiz_question', NEW.id, 3);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
+
+
+-- P1: Announcements Embedding
+CREATE OR REPLACE FUNCTION public.trigger_announcements_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.title IS DISTINCT FROM OLD.title OR
+       NEW.message IS DISTINCT FROM OLD.message
+     )) THEN
+    
+    -- 队列embedding，中等优先级（智能推送）
+    PERFORM queue_for_embedding('announcement', NEW.id, 4);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
 
 
-CREATE TRIGGER community_quiz_question_search_vector_trigger BEFORE INSERT OR UPDATE ON community_quiz_question FOR EACH ROW EXECUTE FUNCTION update_community_quiz_question_search_vector()
+-- P1: Tutoring Note Embedding
+CREATE OR REPLACE FUNCTION public.trigger_tutoring_note_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.title IS DISTINCT FROM OLD.title OR
+       NEW.content IS DISTINCT FROM OLD.content
+     )) THEN
+    
+    -- 队列embedding，中等优先级（用户生成内容）
+    PERFORM queue_for_embedding('tutoring_note', NEW.id, 4);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
 
-CREATE TRIGGER notification_embedding_trigger AFTER INSERT OR UPDATE ON notifications FOR EACH ROW EXECUTE FUNCTION trigger_notification_embedding()
 
-CREATE TRIGGER ai_workflow_executions_updated_at_trigger BEFORE UPDATE ON ai_workflow_executions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS community_quiz_question_search_vector_trigger ON community_quiz_question;
+CREATE TRIGGER community_quiz_question_search_vector_trigger BEFORE INSERT OR UPDATE ON community_quiz_question FOR EACH ROW EXECUTE FUNCTION update_community_quiz_question_search_vector();
 
-CREATE TRIGGER ai_agent_embedding_trigger AFTER INSERT OR UPDATE ON ai_agent FOR EACH ROW EXECUTE FUNCTION trigger_ai_agent_embedding()
+DROP TRIGGER IF EXISTS ai_workflow_executions_updated_at_trigger ON ai_workflow_executions;
+CREATE TRIGGER ai_workflow_executions_updated_at_trigger BEFORE UPDATE ON ai_workflow_executions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER ai_agent_search_vector_trigger BEFORE INSERT OR UPDATE ON ai_agent FOR EACH ROW EXECUTE FUNCTION update_ai_agent_search_vector()
+DROP TRIGGER IF EXISTS ai_agent_embedding_trigger ON ai_agent;
+CREATE TRIGGER ai_agent_embedding_trigger AFTER INSERT OR UPDATE ON ai_agent FOR EACH ROW EXECUTE FUNCTION trigger_ai_agent_embedding();
 
-CREATE TRIGGER quiz_mistake_trigger AFTER INSERT ON course_quiz_submission FOR EACH ROW EXECUTE FUNCTION handle_quiz_mistake()
+DROP TRIGGER IF EXISTS ai_agent_search_vector_trigger ON ai_agent;
+CREATE TRIGGER ai_agent_search_vector_trigger BEFORE INSERT OR UPDATE ON ai_agent FOR EACH ROW EXECUTE FUNCTION update_ai_agent_search_vector();
 
-CREATE TRIGGER update_chat_attachments_updated_at BEFORE UPDATE ON chat_attachments FOR EACH ROW EXECUTE FUNCTION update_chat_attachments_updated_at()
+DROP TRIGGER IF EXISTS quiz_mistake_trigger ON course_quiz_submission;
+CREATE TRIGGER quiz_mistake_trigger AFTER INSERT ON course_quiz_submission FOR EACH ROW EXECUTE FUNCTION handle_quiz_mistake();
 
-CREATE TRIGGER lesson_embedding_trigger AFTER INSERT OR UPDATE ON course_lesson FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding()
+DROP TRIGGER IF EXISTS update_chat_attachments_updated_at ON chat_attachments;
+CREATE TRIGGER update_chat_attachments_updated_at BEFORE UPDATE ON chat_attachments FOR EACH ROW EXECUTE FUNCTION update_chat_attachments_updated_at();
 
-CREATE TRIGGER lesson_slug_trigger BEFORE INSERT OR UPDATE ON course_lesson FOR EACH ROW EXECUTE FUNCTION generate_lesson_slug()
+DROP TRIGGER IF EXISTS lesson_embedding_trigger ON course_lesson;
+CREATE TRIGGER lesson_embedding_trigger AFTER INSERT OR UPDATE ON course_lesson FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding();
 
-CREATE TRIGGER course_review_embedding_trigger AFTER INSERT OR UPDATE ON course_reviews FOR EACH ROW EXECUTE FUNCTION trigger_course_review_embedding()
+DROP TRIGGER IF EXISTS lesson_slug_trigger ON course_lesson;
+CREATE TRIGGER lesson_slug_trigger BEFORE INSERT OR UPDATE ON course_lesson FOR EACH ROW EXECUTE FUNCTION generate_lesson_slug();
 
-CREATE TRIGGER course_reviews_search_vector_trigger BEFORE INSERT OR UPDATE ON course_reviews FOR EACH ROW EXECUTE FUNCTION update_course_reviews_search_vector()
+DROP TRIGGER IF EXISTS course_review_embedding_trigger ON course_reviews;
+CREATE TRIGGER course_review_embedding_trigger AFTER INSERT OR UPDATE ON course_reviews FOR EACH ROW EXECUTE FUNCTION trigger_course_review_embedding();
 
-CREATE TRIGGER ai_workflow_templates_search_vector_trigger BEFORE INSERT OR UPDATE ON ai_workflow_templates FOR EACH ROW EXECUTE FUNCTION update_ai_workflow_templates_search_vector()
+DROP TRIGGER IF EXISTS course_reviews_search_vector_trigger ON course_reviews;
+CREATE TRIGGER course_reviews_search_vector_trigger BEFORE INSERT OR UPDATE ON course_reviews FOR EACH ROW EXECUTE FUNCTION update_course_reviews_search_vector();
 
-CREATE TRIGGER ai_workflow_templates_updated_at_trigger BEFORE UPDATE ON ai_workflow_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS ai_workflow_templates_search_vector_trigger ON ai_workflow_templates;
+CREATE TRIGGER ai_workflow_templates_search_vector_trigger BEFORE INSERT OR UPDATE ON ai_workflow_templates FOR EACH ROW EXECUTE FUNCTION update_ai_workflow_templates_search_vector();
 
-CREATE TRIGGER ai_usage_stats_updated_at_trigger BEFORE UPDATE ON ai_usage_stats FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS ai_workflow_templates_updated_at_trigger ON ai_workflow_templates;
+CREATE TRIGGER ai_workflow_templates_updated_at_trigger BEFORE UPDATE ON ai_workflow_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER community_quiz_search_vector_trigger BEFORE INSERT OR UPDATE ON community_quiz FOR EACH ROW EXECUTE FUNCTION update_community_quiz_search_vector()
+DROP TRIGGER IF EXISTS ai_usage_stats_updated_at_trigger ON ai_usage_stats;
+CREATE TRIGGER ai_usage_stats_updated_at_trigger BEFORE UPDATE ON ai_usage_stats FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER trigger_update_quiz_search_vectors BEFORE INSERT OR UPDATE ON community_quiz FOR EACH ROW EXECUTE FUNCTION update_quiz_search_vectors()
+DROP TRIGGER IF EXISTS community_quiz_search_vector_trigger ON community_quiz;
+CREATE TRIGGER community_quiz_search_vector_trigger BEFORE INSERT OR UPDATE ON community_quiz FOR EACH ROW EXECUTE FUNCTION update_community_quiz_search_vector();
 
-CREATE TRIGGER course_progress_continue_watching_trigger BEFORE INSERT OR UPDATE ON course_progress FOR EACH ROW EXECUTE FUNCTION update_continue_watching_status()
+DROP TRIGGER IF EXISTS trigger_update_quiz_search_vectors ON community_quiz;
+CREATE TRIGGER trigger_update_quiz_search_vectors BEFORE INSERT OR UPDATE ON community_quiz FOR EACH ROW EXECUTE FUNCTION update_quiz_search_vectors();
 
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON classroom_attachments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS course_progress_continue_watching_trigger ON course_progress;
+CREATE TRIGGER course_progress_continue_watching_trigger BEFORE INSERT OR UPDATE ON course_progress FOR EACH ROW EXECUTE FUNCTION update_continue_watching_status();
 
-CREATE TRIGGER comment_embedding_trigger AFTER INSERT OR UPDATE ON community_comment FOR EACH ROW EXECUTE FUNCTION trigger_comment_embedding()
+DROP TRIGGER IF EXISTS set_timestamp ON classroom_attachments;
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON classroom_attachments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER trg_after_comment_insert AFTER INSERT ON community_comment FOR EACH ROW EXECUTE FUNCTION trg_after_comment_insert_update_progress()
+DROP TRIGGER IF EXISTS comment_embedding_trigger ON community_comment;
+CREATE TRIGGER comment_embedding_trigger AFTER INSERT OR UPDATE ON community_comment FOR EACH ROW EXECUTE FUNCTION trigger_comment_embedding();
 
-CREATE TRIGGER trg_after_reaction_insert AFTER INSERT ON community_reaction FOR EACH ROW EXECUTE FUNCTION trg_after_reaction_insert_update_progress()
+DROP TRIGGER IF EXISTS trg_after_comment_insert ON community_comment;
+CREATE TRIGGER trg_after_comment_insert AFTER INSERT ON community_comment FOR EACH ROW EXECUTE FUNCTION trg_after_comment_insert_update_progress();
 
-CREATE TRIGGER trigger_community_quiz_subject_updated_at BEFORE UPDATE ON community_quiz_subject FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS trg_after_reaction_insert ON community_reaction;
+CREATE TRIGGER trg_after_reaction_insert AFTER INSERT ON community_reaction FOR EACH ROW EXECUTE FUNCTION trg_after_reaction_insert_update_progress();
 
-CREATE TRIGGER trigger_update_quiz_search_on_subject_change AFTER UPDATE ON community_quiz_subject FOR EACH ROW WHEN (old.translations IS DISTINCT FROM new.translations) EXECUTE FUNCTION update_quiz_search_vectors_on_subject_change()
+DROP TRIGGER IF EXISTS trigger_community_quiz_subject_updated_at ON community_quiz_subject;
+CREATE TRIGGER trigger_community_quiz_subject_updated_at BEFORE UPDATE ON community_quiz_subject FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER tutoring_tutors_search_vector_trigger BEFORE INSERT OR UPDATE ON tutoring_tutors FOR EACH ROW EXECUTE FUNCTION update_tutoring_tutors_search_vector()
+DROP TRIGGER IF EXISTS trigger_update_quiz_search_on_subject_change ON community_quiz_subject;
+CREATE TRIGGER trigger_update_quiz_search_on_subject_change AFTER UPDATE ON community_quiz_subject FOR EACH ROW WHEN (old.translations IS DISTINCT FROM new.translations) EXECUTE FUNCTION update_quiz_search_vectors_on_subject_change();
 
-CREATE TRIGGER profile_embedding_trigger AFTER INSERT OR UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION trigger_profile_embedding()
+DROP TRIGGER IF EXISTS tutoring_tutors_search_vector_trigger ON tutoring_tutors;
+CREATE TRIGGER tutoring_tutors_search_vector_trigger BEFORE INSERT OR UPDATE ON tutoring_tutors FOR EACH ROW EXECUTE FUNCTION update_tutoring_tutors_search_vector();
 
-CREATE TRIGGER trigger_update_profile_completion BEFORE INSERT OR UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_profile_completion()
+DROP TRIGGER IF EXISTS profile_embedding_trigger ON profiles;
+CREATE TRIGGER profile_embedding_trigger AFTER INSERT OR UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION trigger_profile_embedding();
 
-CREATE TRIGGER tutoring_note_search_vector_trigger BEFORE INSERT OR UPDATE ON tutoring_note FOR EACH ROW EXECUTE FUNCTION update_tutoring_note_search_vector()
+DROP TRIGGER IF EXISTS trigger_update_profile_completion ON profiles;
+CREATE TRIGGER trigger_update_profile_completion BEFORE INSERT OR UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_profile_completion();
 
-CREATE TRIGGER trigger_community_quiz_grade_updated_at BEFORE UPDATE ON community_quiz_grade FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS tutoring_note_search_vector_trigger ON tutoring_note;
+CREATE TRIGGER tutoring_note_search_vector_trigger BEFORE INSERT OR UPDATE ON tutoring_note FOR EACH ROW EXECUTE FUNCTION update_tutoring_note_search_vector();
 
-CREATE TRIGGER trigger_update_quiz_search_on_grade_change AFTER UPDATE ON community_quiz_grade FOR EACH ROW WHEN (old.translations IS DISTINCT FROM new.translations) EXECUTE FUNCTION update_quiz_search_vectors_on_grade_change()
+DROP TRIGGER IF EXISTS trigger_community_quiz_grade_updated_at ON community_quiz_grade;
+CREATE TRIGGER trigger_community_quiz_grade_updated_at BEFORE UPDATE ON community_quiz_grade FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER course_chapter_search_vector_trigger BEFORE INSERT OR UPDATE ON course_chapter FOR EACH ROW EXECUTE FUNCTION update_course_chapter_search_vector()
+DROP TRIGGER IF EXISTS trigger_update_quiz_search_on_grade_change ON community_quiz_grade;
+CREATE TRIGGER trigger_update_quiz_search_on_grade_change AFTER UPDATE ON community_quiz_grade FOR EACH ROW WHEN (old.translations IS DISTINCT FROM new.translations) EXECUTE FUNCTION update_quiz_search_vectors_on_grade_change();
 
-CREATE TRIGGER trg_checkin_streak AFTER INSERT ON community_checkin FOR EACH ROW EXECUTE FUNCTION update_checkin_streak()
+DROP TRIGGER IF EXISTS course_chapter_search_vector_trigger ON course_chapter;
+CREATE TRIGGER course_chapter_search_vector_trigger BEFORE INSERT OR UPDATE ON course_chapter FOR EACH ROW EXECUTE FUNCTION update_course_chapter_search_vector();
 
-CREATE TRIGGER classroom_live_session_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom_live_session FOR EACH ROW EXECUTE FUNCTION update_classroom_live_session_search_vector()
+DROP TRIGGER IF EXISTS trg_checkin_streak ON community_checkin;
+CREATE TRIGGER trg_checkin_streak AFTER INSERT ON community_checkin FOR EACH ROW EXECUTE FUNCTION update_checkin_streak();
 
-CREATE TRIGGER live_session_embedding_trigger AFTER INSERT OR UPDATE ON classroom_live_session FOR EACH ROW EXECUTE FUNCTION trigger_live_session_embedding()
+DROP TRIGGER IF EXISTS classroom_live_session_search_vector_trigger ON classroom_live_session;
+CREATE TRIGGER classroom_live_session_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom_live_session FOR EACH ROW EXECUTE FUNCTION update_classroom_live_session_search_vector();
 
-CREATE TRIGGER classroom_embedding_trigger AFTER INSERT OR UPDATE ON classroom FOR EACH ROW EXECUTE FUNCTION trigger_classroom_embedding()
+DROP TRIGGER IF EXISTS live_session_embedding_trigger ON classroom_live_session;
+CREATE TRIGGER live_session_embedding_trigger AFTER INSERT OR UPDATE ON classroom_live_session FOR EACH ROW EXECUTE FUNCTION trigger_live_session_embedding();
 
-CREATE TRIGGER trigger_update_embedding_stats BEFORE INSERT OR UPDATE ON embeddings FOR EACH ROW EXECUTE FUNCTION update_embedding_stats()
+DROP TRIGGER IF EXISTS classroom_embedding_trigger ON classroom;
+CREATE TRIGGER classroom_embedding_trigger AFTER INSERT OR UPDATE ON classroom FOR EACH ROW EXECUTE FUNCTION trigger_classroom_embedding();
 
-CREATE TRIGGER assignment_embedding_trigger AFTER INSERT OR UPDATE ON classroom_assignment FOR EACH ROW EXECUTE FUNCTION trigger_assignment_embedding()
+DROP TRIGGER IF EXISTS trigger_update_embedding_stats ON embeddings;
+CREATE TRIGGER trigger_update_embedding_stats BEFORE INSERT OR UPDATE ON embeddings FOR EACH ROW EXECUTE FUNCTION update_embedding_stats();
 
-CREATE TRIGGER classroom_assignment_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom_assignment FOR EACH ROW EXECUTE FUNCTION update_classroom_assignment_search_vector()
+DROP TRIGGER IF EXISTS assignment_embedding_trigger ON classroom_assignment;
+CREATE TRIGGER assignment_embedding_trigger AFTER INSERT OR UPDATE ON classroom_assignment FOR EACH ROW EXECUTE FUNCTION trigger_assignment_embedding();
 
-CREATE TRIGGER course_point_price_updated_at_trigger BEFORE UPDATE ON course_point_price FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS classroom_assignment_search_vector_trigger ON classroom_assignment;
+CREATE TRIGGER classroom_assignment_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom_assignment FOR EACH ROW EXECUTE FUNCTION update_classroom_assignment_search_vector();
 
-CREATE TRIGGER point_redemption_updated_at_trigger BEFORE UPDATE ON point_redemption FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS course_point_price_updated_at_trigger ON course_point_price;
+CREATE TRIGGER course_point_price_updated_at_trigger BEFORE UPDATE ON course_point_price FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER classroom_posts_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom_posts FOR EACH ROW EXECUTE FUNCTION update_classroom_posts_search_vector()
+DROP TRIGGER IF EXISTS point_redemption_updated_at_trigger ON point_redemption;
+CREATE TRIGGER point_redemption_updated_at_trigger BEFORE UPDATE ON point_redemption FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER mistake_book_search_vector_trigger BEFORE INSERT OR UPDATE ON mistake_book FOR EACH ROW EXECUTE FUNCTION update_mistake_book_search_vector()
+DROP TRIGGER IF EXISTS classroom_posts_search_vector_trigger ON classroom_posts;
+CREATE TRIGGER classroom_posts_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom_posts FOR EACH ROW EXECUTE FUNCTION update_classroom_posts_search_vector();
 
-CREATE TRIGGER trg_update_hashtag_tsvector BEFORE INSERT OR UPDATE ON hashtags FOR EACH ROW EXECUTE FUNCTION hashtags_tsvector_update()
+DROP TRIGGER IF EXISTS mistake_book_search_vector_trigger ON mistake_book;
+CREATE TRIGGER mistake_book_search_vector_trigger BEFORE INSERT OR UPDATE ON mistake_book FOR EACH ROW EXECUTE FUNCTION update_mistake_book_search_vector();
 
-CREATE TRIGGER trg_update_posts_on_hashtag_change AFTER UPDATE ON hashtags FOR EACH ROW EXECUTE FUNCTION update_posts_on_hashtag_change()
+DROP TRIGGER IF EXISTS trg_update_hashtag_tsvector ON hashtags;
+CREATE TRIGGER trg_update_hashtag_tsvector BEFORE INSERT OR UPDATE ON hashtags FOR EACH ROW EXECUTE FUNCTION hashtags_tsvector_update();
 
-CREATE TRIGGER trg_update_post_on_hashtag_assoc_delete AFTER DELETE ON post_hashtags FOR EACH ROW EXECUTE FUNCTION update_post_on_hashtag_assoc_change()
+DROP TRIGGER IF EXISTS trg_update_posts_on_hashtag_change ON hashtags;
+CREATE TRIGGER trg_update_posts_on_hashtag_change AFTER UPDATE ON hashtags FOR EACH ROW EXECUTE FUNCTION update_posts_on_hashtag_change();
 
-CREATE TRIGGER trg_update_post_on_hashtag_assoc_insert AFTER INSERT ON post_hashtags FOR EACH ROW EXECUTE FUNCTION update_post_on_hashtag_assoc_change()
+DROP TRIGGER IF EXISTS trg_update_post_on_hashtag_assoc_delete ON post_hashtags;
+CREATE TRIGGER trg_update_post_on_hashtag_assoc_delete AFTER DELETE ON post_hashtags FOR EACH ROW EXECUTE FUNCTION update_post_on_hashtag_assoc_change();
 
-CREATE TRIGGER study_session_updated_at_trigger BEFORE UPDATE ON study_session FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS trg_update_post_on_hashtag_assoc_insert ON post_hashtags;
+CREATE TRIGGER trg_update_post_on_hashtag_assoc_insert AFTER INSERT ON post_hashtags FOR EACH ROW EXECUTE FUNCTION update_post_on_hashtag_assoc_change();
 
-CREATE TRIGGER learning_goal_search_vector_trigger BEFORE INSERT OR UPDATE ON learning_goal FOR EACH ROW EXECUTE FUNCTION update_learning_goal_search_vector()
+DROP TRIGGER IF EXISTS study_session_updated_at_trigger ON study_session;
+CREATE TRIGGER study_session_updated_at_trigger BEFORE UPDATE ON study_session FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER learning_goal_updated_at_trigger BEFORE UPDATE ON learning_goal FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS learning_goal_search_vector_trigger ON learning_goal;
+CREATE TRIGGER learning_goal_search_vector_trigger BEFORE INSERT OR UPDATE ON learning_goal FOR EACH ROW EXECUTE FUNCTION update_learning_goal_search_vector();
 
-CREATE TRIGGER learning_statistics_updated_at_trigger BEFORE UPDATE ON learning_statistics FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS learning_goal_updated_at_trigger ON learning_goal;
+CREATE TRIGGER learning_goal_updated_at_trigger BEFORE UPDATE ON learning_goal FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER video_processing_queue_updated_at BEFORE UPDATE ON video_processing_queue FOR EACH ROW EXECUTE FUNCTION update_video_processing_updated_at()
+DROP TRIGGER IF EXISTS learning_statistics_updated_at_trigger ON learning_statistics;
+CREATE TRIGGER learning_statistics_updated_at_trigger BEFORE UPDATE ON learning_statistics FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER video_processing_steps_updated_at BEFORE UPDATE ON video_processing_steps FOR EACH ROW EXECUTE FUNCTION update_video_processing_updated_at()
+DROP TRIGGER IF EXISTS video_processing_queue_updated_at ON video_processing_queue;
+CREATE TRIGGER video_processing_queue_updated_at BEFORE UPDATE ON video_processing_queue FOR EACH ROW EXECUTE FUNCTION update_video_processing_updated_at();
 
-CREATE TRIGGER course_quiz_question_search_vector_trigger BEFORE INSERT OR UPDATE ON course_quiz_question FOR EACH ROW EXECUTE FUNCTION update_course_quiz_question_search_vector()
+DROP TRIGGER IF EXISTS video_processing_steps_updated_at ON video_processing_steps;
+CREATE TRIGGER video_processing_steps_updated_at BEFORE UPDATE ON video_processing_steps FOR EACH ROW EXECUTE FUNCTION update_video_processing_updated_at();
 
-CREATE TRIGGER quiz_question_embedding_trigger AFTER INSERT OR UPDATE ON course_quiz_question FOR EACH ROW EXECUTE FUNCTION trigger_quiz_question_embedding()
+DROP TRIGGER IF EXISTS course_quiz_question_search_vector_trigger ON course_quiz_question;
+CREATE TRIGGER course_quiz_question_search_vector_trigger BEFORE INSERT OR UPDATE ON course_quiz_question FOR EACH ROW EXECUTE FUNCTION update_course_quiz_question_search_vector();
 
-CREATE TRIGGER update_direct_conversations_updated_at BEFORE UPDATE ON direct_conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS quiz_question_embedding_trigger ON course_quiz_question;
+CREATE TRIGGER quiz_question_embedding_trigger AFTER INSERT OR UPDATE ON course_quiz_question FOR EACH ROW EXECUTE FUNCTION trigger_quiz_question_embedding();
 
-CREATE TRIGGER trigger_update_tutor_earnings_summary AFTER INSERT OR UPDATE ON tutor_earnings FOR EACH ROW EXECUTE FUNCTION update_tutor_earnings_summary()
+DROP TRIGGER IF EXISTS update_direct_conversations_updated_at ON direct_conversations;
+CREATE TRIGGER update_direct_conversations_updated_at BEFORE UPDATE ON direct_conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER course_note_embedding_trigger AFTER INSERT OR UPDATE ON course_notes FOR EACH ROW EXECUTE FUNCTION trigger_course_note_embedding()
+DROP TRIGGER IF EXISTS trigger_update_tutor_earnings_summary ON tutor_earnings;
+CREATE TRIGGER trigger_update_tutor_earnings_summary AFTER INSERT OR UPDATE ON tutor_earnings FOR EACH ROW EXECUTE FUNCTION update_tutor_earnings_summary();
 
-CREATE TRIGGER course_notes_search_vector_trigger BEFORE INSERT OR UPDATE ON course_notes FOR EACH ROW EXECUTE FUNCTION update_course_notes_search_vector()
+DROP TRIGGER IF EXISTS course_note_embedding_trigger ON course_notes;
+CREATE TRIGGER course_note_embedding_trigger AFTER INSERT OR UPDATE ON course_notes FOR EACH ROW EXECUTE FUNCTION trigger_course_note_embedding();
 
-CREATE TRIGGER post_embedding_trigger AFTER INSERT OR UPDATE ON community_post FOR EACH ROW EXECUTE FUNCTION trigger_post_embedding()
+DROP TRIGGER IF EXISTS course_notes_search_vector_trigger ON course_notes;
+CREATE TRIGGER course_notes_search_vector_trigger BEFORE INSERT OR UPDATE ON course_notes FOR EACH ROW EXECUTE FUNCTION update_course_notes_search_vector();
 
-CREATE TRIGGER trg_after_post_insert AFTER INSERT ON community_post FOR EACH ROW EXECUTE FUNCTION trg_after_post_insert_update_progress()
+DROP TRIGGER IF EXISTS post_embedding_trigger ON community_post;
+CREATE TRIGGER post_embedding_trigger AFTER INSERT OR UPDATE ON community_post FOR EACH ROW EXECUTE FUNCTION trigger_post_embedding();
 
-CREATE TRIGGER trg_update_post_tsvector BEFORE INSERT OR UPDATE ON community_post FOR EACH ROW EXECUTE FUNCTION community_post_tsvector_update()
+DROP TRIGGER IF EXISTS trg_after_post_insert ON community_post;
+CREATE TRIGGER trg_after_post_insert AFTER INSERT ON community_post FOR EACH ROW EXECUTE FUNCTION trg_after_post_insert_update_progress();
 
-CREATE TRIGGER update_conversation_settings_updated_at BEFORE UPDATE ON conversation_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS trg_update_post_tsvector ON community_post;
+CREATE TRIGGER trg_update_post_tsvector BEFORE INSERT OR UPDATE ON community_post FOR EACH ROW EXECUTE FUNCTION community_post_tsvector_update();
 
-CREATE TRIGGER community_group_embedding_trigger AFTER INSERT OR UPDATE ON community_group FOR EACH ROW EXECUTE FUNCTION trigger_community_group_embedding()
+DROP TRIGGER IF EXISTS update_conversation_settings_updated_at ON conversation_settings;
+CREATE TRIGGER update_conversation_settings_updated_at BEFORE UPDATE ON conversation_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER community_group_search_vector_trigger BEFORE INSERT OR UPDATE ON community_group FOR EACH ROW EXECUTE FUNCTION update_community_group_search_vector()
+DROP TRIGGER IF EXISTS community_group_embedding_trigger ON community_group;
+CREATE TRIGGER community_group_embedding_trigger AFTER INSERT OR UPDATE ON community_group FOR EACH ROW EXECUTE FUNCTION trigger_community_group_embedding();
 
-CREATE TRIGGER update_conversation_on_message_insert AFTER INSERT ON direct_messages FOR EACH ROW EXECUTE FUNCTION update_conversation_on_new_message()
+DROP TRIGGER IF EXISTS community_group_search_vector_trigger ON community_group;
+CREATE TRIGGER community_group_search_vector_trigger BEFORE INSERT OR UPDATE ON community_group FOR EACH ROW EXECUTE FUNCTION update_community_group_search_vector();
 
-CREATE TRIGGER update_direct_messages_updated_at BEFORE UPDATE ON direct_messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+DROP TRIGGER IF EXISTS update_conversation_on_message_insert ON direct_messages;
+CREATE TRIGGER update_conversation_on_message_insert AFTER INSERT ON direct_messages FOR EACH ROW EXECUTE FUNCTION update_conversation_on_new_message();
 
-CREATE TRIGGER trigger_video_comment_likes_count AFTER INSERT OR DELETE OR UPDATE ON video_comment_likes FOR EACH ROW EXECUTE FUNCTION update_video_comment_likes_count()
+DROP TRIGGER IF EXISTS update_direct_messages_updated_at ON direct_messages;
+CREATE TRIGGER update_direct_messages_updated_at BEFORE UPDATE ON direct_messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER trigger_video_comment_counts AFTER INSERT OR DELETE ON video_comments FOR EACH ROW EXECUTE FUNCTION update_video_comment_counts()
+DROP TRIGGER IF EXISTS trigger_video_comment_likes_count ON video_comment_likes;
+CREATE TRIGGER trigger_video_comment_likes_count AFTER INSERT OR DELETE OR UPDATE ON video_comment_likes FOR EACH ROW EXECUTE FUNCTION update_video_comment_likes_count();
 
-CREATE TRIGGER trigger_update_plan_stats AFTER INSERT OR DELETE OR UPDATE OF is_completed, actual_minutes, points_reward ON daily_plan_tasks FOR EACH ROW EXECUTE FUNCTION update_daily_plan_stats()
+DROP TRIGGER IF EXISTS trigger_video_comment_counts ON video_comments;
+CREATE TRIGGER trigger_video_comment_counts AFTER INSERT OR DELETE ON video_comments FOR EACH ROW EXECUTE FUNCTION update_video_comment_counts();
 
-CREATE TRIGGER video_qa_history_updated_at BEFORE UPDATE ON video_qa_history FOR EACH ROW EXECUTE FUNCTION trigger_video_qa_updated_at()
+DROP TRIGGER IF EXISTS trigger_update_plan_stats ON daily_plan_tasks;
+CREATE TRIGGER trigger_update_plan_stats AFTER INSERT OR DELETE OR UPDATE OF is_completed, actual_minutes, points_reward ON daily_plan_tasks FOR EACH ROW EXECUTE FUNCTION update_daily_plan_stats();
 
-CREATE TRIGGER video_segments_updated_at BEFORE UPDATE ON video_segments FOR EACH ROW EXECUTE FUNCTION trigger_video_qa_updated_at()
+DROP TRIGGER IF EXISTS video_qa_history_updated_at ON video_qa_history;
+CREATE TRIGGER video_qa_history_updated_at BEFORE UPDATE ON video_qa_history FOR EACH ROW EXECUTE FUNCTION trigger_video_qa_updated_at();
 
-CREATE TRIGGER announcements_search_vector_trigger BEFORE INSERT OR UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_announcements_search_vector()
+DROP TRIGGER IF EXISTS video_segments_updated_at ON video_segments;
+CREATE TRIGGER video_segments_updated_at BEFORE UPDATE ON video_segments FOR EACH ROW EXECUTE FUNCTION trigger_video_qa_updated_at();
 
-CREATE TRIGGER course_embedding_trigger AFTER INSERT OR UPDATE ON course FOR EACH ROW EXECUTE FUNCTION trigger_course_embedding()
+DROP TRIGGER IF EXISTS announcements_search_vector_trigger ON announcements;
+CREATE TRIGGER announcements_search_vector_trigger BEFORE INSERT OR UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_announcements_search_vector();
 
-CREATE TRIGGER course_slug_trigger BEFORE INSERT OR UPDATE ON course FOR EACH ROW EXECUTE FUNCTION generate_course_slug() |
+DROP TRIGGER IF EXISTS course_embedding_trigger ON course;
+CREATE TRIGGER course_embedding_trigger AFTER INSERT OR UPDATE ON course FOR EACH ROW EXECUTE FUNCTION trigger_course_embedding();
+
+DROP TRIGGER IF EXISTS course_slug_trigger ON course;
+CREATE TRIGGER course_slug_trigger BEFORE INSERT OR UPDATE ON course FOR EACH ROW EXECUTE FUNCTION generate_course_slug();
+
+-- AI Workflow Templates
+DROP TRIGGER IF EXISTS ai_workflow_templates_embedding_trigger ON ai_workflow_templates;
+CREATE TRIGGER ai_workflow_templates_embedding_trigger AFTER INSERT OR UPDATE ON ai_workflow_templates FOR EACH ROW EXECUTE FUNCTION trigger_ai_workflow_templates_embedding();
+
+-- Mistake Book
+DROP TRIGGER IF EXISTS mistake_book_embedding_trigger ON mistake_book;
+CREATE TRIGGER mistake_book_embedding_trigger AFTER INSERT OR UPDATE ON mistake_book FOR EACH ROW EXECUTE FUNCTION trigger_mistake_book_embedding();
+
+-- Course Discussion
+DROP TRIGGER IF EXISTS course_discussion_embedding_trigger ON course_discussion;
+CREATE TRIGGER course_discussion_embedding_trigger AFTER INSERT OR UPDATE ON course_discussion FOR EACH ROW EXECUTE FUNCTION trigger_course_discussion_embedding();
+
+-- Community Quiz Question
+DROP TRIGGER IF EXISTS community_quiz_question_embedding_trigger ON community_quiz_question;
+CREATE TRIGGER community_quiz_question_embedding_trigger AFTER INSERT OR UPDATE ON community_quiz_question FOR EACH ROW EXECUTE FUNCTION trigger_community_quiz_question_embedding();
+
+-- Announcements
+DROP TRIGGER IF EXISTS announcements_embedding_trigger ON announcements;
+CREATE TRIGGER announcements_embedding_trigger AFTER INSERT OR UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION trigger_announcements_embedding();
+
+-- Tutoring Note
+DROP TRIGGER IF EXISTS tutoring_note_embedding_trigger ON tutoring_note;
+CREATE TRIGGER tutoring_note_embedding_trigger AFTER INSERT OR UPDATE ON tutoring_note FOR EACH ROW EXECUTE FUNCTION trigger_tutoring_note_embedding();

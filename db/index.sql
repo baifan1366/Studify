@@ -1,8 +1,18 @@
+-- ============================================================================
+-- 基于数据库使用分析的优化索引 (Generated: 2025-10-01)
+-- 分析基础: 100/142 表被使用，profiles(238次), course(66次), classroom(61次) 等为高频表
+-- 新增索引专注于: 复合查询、WHERE条件、JOIN优化
+-- ============================================================================
+
 CREATE UNIQUE INDEX community_quiz_question_pkey ON public.community_quiz_question USING btree (id);
 
 CREATE UNIQUE INDEX community_quiz_question_quiz_id_slug_key ON public.community_quiz_question USING btree (quiz_id, slug);
 
 CREATE INDEX idx_community_quiz_question_search_vector ON public.community_quiz_question USING gin (search_vector);
+
+CREATE INDEX idx_community_quiz_question_quiz_id ON public.community_quiz_question USING btree (quiz_id);
+
+CREATE INDEX idx_community_quiz_question_slug ON public.community_quiz_question USING btree (slug);
 
 CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id);
 
@@ -820,4 +830,40 @@ CREATE UNIQUE INDEX course_slug_key ON public.course USING btree (slug);
 
 CREATE INDEX idx_course_slug ON public.course USING btree (slug) WHERE (is_deleted = false);
 
-CREATE INDEX idx_course_search_vector ON public.course USING gin (search_vector); |
+CREATE INDEX idx_course_search_vector ON public.course USING gin (search_vector);
+-- ============================================================================
+-- 新增优化索引 - 基于使用频率分析
+-- ============================================================================
+
+-- profiles 表优化 (238次使用 - 最高频)
+CREATE INDEX IF NOT EXISTS idx_profiles_user_role_status ON public.profiles USING btree (user_id, role, status) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_profiles_email_verified ON public.profiles USING btree (email) WHERE email_verified = true;
+
+-- course 表优化 (66次使用)
+CREATE INDEX IF NOT EXISTS idx_course_owner_status ON public.course USING btree (owner_id, status) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_course_visibility_status ON public.course USING btree (visibility, status) WHERE is_deleted = false;
+
+-- classroom 表优化 (61次使用)
+CREATE INDEX IF NOT EXISTS idx_classroom_owner_visibility ON public.classroom USING btree (owner_id, visibility);
+CREATE INDEX IF NOT EXISTS idx_classroom_created_at ON public.classroom USING btree (created_at DESC);
+
+-- community_post 表优化 (55次使用)
+CREATE INDEX IF NOT EXISTS idx_community_post_author_group ON public.community_post USING btree (author_id, group_id) WHERE is_deleted = false;
+
+-- video_processing_queue 表优化 (43次使用)
+CREATE INDEX IF NOT EXISTS idx_video_queue_status_created ON public.video_processing_queue USING btree (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_video_queue_attachment_status ON public.video_processing_queue USING btree (attachment_id, status);
+
+-- classroom_member 表优化 (41次使用)
+CREATE INDEX IF NOT EXISTS idx_classroom_member_user_role ON public.classroom_member USING btree (user_id, role);
+
+-- course_enrollment 表优化 (33次使用)
+CREATE INDEX IF NOT EXISTS idx_course_enrollment_user_status ON public.course_enrollment USING btree (user_id, status, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_course_enrollment_course_role ON public.course_enrollment USING btree (course_id, role) WHERE status = 'active';
+
+-- community_reaction 表优化 (24次使用)
+CREATE INDEX IF NOT EXISTS idx_reaction_target ON public.community_reaction USING btree (target_type, target_id, created_at DESC);
+
+-- classroom_live_session 表优化 (23次使用)
+CREATE INDEX IF NOT EXISTS idx_classroom_live_status ON public.classroom_live_session USING btree (classroom_id, status, starts_at DESC) WHERE is_deleted = false;
+

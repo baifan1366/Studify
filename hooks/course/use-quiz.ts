@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
 import { apiGet } from '@/lib/api-config';
 import { quizApi, api } from '@/lib/api';
+import { useMyCourses } from './use-courses';
 
 interface UseQuizProps {
   lessonId: string;
 }
-
 interface UseQuizByLessonQuizIdProps {
   lessonId: string;
   quizId: string;
@@ -356,5 +356,164 @@ export function useSubmissionGrading({ lessonId, quizId, submissionId }: UseSubm
     updateGrade: updateGradeMutation.mutateAsync,
     isUpdating: updateGradeMutation.isPending,
     error: updateGradeMutation.error,
+  };
+}
+
+// ----------------------
+// Course with Lessons Hooks for Quiz Creation
+// ----------------------
+
+interface CourseWithModulesAndLessons {
+  id: number;
+  title: string;
+  description?: string;
+  modules: {
+    id: number;
+    title: string;
+    position: number;
+    lessons: {
+      id: number;
+      title: string;
+      description?: string;
+      position: number;
+      courseTitle: string;
+      moduleTitle: string;
+      fullTitle: string;
+    }[];
+  }[];
+}
+
+/**
+ * Hook to fetch user's courses with their modules and lessons for quiz creation
+ */
+export function useMyCoursesWithLessons() {
+  // First, get the basic course data
+  const { data: courses, isLoading: coursesLoading } = useMyCourses();
+
+  return useQuery<CourseWithModulesAndLessons[]>({
+    queryKey: ['my-courses-with-lessons', courses?.map(c => c.id).sort()],
+    queryFn: async () => {
+      if (!courses || courses.length === 0) {
+        return [];
+      }
+
+      console.log('🏫 [useMyCoursesWithLessons] Starting to fetch modules and lessons for courses:', courses.length);
+
+      const coursesWithLessons: CourseWithModulesAndLessons[] = [];
+
+      // Process each course sequentially to avoid overwhelming the API
+      for (const course of courses) {
+        try {
+          console.log(`🔍 Processing course: ${course.title} (ID: ${course.id})`);
+
+          // Fetch modules for this course
+          const modulesResponse = await fetch(`/api/courses/${course.id}/course-module`);
+          
+          if (!modulesResponse.ok) {
+            console.warn(`⚠️ Failed to fetch modules for course ${course.id}`);
+            coursesWithLessons.push({
+              ...course,
+              modules: []
+            });
+            continue;
+          }
+
+          const modulesResult = await modulesResponse.json();
+          const modules = modulesResult.data || [];
+          console.log(`  📚 Found ${modules.length} modules for course ${course.title}`);
+
+          const courseWithLessons: CourseWithModulesAndLessons = {
+            ...course,
+            modules: []
+          };
+
+          // Process each module
+          for (const module of modules) {
+            try {
+              console.log(`    📖 Processing module: ${module.title} (ID: ${module.id})`);
+
+              // Fetch lessons for this module
+              const lessonsResponse = await fetch(`/api/courses/${course.id}/course-module/${module.id}/course-lesson`);
+              
+              if (!lessonsResponse.ok) {
+                console.warn(`⚠️ Failed to fetch lessons for module ${module.id}`);
+                courseWithLessons.modules.push({
+                  ...module,
+                  lessons: []
+                });
+                continue;
+              }
+
+              const lessonsResult = await lessonsResponse.json();
+              const lessons = lessonsResult.data || [];
+              console.log(`      📝 Found ${lessons.length} lessons for module ${module.title}`);
+
+              // Transform lessons with additional metadata
+              const transformedLessons = lessons.map((lesson: any) => ({
+                ...lesson,
+                courseTitle: course.title,
+                moduleTitle: module.title,
+                fullTitle: `${course.title} - ${module.title} - ${lesson.title}`
+              }));
+
+              courseWithLessons.modules.push({
+                ...module,
+                lessons: transformedLessons
+              });
+
+            } catch (error) {
+              console.error(`❌ Error processing module ${module.id}:`, error);
+              courseWithLessons.modules.push({
+                ...module,
+                lessons: []
+              });
+            }
+          }
+
+          coursesWithLessons.push(courseWithLessons);
+
+        } catch (error) {
+          console.error(`❌ Error processing course ${course.id}:`, error);
+          coursesWithLessons.push({
+            ...course,
+            modules: []
+          });
+        }
+      }
+
+      console.log('📋 [useMyCoursesWithLessons] Final result:', {
+        totalCourses: coursesWithLessons.length,
+        totalModules: coursesWithLessons.reduce((sum, c) => sum + c.modules.length, 0),
+        totalLessons: coursesWithLessons.reduce((sum, c) => 
+          sum + c.modules.reduce((moduleSum: number, m: any) => moduleSum + m.lessons.length, 0), 0
+        ),
+        coursesWithLessons
+      });
+
+      return coursesWithLessons;
+    },
+    enabled: Boolean(courses && courses.length > 0 && !coursesLoading),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+}
+
+/**
+ * Helper hook to get a flat array of all lessons across all user's courses
+ */
+export function useMyAllLessons() {
+  const { data: coursesWithLessons, isLoading, error } = useMyCoursesWithLessons();
+
+  const allLessons = coursesWithLessons?.reduce((lessons: any[], course: any) => {
+    course.modules.forEach((module: any) => {
+      lessons.push(...module.lessons);
+    });
+    return lessons;
+  }, []) || [];
+
+  return {
+    data: allLessons,
+    isLoading,
+    error,
+    totalCount: allLessons.length
   };
 }

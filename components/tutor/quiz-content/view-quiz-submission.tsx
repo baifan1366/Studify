@@ -55,6 +55,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useQuizSubmissions, useSubmissionGrading } from '@/hooks/course/use-quiz';
 
 type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
 type SubmissionStatus = 'completed' | 'in_progress' | 'not_started';
@@ -115,7 +116,6 @@ interface ViewQuizSubmissionProps {
 export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmissionProps) {
   const t = useTranslations('ViewQuizSubmission');
   
-  // State for submissions list
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<SubmissionStatus | 'all'>('all');
   const [gradingFilter, setGradingFilter] = useState<GradingStatus | 'all'>('all');
@@ -125,48 +125,92 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
   const [gradingFeedback, setGradingFeedback] = useState('');
   const [isSubmittingGrade, setIsSubmittingGrade] = useState(false);
 
-  // Mock data - replace with actual API calls
-  const mockSubmissions: QuizSubmission[] = [
-    {
-      id: 1,
-      public_id: 'sub-1',
-      quiz_id: 1,
-      student_id: 101,
-      student_name: 'Alice Johnson',
-      student_email: 'alice@example.com',
-      status: 'completed',
-      grading_status: 'auto_graded',
-      score: 85,
-      total_points: 100,
-      time_spent: 1200,
-      submitted_at: '2024-01-15T10:30:00Z',
-      graded_at: '2024-01-15T10:31:00Z',
-      answers: []
-    },
-    {
-      id: 2,
-      public_id: 'sub-2', 
-      quiz_id: 1,
-      student_id: 102,
-      student_name: 'Bob Smith',
-      student_email: 'bob@example.com',
-      status: 'completed',
-      grading_status: 'pending_review',
-      score: null,
-      total_points: 100,
-      time_spent: 1800,
-      submitted_at: '2024-01-15T11:15:00Z',
-      answers: []
-    }
-  ];
+  // Use quiz prop to get lessonId and quizId
+  const lessonId = quiz?.lesson_id?.toString() || '';
+  const quizId = quiz?.id?.toString() || '';
 
-  const filteredSubmissions = mockSubmissions.filter(submission => {
-    const matchesSearch = submission.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         submission.student_email.toLowerCase().includes(searchTerm.toLowerCase());
+  console.log('🔍 [ViewQuizSubmission] Quiz prop analysis:', {
+    quiz,
+    lessonId,
+    quizId,
+    quizKeys: quiz ? Object.keys(quiz) : 'No quiz'
+  });
+
+  // Fetch real submissions data
+  const { submissions: realSubmissions, isLoading: submissionsLoading, error: submissionsError } = useQuizSubmissions({ lessonId });
+  
+  // Grading hook for selected submission
+  const selectedSubmissionId = selectedSubmission?.public_id || '';
+  const { updateGrade, isUpdating } = useSubmissionGrading({ 
+    lessonId, 
+    quizId, 
+    submissionId: selectedSubmissionId 
+  });
+  
+  console.log('📊 [ViewQuizSubmission] Real submissions data:', {
+    lessonId,
+    quizId,
+    submissions: realSubmissions,
+    isLoading: submissionsLoading,
+    error: submissionsError
+  });
+
+  // Transform the submissions to match expected format
+  const transformedSubmissions = (realSubmissions || []).map((submission: any) => {
+    // Map submission data to expected format
+    const profile = submission.profiles || {};
+    return {
+      id: submission.id,
+      public_id: submission.public_id,
+      quiz_id: submission.quiz_id || null,
+      student_id: submission.student_id || submission.profiles?.id,
+      student_name: profile.display_name || profile.full_name || 'Unknown Student',
+      student_email: submission.student_email || 'No email',
+      student_avatar: submission.student_avatar,
+      status: submission.status || 'completed', // Default to completed since they submitted
+      grading_status: submission.grading_status || 'pending_review',
+      score: submission.score,
+      total_points: submission.total_points || 0,
+      time_spent: submission.time_spent || 0,
+      submitted_at: submission.created_at || submission.submitted_at,
+      graded_at: submission.graded_at,
+      graded_by: submission.graded_by,
+      feedback: submission.feedback,
+      answers: submission.answers || []
+    };
+  });
+
+  const filteredSubmissions = transformedSubmissions.filter((submission: any) => {
+    const matchesSearch = searchTerm === '' || 
+                         submission.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         submission.student_email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || submission.status === statusFilter;
     const matchesGrading = gradingFilter === 'all' || submission.grading_status === gradingFilter;
     
-    return matchesSearch && matchesStatus && matchesGrading;
+    const shouldInclude = matchesSearch && matchesStatus && matchesGrading;
+    
+    if (!shouldInclude) {
+      console.log('Excluding submission:', {
+        id: submission.id,
+        student_name: submission.student_name,
+        status: submission.status,
+        grading_status: submission.grading_status,
+        matchesSearch,
+        matchesStatus,
+        matchesGrading
+      });
+    }
+    
+    return shouldInclude;
+  });
+  
+  console.log('📊 [ViewQuizSubmission] Processed submissions:', {
+    rawSubmissions: realSubmissions,
+    transformedSubmissions,
+    filteredSubmissions,
+    searchTerm,
+    statusFilter,
+    gradingFilter
   });
 
   const getStatusBadge = (status: SubmissionStatus) => {
@@ -219,11 +263,10 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
     
     setIsSubmittingGrade(true);
     try {
-      // TODO: Implement actual API call
-      // const { updateSubmissionGrade } = useUpdateSubmissionGrade();
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updateGrade({
+        feedback: gradingFeedback,
+        grading_status: 'manually_graded'
+      });
       
       setSelectedSubmission(null);
       setGradingFeedback('');
@@ -235,21 +278,22 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
   };
 
   const calculateStats = () => {
-    const total = mockSubmissions.length;
-    const completed = mockSubmissions.filter(s => s.status === 'completed').length;
-    const graded = mockSubmissions.filter(s => s.grading_status !== 'pending_review').length;
-    const averageScore = mockSubmissions
-      .filter(s => s.score !== null)
-      .reduce((acc, s) => acc + (s.score || 0), 0) / graded || 0;
+    if (!transformedSubmissions || transformedSubmissions.length === 0) {
+      return { total: 0, completed: 0, graded: 0, averageScore: 0 };
+    }
+    
+    const total = transformedSubmissions.length;
+    const completed = transformedSubmissions.filter((s: any) => s.status === 'completed').length;
+    const graded = transformedSubmissions.filter((s: any) => s.grading_status !== 'pending_review').length;
+    const gradedSubmissions = transformedSubmissions.filter((s: any) => s.score !== null);
+    const averageScore = gradedSubmissions.length > 0 
+      ? gradedSubmissions.reduce((acc: number, s: any) => acc + (s.score || 0), 0) / gradedSubmissions.length 
+      : 0;
     
     return { total, completed, graded, averageScore };
   };
 
   const stats = calculateStats();
-
-  // Use quiz prop to get lessonId and quizId
-  const lessonId = quiz?.lesson_id?.toString() || '';
-  const quizId = quiz?.id?.toString() || '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -363,6 +407,27 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
         </CardContent>
       </Card>
 
+      {/* Loading and Error States */}
+      {submissionsLoading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">{t('loading')}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {submissionsError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {t('error_loading')}: {submissionsError.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Submissions Table */}
       <Card>
         <CardContent className="pt-6">
@@ -379,7 +444,7 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSubmissions.map((submission) => (
+              {filteredSubmissions.length > 0 ? filteredSubmissions.map((submission: any) => (
                 <TableRow key={submission.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -428,13 +493,13 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
                     </TooltipProvider>
                   </TableCell>
                 </TableRow>
-              ))}
-              {filteredSubmissions.length === 0 && (
+              )) : (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">
                     <div className="flex flex-col items-center gap-2">
                       <FileText className="h-8 w-8 text-gray-400" />
-                      <p className="text-gray-600 dark:text-gray-400">{t('no_submissions_found')}</p>
+                      <p className="text-gray-600 dark:text-gray-400">No submissions match current filters</p>
+                      <p className="text-sm text-gray-500">Total raw submissions: {realSubmissions?.length || 0}</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -498,9 +563,9 @@ export function ViewQuizSubmission({ quiz, open, onOpenChange }: ViewQuizSubmiss
                           {selectedSubmission?.grading_status === 'pending_review' && (
                             <Button
                               onClick={handleSubmitGrading}
-                              disabled={isSubmittingGrade}
+                              disabled={isSubmittingGrade || isUpdating}
                             >
-                              {isSubmittingGrade ? (
+                              {(isSubmittingGrade || isUpdating) ? (
                                 <>
                                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                                   {t('saving')}

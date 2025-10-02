@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCreateQuizByLessonId } from '@/hooks/course/use-quiz';
+import { useMyAllLessons } from '@/hooks/course/use-quiz';
 
 type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
 
@@ -50,11 +51,26 @@ interface AddQuizManualProps {
   onSuccess?: () => void;
 }
 
-export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQuizManualProps) {
+export function AddQuizManual({ lessonId: propLessonId, open, onOpenChange, onSuccess }: AddQuizManualProps) {
   const t = useTranslations('AddQuizManual');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Lesson Selection State
+  const [selectedLessonId, setSelectedLessonId] = useState<string>(propLessonId || '');
+  
+  // Get all lessons from user's courses with modules and lessons
+  const { data: allLessons, isLoading: coursesLoading, totalCount } = useMyAllLessons();
+  
+  console.log('🏫 [Manual Quiz] All lessons data:', {
+    isLoading: coursesLoading,
+    totalLessons: totalCount,
+    lessons: allLessons
+  });
+  
+  // Use the selected lesson or prop lesson
+  const lessonId = selectedLessonId || propLessonId;
   
   // Use the quiz creation hook
   const { createQuiz, isCreating } = useCreateQuizByLessonId({ lessonId: lessonId || '' });
@@ -70,6 +86,13 @@ export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQu
     difficulty: 1,
     position: questions.length + 1,
   });
+
+  const handleLessonChange = (lessonId: string) => {
+    const selectedLesson = allLessons.find(lesson => lesson.id.toString() === lessonId);
+    if (selectedLesson) {
+      setSelectedLessonId(lessonId);
+    }
+  };
 
   const addQuestion = () => {
     setQuestions([...questions, createEmptyQuestion()]);
@@ -161,7 +184,7 @@ export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQu
       return;
     }
     if (!lessonId) {
-      setErrors({ general: t('lesson_id_required') });
+      setErrors({ lesson: t('lesson_selection_required') });
       return;
     }
 
@@ -448,6 +471,43 @@ export function AddQuizManual({ lessonId, open, onOpenChange, onSuccess }: AddQu
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Lesson Selection */}
+            {!propLessonId && (
+              <div className="space-y-2">
+                <Label>{t('select_lesson')} <span className="text-red-500">*</span></Label>
+                <Select
+                  value={selectedLessonId}
+                  onValueChange={handleLessonChange}
+                >
+                  <SelectTrigger className={!selectedLessonId ? 'border-red-500' : ''}>
+                    <SelectValue placeholder={coursesLoading ? t('loading_lessons') : t('select_lesson_placeholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {coursesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        {t('loading_lessons')}
+                      </SelectItem>
+                    ) : !allLessons || allLessons.length === 0 ? (
+                      <SelectItem value="no-lessons" disabled>
+                        {t('no_lessons_found')}
+                      </SelectItem>
+                    ) : (
+                      allLessons.map((lesson) => (
+                        <SelectItem key={lesson.id} value={lesson.id.toString()}>
+                          {lesson.fullTitle}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.lesson && (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {errors.lesson}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* General Error */}
             {errors.general && (
               <Alert variant="destructive">

@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -158,7 +159,6 @@ export function QuizTable({ lessonId, showLessonFilter = true }: QuizTableProps)
     setSelectedQuiz(quiz);
     setIsPreviewOpen(true);
   };
-
   const handleViewSubmissions = (quiz: QuizQuestion) => {
     setSelectedQuiz(quiz);
     setIsSubmissionOpen(true);
@@ -168,12 +168,12 @@ export function QuizTable({ lessonId, showLessonFilter = true }: QuizTableProps)
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t('loading')}</CardTitle>
+          <Skeleton className="h-6 w-32" />
         </CardHeader>
         <CardContent>
-          <div className="animate-pulse space-y-4">
+          <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded" />
+              <Skeleton key={i} className="h-16 w-full" />
             ))}
           </div>
         </CardContent>

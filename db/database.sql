@@ -987,7 +987,7 @@ CREATE TABLE IF NOT EXISTS notification_delivery_log (
 CREATE TABLE IF NOT EXISTS embeddings (
   id bigserial PRIMARY KEY,
   public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
+  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user', 'quiz_question')),
   content_id bigint NOT NULL,
   content_hash text NOT NULL,
   
@@ -1039,7 +1039,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
 CREATE TABLE IF NOT EXISTS embedding_queue (
   id bigserial PRIMARY KEY,
   public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
+  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user', 'quiz_question')),
   content_id bigint NOT NULL,
   content_text text NOT NULL,
   content_hash text NOT NULL,

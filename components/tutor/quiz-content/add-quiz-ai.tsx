@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useGenerateQuiz, validateQuizRequest } from '@/hooks/ai/use-generate-quiz';
-import { useCreateQuiz } from '@/hooks/course/use-create-quiz';
-import { useMyAllLessons } from '@/hooks/course/use-quiz';
+import { useCreateQuizByLessonId, useMyAllLessons } from '@/hooks/course/use-quiz';
 import { Bot, Sparkles, RefreshCw, Check, AlertCircle, Edit, Trash2, Wand2, Save, X, Plus, Copy, ChevronUp, ChevronDown } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -106,8 +105,8 @@ export function AddQuizAI({
   // AI Generation Hook
   const generateQuizMutation = useGenerateQuiz();
   
-  // Quiz Creation Hook
-  const createQuizMutation = useCreateQuiz();
+  // Quiz Creation Hook - Use same approach as Manual Quiz
+  const { createQuiz, isCreating } = useCreateQuizByLessonId({ lessonId: lessonId || '' });
   
   // Generated Questions State
   const [generatedQuestions, setGeneratedQuestions] = useState<QuizQuestion[]>([]);
@@ -396,24 +395,31 @@ export function AddQuizAI({
     setErrors({});
     
     try {
-      // Convert questions to the format expected by the API
-      const questionsToCreate = generatedQuestions.map(q => {
+      console.log('💾 [AI Quiz] Starting sequential question creation for lesson:', lessonId);
+      console.log('📋 [AI Quiz] Questions to create:', generatedQuestions.length);
+      
+      // Create each question sequentially (same approach as Manual Quiz)
+      for (let i = 0; i < generatedQuestions.length; i++) {
+        const question = generatedQuestions[i];
+        
+        console.log(`⏳ [AI Quiz] Creating question ${i + 1}/${generatedQuestions.length}: ${question.question_text.substring(0, 50)}...`);
+        
         // Handle correct_answer based on question type
-        let correctAnswer = q.correct_answer;
+        let correctAnswer = question.correct_answer;
         
         // For multiple choice, ensure correct_answer is a string (index or value)
-        if (q.question_type === 'multiple_choice' && Array.isArray(q.options) && q.options.length > 0) {
-          if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < q.options.length) {
+        if (question.question_type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 0) {
+          if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < question.options.length) {
             // If it's an index, get the actual option value
-            correctAnswer = q.options[correctAnswer];
-          } else if (typeof correctAnswer === 'string' && !q.options.includes(correctAnswer)) {
+            correctAnswer = question.options[correctAnswer];
+          } else if (typeof correctAnswer === 'string' && !question.options.includes(correctAnswer)) {
             // If it's a string but not in options, use the first option as fallback
-            correctAnswer = q.options[0] || '';
+            correctAnswer = question.options[0] || '';
           }
         }
         
         // For true/false questions, ensure it's a boolean
-        if (q.question_type === 'true_false') {
+        if (question.question_type === 'true_false') {
           correctAnswer = Boolean(correctAnswer);
         }
         
@@ -422,46 +428,28 @@ export function AddQuizAI({
           correctAnswer = String(correctAnswer || '');
         }
         
-        return {
-          question_text: q.question_text,
-          question_type: q.question_type,
-          options: q.question_type === 'multiple_choice' ? q.options.filter(opt => opt.trim() !== '') : undefined,
+        // Prepare the question data for the API (same format as Manual Quiz)
+        const questionData = {
+          lesson_id: lessonId,
+          question_text: question.question_text,
+          question_type: question.question_type,
+          options: question.question_type === 'multiple_choice' ? question.options.filter(opt => opt.trim() !== '') : undefined,
           correct_answer: correctAnswer,
-          explanation: q.explanation || '',
-          points: q.points,
-          difficulty: q.difficulty,
-          position: q.position,
+          explanation: question.explanation || '',
+          points: question.points,
+          difficulty: question.difficulty,
+          position: i + 1, // Use the actual position in the array
         };
-      });
 
-      console.log('💾 [AI Quiz] Questions to create in database:', {
-        lessonId,
-        questionsCount: questionsToCreate.length,
-        questions: questionsToCreate
-      });
-
-      // Additional validation before sending to API
-      const invalidQuestions = questionsToCreate.filter(q => 
-        !q.question_text.trim() || 
-        q.question_text.includes('undefined') ||
-        q.question_text.includes('null') ||
-        q.question_text.length < 10 ||
-        (q.question_type === 'multiple_choice' && (!q.options || q.options.length < 2))
-      );
-
-      if (invalidQuestions.length > 0) {
-        console.error('❌ [AI Quiz] Invalid questions detected:', invalidQuestions);
-        setErrors({ submit: t('invalid_questions_error') });
-        return;
+        console.log(`📤 [AI Quiz] Sending question ${i + 1} data:`, questionData);
+        
+        // Call the same API as Manual Quiz
+        await createQuiz(questionData);
+        
+        console.log(`✅ [AI Quiz] Successfully created question ${i + 1}/${generatedQuestions.length}`);
       }
-
-      // Save questions to database using the hook
-      const result = await createQuizMutation.mutateAsync({
-        lessonId,
-        questions: questionsToCreate
-      });
       
-      console.log('✅ [AI Quiz] Database creation result:', result);
+      console.log('🎉 [AI Quiz] All questions created successfully!');
       
       // Reset form on success
       setGeneratedQuestions([]);
@@ -480,18 +468,10 @@ export function AddQuizAI({
     } catch (error) {
       console.error('❌ [AI Quiz] Failed to create quiz:', error);
       
-      // Extract meaningful error message
+      // Extract meaningful error message (same as Manual Quiz)
       let errorMessage = t('submit_error');
       if (error instanceof Error) {
-        if (error.message.includes('Database error')) {
-          errorMessage = t('submit_error') + ' - ' + error.message;
-        } else if (error.message.includes('Permission denied')) {
-          errorMessage = 'Permission denied - you may not own this lesson';
-        } else if (error.message.includes('Lesson not found')) {
-          errorMessage = 'Lesson not found - please select a valid lesson';
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = error.message;
       }
       
       setErrors({ submit: errorMessage });
@@ -1156,7 +1136,7 @@ export function AddQuizAI({
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={createQuizMutation.isPending}
+              disabled={isCreating}
             >
               {t('cancel')}
             </Button>
@@ -1165,9 +1145,9 @@ export function AddQuizAI({
               <Button
                 type="button"
                 onClick={handleSubmitQuiz}
-                disabled={createQuizMutation.isPending}
+                disabled={isCreating}
               >
-                {createQuizMutation.isPending ? (
+                {isCreating ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                     {t('creating')}

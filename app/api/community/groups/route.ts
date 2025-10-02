@@ -21,13 +21,33 @@ export async function GET() {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
 
-  // Get all groups with basic info
-  const { data: allGroups, error: groupsError } = await supabaseClient
+  // Get user's group memberships first
+  const { data: userMemberships, error: membershipError } = await supabaseClient
+    .from('community_group_member')
+    .select('group_id, role, joined_at')
+    .eq('user_id', profile.id)
+    .eq('is_deleted', false);
+
+  if (membershipError) {
+    return NextResponse.json({ error: membershipError.message }, { status: 500 });
+  }
+
+  // If user has no memberships, return empty array
+  if (!userMemberships || userMemberships.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  // Get group IDs that user is a member of
+  const userGroupIds = userMemberships.map(m => m.group_id);
+
+  // Get only the groups where user is a member
+  const { data: userGroups, error: groupsError } = await supabaseClient
     .from('community_group')
     .select(`
       *,
       owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url )
     `)
+    .in('id', userGroupIds)
     .eq('is_deleted', false)
     .order('created_at', { ascending: false });
 
@@ -35,23 +55,18 @@ export async function GET() {
     return NextResponse.json({ error: groupsError.message }, { status: 500 });
   }
 
-  // Get user memberships for all groups
-  const { data: userMemberships } = await supabaseClient
-    .from('community_group_member')
-    .select('group_id, role, joined_at')
-    .eq('user_id', profile.id)
-    .eq('is_deleted', false);
-
-  // Get member counts for all groups
+  // Get member counts for user's groups only
   const { data: memberCounts } = await supabaseClient
     .from('community_group_member')
     .select('group_id')
+    .in('group_id', userGroupIds)
     .eq('is_deleted', false);
 
-  // Get post counts for all groups
+  // Get post counts for user's groups only
   const { data: postCounts } = await supabaseClient
     .from('community_post')
     .select('group_id')
+    .in('group_id', userGroupIds)
     .eq('is_deleted', false);
 
   // Create count maps
@@ -68,26 +83,16 @@ export async function GET() {
     postCountMap.set(post.group_id, count + 1);
   });
 
-  // Filter groups based on visibility and membership
-  const groups = (allGroups || []).filter(group => {
-    const userMembership = userMemberships?.find(m => m.group_id === group.id);
-    // Show public groups OR private groups where user is a member
-    return group.visibility === 'public' || (group.visibility === 'private' && userMembership);
-  }).map(group => {
-    const userMembership = userMemberships?.find(m => m.group_id === group.id);
+  // Process groups to format data with membership info
+  const processedGroups = (userGroups || []).map(group => {
+    const userMembership = userMemberships.find(m => m.group_id === group.id);
     return {
       ...group,
-      user_membership: userMembership ? [userMembership] : []
+      member_count: memberCountMap.get(group.id) || 0,
+      post_count: postCountMap.get(group.id) || 0,
+      user_membership: userMembership || null,
     };
   });
-
-  // Process groups to format data
-  const processedGroups = groups.map(group => ({
-    ...group,
-    member_count: memberCountMap.get(group.id) || 0,
-    post_count: postCountMap.get(group.id) || 0,
-    user_membership: group.user_membership[0] || null,
-  }));
 
   return NextResponse.json(processedGroups);
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface TypingIndicatorProps {
@@ -16,6 +17,7 @@ export function TypingIndicator({
   userAvatar,
   className = '' 
 }: TypingIndicatorProps) {
+  const t = useTranslations('ChatDashboard');
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8, y: 20 }}
@@ -84,7 +86,7 @@ export function TypingIndicator({
               animate={{ opacity: [0.6, 1, 0.6] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              typing...
+              {t('typing')}
             </motion.span>
           </div>
         </div>
@@ -103,6 +105,7 @@ export function MultipleTypingIndicator({
   typingUsers, 
   className = '' 
 }: MultipleTypingIndicatorProps) {
+  const t = useTranslations('ChatDashboard');
   if (typingUsers.length === 0) return null;
 
   const displayNames = typingUsers.slice(0, 3).map(user => user.name);

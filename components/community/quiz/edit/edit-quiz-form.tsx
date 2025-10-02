@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ interface EditQuizFormProps {
 }
 
 export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
+  const t = useTranslations('EditQuizForm');
+  
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

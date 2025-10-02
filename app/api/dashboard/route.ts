@@ -21,34 +21,69 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Get course enrollment and progress data
+    // Get course enrollment and progress data with lessons
     const { data: courseProgress } = await supabase
       .from('course_progress')
       .select(`
         *,
-        course:courses(
+        course_lesson!inner(
+          id,
           public_id,
           title,
-          description,
-          thumbnail_url,
-          updated_at
+          kind,
+          duration_sec,
+          course_module!inner(
+            title,
+            position,
+            course!inner(
+              id,
+              public_id,
+              slug,
+              title,
+              description,
+              thumbnail_url
+            )
+          )
         )
       `)
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false });
+      .eq('user_id', profile.id)
+      .eq('lesson_kind', 'video')
+      .gt('video_position_sec', 0)
+      .lt('progress_pct', 100)
+      .order('last_accessed_at', { ascending: false });
+
+    // Get unique courses from progress data
+    const uniqueCourses = new Map();
+    courseProgress?.forEach(p => {
+      const courseId = p.course_lesson?.course_module?.course?.id;
+      if (courseId && !uniqueCourses.has(courseId)) {
+        uniqueCourses.set(courseId, {
+          id: p.course_lesson?.course_module?.course?.public_id,
+          slug: p.course_lesson?.course_module?.course?.slug,
+          title: p.course_lesson?.course_module?.course?.title,
+          thumbnail: p.course_lesson?.course_module?.course?.thumbnail_url
+        });
+      }
+    });
 
     // Calculate stats
-    const coursesEnrolled = courseProgress?.length || 0;
-    const coursesCompleted = courseProgress?.filter(p => p.completion_percentage >= 100).length || 0;
+    const coursesEnrolled = uniqueCourses.size;
+    const coursesCompleted = courseProgress?.filter(p => p.progress_pct >= 100).length || 0;
     const totalStudyTime = courseProgress?.reduce((total, p) => total + (p.time_spent_sec || 0), 0) || 0;
 
-    // Get recent courses (last 3 accessed)
+    // Get recent courses (last 3 accessed) - for continue watching
     const recentCourses = courseProgress?.slice(0, 3).map(p => ({
-      id: p.course?.public_id,
-      title: p.course?.title,
-      progress: p.completion_percentage || 0,
-      lastAccessed: formatTimeAgo(p.updated_at),
-      thumbnail: p.course?.thumbnail_url || '/api/placeholder/300/200'
+      id: p.course_lesson?.course_module?.course?.public_id,
+      slug: p.course_lesson?.course_module?.course?.slug,
+      title: p.course_lesson?.course_module?.course?.title,
+      progress: p.progress_pct || 0,
+      lastAccessed: formatTimeAgo(p.last_accessed_at || p.updated_at),
+      thumbnail: p.course_lesson?.course_module?.course?.thumbnail_url || '/api/placeholder/300/200',
+      lessonId: p.course_lesson?.public_id,
+      lessonTitle: p.course_lesson?.title,
+      moduleTitle: p.course_lesson?.course_module?.title,
+      videoPosition: p.video_position_sec || 0,
+      videoDuration: p.video_duration_sec || 0
     })) || [];
 
     // Get upcoming events (assignments, live sessions)
@@ -102,7 +137,7 @@ export async function GET(request: NextRequest) {
     const { data: recentNotes } = await supabase
       .from('course_notes')
       .select('created_at')
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
       .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +18,7 @@ import {
 import { Loader2, Brain, BookOpen, HelpCircle, Lightbulb, MessageSquare } from 'lucide-react';
 
 export default function AIWorkflowDemo() {
+  const t = useTranslations('AIWorkflowDemo');
   const [activeTab, setActiveTab] = useState('course-analysis');
   const [query, setQuery] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -98,24 +100,24 @@ export default function AIWorkflowDemo() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">AI Workflow 演示</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('page_title')}</h1>
         <p className="text-muted-foreground">
-          体验Studify的智能AI工作流系统
+          {t('page_description')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>输入查询</CardTitle>
+          <CardTitle>{t('input_query')}</CardTitle>
           <CardDescription>
-            输入你的问题或需求，选择相应的AI工作流进行处理
+            {t('input_description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="例如：分析JavaScript基础编程课程的内容结构"
+            placeholder={t('placeholder')}
             className="min-h-20"
           />
         </CardContent>
@@ -125,19 +127,19 @@ export default function AIWorkflowDemo() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="course-analysis">
             <BookOpen className="w-4 h-4 mr-2" />
-            课程分析
+            {t('course_analysis')}
           </TabsTrigger>
           <TabsTrigger value="question-generation">
             <HelpCircle className="w-4 h-4 mr-2" />
-            题目生成
+            {t('question_generation')}
           </TabsTrigger>
           <TabsTrigger value="content-recommendation">
             <Lightbulb className="w-4 h-4 mr-2" />
-            内容推荐
+            {t('content_recommendation')}
           </TabsTrigger>
           <TabsTrigger value="ai-assistant">
             <MessageSquare className="w-4 h-4 mr-2" />
-            AI助手
+            {t('ai_assistant')}
           </TabsTrigger>
         </TabsList>
 
@@ -146,10 +148,10 @@ export default function AIWorkflowDemo() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="w-5 h-5" />
-                课程内容分析
+                {t('course_content_analysis')}
               </CardTitle>
               <CardDescription>
-                智能分析课程内容，提取主题并生成个性化学习计划
+                {t('course_analysis_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -159,7 +161,7 @@ export default function AIWorkflowDemo() {
                 className="w-full"
               >
                 {courseAnalysis.isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                开始分析课程
+                {t('start_analysis')}
               </Button>
             </CardContent>
           </Card>
@@ -170,10 +172,10 @@ export default function AIWorkflowDemo() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HelpCircle className="w-5 h-5" />
-                智能题目生成
+                {t('smart_question_generation')}
               </CardTitle>
               <CardDescription>
-                基于课程内容生成多样化的测验题目
+                {t('question_generation_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -183,21 +185,20 @@ export default function AIWorkflowDemo() {
                 className="w-full"
               >
                 {questionGeneration.isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                生成题目
+                {t('generate_questions')}
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
-
         <TabsContent value="content-recommendation" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lightbulb className="w-5 h-5" />
-                个性化内容推荐
+                {t('personalized_content_recommendation')}
               </CardTitle>
               <CardDescription>
-                根据你的兴趣和学习历史推荐相关内容
+                {t('content_recommendation_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -207,7 +208,7 @@ export default function AIWorkflowDemo() {
                 className="w-full"
               >
                 {contentRecommendation.isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                获取推荐
+                {t('get_recommendations')}
               </Button>
             </CardContent>
           </Card>
@@ -218,10 +219,10 @@ export default function AIWorkflowDemo() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5" />
-                AI学习助手
+                {t('intelligent_ai_assistant')}
               </CardTitle>
               <CardDescription>
-                智能问答，带上下文的个性化回答
+                {t('ai_assistant_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -231,13 +232,12 @@ export default function AIWorkflowDemo() {
                 className="w-full"
               >
                 {aiAssistant.isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                提问AI助手
+                {t('start_conversation')}
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
       {/* 工作流进度显示 */}
       {workflowProgress.isRunning && (
         <Card>

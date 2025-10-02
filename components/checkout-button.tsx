@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface Item {
   name: string;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function CheckoutButton({ items, locale }: Props) {
+  const t = useTranslations('CheckoutButton');
   const [loading, setLoading] = useState(false);
 
   const handleCheckout = async () => {
@@ -34,7 +36,7 @@ export default function CheckoutButton({ items, locale }: Props) {
 
   return (
     <button onClick={handleCheckout} disabled={loading}>
-      {loading ? 'Loading...' : 'Checkout'}
+      {loading ? t('loading') : t('checkout')}
     </button>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMessages, useSendMessage, useMarkAsRead, useEditMessage, useDeleteMessage, Message } from '@/hooks/chat/use-chat';
 import { useChatUpload } from '@/hooks/chat/use-chat-upload';
 import { motion, AnimatePresence } from 'framer-motion';

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ interface NotificationSettings {
 }
 
 export default function NotificationSettings() {
+  const t = useTranslations('TutorNotificationSettings');
   const { data: settingsData, isLoading } = useNotificationSettings();
   const updateSettingsMutation = useUpdateNotificationSettings();
   const { user: oneSignalUser, requestPermission, optIn, optOut } = useOneSignal();
@@ -101,9 +103,9 @@ export default function NotificationSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Notification Settings</h2>
+        <h2 className="text-2xl font-bold">{t('notification_settings')}</h2>
         <p className="text-muted-foreground">
-          Manage how and when you receive notifications
+          {t('manage_how_and_when_you_receive_notifications')}
         </p>
       </div>
 
@@ -112,24 +114,24 @@ export default function NotificationSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
-            Push Notifications
+            {t('push_notifications')}
           </CardTitle>
           <CardDescription>
-            Browser push notifications for real-time updates
+            {t('browser_push_notifications_for_real_time_updates')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">
-                Status: {oneSignalUser.isSubscribed ? 'Enabled' : 'Disabled'}
+                {t('status')}: {oneSignalUser.isSubscribed ? t('enabled') : t('disabled')}
               </p>
               <p className="text-sm text-muted-foreground">
                 {oneSignalUser.permission === 'denied' 
-                  ? 'Blocked by browser settings'
+                  ? t('blocked_by_browser_settings')
                   : oneSignalUser.isSubscribed 
-                  ? 'You will receive push notifications'
-                  : 'Click to enable push notifications'
+                  ? t('you_will_receive_push_notifications')
+                  : t('click_to_enable_push_notifications')
                 }
               </p>
             </div>
@@ -138,7 +140,7 @@ export default function NotificationSettings() {
               variant={oneSignalUser.isSubscribed ? 'outline' : 'default'}
               disabled={oneSignalUser.permission === 'denied'}
             >
-              {oneSignalUser.isSubscribed ? 'Disable' : 'Enable'}
+              {oneSignalUser.isSubscribed ? t('disable') : t('enable')}
             </Button>
           </div>
         </CardContent>
@@ -149,7 +151,7 @@ export default function NotificationSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
-            General Notifications
+            {t('general_notifications')}
           </CardTitle>
           <CardDescription>
             Control your overall notification preferences

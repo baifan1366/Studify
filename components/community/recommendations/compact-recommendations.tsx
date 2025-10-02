@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useCommunityRecommendations } from '@/hooks/community/use-community-recommendations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ export default function CompactRecommendations({
   q,
   hashtags
 }: CompactRecommendationsProps) {
+  const t = useTranslations('CompactRecommendations');
   const { 
     data: recommendations, 
     isLoading, 
@@ -55,10 +57,10 @@ export default function CompactRecommendations({
       <div className="flex items-center gap-2 mb-2">
         <Sparkles className="w-5 h-5 text-yellow-400" />
         <h2 className="text-lg font-semibold text-white">
-          Recommend for You
+          {t('recommend_for_you')}
         </h2>
         <Badge variant="outline" className="text-xs border-yellow-400/30 text-yellow-400">
-          {recommendations.recommendations.length} 条内容
+          {recommendations.recommendations.length} {t('items_count')}
         </Badge>
       </div>
 
@@ -66,7 +68,7 @@ export default function CompactRecommendations({
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           {q && (
             <Badge variant="outline" className="text-xs border-blue-400/30 text-blue-300">
-              关键词: {q}
+              {t('keywords')}: {q}
             </Badge>
           )}
           {hashtags && hashtags.length > 0 && hashtags.map((tag, i) => (
@@ -106,7 +108,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
           </Badge>
           <div className="flex items-center gap-1 text-xs text-gray-400">
             <TrendingUp className="w-3 h-3" />
-            推荐
+            {t('recommended')}
           </div>
         </div>
 
@@ -188,7 +190,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
               variant="outline"
               className="border-white/20 text-white hover:bg-white/10"
             >
-              Read More
+              {t('read_more')}
             </Button>
           </Link>
       </CardContent>

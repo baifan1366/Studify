@@ -1,12 +1,8 @@
-"use client";
+'use client';
 
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React from 'react';
+import { useTranslations } from 'next-intl';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +107,7 @@ const GroupCard = ({ group }: { group: Group }) => {
 };
 
 export default function AllMyGroupsModal({ isOpen, onClose }: AllMyGroupsModalProps) {
+  const t = useTranslations('AllMyGroupsModal');
   const { groups, isLoading } = useAllUserGroups();
 
   // Sort groups by most recent activity or member count
@@ -139,7 +136,7 @@ export default function AllMyGroupsModal({ isOpen, onClose }: AllMyGroupsModalPr
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-blue-400" />
-            All My Groups
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -194,10 +191,10 @@ export default function AllMyGroupsModal({ isOpen, onClose }: AllMyGroupsModalPr
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-gray-500 mx-auto mb-4" />
               <p className="text-gray-400 text-lg mb-2">
-                You are not part of any groups yet
+                {t('no_groups')}
               </p>
               <p className="text-gray-500 text-sm mb-4">
-                Join groups to connect with other learners and share knowledge
+                {t('explore_groups')}
               </p>
               <Link href="/community">
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white">

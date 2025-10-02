@@ -1,1665 +1,2318 @@
--- =========================
--- STUDIFY CONSOLIDATED DATABASE SCHEMA
--- Generated: 2025-01-20
--- Combines: database.sql + function.sql + all migrations
--- =========================
-
--- Ensure required extensions are available
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "vector";
-
--- Keep everything in public schema
-SET search_path = public;
-
--- =========================
--- CORE PROFILES TABLE (Enhanced)
--- =========================
-CREATE TABLE IF NOT EXISTS profiles (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  display_name text,
-  full_name text,
-  display_name text,
-  email text,
-  role text NOT NULL CHECK (role IN ('admin','student','tutor')),
-  avatar_url text,
-  bio text,
-  timezone text DEFAULT 'Asia/Kuala_Lumpur',
-  currency text DEFAULT 'MYR' CHECK (currency IN ('MYR', 'USD', 'EUR', 'GBP', 'SGD', 'JPY', 'CNY', 'THB', 'IDR', 'VND')),
-  status text NOT NULL CHECK (status IN ('active','banned')) DEFAULT 'active',
-  banned_reason text,
-  banned_at timestamptz,
-  points int NOT NULL DEFAULT 0,
-  onboarded boolean NOT NULL DEFAULT false,
-  onboarded_step int DEFAULT 0 CHECK (onboarded_step >= 0 AND onboarded_step <= 3),
-  
-  -- Enhanced profile fields for settings functionality
-  preferences jsonb DEFAULT '{}',
-  theme text DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
-  language text DEFAULT 'en',
-  notification_settings jsonb DEFAULT '{
-    "email_notifications": true,
-    "push_notifications": true,
-    "course_updates": true,
-    "community_updates": false,
-    "marketing_emails": false,
-    "classroom_notifications": true,
-    "assignment_reminders": true,
-    "live_session_alerts": true,
-    "grade_notifications": true,
-    "community_mentions": true,
-    "direct_messages": true,
-    "system_announcements": true,
-    "marketing_notifications": false,
-    "digest_frequency": "daily"
-  }',
-  privacy_settings jsonb DEFAULT '{
-    "profile_visibility": "public",
-    "show_email": false,
-    "show_progress": true,
-    "data_collection": true
-  }',
-  two_factor_enabled boolean DEFAULT false,
-  email_verified boolean DEFAULT false,
-  profile_completion int DEFAULT 0 CHECK (profile_completion >= 0 AND profile_completion <= 100),
-  
-  -- OneSignal integration
-  onesignal_player_id text,
-  onesignal_external_id text,
-  push_subscription_status text DEFAULT 'unknown' CHECK (push_subscription_status IN ('subscribed', 'unsubscribed', 'unknown')),
-  
-  -- Timestamps
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  last_login timestamptz,
-  deleted_at timestamptz
-);
-
--- =========================
--- CORE SYSTEM TABLES
--- =========================
-CREATE TABLE IF NOT EXISTS notifications (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  kind text NOT NULL,
-  payload jsonb NOT NULL DEFAULT '{}',
-  category_id bigint, -- Will reference notification_categories later
-  is_read boolean NOT NULL DEFAULT false,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS audit_log (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  actor_id bigint REFERENCES profiles(id),
-  action text NOT NULL,
-  subject_type text,
-  subject_id text,
-  meta jsonb NOT NULL DEFAULT '{}',
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS checkins (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  checkin_at timestamptz NOT NULL DEFAULT now(),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS report (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  reporter_id bigint REFERENCES profiles(id),
-  subject_type text NOT NULL,
-  subject_id text NOT NULL,
-  reason text,
-  status text NOT NULL CHECK (status IN ('open','reviewing','resolved','rejected')) DEFAULT 'open',
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS action (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  report_id bigint REFERENCES report(id) ON DELETE SET NULL,
-  actor_id bigint REFERENCES profiles(id),
-  action text NOT NULL, -- hide, delete, warn, ban
-  notes text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS ban (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  target_id bigint NOT NULL,
-  reason text,
-  target_type text NOT NULL CHECK (target_type IN ('post', 'chat', 'comment', 'course', 'user', 'other')) DEFAULT 'user',
-  status text NOT NULL CHECK (status IN ('approved','pending', 'rejected')) DEFAULT 'pending',
-  expires_at timestamptz,
-  message text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- =========================
--- AI SYSTEM TABLES
--- =========================
-CREATE TABLE IF NOT EXISTS ai_agent (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  name text NOT NULL,
-  owner_id bigint REFERENCES profiles(id),
-  purpose text,
-  config jsonb NOT NULL DEFAULT '{}',
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS ai_run (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  agent_id bigint NOT NULL REFERENCES ai_agent(id) ON DELETE CASCADE,
-  requester_id bigint REFERENCES profiles(id),
-  input jsonb NOT NULL,
-  output jsonb,
-  status text NOT NULL CHECK (status IN ('queued','running','succeeded','failed','needs_review')) DEFAULT 'queued',
-  reviewed_by bigint REFERENCES profiles(id),
-  reviewed_at timestamptz,
-  review_note text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
--- =========================
--- COURSE SYSTEM TABLES (Part 2)
--- =========================
-
-CREATE TABLE IF NOT EXISTS course_attachments (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  owner_id bigint NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
-  title text NOT NULL,
-  url text,
-  type text DEFAULT 'other',
-  cloudinary_hls_url text,
-  cloudinary_mp3 text,
-  cloudinary_processed_at timestamptz,
-  cloudinary_public_id text,
-  size int,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  owner_id bigint NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
-  title text NOT NULL,
-  description text,
-  slug text UNIQUE,
-  video_intro_url text,
-  requirements text[],
-  learning_objectives text[],
-  category text,
-  language text DEFAULT 'en',
-  certificate_template text,
-  auto_create_classroom boolean DEFAULT true,
-  auto_create_community boolean DEFAULT true,
-  visibility text NOT NULL CHECK (visibility IN ('public','private','unlisted')) DEFAULT 'private',
-  price_cents int DEFAULT 0,
-  currency text DEFAULT 'MYR',
-  tags text[] DEFAULT '{}',
-  thumbnail_url text,
-  level text CHECK (level IN ('beginner','intermediate','advanced')) DEFAULT 'beginner',
-  total_lessons int DEFAULT 0,
-  total_duration_minutes int DEFAULT 0,
-  average_rating numeric(3,2) DEFAULT 0,
-  total_students int DEFAULT 0,
-  is_free boolean NOT NULL DEFAULT false,
-  status text CHECK(status IN ('active', 'pending', 'inactive', 'ban', 'rejected')) DEFAULT 'inactive',
-  rejected_message text,
-  community_group_public_id UUID, -- Forward reference, will be created later
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_module (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  course_id bigint NOT NULL REFERENCES course(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  position int NOT NULL DEFAULT 1,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_lesson (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  course_id bigint NOT NULL REFERENCES course(id) ON DELETE CASCADE,
-  module_id bigint REFERENCES course_module(id) ON DELETE SET NULL,
-  title text NOT NULL,
-  slug text,
-  position int DEFAULT 1,
-  description text,
-  is_preview boolean DEFAULT false,
-  transcript text,
-  attachments jsonb DEFAULT '[]'::jsonb,
-  kind text NOT NULL CHECK (kind IN ('video','live','document','quiz','assignment','whiteboard')),
-  content_url text,
-  duration_sec int,
-  live_session_id bigint, -- Forward reference
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_enrollment (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  course_id bigint NOT NULL REFERENCES course(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  role text NOT NULL CHECK (role IN ('student','tutor','owner','assistant')) DEFAULT 'student',
-  status text NOT NULL CHECK (status IN ('active','completed','dropped','locked')) DEFAULT 'active',
-  started_at timestamptz NOT NULL DEFAULT now(),
-  completed_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (course_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS course_progress (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
-  state text NOT NULL CHECK (state IN ('not_started','in_progress','completed')) DEFAULT 'not_started',
-  progress_pct numeric(5,2) NOT NULL DEFAULT 0,
-  ai_recommendation jsonb DEFAULT '{}'::jsonb,
-  time_spent_sec int DEFAULT 0,
-  completion_date timestamptz,
-  last_seen_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (user_id, lesson_id)
-);
-
-CREATE TABLE IF NOT EXISTS course_chapter (
-  id bigserial PRIMARY KEY,
-  lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  description text,
-  start_time_sec int,
-  end_time_sec int,
-  order_index int NOT NULL DEFAULT 1,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Course Reviews
-CREATE TABLE IF NOT EXISTS course_reviews (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  course_id bigint NOT NULL REFERENCES course(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  rating int NOT NULL CHECK (rating BETWEEN 1 AND 5),
-  comment text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE (course_id, user_id)
-);
-
--- Course Products and Orders
-CREATE TABLE IF NOT EXISTS course_product (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  kind text NOT NULL CHECK (kind IN ('course','plugin','resource')),
-  ref_id bigint,
-  title text NOT NULL,
-  price_cents int NOT NULL,
-  currency text NOT NULL DEFAULT 'MYR',
-  metadata jsonb DEFAULT '{}'::jsonb,
-  is_active boolean NOT NULL DEFAULT true,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_order (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  buyer_id bigint NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
-  status text NOT NULL CHECK (status IN ('pending','paid','failed','refunded')) DEFAULT 'pending',
-  total_cents int NOT NULL DEFAULT 0,
-  currency text NOT NULL DEFAULT 'MYR',
-  meta jsonb NOT NULL DEFAULT '{}',
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_order_item (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  order_id bigint NOT NULL REFERENCES course_order(id) ON DELETE CASCADE,
-  product_id bigint NOT NULL REFERENCES course_product(id) ON DELETE RESTRICT,
-  quantity int NOT NULL DEFAULT 1,
-  unit_price_cents int NOT NULL,
-  subtotal_cents int NOT NULL,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_payment (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  order_id bigint NOT NULL REFERENCES course_order(id) ON DELETE CASCADE,
-  provider text NOT NULL,
-  provider_ref text,
-  amount_cents int NOT NULL,
-  status text NOT NULL CHECK (status IN ('pending','succeeded','failed','refunded')),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Course Notes System
-CREATE TABLE IF NOT EXISTS course_notes (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
-  timestamp_sec int, -- Video timestamp
-  content text NOT NULL,
-  ai_summary text, -- AI generated summary
-  tags text[] DEFAULT '{}',
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Course Quiz System
-CREATE TABLE IF NOT EXISTS course_quiz_question (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
-  question_text text NOT NULL,
-  question_type text NOT NULL CHECK (question_type IN ('multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_blank')),
-  options jsonb, -- For multiple choice: ["Option A", "Option B", "Option C", "Option D"]
-  correct_answer jsonb NOT NULL, -- For multiple choice: "A", for true/false: true/false, for text: "correct answer"
-  explanation text,
-  points int DEFAULT 1,
-  difficulty int CHECK (difficulty BETWEEN 1 AND 5) DEFAULT 1,
-  position int DEFAULT 1,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS course_quiz_submission (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  question_id bigint NOT NULL REFERENCES course_quiz_question(id) ON DELETE CASCADE,
-  lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
-  user_answer jsonb NOT NULL,
-  is_correct boolean NOT NULL,
-  points_earned int DEFAULT 0,
-  time_taken_sec int,
-  attempt_number int DEFAULT 1,
-  submitted_at timestamptz NOT NULL DEFAULT now(),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE(user_id, question_id, attempt_number)
-);
--- =========================
--- CLASSROOM SYSTEM TABLES (Part 3)
--- =========================
-
-CREATE TABLE IF NOT EXISTS classroom (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  name text NOT NULL,
-  description text,
-  class_code text NOT NULL UNIQUE,
-  owner_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  course_id bigint REFERENCES course(id) ON DELETE SET NULL,
-  timezone text DEFAULT 'Asia/Kuala_Lumpur',
-  status text DEFAULT 'active' CHECK (status IN ('active', 'archived', 'suspended')),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS classroom_member (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  classroom_id bigint NOT NULL REFERENCES classroom(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  role text NOT NULL CHECK (role IN ('owner','tutor','student')) DEFAULT 'student',
-  joined_at timestamptz NOT NULL DEFAULT now(),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE (classroom_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS classroom_live_session (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  classroom_id bigint NOT NULL REFERENCES classroom(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  description text,
-  scheduled_start timestamptz NOT NULL,
-  scheduled_end timestamptz NOT NULL,
-  actual_start timestamptz,
-  actual_end timestamptz,
-  status text NOT NULL CHECK (status IN ('scheduled','live','ended','cancelled')) DEFAULT 'scheduled',
-  livekit_room_name text,
-  host_id bigint NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
-  max_participants int,
-  recording_enabled boolean DEFAULT false,
-  chat_enabled boolean DEFAULT true,
-  whiteboard_enabled boolean DEFAULT false,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS classroom_attendance (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  session_id bigint NOT NULL REFERENCES classroom_live_session(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  joined_at timestamptz,
-  left_at timestamptz,
-  duration_minutes int DEFAULT 0,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE (session_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS classroom_assignment (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  classroom_id bigint NOT NULL REFERENCES classroom(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  description text,
-  attachments jsonb DEFAULT '[]'::jsonb,
-  due_date timestamptz,
-  max_score int DEFAULT 100,
-  submission_type text CHECK (submission_type IN ('file','text','url','quiz')) DEFAULT 'file',
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS classroom_assignment_submission (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  assignment_id bigint NOT NULL REFERENCES classroom_assignment(id) ON DELETE CASCADE,
-  student_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  content text,
-  attachments jsonb DEFAULT '[]'::jsonb,
-  score int,
-  feedback text,
-  graded_by bigint REFERENCES profiles(id),
-  graded_at timestamptz,
-  status text CHECK (status IN ('draft','submitted','graded','returned')) DEFAULT 'draft',
-  submitted_at timestamptz,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE (assignment_id, student_id)
-);
-
--- Course Quiz Sessions
-CREATE TABLE IF NOT EXISTS course_quiz_session (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  lesson_id bigint NOT NULL REFERENCES course_lesson(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  session_token text UNIQUE NOT NULL,
-  status text CHECK (status IN ('active','completed','abandoned')) DEFAULT 'active',
-  time_limit_minutes int,
-  time_spent_seconds int DEFAULT 0,
-  total_questions int DEFAULT 0,
-  correct_answers int DEFAULT 0,
-  total_score int DEFAULT 0,
-  max_score int DEFAULT 0,
-  started_at timestamptz NOT NULL DEFAULT now(),
-  completed_at timestamptz,
-  last_activity_at timestamptz NOT NULL DEFAULT now(),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Mistake Book System
-CREATE TABLE IF NOT EXISTS mistake_book (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  course_id bigint REFERENCES course(id) ON DELETE SET NULL,
-  lesson_id bigint REFERENCES course_lesson(id) ON DELETE SET NULL,
-  mistake_content text NOT NULL,
-  analysis text,
-  source_type text CHECK (source_type IN ('quiz','assignment','manual','course_quiz')) DEFAULT 'manual',
-  knowledge_points text[],
-  recommended_exercises jsonb,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Learning Path System
-CREATE TABLE IF NOT EXISTS learning_path (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  goal text NOT NULL,
-  duration integer NOT NULL, -- in days
-  progress numeric(5,2) DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS milestone (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  path_id bigint NOT NULL REFERENCES learning_path(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  description text,
-  order_index integer NOT NULL,
-  status text NOT NULL CHECK (status IN ('locked','in-progress','completed')) DEFAULT 'locked',
-  resource_type text,
-  resource_id bigint,
-  prerequisites jsonb,
-  reward jsonb,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- =========================
--- COMMUNITY SYSTEM TABLES
--- =========================
-
-CREATE TABLE IF NOT EXISTS community_group (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-  name text NOT NULL,
-  description text,
-  slug text UNIQUE NOT NULL,
-  visibility text CHECK (visibility IN ('public','private')) DEFAULT 'public',
-  owner_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS community_group_member (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  group_id bigint NOT NULL REFERENCES community_group(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  role text CHECK (role IN ('owner','admin','member')) DEFAULT 'member',
-  joined_at timestamptz NOT NULL DEFAULT now(),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE (group_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS community_post (
-  id bigserial PRIMARY KEY,
-  public_id uuid UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
-  group_id bigint REFERENCES community_group(id) ON DELETE SET NULL,
-  author_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  title text,
-  body text,
-  slug text NOT NULL,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  search_vector tsvector,
-  UNIQUE (group_id, slug)
-);
-
-CREATE TABLE IF NOT EXISTS community_post_files (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  post_id UUID REFERENCES community_post(public_id) ON DELETE CASCADE,
-  url TEXT NOT NULL,
-  file_name TEXT NOT NULL,
-  mime_type TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS community_comment (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-  post_id bigint NOT NULL REFERENCES community_post(id) ON DELETE CASCADE,
-  author_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  parent_id bigint REFERENCES community_comment(id) ON DELETE CASCADE,
-  body text NOT NULL,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS community_comment_files (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  comment_id UUID REFERENCES community_comment(public_id) ON DELETE CASCADE,
-  url TEXT NOT NULL,
-  file_name TEXT NOT NULL,
-  mime_type TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS community_reaction (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  target_type text NOT NULL CHECK (target_type IN ('post', 'comment')),
-  target_id bigint NOT NULL,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  emoji text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (target_type, target_id, user_id, emoji)
-);
-
-CREATE TABLE IF NOT EXISTS community_points_ledger (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  points int NOT NULL,
-  reason text,
-  ref jsonb,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS community_achievement (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  code text UNIQUE NOT NULL,
-  name text NOT NULL,
-  description text,
-  rule jsonb,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS community_user_achievement (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  achievement_id bigint NOT NULL REFERENCES community_achievement(id) ON DELETE CASCADE,
-  current_value int NOT NULL DEFAULT 0,
-  unlocked boolean NOT NULL DEFAULT false,
-  unlocked_at timestamptz NOT NULL DEFAULT now(),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  CONSTRAINT unique_user_achievement UNIQUE (user_id, achievement_id)
-);
-
-CREATE TABLE IF NOT EXISTS community_checkin (
-  id bigserial PRIMARY KEY,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  checkin_date date NOT NULL DEFAULT current_date,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (user_id, checkin_date)
-);
--- =========================
--- COMMUNITY QUIZ SYSTEM (Part 4)
--- =========================
-
--- Subject table for quiz categorization
-CREATE TABLE IF NOT EXISTS community_quiz_subject (
-  id bigserial PRIMARY KEY,
-  code text UNIQUE NOT NULL,
-  translations jsonb NOT NULL DEFAULT '{}',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
--- Grade table for quiz level classification
-CREATE TABLE IF NOT EXISTS community_quiz_grade (
-  id bigserial PRIMARY KEY,
-  code text UNIQUE NOT NULL,
-  translations jsonb NOT NULL DEFAULT '{}',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  slug text UNIQUE NOT NULL,
-  author_id uuid NOT NULL REFERENCES auth.users(id),
-  title text NOT NULL,
-  description text,
-  tags text[],
-  difficulty int CHECK (difficulty BETWEEN 1 AND 5),
-  max_attempts int NOT NULL DEFAULT 1,
-  visibility text CHECK (visibility IN ('public','private')) DEFAULT 'public',
-  time_limit_minutes int,
-  subject_id bigint REFERENCES community_quiz_subject(id),
-  grade_id bigint REFERENCES community_quiz_grade(id),
-  search_vector_en tsvector,
-  search_vector_zh tsvector,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz_question (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  quiz_id bigint NOT NULL REFERENCES community_quiz(id),
-  slug text NOT NULL,
-  question_type text NOT NULL DEFAULT 'single_choice' CHECK (question_type IN ('single_choice', 'multiple_choice', 'fill_in_blank')),
-  question_text text NOT NULL,
-  options text[],
-  correct_answers text[],
-  explanation text,
-  UNIQUE(quiz_id, slug)
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz_attempt (
-  id bigserial PRIMARY KEY,
-  quiz_id bigint NOT NULL REFERENCES community_quiz(id),
-  user_id uuid NOT NULL REFERENCES auth.users(id),
-  status text NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'submitted', 'graded')),
-  score int NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz_attempt_answer (
-  id bigserial PRIMARY KEY,
-  attempt_id bigint NOT NULL REFERENCES community_quiz_attempt(id) ON DELETE CASCADE,
-  question_id bigint NOT NULL REFERENCES community_quiz_question(id),
-  user_answer text[],
-  is_correct boolean
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz_attempt_session (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  attempt_id bigint NOT NULL REFERENCES community_quiz_attempt(id) ON DELETE CASCADE,
-  quiz_id bigint NOT NULL REFERENCES community_quiz(id),
-  user_id uuid NOT NULL REFERENCES auth.users(id),
-  session_token varchar(255) NOT NULL UNIQUE,
-  status varchar(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'completed')),
-  time_limit_minutes integer,
-  time_spent_seconds integer NOT NULL DEFAULT 0,
-  started_at timestamptz NOT NULL DEFAULT now(),
-  last_activity_at timestamptz NOT NULL DEFAULT now(),
-  expires_at timestamptz,
-  current_question_index integer NOT NULL DEFAULT 0,
-  total_questions integer NOT NULL,
-  browser_info jsonb,
-  ip_address inet,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(attempt_id)
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz_permission (
-  id bigserial PRIMARY KEY,
-  quiz_id bigint NOT NULL REFERENCES community_quiz(id),
-  user_id uuid NOT NULL REFERENCES auth.users(id),
-  permission_type text NOT NULL CHECK (permission_type IN ('view', 'attempt', 'edit')),
-  granted_by uuid NOT NULL REFERENCES auth.users(id),
-  expires_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(quiz_id, user_id, permission_type)
-);
-
--- Add unique index on (quiz_id, user_id)
-create unique index if not exists uq_cqp_quiz_user
-on community_quiz_permission (quiz_id, user_id);
-
-create table if not exists community_quiz_invite_token (
-  id bigserial primary key,
-  token text unique not null,
-  quiz_id bigint not null references community_quiz(id),
-  permission_type text not null check (permission_type in ('view', 'attempt', 'edit')),
-  created_by uuid not null references auth.users(id),
-  expires_at timestamptz,
-  max_uses int DEFAULT NULL,
-  current_uses int DEFAULT 0,
-  is_active boolean DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS community_quiz_like (
-  id bigserial PRIMARY KEY,
-  quiz_id bigint NOT NULL REFERENCES community_quiz(id),
-  user_id uuid NOT NULL REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(quiz_id, user_id)
-);
-
--- =========================
--- ENHANCED NOTIFICATION SYSTEM
--- =========================
-
-CREATE TABLE IF NOT EXISTS notification_categories (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  name text NOT NULL UNIQUE,
-  display_name text NOT NULL,
-  description text,
-  icon text,
-  color text,
-  default_enabled boolean DEFAULT true,
-  priority int DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
-  is_system boolean DEFAULT false,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS notification_templates (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  category_id bigint NOT NULL REFERENCES notification_categories(id) ON DELETE CASCADE,
-  template_key text NOT NULL UNIQUE,
-  subject_template text,
-  body_template text NOT NULL,
-  push_template text,
-  email_template text,
-  variables jsonb DEFAULT '{}',
-  is_active boolean DEFAULT true,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS user_notification_preferences (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  category_id bigint NOT NULL REFERENCES notification_categories(id) ON DELETE CASCADE,
-  push_enabled boolean DEFAULT true,
-  email_enabled boolean DEFAULT true,
-  in_app_enabled boolean DEFAULT true,
-  frequency text DEFAULT 'immediate' CHECK (frequency IN ('immediate', 'hourly', 'daily', 'weekly', 'never')),
-  quiet_hours_start time,
-  quiet_hours_end time,
-  timezone text DEFAULT 'UTC',
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  UNIQUE (user_id, category_id)
-);
-
-CREATE TABLE IF NOT EXISTS notification_delivery_log (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  notification_id bigint NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
-  delivery_method text NOT NULL CHECK (delivery_method IN ('push', 'email', 'sms', 'in_app')),
-  status text NOT NULL CHECK (status IN ('pending', 'sent', 'delivered', 'failed', 'bounced')) DEFAULT 'pending',
-  external_id text, -- OneSignal notification ID, email provider ID, etc.
-  external_response jsonb,
-  error_message text,
-  retry_count int DEFAULT 0,
-  delivered_at timestamptz,
-  opened_at timestamptz,
-  clicked_at timestamptz,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- =========================
--- EMBEDDING SYSTEM TABLES
--- =========================
-
-CREATE TABLE IF NOT EXISTS embeddings (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
-  content_id bigint NOT NULL,
-  content_hash text NOT NULL,
-  
-  -- Dual embedding support
-  embedding vector(384), -- Legacy E5-Small embedding
-  embedding_e5_small vector(384), -- E5-Small embedding (384d)
-  embedding_bge_m3 vector(1024), -- BGE-M3 embedding (1024d)
-  
-  content_text text NOT NULL,
-  chunk_type text CHECK (chunk_type IN ('summary', 'section', 'paragraph', 'detail')),
-  hierarchy_level int DEFAULT 0,
-  parent_chunk_id bigint REFERENCES embeddings(id),
-  section_title text,
-  semantic_density float CHECK (semantic_density >= 0 AND semantic_density <= 1),
-  key_terms text[],
-  sentence_count int DEFAULT 0,
-  word_count int DEFAULT 0,
-  has_code_block boolean DEFAULT false,
-  has_table boolean DEFAULT false,
-  has_list boolean DEFAULT false,
-  chunk_language text DEFAULT 'en',
-  
-  -- Embedding model tracking
-  embedding_model text DEFAULT 'intfloat/e5-small',
-  embedding_e5_model text DEFAULT 'intfloat/e5-small',
-  embedding_bge_model text DEFAULT 'BAAI/bge-m3',
-  
-  -- Embedding availability flags
-  has_e5_embedding boolean DEFAULT false,
-  has_bge_embedding boolean DEFAULT false,
-  
-  language text DEFAULT 'en',
-  token_count int,
-  status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'outdated')) DEFAULT 'pending',
-  error_message text,
-  retry_count int DEFAULT 0,
-  
-  -- Timestamps
-  embedding_created_at timestamptz,
-  embedding_updated_at timestamptz,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz,
-  
-  UNIQUE(content_type, content_id)
-);
-
-CREATE TABLE IF NOT EXISTS embedding_queue (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
-  content_id bigint NOT NULL,
-  content_text text NOT NULL,
-  content_hash text NOT NULL,
-  
-  -- Dual embedding processing
-  embedding_types text[] DEFAULT ARRAY['e5', 'bge'],
-  processed_embeddings text[] DEFAULT ARRAY[]::text[],
-  failed_embeddings text[] DEFAULT ARRAY[]::text[],
-  
-  priority int DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
-  scheduled_at timestamptz DEFAULT now(),
-  processing_started_at timestamptz,
-  retry_count int DEFAULT 0,
-  max_retries int DEFAULT 3,
-  status text NOT NULL CHECK (status IN ('queued', 'processing', 'completed', 'failed')) DEFAULT 'queued',
-  error_message text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(content_type, content_id)
-);
-
-CREATE TABLE IF NOT EXISTS embedding_searches (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint REFERENCES profiles(id) ON DELETE SET NULL,
-  query_text text NOT NULL,
-  query_embedding vector(384), -- E5 query embedding
-  query_embedding_bge vector(1024), -- BGE query embedding
-  content_types text[] DEFAULT '{}',
-  similarity_threshold numeric(3,2) DEFAULT 0.7,
-  max_results int DEFAULT 10,
-  
-  -- Search type and weights for hybrid search
-  search_type text DEFAULT 'hybrid' CHECK (search_type IN ('e5_only', 'bge_only', 'hybrid')),
-  embedding_weights jsonb DEFAULT '{"e5": 0.4, "bge": 0.6}'::jsonb,
-  
-  results_count int DEFAULT 0,
-  results_data jsonb DEFAULT '[]'::jsonb,
-  processing_time_ms int,
-  embedding_time_ms int,
-  search_time_ms int,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS document_hierarchy (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  content_type text NOT NULL,
-  content_id bigint NOT NULL,
-  document_title text,
-  document_structure jsonb,
-  summary_embedding_id bigint REFERENCES embeddings(id),
-  total_chunks int DEFAULT 0,
-  estimated_reading_time int DEFAULT 0,
-  has_table_of_contents boolean DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(content_type, content_id)
-);
--- =========================
--- VIDEO PROCESSING SYSTEM (Part 5)
--- =========================
-
-CREATE TABLE IF NOT EXISTS video_embeddings (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  attachment_id bigint NOT NULL REFERENCES course_attachments(id) ON DELETE CASCADE,
-  content_type text NOT NULL CHECK (content_type IN ('profile', 'post', 'comment', 'course', 'lesson', 'auth_user')),
-  
-  -- Dual embedding support (updated from migration)
-  embedding vector(384), -- Legacy embedding
-  embedding_e5_small vector(384), -- E5-Small embedding
-  embedding_bge_m3 vector(1024), -- BGE-M3 embedding
-  
-  content_text text NOT NULL,
-  chunk_type text CHECK (chunk_type IN ('summary', 'section', 'paragraph', 'detail', 'segment')),
-  hierarchy_level int DEFAULT 0,
-  parent_chunk_id bigint REFERENCES embeddings(id),
-  section_title text,
-  semantic_density float CHECK (semantic_density >= 0 AND semantic_density <= 1),
-  key_terms text[],
-  sentence_count int DEFAULT 0,
-  word_count int DEFAULT 0,
-  has_code_block boolean DEFAULT false,
-  has_table boolean DEFAULT false,
-  has_list boolean DEFAULT false,
-  chunk_language text DEFAULT 'en',
-  
-  -- Embedding model tracking
-  embedding_model text DEFAULT 'intfloat/e5-small',
-  embedding_e5_model text DEFAULT 'intfloat/e5-small',
-  embedding_bge_model text DEFAULT 'BAAI/bge-m3',
-  
-  -- Embedding availability flags
-  has_e5_embedding boolean DEFAULT false,
-  has_bge_embedding boolean DEFAULT false,
-  
-  -- Video segment specific fields (from migration)
-  segment_start_time float DEFAULT NULL,
-  segment_end_time float DEFAULT NULL,
-  segment_index int DEFAULT NULL,
-  total_segments int DEFAULT NULL,
-  segment_duration float GENERATED ALWAYS AS (
-    CASE 
-      WHEN segment_start_time IS NOT NULL AND segment_end_time IS NOT NULL 
-      THEN segment_end_time - segment_start_time 
-      ELSE NULL 
-    END
-  ) STORED,
-  
-  -- Context and relationship fields
-  prev_segment_id bigint REFERENCES video_embeddings(id),
-  next_segment_id bigint REFERENCES video_embeddings(id),
-  segment_overlap_start float DEFAULT NULL,
-  segment_overlap_end float DEFAULT NULL,
-  
-  -- Segment quality and content metadata
-  contains_code boolean DEFAULT false,
-  contains_math boolean DEFAULT false,
-  contains_diagram boolean DEFAULT false,
-  topic_keywords text[] DEFAULT '{}',
-  confidence_score float DEFAULT 1.0 CHECK (confidence_score >= 0 AND confidence_score <= 1),
-  
-  language text DEFAULT 'en',
-  token_count int,
-  status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'outdated')) DEFAULT 'pending',
-  error_message text,
-  retry_count int DEFAULT 0,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS video_processing_queue (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  attachment_id bigint NOT NULL REFERENCES course_attachments(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  
-  -- Processing step information (simplified flow: transcribe → embed)
-  current_step VARCHAR(50) NOT NULL CHECK (current_step IN ('upload', 'transcribe', 'embed', 'completed', 'failed', 'cancelled')),
-  status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'retrying', 'cancelled')) DEFAULT 'pending',
-  
-  -- QStash integration
-  qstash_message_id TEXT,
-  qstash_schedule_id TEXT,
-  
-  -- Retry configuration
-  retry_count INT DEFAULT 0,
-  max_retries INT DEFAULT 5, -- Increased for HuggingFace cold starts
-  retry_delay_minutes INT DEFAULT 1,
-  
-  -- Error handling
-  error_message TEXT,
-  error_details JSONB,
-  last_error_at TIMESTAMPTZ,
-  
-  -- Step data storage
-  step_data JSONB DEFAULT '{}',
-  processing_metadata JSONB DEFAULT '{}',
-  
-  -- Progress tracking
-  progress_percentage INT DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100),
-  estimated_completion_time TIMESTAMPTZ,
-  
-  -- Timestamps
-  started_at TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ,
-  cancelled_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS video_processing_steps (
-  id bigserial PRIMARY KEY,
-  queue_id bigint NOT NULL REFERENCES video_processing_queue(id) ON DELETE CASCADE,
-  step_name VARCHAR(50) NOT NULL,
-  status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'skipped')) DEFAULT 'pending',
-  
-  -- Step execution details
-  started_at TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ,
-  duration_seconds INT,
-  
-  -- Step-specific data
-  input_data JSONB,
-  output_data JSONB,
-  error_message TEXT,
-  
-  -- QStash tracking
-  qstash_message_id TEXT,
-  retry_count INT DEFAULT 0,
-  
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- =========================
--- TUTORING SYSTEM TABLES
--- =========================
-
-CREATE TABLE IF NOT EXISTS tutoring_tutors (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  headline text,
-  subjects text[] NOT NULL DEFAULT '{}',
-  hourly_rate numeric(10,2),
-  qualifications text,
-  rating_avg numeric(3,2) DEFAULT 0,
-  rating_count int DEFAULT 0,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS tutoring_students (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  school text,
-  grade text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS tutoring_availability (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  tutor_id bigint NOT NULL REFERENCES tutoring_tutors(id) ON DELETE CASCADE,
-  start_at timestamptz NOT NULL,
-  end_at timestamptz NOT NULL,
-  rrule text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS tutoring_appointments (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  tutor_id bigint NOT NULL REFERENCES tutoring_tutors(id) ON DELETE RESTRICT,
-  student_id bigint NOT NULL REFERENCES tutoring_students(id) ON DELETE RESTRICT,
-  scheduled_at timestamptz NOT NULL,
-  duration_min int NOT NULL CHECK (duration_min > 0),
-  status text NOT NULL CHECK (status IN ('requested','confirmed','completed','cancelled')) DEFAULT 'requested',
-  notes text,
-  created_by bigint REFERENCES profiles(id),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS tutoring_file (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  owner_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  path text NOT NULL,
-  mime_type text,
-  size_bytes bigint,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS tutoring_note (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  owner_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  title text,
-  body text,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS tutoring_share (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  resource_kind text NOT NULL CHECK (resource_kind IN ('file','note')),
-  resource_id bigint NOT NULL,
-  shared_with bigint REFERENCES profiles(id),
-  access text NOT NULL CHECK (access IN ('view','edit','comment')),
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- =========================
--- HASHTAGS AND SEARCH
--- =========================
-
-CREATE TABLE IF NOT EXISTS hashtags (
-  id bigserial PRIMARY KEY,
-  name text UNIQUE NOT NULL CHECK (name <> ''),
-  search_vector tsvector
-);
-
-CREATE TABLE IF NOT EXISTS post_hashtags (
-  post_id uuid REFERENCES community_post(public_id) ON DELETE CASCADE,
-  hashtag_id bigint REFERENCES hashtags(id) ON DELETE CASCADE,
-  PRIMARY KEY (post_id, hashtag_id)
-);
-
--- =========================
--- ADDITIONAL SYSTEM TABLES
--- =========================
-
-CREATE TABLE IF NOT EXISTS announcements (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  created_by bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  image_url TEXT,
-  deep_link TEXT,
-  status VARCHAR(20) DEFAULT 'draft',
-  scheduled_at TIMESTAMPTZ,
-  sent_at TIMESTAMPTZ,
-  onesignal_id TEXT,
-  onesignal_response JSONB,
-  is_deleted boolean DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  deleted_at TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS currencies (
-  id bigserial PRIMARY KEY,
-  code CHAR(3) UNIQUE NOT NULL,
-  name VARCHAR(100),
-  country VARCHAR(100),
-  symbol VARCHAR(10),
-  rate_to_usd DECIMAL(15,6),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
--- =========================
--- CLASSROOM POSTS SYSTEM
--- =========================
-
-CREATE TABLE IF NOT EXISTS classroom_posts (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  session_id bigint NOT NULL REFERENCES classroom_live_session(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  attachments jsonb DEFAULT '[]'::jsonb,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS classroom_post_comments (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  post_id bigint NOT NULL REFERENCES classroom_posts(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS classroom_post_reactions (
-  id bigserial PRIMARY KEY,
-  post_id bigint NOT NULL REFERENCES classroom_posts(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  reaction_type text NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE (post_id, user_id, reaction_type)
-);
-
-CREATE TABLE IF NOT EXISTS classroom_engagement_report (
-  id bigserial PRIMARY KEY,
-  user_id bigint NOT NULL REFERENCES profiles(id),
-  course_id bigint NOT NULL REFERENCES course(id),
-  participation_score numeric(5,2),
-  report jsonb,
-  generated_at timestamptz DEFAULT now()
-);
--- Column comments for community_quiz_session
-COMMENT ON COLUMN community_quiz_session.session_token IS 'Unique token for session validation and security';
-COMMENT ON COLUMN community_quiz_session.status IS 'Session status: active (ongoing), paused (temporarily stopped), expired (timed out), completed (finished)';
-COMMENT ON COLUMN community_quiz_session.time_limit_minutes IS 'Total time limit for this session in minutes, copied from quiz settings';
-COMMENT ON COLUMN community_quiz_session.time_spent_seconds IS 'Total time spent in this session in seconds';
-COMMENT ON COLUMN community_quiz_session.current_question_index IS 'Current question index (0-based) for progress tracking';
-COMMENT ON COLUMN community_quiz_session.browser_info IS 'Browser and client information for session validation';
-
-CREATE TABLE IF NOT EXISTS roles (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  title text NOT NULL,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS permissions (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  title text NOT NULL,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS role_permission (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  role_id bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-  permission_id bigint NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS admin_roles (
-  id bigserial PRIMARY KEY,
-  public_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  role_permission_id bigint NOT NULL REFERENCES role_permission(id) ON DELETE CASCADE,
-  user_id bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  is_deleted boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- TODO: 整理到database.sql, rls.sql, function.sql, trigger.sql， index.sql
--- Direct Messages Tables
-CREATE TABLE IF NOT EXISTS direct_messages (
-  id bigserial not null,
-  public_id uuid not null default uuid_generate_v4 (),
-  conversation_id bigint not null,
-  sender_id bigint not null,
-  content text not null,
-  message_type text not null default 'text'::text,
-  attachment_id bigint null,
-  reply_to_id bigint null,
-  is_edited boolean not null default false,
-  is_deleted boolean not null default false,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  delivered_at timestamp with time zone null,
-  constraint direct_messages_pkey primary key (id),
-  constraint direct_messages_attachment_id_fkey foreign KEY (attachment_id) references chat_attachments (id),
-  constraint direct_messages_conversation_id_fkey foreign KEY (conversation_id) references direct_conversations (id) on delete CASCADE,
-  constraint direct_messages_reply_to_id_fkey foreign KEY (reply_to_id) references direct_messages (id) on delete set null,
-  constraint direct_messages_sender_id_fkey foreign KEY (sender_id) references profiles (id) on delete CASCADE,
-  constraint direct_messages_message_type_check check (
-    (
-      message_type = any (
-        array[
-          'text'::text,
-          'image'::text,
-          'file'::text,
-          'system'::text,
-          'share_post'::text
-        ]
-      )
-    )
-  )
-) TABLESPACE pg_default;
-
-create index IF not exists idx_direct_messages_conversation_id on public.direct_messages using btree (conversation_id) TABLESPACE pg_default;
-
-create index IF not exists idx_direct_messages_sender_id on public.direct_messages using btree (sender_id) TABLESPACE pg_default;
-
-create index IF not exists idx_direct_messages_created_at on public.direct_messages using btree (created_at desc) TABLESPACE pg_default;
-
-create index IF not exists idx_direct_messages_conversation_created on public.direct_messages using btree (conversation_id, created_at desc) TABLESPACE pg_default;
-
-create trigger update_conversation_on_message_insert
-after INSERT on direct_messages for EACH row
-execute FUNCTION update_conversation_on_new_message ();
-
-create trigger update_direct_messages_updated_at BEFORE
-update on direct_messages for EACH row
-execute FUNCTION update_updated_at_column ();
-
-CREATE TABLE IF NOT EXISTS message_read_status (
-  id bigserial not null,
-  message_id bigint not null,
-  user_id bigint not null,
-  read_at timestamp with time zone not null default now(),
-  constraint message_read_status_pkey primary key (id),
-  constraint unique_read_status unique (message_id, user_id),
-  constraint message_read_status_message_id_fkey foreign KEY (message_id) references direct_messages (id) on delete CASCADE,
-  constraint message_read_status_user_id_fkey foreign KEY (user_id) references profiles (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create index IF not exists idx_message_read_status_message_id on public.message_read_status using btree (message_id) TABLESPACE pg_default;
-
-create index IF not exists idx_message_read_status_user_id on public.message_read_status using btree (user_id) TABLESPACE pg_default;
-
--- Group Messages Tables
-CREATE TABLE IF NOT EXISTS group_messages (
-  id bigserial not null,
-  conversation_id bigint not null,
-  sender_id bigint not null,
-  content text not null,
-  attachment_id bigint null,
-  is_deleted boolean not null default false,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  deleted_at timestamp with time zone null,
-  message_type text not null default 'text'::text,
-  reply_to_id bigint null,
-  is_edited boolean not null default false,
-  constraint group_messages_pkey primary key (id),
-  constraint group_messages_reply_to_id_fkey foreign KEY (reply_to_id) references group_messages (id) on delete set null,
-  constraint group_messages_sender_id_fkey foreign KEY (sender_id) references profiles (id) on delete CASCADE,
-  constraint group_messages_conversation_id_fkey foreign KEY (conversation_id) references group_conversations (id) on delete CASCADE,
-  constraint group_messages_attachment_id_fkey foreign KEY (attachment_id) references chat_attachments (id) on delete set null,
-  constraint group_messages_message_type_check check (
-    (
-      message_type = any (
-        array[
-          'text'::text,
-          'image'::text,
-          'file'::text,
-          'system'::text,
-          'share_post'::text
-        ]
-      )
-    )
-  ),
-  constraint group_messages_content_check check ((length(content) >= 1))
-) TABLESPACE pg_default;
-
-create index IF not exists idx_group_messages_conversation_id on public.group_messages using btree (conversation_id) TABLESPACE pg_default;
-
-create index IF not exists idx_group_messages_sender_id on public.group_messages using btree (sender_id) TABLESPACE pg_default;
-
-create index IF not exists idx_group_messages_created_at on public.group_messages using btree (conversation_id, created_at desc) TABLESPACE pg_default;
-
-create index IF not exists idx_group_messages_not_deleted on public.group_messages using btree (conversation_id, created_at desc) TABLESPACE pg_default
-where
-  (is_deleted = false);
-
-CREATE TABLE IF NOT EXISTS group_message_read_status (
-  id bigserial not null,
-  message_id bigint not null,
-  user_id bigint not null,
-  read_at timestamp with time zone not null default now(),
-  constraint group_message_read_status_pkey primary key (id),
-  constraint group_message_read_status_message_id_user_id_key unique (message_id, user_id),
-  constraint group_message_read_status_message_id_fkey foreign KEY (message_id) references group_messages (id) on delete CASCADE,
-  constraint group_message_read_status_user_id_fkey foreign KEY (user_id) references profiles (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create index IF not exists idx_group_message_read_status_message_id on public.group_message_read_status using btree (message_id) TABLESPACE pg_default;
-
-create index IF not exists idx_group_message_read_status_user_id on public.group_message_read_status using btree (user_id) TABLESPACE pg_default;
-
--- Direct Conversations table
-CREATE TABLE IF NOT EXISTS direct_conversations (
-  id bigserial not null,
-  public_id uuid not null default uuid_generate_v4 (),
-  participant1_id bigint not null,
-  participant2_id bigint not null,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  is_deleted boolean not null default false,
-  deleted_at timestamp with time zone null,
-  constraint direct_conversations_pkey primary key (id),
-  constraint unique_conversation unique (participant1_id, participant2_id),
-  constraint direct_conversations_participant1_id_fkey foreign KEY (participant1_id) references profiles (id) on delete CASCADE,
-  constraint direct_conversations_participant2_id_fkey foreign KEY (participant2_id) references profiles (id) on delete CASCADE,
-  constraint ordered_participants check ((participant1_id < participant2_id))
-) TABLESPACE pg_default;
-
-create index IF not exists idx_direct_conversations_participants on public.direct_conversations using btree (participant1_id, participant2_id) TABLESPACE pg_default;
-
-create index IF not exists idx_direct_conversations_updated_at on public.direct_conversations using btree (updated_at desc) TABLESPACE pg_default;
-
-create trigger update_direct_conversations_updated_at BEFORE
-update on direct_conversations for EACH row
-execute FUNCTION update_updated_at_column ();
-
--- Group Conversations table
-CREATE TABLE IF NOT EXISTS group_conversations (
-  id bigserial not null,
-  name text not null,
-  description text null,
-  avatar_url text null,
-  created_by bigint not null,
-  is_deleted boolean not null default false,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  constraint group_conversations_pkey primary key (id),
-  constraint group_conversations_created_by_fkey foreign KEY (created_by) references profiles (id) on delete CASCADE,
-  constraint group_conversations_description_check check ((length(description) <= 500)),
-  constraint group_conversations_name_check check (
-    (
-      (length(name) >= 1)
-      and (length(name) <= 100)
-    )
-  )
-) TABLESPACE pg_default;
-
-create index IF not exists idx_group_conversations_created_by on public.group_conversations using btree (created_by) TABLESPACE pg_default;
-
-create index IF not exists idx_group_conversations_created_at on public.group_conversations using btree (created_at desc) TABLESPACE pg_default;
-
-create index IF not exists idx_group_conversations_is_deleted on public.group_conversations using btree (is_deleted) TABLESPACE pg_default
-where
-  (is_deleted = false);
+|CREATE TABLE public.action (
+    id bigint DEFAULT nextval('action_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    report_id bigint,
+    actor_id bigint,
+    action text NOT NULL,
+    notes text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.admin_roles (
+    id bigint DEFAULT nextval('admin_roles_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    role_permission_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.ai_agent (
+    id bigint DEFAULT nextval('ai_agent_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    name text NOT NULL,
+    owner_id bigint,
+    purpose text,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.ai_run (
+    id bigint DEFAULT nextval('ai_run_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    agent_id bigint NOT NULL,
+    requester_id bigint,
+    input jsonb NOT NULL,
+    output jsonb,
+    status text DEFAULT 'queued'::text NOT NULL,
+    reviewed_by bigint,
+    reviewed_at timestamp with time zone,
+    review_note text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.ai_usage_stats (
+    id bigint DEFAULT nextval('ai_usage_stats_id_seq'::regclass) NOT NULL,
+    date date DEFAULT CURRENT_DATE NOT NULL,
+    api_key_name text NOT NULL,
+    model_name text NOT NULL,
+    total_requests integer DEFAULT 0,
+    successful_requests integer DEFAULT 0,
+    failed_requests integer DEFAULT 0,
+    total_tokens integer DEFAULT 0,
+    avg_response_time_ms integer DEFAULT 0,
+    min_response_time_ms integer DEFAULT 0,
+    max_response_time_ms integer DEFAULT 0,
+    estimated_cost_usd numeric(10,4) DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.ai_workflow_executions (
+    id bigint DEFAULT nextval('ai_workflow_executions_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    session_id text NOT NULL,
+    workflow_id text NOT NULL,
+    user_id bigint,
+    status text DEFAULT 'running'::text NOT NULL,
+    current_step text,
+    completed_steps integer DEFAULT 0,
+    total_steps integer NOT NULL,
+    step_results jsonb DEFAULT '{}'::jsonb,
+    final_result jsonb,
+    error_message text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    input_data jsonb NOT NULL,
+    execution_time_ms integer,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.ai_workflow_templates (
+    id bigint DEFAULT nextval('ai_workflow_templates_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    name text NOT NULL,
+    description text,
+    workflow_definition jsonb NOT NULL,
+    owner_id bigint,
+    visibility text DEFAULT 'private'::text NOT NULL,
+    category text,
+    tags text[] DEFAULT '{}'::text[],
+    usage_count integer DEFAULT 0,
+    average_rating numeric(3,2) DEFAULT 0,
+    is_active boolean DEFAULT true NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.announcements (
+    id bigint DEFAULT nextval('announcements_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    created_by bigint NOT NULL,
+    title text NOT NULL,
+    message text NOT NULL,
+    image_url text,
+    deep_link text,
+    status character varying(20) DEFAULT 'draft'::character varying,
+    scheduled_at timestamp with time zone,
+    sent_at timestamp with time zone,
+    onesignal_id text,
+    onesignal_response jsonb,
+    is_deleted boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.api_error_log (
+    id bigint DEFAULT nextval('api_error_log_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    key_name text NOT NULL,
+    error_message text NOT NULL,
+    error_type text NOT NULL,
+    request_data jsonb,
+    response_data jsonb,
+    http_status integer,
+    user_agent text,
+    ip_address inet,
+    workflow_session_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.audit_log (
+    id bigint DEFAULT nextval('audit_log_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    actor_id bigint,
+    action text NOT NULL,
+    subject_type text,
+    subject_id text,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.ban (
+    id bigint DEFAULT nextval('ban_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    target_id bigint NOT NULL,
+    reason text,
+    expires_at timestamp with time zone,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    target_type text DEFAULT 'user'::text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL
+);
+
+
+CREATE TABLE public.chat_attachments (
+    id bigint DEFAULT nextval('chat_attachments_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uploader_id bigint NOT NULL,
+    file_name text NOT NULL,
+    original_name text NOT NULL,
+    mime_type text NOT NULL,
+    size_bytes bigint NOT NULL,
+    file_url text NOT NULL,
+    storage_path text NOT NULL,
+    custom_message text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.checkins (
+    id bigint DEFAULT nextval('checkins_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    checkin_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom (
+    id bigint DEFAULT nextval('classroom_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    slug text,
+    name text NOT NULL,
+    description text,
+    class_code text NOT NULL,
+    visibility text DEFAULT 'public'::text,
+    owner_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    color text,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.classroom_answer (
+    id bigint DEFAULT nextval('classroom_answer_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    attempt_id bigint NOT NULL,
+    question_id bigint NOT NULL,
+    response jsonb,
+    is_correct boolean,
+    points_awarded numeric(6,2) DEFAULT 0 NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_assignment (
+    id bigint DEFAULT nextval('classroom_assignment_id_seq'::regclass) NOT NULL,
+    classroom_id bigint NOT NULL,
+    author_id bigint NOT NULL,
+    title text NOT NULL,
+    description text,
+    due_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    slug text,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.classroom_attachments (
+    id bigint DEFAULT nextval('classroom_attachments_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    owner_id bigint NOT NULL,
+    context_type text NOT NULL,
+    context_id bigint NOT NULL,
+    file_url text NOT NULL,
+    file_name text NOT NULL,
+    mime_type text NOT NULL,
+    size_bytes bigint NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    storage_path text DEFAULT ''::text NOT NULL,
+    extension text DEFAULT regexp_replace(file_name, '^.*\\.'::text, ''::text),
+    visibility text DEFAULT 'private'::text NOT NULL,
+    bucket text NOT NULL,
+    path text NOT NULL,
+    custom_message text
+);
+
+
+CREATE TABLE public.classroom_attempt (
+    id bigint DEFAULT nextval('classroom_attempt_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    quiz_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    submitted_at timestamp with time zone,
+    score numeric(8,2) DEFAULT 0 NOT NULL,
+    proctoring_data jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_attendance (
+    id bigint DEFAULT nextval('classroom_attendance_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    session_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    join_at timestamp with time zone,
+    leave_at timestamp with time zone,
+    status text DEFAULT 'present'::text,
+    signed_at timestamp with time zone,
+    attention_score numeric(5,2),
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_chat_message (
+    id bigint DEFAULT nextval('classroom_chat_message_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    session_id bigint NOT NULL,
+    sender_id bigint NOT NULL,
+    message text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    attachment_id bigint
+);
+
+
+CREATE TABLE public.classroom_engagement_report (
+    id bigint DEFAULT nextval('classroom_engagement_report_id_seq'::regclass) NOT NULL,
+    user_id bigint NOT NULL,
+    course_id bigint NOT NULL,
+    participation_score numeric(5,2),
+    report jsonb,
+    generated_at timestamp with time zone DEFAULT now()
+);
+
+
+CREATE TABLE public.classroom_grade (
+    id bigint DEFAULT nextval('classroom_grade_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    assignment_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    grader_id bigint,
+    score numeric(8,2) NOT NULL,
+    feedback text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_live_session (
+    id bigint DEFAULT nextval('classroom_live_session_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    classroom_id bigint NOT NULL,
+    title text,
+    host_id bigint NOT NULL,
+    starts_at timestamp with time zone NOT NULL,
+    ends_at timestamp with time zone,
+    status text DEFAULT 'scheduled'::text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    slug text,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.classroom_member (
+    id bigint DEFAULT nextval('classroom_member_id_seq'::regclass) NOT NULL,
+    classroom_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role text DEFAULT 'student'::text,
+    permissions jsonb DEFAULT '{}'::jsonb,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    slug text
+);
+
+
+CREATE TABLE public.classroom_post_comments (
+    id bigint DEFAULT nextval('classroom_post_comments_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    post_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    content text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_post_reactions (
+    id bigint DEFAULT nextval('classroom_post_reactions_id_seq'::regclass) NOT NULL,
+    post_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    reaction_type text NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+CREATE TABLE public.classroom_posts (
+    id bigint DEFAULT nextval('classroom_posts_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    session_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    content text NOT NULL,
+    attachments jsonb DEFAULT '[]'::jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.classroom_question (
+    id bigint DEFAULT nextval('classroom_question_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    bank_id bigint,
+    stem text NOT NULL,
+    kind text NOT NULL,
+    choices jsonb,
+    answer jsonb,
+    difficulty integer,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_question_bank (
+    id bigint DEFAULT nextval('classroom_question_bank_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    owner_id bigint NOT NULL,
+    title text NOT NULL,
+    topic_tags text[] DEFAULT '{}'::text[],
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_quiz (
+    id bigint DEFAULT nextval('classroom_quiz_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    classroom_id bigint NOT NULL,
+    title text NOT NULL,
+    settings jsonb DEFAULT '{"shuffle": true, "time_limit": null}'::jsonb NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    slug text
+);
+
+
+CREATE TABLE public.classroom_quiz_question (
+    id bigint DEFAULT nextval('classroom_quiz_question_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    quiz_id bigint NOT NULL,
+    question_id bigint NOT NULL,
+    points numeric(6,2) DEFAULT 1 NOT NULL,
+    position integer DEFAULT 1 NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_recording (
+    id bigint DEFAULT nextval('classroom_recording_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    session_id bigint NOT NULL,
+    url text NOT NULL,
+    duration_sec integer,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.classroom_submission (
+    id bigint DEFAULT nextval('classroom_submission_id_seq'::regclass) NOT NULL,
+    assignment_id bigint NOT NULL,
+    student_id bigint NOT NULL,
+    content text,
+    submitted_at timestamp with time zone DEFAULT now(),
+    grade numeric,
+    feedback text,
+    attachments_id bigint
+);
+
+
+CREATE TABLE public.classroom_whiteboard_event (
+    id bigint DEFAULT nextval('classroom_whiteboard_event_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    wb_id bigint NOT NULL,
+    actor_id bigint,
+    kind text NOT NULL,
+    payload jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.classroom_whiteboard_session (
+    id bigint DEFAULT nextval('classroom_whiteboard_session_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    session_id bigint,
+    title text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.coach_notifications (
+    id bigint DEFAULT nextval('coach_notifications_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    notification_type text NOT NULL,
+    title text NOT NULL,
+    message text NOT NULL,
+    scheduled_at timestamp with time zone NOT NULL,
+    sent_at timestamp with time zone,
+    onesignal_id text,
+    related_plan_id bigint,
+    related_task_id bigint,
+    related_retro_id bigint,
+    status text DEFAULT 'scheduled'::text NOT NULL,
+    delivery_status text,
+    error_message text,
+    clicked boolean DEFAULT false,
+    clicked_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.coach_settings (
+    id bigint DEFAULT nextval('coach_settings_id_seq'::regclass) NOT NULL,
+    user_id bigint NOT NULL,
+    daily_plan_time time without time zone DEFAULT '08:00:00'::time without time zone NOT NULL,
+    evening_retro_time time without time zone DEFAULT '20:00:00'::time without time zone NOT NULL,
+    preferred_difficulty text DEFAULT 'medium'::text,
+    target_daily_minutes integer DEFAULT 60,
+    max_daily_tasks integer DEFAULT 8,
+    enable_daily_plan boolean DEFAULT true,
+    enable_task_reminders boolean DEFAULT true,
+    enable_evening_retro boolean DEFAULT true,
+    enable_motivation_messages boolean DEFAULT true,
+    enable_achievement_celebrations boolean DEFAULT true,
+    enable_streak_reminders boolean DEFAULT true,
+    coaching_style text DEFAULT 'balanced'::text,
+    motivation_type text DEFAULT 'mixed'::text,
+    preferred_session_length integer DEFAULT 25,
+    break_reminder_interval integer DEFAULT 50,
+    timezone text DEFAULT 'Asia/Kuala_Lumpur'::text,
+    language text DEFAULT 'en'::text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_achievement (
+    id bigint DEFAULT nextval('community_achievement_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    rule jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.community_checkin (
+    id bigint DEFAULT nextval('community_checkin_id_seq'::regclass) NOT NULL,
+    user_id bigint NOT NULL,
+    checkin_date date DEFAULT CURRENT_DATE NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_comment (
+    id bigint DEFAULT nextval('community_comment_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    post_id bigint NOT NULL,
+    author_id bigint NOT NULL,
+    parent_id bigint,
+    body text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.community_comment_files (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    comment_id uuid,
+    url text NOT NULL,
+    file_name text NOT NULL,
+    mime_type text NOT NULL
+);
+
+
+CREATE TABLE public.community_group (
+    id bigint DEFAULT nextval('community_group_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    name text NOT NULL,
+    description text,
+    slug text NOT NULL,
+    visibility text DEFAULT 'public'::text,
+    owner_id bigint NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.community_group_member (
+    id bigint DEFAULT nextval('community_group_member_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    group_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role text DEFAULT 'member'::text,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.community_points_ledger (
+    id bigint DEFAULT nextval('community_points_ledger_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    points integer NOT NULL,
+    reason text,
+    ref jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.community_post (
+    id bigint DEFAULT nextval('community_post_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    group_id bigint,
+    author_id bigint NOT NULL,
+    title text,
+    body text,
+    slug text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.community_post_files (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    post_id uuid,
+    url text NOT NULL,
+    file_name text NOT NULL,
+    mime_type text NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz (
+    id bigint DEFAULT nextval('community_quiz_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    slug text NOT NULL,
+    author_id uuid NOT NULL,
+    title text NOT NULL,
+    description text,
+    tags text[],
+    difficulty integer,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    max_attempts integer DEFAULT 1 NOT NULL,
+    visibility text DEFAULT 'public'::text,
+    time_limit_minutes integer,
+    subject_id bigint,
+    grade_id bigint,
+    search_vector_en tsvector,
+    search_vector_zh tsvector,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.community_quiz_attempt (
+    id bigint DEFAULT nextval('community_quiz_attempt_id_seq'::regclass) NOT NULL,
+    quiz_id bigint NOT NULL,
+    user_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    status character varying(20) DEFAULT 'not_started'::character varying NOT NULL,
+    score integer DEFAULT 0 NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz_attempt_answer (
+    id bigint DEFAULT nextval('community_quiz_attempt_answer_id_seq'::regclass) NOT NULL,
+    attempt_id bigint NOT NULL,
+    question_id bigint NOT NULL,
+    user_answer text[],
+    is_correct boolean
+);
+
+
+CREATE TABLE public.community_quiz_attempt_session (
+    id bigint DEFAULT nextval('community_quiz_attempt_session_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    attempt_id bigint NOT NULL,
+    quiz_id bigint NOT NULL,
+    user_id uuid NOT NULL,
+    session_token character varying(255) NOT NULL,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    time_limit_minutes integer,
+    time_spent_seconds integer DEFAULT 0 NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_activity_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone,
+    current_question_index integer DEFAULT 0 NOT NULL,
+    total_questions integer NOT NULL,
+    browser_info jsonb,
+    ip_address inet,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz_grade (
+    id bigint DEFAULT nextval('community_quiz_grade_id_seq'::regclass) NOT NULL,
+    code text NOT NULL,
+    translations jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz_invite_token (
+    id bigint DEFAULT nextval('community_quiz_invite_token_id_seq'::regclass) NOT NULL,
+    token text NOT NULL,
+    quiz_id bigint NOT NULL,
+    permission_type text NOT NULL,
+    created_by uuid NOT NULL,
+    expires_at timestamp with time zone,
+    max_uses integer,
+    current_uses integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz_like (
+    id bigint DEFAULT nextval('community_quiz_like_id_seq'::regclass) NOT NULL,
+    quiz_id bigint NOT NULL,
+    user_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz_permission (
+    id bigint DEFAULT nextval('community_quiz_permission_id_seq'::regclass) NOT NULL,
+    quiz_id bigint NOT NULL,
+    user_id uuid NOT NULL,
+    permission_type text NOT NULL,
+    granted_by uuid NOT NULL,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_quiz_question (
+    id bigint DEFAULT nextval('community_quiz_question_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    quiz_id bigint NOT NULL,
+    slug text NOT NULL,
+    question_text text NOT NULL,
+    options text[],
+    correct_answers text[],
+    explanation text,
+    question_type text DEFAULT 'single_choice'::text NOT NULL,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.community_quiz_subject (
+    id bigint DEFAULT nextval('community_quiz_subject_id_seq'::regclass) NOT NULL,
+    code text NOT NULL,
+    translations jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_reaction (
+    id bigint DEFAULT nextval('community_reaction_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    target_type text NOT NULL,
+    target_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    emoji text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.community_user_achievement (
+    id bigint DEFAULT nextval('community_user_achievement_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    achievement_id bigint NOT NULL,
+    current_value integer DEFAULT 0 NOT NULL,
+    unlocked boolean DEFAULT false NOT NULL,
+    unlocked_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.conversation_settings (
+    id bigint DEFAULT nextval('conversation_settings_id_seq'::regclass) NOT NULL,
+    conversation_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    is_muted boolean DEFAULT false NOT NULL,
+    is_archived boolean DEFAULT false NOT NULL,
+    is_pinned boolean DEFAULT false NOT NULL,
+    last_read_message_id bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.course (
+    id bigint DEFAULT nextval('course_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    owner_id bigint NOT NULL,
+    title text NOT NULL,
+    description text,
+    visibility text DEFAULT 'private'::text NOT NULL,
+    price_cents integer DEFAULT 0,
+    currency text DEFAULT 'MYR'::text,
+    tags text[] DEFAULT '{}'::text[],
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    thumbnail_url text,
+    level text DEFAULT 'beginner'::text,
+    total_lessons integer DEFAULT 0,
+    total_duration_minutes integer DEFAULT 0,
+    average_rating numeric(3,2) DEFAULT 0,
+    total_students integer DEFAULT 0,
+    is_free boolean DEFAULT false NOT NULL,
+    slug text,
+    video_intro_url text,
+    requirements text[],
+    learning_objectives text[],
+    category text,
+    language text DEFAULT 'en'::text,
+    certificate_template text,
+    auto_create_classroom boolean DEFAULT true,
+    auto_create_community boolean DEFAULT true,
+    status text DEFAULT 'inactive'::text,
+    community_group_public_id uuid,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.course_analytics (
+    id bigint DEFAULT nextval('course_analytics_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    course_id bigint NOT NULL,
+    lesson_id bigint,
+    event_type text NOT NULL,
+    event_data jsonb DEFAULT '{}'::jsonb,
+    session_id uuid,
+    timestamp timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_attachments (
+    id bigint DEFAULT nextval('course_attachments_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    owner_id bigint NOT NULL,
+    title text NOT NULL,
+    size integer,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    url text NOT NULL,
+    cloudinary_hls_url text,
+    cloudinary_processed_at timestamp with time zone,
+    cloudinary_public_id text,
+    type text DEFAULT 'other'::text,
+    cloudinary_mp3 text
+);
+
+
+CREATE TABLE public.course_certificate (
+    id bigint DEFAULT nextval('course_certificate_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    course_id bigint NOT NULL,
+    certificate_url text,
+    completion_percentage numeric(5,2) NOT NULL,
+    final_score numeric(5,2),
+    issued_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_chapter (
+    id bigint DEFAULT nextval('course_chapter_id_seq'::regclass) NOT NULL,
+    lesson_id bigint NOT NULL,
+    title text NOT NULL,
+    description text,
+    start_time_sec integer,
+    end_time_sec integer,
+    order_index integer DEFAULT 1 NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    is_deleted boolean DEFAULT false NOT NULL,
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.course_concept (
+    id bigint DEFAULT nextval('course_concept_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    name text NOT NULL,
+    description text,
+    embedding vector(1536),
+    difficulty_level integer DEFAULT 1,
+    estimated_time_minutes integer DEFAULT 30,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_concept_lesson (
+    id bigint DEFAULT nextval('course_concept_lesson_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    concept_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    relevance_score numeric(3,2) DEFAULT 1.0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_concept_link (
+    id bigint DEFAULT nextval('course_concept_link_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    source_concept_id bigint NOT NULL,
+    target_concept_id bigint NOT NULL,
+    relation_type text NOT NULL,
+    strength numeric(3,2) DEFAULT 1.0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_discussion (
+    id bigint DEFAULT nextval('course_discussion_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    lesson_id bigint,
+    author_id bigint NOT NULL,
+    title text NOT NULL,
+    content text NOT NULL,
+    is_pinned boolean DEFAULT false,
+    is_resolved boolean DEFAULT false,
+    view_count integer DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_discussion_reply (
+    id bigint DEFAULT nextval('course_discussion_reply_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    discussion_id bigint NOT NULL,
+    author_id bigint NOT NULL,
+    parent_reply_id bigint,
+    content text NOT NULL,
+    is_solution boolean DEFAULT false,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_enrollment (
+    id bigint DEFAULT nextval('course_enrollment_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role text DEFAULT 'student'::text NOT NULL,
+    status text DEFAULT 'active'::text NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.course_lesson (
+    id bigint DEFAULT nextval('course_lesson_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    module_id bigint,
+    title text NOT NULL,
+    kind text NOT NULL,
+    content_url text,
+    duration_sec integer,
+    live_session_id bigint,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    slug text,
+    position integer DEFAULT 1,
+    description text,
+    is_preview boolean DEFAULT false,
+    transcript text,
+    attachments jsonb DEFAULT '[]'::jsonb,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.course_module (
+    id bigint DEFAULT nextval('course_module_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    title text NOT NULL,
+    position integer DEFAULT 1 NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_notes (
+    id bigint DEFAULT nextval('course_notes_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint,
+    timestamp_sec integer,
+    content text NOT NULL,
+    ai_summary text,
+    tags text[] DEFAULT '{}'::text[],
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    title text,
+    note_type text DEFAULT 'manual'::text,
+    course_id bigint,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.course_order (
+    id bigint DEFAULT nextval('course_order_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    buyer_id bigint NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    total_cents integer DEFAULT 0 NOT NULL,
+    currency text DEFAULT 'MYR'::text NOT NULL,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_order_item (
+    id bigint DEFAULT nextval('course_order_item_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    order_id bigint NOT NULL,
+    product_id bigint NOT NULL,
+    quantity integer DEFAULT 1 NOT NULL,
+    unit_price_cents integer NOT NULL,
+    subtotal_cents integer NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_payment (
+    id bigint DEFAULT nextval('course_payment_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    order_id bigint NOT NULL,
+    provider text NOT NULL,
+    provider_ref text,
+    amount_cents integer NOT NULL,
+    status text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_point_price (
+    id bigint DEFAULT nextval('course_point_price_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    point_price integer NOT NULL,
+    discount_pct numeric(5,2) DEFAULT 0,
+    is_active boolean DEFAULT true,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_product (
+    id bigint DEFAULT nextval('course_product_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    kind text NOT NULL,
+    ref_id bigint,
+    title text NOT NULL,
+    price_cents integer NOT NULL,
+    currency text DEFAULT 'MYR'::text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    metadata jsonb DEFAULT '{}'::jsonb
+);
+
+
+CREATE TABLE public.course_progress (
+    id bigint DEFAULT nextval('course_progress_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    state text DEFAULT 'not_started'::text NOT NULL,
+    progress_pct numeric(5,2) DEFAULT 0 NOT NULL,
+    last_seen_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    ai_recommendation jsonb DEFAULT '{}'::jsonb,
+    time_spent_sec integer DEFAULT 0,
+    completion_date timestamp with time zone,
+    video_position_sec integer DEFAULT 0,
+    video_duration_sec integer DEFAULT 0,
+    last_accessed_at timestamp with time zone DEFAULT now(),
+    lesson_kind text DEFAULT 'video'::text,
+    is_continue_watching boolean DEFAULT false,
+    is_deleted boolean DEFAULT false NOT NULL
+);
+
+
+CREATE TABLE public.course_quiz_question (
+    id bigint DEFAULT nextval('course_quiz_question_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    lesson_id bigint NOT NULL,
+    question_text text NOT NULL,
+    question_type text NOT NULL,
+    options jsonb,
+    correct_answer jsonb NOT NULL,
+    explanation text,
+    points integer DEFAULT 1,
+    difficulty integer DEFAULT 1,
+    position integer DEFAULT 1,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    user_id bigint NOT NULL,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.course_quiz_submission (
+    id bigint DEFAULT nextval('course_quiz_submission_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    question_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    user_answer jsonb NOT NULL,
+    is_correct boolean NOT NULL,
+    points_earned integer DEFAULT 0,
+    time_taken_sec integer,
+    attempt_number integer DEFAULT 1,
+    submitted_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.course_reviews (
+    id bigint DEFAULT nextval('course_reviews_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    course_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    rating integer NOT NULL,
+    comment text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.currencies (
+    id bigint DEFAULT nextval('currencies_id_seq'::regclass) NOT NULL,
+    code character(3) NOT NULL,
+    name character varying(100),
+    country character varying(100),
+    symbol character varying(10),
+    rate_to_usd numeric(15,6),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.daily_learning_plans (
+    id bigint DEFAULT nextval('daily_learning_plans_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    plan_date date NOT NULL,
+    plan_title text NOT NULL,
+    plan_description text,
+    ai_insights text,
+    motivation_message text,
+    total_tasks integer DEFAULT 0 NOT NULL,
+    completed_tasks integer DEFAULT 0 NOT NULL,
+    total_points integer DEFAULT 0 NOT NULL,
+    earned_points integer DEFAULT 0 NOT NULL,
+    estimated_duration_minutes integer DEFAULT 0 NOT NULL,
+    actual_duration_minutes integer DEFAULT 0,
+    status text DEFAULT 'active'::text NOT NULL,
+    completion_rate numeric(5,2) DEFAULT 0.00,
+    ai_model_version text,
+    generation_context jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone
+);
+
+
+CREATE TABLE public.daily_plan_tasks (
+    id bigint DEFAULT nextval('daily_plan_tasks_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    plan_id bigint NOT NULL,
+    task_title text NOT NULL,
+    task_description text,
+    task_type text NOT NULL,
+    related_course_id bigint,
+    related_lesson_id bigint,
+    related_content_type text,
+    related_content_id text,
+    priority text DEFAULT 'medium'::text NOT NULL,
+    difficulty text DEFAULT 'medium'::text NOT NULL,
+    estimated_minutes integer DEFAULT 15 NOT NULL,
+    actual_minutes integer DEFAULT 0,
+    points_reward integer DEFAULT 5 NOT NULL,
+    is_completed boolean DEFAULT false NOT NULL,
+    completion_progress numeric(5,2) DEFAULT 0.00,
+    completed_at timestamp with time zone,
+    position integer DEFAULT 0 NOT NULL,
+    category text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.direct_conversations (
+    id bigint DEFAULT nextval('direct_conversations_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    participant1_id bigint NOT NULL,
+    participant2_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.direct_messages (
+    id bigint DEFAULT nextval('direct_messages_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    conversation_id bigint NOT NULL,
+    sender_id bigint NOT NULL,
+    content text NOT NULL,
+    message_type text DEFAULT 'text'::text NOT NULL,
+    attachment_id bigint,
+    reply_to_id bigint,
+    is_edited boolean DEFAULT false NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    delivered_at timestamp with time zone
+);
+
+
+CREATE TABLE public.document_hierarchy (
+    id bigint DEFAULT nextval('document_hierarchy_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    content_type text NOT NULL,
+    content_id bigint NOT NULL,
+    document_title text,
+    document_structure jsonb,
+    summary_embedding_id bigint,
+    total_chunks integer DEFAULT 0,
+    estimated_reading_time integer DEFAULT 0,
+    has_table_of_contents boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.embedding_queue (
+    id bigint DEFAULT nextval('embedding_queue_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    content_type text NOT NULL,
+    content_id bigint NOT NULL,
+    content_text text NOT NULL,
+    content_hash text NOT NULL,
+    priority integer DEFAULT 5,
+    scheduled_at timestamp with time zone DEFAULT now(),
+    processing_started_at timestamp with time zone,
+    retry_count integer DEFAULT 0,
+    max_retries integer DEFAULT 3,
+    status text DEFAULT 'queued'::text NOT NULL,
+    error_message text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.embedding_searches (
+    id bigint DEFAULT nextval('embedding_searches_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint,
+    query_text text NOT NULL,
+    query_embedding vector(384),
+    content_types text[] DEFAULT '{}'::text[],
+    similarity_threshold numeric(3,2) DEFAULT 0.7,
+    max_results integer DEFAULT 10,
+    results_count integer DEFAULT 0,
+    results_data jsonb DEFAULT '[]'::jsonb,
+    processing_time_ms integer,
+    embedding_time_ms integer,
+    search_time_ms integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.embeddings (
+    id bigint DEFAULT nextval('embeddings_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    content_type text NOT NULL,
+    content_id bigint NOT NULL,
+    content_hash text NOT NULL,
+    embedding vector(384),
+    content_text text NOT NULL,
+    embedding_model text DEFAULT 'intfloat/e5-small'::text,
+    language text DEFAULT 'en'::text,
+    token_count integer,
+    status text DEFAULT 'pending'::text NOT NULL,
+    error_message text,
+    retry_count integer DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    chunk_type text,
+    hierarchy_level integer DEFAULT 0,
+    parent_chunk_id bigint,
+    section_title text,
+    semantic_density double precision,
+    key_terms text[],
+    sentence_count integer DEFAULT 0,
+    word_count integer DEFAULT 0,
+    has_code_block boolean DEFAULT false,
+    has_table boolean DEFAULT false,
+    has_list boolean DEFAULT false,
+    chunk_language text DEFAULT 'en'::text
+);
+
+
+CREATE TABLE public.group_conversations (
+    id bigint DEFAULT nextval('group_conversations_id_seq'::regclass) NOT NULL,
+    name text NOT NULL,
+    description text,
+    avatar_url text,
+    created_by bigint NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.group_members (
+    id bigint DEFAULT nextval('group_members_id_seq'::regclass) NOT NULL,
+    conversation_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role text DEFAULT 'member'::text NOT NULL,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    left_at timestamp with time zone
+);
+
+
+CREATE TABLE public.group_message_read_status (
+    id bigint DEFAULT nextval('group_message_read_status_id_seq'::regclass) NOT NULL,
+    message_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    read_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.group_messages (
+    id bigint DEFAULT nextval('group_messages_id_seq'::regclass) NOT NULL,
+    conversation_id bigint NOT NULL,
+    sender_id bigint NOT NULL,
+    content text NOT NULL,
+    attachment_id bigint,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    message_type text DEFAULT 'text'::text NOT NULL,
+    reply_to_id bigint,
+    is_edited boolean DEFAULT false NOT NULL
+);
+
+
+CREATE TABLE public.hashtags (
+    id bigint DEFAULT nextval('hashtags_id_seq'::regclass) NOT NULL,
+    name text NOT NULL,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.learning_goal (
+    id bigint DEFAULT nextval('learning_goal_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    goal_type text NOT NULL,
+    target_value integer NOT NULL,
+    current_value integer DEFAULT 0,
+    target_date date,
+    reward_type text,
+    reward_value integer DEFAULT 0,
+    status text DEFAULT 'active'::text NOT NULL,
+    completion_date timestamp with time zone,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.learning_path (
+    id bigint DEFAULT nextval('learning_path_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    goal text NOT NULL,
+    duration integer NOT NULL,
+    progress numeric(5,2) DEFAULT 0,
+    is_active boolean DEFAULT true NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.learning_paths (
+    id bigint DEFAULT nextval('learning_paths_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    title text NOT NULL,
+    description text,
+    learning_goal text NOT NULL,
+    current_level text,
+    time_constraint text,
+    mermaid_diagram text,
+    roadmap jsonb DEFAULT '[]'::jsonb,
+    recommended_courses jsonb DEFAULT '[]'::jsonb,
+    quiz_suggestions jsonb DEFAULT '[]'::jsonb,
+    study_tips jsonb DEFAULT '[]'::jsonb,
+    is_active boolean DEFAULT true NOT NULL,
+    progress_pct numeric(5,2) DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.learning_retrospectives (
+    id bigint DEFAULT nextval('learning_retrospectives_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    plan_id bigint,
+    retro_date date NOT NULL,
+    retro_type text DEFAULT 'daily'::text NOT NULL,
+    self_rating integer,
+    mood_rating text,
+    energy_level integer,
+    focus_quality integer,
+    achievements_today text,
+    challenges_faced text,
+    lessons_learned text,
+    improvements_needed text,
+    tomorrow_goals text,
+    ai_analysis text,
+    ai_suggestions text,
+    ai_next_focus text,
+    strengths_identified text,
+    weaknesses_identified text,
+    learning_patterns text,
+    study_time_minutes integer DEFAULT 0,
+    tasks_completed integer DEFAULT 0,
+    points_earned integer DEFAULT 0,
+    courses_progressed integer DEFAULT 0,
+    achievements_unlocked integer DEFAULT 0,
+    ai_model_version text,
+    analysis_context jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.learning_statistics (
+    id bigint DEFAULT nextval('learning_statistics_id_seq'::regclass) NOT NULL,
+    user_id bigint NOT NULL,
+    stat_date date DEFAULT CURRENT_DATE NOT NULL,
+    total_study_minutes integer DEFAULT 0,
+    courses_completed integer DEFAULT 0,
+    lessons_completed integer DEFAULT 0,
+    quizzes_taken integer DEFAULT 0,
+    points_earned integer DEFAULT 0,
+    achievements_unlocked integer DEFAULT 0,
+    study_streak_days integer DEFAULT 0,
+    avg_engagement_score numeric(3,2),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.message_read_status (
+    id bigint DEFAULT nextval('message_read_status_id_seq'::regclass) NOT NULL,
+    message_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    read_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.mfa_attempts (
+    id bigint DEFAULT nextval('mfa_attempts_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    attempt_type text NOT NULL,
+    success boolean DEFAULT false NOT NULL,
+    ip_address inet,
+    user_agent text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.milestone (
+    id bigint DEFAULT nextval('milestone_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    path_id bigint NOT NULL,
+    title text NOT NULL,
+    description text,
+    order_index integer NOT NULL,
+    status text DEFAULT 'locked'::text NOT NULL,
+    resource_type text,
+    resource_id bigint,
+    prerequisites jsonb,
+    reward jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.mistake_book (
+    id bigint DEFAULT nextval('mistake_book_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    assignment_id bigint,
+    submission_id bigint,
+    question_id bigint,
+    mistake_content text NOT NULL,
+    analysis text,
+    source_type text DEFAULT 'manual'::text,
+    knowledge_points text[],
+    recommended_exercises jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    course_question_id bigint,
+    course_id bigint,
+    lesson_id bigint,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.notification_categories (
+    id bigint DEFAULT nextval('notification_categories_id_seq'::regclass) NOT NULL,
+    name text NOT NULL,
+    display_name text NOT NULL,
+    description text,
+    default_enabled boolean DEFAULT true NOT NULL,
+    icon text,
+    color text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.notification_delivery_log (
+    id bigint DEFAULT nextval('notification_delivery_log_id_seq'::regclass) NOT NULL,
+    notification_id bigint NOT NULL,
+    delivery_method text NOT NULL,
+    onesignal_notification_id text,
+    delivery_status text DEFAULT 'pending'::text NOT NULL,
+    delivery_response jsonb,
+    attempted_at timestamp with time zone DEFAULT now() NOT NULL,
+    delivered_at timestamp with time zone,
+    error_message text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.notification_templates (
+    id bigint DEFAULT nextval('notification_templates_id_seq'::regclass) NOT NULL,
+    name text NOT NULL,
+    category_id bigint NOT NULL,
+    title_template text NOT NULL,
+    message_template text NOT NULL,
+    action_url_template text,
+    icon_url text,
+    default_channels text[] DEFAULT ARRAY['push'::text, 'in_app'::text],
+    variables jsonb,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.notifications (
+    id bigint DEFAULT nextval('notifications_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    kind text NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_read boolean DEFAULT false NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    category_id bigint
+);
+
+
+CREATE TABLE public.password_reset_tokens (
+    id bigint DEFAULT nextval('password_reset_tokens_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    token_hash text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    ip_address inet,
+    user_agent text
+);
+
+
+CREATE TABLE public.permissions (
+    id bigint DEFAULT nextval('permissions_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    title text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.plagiarism_report (
+    id bigint DEFAULT nextval('plagiarism_report_id_seq'::regclass) NOT NULL,
+    submission_id bigint NOT NULL,
+    similarity_score numeric,
+    report jsonb,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+CREATE TABLE public.point_redemption (
+    id bigint DEFAULT nextval('point_redemption_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    course_id bigint NOT NULL,
+    points_spent integer NOT NULL,
+    original_price_cents integer,
+    discount_applied numeric(5,2) DEFAULT 0,
+    status text DEFAULT 'pending'::text NOT NULL,
+    redemption_date timestamp with time zone DEFAULT now() NOT NULL,
+    completion_date timestamp with time zone,
+    failure_reason text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.post_hashtags (
+    post_id uuid NOT NULL,
+    hashtag_id bigint NOT NULL
+);
+
+
+CREATE TABLE public.profiles (
+    id bigint DEFAULT nextval('profiles_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    display_name text,
+    role text NOT NULL,
+    avatar_url text,
+    bio text,
+    timezone text DEFAULT 'Asia/Kuala_Lumpur'::text,
+    status text DEFAULT 'active'::text NOT NULL,
+    banned_reason text,
+    banned_at timestamp with time zone,
+    points integer DEFAULT 0 NOT NULL,
+    onboarded boolean DEFAULT false NOT NULL,
+    onboarded_step integer DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_login timestamp with time zone,
+    deleted_at timestamp with time zone,
+    email text,
+    full_name text,
+    preferences jsonb DEFAULT '{}'::jsonb,
+    theme text DEFAULT 'system'::text,
+    language text DEFAULT 'en'::text,
+    notification_settings jsonb DEFAULT '{"course_updates": true, "marketing_emails": false, "community_updates": false, "push_notifications": true, "email_notifications": true}'::jsonb,
+    privacy_settings jsonb DEFAULT '{"show_email": false, "show_progress": true, "data_collection": true, "profile_visibility": "public"}'::jsonb,
+    two_factor_enabled boolean DEFAULT false,
+    email_verified boolean DEFAULT false,
+    profile_completion integer DEFAULT 0,
+    onesignal_player_id text,
+    onesignal_external_id text,
+    push_subscription_status text DEFAULT 'unknown'::text,
+    totp_secret text,
+    totp_backup_codes jsonb DEFAULT '[]'::jsonb,
+    totp_enabled_at timestamp with time zone,
+    last_password_change timestamp with time zone DEFAULT now(),
+    currency text DEFAULT 'MYR'::text,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.report (
+    id bigint DEFAULT nextval('report_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    reporter_id bigint,
+    subject_type text NOT NULL,
+    subject_id text NOT NULL,
+    reason text,
+    status text DEFAULT 'open'::text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.role_permission (
+    id bigint DEFAULT nextval('role_permission_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    role_id bigint NOT NULL,
+    permission_id bigint NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.roles (
+    id bigint DEFAULT nextval('roles_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    title text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.study_session (
+    id bigint DEFAULT nextval('study_session_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint,
+    course_id bigint,
+    session_start timestamp with time zone DEFAULT now() NOT NULL,
+    session_end timestamp with time zone,
+    duration_minutes integer DEFAULT 0,
+    activity_type text DEFAULT 'video_watching'::text,
+    engagement_score numeric(3,2),
+    progress_made numeric(5,2) DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutor_earnings (
+    id bigint DEFAULT nextval('tutor_earnings_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    tutor_id bigint NOT NULL,
+    source_type text NOT NULL,
+    source_id bigint,
+    gross_amount_cents integer NOT NULL,
+    platform_fee_cents integer NOT NULL,
+    tutor_amount_cents integer NOT NULL,
+    currency text DEFAULT 'MYR'::text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    release_date timestamp with time zone,
+    payout_id bigint,
+    payment_intent_id text,
+    stripe_transfer_id text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutor_earnings_summary (
+    id bigint DEFAULT nextval('tutor_earnings_summary_id_seq'::regclass) NOT NULL,
+    tutor_id bigint NOT NULL,
+    total_earnings_cents integer DEFAULT 0,
+    pending_earnings_cents integer DEFAULT 0,
+    released_earnings_cents integer DEFAULT 0,
+    paid_out_earnings_cents integer DEFAULT 0,
+    current_month_earnings_cents integer DEFAULT 0,
+    previous_month_earnings_cents integer DEFAULT 0,
+    total_sales_count integer DEFAULT 0,
+    students_taught_count integer DEFAULT 0,
+    courses_sold_count integer DEFAULT 0,
+    last_payout_at timestamp with time zone,
+    next_payout_date timestamp with time zone,
+    currency text DEFAULT 'MYR'::text NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.tutor_payouts (
+    id bigint DEFAULT nextval('tutor_payouts_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    tutor_id bigint NOT NULL,
+    stripe_payout_id text,
+    amount_cents integer NOT NULL,
+    currency text DEFAULT 'MYR'::text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    payout_method text DEFAULT 'standard'::text,
+    estimated_arrival timestamp with time zone,
+    actual_arrival timestamp with time zone,
+    failure_code text,
+    failure_message text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutor_stripe_accounts (
+    id bigint DEFAULT nextval('tutor_stripe_accounts_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    tutor_id bigint NOT NULL,
+    stripe_account_id text NOT NULL,
+    account_status text DEFAULT 'pending'::text NOT NULL,
+    charges_enabled boolean DEFAULT false,
+    payouts_enabled boolean DEFAULT false,
+    country text DEFAULT 'MY'::text NOT NULL,
+    currency text DEFAULT 'MYR'::text NOT NULL,
+    account_type text DEFAULT 'express'::text,
+    onboarding_completed boolean DEFAULT false,
+    onboarding_url text,
+    requirements jsonb DEFAULT '{}'::jsonb,
+    capabilities jsonb DEFAULT '{}'::jsonb,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutoring_appointments (
+    id bigint DEFAULT nextval('tutoring_appointments_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    tutor_id bigint NOT NULL,
+    student_id bigint NOT NULL,
+    scheduled_at timestamp with time zone NOT NULL,
+    duration_min integer NOT NULL,
+    status text DEFAULT 'requested'::text NOT NULL,
+    notes text,
+    created_by bigint,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutoring_availability (
+    id bigint DEFAULT nextval('tutoring_availability_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    tutor_id bigint NOT NULL,
+    start_at timestamp with time zone NOT NULL,
+    end_at timestamp with time zone NOT NULL,
+    rrule text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutoring_file (
+    id bigint DEFAULT nextval('tutoring_file_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    owner_id bigint NOT NULL,
+    path text NOT NULL,
+    mime_type text,
+    size_bytes bigint,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutoring_note (
+    id bigint DEFAULT nextval('tutoring_note_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    owner_id bigint NOT NULL,
+    title text,
+    body text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.tutoring_share (
+    id bigint DEFAULT nextval('tutoring_share_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    resource_kind text NOT NULL,
+    resource_id bigint NOT NULL,
+    shared_with bigint,
+    access text NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutoring_students (
+    id bigint DEFAULT nextval('tutoring_students_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    school text,
+    grade text,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+CREATE TABLE public.tutoring_tutors (
+    id bigint DEFAULT nextval('tutoring_tutors_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    headline text,
+    subjects text[] DEFAULT '{}'::text[] NOT NULL,
+    hourly_rate numeric(10,2),
+    qualifications text,
+    rating_avg numeric(3,2) DEFAULT 0,
+    rating_count integer DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    search_vector tsvector
+);
+
+
+CREATE TABLE public.user_notification_preferences (
+    id bigint DEFAULT nextval('user_notification_preferences_id_seq'::regclass) NOT NULL,
+    user_id bigint NOT NULL,
+    category_id bigint NOT NULL,
+    push_enabled boolean DEFAULT true NOT NULL,
+    email_enabled boolean DEFAULT true NOT NULL,
+    in_app_enabled boolean DEFAULT true NOT NULL,
+    sms_enabled boolean DEFAULT false NOT NULL,
+    quiet_hours_start time without time zone,
+    quiet_hours_end time without time zone,
+    timezone text DEFAULT 'UTC'::text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_comment_likes (
+    id bigint DEFAULT nextval('video_comment_likes_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    comment_id bigint NOT NULL,
+    is_liked boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_comments (
+    id bigint DEFAULT nextval('video_comments_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    attachment_id bigint,
+    parent_id bigint,
+    reply_to_user_id bigint,
+    content text NOT NULL,
+    content_type text DEFAULT 'text'::text NOT NULL,
+    video_time_sec double precision,
+    likes_count integer DEFAULT 0 NOT NULL,
+    replies_count integer DEFAULT 0 NOT NULL,
+    is_approved boolean DEFAULT true,
+    is_pinned boolean DEFAULT false,
+    is_blocked boolean DEFAULT false,
+    blocked_reason text,
+    blocked_by bigint,
+    blocked_at timestamp with time zone,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_danmaku (
+    id bigint DEFAULT nextval('video_danmaku_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    attachment_id bigint,
+    content text NOT NULL,
+    color text DEFAULT '#FFFFFF'::text NOT NULL,
+    size text DEFAULT 'medium'::text NOT NULL,
+    video_time_sec double precision NOT NULL,
+    display_type text DEFAULT 'scroll'::text NOT NULL,
+    font_family text DEFAULT 'Arial'::text,
+    is_approved boolean DEFAULT true,
+    is_blocked boolean DEFAULT false,
+    blocked_reason text,
+    blocked_by bigint,
+    blocked_at timestamp with time zone,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_embeddings (
+    id bigint DEFAULT nextval('video_embeddings_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    attachment_id bigint NOT NULL,
+    content_type text NOT NULL,
+    embedding_e5_small vector(384),
+    content_text text NOT NULL,
+    chunk_type text,
+    hierarchy_level integer DEFAULT 0,
+    parent_chunk_id bigint,
+    section_title text,
+    semantic_density double precision,
+    key_terms text[],
+    sentence_count integer DEFAULT 0,
+    word_count integer DEFAULT 0,
+    has_code_block boolean DEFAULT false,
+    has_table boolean DEFAULT false,
+    has_list boolean DEFAULT false,
+    chunk_language text DEFAULT 'en'::text,
+    embedding_model text,
+    language text DEFAULT 'en'::text,
+    token_count integer,
+    status text DEFAULT 'pending'::text NOT NULL,
+    error_message text,
+    retry_count integer DEFAULT 0,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    embedding_bge_m3 vector(1024),
+    has_e5_embedding boolean DEFAULT false,
+    has_bge_embedding boolean DEFAULT false,
+    segment_start_time double precision,
+    segment_end_time double precision,
+    segment_index integer,
+    total_segments integer,
+    segment_duration double precision DEFAULT 
+CASE
+    WHEN ((segment_start_time IS NOT NULL) AND (segment_end_time IS NOT NULL)) THEN (segment_end_time - segment_start_time)
+    ELSE NULL::double precision
+END,
+    prev_segment_id bigint,
+    next_segment_id bigint,
+    segment_overlap_start double precision,
+    segment_overlap_end double precision,
+    contains_code boolean DEFAULT false,
+    contains_math boolean DEFAULT false,
+    contains_diagram boolean DEFAULT false,
+    topic_keywords text[] DEFAULT '{}'::text[],
+    confidence_score double precision DEFAULT 1.0
+);
+
+
+CREATE TABLE public.video_likes (
+    id bigint DEFAULT nextval('video_likes_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    attachment_id bigint,
+    is_liked boolean DEFAULT true NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_processing_queue (
+    id bigint DEFAULT nextval('video_processing_queue_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    attachment_id bigint NOT NULL,
+    user_id uuid NOT NULL,
+    current_step character varying(50) NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    qstash_message_id text,
+    qstash_schedule_id text,
+    retry_count integer DEFAULT 0,
+    max_retries integer DEFAULT 3,
+    retry_delay_minutes integer DEFAULT 1,
+    error_message text,
+    error_details jsonb,
+    last_error_at timestamp with time zone,
+    step_data jsonb DEFAULT '{}'::jsonb,
+    processing_metadata jsonb DEFAULT '{}'::jsonb,
+    progress_percentage integer DEFAULT 0,
+    estimated_completion_time timestamp with time zone,
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+CREATE TABLE public.video_processing_steps (
+    id bigint DEFAULT nextval('video_processing_steps_id_seq'::regclass) NOT NULL,
+    queue_id bigint NOT NULL,
+    step_name character varying(50) NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    duration_seconds integer,
+    input_data jsonb,
+    output_data jsonb,
+    error_message text,
+    qstash_message_id text,
+    retry_count integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+CREATE TABLE public.video_qa_history (
+    id bigint DEFAULT nextval('video_qa_history_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    question text NOT NULL,
+    answer text NOT NULL,
+    video_time numeric NOT NULL,
+    context_segments jsonb,
+    is_helpful boolean,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL
+);
+
+
+CREATE TABLE public.video_segments (
+    id bigint DEFAULT nextval('video_segments_id_seq'::regclass) NOT NULL,
+    lesson_id bigint NOT NULL,
+    start_time numeric NOT NULL,
+    end_time numeric NOT NULL,
+    text text NOT NULL,
+    confidence numeric,
+    speaker_id text,
+    metadata jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_terms_cache (
+    id bigint DEFAULT nextval('video_terms_cache_id_seq'::regclass) NOT NULL,
+    lesson_id bigint NOT NULL,
+    time_window_start numeric NOT NULL,
+    time_window_end numeric NOT NULL,
+    terms jsonb NOT NULL,
+    expires_at timestamp with time zone DEFAULT (now() + '01:00:00'::interval) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+CREATE TABLE public.video_views (
+    id bigint DEFAULT nextval('video_views_id_seq'::regclass) NOT NULL,
+    public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    user_id bigint NOT NULL,
+    lesson_id bigint NOT NULL,
+    attachment_id bigint,
+    watch_duration_sec integer DEFAULT 0 NOT NULL,
+    total_duration_sec integer,
+    watch_percentage double precision DEFAULT 
+CASE
+    WHEN (total_duration_sec > 0) THEN (((watch_duration_sec)::double precision / (total_duration_sec)::double precision) * (100)::double precision)
+    ELSE (0)::double precision
+END,
+    session_start_time timestamp with time zone DEFAULT now() NOT NULL,
+    session_end_time timestamp with time zone,
+    last_position_sec integer DEFAULT 0,
+    device_info jsonb DEFAULT '{}'::jsonb,
+    ip_address inet,
+    is_completed boolean DEFAULT false,
+    completed_at timestamp with time zone,
+    is_deleted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ |

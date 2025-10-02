@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ function formatCode(code: string): string {
 }
 
 export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
+  const t = useTranslations('QuizHeader');
   const { data: currentUser } = useUser();
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const router = useRouter();
@@ -44,9 +46,9 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
         <div>
           <p className="font-semibold">
             {quiz.author?.display_name}
-            {isAuthor && <span className="text-blue-600 ml-2">(You)</span>}
+            {isAuthor && <span className="text-blue-600 ml-2">{t('you')}</span>}
           </p>
-          <p className="text-sm text-muted-foreground">Quiz Creator</p>
+          <p className="text-sm text-muted-foreground">{t('quiz_creator')}</p>
         </div>
       </div>
       <p className="text-lg text-muted-foreground mb-4">{quiz.description}</p>
@@ -203,7 +205,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
           >
             <Button variant="outline">
               <Share2 className="h-5 w-5 mr-2" />
-              Share
+              {t('share')}
             </Button>
           </ShareQuizModal>
         ) : attemptStatus?.userPermission === 'edit' ? (
@@ -215,13 +217,13 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
           >
             <Button variant="outline">
               <Share2 className="h-5 w-5 mr-2" />
-              Share
+              {t('share')}
             </Button>
           </ShareQuizModal>
         ) : (
           <Button variant="outline" disabled>
             <Share2 className="h-5 w-5 mr-2" />
-            Share
+            {t('share')}
           </Button>
         )}
 
@@ -235,7 +237,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
             }}
           >
             <Pencil className="h-5 w-5 mr-2" />
-            Edit
+            {t('edit')}
           </Button>
         )}
 
@@ -251,7 +253,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               }}
             >
               <Trash2 className="h-5 w-5 mr-2" />
-              Delete
+              {t('delete')}
             </Button>
             
             <DeleteQuizModal 

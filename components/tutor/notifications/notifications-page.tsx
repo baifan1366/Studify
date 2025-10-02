@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import { NotificationList } from './notification-list';
 import NotificationSettings from './notification-settings';
 
 export default function NotificationsPage() {
+  const t = useTranslations('TutorNotificationsPage');
   const [activeTab, setActiveTab] = useState('all');
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -55,7 +57,7 @@ export default function NotificationsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
             >
-              Notifications
+              {t('notifications')}
             </motion.h1>
             <motion.p 
               className="text-white/70 dark:text-white/70 text-lg"
@@ -63,7 +65,7 @@ export default function NotificationsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
             >
-              Stay updated with your learning activities
+              {t('stay_updated_with_your_learning_activities')}
             </motion.p>
           </div>
           
@@ -83,7 +85,7 @@ export default function NotificationsPage() {
                   onClick={handleMarkAllRead}
                   disabled={markAllReadMutation.isPending}
                 >
-                  Mark all as read
+                  {t('mark_all_as_read')}
                 </Button>
               </motion.div>
             )}
@@ -102,10 +104,10 @@ export default function NotificationsPage() {
               <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-sm border-white/20">
                 <DropdownMenuItem className="text-white hover:bg-white/10">
                   <Filter className="h-4 w-4 mr-2" />
-                  Filter notifications
+                  {t('filter_notifications')}
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-white hover:bg-white/10">
-                  Export notifications
+                  {t('export_notifications')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -121,7 +123,7 @@ export default function NotificationsPage() {
             <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm border border-white/20">
               <TabsTrigger value="all" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                 <Bell className="h-4 w-4" />
-                All
+                {t('all')}
                 {allNotifications && (
                   <Badge variant="secondary" className="ml-1 bg-blue-500/20 text-blue-300 border-blue-400/30">
                     {allNotifications.total}
@@ -129,7 +131,7 @@ export default function NotificationsPage() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="unread" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
-                Unread
+                {t('unread')}
                 {unreadCount > 0 && (
                   <Badge variant="destructive" className="ml-1 bg-red-500/20 text-red-300 border-red-400/30">
                     {unreadCount}
@@ -138,7 +140,7 @@ export default function NotificationsPage() {
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                 <Settings className="h-4 w-4" />
-                Settings
+                {t('settings')}
               </TabsTrigger>
             </TabsList>
 

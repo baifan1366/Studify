@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Milestone } from '@/hooks/profile/use-learning-path';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';

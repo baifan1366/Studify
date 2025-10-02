@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ interface NotificationSettings {
 }
 
 export default function NotificationSettings() {
+  const t = useTranslations('NotificationSettings');
   const { data: settingsData, isLoading } = useNotificationSettings();
   const updateSettingsMutation = useUpdateNotificationSettings();
   const { user: oneSignalUser, requestPermission, optIn, optOut } = useOneSignal();
@@ -51,9 +53,9 @@ export default function NotificationSettings() {
 
     try {
       await updateSettingsMutation.mutateAsync(newSettings);
-      toast.success('Settings updated successfully');
+      toast.success(t('settings_updated') || 'Settings updated successfully');
     } catch (error) {
-      toast.error('Failed to update settings');
+      toast.error(t('update_failed') || 'Failed to update settings');
       // Revert on error
       setSettings(settings);
     }
@@ -101,9 +103,9 @@ export default function NotificationSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Notification Settings</h2>
+        <h2 className="text-2xl font-bold">{t('title') || 'Notification Settings'}</h2>
         <p className="text-muted-foreground">
-          Manage how and when you receive notifications
+          {t('description') || 'Manage how and when you receive notifications'}
         </p>
       </div>
 
@@ -112,10 +114,10 @@ export default function NotificationSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
-            Push Notifications
+            {t('push_notifications') || 'Push Notifications'}
           </CardTitle>
           <CardDescription>
-            Browser push notifications for real-time updates
+            {t('push_notifications_desc') || 'Browser push notifications for real-time updates'}
           </CardDescription>
         </CardHeader>
         <CardContent>

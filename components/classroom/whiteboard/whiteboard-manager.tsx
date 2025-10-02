@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useWhiteboards, useCreateWhiteboard, useDeleteWhiteboard, WhiteboardSession } from '@/hooks/classroom/use-whiteboard';
 import WhiteboardCanvas from './whiteboard-canvas';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ export default function WhiteboardManager({
   userRole,
   isSessionActive = true 
 }: WhiteboardManagerProps) {
+  const t = useTranslations('WhiteboardManager');
   const [selectedWhiteboard, setSelectedWhiteboard] = useState<WhiteboardSession | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newWhiteboardTitle, setNewWhiteboardTitle] = useState('');
@@ -34,7 +36,7 @@ export default function WhiteboardManager({
     try {
       await createWhiteboard.mutateAsync({
         session_id: sessionId,
-        title: newWhiteboardTitle || `Whiteboard - ${new Date().toLocaleString()}`
+        title: newWhiteboardTitle || `${t('whiteboard')} - ${new Date().toLocaleString()}`
       });
       setNewWhiteboardTitle('');
       setShowCreateDialog(false);

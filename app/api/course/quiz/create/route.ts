@@ -118,18 +118,33 @@ export async function POST(req: NextRequest): Promise<NextResponse<CreateQuizRes
     }
 
     // Prepare quiz questions for insertion
-    const questionsToInsert = body.questions.map(q => ({
-      user_id: userId,
-      lesson_id: parseInt(body.lessonId),
-      question_text: q.question_text,
-      question_type: q.question_type,
-      options: q.options ? JSON.stringify(q.options) : null,
-      correct_answer: JSON.stringify(q.correct_answer),
-      explanation: q.explanation || null,
-      points: q.points,
-      difficulty: q.difficulty,
-      position: q.position,
-    }));
+    const questionsToInsert = body.questions.map(q => {
+      // Ensure options is properly formatted
+      let optionsValue = null;
+      if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+        optionsValue = JSON.stringify(q.options);
+      }
+      
+      // Handle correct_answer based on question type
+      let correctAnswerValue = q.correct_answer;
+      if (q.question_type === 'multiple_choice' && Array.isArray(q.correct_answer)) {
+        // For multiple choice, ensure it's a single value
+        correctAnswerValue = q.correct_answer[0];
+      }
+      
+      return {
+        user_id: userId,
+        lesson_id: parseInt(body.lessonId),
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: optionsValue,
+        correct_answer: typeof correctAnswerValue === 'string' ? correctAnswerValue : JSON.stringify(correctAnswerValue),
+        explanation: q.explanation || null,
+        points: q.points,
+        difficulty: q.difficulty,
+        position: q.position,
+      };
+    });
 
     console.log(`💾 Inserting ${questionsToInsert.length} quiz questions into database`);
 

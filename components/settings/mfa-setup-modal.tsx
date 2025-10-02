@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useMFASetup, useMFAVerify } from '@/hooks/auth/use-mfa';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslations } from 'next-intl';
 
 interface MFASetupModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface MFASetupModalProps {
 }
 
 export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupModalProps) {
+  const t = useTranslations('MFASetupModal');
   const [step, setStep] = useState<'setup' | 'verify' | 'success'>('setup');
   const [setupData, setSetupData] = useState<any>(null);
   const [verifyCode, setVerifyCode] = useState('');
@@ -46,8 +48,8 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
   const handleVerify = async () => {
     if (!verifyCode || verifyCode.length !== 6) {
       toast({
-        title: '验证码错误',
-        description: '请输入6位验证码',
+        title: t('invalid_code_title'),
+        description: t('invalid_code_description'),
         variant: 'destructive',
       });
       return;
@@ -67,15 +69,15 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
       setCopiedSecret(true);
       setTimeout(() => setCopiedSecret(false), 2000);
       toast({
-        title: '密钥已复制',
-        description: '密钥已复制到剪贴板',
+        title: t('secret_copied_title'),
+        description: t('secret_copied_description'),
       });
     }
   };
 
   const downloadBackupCodes = () => {
     if (setupData?.backupCodes) {
-      const content = `Studify 双重验证备用代码\n生成时间: ${new Date().toLocaleString()}\n\n${setupData.backupCodes.join('\n')}\n\n请妥善保存这些代码，每个代码只能使用一次。`;
+      const content = `${t('backup_codes_file_header')}\n${t('generated_time')}: ${new Date().toLocaleString()}\n\n${setupData.backupCodes.join('\n')}\n\n${t('backup_codes_warning')}`;
       const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -116,7 +118,7 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Shield size={20} className="text-blue-500" />
-              设置双重验证
+              {t('title')}
             </h2>
             <button
               onClick={onClose}
@@ -133,15 +135,15 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                 <div className="text-center">
                   <Smartphone size={48} className="mx-auto text-blue-500 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    启用双重验证
+                    {t('enable_title')}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    使用验证器应用（如 Google Authenticator、Authy）为您的账户添加额外安全保护
+                    {t('enable_description')}
                   </p>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">推荐应用：</h4>
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">{t('recommended_apps')}</h4>
                   <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                     <li>• Google Authenticator</li>
                     <li>• Microsoft Authenticator</li>
@@ -162,7 +164,7 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                   ) : (
                     <QrCode size={16} />
                   )}
-                  开始设置
+                  {t('start_setup')}
                 </motion.button>
               </div>
             )}
@@ -172,24 +174,24 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                 <div className="text-center">
                   <QrCode size={48} className="mx-auto text-green-500 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    扫描二维码
+                    {t('scan_qr_title')}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    在验证器应用中扫描二维码或手动输入密钥
+                    {t('scan_qr_description')}
                   </p>
                 </div>
 
                 {/* TODO: Display actual QR code when qrcode library is installed */}
                 <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-8 text-center">
                   <QrCode size={120} className="mx-auto text-gray-400 mb-4" />
-                  <p className="text-sm text-gray-500">二维码显示区域</p>
-                  <p className="text-xs text-gray-400 mt-2">需要安装 qrcode 库才能显示</p>
+                  <p className="text-sm text-gray-500">{t('qr_code_placeholder')}</p>
+                  <p className="text-xs text-gray-400 mt-2">{t('qr_code_library_note')}</p>
                 </div>
 
                 {/* Manual secret */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    手动输入密钥：
+                    {t('manual_secret_label')}
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -211,13 +213,13 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                 {/* Verification code input */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    输入验证码：
+                    {t('enter_code_label')}
                   </label>
                   <input
                     type="text"
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="输入6位验证码"
+                    placeholder={t('code_placeholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg font-mono tracking-wider"
                   />
                 </div>
@@ -234,7 +236,7 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                   ) : (
                     <Key size={16} />
                   )}
-                  验证并启用
+                  {t('verify_and_enable')}
                 </motion.button>
               </div>
             )}
@@ -244,10 +246,10 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                 <div className="text-center">
                   <Check size={48} className="mx-auto text-green-500 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    双重验证已启用
+                    {t('success_title')}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    您的账户现在受到双重验证保护
+                    {t('success_description')}
                   </p>
                 </div>
 
@@ -257,10 +259,10 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                     <AlertTriangle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <h4 className="font-medium text-amber-900 dark:text-amber-100 mb-2">
-                        重要：保存备用代码
+                        {t('backup_codes_important')}
                       </h4>
                       <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
-                        这些备用代码可以在您无法使用验证器应用时访问账户。请妥善保存，每个代码只能使用一次。
+                        {t('backup_codes_explanation')}
                       </p>
                       <div className="grid grid-cols-2 gap-1 text-xs font-mono bg-white dark:bg-gray-800 p-3 rounded border">
                         {setupData.backupCodes?.map((code: string, index: number) => (
@@ -278,7 +280,7 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                   whileTap={{ scale: 0.99 }}
                 >
                   <Download size={16} />
-                  下载备用代码
+                  {t('download_backup_codes')}
                 </motion.button>
 
                 <motion.button
@@ -288,12 +290,12 @@ export default function MFASetupModal({ isOpen, onClose, onSuccess }: MFASetupMo
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                 >
-                  完成设置
+                  {t('complete_setup')}
                 </motion.button>
 
                 {!backupCodesSaved && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                    请先下载备用代码再完成设置
+                    {t('download_first_message')}
                   </p>
                 )}
               </div>

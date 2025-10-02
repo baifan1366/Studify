@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Upload, File, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ interface UploadResult {
 }
 
 export function MegaUploadTest() {
+  const t = useTranslations('MegaUploadTest');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -112,7 +114,7 @@ export function MegaUploadTest() {
           >
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Uploading to MEGA... {progress}%
+              {t('uploading')} {progress}%
             </div>
             <Progress value={progress} className="w-full" />
           </motion.div>
@@ -138,7 +140,7 @@ export function MegaUploadTest() {
               <div className="flex-1 min-w-0">
                 {result.success ? (
                   <div>
-                    <p className="font-medium text-green-800 mb-1">Upload Successful!</p>
+                    <p className="font-medium text-green-800 mb-1">{t('upload_success')}</p>
                     <p className="text-sm text-green-700 mb-2">File uploaded to MEGA</p>
                     <div className="space-y-1 text-xs text-green-600">
                       <p><strong>Size:</strong> {((result.size || 0) / 1024 / 1024).toFixed(2)} MB</p>
@@ -152,13 +154,13 @@ export function MegaUploadTest() {
                         className="mt-2 h-7 text-xs"
                         onClick={() => window.open(result.url, '_blank')}
                       >
-                        Open File
+                        {t('open_file')}
                       </Button>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <p className="font-medium text-red-800 mb-1">Upload Failed</p>
+                    <p className="font-medium text-red-800 mb-1">{t('upload_failed')}</p>
                     <p className="text-sm text-red-700">{result.error}</p>
                   </div>
                 )}
@@ -176,12 +178,12 @@ export function MegaUploadTest() {
           {uploading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Uploading...
+              {t('uploading')}
             </>
           ) : (
             <>
               <Upload className="w-4 h-4 mr-2" />
-              Upload to MEGA
+              {t('upload')}
             </>
           )}
         </Button>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, Loader2, Filter } from 'lucide-react';
 import { useEmbeddingSearch, EmbeddingSearchResult } from '@/hooks/embedding/use-embedding-search';
 
@@ -11,25 +12,27 @@ interface SemanticSearchProps {
   onResultClick?: (result: EmbeddingSearchResult) => void;
 }
 
-const CONTENT_TYPE_LABELS = {
-  'profile': '用户档案',
-  'course': '课程',
-  'post': '社区帖子',
-  'comment': '评论',
-  'lesson': '课程内容'
-};
+const getContentTypeLabels = (t: any) => ({
+  'profile': t('content_types.profile') || 'User Profile',
+  'course': t('content_types.course') || 'Course',
+  'post': t('content_types.post') || 'Community Post',
+  'comment': t('content_types.comment') || 'Comment',
+  'lesson': t('content_types.lesson') || 'Lesson Content'
+});
 
 export default function SemanticSearch({ 
-  placeholder = "搜索相关内容...", 
+  placeholder, 
   contentTypes,
   maxResults = 10,
   onResultClick 
 }: SemanticSearchProps) {
+  const t = useTranslations('SemanticSearch');
   const [query, setQuery] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>(contentTypes || []);
   const [showFilters, setShowFilters] = useState(false);
   
   const embeddingSearch = useEmbeddingSearch();
+  const CONTENT_TYPE_LABELS = getContentTypeLabels(t);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +76,7 @@ export default function SemanticSearch({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={placeholder}
+              placeholder={placeholder || t('placeholder') || 'Search related content...'}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -83,7 +86,7 @@ export default function SemanticSearch({
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
           >
             <Filter className="w-4 h-4" />
-            筛选
+            {t('filter') || 'Filter'}
           </button>
           <button
             type="submit"
@@ -95,7 +98,7 @@ export default function SemanticSearch({
             ) : (
               <Search className="w-4 h-4" />
             )}
-            搜索
+            {t('search') || 'Search'}
           </button>
         </div>
       </form>
@@ -103,7 +106,7 @@ export default function SemanticSearch({
       {/* Content Type Filters */}
       {showFilters && (
         <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">内容类型筛选：</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">{t('filter_by_type') || 'Filter by content type:'}</h3>
           <div className="flex flex-wrap gap-2">
             {Object.entries(CONTENT_TYPE_LABELS).map(([type, label]) => (
               <button
@@ -115,7 +118,7 @@ export default function SemanticSearch({
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                {label}
+                {label as string}
               </button>
             ))}
           </div>
@@ -126,7 +129,7 @@ export default function SemanticSearch({
       {embeddingSearch.isError && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600 text-sm">
-            搜索失败: {embeddingSearch.error?.message}
+            {t('search_failed') || 'Search failed'}: {embeddingSearch.error?.message}
           </p>
         </div>
       )}
@@ -136,18 +139,18 @@ export default function SemanticSearch({
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">
-              搜索结果 ({embeddingSearch.data.count})
+              {t('search_results') || 'Search Results'} ({embeddingSearch.data.count})
             </h3>
             <p className="text-sm text-gray-500">
-              查询: "{embeddingSearch.data.query}"
+              {t('query') || 'Query'}: "{embeddingSearch.data.query}"
             </p>
           </div>
 
           {embeddingSearch.data.results.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Search className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>没有找到相关内容</p>
-              <p className="text-sm">尝试使用不同的关键词或调整筛选条件</p>
+              <p>{t('no_results') || 'No relevant content found'}</p>
+              <p className="text-sm">{t('try_different_keywords') || 'Try using different keywords or adjust filter conditions'}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -161,14 +164,14 @@ export default function SemanticSearch({
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-medium text-gray-900 line-clamp-2">
-                      {result.title || '无标题'}
+                      {result.title || t('no_title') || 'Untitled'}
                     </h4>
                     <div className="flex items-center gap-2 ml-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getContentTypeColor(result.content_type)}`}>
                         {CONTENT_TYPE_LABELS[result.content_type as keyof typeof CONTENT_TYPE_LABELS] || result.content_type}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {Math.round(result.similarity_score * 100)}% 匹配
+                        {Math.round(result.similarity_score * 100)}% {t('match') || 'match'}
                       </span>
                     </div>
                   </div>

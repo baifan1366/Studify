@@ -1,6 +1,7 @@
 'use client';
 
 import { formatDistanceToNow } from 'date-fns';
+import { useTranslations } from 'next-intl';
 import { MessageSquare, BookOpen, Users, Bell, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +17,7 @@ interface NotificationListProps {
 }
 
 export function NotificationList({ notifications, isLoading, compact = false }: NotificationListProps) {
+  const t = useTranslations('NotificationList');
   const markReadMutation = useMarkNotificationRead();
   const deleteMutation = useDeleteNotification();
 
@@ -72,26 +74,26 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
     switch (kind) {
       case 'course_notification':
         return payload.type === 'new_lesson' 
-          ? 'New lesson available' 
+          ? t('new_lesson_available') || 'New lesson available'
           : payload.type === 'assignment_due'
-          ? 'Assignment due soon'
-          : 'Course has been updated';
+          ? t('assignment_due_soon') || 'Assignment due soon'
+          : t('course_updated') || 'Course has been updated';
       case 'classroom_notification':
         return payload.type === 'live_session'
-          ? 'Live session starting soon'
+          ? t('live_session_starting') || 'Live session starting soon'
           : payload.type === 'assignment'
-          ? 'New assignment posted'
-          : 'New announcement';
+          ? t('new_assignment_posted') || 'New assignment posted'
+          : t('new_announcement') || 'New announcement';
       case 'community_notification':
         return payload.type === 'new_post'
-          ? 'New post in group'
+          ? t('new_post_in_group') || 'New post in group'
           : payload.type === 'comment'
-          ? 'Someone commented on your post'
-          : 'Someone reacted to your content';
+          ? t('someone_commented') || 'Someone commented on your post'
+          : t('someone_reacted') || 'Someone reacted to your content';
       case 'system':
-        return payload.message || 'System announcement';
+        return payload.message || t('system_announcement') || 'System announcement';
       default:
-        return payload.message || 'You have a new notification';
+        return payload.message || t('new_notification') || 'You have a new notification';
     }
   };
 
@@ -153,8 +155,8 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
     return (
       <div className="p-8 text-center text-muted-foreground">
         <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No notifications yet</p>
-        <p className="text-sm">We'll notify you when something important happens</p>
+        <p>{t('no_notifications') || 'No notifications yet'}</p>
+        <p className="text-sm">{t('notify_when_important') || "We'll notify you when something important happens"}</p>
       </div>
     );
   }
@@ -217,7 +219,7 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
                 
                 {!notification.is_read && (
                   <Badge variant="secondary" className={`${compact ? 'text-xs' : 'text-xs'} mt-2`}>
-                    New
+                    {t('new') || 'New'}
                   </Badge>
                 )}
               </div>

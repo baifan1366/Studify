@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   FileText, 
   CheckCircle, 
@@ -33,6 +34,7 @@ interface AssignmentsTabProps {
 }
 
 export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug, navigateToSection, classroom, userRole, currentUserId }: AssignmentsTabProps) {
+  const t = useTranslations('AssignmentsTab');
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [showSubmissions, setShowSubmissions] = useState(false);
   const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);

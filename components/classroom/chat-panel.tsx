@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Send, X, Paperclip, Smile, ChevronDown, Upload, File, Download, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';

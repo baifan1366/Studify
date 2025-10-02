@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { ClassroomAttachment } from "@/hooks/classroom/use-attachments";
 import { Download, FileText, Image, Video, Music, Archive, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ interface AttachmentViewerProps {
 }
 
 export function AttachmentViewer({ attachment, showDownloadButton = true }: AttachmentViewerProps) {
+  const t = useTranslations('AttachmentViewer');
   const [fileUrl, setFileUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export function AttachmentViewer({ attachment, showDownloadButton = true }: Atta
             onClick={handleView}
             className="text-blue-600 dark:text-white"
           >
-            View
+            {t('view')}
           </Button>
           <Button
             variant="ghost"

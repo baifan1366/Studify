@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateQuiz, useQuizSubjects, useQuizGrades } from "@/hooks/community/use-quiz";
 import { useRouter, useParams } from "next/navigation";
-import { useLocale } from "next-intl";
 import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
 
 export default function QuizForm() {
+  const t = useTranslations('QuizForm');
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState(1);
@@ -36,11 +37,11 @@ export default function QuizForm() {
   const handleSubmit = () => {
     // Validate fields
     if (!title.trim()) {
-      toast.error("Please enter a quiz title");
+      toast.error(t('title_required'));
       return;
     }
     if (!description.trim()) {
-      toast.error("Please enter a description");
+      toast.error(t('description_required'));
       return;
     }
 

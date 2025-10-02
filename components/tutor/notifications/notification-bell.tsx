@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +14,7 @@ import { useNotificationCount, useNotifications, useMarkAllNotificationsRead } f
 import { NotificationList } from './notification-list';
 
 export function NotificationBell() {
+  const t = useTranslations('TutorNotificationBell');
   const [isOpen, setIsOpen] = useState(false);
   const { data: countData } = useNotificationCount();
   const { data: notificationsData, isLoading } = useNotifications(1, 10, false);
@@ -51,7 +53,7 @@ export function NotificationBell() {
       >
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Notifications</h3>
+            <h3 className="font-semibold">{t('notifications')}</h3>
             {hasUnread && (
               <Button
                 variant="ghost"
@@ -59,7 +61,7 @@ export function NotificationBell() {
                 onClick={handleMarkAllRead}
                 disabled={markAllReadMutation.isPending}
               >
-                Mark all read
+                {t('mark_all_read')}
               </Button>
             )}
           </div>
@@ -85,7 +87,7 @@ export function NotificationBell() {
                 window.location.href = '/notifications';
               }}
             >
-              View all notifications
+              {t('view_all_notifications')}
             </Button>
           </div>
         )}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Check, CheckCheck, Clock, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ interface MessageStatusProps {
 }
 
 export function MessageStatus({ status, className, showText = false }: MessageStatusProps) {
+  const t = useTranslations('MessageBubble');
   const getStatusIcon = () => {
     switch (status) {
       case 'sending':
@@ -29,13 +31,13 @@ export function MessageStatus({ status, className, showText = false }: MessageSt
   const getStatusText = () => {
     switch (status) {
       case 'sending':
-        return 'Sending...';
+        return t('sending');
       case 'sent':
-        return 'Sent';
+        return t('sent');
       case 'delivered':
-        return 'Delivered';
+        return t('delivered');
       case 'read':
-        return 'Read';
+        return t('read');
       default:
         return '';
     }
@@ -69,6 +71,7 @@ export function MessageWithStatus({
   children, 
   className 
 }: MessageWithStatusProps) {
+  const t = useTranslations('MessageBubble');
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], { 
       hour: '2-digit', 
@@ -87,7 +90,7 @@ export function MessageWithStatus({
       </div>
       {status === 'delivered' && deliveredAt && (
         <div className="text-xs text-muted-foreground text-right">
-          Delivered {formatTime(deliveredAt)}
+          {t('delivered')} {formatTime(deliveredAt)}
         </div>
       )}
     </div>

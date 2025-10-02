@@ -2,6 +2,7 @@
 
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquare, BookOpen, Users, Bell, Trash2, Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ interface NotificationListProps {
 }
 
 export function NotificationList({ notifications, isLoading, compact = false }: NotificationListProps) {
+  const t = useTranslations('TutorNotificationList');
   const markReadMutation = useMarkNotificationRead();
   const deleteMutation = useDeleteNotification();
 
@@ -37,7 +39,7 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
     
     switch (kind) {
       case 'course_notification':
-        return `📚 ${payload.course_title || 'Course Update'}`;
+        return `📚 ${payload.course_title || t('course_update')}`;
       case 'classroom_notification':
         const classroomIcons = {
           live_session: '🎥',
@@ -45,7 +47,7 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
           announcement: '📢',
         };
         const icon = classroomIcons[payload.type as keyof typeof classroomIcons] || '📢';
-        return `${icon} ${payload.classroom_name || 'Classroom Update'}`;
+        return `${icon} ${payload.classroom_name || t('classroom_update')}`;
       case 'community_notification':
         const communityIcons = {
           new_post: '💬',
@@ -53,11 +55,11 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
           reaction: '👍',
         };
         const communityIcon = communityIcons[payload.type as keyof typeof communityIcons] || '💬';
-        return `${communityIcon} ${payload.group_name || 'Community Update'}`;
+        return `${communityIcon} ${payload.group_name || t('community_update')}`;
       case 'system':
-        return payload.title || '📢 System Announcement';
+        return payload.title || `📢 ${t('system_announcement')}`;
       default:
-        return payload.title || 'Notification';
+        return payload.title || t('notification');
     }
   };
 
@@ -72,26 +74,26 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
     switch (kind) {
       case 'course_notification':
         return payload.type === 'new_lesson' 
-          ? 'New lesson available' 
+          ? t('new_lesson_available') 
           : payload.type === 'assignment_due'
-          ? 'Assignment due soon'
-          : 'Course has been updated';
+          ? t('assignment_due_soon')
+          : t('course_has_been_updated');
       case 'classroom_notification':
         return payload.type === 'live_session'
-          ? 'Live session starting soon'
+          ? t('live_session_starting_soon')
           : payload.type === 'assignment'
-          ? 'New assignment posted'
-          : 'New announcement';
+          ? t('new_assignment_posted')
+          : t('new_announcement');
       case 'community_notification':
         return payload.type === 'new_post'
-          ? 'New post in group'
+          ? t('new_post_in_group')
           : payload.type === 'comment'
-          ? 'Someone commented on your post'
-          : 'Someone reacted to your content';
+          ? t('someone_commented_on_your_post')
+          : t('someone_reacted_to_your_content');
       case 'system':
-        return payload.message || 'System announcement';
+        return payload.message || t('system_announcement');
       default:
-        return payload.message || 'You have a new notification';
+        return payload.message || t('you_have_a_new_notification');
     }
   };
 
@@ -153,8 +155,8 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
     return (
       <div className="p-8 text-center text-muted-foreground">
         <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No notifications yet</p>
-        <p className="text-sm">We'll notify you when something important happens</p>
+        <p>{t('no_notifications_yet')}</p>
+        <p className="text-sm">{t('well_notify_you_when_something_important_happens')}</p>
       </div>
     );
   }

@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { ChatIntegrationTest } from '@/components/classroom/live-session/chat-integration-test';
 
 interface Props {
@@ -13,10 +14,11 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const t = await getTranslations('LiveChatTestPage');
   
   return {
-    title: `Live Chat Test - ${slug} | Studify`,
-    description: 'Test Liveblocks chat integration in live classroom',
+    title: `${t('metadata_title')} - ${slug}`,
+    description: t('metadata_description'),
   };
 }
 

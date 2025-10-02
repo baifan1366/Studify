@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +18,7 @@ interface CreateGroupFormProps {
 }
 
 export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupFormProps) {
+  const t = useTranslations('CreateGroupForm');
   const [formData, setFormData] = useState({
     name: '',
     description: '',

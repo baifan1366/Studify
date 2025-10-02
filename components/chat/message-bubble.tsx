@@ -1,21 +1,40 @@
 'use client';
 
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { Message } from '@/hooks/chat/use-chat';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useProfile } from '@/hooks/profiles/use-profile';
+import { ProfileModal } from './profile-modal';
+import { MessageTimestamp } from './message-timestamp';
+import { MessageStatus } from './message-status';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
-import { Reply } from 'lucide-react';
-import SharedPostMessage from './shared-post-message';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { 
+  MoreVertical, 
+  Reply, 
+  Edit, 
+  Trash2, 
+  Copy 
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface MessageBubbleProps {
   message: Message;
   className?: string;
   onReply?: (message: Message) => void;
-  onProfileClick?: (senderId: string) => void;
+  onDelete?: (message: Message) => void;
+  onEdit?: (message: Message) => void;
+  onCopy?: (message: Message) => void;
 }
 
 export function MessageBubble({ message, className, onReply, onProfileClick }: MessageBubbleProps) {
+  const t = useTranslations('MessageBubble');
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -74,7 +93,7 @@ export function MessageBubble({ message, className, onReply, onProfileClick }: M
             </div>
             <div className="text-xs text-muted-foreground">
               {message.replyTo.isDeleted ? (
-                <span className="italic">This message was deleted</span>
+                <span className="italic">{t('message_deleted')}</span>
               ) : (
                 <span className="line-clamp-2">{message.replyTo.content}</span>
               )}
@@ -107,7 +126,7 @@ export function MessageBubble({ message, className, onReply, onProfileClick }: M
           <div className="break-words">
             {message.isDeleted ? (
               <span className="italic text-muted-foreground">
-                This message was deleted
+                {t('message_deleted')}
               </span>
             ) : message.type === 'share_post' ? (
               <SharedPostMessage postId={message.content} />
@@ -124,7 +143,7 @@ export function MessageBubble({ message, className, onReply, onProfileClick }: M
           {/* Edited indicator */}
           {message.isEdited && !message.isDeleted && (
             <div className="text-xs opacity-70 mt-1">
-              (edited)
+              ({t('edited')})
             </div>
           )}
 
@@ -137,7 +156,7 @@ export function MessageBubble({ message, className, onReply, onProfileClick }: M
                 "bg-background border rounded-full p-1 shadow-sm hover:bg-muted",
                 message.isFromMe ? "-left-8" : "-right-8"
               )}
-              title="Reply to this message"
+              title={t('reply')}
             >
               <Reply className="h-3 w-3" />
             </button>

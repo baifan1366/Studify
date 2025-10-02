@@ -5,7 +5,15 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { X, Timer, Triangle, Square, Circle, Diamond, AlertCircle } from "lucide-react";
+import {
+  X,
+  Timer,
+  Triangle,
+  Square,
+  Circle,
+  Diamond,
+  AlertCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -18,6 +26,7 @@ import {
 import { useQuizSession } from "@/hooks/community/use-quiz-session";
 import QuizTimer from "@/components/community/quiz/quiz-timer";
 import QuizDebugPanel from "@/components/community/quiz/quiz-debug-panel";
+import { toast } from "sonner";
 
 const optionStyles = [
   {
@@ -54,7 +63,8 @@ export default function QuizAttemptPage() {
   const [isCreatingAttempt, setIsCreatingAttempt] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [needsSessionParam, setNeedsSessionParam] = useState<boolean>(false);
-  const [isNavigatingToSession, setIsNavigatingToSession] = useState<boolean>(false);
+  const [isNavigatingToSession, setIsNavigatingToSession] =
+    useState<boolean>(false);
 
   // Hooks
   const { data: questions, isLoading } = useQuizQuestions(quizSlug);
@@ -67,23 +77,28 @@ export default function QuizAttemptPage() {
     quizSlug,
     attemptId ?? -1
   );
-  
+
   // Session 管理
-  const { 
-    session, 
-    remainingTime, 
-    isExpired: sessionExpired, 
-    startSession, 
+  const {
+    session,
+    remainingTime,
+    isExpired: sessionExpired,
+    startSession,
     updateSession,
-    getSession 
+    getSession,
   } = useQuizSession(quizSlug);
 
   // 初始化 attempt 和 session
   const attemptCreatedRef = useRef(false);
-  
+
   useEffect(() => {
     const initializeQuiz = async () => {
-      if (isInitialized || isCreatingAttempt || error || attemptCreatedRef.current) {
+      if (
+        isInitialized ||
+        isCreatingAttempt ||
+        error ||
+        attemptCreatedRef.current
+      ) {
         return;
       }
 
@@ -91,10 +106,12 @@ export default function QuizAttemptPage() {
       setIsCreatingAttempt(true);
 
       try {
-        const sessionParam = searchParams.get('session');
+        const sessionParam = searchParams.get("session");
         if (sessionParam) {
           // 通过 public_id 获取 session 和 attemptId
-          const res = await fetch(`/api/community/quizzes/${quizSlug}/attempts/session/${sessionParam}`);
+          const res = await fetch(
+            `/api/community/quizzes/${quizSlug}/attempts/session/${sessionParam}`
+          );
           if (!res.ok) {
             setNeedsSessionParam(true); // 无效session，回到守卫界面
             setIsInitialized(true);
@@ -121,7 +138,10 @@ export default function QuizAttemptPage() {
         setIsInitialized(true);
       } catch (err: any) {
         console.error("Failed to initialize quiz:", err);
-        setError(err.message || "Failed to start quiz. You may have reached the maximum number of attempts.");
+        setError(
+          err.message ||
+            "Failed to start quiz. You may have reached the maximum number of attempts."
+        );
         attemptCreatedRef.current = false; // 重置以允许重试
       } finally {
         setIsCreatingAttempt(false);
@@ -139,7 +159,10 @@ export default function QuizAttemptPage() {
         try {
           await completeAttempt();
         } catch (e) {
-          console.warn("completeAttempt on expiry failed or already submitted", e);
+          console.warn(
+            "completeAttempt on expiry failed or already submitted",
+            e
+          );
         } finally {
           router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
         }
@@ -149,7 +172,7 @@ export default function QuizAttemptPage() {
 
   // 监听 session 标记为 completed 的情况，直接跳转结果页
   useEffect(() => {
-    if (session?.status === 'completed' && attemptId) {
+    if (session?.status === "completed" && attemptId) {
       router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
     }
   }, [session?.status, attemptId, router, quizSlug]);
@@ -162,22 +185,27 @@ export default function QuizAttemptPage() {
       }
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && attemptId) {
+      if (document.visibilityState === "visible" && attemptId) {
         getSession(attemptId).catch(() => {});
       }
     };
-    window.addEventListener('pageshow', onPageShow as any);
-    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener("pageshow", onPageShow as any);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener('pageshow', onPageShow as any);
-      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener("pageshow", onPageShow as any);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [attemptId, getSession]);
 
   // 同步 session 中的题目索引到本地状态
   useEffect(() => {
     if (session && session.current_question_index !== currentQuestionIndex) {
-      console.log("Syncing question index from session:", session.current_question_index, "to local:", currentQuestionIndex);
+      console.log(
+        "Syncing question index from session:",
+        session.current_question_index,
+        "to local:",
+        currentQuestionIndex
+      );
       setCurrentQuestionIndex(session.current_question_index);
     }
   }, [session?.current_question_index]);
@@ -187,7 +215,9 @@ export default function QuizAttemptPage() {
     try {
       setIsNavigatingToSession(true);
       // 尝试获取当前 attempt
-      const res = await fetch(`/api/community/quizzes/${quizSlug}/current-attempt`);
+      const res = await fetch(
+        `/api/community/quizzes/${quizSlug}/current-attempt`
+      );
       let aId: number | null = null;
       let sessPublicId: string | null = null;
       if (res.ok) {
@@ -213,13 +243,25 @@ export default function QuizAttemptPage() {
       }
 
       if (sessPublicId) {
-        router.replace(`/community/quizzes/${quizSlug}/attempt?session=${sessPublicId}`);
+        router.replace(
+          `/community/quizzes/${quizSlug}/attempt?session=${sessPublicId}`
+        );
       } else {
         throw new Error("Failed to obtain session identifier");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("无法开始/继续当前测验，请稍后再试");
+      // Check if it's the "no questions" error
+      if (e.message === "Quiz has no questions") {
+        toast.error("Quiz has no questions", {
+          description:
+            "Quiz has no questions. Please contact the tutor to add questions.",
+        });
+      } else {
+        toast.error("Failed to start/continue quiz", {
+          description: "Please try again later, or contact support.",
+        });
+      }
     } finally {
       setIsNavigatingToSession(false);
     }
@@ -232,13 +274,20 @@ export default function QuizAttemptPage() {
         <Card className="max-w-lg w-full p-6 text-center">
           <h2 className="text-xl font-bold mb-2">Enter Quiz Session</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            为了避免误触导致的重复作答，请通过按钮进入会话。我们会创建或恢复你的测验会话，并在 URL 上追加会话标识。
+            为了避免误触导致的重复作答，请通过按钮进入会话。我们会创建或恢复你的测验会话，并在
+            URL 上追加会话标识。
           </p>
           <div className="flex items-center justify-center gap-3">
-            <Button onClick={navigateWithSession} disabled={isNavigatingToSession}>
+            <Button
+              onClick={navigateWithSession}
+              disabled={isNavigatingToSession}
+            >
               {isNavigatingToSession ? "Processing..." : "Start / Continue"}
             </Button>
-            <Button variant="ghost" onClick={() => router.push(`/community/quizzes/${quizSlug}`)}>
+            <Button
+              variant="ghost"
+              onClick={() => router.push(`/community/quizzes/${quizSlug}`)}
+            >
               Back to Quiz
             </Button>
           </div>
@@ -258,13 +307,13 @@ export default function QuizAttemptPage() {
             </AlertDescription>
           </Alert>
           <div className="mt-4 flex gap-2 justify-center">
-            <Button 
+            <Button
               onClick={() => router.push(`/community/quizzes/${quizSlug}`)}
               variant="outline"
             >
               Back to Quiz
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 setError(null);
                 setAttemptId(null);
@@ -349,21 +398,21 @@ export default function QuizAttemptPage() {
       // 下一题或结束
       if (currentQuestionIndex < questions.length - 1) {
         const nextIndex = currentQuestionIndex + 1;
-        
+
         // 先更新 session（确保服务器端状态同步）
         if (session && updateSession) {
           await updateSession(attemptId, {
-            current_question_index: nextIndex
+            current_question_index: nextIndex,
           });
         }
-        
+
         // 再更新本地状态
         setCurrentQuestionIndex(nextIndex);
         setSelectedAnswer(null);
         setSelectedAnswers([]);
         setTextAnswer("");
         setIsAnswered(false);
-        
+
         console.log("Advanced to question:", nextIndex);
       } else {
         // 完成 quiz
@@ -392,9 +441,9 @@ export default function QuizAttemptPage() {
               <X className="h-6 w-6" />
             </Button>
             <Progress value={progress} className="w-full bg-gray-700" />
-            
+
             {/* Quiz Timer - 显示整个 quiz 的剩余时间 */}
-            <QuizTimer 
+            <QuizTimer
               remainingSeconds={remainingTime}
               isExpired={sessionExpired}
               size="md"
@@ -560,7 +609,7 @@ export default function QuizAttemptPage() {
           )}
         </footer>
       </div>
-      
+
       {/* Debug Panel (开发环境) */}
       <QuizDebugPanel
         attemptId={attemptId}

@@ -1,28 +1,67 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LiveblocksChatPanel } from './liveblocks-chat-panel';
-import { CheckCircle, MessageCircle, Users, Settings } from 'lucide-react';
+import { SessionChatPanel } from './liveblocks-chat-panel';
+import { AlertCircle, MessageCircle, Users, Settings, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ChatIntegrationTestProps {
   classroomSlug: string;
   sessionId?: string;
 }
 
+/**
+ * ✅ 重构后的聊天集成测试组件
+ * 
+ * 修复问题：
+ * 1. 使用稳定的用户 ID（不会在重渲染时改变）
+ * 2. 更新为使用 SessionChatPanel
+ * 3. 提供模拟的 participants 列表
+ * 4. 明确说明这是单机测试，不能测试实时通信
+ * 5. 条件化调试代码
+ */
 export function ChatIntegrationTest({ classroomSlug, sessionId }: ChatIntegrationTestProps) {
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [testUser, setTestUser] = useState<'student' | 'tutor'>('student');
   const [userName, setUserName] = useState('测试用户');
 
+  // 🎯 关键修复：生成稳定的用户 ID（组件生命周期内不变）
+  const stableUserId = useMemo(
+    () => `test-user-${Math.random().toString(36).substr(2, 9)}`,
+    [] // 空依赖数组 = 只在首次挂载时执行
+  );
+
   const mockUserInfo = {
-    id: `test-${classroomSlug}-${Date.now()}`,
+    id: stableUserId, // ✅ 使用稳定的 ID
     name: userName,
     avatar: '',
     role: testUser,
   };
+
+  // 🎯 修复：提供模拟的参与者列表
+  const mockParticipants = useMemo(() => [
+    {
+      identity: stableUserId,
+      displayName: userName,
+      avatarUrl: '',
+      role: testUser,
+    },
+    {
+      identity: 'mock-student-1',
+      displayName: '模拟学生A',
+      avatarUrl: '',
+      role: 'student',
+    },
+    {
+      identity: 'mock-tutor-1',
+      displayName: '模拟导师B',
+      avatarUrl: '',
+      role: 'tutor',
+    },
+  ], [stableUserId, userName, testUser]);
 
   const toggleUserRole = () => {
     setTestUser(prev => prev === 'student' ? 'tutor' : 'student');
@@ -32,12 +71,36 @@ export function ChatIntegrationTest({ classroomSlug, sessionId }: ChatIntegratio
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <div className="max-w-6xl mx-auto">
+        {/* 🎯 重要警告：测试限制说明 */}
+        <Alert className="mb-6 bg-yellow-900/30 border-yellow-700">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>⚠️ 测试环境限制</AlertTitle>
+          <AlertDescription className="space-y-2 text-sm">
+            <p>
+              <strong>这是一个单机测试环境</strong>，只能验证以下功能：
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>✅ UI 布局和样式</li>
+              <li>✅ 消息发送和显示</li>
+              <li>✅ localStorage 本地持久化</li>
+              <li>✅ 表情反应功能</li>
+            </ul>
+            <p className="mt-2 text-yellow-200">
+              <strong>⚠️ 无法测试实时通信：</strong>
+            </p>
+            <p className="text-yellow-100">
+              要测试真正的多用户实时聊天，请在两个独立的浏览器窗口中打开课堂页面，
+              一个使用导师身份，一个使用学生身份，然后验证消息是否能跨窗口传输。
+            </p>
+          </AlertDescription>
+        </Alert>
+
         {/* 标题区域 */}
         <Card className="mb-6 bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
               <MessageCircle className="w-6 h-6" />
-              Liveblocks 聊天集成测试
+              SessionChat 单机测试
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -57,10 +120,8 @@ export function ChatIntegrationTest({ classroomSlug, sessionId }: ChatIntegratio
                 </Badge>
               </div>
               <div>
-                <span className="text-slate-400">聊天状态:</span>
-                <Badge variant={isChatOpen ? 'default' : 'outline'}>
-                  {isChatOpen ? '已打开' : '已关闭'}
-                </Badge>
+                <span className="text-slate-400">用户ID:</span>
+                <div className="font-mono text-xs text-slate-400">{stableUserId}</div>
               </div>
             </div>
           </CardContent>
@@ -85,111 +146,154 @@ export function ChatIntegrationTest({ classroomSlug, sessionId }: ChatIntegratio
               
               <Button
                 onClick={toggleUserRole}
-                variant="outline"
+                variant="secondary"
               >
-                切换为{testUser === 'student' ? '导师' : '学生'}
+                切换为 {testUser === 'student' ? '导师' : '学生'}
               </Button>
-              
+
               <Button
-                onClick={() => window.location.reload()}
-                variant="outline"
+                onClick={() => {
+                  const key = `chat:${classroomSlug}:${sessionId || 'default'}`;
+                  localStorage.removeItem(key);
+                  window.location.reload();
+                }}
+                variant="destructive"
               >
-                重新加载测试
+                清除历史记录
               </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <Card className="bg-slate-700/50 border-slate-600">
-                <CardContent className="pt-4">
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    功能检查
-                  </h4>
-                  <ul className="space-y-1 text-slate-300">
-                    <li>✅ 聊天面板显示/隐藏</li>
-                    <li>✅ 消息发送功能</li>
-                    <li>✅ 表情反应</li>
-                    <li>✅ 在线用户列表</li>
-                    <li>✅ 角色区分显示</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-700/50 border-slate-600">
-                <CardContent className="pt-4">
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-blue-400" />
-                    测试场景
-                  </h4>
-                  <ul className="space-y-1 text-slate-300">
-                    <li>📝 发送文字消息</li>
-                    <li>😊 发送表情反应</li>
-                    <li>👥 查看在线用户</li>
-                    <li>🔄 切换用户角色</li>
-                    <li>💬 多轮对话测试</li>
-                  </ul>
-                </CardContent>
-              </Card>
             </div>
           </CardContent>
         </Card>
 
-        {/* 模拟直播界面 */}
-        <div className="relative bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-          <div className="flex">
-            {/* 主要内容区域 */}
-            <div className="flex-1 p-6">
-              <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg h-96 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-slate-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <Users className="w-10 h-10 text-slate-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-white mb-2">模拟直播区域</h3>
-                  <p className="text-slate-400">这里是视频通话和屏幕共享区域</p>
-                  <div className="mt-4 text-sm text-slate-500">
-                    教室: {classroomSlug} | 会话: {sessionId || '默认'}
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* 功能说明 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="pt-4">
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Info className="w-4 h-4 text-green-400" />
+                可以测试的功能
+              </h4>
+              <ul className="space-y-1 text-slate-300 text-sm">
+                <li>✅ 发送文字消息</li>
+                <li>✅ 发送表情反应</li>
+                <li>✅ 查看消息历史（刷新页面后恢复）</li>
+                <li>✅ 模拟在线用户列表显示</li>
+                <li>✅ 角色区分显示</li>
+                <li>✅ UI 响应和布局</li>
+              </ul>
+            </CardContent>
+          </Card>
 
-            {/* 聊天面板 - 集成的 Liveblocks 聊天 */}
-            <LiveblocksChatPanel
-              isOpen={isChatOpen}
-              classroomSlug={classroomSlug}
-              sessionId={sessionId}
-              userInfo={mockUserInfo}
-            />
-          </div>
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="pt-4">
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                无法测试的功能
+              </h4>
+              <ul className="space-y-1 text-slate-300 text-sm">
+                <li>❌ 跨用户实时消息传输</li>
+                <li>❌ 真实的在线用户状态</li>
+                <li>❌ 用户加入/离开通知</li>
+                <li>❌ LiveKit DataChannel 通信</li>
+                <li>❌ 多设备同步</li>
+              </ul>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* 说明文档 */}
-        <Card className="mt-6 bg-slate-800/50 border-slate-700">
-          <CardContent className="pt-6">
-            <h4 className="font-medium mb-3 text-white">🎯 测试说明</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
-              <div>
-                <h5 className="font-medium text-white mb-2">基础功能测试:</h5>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>确认聊天面板能正常显示和隐藏</li>
-                  <li>测试文字消息发送功能</li>
-                  <li>测试表情反应功能</li>
-                  <li>查看在线用户列表</li>
-                </ol>
-              </div>
-              <div>
-                <h5 className="font-medium text-white mb-2">集成验证:</h5>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>切换用户角色查看权限差异</li>
-                  <li>测试长消息和字数限制</li>
-                  <li>验证消息时间戳显示</li>
-                  <li>确认UI与直播界面的一致性</li>
-                </ol>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 测试区域 - 主要内容 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 聊天面板 */}
+          <div className="lg:col-span-2">
+            <Card className="bg-slate-800/50 border-slate-700 h-[600px]">
+              <CardContent className="p-0 h-full">
+                <SessionChatPanel
+                  isOpen={isChatOpen}
+                  classroomSlug={classroomSlug}
+                  sessionId={sessionId || 'test-session'}
+                  userInfo={mockUserInfo}
+                  participants={mockParticipants} // 🎯 传递模拟参与者
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 测试指南 */}
+          <div className="space-y-4">
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  测试步骤
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div>
+                  <strong className="text-white">1. 单机测试</strong>
+                  <p className="text-slate-400 mt-1">发送几条消息，验证显示正常</p>
+                </div>
+                <div>
+                  <strong className="text-white">2. 角色切换</strong>
+                  <p className="text-slate-400 mt-1">切换角色，验证 UI 更新</p>
+                </div>
+                <div>
+                  <strong className="text-white">3. 持久化测试</strong>
+                  <p className="text-slate-400 mt-1">刷新页面，验证消息保留</p>
+                </div>
+                <div>
+                  <strong className="text-white">4. 清理测试</strong>
+                  <p className="text-slate-400 mt-1">清除历史，验证重置功能</p>
+                </div>
+                
+                <div className="pt-3 border-t border-slate-700">
+                  <strong className="text-yellow-400">5. 实时通信测试（必须）</strong>
+                  <p className="text-slate-300 mt-1">
+                    打开第二个浏览器窗口，使用不同角色，验证消息能否跨窗口传输
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-lg">调试信息</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs font-mono">
+                <div>
+                  <span className="text-slate-400">localStorage Key:</span>
+                  <div className="text-slate-300 break-all">
+                    chat:{classroomSlug}:{sessionId || 'default'}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Current User ID:</span>
+                  <div className="text-slate-300">{stableUserId}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Mock Participants:</span>
+                  <div className="text-slate-300">{mockParticipants.length} users</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
+}
+
+// 🎯 条件化调试样式
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const existingStyle = document.head.querySelector('#chat-test-debug-styles');
+  if (!existingStyle) {
+    const style = document.createElement('style');
+    style.id = 'chat-test-debug-styles';
+    style.textContent = `
+      /* 开发环境调试样式 */
+      .chat-test-debug {
+        outline: 1px dashed rgba(255, 255, 0, 0.3);
+      }
+    `;
+    document.head.appendChild(style);
+  }
 }

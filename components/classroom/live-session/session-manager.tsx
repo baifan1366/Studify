@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,8 @@ export default function SessionManager({
   userId,
   userName
 }: SessionManagerProps) {
-  const [activeSession, setActiveSession] = useState<LiveSession | null>(null);
+  // 🎯 方案B：引入明确的用户意图状态
+  const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newSession, setNewSession] = useState({
     title: '',
@@ -37,6 +38,9 @@ export default function SessionManager({
     starts_at: '',
     ends_at: '',
   });
+  
+  // 🎯 使用 ref 确保自动加入只在首次加载时执行
+  const hasAutoJoinedRef = useRef(false);
 
   const {
     sessions,
@@ -48,13 +52,26 @@ export default function SessionManager({
     invalidateQueries
   } = useClassroomLiveSessions(classroomSlug);
 
-  // 检查是否有正在进行的会话
+  // 🎯 计算当前活跃的会话（从用户选择的会话ID）
+  const activeSession = useMemo(() => {
+    if (!joinedSessionId) return null;
+    return sessions?.find(s => s.id === joinedSessionId) || null;
+  }, [joinedSessionId, sessions]);
+
+  // 🎯 修复：只在首次加载且学生身份时自动加入活跃会话
   useEffect(() => {
-    const activeSessions = sessions?.filter(session => session.status === 'active');
-    if (activeSessions && activeSessions.length > 0) {
-      setActiveSession(activeSessions[0]);
+    if (hasAutoJoinedRef.current) return;
+    if (!sessions || sessions.length === 0) return;
+    
+    // 只有学生才自动加入
+    if (userRole === 'student') {
+      const activeSessions = sessions.filter(session => session.status === 'active');
+      if (activeSessions.length > 0) {
+        setJoinedSessionId(activeSessions[0].id);
+        hasAutoJoinedRef.current = true;
+      }
     }
-  }, [sessions]);
+  }, [sessions, userRole]);
 
   const handleCreateSession = async () => {
     if (!newSession.title || !newSession.starts_at) {
@@ -83,7 +100,7 @@ export default function SessionManager({
   const handleStartSession = async (session: LiveSession) => {
     try {
       await updateSession(session.id, { status: 'active' });
-      setActiveSession(session);
+      setJoinedSessionId(session.id);  // 🎯 使用新的状态
       toast.success('课堂已开始');
       invalidateQueries();
     } catch (error) {
@@ -99,7 +116,7 @@ export default function SessionManager({
         status: 'ended',
         ends_at: new Date().toISOString()
       });
-      setActiveSession(null);
+      setJoinedSessionId(null);  // 🎯 使用新的状态
       toast.success('课堂已结束');
       invalidateQueries();
     } catch (error) {
@@ -108,11 +125,22 @@ export default function SessionManager({
   };
 
   const handleJoinSession = (session: LiveSession) => {
-    setActiveSession(session);
+    setJoinedSessionId(session.id);  // 🎯 使用新的状态
   };
 
   const handleLeaveSession = () => {
-    setActiveSession(null);
+    setJoinedSessionId(null);  // 🎯 使用新的状态
+  };
+
+  // 🎯 新增：处理删除会话
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await deleteSession(sessionId);
+      toast.success('会话已删除');
+      invalidateQueries();  // 🎯 确保刷新数据
+    } catch (error) {
+      toast.error('删除失败');
+    }
   };
 
   // 如果正在参与课堂，显示 LiveKit 组件
@@ -133,6 +161,23 @@ export default function SessionManager({
       <Card className="bg-transparent p-2">
         <CardContent className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 🎯 新增：显示错误状态
+  if (error) {
+    return (
+      <Card className="bg-transparent p-2">
+        <CardContent className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="text-red-500 text-center">
+            <p className="font-medium">无法加载会话列表</p>
+            <p className="text-sm text-muted-foreground mt-2">请检查网络连接后重试</p>
+          </div>
+          <Button onClick={() => invalidateQueries()}>
+            重新加载
+          </Button>
         </CardContent>
       </Card>
     );

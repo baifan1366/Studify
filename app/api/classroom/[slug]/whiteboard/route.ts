@@ -136,10 +136,28 @@ export async function GET(
 
         console.log(`Successfully loaded whiteboard from ${successfulBucket}`);
 
+        // 🎯 尝试加载文本框数据
+        let textBoxes = [];
+        try {
+          const textBoxesPath = `${filePath}.textboxes.json`;
+          const { data: textBoxesData } = await supabase.storage
+            .from(successfulBucket || STORAGE_BUCKETS.CLASSROOM_ATTACHMENT)
+            .download(textBoxesPath);
+          
+          if (textBoxesData) {
+            const textBoxesText = await textBoxesData.text();
+            textBoxes = JSON.parse(textBoxesText);
+            console.log('✅ Loaded textBoxes:', textBoxes.length, 'boxes');
+          }
+        } catch (textBoxError) {
+          console.log('ℹ️ No textBoxes data found (this is OK for older whiteboards)');
+        }
+
         // 4. 构建返回数据
         const whiteboardData = [{
           id: sessionId,
           image_data: imageData,
+          textBoxes: textBoxes, // 🎯 添加文本框数据
           width: 800,
           height: 600,
           created_at: new Date().toISOString(),
@@ -229,11 +247,14 @@ export async function POST(
 
     // Parse request body
     const body = await request.json();
-    const { sessionId, imageData, width, height, metadata } = body;
+    const { sessionId, imageData, width, height, metadata, textBoxes } = body;
 
     if (!sessionId || !imageData) {
       return NextResponse.json({ error: 'Session ID and image data are required' }, { status: 400 });
     }
+    
+    // 🎯 Log textBoxes data
+    console.log('📋 Received textBoxes:', textBoxes?.length || 0, 'boxes');
 
     // 1. 定义缓存键 (与 GET 一致)
     const cacheKey = `whiteboard:${slug}:${sessionId}`;
@@ -324,6 +345,24 @@ export async function POST(
         }
       } else {
         console.log('Whiteboard saved to bucket successfully:', uploadData.path);
+        
+        // 🎯 保存文本框数据到单独的 JSON 文件
+        if (textBoxes && Array.isArray(textBoxes) && textBoxes.length > 0) {
+          const textBoxesPath = `${filePath}.textboxes.json`;
+          const textBoxesData = JSON.stringify(textBoxes);
+          
+          try {
+            await supabase.storage
+              .from(STORAGE_BUCKETS.CLASSROOM_ATTACHMENT)
+              .upload(textBoxesPath, textBoxesData, {
+                contentType: 'application/json',
+                upsert: true
+              });
+            console.log('✅ TextBoxes saved:', textBoxes.length, 'boxes');
+          } catch (textBoxError) {
+            console.error('⚠️ Failed to save textBoxes:', textBoxError);
+          }
+        }
         
         // 3. 成功保存到存储后，使缓存失效 (清除缓存)
         // 这是最关键的一步，确保数据一致性

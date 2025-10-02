@@ -10,11 +10,12 @@ import {
   Circle,
   Type,
   Palette,
-  Undo,
-  Redo,
   Trash2,
   Download,
-  Upload
+  Save,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react';
 
 interface WhiteboardPanelProps {
@@ -29,8 +30,13 @@ interface WhiteboardPanelProps {
   setCurrentColor: (color: string) => void;
   currentBrushSize: number;
   setCurrentBrushSize: (size: number) => void;
+  currentFontSize: number;
+  setCurrentFontSize: (size: number) => void;
+  currentTextAlign: 'left' | 'center' | 'right';
+  setCurrentTextAlign: (align: 'left' | 'center' | 'right') => void;
   // 工具栏操作
   onClearCanvas?: () => void;
+  onSaveCanvas?: () => Promise<void>;
   onDownloadCanvas?: () => void;
 }
 
@@ -48,6 +54,7 @@ const COLORS = [
 ];
 
 const BRUSH_SIZES = [2, 4, 8, 12, 16];
+const FONT_SIZES = [12, 16, 20, 24, 32];
 
 type Tool = 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
 
@@ -62,7 +69,12 @@ export function WhiteboardPanel({
   setCurrentColor,
   currentBrushSize,
   setCurrentBrushSize,
+  currentFontSize,
+  setCurrentFontSize,
+  currentTextAlign,
+  setCurrentTextAlign,
   onClearCanvas,
+  onSaveCanvas,
   onDownloadCanvas
 }: WhiteboardPanelProps) {
 
@@ -152,29 +164,31 @@ export function WhiteboardPanel({
               </div>
             </div>
 
-            {/* 画笔大小 */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-slate-300">画笔大小</span>
-                <span className="text-xs text-slate-400">({currentBrushSize}px)</span>
+            {/* 画笔大小 - 仅在非文本工具时显示 */}
+            {currentTool !== 'text' && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm text-slate-300">画笔大小</span>
+                  <span className="text-xs text-slate-400">({currentBrushSize}px)</span>
+                </div>
+                <div className="flex gap-1">
+                  {BRUSH_SIZES.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setCurrentBrushSize(size)}
+                      className={`w-8 h-8 rounded border ${
+                        currentBrushSize === size ? 'border-white bg-slate-600' : 'border-slate-600'
+                      } flex items-center justify-center`}
+                    >
+                      <div
+                        className="rounded-full bg-white"
+                        style={{ width: `${Math.min(size, 6)}px`, height: `${Math.min(size, 6)}px` }}
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-1">
-                {BRUSH_SIZES.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setCurrentBrushSize(size)}
-                    className={`w-8 h-8 rounded border ${
-                      currentBrushSize === size ? 'border-white bg-slate-600' : 'border-slate-600'
-                    } flex items-center justify-center`}
-                  >
-                    <div
-                      className="rounded-full bg-white"
-                      style={{ width: `${Math.min(size, 6)}px`, height: `${Math.min(size, 6)}px` }}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* 文本工具选项 */}
             {currentTool === 'text' && (
@@ -185,20 +199,20 @@ export function WhiteboardPanel({
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-sm text-slate-300">字体大小</span>
-                    <span className="text-xs text-slate-400">({Math.max(12, currentBrushSize * 3)}px)</span>
+                    <span className="text-xs text-slate-400">({currentFontSize}px)</span>
                   </div>
-                  <div className="flex gap-1">
-                    {[1, 2, 4, 6, 8].map((size) => (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
+                    {FONT_SIZES.map((size) => (
                       <button
                         key={size}
-                        onClick={() => setCurrentBrushSize(size)}
+                        onClick={() => setCurrentFontSize(size)}
                         className={`px-2 py-1 rounded text-xs ${
-                          currentBrushSize === size 
+                          currentFontSize === size 
                             ? 'bg-indigo-500 text-white' 
                             : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                         }`}
                       >
-                        {Math.max(12, size * 3)}px
+                        {size}px
                       </button>
                     ))}
                   </div>
@@ -210,22 +224,39 @@ export function WhiteboardPanel({
                     <span className="text-sm text-slate-300">对齐方式</span>
                   </div>
                   <div className="flex gap-1">
-                    {[
-                      { align: 'left', icon: '←', label: '左对齐' },
-                      { align: 'center', icon: '↔', label: '居中' },
-                      { align: 'right', icon: '→', label: '右对齐' }
-                    ].map(({ align, icon, label }) => (
-                      <button
-                        key={align}
-                        onClick={() => {/* 这里将来会控制文本对齐 */}}
-                        className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
-                          'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                        }`}
-                        title={label}
-                      >
-                        <span>{icon}</span>
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => setCurrentTextAlign('left')}
+                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${
+                        currentTextAlign === 'left'
+                          ? 'bg-indigo-500 text-white' 
+                          : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                      }`}
+                      title="左对齐"
+                    >
+                      <AlignLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentTextAlign('center')}
+                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${
+                        currentTextAlign === 'center'
+                          ? 'bg-indigo-500 text-white' 
+                          : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                      }`}
+                      title="居中对齐"
+                    >
+                      <AlignCenter className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentTextAlign('right')}
+                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${
+                        currentTextAlign === 'right'
+                          ? 'bg-indigo-500 text-white' 
+                          : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                      }`}
+                      title="右对齐"
+                    >
+                      <AlignRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
@@ -237,14 +268,25 @@ export function WhiteboardPanel({
             )}
 
             {/* 操作按钮 */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" onClick={onClearCanvas}>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" onClick={onSaveCanvas}>
+                  <Save className="w-4 h-4 mr-1" />
+                  保存到云端
+                </Button>
+                <Button variant="outline" size="sm" onClick={onDownloadCanvas}>
+                  <Download className="w-4 h-4 mr-1" />
+                  下载图片
+                </Button>
+              </div>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={onClearCanvas}
+                className="w-full"
+              >
                 <Trash2 className="w-4 h-4 mr-1" />
-                清空
-              </Button>
-              <Button variant="outline" size="sm" onClick={onDownloadCanvas}>
-                <Download className="w-4 h-4 mr-1" />
-                保存
+                清空画布
               </Button>
             </div>
           </div>

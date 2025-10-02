@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext, ReactNode } from 'react';
 
 // CSS Debugging - 确保关键样式被应用
 if (typeof window !== 'undefined') {
@@ -68,14 +68,16 @@ import {
   MoreHorizontal,
   Presentation,
   Hand,
-  PenTool
+  PenTool,
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { LiveblocksChatPanel } from './liveblocks-chat-panel';
+import { SessionChatPanel } from './liveblocks-chat-panel';
 import { WhiteboardPanel } from './whiteboard-panel';
 import { WhiteboardCanvas } from './whiteboard-canvas';
 import { 
@@ -99,6 +101,240 @@ import BottomControls from './bottom-controls';
 if (process.env.NODE_ENV === 'development') {
   setLogLevel(LogLevel.warn);
 }
+
+// ============================================
+// Classroom Context
+// ============================================
+
+/**
+ * Classroom Context - 解决 prop drilling 问题
+ * 管理整个课堂的状态，避免通过多层组件传递 props
+ */
+interface ClassroomState {
+  // 基础信息
+  classroomSlug: string;
+  sessionId: string;
+  participantName: string;
+  userRole: 'student' | 'tutor';
+  classroomColor: string;
+  
+  // 布局状态
+  layout: string;
+  setLayout: (layout: string) => void;
+  
+  // 面板状态
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
+  isParticipantsOpen: boolean;
+  setIsParticipantsOpen: (open: boolean) => void;
+  isWhiteboardOpen: boolean;
+  setIsWhiteboardOpen: (open: boolean) => void;
+  
+  // 会话状态
+  sessionDuration: number;
+  isRecording: boolean;
+  
+  // 面板尺寸
+  panelWidth: number;
+  setPanelWidth: (width: number) => void;
+  isResizing: boolean;
+  setIsResizing: (resizing: boolean) => void;
+  
+  // 白板状态
+  whiteboardTool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
+  setWhiteboardTool: (tool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text') => void;
+  whiteboardColor: string;
+  setWhiteboardColor: (color: string) => void;
+  whiteboardBrushSize: number;
+  setWhiteboardBrushSize: (size: number) => void;
+  whiteboardFontSize: number;
+  setWhiteboardFontSize: (size: number) => void;
+  whiteboardTextAlign: 'left' | 'center' | 'right';
+  setWhiteboardTextAlign: (align: 'left' | 'center' | 'right') => void;
+  
+  // 白板操作
+  whiteboardCanvasRef: React.RefObject<any>;
+  handleClearWhiteboard: () => void;
+  handleSaveWhiteboard: () => Promise<void>;
+  handleDownloadWhiteboard: () => void;
+  
+  // 聚焦参与者
+  focusedParticipant: any;
+  setFocusedParticipant: (participant: any) => void;
+  
+  // 操作函数
+  handleToggleRecording: () => void;
+  formatDuration: (seconds: number) => string;
+}
+
+const ClassroomContext = createContext<ClassroomState | undefined>(undefined);
+
+export function useClassroom() {
+  const context = useContext(ClassroomContext);
+  if (!context) {
+    throw new Error('useClassroom must be used within ClassroomProvider');
+  }
+  return context;
+}
+
+interface ClassroomProviderProps {
+  children: ReactNode;
+  classroomSlug: string;
+  sessionId: string;
+  participantName: string;
+  userRole: 'student' | 'tutor';
+  classroomColor?: string;
+  layout: string;
+  setLayout: (layout: string) => void;
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
+  isParticipantsOpen: boolean;
+  setIsParticipantsOpen: (open: boolean) => void;
+  isWhiteboardOpen: boolean;
+  setIsWhiteboardOpen: (open: boolean) => void;
+  sessionDuration: number;
+  isRecording: boolean;
+  panelWidth: number;
+  setPanelWidth: (width: number) => void;
+  isResizing: boolean;
+  setIsResizing: (resizing: boolean) => void;
+  whiteboardTool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
+  setWhiteboardTool: (tool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text') => void;
+  whiteboardColor: string;
+  setWhiteboardColor: (color: string) => void;
+  whiteboardBrushSize: number;
+  setWhiteboardBrushSize: (size: number) => void;
+  whiteboardFontSize: number;
+  setWhiteboardFontSize: (size: number) => void;
+  whiteboardTextAlign: 'left' | 'center' | 'right';
+  setWhiteboardTextAlign: (align: 'left' | 'center' | 'right') => void;
+  whiteboardCanvasRef: React.RefObject<any>;
+  handleClearWhiteboard: () => void;
+  handleSaveWhiteboard: () => Promise<void>;
+  handleDownloadWhiteboard: () => void;
+  focusedParticipant: any;
+  setFocusedParticipant: (participant: any) => void;
+  handleToggleRecording: () => void;
+  formatDuration: (seconds: number) => string;
+}
+
+export function ClassroomProvider(props: ClassroomProviderProps) {
+  const {
+    children,
+    classroomSlug,
+    sessionId,
+    participantName,
+    userRole,
+    classroomColor = '#6366f1',
+    layout,
+    setLayout,
+    isChatOpen,
+    setIsChatOpen,
+    isParticipantsOpen,
+    setIsParticipantsOpen,
+    isWhiteboardOpen,
+    setIsWhiteboardOpen,
+    sessionDuration,
+    isRecording,
+    panelWidth,
+    setPanelWidth,
+    isResizing,
+    setIsResizing,
+    whiteboardTool,
+    setWhiteboardTool,
+    whiteboardColor,
+    setWhiteboardColor,
+    whiteboardBrushSize,
+    setWhiteboardBrushSize,
+    whiteboardFontSize,
+    setWhiteboardFontSize,
+    whiteboardTextAlign,
+    setWhiteboardTextAlign,
+    whiteboardCanvasRef,
+    handleClearWhiteboard,
+    handleSaveWhiteboard,
+    handleDownloadWhiteboard,
+    focusedParticipant,
+    setFocusedParticipant,
+    handleToggleRecording,
+    formatDuration,
+  } = props;
+
+  const value = useMemo(() => ({
+    classroomSlug,
+    sessionId,
+    participantName,
+    userRole,
+    classroomColor,
+    layout,
+    setLayout,
+    isChatOpen,
+    setIsChatOpen,
+    isParticipantsOpen,
+    setIsParticipantsOpen,
+    isWhiteboardOpen,
+    setIsWhiteboardOpen,
+    sessionDuration,
+    isRecording,
+    panelWidth,
+    setPanelWidth,
+    isResizing,
+    setIsResizing,
+    whiteboardTool,
+    setWhiteboardTool,
+    whiteboardColor,
+    setWhiteboardColor,
+    whiteboardBrushSize,
+    setWhiteboardBrushSize,
+    whiteboardFontSize,
+    setWhiteboardFontSize,
+    whiteboardTextAlign,
+    setWhiteboardTextAlign,
+    whiteboardCanvasRef,
+    handleClearWhiteboard,
+    handleSaveWhiteboard,
+    handleDownloadWhiteboard,
+    focusedParticipant,
+    setFocusedParticipant,
+    handleToggleRecording,
+    formatDuration,
+  }), [
+    classroomSlug,
+    sessionId,
+    participantName,
+    userRole,
+    classroomColor,
+    layout,
+    isChatOpen,
+    isParticipantsOpen,
+    isWhiteboardOpen,
+    sessionDuration,
+    isRecording,
+    panelWidth,
+    isResizing,
+    whiteboardTool,
+    whiteboardColor,
+    whiteboardBrushSize,
+    whiteboardFontSize,
+    whiteboardTextAlign,
+    focusedParticipant,
+    handleToggleRecording,
+    formatDuration,
+    handleClearWhiteboard,
+    handleSaveWhiteboard,
+    handleDownloadWhiteboard,
+  ]);
+
+  return (
+    <ClassroomContext.Provider value={value}>
+      {children}
+    </ClassroomContext.Provider>
+  );
+}
+
+// ============================================
+// LiveClassroom Component
+// ============================================
 
 interface LiveClassroomProps {
   classroomSlug: string;
@@ -129,6 +365,8 @@ export default function RedesiLiveClassroom({
   const [whiteboardTool, setWhiteboardTool] = useState<'pen' | 'eraser' | 'rectangle' | 'circle' | 'text'>('pen');
   const [whiteboardColor, setWhiteboardColor] = useState('#000000');
   const [whiteboardBrushSize, setWhiteboardBrushSize] = useState(4);
+  const [whiteboardFontSize, setWhiteboardFontSize] = useState(16); // 🎯 独立的字体大小状态（像素值）
+  const [whiteboardTextAlign, setWhiteboardTextAlign] = useState<'left' | 'center' | 'right'>('left'); // 🎯 文本对齐状态
   
   // 白板画布引用 - 存储所有canvas引用
   const whiteboardCanvasRefs = useRef<{ [key: string]: any }>({});
@@ -178,7 +416,6 @@ export default function RedesiLiveClassroom({
   const reactionEmojiMap = {
     heart: '❤️',
     clap: '👏',
-    thumbs: '👍',
     fire: '🔥',
     mind: '🤯',
     rocket: '🚀'
@@ -194,10 +431,27 @@ export default function RedesiLiveClassroom({
 
   // Auto-generate token on mount - MUST be before any early returns
   useEffect(() => {
-    if (!tokenData && !isLoading && !error) {
+    console.log('🎯 [LiveClassroom] Token generation check:', {
+      hasTokenData: !!tokenData,
+      isLoading,
+      hasError: !!error,
+      classroomSlug,
+      sessionId,
+      participantName,
+      userRole
+    });
+    
+    if (!tokenData && !isLoading && !error && classroomSlug && sessionId && participantName) {
+      console.log('🚀 [LiveClassroom] Triggering token generation...');
       generateToken();
+    } else if (!classroomSlug || !sessionId || !participantName) {
+      console.warn('⚠️ [LiveClassroom] Missing required parameters for token generation:', {
+        classroomSlug: !!classroomSlug,
+        sessionId: !!sessionId, 
+        participantName: !!participantName
+      });
     }
-  }, [tokenData, isLoading, error, generateToken]);
+  }, [tokenData, isLoading, error, generateToken, classroomSlug, sessionId, participantName]);
 
   // Session timer - MUST be before any early returns
   useEffect(() => {
@@ -336,16 +590,36 @@ export default function RedesiLiveClassroom({
   }
 
   if (error || !tokenData) {
+    const errorMessage = error instanceof Error ? error.message : 
+                        typeof error === 'string' ? error : 
+                        '无法获取课堂访问权限';
+    
     return (
       <Card className="w-full h-96">
         <CardContent className="flex items-center justify-center h-full">
-          <div className="flex flex-col items-center space-y-4">
-            <p className="text-red-500">
-              {typeof error === 'string' ? error : '无法获取课堂访问权限'}
+          <div className="flex flex-col items-center space-y-4 max-w-md text-center">
+            <div className="text-red-500 text-6xl mb-2">⚠️</div>
+            <h3 className="text-lg font-medium text-slate-800">连接问题</h3>
+            <p className="text-red-500 text-sm">
+              {errorMessage}
             </p>
-            <Button onClick={handleConnect} variant="outline">
-              重新连接
-            </Button>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-slate-100 p-3 rounded text-xs text-slate-600 w-full">
+                <div className="font-medium mb-1">🔧 调试信息</div>
+                <div>教室: {classroomSlug}</div>
+                <div>会话: {sessionId}</div>
+                <div>参与者: {participantName}</div>
+                <div>角色: {userRole}</div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button onClick={handleConnect} variant="outline" size="sm">
+                重新连接
+              </Button>
+              <Button onClick={() => window.location.reload()} variant="default" size="sm">
+                刷新页面
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -434,8 +708,13 @@ export default function RedesiLiveClassroom({
           setWhiteboardColor={setWhiteboardColor}
           whiteboardBrushSize={whiteboardBrushSize}
           setWhiteboardBrushSize={setWhiteboardBrushSize}
+          whiteboardFontSize={whiteboardFontSize}
+          setWhiteboardFontSize={setWhiteboardFontSize}
+          whiteboardTextAlign={whiteboardTextAlign}
+          setWhiteboardTextAlign={setWhiteboardTextAlign}
           handleClearWhiteboard={handleClearWhiteboard}
           handleSaveWhiteboard={handleSaveWhiteboard}
+          handleDownloadWhiteboard={handleDownloadWhiteboard}
           whiteboardCanvasRefs={whiteboardCanvasRefs}
         />
       </LiveKitRoom>
@@ -485,9 +764,14 @@ interface LiveClassroomContentProps {
   setWhiteboardColor: (color: string) => void;
   whiteboardBrushSize: number;
   setWhiteboardBrushSize: (size: number) => void;
+  whiteboardFontSize: number;
+  setWhiteboardFontSize: (size: number) => void;
+  whiteboardTextAlign: 'left' | 'center' | 'right';
+  setWhiteboardTextAlign: (align: 'left' | 'center' | 'right') => void;
   // 白板操作函数
   handleClearWhiteboard: () => void;
   handleSaveWhiteboard: () => Promise<void>;
+  handleDownloadWhiteboard: () => void;
   whiteboardCanvasRefs: React.MutableRefObject<{ [key: string]: any }>;
 }
 
@@ -532,8 +816,13 @@ function LiveClassroomContent({
   setWhiteboardColor,
   whiteboardBrushSize,
   setWhiteboardBrushSize,
+  whiteboardFontSize,
+  setWhiteboardFontSize,
+  whiteboardTextAlign,
+  setWhiteboardTextAlign,
   handleClearWhiteboard,
   handleSaveWhiteboard,
+  handleDownloadWhiteboard,
   whiteboardCanvasRefs
 }: LiveClassroomContentProps) {
   const room = useRoomContext();
@@ -928,18 +1217,24 @@ function LiveClassroomContent({
               }}
             >
               <div className="w-full h-full flex flex-col">
-                {/* Chat Panel - Liveblocks Integration */}
+                {/* Chat Panel - LiveKit DataChannel 实时通信 */}
                 <div className={`flex-1 ${isChatOpen ? 'block' : 'hidden'} overflow-hidden`}>
-                  <LiveblocksChatPanel 
+                  <SessionChatPanel 
                     isOpen={isChatOpen}
                     classroomSlug={classroomSlug}
                     sessionId={sessionId}
                     userInfo={{
-                      id: `${classroomSlug}-${sessionId}`, // 使用教室和会话ID作为唯一ID
+                      id: localParticipant?.identity || `${classroomSlug}-${sessionId}`,
                       name: originalParticipantName,
                       avatar: '', // 可以后续添加头像支持
                       role: userRole
                     }}
+                    participants={participants.map((p: any) => ({
+                      identity: p.identity,
+                      displayName: p.displayName,
+                      avatarUrl: p.avatarUrl,
+                      role: p.role
+                    }))}
                   />
                 </div>
 
@@ -956,8 +1251,13 @@ function LiveClassroomContent({
                     setCurrentColor={setWhiteboardColor}
                     currentBrushSize={whiteboardBrushSize}
                     setCurrentBrushSize={setWhiteboardBrushSize}
+                    currentFontSize={whiteboardFontSize}
+                    setCurrentFontSize={setWhiteboardFontSize}
+                    currentTextAlign={whiteboardTextAlign}
+                    setCurrentTextAlign={setWhiteboardTextAlign}
                     onClearCanvas={handleClearWhiteboard}
-                    onDownloadCanvas={handleSaveWhiteboard}
+                    onSaveCanvas={handleSaveWhiteboard}
+                    onDownloadCanvas={handleDownloadWhiteboard}
                   />
                 </div>
               </div>
@@ -1408,13 +1708,41 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: 0.2 }}
     >
+      {/* 🎯 关键修复：WhiteboardCanvas 在外部，永远不会被卸载 */}
+      {isWhiteboardOpen && (
+        <div 
+          className="absolute inset-0 z-30 p-4"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div className="w-full h-full bg-white rounded-xl overflow-hidden border border-slate-300/60 relative">
+            <WhiteboardCanvas 
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              participantName={"Whiteboard"}
+              currentTool={whiteboardTool}
+              currentColor={whiteboardColor}
+              currentBrushSize={whiteboardBrushSize}
+            />
+            <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium z-10">
+              白板
+            </div>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {layout === 'grid' && (
           <GridVideoLayout 
             key="grid" 
             participants={participants} 
             setFocusedParticipant={setFocusedParticipant}
-            isWhiteboardOpen={isWhiteboardOpen}
+            isWhiteboardOpen={false}
             classroomSlug={classroomSlug}
             sessionId={sessionId}
             userRole={userRole}
@@ -1428,7 +1756,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
           <PresentationVideoLayout 
             key="presentation" 
             participants={participants}
-            isWhiteboardOpen={isWhiteboardOpen}
+            isWhiteboardOpen={false}
             classroomSlug={classroomSlug}
             sessionId={sessionId}
             userRole={userRole}
@@ -1444,7 +1772,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             participants={participants}
             focusedParticipant={focusedParticipant}
             setFocusedParticipant={setFocusedParticipant}
-            isWhiteboardOpen={isWhiteboardOpen}
+            isWhiteboardOpen={false}
             classroomSlug={classroomSlug}
             sessionId={sessionId}
             userRole={userRole}
@@ -1866,5 +2194,221 @@ function FloatingReactions({ reactions, reactionEmojis }: any) {
         ))}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ============================================
+// Refactored VideoArea Component
+// ============================================
+
+/**
+ * ✅ 重构后的 VideoArea 组件
+ * 
+ * 关键改进：
+ * 1. WhiteboardCanvas 只渲染一次，永远不会被卸载
+ * 2. 使用 CSS Grid 来控制不同布局
+ * 3. 布局切换通过改变 CSS 类而不是组件挂载/卸载
+ */
+
+interface VideoAreaRefactoredProps {
+  participants: any[];
+}
+
+export function VideoAreaRefactored({ participants }: VideoAreaRefactoredProps) {
+  const {
+    layout,
+    isWhiteboardOpen,
+    classroomSlug,
+    sessionId,
+    userRole,
+    participantName,
+    whiteboardTool,
+    whiteboardColor,
+    whiteboardBrushSize,
+    whiteboardCanvasRef,
+    setFocusedParticipant,
+  } = useClassroom();
+
+  // 🎯 计算 CSS Grid 布局类
+  const gridClasses = getLayoutGridClasses(layout, participants.length, isWhiteboardOpen);
+
+  return (
+    <motion.div
+      className="h-full bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+    >
+      {/* 🎯 统一的 Grid 容器 - 包含所有视频和白板 */}
+      <div className={`h-full w-full p-4 ${gridClasses}`}>
+        
+        {/* 
+          🎯 关键改进：WhiteboardCanvas 只渲染一次！
+          通过 CSS Grid Area 来控制它在不同布局中的位置
+        */}
+        {isWhiteboardOpen && (
+          <div
+            className="whiteboard-grid-item rounded-xl overflow-hidden bg-white border border-slate-300/60"
+            style={getWhiteboardGridStyle(layout)}
+          >
+            <WhiteboardCanvas
+              ref={whiteboardCanvasRef}
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              participantName={participantName}
+              currentTool={whiteboardTool}
+              currentColor={whiteboardColor}
+              currentBrushSize={whiteboardBrushSize}
+            />
+            <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+              白板
+            </div>
+          </div>
+        )}
+
+        {/* 
+          🎯 所有参与者的视频瓦片
+          也通过 CSS Grid Area 来定位
+        */}
+        {participants.map((participant, index) => (
+          <div
+            key={participant.sid || participant.identity}
+            className="video-tile-grid-item relative"
+            style={getVideoTileGridStyle(layout, index, participants.length)}
+          >
+            <VideoTileSimple
+              participant={participant}
+              layout={layout}
+              onFocus={() => setFocusedParticipant(participant)}
+            />
+          </div>
+        ))}
+
+      </div>
+
+      {/* 布局标识（调试用） */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs">
+          布局: {layout}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/**
+ * 🎯 根据布局模式返回 CSS Grid 类
+ */
+function getLayoutGridClasses(
+  layout: string,
+  participantCount: number,
+  hasWhiteboard: boolean
+): string {
+  const totalItems = participantCount + (hasWhiteboard ? 1 : 0);
+
+  switch (layout) {
+    case 'grid': {
+      // 网格布局：智能计算行列
+      if (totalItems <= 1) return 'grid grid-cols-1 gap-4';
+      if (totalItems <= 2) return 'grid grid-cols-2 gap-4';
+      if (totalItems <= 4) return 'grid grid-cols-2 gap-4';
+      if (totalItems <= 6) return 'grid grid-cols-3 gap-4';
+      if (totalItems <= 9) return 'grid grid-cols-3 gap-4';
+      return 'grid grid-cols-4 gap-4';
+    }
+
+    case 'presentation': {
+      // 演示布局：主区域 + 侧边栏
+      return 'grid grid-cols-[4fr_1fr] gap-4';
+    }
+
+    case 'focus': {
+      // 聚焦布局：单个大视图
+      return 'grid grid-cols-1';
+    }
+
+    default:
+      return 'grid grid-cols-2 gap-4';
+  }
+}
+
+/**
+ * 🎯 返回白板的 Grid 样式（position/size）
+ */
+function getWhiteboardGridStyle(layout: string): React.CSSProperties {
+  switch (layout) {
+    case 'grid':
+      // 网格中：占据第一个位置
+      return {
+        gridColumn: '1',
+        gridRow: '1',
+      };
+
+    case 'presentation':
+      // 演示模式：占据主区域（左侧大区域）
+      return {
+        gridColumn: '1',
+        gridRow: 'span 10', // 占满左侧
+      };
+
+    case 'focus':
+      // 聚焦模式：占满整个区域
+      return {
+        gridColumn: '1',
+        gridRow: '1',
+      };
+
+    default:
+      return {};
+  }
+}
+
+/**
+ * 🎯 返回视频瓦片的 Grid 样式
+ */
+function getVideoTileGridStyle(
+  layout: string,
+  index: number,
+  total: number
+): React.CSSProperties {
+  switch (layout) {
+    case 'grid':
+      // 网格模式：自动流式布局
+      return {};
+
+    case 'presentation':
+      // 演示模式：所有视频在右侧堆叠
+      return {
+        gridColumn: '2',
+        gridRow: `${index + 1}`,
+      };
+
+    case 'focus':
+      // 聚焦模式：隐藏其他视频（或显示在小窗口）
+      return {
+        display: index === 0 ? 'block' : 'none',
+      };
+
+    default:
+      return {};
+  }
+}
+
+/**
+ * 简化的 VideoTile 组件（用于重构后的布局）
+ */
+function VideoTileSimple({ participant, layout, onFocus }: any) {
+  return (
+    <motion.div
+      className="w-full h-full relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800"
+      whileHover={{ scale: layout === 'grid' ? 1.02 : 1 }}
+      onClick={onFocus}
+    >
+      {/* Video 内容 */}
+      <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+        {participant.displayName || participant.identity}
+      </div>
+    </motion.div>
   );
 }

@@ -84,6 +84,19 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const [isComposing, setIsComposing] = useState(false); // IME输入状态
   const containerRef = useRef<HTMLDivElement>(null);
+  const customCursorRef = useRef<HTMLDivElement>(null); // 🎯 自定义光标引用
+  
+  // 🎯 使用 ref 存储最新的 textBoxes，避免 useEffect 依赖数组大小变化
+  const textBoxesRef = useRef<TextBox[]>([]);
+  useEffect(() => {
+    textBoxesRef.current = textBoxes;
+  }, [textBoxes]);
+  
+  // 🎯 使用 ref 存储稳定的 props，减少事件监听器重新注册
+  const propsRef = useRef({ classroomSlug, sessionId, userRole, participantName });
+  useEffect(() => {
+    propsRef.current = { classroomSlug, sessionId, userRole, participantName };
+  }, [classroomSlug, sessionId, userRole, participantName]);
   
   // 检测设备像素比
   useEffect(() => {
@@ -98,16 +111,33 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   // 清除画布
   const clearCanvas = () => {
     const canvas = canvasRef.current;
+    const drawingCtx = drawingCanvas?.getContext('2d');
+    
+    // 1. 清空主画布
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // 重新设置白色背景
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        toast.success('画布已清空');
       }
     }
+    
+    // 2. 🎯 清空绘图缓存画布
+    if (drawingCtx && drawingCanvas) {
+      drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+      drawingCtx.fillStyle = 'white';
+      drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    }
+    
+    // 3. 🎯 清空文本框状态
+    setTextBoxes([]);
+    setActiveTextBox(null);
+    
+    toast.success('画布已彻底清空');
+    
+    // 4. 触发自动保存以持久化清空状态
+    scheduleAutoSave();
   };
 
   // 保存画布到bucket存储（自动清除Redis缓存）
@@ -121,6 +151,34 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
         const imageData = canvas.toDataURL('image/png');
         console.log('📸 Canvas converted to base64, size:', imageData.length);
         
+        // 🎯 使用 ref 获取最新的 textBoxes，避免闭包问题
+        const currentTextBoxes = textBoxesRef.current;
+        console.log('🔍 Current textBoxes from ref:', currentTextBoxes.length);
+        
+        // 准备文本框数据（排除临时的UI状态）
+        const textBoxData = currentTextBoxes.map(tb => ({
+          id: tb.id,
+          x: tb.x,
+          y: tb.y,
+          width: tb.width,
+          height: tb.height,
+          text: tb.text,
+          color: tb.color,
+          backgroundColor: tb.backgroundColor,
+          fontSize: tb.fontSize,
+          fontFamily: tb.fontFamily,
+          fontWeight: tb.fontWeight,
+          fontStyle: tb.fontStyle,
+          textDecoration: tb.textDecoration,
+          alignment: tb.alignment,
+          zIndex: tb.zIndex
+        }));
+        
+        console.log('📋 Preparing to save', textBoxData.length, 'text boxes');
+        if (textBoxData.length > 0) {
+          console.log('📝 Text box data sample:', textBoxData[0]);
+        }
+        
         // 调用API保存到bucket存储
         const startTime = performance.now();
         const response = await fetch(`/api/classroom/${classroomSlug}/whiteboard`, {
@@ -133,11 +191,12 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
             imageData,
             width: canvas.width,
             height: canvas.height,
+            textBoxes: textBoxData, // 🎯 关键修复：发送完整的文本框数据
             metadata: {
               userRole,
               participantName,
               timestamp: new Date().toISOString(),
-              textBoxes: textBoxes.length // 包含文本框数量信息
+              textBoxCount: textBoxes.length
             }
           }),
         });
@@ -217,9 +276,19 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   const clearWhiteboardCache = async () => {
     try {
       console.log('🗑️ Manually clearing whiteboard cache...');
-      const response = await fetch(`/api/classroom/${classroomSlug}/whiteboard?session_id=${sessionId}`, {
-        method: 'DELETE'
-      });
+      const timestamp = Date.now();
+      const response = await fetch(
+        `/api/classroom/${classroomSlug}/whiteboard?session_id=${sessionId}&_t=${timestamp}`,
+        {
+          method: 'DELETE',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
+      );
       
       if (response.ok) {
         const result = await response.json();
@@ -283,16 +352,71 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     };
   }, [autoSaveTimer]);
 
-  // 页面离开前保存
+  // 🎯 页面离开前保存 - 使用 ref 减少事件监听器重新注册
   useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
-      // 立即保存当前状态
-      await autoSaveCanvas();
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 🎯 使用 sendBeacon API 进行可靠的页面卸载前保存
+      const canvas = canvasRef.current;
+      if (canvas && navigator.sendBeacon) {
+        try {
+          const imageData = canvas.toDataURL('image/png');
+          
+          // 从 ref 获取最新的值
+          const currentTextBoxes = textBoxesRef.current;
+          const { classroomSlug, sessionId, userRole, participantName } = propsRef.current;
+          
+          const textBoxData = currentTextBoxes.map(tb => ({
+            id: tb.id,
+            x: tb.x,
+            y: tb.y,
+            width: tb.width,
+            height: tb.height,
+            text: tb.text,
+            color: tb.color,
+            backgroundColor: tb.backgroundColor,
+            fontSize: tb.fontSize,
+            fontFamily: tb.fontFamily,
+            fontWeight: tb.fontWeight,
+            fontStyle: tb.fontStyle,
+            textDecoration: tb.textDecoration,
+            alignment: tb.alignment,
+            zIndex: tb.zIndex
+          }));
+          
+          const payload = JSON.stringify({
+            sessionId,
+            imageData,
+            width: canvas.width,
+            height: canvas.height,
+            textBoxes: textBoxData,
+            metadata: {
+              userRole,
+              participantName,
+              timestamp: new Date().toISOString(),
+              textBoxCount: currentTextBoxes.length,
+              saveType: 'beforeunload'
+            }
+          });
+          
+          const blob = new Blob([payload], { type: 'application/json' });
+          const sent = navigator.sendBeacon(
+            `/api/classroom/${classroomSlug}/whiteboard`,
+            blob
+          );
+          
+          if (sent) {
+            console.log('✅ Whiteboard saved via sendBeacon before unload');
+          } else {
+            console.warn('⚠️ sendBeacon failed, data might be lost');
+          }
+        } catch (error) {
+          console.error('❌ Error in beforeunload save:', error);
+        }
+      }
     };
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // 页面被隐藏时保存
         autoSaveCanvas();
       }
     };
@@ -304,54 +428,153 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, []); // 🎯 空依赖数组 - 监听器只注册一次
 
+  // 🎯 核心修复：处理画布尺寸变化，保持内容比例（完善版）
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) {
-      // 设置画布大小
+    if (!canvas) return;
+
+    // 1. 保存旧的尺寸，用于计算缩放比例
+    const oldWidth = canvas.width;
+    const oldHeight = canvas.height;
+
+    // 如果新尺寸与旧尺寸相同，则不执行任何操作
+    if (oldWidth === width && oldHeight === height) {
+      return;
+    }
+
+    // --- 如果是首次加载 (oldWidth 为 0)，则执行初始化逻辑 ---
+    if (oldWidth === 0 || oldHeight === 0) {
+      console.log(`🎨 Initializing canvas to ${width}x${height}`);
       canvas.width = width;
       canvas.height = height;
       
-      // 初始化画布背景为白色
+      // 初始化主画布背景
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, width, height);
       }
-      
-      // 创建临时画布
+
+      // 初始化临时画布
       const temp = document.createElement('canvas');
       temp.width = width;
       temp.height = height;
       setTempCanvas(temp);
-
-      // 创建绘图缓存画布
-      const drawingCache = document.createElement('canvas');
-      drawingCache.width = width;
-      drawingCache.height = height;
-      // 初始化缓存画布背景为白色
-      const drawingCtx = drawingCache.getContext('2d');
+      
+      // 初始化绘图缓存画布
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = width;
+      newDrawingCanvas.height = height;
+      const drawingCtx = newDrawingCanvas.getContext('2d');
       if (drawingCtx) {
         drawingCtx.fillStyle = 'white';
-        drawingCtx.fillRect(0, 0, drawingCache.width, drawingCache.height);
+        drawingCtx.fillRect(0, 0, width, height);
       }
-      setDrawingCanvas(drawingCache);
+      setDrawingCanvas(newDrawingCanvas);
 
-      // 加载现有的白板内容
+      // 首次加载时获取服务器内容
       loadWhiteboardContent();
+      return;
     }
-  }, [width, height, sessionId]);
 
-  // 自动重绘画布当文本框状态改变时
+    // --- 如果不是首次加载，执行内容缩放逻辑 ---
+    console.log(`🔄 Resizing canvas from ${oldWidth}x${oldHeight} to ${width}x${height}`);
+
+    // 2. 将当前的绘制缓存 (drawingCanvas) 存入一个临时图像
+    // 这一步是异步的，所以我们将所有后续逻辑放在 onload 回调中
+    const tempDrawingImage = new Image();
+    if (drawingCanvas) {
+      tempDrawingImage.src = drawingCanvas.toDataURL();
+    }
+
+    tempDrawingImage.onload = () => {
+      // 3. 计算缩放比例
+      const scaleX = width / oldWidth;
+      const scaleY = height / oldHeight;
+      console.log(`📐 Scale factors: X=${scaleX.toFixed(3)}, Y=${scaleY.toFixed(3)}`);
+
+      // 4. (矢量部分) 按比例更新所有文本框的位置、大小和字体
+      setTextBoxes(prevTextBoxes => {
+        if (prevTextBoxes.length > 0) {
+          console.log(`📝 Scaling ${prevTextBoxes.length} text boxes`);
+        }
+        return prevTextBoxes.map(tb => ({
+          ...tb,
+          x: tb.x * scaleX,
+          y: tb.y * scaleY,
+          width: tb.width * scaleX,
+          height: tb.height * scaleY,
+          fontSize: tb.fontSize * Math.min(scaleX, scaleY) // 字体按较小比例缩放以保持观感
+        }));
+      });
+      
+      // 5. 调整主画布和缓存画布的尺寸（这将清空它们）
+      canvas.width = width;
+      canvas.height = height;
+      
+      // 创建新的临时画布
+      const newTempCanvas = document.createElement('canvas');
+      newTempCanvas.width = width;
+      newTempCanvas.height = height;
+      setTempCanvas(newTempCanvas);
+      
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = width;
+      newDrawingCanvas.height = height;
+      
+      // 6. (光栅部分) 将临时图像按比例绘制回新的缓存画布
+      const drawingCtx = newDrawingCanvas.getContext('2d');
+      if (drawingCtx) {
+        drawingCtx.fillStyle = 'white';
+        drawingCtx.fillRect(0, 0, width, height); // 先填充背景
+        drawingCtx.drawImage(tempDrawingImage, 0, 0, width, height);
+        
+        console.log('✅ Drawing content scaled and restored');
+        
+        // 更新 drawingCanvas state
+        setDrawingCanvas(newDrawingCanvas);
+        
+        // 7. 触发一次最终的重绘
+        // 使用 setTimeout 确保在 React 的所有状态更新都完成后再执行
+        setTimeout(() => {
+          console.log('🎨 Final redraw after resize');
+          redrawCanvas();
+        }, 0);
+      }
+    };
+
+    // 如果 drawingCanvas 为空（例如，用户还没画任何东西），也需要调整尺寸
+    if (!drawingCanvas || !drawingCanvas.toDataURL()) {
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, width, height);
+      }
+    }
+
+  }, [width, height]); // 依赖项现在只关心 width 和 height 的变化
+
+  // 🎯 性能优化：自动重绘画布，但在拖拽/缩放时跳过重绘
+  // 原理：拖拽时只更新 React 状态，TextBoxOverlay 的 div 会流畅移动
+  // Canvas 上的旧文本会被 div 覆盖，直到 mouseUp 时才重绘
   useEffect(() => {
-    // 确保画布已经初始化再重绘
     const canvas = canvasRef.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
+      // 🎯 关键优化：拖拽/缩放时完全跳过重绘
+      if (isDragging || isResizing) {
+        console.log('⏭️ Skipping canvas redraw during drag/resize for performance');
+        return;
+      }
+      
+      // 正常情况下立即重绘
       console.log('Redrawing canvas due to textBoxes change, count:', textBoxes.length);
       redrawCanvas();
     }
-  }, [textBoxes]);
+  }, [textBoxes, isDragging, isResizing]);
 
   // 加载白板内容（从Redis缓存或bucket存储）
   const loadWhiteboardContent = async () => {
@@ -367,7 +590,21 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       
       // 从Redis缓存或bucket存储加载白板图像
       const startTime = performance.now();
-      const imageResponse = await fetch(`/api/classroom/${classroomSlug}/whiteboard?session_id=${sessionId}`);
+      // 🎯 关键修复：强制绕过浏览器缓存，每次都从服务器获取最新数据
+      // 策略1: 添加时间戳参数确保 URL 每次都不同
+      const timestamp = Date.now();
+      const imageResponse = await fetch(
+        `/api/classroom/${classroomSlug}/whiteboard?session_id=${sessionId}&_t=${timestamp}`,
+        {
+          cache: 'no-store', // 策略2: 禁用浏览器缓存
+          headers: {
+            // 策略3: 添加 HTTP 头告诉浏览器和中间代理不要缓存
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
+      );
       const loadTime = performance.now() - startTime;
       
       if (imageResponse.ok) {
@@ -375,19 +612,64 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
         console.log(`⚡ Load completed in ${loadTime.toFixed(2)}ms`);
         
         if (images.length > 0) {
-          // 加载最新的画布图像（包含文本框渲染）
-          const latestImage = images[0];
+          // 加载最新的画布数据
+          const latestData = images[0];
+          // 🎯 关键修复：支持两种字段名格式（textBoxes 和 text_boxes）
+          const textBoxesData = latestData.textBoxes || latestData.text_boxes;
+          
           console.log('📊 Retrieved whiteboard data:', {
-            hasImageData: !!latestImage.image_data,
-            bucket: latestImage.bucket,
-            createdAt: latestImage.created_at,
-            size: latestImage.image_data ? latestImage.image_data.length : 0
+            hasImageData: !!latestData.image_data,
+            hasTextBoxes: !!textBoxesData,
+            textBoxCount: textBoxesData?.length || 0,
+            fieldUsed: latestData.textBoxes ? 'textBoxes' : 'text_boxes',
+            bucket: latestData.bucket,
+            createdAt: latestData.created_at,
+            size: latestData.image_data ? latestData.image_data.length : 0
           });
           
-          if (latestImage.image_data) {
-            console.log('🎨 Loading existing whiteboard from cache/storage');
-            loadCanvasImage(latestImage.image_data);
-            toast.success('白板已从缓存加载');
+          // 1. 加载背景图像
+          if (latestData.image_data) {
+            console.log('🎨 Loading existing whiteboard image...');
+            loadCanvasImage(latestData.image_data);
+          }
+          
+          // 2. 🎯 关键修复：恢复文本框状态
+          console.log('🔍 Debug text_boxes data:', {
+            hasTextBoxesField: 'textBoxes' in latestData,
+            hasTextBoxesSnakeCase: 'text_boxes' in latestData,
+            isArray: Array.isArray(textBoxesData),
+            value: textBoxesData,
+            type: typeof textBoxesData
+          });
+          
+          if (textBoxesData && Array.isArray(textBoxesData)) {
+            console.log(`📝 Restoring ${textBoxesData.length} text boxes...`);
+            
+            if (textBoxesData.length > 0) {
+              console.log('📋 First text box sample:', textBoxesData[0]);
+            }
+            
+            // 将从API获取的textBox数据设置到state中
+            // 需要确保为每个textBox补充isEditing和isSelected等客户端临时状态
+            const restoredTextBoxes = textBoxesData.map((tb: any) => ({
+              ...tb,
+              isEditing: false, // 默认不是编辑状态
+              isSelected: false, // 默认不是选中状态
+            }));
+            
+            console.log('✅ Setting textBoxes state with', restoredTextBoxes.length, 'boxes');
+            setTextBoxes(restoredTextBoxes);
+            
+            // 🎯 信任 useEffect 自动处理重绘，不需要手动调用
+            // useEffect 会在 textBoxes 更新后自动触发 redrawCanvas
+            
+            toast.success(`白板图像和 ${textBoxesData.length} 个文本框均已加载`);
+          } else {
+            console.warn('⚠️ No textBoxes data or invalid format');
+            console.warn('Available fields in latestData:', Object.keys(latestData));
+            if (latestData.image_data) {
+              toast.success('白板图像已加载');
+            }
           }
         } else {
           console.log('🆕 No existing whiteboard found, starting fresh');
@@ -483,17 +765,21 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
 
   // 创建增强的文本框
   const createTextBox = (x: number, y: number) => {
+    console.log('🎯 createTextBox called at:', { x, y });
+    console.log('📊 Current textBoxes count:', textBoxes.length);
+    
+    const fontSize = Math.max(12, currentBrushSize * 3);
     const newTextBox: TextBox = {
-      id: `text-${Date.now()}`,
+      id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       x,
       y,
-      width: 200,
-      height: 40,
+      width: fontSize, // 🎯 初始宽度等于一个字符，autoResize 会立即调整
+      height: fontSize * 1.5, // 🎯 初始高度约等于一行
       text: '',
       color: currentColor,
       backgroundColor: undefined,
-      fontSize: Math.max(12, currentBrushSize * 3),
-      fontFamily: 'Arial, sans-serif',
+      fontSize,
+      fontFamily: 'monospace', // 🎯 使用等宽字体确保字符宽度一致
       fontWeight: 'normal',
       fontStyle: 'normal',
       textDecoration: 'none',
@@ -503,14 +789,20 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       zIndex: textBoxes.length + 1
     };
     
-    setTextBoxes(prev => [...prev, newTextBox]);
+    console.log('✅ New textBox created:', newTextBox.id);
+    
+    setTextBoxes(prev => {
+      const updated = [...prev, newTextBox];
+      console.log('📝 Updated textBoxes array:', updated.length, 'boxes');
+      return updated;
+    });
     setActiveTextBox(newTextBox.id);
     
     // 创建增强的文本输入组件
     setTimeout(() => createEnhancedTextInput(newTextBox), 10);
   };
 
-  // 创建增强的文本输入组件 - 支持多行、高DPI、移动端
+  // 🎯 创建增强的文本输入组件 - 自适应大小、流畅编辑
   const createEnhancedTextInput = useCallback((textBox: TextBox) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -524,18 +816,20 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     const textarea = document.createElement('textarea');
     textarea.value = textBox.text || '';
     
-    // 精确的位置计算和高DPI适配
-    const scaledFontSize = textBox.fontSize * scaleY * devicePixelRatio;
+    // 🎯 精确的位置计算
     const cssX = textBox.x * scaleX;
-    const cssY = textBox.y * scaleY - (scaledFontSize / 2);
+    const cssY = textBox.y * scaleY;
+    const scaledFontSize = textBox.fontSize * scaleY;
     
-    // 增强的样式设置
+    // 🎯 增强的样式设置 - 精确匹配文字大小
     Object.assign(textarea.style, {
       position: 'absolute',
       left: `${cssX}px`,
       top: `${cssY}px`,
-      width: `${textBox.width * scaleX}px`,
-      minHeight: `${textBox.height * scaleY}px`,
+      minWidth: `${textBox.fontSize * scaleX}px`, // 🎯 最小宽度为一个字符
+      maxWidth: `${canvas.width * scaleX}px`, // 🎯 最大宽度为画布宽度
+      width: 'auto', // 🎯 自动宽度
+      height: 'auto', // 🎯 自动高度
       fontSize: `${scaledFontSize}px`,
       fontFamily: textBox.fontFamily,
       fontWeight: textBox.fontWeight,
@@ -547,11 +841,14 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       border: '2px solid rgba(59, 130, 246, 0.5)',
       borderRadius: '4px',
       outline: 'none',
-      resize: 'both',
+      resize: 'none', // 🎯 禁用手动调整大小，改用自动调整
       zIndex: '1000',
-      padding: '4px',
-      lineHeight: '1.2',
-      overflow: 'hidden'
+      padding: '2px', // 🎯 减小 padding 以更贴合文字
+      lineHeight: '1.2', // 🎯 行高稍微大于1，更自然
+      overflow: 'hidden',
+      whiteSpace: 'nowrap', // 🎯 默认不换行
+      wordBreak: 'keep-all', // 🎯 保持单词完整
+      boxSizing: 'border-box' // 🎯 包含 padding 和 border 在宽高中
     });
     
     const canvasContainer = canvas.parentElement;
@@ -591,11 +888,67 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       }, 100);
     };
 
-    const handleInput = debounce(() => {
-      if (!isFinished) {
-        // 实时更新文本框内容
-        updateTextBoxContent(textBox.id, textarea.value);
+    // 🎯 自动调整文本框大小 - 精确匹配文字尺寸
+    const autoResize = () => {
+      // 临时重置，以获取内容的真实尺寸
+      textarea.style.width = 'auto';
+      textarea.style.height = 'auto'; // 使用 'auto' 更可靠
+      
+      const scrollWidth = textarea.scrollWidth;
+      const scrollHeight = textarea.scrollHeight;
+      
+      // 🎯 关键修复：获取 textarea 的计算样式，以得到真实的 padding 和 border
+      const computedStyle = window.getComputedStyle(textarea);
+      const horizontalPadding = parseFloat(computedStyle.paddingLeft) + parseFloat(computedStyle.paddingRight);
+      const verticalPadding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+      const horizontalBorder = parseFloat(computedStyle.borderLeftWidth) + parseFloat(computedStyle.borderRightWidth);
+      const verticalBorder = parseFloat(computedStyle.borderTopWidth) + parseFloat(computedStyle.borderBottomWidth);
+      
+      // 计算最终需要的宽度和高度（box-sizing: border-box 会自动处理 border）
+      let targetWidth = scrollWidth + horizontalPadding;
+      let targetHeight = scrollHeight + verticalPadding;
+      
+      // 检查是否超过画布宽度
+      const maxWidth = (canvas.width * scaleX) - cssX - 20; // 留出边距
+      
+      if (targetWidth > maxWidth) {
+        // 🎯 超过画布宽度时才允许换行
+        textarea.style.whiteSpace = 'normal';
+        targetWidth = maxWidth; // 宽度限制为最大宽度
+        
+        // 宽度固定后，需要重新计算高度
+        textarea.style.width = `${targetWidth}px`;
+        targetHeight = textarea.scrollHeight + verticalPadding; // 重新获取多行下的 scrollHeight
+      } else {
+        // 🎯 未超过时保持单行
+        textarea.style.whiteSpace = 'nowrap';
       }
+      
+      // 设置最终的尺寸
+      textarea.style.width = `${targetWidth}px`;
+      textarea.style.height = `${targetHeight}px`;
+      
+      // 更新文本框尺寸到 React 状态
+      const newWidth = targetWidth / scaleX;
+      const newHeight = targetHeight / scaleY;
+      
+      setTextBoxes(prev => prev.map(tb => 
+        tb.id === textBox.id 
+          ? { ...tb, width: newWidth, height: newHeight }
+          : tb
+      ));
+    };
+    
+    const handleInput = () => {
+      if (!isFinished) {
+        autoResize(); // 🎯 每次输入时自动调整大小
+        // 实时更新文本框内容（使用debounce优化）
+        debouncedUpdate(textBox.id, textarea.value);
+      }
+    };
+    
+    const debouncedUpdate = debounce((id: string, text: string) => {
+      updateTextBoxContent(id, text);
     }, 300);
 
     // IME输入支持
@@ -623,6 +976,9 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     };
 
     // 绑定事件监听器
+    // 🎯 初始化时调整一次大小
+    setTimeout(() => autoResize(), 0);
+    
     textarea.addEventListener('keydown', handleKeyDown);
     textarea.addEventListener('blur', handleBlur);
     textarea.addEventListener('input', handleInput);
@@ -670,25 +1026,35 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
 
   // 完成文本编辑
   const finishTextEditing = (id: string, text: string) => {
-    console.log('Finishing edit for text box:', id, 'text:', text);
+    console.log('🏁 finishTextEditing called:', { id, text, isEmpty: !text.trim() });
     
     // 1. 如果文本为空，则直接删除该文本框
     if (!text.trim()) {
-      console.log('Text is empty, removing text box');
-      setTextBoxes(prev => prev.filter(tb => tb.id !== id));
+      console.log('❌ Text is empty, removing text box');
+      setTextBoxes(prev => {
+        const filtered = prev.filter(tb => tb.id !== id);
+        console.log('📝 After removal:', filtered.length, 'boxes remaining');
+        return filtered;
+      });
     } else {
       // 2. 更新状态，退出编辑模式
       // 这会再次触发 redrawCanvas，从而将新文本"绘制"到 Canvas 上
-      setTextBoxes(prev => prev.map(tb => 
-        tb.id === id 
-          ? { ...tb, text, isEditing: false, isSelected: false }
-          : tb
-      ));
+      console.log('✅ Saving text and exiting edit mode');
+      setTextBoxes(prev => {
+        const updated = prev.map(tb => 
+          tb.id === id 
+            ? { ...tb, text, isEditing: false, isSelected: false }
+            : tb
+        );
+        console.log('📝 After update:', updated.length, 'boxes, text saved:', text);
+        return updated;
+      });
     }
     
     setActiveTextBox(null);
     
     // 3. 触发自动保存
+    console.log('💾 Scheduling auto-save...');
     scheduleAutoSave();
   };
   
@@ -807,54 +1173,8 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     });
   };
 
-  // 同步文本框到服务器
-  const syncTextBoxToServer = async (id: string, text: string) => {
-    const textBox = textBoxes.find(tb => tb.id === id);
-    if (!textBox) {
-      console.warn('Text box not found for sync:', id);
-      return;
-    }
-
-    try {
-      const requestBody = {
-        sessionId,
-        textBox: {
-          id: textBox.id,
-          x: textBox.x,
-          y: textBox.y,
-          text: textBox.text,
-          color: textBox.color,
-          fontSize: textBox.fontSize,
-          alignment: textBox.alignment,
-        },
-        action: 'create_or_update'
-      };
-
-      console.log('Syncing text box:', requestBody);
-
-      const response = await fetch(`/api/classroom/${classroomSlug}/whiteboard/text`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Text sync API failed:', response.status, response.statusText, errorData);
-        throw new Error(`文本同步失败: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('Text box synced successfully:', result);
-      toast.success('文本已同步');
-    } catch (error) {
-      console.error('Failed to sync text box:', error);
-      const errorMessage = error instanceof Error ? error.message : '同步失败，请重试';
-      toast.error(errorMessage);
-    }
-  };
+  // 🎯 删除未使用的死代码：syncTextBoxToServer 函数从未被调用
+  // 文本框同步现在通过 saveCanvas 函数统一处理
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -864,7 +1184,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-    // 处理文本框拖拽
+    // 🎯 处理文本框拖拽 - 只更新状态，不重绘 Canvas
     if (isDragging && activeTextBox) {
       const newX = x - dragOffset.x;
       const newY = y - dragOffset.y;
@@ -875,11 +1195,12 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
           : tb
       ));
       
-      redrawCanvas();
+      // 🚀 性能优化：移除 redrawCanvas() 调用
+      // TextBoxOverlay 的 div 会通过 React 状态更新流畅移动
       return;
     }
 
-    // 处理文本框缩放
+    // 🎯 处理文本框缩放 - 只更新状态，不重绘 Canvas
     if (isResizing && activeTextBox) {
       const textBox = textBoxes.find(tb => tb.id === activeTextBox);
       if (textBox) {
@@ -892,7 +1213,8 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
             : tb
         ));
         
-        redrawCanvas();
+        // 🚀 性能优化：移除 redrawCanvas() 调用
+        // TextBoxOverlay 的 div 会通过 React 状态更新流畅缩放
       }
       return;
     }
@@ -923,21 +1245,28 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
           break;
           
         case 'eraser':
-          ctx.clearRect(
-            x - currentBrushSize / 2, 
-            y - currentBrushSize / 2, 
-            currentBrushSize, 
-            currentBrushSize
-          );
-          
-          // 同时在缓存画布上擦除
-          if (drawingCtx) {
-            drawingCtx.clearRect(
+          // 🎯 关键修复：橡皮擦使用白色绘制而不是clearRect
+          // 这样避免了在缓存层产生透明洞
+          const eraseOnContext = (context: CanvasRenderingContext2D) => {
+            context.save();
+            context.beginPath();
+            // 使用剪切区域来确保只在圆形内绘制
+            context.arc(x, y, currentBrushSize / 2, 0, 2 * Math.PI);
+            context.clip();
+            // 用白色填充该区域
+            context.fillStyle = 'white';
+            context.fillRect(
               x - currentBrushSize / 2, 
               y - currentBrushSize / 2, 
               currentBrushSize, 
               currentBrushSize
             );
+            context.restore();
+          };
+          
+          eraseOnContext(ctx);
+          if (drawingCtx) {
+            eraseOnContext(drawingCtx);
           }
           break;
           
@@ -1007,19 +1336,21 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // 结束拖动
+    // 🎯 结束拖动 - 现在重绘 Canvas 固化最终位置
     if (isDragging) {
       setIsDragging(false);
-      // 触发自动保存以保存拖动后的位置
+      // 重绘以固化文本框的最终位置
+      setTimeout(() => redrawCanvas(), 0);
       scheduleAutoSave();
       return;
     }
 
-    // 结束缩放
+    // 🎯 结束缩放 - 现在重绘 Canvas 固化最终尺寸
     if (isResizing) {
       setIsResizing(false);
       setResizeHandle(null);
-      // 触发自动保存以保存缩放后的尺寸
+      // 重绘以固化文本框的最终尺寸
+      setTimeout(() => redrawCanvas(), 0);
       scheduleAutoSave();
       return;
     }
@@ -1087,24 +1418,40 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   };
 
   // 文本框交互层组件（React层）- 清晰的单一职责交互
-  const TextBoxOverlay = () => (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 999 }}>
-      {textBoxes.map(textBox => (
-        <div
-          key={textBox.id}
-          className={`absolute pointer-events-auto transition-all duration-200 ${
-            textBox.isSelected ? 'ring-2 ring-blue-400 shadow-lg' : ''
-          }`}
-          style={{
-            // 使用 transform 来精确定位，性能更好
-            transform: `translate(${(textBox.x / width) * 100}%, ${(textBox.y / height) * 100}%)`,
-            width: `${(textBox.width / width) * 100}%`,
-            minHeight: `${(textBox.height / height) * 100}%`,
-            cursor: currentTool === 'text' ? 'pointer' : 'default',
-            zIndex: textBox.zIndex,
-            // 透明背景，纯粹作为交互热区
-            backgroundColor: process.env.NODE_ENV === 'development' ? 'rgba(255,0,0,0.1)' : 'transparent'
-          }}
+  const TextBoxOverlay = () => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    
+    // 🎯 关键修复：统一定位策略，使用像素而非百分比
+    if (!canvas || !container) return null;
+    
+    const containerRect = container.getBoundingClientRect();
+    const scaleX = containerRect.width / canvas.width;
+    const scaleY = containerRect.height / canvas.height;
+    
+    return (
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 999 }}>
+        {textBoxes.filter(tb => !tb.isEditing).map(textBox => (
+          <div
+            key={textBox.id}
+            className={`absolute pointer-events-auto ${
+              textBox.isSelected ? 'ring-2 ring-blue-400 shadow-lg' : ''
+            }`}
+            style={{
+              // 🎯 关键修复：使用像素定位，与 createEnhancedTextInput 保持一致
+              position: 'absolute',
+              left: '0',
+              top: '0',
+              transform: `translate(${textBox.x * scaleX}px, ${textBox.y * scaleY}px)`,
+              width: `${textBox.width * scaleX}px`,
+              height: `${textBox.height * scaleY}px`,
+              cursor: currentTool === 'text' ? 'pointer' : 'default',
+              zIndex: textBox.zIndex,
+              // 透明背景，纯粹作为交互热区
+              backgroundColor: process.env.NODE_ENV === 'development' ? 'rgba(255,0,0,0.1)' : 'transparent',
+              // 🎯 性能优化：拖拽时禁用过渡动画
+              transition: isDragging || isResizing ? 'none' : 'all 0.2s'
+            }}
           
           // 单击：只选中，不拖拽，不编辑
           onClick={(e) => {
@@ -1184,16 +1531,102 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
               />
             </>
           )}
-        </div>
-      ))}
-    </div>
-  );
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // 🎯 获取自定义光标样式的辅助函数
+  const getCustomCursorStyle = (): React.CSSProperties => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    
+    if (!canvas || !container) return { display: 'none' };
+    
+    // 计算画笔在屏幕上的实际像素大小
+    const containerRect = container.getBoundingClientRect();
+    const scale = containerRect.width / canvas.width;
+    const displaySize = currentBrushSize * scale;
+
+    const baseStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      borderRadius: '50%',
+      pointerEvents: 'none',
+      // 🎯 关键：通过 transform 将 div 的中心移动到鼠标指针位置
+      transform: 'translate(-50%, -50%)',
+      transition: 'width 0.1s, height 0.1s',
+      display: 'none',
+      zIndex: 10000,
+    };
+
+    switch (currentTool) {
+      case 'pen':
+        return {
+          ...baseStyle,
+          width: `${displaySize}px`,
+          height: `${displaySize}px`,
+          backgroundColor: currentColor,
+          opacity: 0.5,
+        };
+      case 'eraser':
+        return {
+          ...baseStyle,
+          width: `${displaySize}px`,
+          height: `${displaySize}px`,
+          border: '2px solid #000',
+          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        };
+      case 'rectangle':
+      case 'circle':
+      case 'text':
+        return {
+          ...baseStyle,
+          width: '20px',
+          height: '20px',
+          border: '1px solid #000',
+          // 模拟十字准星
+          backgroundImage: `
+            linear-gradient(to right, #000 0%, #000 100%),
+            linear-gradient(to bottom, #000 0%, #000 100%)`,
+          backgroundSize: '1px 100%, 100% 1px',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center center, center center',
+        };
+      default:
+        return { display: 'none' };
+    }
+  };
+
+  // 🎯 处理鼠标移动更新自定义光标位置
+  const handleCustomCursorMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (customCursorRef.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // 使用 transform 来移动，性能最好
+      customCursorRef.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+    }
+  };
 
   return (
-    <div ref={containerRef} className="w-full h-full relative flex items-center justify-center bg-white">
+    <div 
+      ref={containerRef} 
+      className="w-full h-full relative flex items-center justify-center bg-white"
+      onMouseMove={handleCustomCursorMove}
+      onMouseEnter={() => {
+        if (customCursorRef.current) customCursorRef.current.style.display = 'block';
+      }}
+      onMouseLeave={() => {
+        if (customCursorRef.current) customCursorRef.current.style.display = 'none';
+      }}
+    >
       <canvas
         ref={canvasRef}
-        className="w-full h-full cursor-crosshair"
+        className="w-full h-full"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1201,11 +1634,22 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+        style={{ 
+          maxWidth: '100%', 
+          maxHeight: '100%', 
+          objectFit: 'contain',
+          cursor: 'none' // 🎯 隐藏默认光标
+        }}
       />
       
       {/* 文本框覆盖层 */}
       <TextBoxOverlay />
+      
+      {/* 🎯 自定义光标元素 */}
+      <div
+        ref={customCursorRef}
+        style={getCustomCursorStyle()}
+      />
       
       {/* 用户信息 */}
       <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">

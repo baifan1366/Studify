@@ -10,51 +10,73 @@ import Link from "next/link";
 import {
   useUserGroups,
   useSuggestedGroups,
+  useGroupMembers,
 } from "@/hooks/community/use-community";
 import { Group } from "@/interface/community/group-interface";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
 import AllMyGroupsModal from "./all-my-groups-modal";
 
-const GroupCard = ({
+function GroupCard({
   group,
   showJoinButton = false,
 }: {
   group: Group;
   showJoinButton?: boolean;
-}) => (
-  <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-    <div className="flex items-center gap-3 flex-1 min-w-0">
-      <div className="flex-shrink-0">
-        {group.visibility === "private" ? (
-          <Lock className="w-4 h-4 text-yellow-400" />
-        ) : (
-          <Globe className="w-4 h-4 text-green-400" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <Link href={`/community/${group.slug}`}>
-          <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
-            {group.name}
-          </h4>
-        </Link>
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <Users className="w-3 h-3" />
-          <span>{group.member_count || 0} members</span>
+}) {
+  const { joinGroup, isJoining } = useGroupMembers(group.slug);
+
+  const handleJoinGroup = () => {
+    joinGroup(undefined, {
+      onSuccess: () => {
+        toast.success('Successfully joined group!', {
+          description: `You are now a member of ${group.name}`,
+        });
+      },
+      onError: (error: any) => {
+        toast.error('Failed to join group', {
+          description: error?.message || 'Please try again later',
+        });
+      },
+    });
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex-shrink-0">
+          {group.visibility === "private" ? (
+            <Lock className="w-4 h-4 text-yellow-400" />
+          ) : (
+            <Globe className="w-4 h-4 text-green-400" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <Link href={`/community/${group.slug}`}>
+            <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
+              {group.name}
+            </h4>
+          </Link>
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <Users className="w-3 h-3" />
+            <span>{group.member_count || 0} members</span>
+          </div>
         </div>
       </div>
+      {showJoinButton && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2"
+          onClick={handleJoinGroup}
+          disabled={isJoining}
+        >
+          {isJoining ? 'Joining...' : 'Join'}
+        </Button>
+      )}
     </div>
-    {showJoinButton && (
-      <Button
-        size="sm"
-        variant="outline"
-        className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2"
-      >
-        Join
-      </Button>
-    )}
-  </div>
-);
+  );
+}
 
 export default function CommunitySidebar() {
   const [showAllGroupsModal, setShowAllGroupsModal] = useState(false);

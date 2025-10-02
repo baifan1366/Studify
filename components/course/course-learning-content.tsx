@@ -122,7 +122,7 @@ function ModuleLessons({ courseId, module, isExpanded, onToggle, currentLessonId
             moduleLessons.map((lesson: any, index: number) => {
               const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
               const isCompleted = progressArray.some(
-                (p: any) => p.lessonId === lesson.id && p.state === 'completed'
+                (p: any) => p.lessonId === lesson.public_id && p.state === 'completed'
               );
               const isActive = currentLessonId === lesson.public_id;
               

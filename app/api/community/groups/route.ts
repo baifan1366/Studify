@@ -2,13 +2,20 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { authorize } from "@/utils/auth/server-guard";
 
-export async function GET() {
+export async function GET(request: Request) {
   const authResult = await authorize(["student", "tutor"]);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
 
   const supabaseClient = await createServerClient();
+
+  // Get filter and limit from query params
+  const { searchParams } = new URL(request.url);
+  const filter = searchParams.get("filter"); // 'joined' | 'suggested' | null
+  const limit = searchParams.get("limit")
+    ? parseInt(searchParams.get("limit")!)
+    : undefined;
 
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient
@@ -21,7 +28,7 @@ export async function GET() {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  // Get user's group memberships first
+  // Get user's group memberships
   const { data: userMemberships, error: membershipError } = await supabaseClient
     .from("community_group_member")
     .select("group_id, role, joined_at")
@@ -35,71 +42,215 @@ export async function GET() {
     );
   }
 
-  // If user has no memberships, return empty array
-  if (!userMemberships || userMemberships.length === 0) {
-    return NextResponse.json([]);
-  }
+  const userGroupIds = userMemberships?.map((m) => m.group_id) || [];
 
-  // Get group IDs that user is a member of
-  const userGroupIds = userMemberships.map((m) => m.group_id);
+  // Handle different filters
+  if (filter === "joined") {
+    // Return only groups user has joined
+    if (!userMemberships || userMemberships.length === 0) {
+      return NextResponse.json([]);
+    }
 
-  // Get only the groups where user is a member
-  const { data: userGroups, error: groupsError } = await supabaseClient
-    .from("community_group")
-    .select(
+    let query = supabaseClient
+      .from("community_group")
+      .select(
+        `
+        *,
+        owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url )
       `
-      *,
-      owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url )
-    `
-    )
-    .in("id", userGroupIds)
-    .eq("is_deleted", false)
-    .order("created_at", { ascending: false });
+      )
+      .in("id", userGroupIds)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
 
-  if (groupsError) {
-    return NextResponse.json({ error: groupsError.message }, { status: 500 });
-  }
+    if (limit) {
+      query = query.limit(limit);
+    }
 
-  // Get member counts for user's groups only
-  const { data: memberCounts } = await supabaseClient
-    .from("community_group_member")
-    .select("group_id")
-    .in("group_id", userGroupIds)
-    .eq("is_deleted", false);
+    const { data: userGroups, error: groupsError } = await query;
 
-  // Get post counts for user's groups only
-  const { data: postCounts } = await supabaseClient
-    .from("community_post")
-    .select("group_id")
-    .in("group_id", userGroupIds)
-    .eq("is_deleted", false);
+    if (groupsError) {
+      return NextResponse.json({ error: groupsError.message }, { status: 500 });
+    }
 
-  // Create count maps
-  const memberCountMap = new Map();
-  const postCountMap = new Map();
+    // Get counts for user's groups
+    const { data: memberCounts } = await supabaseClient
+      .from("community_group_member")
+      .select("group_id")
+      .in("group_id", userGroupIds)
+      .eq("is_deleted", false);
 
-  memberCounts?.forEach((member) => {
-    const count = memberCountMap.get(member.group_id) || 0;
-    memberCountMap.set(member.group_id, count + 1);
-  });
+    const { data: postCounts } = await supabaseClient
+      .from("community_post")
+      .select("group_id")
+      .in("group_id", userGroupIds)
+      .eq("is_deleted", false);
 
-  postCounts?.forEach((post) => {
-    const count = postCountMap.get(post.group_id) || 0;
-    postCountMap.set(post.group_id, count + 1);
-  });
+    const memberCountMap = new Map();
+    const postCountMap = new Map();
 
-  // Process groups to format data with membership info
-  const processedGroups = (userGroups || []).map((group) => {
-    const userMembership = userMemberships.find((m) => m.group_id === group.id);
-    return {
+    memberCounts?.forEach((member) => {
+      const count = memberCountMap.get(member.group_id) || 0;
+      memberCountMap.set(member.group_id, count + 1);
+    });
+
+    postCounts?.forEach((post) => {
+      const count = postCountMap.get(post.group_id) || 0;
+      postCountMap.set(post.group_id, count + 1);
+    });
+
+    const processedGroups = (userGroups || []).map((group) => {
+      const userMembership = userMemberships.find(
+        (m) => m.group_id === group.id
+      );
+      return {
+        ...group,
+        member_count: memberCountMap.get(group.id) || 0,
+        post_count: postCountMap.get(group.id) || 0,
+        user_membership: userMembership || null,
+      };
+    });
+
+    return NextResponse.json(processedGroups);
+  } else if (filter === "suggested") {
+    // Return public groups that user has NOT joined
+    let query = supabaseClient
+      .from("community_group")
+      .select(
+        `
+        *,
+        owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url )
+      `
+      )
+      .eq("is_deleted", false)
+      .eq("visibility", "public")
+      .order("created_at", { ascending: false });
+
+    // Exclude groups user has joined
+    if (userGroupIds.length > 0) {
+      query = query.not("id", "in", `(${userGroupIds.join(",")})`);
+    }
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const { data: suggestedGroups, error: groupsError } = await query;
+
+    if (groupsError) {
+      return NextResponse.json({ error: groupsError.message }, { status: 500 });
+    }
+
+    const suggestedGroupIds = suggestedGroups?.map((g) => g.id) || [];
+
+    if (suggestedGroupIds.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    // Get counts for suggested groups
+    const { data: memberCounts } = await supabaseClient
+      .from("community_group_member")
+      .select("group_id")
+      .in("group_id", suggestedGroupIds)
+      .eq("is_deleted", false);
+
+    const { data: postCounts } = await supabaseClient
+      .from("community_post")
+      .select("group_id")
+      .in("group_id", suggestedGroupIds)
+      .eq("is_deleted", false);
+
+    const memberCountMap = new Map();
+    const postCountMap = new Map();
+
+    memberCounts?.forEach((member) => {
+      const count = memberCountMap.get(member.group_id) || 0;
+      memberCountMap.set(member.group_id, count + 1);
+    });
+
+    postCounts?.forEach((post) => {
+      const count = postCountMap.get(post.group_id) || 0;
+      postCountMap.set(post.group_id, count + 1);
+    });
+
+    const processedGroups = (suggestedGroups || []).map((group) => ({
       ...group,
       member_count: memberCountMap.get(group.id) || 0,
       post_count: postCountMap.get(group.id) || 0,
-      user_membership: userMembership || null,
-    };
-  });
+      user_membership: null,
+    }));
 
-  return NextResponse.json(processedGroups);
+    return NextResponse.json(processedGroups);
+  } else {
+    // Default: Return all public groups
+    let query = supabaseClient
+      .from("community_group")
+      .select(
+        `
+        *,
+        owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url )
+      `
+      )
+      .eq("is_deleted", false)
+      .eq("visibility", "public")
+      .order("created_at", { ascending: false });
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const { data: allGroups, error: groupsError } = await query;
+
+    if (groupsError) {
+      return NextResponse.json({ error: groupsError.message }, { status: 500 });
+    }
+
+    const allGroupIds = allGroups?.map((g) => g.id) || [];
+
+    if (allGroupIds.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    // Get counts
+    const { data: memberCounts } = await supabaseClient
+      .from("community_group_member")
+      .select("group_id")
+      .in("group_id", allGroupIds)
+      .eq("is_deleted", false);
+
+    const { data: postCounts } = await supabaseClient
+      .from("community_post")
+      .select("group_id")
+      .in("group_id", allGroupIds)
+      .eq("is_deleted", false);
+
+    const memberCountMap = new Map();
+    const postCountMap = new Map();
+
+    memberCounts?.forEach((member) => {
+      const count = memberCountMap.get(member.group_id) || 0;
+      memberCountMap.set(member.group_id, count + 1);
+    });
+
+    postCounts?.forEach((post) => {
+      const count = postCountMap.get(post.group_id) || 0;
+      postCountMap.set(post.group_id, count + 1);
+    });
+
+    const processedGroups = (allGroups || []).map((group) => {
+      const userMembership = userMemberships?.find(
+        (m) => m.group_id === group.id
+      );
+      return {
+        ...group,
+        member_count: memberCountMap.get(group.id) || 0,
+        post_count: postCountMap.get(group.id) || 0,
+        user_membership: userMembership || null,
+      };
+    });
+
+    return NextResponse.json(processedGroups);
+  }
 }
 
 // Helper function to slugify text

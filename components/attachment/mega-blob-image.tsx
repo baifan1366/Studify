@@ -228,6 +228,7 @@ export default function MegaImage({
           {error.message}
         </p>
       </div>
+    );
   }
 
   if (loading) {

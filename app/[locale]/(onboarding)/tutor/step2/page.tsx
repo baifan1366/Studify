@@ -1,37 +1,54 @@
+"use client";
+
+import { useState } from "react";
 import OnboardingStep from "@/components/onboarding/OnboardingStep";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getTranslations } from "next-intl/server";
-import { Metadata } from 'next';
+import { useTranslations } from "next-intl";
+import { useRouter, useParams } from "next/navigation";
+import { useUpdateOnboarding } from "@/hooks/profile/use-profile";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('OnboardingTutorStep2Page');
+export default function Step2Page() {
+  const t = useTranslations("OnboardingTutorStep2Page");
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
+  const [qualifications, setQualifications] = useState("");
+  const [experience, setExperience] = useState("");
+  const { mutate: updateOnboarding, isPending } = useUpdateOnboarding();
 
-  return {
-    title: t('metadata_title'),
-    description: t('metadata_description'),
-    keywords: t('metadata_keywords').split(','),
-    openGraph: {
-      title: t('og_title'),
-      description: t('og_description'),
-      type: 'website',
-    },
+  const handleNext = async (formData: FormData) => {
+    updateOnboarding(
+      {
+        step: 2,
+        locale,
+        role: "tutor",
+        qualifications,
+        experience,
+      },
+      {
+        onSuccess: () => {
+          router.push(`/${locale}/tutor/step3`);
+        },
+      }
+    );
   };
-}
 
-export default async function Step2Page({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const t = await getTranslations("OnboardingTutorStep2Page");
+  const handlePrevious = () => {
+    router.push(`/${locale}/tutor/step1`);
+  };
+
+  const disableNext = !qualifications.trim() || !experience.trim();
 
   return (
     <OnboardingStep
       title={t("expertise_title")}
       description={t("expertise_description")}
-      prevAction={() => window.history.back()}
+      action={handleNext}
+      prevAction={handlePrevious}
+      isLoading={isPending}
+      disableNext={disableNext}
     >
       <div className="space-y-4">
         <div>
@@ -39,6 +56,8 @@ export default async function Step2Page({
           <Input
             id="qualifications"
             name="qualifications"
+            value={qualifications}
+            onChange={(e) => setQualifications(e.target.value)}
             placeholder={t("qualifications_placeholder")}
           />
         </div>
@@ -47,6 +66,8 @@ export default async function Step2Page({
           <Textarea
             id="experience"
             name="experience"
+            value={experience}
+            onChange={(e) => setExperience(e.target.value)}
             placeholder={t("experience_placeholder")}
           />
         </div>

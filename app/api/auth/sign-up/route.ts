@@ -38,9 +38,8 @@ export async function POST(req: NextRequest) {
 
     const client = await createServerClient()
     
-    // Get redirect URL for email confirmation
-    const protocol = req.headers.get('x-forwarded-proto') || 'http'
-    const host = req.headers.get('host') || 'localhost:3000'
+    // Get redirect URL for email confirmation using NEXT_PUBLIC_SITE_URL
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
     const targetLocale = locale || req.cookies.get('next-intl-locale')?.value || 'en'
     
     // Determine requested role to set proper redirect after confirmation
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
       ? `/${targetLocale}/admin/dashboard`
       : `/${targetLocale}/onboarding/student/step1`
     
-    const emailRedirectTo = `${protocol}://${host}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup`
+    const emailRedirectTo = `${siteUrl}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup`
     
     const { data, error } = await client.auth.signUp({
       email,

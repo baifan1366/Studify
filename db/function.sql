@@ -2687,6 +2687,81 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $function$;;
 
+- Create the continue watching view
+CREATE OR REPLACE VIEW continue_watching_view AS
+SELECT 
+  cp.user_id,
+  cl.public_id as lesson_public_id,
+  cl.title as lesson_title,
+  c.slug as course_slug,
+  c.title as course_title,
+  c.thumbnail_url as course_thumbnail,
+  cm.title as module_title,
+  cp.progress_pct,
+  cp.video_position_sec,
+  cp.video_duration_sec,
+  cp.last_accessed_at,
+  -- Calculate a score for "continue watching" priority
+  -- Higher score = shown first
+  (
+    -- Recency: More recent videos get higher priority (decay by hour)
+    EXTRACT(EPOCH FROM (NOW() - cp.last_accessed_at)) / 3600 * -0.1 +
+    
+    -- Progress: Videos with 10-90% completion get highest priority
+    CASE 
+      WHEN cp.progress_pct BETWEEN 10 AND 90 THEN 15
+      WHEN cp.progress_pct BETWEEN 5 AND 95 THEN 10
+      ELSE 5
+    END +
+    
+    -- Watch time: Videos watched for at least 30 seconds get bonus
+    CASE WHEN cp.video_position_sec > 30 THEN 5 ELSE 0 END +
+    
+    -- Duration remaining: More content left = higher priority
+    CASE 
+      WHEN cp.video_duration_sec > 0 THEN 
+        ((cp.video_duration_sec - cp.video_position_sec) / 60.0) * 0.01
+      ELSE 0
+    END
+  ) as continue_score,
+  
+  -- Additional useful fields
+  cp.state,
+  cp.time_spent_sec,
+  cl.id as lesson_id,
+  cm.id as module_id,
+  c.id as course_id,
+  cp.id as progress_id,
+  cp.updated_at
+  
+FROM course_progress cp
+INNER JOIN course_lesson cl ON cl.id = cp.lesson_id AND cl.is_deleted = false
+INNER JOIN course_module cm ON cm.id = cl.module_id
+INNER JOIN course c ON c.id = cl.course_id AND c.is_deleted = false
+WHERE 
+  cp.is_deleted = false
+  AND cp.lesson_kind = 'video'
+  AND cp.video_position_sec > 0
+  AND cp.progress_pct < 100
+  AND cp.progress_pct > 1 -- At least 1% progress
+  AND (cp.video_duration_sec - cp.video_position_sec) > 10 -- At least 10 seconds remaining
+  AND cp.last_accessed_at > NOW() - INTERVAL '30 days'; -- Only show videos from last 30 days
+
+-- Create index for better performance
+CREATE INDEX IF NOT EXISTS idx_continue_watching_user 
+  ON course_progress(user_id, last_accessed_at DESC)
+  WHERE is_deleted = false 
+    AND lesson_kind = 'video' 
+    AND progress_pct < 100 
+    AND progress_pct > 1;
+
+-- Grant SELECT permission on the view
+GRANT SELECT ON continue_watching_view TO authenticated;
+GRANT SELECT ON continue_watching_view TO anon;
+
+-- Add comment
+COMMENT ON VIEW continue_watching_view IS 'Optimized view for displaying continue watching items on the dashboard. Shows videos with partial progress sorted by relevance.';
+
 
 CREATE OR REPLACE FUNCTION public.get_continue_watching_for_user(p_user_id bigint, p_limit integer DEFAULT 5)
  RETURNS TABLE(lesson_public_id uuid, lesson_title text, course_slug text, course_title text, course_thumbnail text, module_title text, progress_pct numeric, video_position_sec integer, video_duration_sec integer, last_accessed_at timestamp with time zone)

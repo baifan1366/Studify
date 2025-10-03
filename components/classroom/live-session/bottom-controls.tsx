@@ -47,7 +47,7 @@ export default function BottomControls({
   // Recording hook
   const createRecording = classroomSlug ? useCreateRecording(classroomSlug) : null;
 
-  // 开始录制函数
+  // Start recording function
   const handleStartRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -60,7 +60,6 @@ export default function BottomControls({
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          chunks.push(event.data);
         }
       };
 
@@ -71,7 +70,8 @@ export default function BottomControls({
           type: blob.type,
           classroomSlug,
           sessionId,
-          hasCreateRecording: !!createRecording
+          hasCreateRecording: !!createRecording,
+          userRole
         });
         
         if (createRecording && sessionId && classroomSlug && userRole === 'tutor') {
@@ -88,14 +88,13 @@ export default function BottomControls({
             await createRecording.mutateAsync({
               file,
               session_id: sessionId,
-              duration_sec: Math.floor(blob.size / 1000) // 粗略估算时长
+              duration_sec: Math.floor(blob.size / 1000) // Rough duration estimate
             });
-            console.log('Recording uploaded successfully');
           } catch (error) {
             console.error('Failed to upload recording:', error);
             // Show user-friendly error message
-            const errorMessage = error instanceof Error ? error.message : '未知错误';
-            alert(`录制上传失败: ${errorMessage}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Recording upload failed: ${errorMessage}`);
           }
         } else {
           console.warn('Cannot upload recording - missing data or insufficient permissions:', {
@@ -106,7 +105,7 @@ export default function BottomControls({
             isAuthorized: userRole === 'tutor'
           });
           if (userRole !== 'tutor') {
-            alert('只有导师可以上传录制文件');
+            alert('Only tutors can upload recording files');
           }
         }
         setRecordedChunks([]);
@@ -125,7 +124,7 @@ export default function BottomControls({
     }
   };
 
-  // 停止录制函数
+  // Stop recording function
   const handleStopRecording = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
@@ -136,7 +135,7 @@ export default function BottomControls({
     onStopRecording();
   };
 
-  // 快捷键功能
+  // Shortcut key functionality
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey) {
@@ -169,7 +168,7 @@ export default function BottomControls({
     return () => window.removeEventListener('keydown', handleKeydown);
   }, [addReaction]);
 
-  // 点击外部关闭表情面板
+  // Click outside to close reaction panel
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (showReactionPanel) {
@@ -184,12 +183,12 @@ export default function BottomControls({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showReactionPanel]);
 
-  // 根据主题主色计算按钮对比度（无需引入额外库）
+  // Calculate button contrast based on theme primary color (no need to import additional libraries)
   const hex = colors.primary.startsWith('#') ? colors.primary.slice(1) : colors.primary;
   const r = parseInt(hex.substring(0, 2), 16) || 0;
   const g = parseInt(hex.substring(2, 4), 16) || 0;
   const b = parseInt(hex.substring(4, 6), 16) || 0;
-  // 计算相对亮度
+  // Calculate relative luminance
   const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
   const isPrimaryDark = luminance < 0.5;
 
@@ -199,7 +198,7 @@ export default function BottomControls({
   const roundBtn = `${baseBtn} h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center`;
   const pillBtn = `${baseBtn} h-9 md:h-10 px-2 md:px-3 rounded-full`;
 
-  // 获取快捷键提示
+  // Get shortcut key hints
   const getShortcutKey = (reactionKey: string) => {
     const keyMap: Record<string, string> = {
       'clap': 'C',
@@ -231,17 +230,17 @@ export default function BottomControls({
             backdropFilter: 'blur(6px)',
           }}
         >
-          {/* 左侧: Reaction 按钮 */}
+          {/* Left side: Reaction buttons */}
           <div className="flex items-center justify-start gap-2 flex-1 max-w-xs shrink-0 select-none relative reaction-panel-container">
             <button
               onClick={() => setShowReactionPanel(!showReactionPanel)}
               className={`${roundBtn} relative`}
-              title="表情反应 (Ctrl+Shift+快捷键)"
+              title="Emoji reactions (Ctrl+Shift+shortcut key)"
             >
               <Smile className="w-4 h-4" />
             </button>
             
-            {/* 表情面板 */}
+            {/* Emoji panel */}
             <AnimatePresence>
               {showReactionPanel && (
                 <motion.div
@@ -269,13 +268,13 @@ export default function BottomControls({
             </AnimatePresence>
           </div>
 
-          {/* 中间: LiveKit 控件（自定义 Control Bar，使用 flex 居中） */}
+          {/* Center: LiveKit controls (custom Control Bar, centered with flex) */}
           <div className="flex flex-[2] justify-center px-2 pointer-events-auto">
             <div className="lk-controls no-scrollbar w-full flex items-center justify-center gap-1 sm:gap-2 bg-transparent flex-nowrap overflow-x-auto">
-              {/* 由于浏览器自动播放策略，首次需 StartAudio 以启用音频 */}
+              {/* Due to browser autoplay policy, need StartAudio to enable audio on first use */}
               <StartAudio label="Enable Audio" className={`${pillBtn} text-sm md:text-base`} />
 
-              {/* 音频控制组 - 麦克风开关 + 音频设备选择 */}
+              {/* Audio control group - microphone toggle + audio device selection */}
               <div className="flex items-center bg-white/10 rounded-full">
                 <TrackToggle
                   source={Track.Source.Microphone}
@@ -284,7 +283,7 @@ export default function BottomControls({
                 <MediaDeviceMenu kind="audioinput" className="h-9 w-9 md:h-10 md:w-10 rounded-l-none" />
               </div>
 
-              {/* 视频控制组 - 摄像头开关 + 视频设备选择 */}
+              {/* Video control group - camera toggle + video device selection */}
               <div className="flex items-center bg-white/10 rounded-full">
                 <TrackToggle
                   source={Track.Source.Camera}
@@ -293,26 +292,22 @@ export default function BottomControls({
                 <MediaDeviceMenu kind="videoinput" className="h-9 w-9 md:h-10 md:w-10 rounded-l-none" />
               </div>
 
-              {/* 屏幕共享 */}
+              {/* Screen sharing */}
               <TrackToggle
                 source={Track.Source.ScreenShare}
                 className={roundBtn}
               />
 
-              {/* 离开房间 */}
+              {/* Leave room */}
               <DisconnectButton className={`${pillBtn} bg-red-600 text-white hover:bg-red-500 text-sm md:text-base flex items-center gap-2`}>
                 <LogOut className="w-4 h-4" />
-                <span>离开</span>
+                <span>Leave</span>
               </DisconnectButton>
             </div>
           </div>
 
-          {/* 右侧: tutor 操作 + 音量控制 */}
+          {/* Right side: tutor operations + volume control */}
           <div className="flex items-center justify-end gap-2 flex-1 max-w-xs shrink-0">
-            {/* Debug: Show userRole */}
-            {process.env.NODE_ENV === 'development' && (
-              <span className="text-xs text-white/50 mr-2">Role: {userRole}</span>
-            )}
             {/* Recording button - only show for tutors */}
             {userRole === 'tutor' && (
               <button
@@ -338,7 +333,7 @@ export default function BottomControls({
               </button>
             )}
             
-            {/* 音量控制按钮 */}
+            {/* Volume control button */}
             <button
               onClick={() => setIsMuted(!isMuted)}
               className={`${roundBtn}`}
@@ -360,10 +355,10 @@ export default function BottomControls({
         </div>
       </div>
       <style jsx>{`
-        /* 隐藏横向滚动条，但允许滚动 */
+        /* Hide horizontal scrollbar but allow scrolling */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* 横屏时尽量单行显示中心控制区 */
+        /* Try to display center control area in single line in landscape mode */
         @media (orientation: landscape) {
           .lk-controls { flex-wrap: nowrap; }
         }

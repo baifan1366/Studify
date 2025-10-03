@@ -1,37 +1,47 @@
+"use client";
+
+import { useState } from "react";
 import OnboardingStep from "@/components/onboarding/OnboardingStep";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getTranslations } from "next-intl/server";
-import { Metadata } from 'next';
+import { useTranslations } from "next-intl";
+import { useRouter, useParams } from "next/navigation";
+import { useUpdateOnboarding } from "@/hooks/profile/use-profile";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('OnboardingTutorStep1Page');
+export default function Step1Page() {
+  const t = useTranslations("OnboardingTutorStep1Page");
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
+  const [fullName, setFullName] = useState("");
+  const { mutate: updateOnboarding, isPending } = useUpdateOnboarding();
 
-  return {
-    title: t('metadata_title'),
-    description: t('metadata_description'),
-    keywords: t('metadata_keywords').split(','),
-    openGraph: {
-      title: t('og_title'),
-      description: t('og_description'),
-      type: 'website',
-    },
+  const handleNext = async (formData: FormData) => {
+    updateOnboarding(
+      {
+        step: 1,
+        locale,
+        role: "tutor",
+        fullName,
+      },
+      {
+        onSuccess: () => {
+          router.push(`/${locale}/tutor/step2`);
+        },
+      }
+    );
   };
-}
 
-export default async function Step1Page({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  const t = await getTranslations("OnboardingTutorStep1Page");
+  const disableNext = !fullName.trim();
 
   return (
     <OnboardingStep
       title={t("welcome_title")}
       description={t("welcome_description")}
+      action={handleNext}
       isFirstStep
+      isLoading={isPending}
+      disableNext={disableNext}
     >
       <div className="space-y-4">
         <div>
@@ -39,6 +49,8 @@ export default async function Step1Page({
           <Input
             id="fullName"
             name="fullName"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             placeholder={t("full_name_placeholder")}
           />
         </div>

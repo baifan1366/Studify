@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,11 @@ import {
   Heart, 
   ThumbsUp 
 } from 'lucide-react';
+import { useDataChannel } from '@livekit/components-react';
 
-// 使用简化的消息接口，避免Liveblocks类型问题
+/**
+ * Chat message interface
+ */
 interface ChatMessage {
   id: string;
   text: string;
@@ -26,7 +29,10 @@ interface ChatMessage {
   type: 'text' | 'system' | 'reaction';
 }
 
-interface LiveblocksChatPanelProps {
+/**
+ * Component Props
+ */
+interface SessionChatPanelProps {
   isOpen: boolean;
   classroomSlug: string;
   sessionId?: string;
@@ -36,84 +42,281 @@ interface LiveblocksChatPanelProps {
     avatar: string;
     role: 'student' | 'tutor';
   };
+  // Real participants list from LiveKit
+  participants?: Array<{
+    identity: string;
+    displayName: string;
+    avatarUrl?: string;
+    role: string;
+  }>;
 }
 
 const REACTIONS = [
-  { emoji: '👍', icon: ThumbsUp, label: '赞' },
-  { emoji: '❤️', icon: Heart, label: '爱心' },
-  { emoji: '😊', icon: Smile, label: '微笑' },
-  { emoji: '👏', label: '鼓掌' },
-  { emoji: '🔥', label: '火' },
-  { emoji: '💡', label: '想法' },
+  { emoji: '👍', icon: ThumbsUp, label: 'Like' },
+  { emoji: '❤️', icon: Heart, label: 'Heart' },
+  { emoji: '😊', icon: Smile, label: 'Smile' },
+  { emoji: '👏', label: 'Clap' },
+  { emoji: '🔥', label: 'Fire' },
+  { emoji: '💡', label: 'Idea' },
 ];
 
-// 模拟Liveblocks存储的本地状态管理
-function useLiveblocksChat(roomId: string, userInfo?: any) {
+/**
+ * Session chat Hook - integrates LiveKit DataChannel for real-time communication
+ * localStorage only serves as auxiliary, used to restore local history when offline
+ */
+function useSessionChat(
+  classroomSlug: string, 
+  sessionId: string, 
+  userInfo?: any
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState([userInfo].filter(Boolean));
-  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // 🎯 Use LiveKit DataChannel for real-time communication
+  const { message: dataChannelMessage, send: sendData } = useDataChannel('chat');
 
-  // 模拟连接状态
+  // Load history from localStorage (only for initialization)
+  const loadLocalHistory = useCallback(() => {
+    try {
+      setIsLoading(true);
+      
+      if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
+        console.warn('⚠️ Invalid chat parameters:', { classroomSlug, sessionId });
+        setError('Invalid chat parameters');
+        setIsLoading(false);
+        return;
+      }
+      
+      setError(null);
+      
+      
+      const cacheKey = `chat:${classroomSlug}:${sessionId}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (cachedData) {
+        try {
+          const parsedMessages = JSON.parse(cachedData);
+          const formattedMessages: ChatMessage[] = parsedMessages.map((msg: any) => ({
+            id: msg.id || `${msg.timestamp}-${Math.random()}`,
+            text: msg.text || msg.message,
+            userId: msg.userId,
+            userName: msg.userName || 'Unknown User',
+            userAvatar: msg.userAvatar || '',
+            timestamp: msg.timestamp,
+            type: msg.type || 'text'
+          }));
+          
+          setMessages(formattedMessages);
+        } catch (parseError) {
+          console.error('❌ Failed to parse cached messages:', parseError);
+          setMessages([]);
+        }
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('💥 Error loading local history:', error);
+      setMessages([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [classroomSlug, sessionId]);
+
+  // Save message to localStorage (as backup)
+  const saveToLocalHistory = useCallback((message: ChatMessage) => {
+    try {
+      if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
+        return;
+      }
+      
+      const cacheKey = `chat:${classroomSlug}:${sessionId}`;
+      const existingData = localStorage.getItem(cacheKey);
+      let existingMessages = [];
+      
+      if (existingData) {
+        try {
+          existingMessages = JSON.parse(existingData);
+        } catch (parseError) {
+          existingMessages = [];
+        }
+      }
+      
+      existingMessages.push({
+        id: message.id,
+        text: message.text,
+        userId: message.userId,
+        userName: message.userName,
+        userAvatar: message.userAvatar,
+        type: message.type,
+        timestamp: message.timestamp
+      });
+      
+      // Limit to save last 100 messages
+      if (existingMessages.length > 100) {
+        existingMessages = existingMessages.slice(-100);
+      }
+      
+      localStorage.setItem(cacheKey, JSON.stringify(existingMessages));
+    } catch (error) {
+      console.error('💥 Error saving to local history:', error);
+    }
+  }, [classroomSlug, sessionId]);
+
+  // Clear local history
+  const clearLocalHistory = useCallback(() => {
+    try {
+      if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
+        return;
+      }
+      
+      const cacheKey = `chat:${classroomSlug}:${sessionId}`;
+      localStorage.removeItem(cacheKey);
+      setMessages([]);
+    } catch (error) {
+      console.error('💥 Error clearing local history:', error);
+    }
+  }, [classroomSlug, sessionId]);
+
+  // Get local history when component loads
   useEffect(() => {
-    const timer = setTimeout(() => setIsConnected(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (classroomSlug && sessionId) {
+      loadLocalHistory();
+    }
+  }, [classroomSlug, sessionId, loadLocalHistory]);
 
-  const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    const newMessage: ChatMessage = {
-      ...message,
-      id: `${Date.now()}-${Math.random()}`,
-      timestamp: Date.now(),
-    };
-    setMessages(prev => [...prev, newMessage]);
-  };
+  // 🎯 Listen to LiveKit DataChannel for receiving messages
+  useEffect(() => {
+    if (dataChannelMessage) {
+      try {
+        const decoder = new TextDecoder();
+        const messageStr = decoder.decode(dataChannelMessage.payload);
+        const data = JSON.parse(messageStr);
+        
+        // Only handle chat message types
+        if (data.type === 'chat') {
+          const newMessage: ChatMessage = {
+            id: data.id,
+            text: data.text,
+            userId: data.userId,
+            userName: data.userName,
+            userAvatar: data.userAvatar || '',
+            timestamp: data.timestamp,
+            type: data.messageType || 'text'
+          };
+          
+          
+          // Add to message list
+          setMessages(prev => {
+            // Prevent duplicate messages
+            if (prev.some(msg => msg.id === newMessage.id)) {
+              return prev;
+            }
+            return [...prev, newMessage];
+          });
+          
+          // Backup to local
+          saveToLocalHistory(newMessage);
+        }
+      } catch (error) {
+        console.error('❌ Error processing DataChannel message:', error);
+      }
+    }
+  }, [dataChannelMessage, saveToLocalHistory]);
 
-  const sendMessage = (text: string) => {
-    if (!userInfo || !text.trim()) return;
+  // 🎯 Send message via LiveKit DataChannel
+  const sendMessage = useCallback((text: string, messageType: 'text' | 'reaction' = 'text') => {
+    if (!userInfo || !text.trim() || !sendData) {
+      console.warn('⚠️ Cannot send message:', { hasUserInfo: !!userInfo, hasText: !!text.trim(), hasSendData: !!sendData });
+      return;
+    }
     
-    addMessage({
+    const newMessage: ChatMessage = {
+      id: `${Date.now()}-${Math.random()}`,
       text: text.trim(),
       userId: userInfo.id,
       userName: userInfo.name,
       userAvatar: userInfo.avatar,
-      type: 'text',
-    });
-  };
-
-  const sendReaction = (emoji: string) => {
-    if (!userInfo) return;
+      timestamp: Date.now(),
+      type: messageType,
+    };
     
-    addMessage({
-      text: emoji,
-      userId: userInfo.id,
-      userName: userInfo.name,
-      userAvatar: userInfo.avatar,
-      type: 'reaction',
-    });
-  };
+    // Immediately add to local display (optimistic update)
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Backup to local
+    saveToLocalHistory(newMessage);
+    
+    // 🎯 Send to other participants via LiveKit DataChannel
+    try {
+      const payload = {
+        type: 'chat',
+        id: newMessage.id,
+        text: newMessage.text,
+        userId: newMessage.userId,
+        userName: newMessage.userName,
+        userAvatar: newMessage.userAvatar,
+        timestamp: newMessage.timestamp,
+        messageType: newMessage.type
+      };
+      
+      const encoder = new TextEncoder();
+      const data = encoder.encode(JSON.stringify(payload));
+      
+      sendData(data, { reliable: true }); // Use reliable transmission to ensure message delivery
+    } catch (error) {
+      console.error('❌ Error sending message via DataChannel:', error);
+      // Can show error message when sending fails
+      setError('Message sending failed, please retry');
+      setTimeout(() => setError(null), 3000);
+    }
+  }, [userInfo, sendData, saveToLocalHistory]);
+
+  const sendTextMessage = useCallback((text: string) => {
+    sendMessage(text, 'text');
+  }, [sendMessage]);
+
+  const sendReaction = useCallback((emoji: string) => {
+    sendMessage(emoji, 'reaction');
+  }, [sendMessage]);
 
   return {
     messages,
-    onlineUsers,
-    isConnected,
-    sendMessage,
+    isLoading,
+    error,
+    sendMessage: sendTextMessage,
     sendReaction,
+    clearLocalHistory,
   };
 }
 
-function ChatMessages({ messages }: { messages: ChatMessage[] }) {
+/**
+ * Chat message list component
+ */
+function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoading: boolean }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center text-slate-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto mb-2"></div>
+          <p>Loading chat history...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3">
       {messages.length === 0 ? (
         <div className="text-center text-slate-400 py-8">
-          <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>还没有消息，开始聊天吧！</p>
+          <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <p>No messages yet, start chatting!</p>
         </div>
       ) : (
         messages.map((message) => (
@@ -123,7 +326,7 @@ function ChatMessages({ messages }: { messages: ChatMessage[] }) {
             animate={{ opacity: 1, y: 0 }}
             className="flex items-start gap-3"
           >
-            <Avatar className="w-8 h-8">
+            <Avatar className="w-8 h-8 flex-shrink-0">
               <AvatarImage src={message.userAvatar} />
               <AvatarFallback className="text-xs bg-slate-600 text-white">
                 {message.userName.charAt(0).toUpperCase()}
@@ -156,6 +359,9 @@ function ChatMessages({ messages }: { messages: ChatMessage[] }) {
   );
 }
 
+/**
+ * Chat input component
+ */
 function ChatInput({ onSendMessage, onSendReaction }: {
   onSendMessage: (text: string) => void;
   onSendReaction: (emoji: string) => void;
@@ -164,8 +370,10 @@ function ChatInput({ onSendMessage, onSendReaction }: {
   const [showReactions, setShowReactions] = useState(false);
 
   const handleSend = () => {
-    onSendMessage(message);
-    setMessage('');
+    if (message.trim()) {
+      onSendMessage(message);
+      setMessage('');
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -177,7 +385,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
 
   return (
     <div className="p-2 sm:p-4 border-t border-slate-700/50">
-      {/* 快速反应 */}
+      {/* Quick reactions */}
       {showReactions && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -218,7 +426,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="输入消息..."
+          placeholder="Enter message..."
           onKeyPress={handleKeyPress}
           className="flex-1 min-w-0 bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:ring-indigo-500"
           maxLength={500}
@@ -226,13 +434,13 @@ function ChatInput({ onSendMessage, onSendReaction }: {
         <Button
           onClick={handleSend}
           disabled={!message.trim()}
-          className="shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white"
+          className="shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white disabled:opacity-50"
         >
           <Send className="w-4 h-4" />
         </Button>
       </div>
 
-      {/* 字数统计 */}
+      {/* Character count */}
       {message.length > 0 && (
         <div className="text-xs text-slate-400 mt-1 text-right">
           {message.length}/500
@@ -242,43 +450,47 @@ function ChatInput({ onSendMessage, onSendReaction }: {
   );
 }
 
-function OnlineUsers({ users, isConnected }: {
-  users: any[];
-  isConnected: boolean;
+/**
+ * Online participants list component - uses real LiveKit participant data
+ */
+function OnlineParticipants({ participants }: {
+  participants: Array<{
+    identity: string;
+    displayName: string;
+    avatarUrl?: string;
+    role: string;
+  }>;
 }) {
   return (
     <div className="p-4 border-b border-slate-700/50">
       <div className="flex items-center gap-2 mb-2">
         <Users className="w-4 h-4 text-slate-400" />
-        <span className="text-sm font-medium text-white">在线用户 ({users.length})</span>
-        <Badge
-          variant={isConnected ? 'default' : 'destructive'}
-          className="ml-auto text-xs"
-        >
-          {isConnected ? '已连接' : '连接中...'}
+        <span className="text-sm font-medium text-white">Online Participants ({participants.length})</span>
+        <Badge variant="default" className="ml-auto text-xs bg-green-500">
+          Real-time Sync
         </Badge>
       </div>
-      <div className="space-y-1">
-        {users.map((user, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <Avatar className="w-5 h-5">
-              <AvatarImage src={user?.avatar} />
+      <div className="space-y-1 max-h-32 overflow-y-auto">
+        {participants.map((participant, index) => (
+          <div key={participant.identity} className="flex items-center gap-2">
+            <Avatar className="w-5 h-5 flex-shrink-0">
+              <AvatarImage src={participant.avatarUrl} />
               <AvatarFallback className="text-xs bg-slate-600 text-white">
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                {participant.displayName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="text-xs text-slate-300 truncate">
-                {user?.name || 'Unknown User'} {index === 0 && '(我)'}
+                {participant.displayName}
               </div>
             </div>
             <Badge
-              variant={user?.role === 'tutor' ? 'default' : 'secondary'}
-              className="text-xs"
+              variant={participant.role === 'tutor' ? 'default' : 'secondary'}
+              className="text-xs flex-shrink-0"
             >
-              {user?.role === 'tutor' ? '导师' : '学生'}
+              {participant.role === 'tutor' ? 'Tutor' : 'Student'}
             </Badge>
-            <div className="w-2 h-2 bg-green-400 rounded-full" title="在线"></div>
+            <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="Online"></div>
           </div>
         ))}
       </div>
@@ -286,21 +498,28 @@ function OnlineUsers({ users, isConnected }: {
   );
 }
 
-export function LiveblocksChatPanel({ 
+/**
+ * Session chat panel main component
+ * 
+ * ✅ Uses LiveKit DataChannel for real-time communication
+ * ✅ Uses real participants list
+ * ✅ localStorage only serves as auxiliary (offline history)
+ */
+export function SessionChatPanel({ 
   isOpen, 
   classroomSlug, 
   sessionId, 
-  userInfo 
-}: LiveblocksChatPanelProps) {
-  const roomId = `classroom:${classroomSlug}:chat${sessionId ? `:${sessionId}` : ''}`;
-  
+  userInfo,
+  participants = []
+}: SessionChatPanelProps) {
   const {
     messages,
-    onlineUsers,
-    isConnected,
+    isLoading,
+    error,
     sendMessage,
     sendReaction,
-  } = useLiveblocksChat(roomId, userInfo);
+    clearLocalHistory,
+  } = useSessionChat(classroomSlug, sessionId || '', userInfo);
 
   return (
     <AnimatePresence>
@@ -317,21 +536,25 @@ export function LiveblocksChatPanel({
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.3 }}
         >
-          {/* 头部 */}
+          {/* Header */}
           <div className="p-4 border-b border-slate-700/50">
             <h3 className="text-lg font-medium text-white flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
-              实时聊天
+              Real-time Chat
             </h3>
+            
           </div>
 
-          {/* 在线用户 */}
-          <OnlineUsers users={onlineUsers} isConnected={isConnected} />
+          {/* Online participants list - uses real LiveKit data */}
+          {participants.length > 0 && (
+            <OnlineParticipants participants={participants} />
+          )}
+          
 
-          {/* 聊天消息 */}
-          <ChatMessages messages={messages} />
+          {/* Chat messages */}
+          <ChatMessages messages={messages} isLoading={isLoading} />
 
-          {/* 输入框 */}
+          {/* Input box */}
           <ChatInput onSendMessage={sendMessage} onSendReaction={sendReaction} />
         </motion.div>
       )}

@@ -75,16 +75,30 @@ export const useAccountSwitcher = () => {
       const accounts = AccountStorageManager.getStoredAccounts();
       setStoredAccounts(accounts);
 
+      const currentLocale = window.location.pathname.split('/')[1] || 'en';
+      const userRole = data.user.role || 'student';
+
       // Check if the switched user needs onboarding (from API response)
       if (data.needsOnboarding) {
         // Redirect to appropriate onboarding page with locale
-        const userRole = data.user.role || 'student';
-        const currentLocale = window.location.pathname.split('/')[1] || 'en';
         router.push(`/${currentLocale}/${userRole}`);
       } else {
-        // Redirect to home for completed users with locale
-        const currentLocale = window.location.pathname.split('/')[1] || 'en';
-        router.push(`/${currentLocale}/home`);
+        // Redirect to role-specific home page
+        let homePath = '';
+        switch (userRole) {
+          case 'student':
+            homePath = `/${currentLocale}/home`;
+            break;
+          case 'tutor':
+            homePath = `/${currentLocale}/tutor/dashboard`;
+            break;
+          case 'admin':
+            homePath = `/${currentLocale}/admin/dashboard`;
+            break;
+          default:
+            homePath = `/${currentLocale}/sign-in`;
+        }
+        router.push(homePath);
       }
       router.refresh();
     },

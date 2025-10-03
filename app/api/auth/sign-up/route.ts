@@ -37,10 +37,31 @@ export async function POST(req: NextRequest) {
     }
 
     const client = await createServerClient()
+    
+    // Get redirect URL for email confirmation using NEXT_PUBLIC_SITE_URL
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    const targetLocale = locale || req.cookies.get('next-intl-locale')?.value || 'en'
+    
+    // Determine requested role to set proper redirect after confirmation
+    const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
+    const role = roleParam || 'student'
+    
+    // Set redirect path based on role
+    const roleRedirectPath = role === 'tutor' 
+      ? `/${targetLocale}/onboarding/tutor/step1`
+      : role === 'admin'
+      ? `/${targetLocale}/admin/dashboard`
+      : `/${targetLocale}/onboarding/student/step1`
+    
+    const emailRedirectTo = `${siteUrl}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup`
+    
     const { data, error } = await client.auth.signUp({
       email,
       password,
-      options: captchaToken ? { captchaToken } : undefined,
+      options: {
+        ...(captchaToken ? { captchaToken } : {}),
+        emailRedirectTo,
+      },
     })
 
     if (error || !data.user) {
@@ -48,9 +69,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error?.message || 'Sign-up failed' }, { status: 400 })
     }
 
-    // Determine requested role: query param overrides (student|tutor|admin)
-    const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
-    const role = roleParam || 'student'
     const name = fullName || data.user.email?.split('@')[0] || undefined
 
     // Manually create profile since we removed the database trigger
@@ -87,8 +105,6 @@ export async function POST(req: NextRequest) {
     // Prepare response: redirect for form submissions; JSON for API clients
     const isFormPost = req.headers.get('content-type')?.includes('application/x-www-form-urlencoded') ||
       req.headers.get('content-type')?.includes('multipart/form-data')
-
-    const targetLocale = locale || req.cookies.get('next-intl-locale')?.value || 'en'
     
     // Use NEXT_PUBLIC_SITE_URL in production to avoid localhost issues
     let redirectOrigin = req.nextUrl.origin;

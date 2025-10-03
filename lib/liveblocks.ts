@@ -1,23 +1,67 @@
-import { createClient } from "@liveblocks/client";
+/**
+ * Liveblocks 配置和客户端
+ * 
+ * 用于实时协作功能：
+ * - 白板多人协作
+ * - 文档共同编辑
+ * - 实时光标和选择
+ * - 聊天和评论
+ */
+
+import { createClient, LiveMap, LiveList, LiveObject } from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
-import { LiveMap, LiveList } from "@liveblocks/client";
 
 const client = createClient({
-  publicApiKey: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!,
-  throttle: 16,
+  authEndpoint: '/api/liveblocks-auth',
+  throttle: 16, // 60fps
+  lostConnectionTimeout: 10000, // 10秒
+  backgroundKeepAliveTimeout: 30000, // 30秒
 });
 
-// 定义房间状态类型
-type Presence = {
+// ============================================
+// 类型定义
+// ============================================
+
+// Presence 类型（每个用户的临时状态）
+export type Presence = {
   cursor: { x: number; y: number } | null;
+  selection: { start: number; end: number } | null;
+  currentTool?: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
   userName: string;
-  userAvatar: string;
-  userRole: 'student' | 'tutor';
+  userAvatar?: string;
+  userColor: string;
+  userRole?: 'student' | 'tutor';
   isDrawing?: boolean;
 };
 
-type Storage = {
-  shapes: LiveMap<string, {
+// Storage 类型（持久化数据）
+export type Storage = {
+  // 白板绘制数据
+  whiteboardStrokes?: LiveList<{
+    id: string;
+    tool: 'pen' | 'eraser' | 'rectangle' | 'circle';
+    points: number[];
+    color: string;
+    width: number;
+    timestamp: number;
+  }>;
+  
+  // 文本框数据
+  whiteboardTextBoxes?: LiveList<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+    color: string;
+    fontSize: number;
+    fontFamily: string;
+    timestamp: number;
+  }>;
+  
+  // 形状数据（兼容旧版）
+  shapes?: LiveMap<string, {
     id: string;
     type: 'rectangle' | 'circle' | 'line' | 'path';
     x: number;
@@ -32,8 +76,16 @@ type Storage = {
     userId: string;
     timestamp: number;
   }>;
+  
+  // 文档编辑数据
+  documentContent?: LiveObject<{
+    content: string;
+    version: number;
+    lastModified: string;
+  }>;
+  
   // 聊天消息
-  messages: LiveList<{
+  messages?: LiveList<{
     id: string;
     text: string;
     userId: string;
@@ -42,43 +94,72 @@ type Storage = {
     timestamp: number;
     type: 'text' | 'system' | 'reaction';
   }>;
+  
+  // 评论数据
+  comments?: LiveList<{
+    id: string;
+    userId: string;
+    userName: string;
+    content: string;
+    position: { x: number; y: number };
+    timestamp: number;
+    resolved: boolean;
+  }>;
 };
 
-type UserMeta = {
+// UserMeta 类型（用户元数据）
+export type UserMeta = {
   id: string;
   info: {
     name: string;
-    avatar: string;
-    role: 'student' | 'tutor';
+    avatar?: string;
+    color: string;
+    role?: 'student' | 'tutor';
   };
 };
 
-type RoomEvent = 
+// Room Event 类型
+export type RoomEvent = 
   | { type: 'DRAWING_START'; data: { x: number; y: number } }
   | { type: 'DRAWING_END'; data: { shapeId: string } }
   | { type: 'CHAT_MESSAGE'; data: { message: string } }
   | { type: 'USER_REACTION'; data: { emoji: string; x: number; y: number } }
   | { type: 'CLEAR_CANVAS'; data: {} };
 
+// ============================================
+// React Hooks 导出
+// ============================================
+
 export const {
   suspense: {
     RoomProvider,
     useRoom,
     useMyPresence,
+    useUpdateMyPresence,
     useOthers,
+    useOthersMapped,
+    useOthersConnectionIds,
+    useOther,
+    useSelf,
     useBroadcastEvent,
     useEventListener,
     useStorage,
     useMutation,
     useHistory,
-    useCanUndo,
-    useCanRedo,
     useUndo,
     useRedo,
+    useCanUndo,
+    useCanRedo,
+    useErrorListener,
   },
 } = createRoomContext<Presence, Storage, UserMeta, RoomEvent>(client);
 
 export { client };
+export { client as liveblocksClient };
+
+// ============================================
+// 工具函数
+// ============================================
 
 // 房间ID生成工具
 export const generateRoomId = (classroomSlug: string, type: 'whiteboard' | 'chat' | 'document', sessionId?: string) => {
@@ -89,7 +170,24 @@ export const generateRoomId = (classroomSlug: string, type: 'whiteboard' | 'chat
   return `${base}:${type}`;
 };
 
-// 颜色主题
+// 用户颜色（用于协作光标）
+const USER_COLORS = [
+  '#E57373', '#F06292', '#BA68C8', '#9575CD',
+  '#7986CB', '#64B5F6', '#4FC3F7', '#4DD0E1',
+  '#4DB6AC', '#81C784', '#AED581', '#DCE775',
+  '#FFD54F', '#FFB74D', '#FF8A65', '#A1887F',
+];
+
+export function getUserColor(userId: string): string {
+  // 基于 userId 生成一致的颜色
+  const hash = userId.split('').reduce((acc, char) => {
+    return char.charCodeAt(0) + ((acc << 5) - acc);
+  }, 0);
+  
+  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
+}
+
+// 绘图颜色主题
 export const COLORS = [
   '#000000', // 黑色
   '#FF0000', // 红色

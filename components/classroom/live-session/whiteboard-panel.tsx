@@ -23,7 +23,7 @@ interface WhiteboardPanelProps {
   classroomSlug: string;
   sessionId?: string;
   userRole?: 'student' | 'tutor';
-  // 工具栏状态
+  // Toolbar state
   currentTool: Tool;
   setCurrentTool: (tool: Tool) => void;
   currentColor: string;
@@ -34,23 +34,23 @@ interface WhiteboardPanelProps {
   setCurrentFontSize: (size: number) => void;
   currentTextAlign: 'left' | 'center' | 'right';
   setCurrentTextAlign: (align: 'left' | 'center' | 'right') => void;
-  // 工具栏操作
+  // Toolbar actions
   onClearCanvas?: () => void;
   onSaveCanvas?: () => Promise<void>;
   onDownloadCanvas?: () => void;
 }
 
 const COLORS = [
-  '#000000', // 黑色
-  '#FF0000', // 红色
-  '#00FF00', // 绿色
-  '#0000FF', // 蓝色
-  '#FFFF00', // 黄色
-  '#FF00FF', // 品红
-  '#00FFFF', // 青色
-  '#FFA500', // 橙色
-  '#800080', // 紫色
-  '#FFC0CB', // 粉色
+  '#000000', // Black
+  '#FF0000', // Red
+  '#00FF00', // Green
+  '#0000FF', // Blue
+  '#FFFF00', // Yellow
+  '#FF00FF', // Magenta
+  '#00FFFF', // Cyan
+  '#FFA500', // Orange
+  '#800080', // Purple
+  '#FFC0CB', // Pink
 ];
 
 const BRUSH_SIZES = [2, 4, 8, 12, 16];
@@ -93,14 +93,14 @@ export function WhiteboardPanel({
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.3 }}
         >
-          {/* 工具栏头部 */}
+          {/* Toolbar Header */}
           <div className="p-2 sm:p-4 border-b border-slate-700/50">
             <h3 className="text-lg font-medium text-white flex items-center gap-2 mb-4">
               <PenTool className="w-5 h-5" />
-              协作白板
+              Collaborative Whiteboard
             </h3>
 
-            {/* 工具选择 */}
+            {/* Tool Selection */}
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 sm:gap-2 mb-4">
               <Button
                 variant={currentTool === 'pen' ? 'default' : 'outline'}
@@ -144,11 +144,11 @@ export function WhiteboardPanel({
               </Button>
             </div>
 
-            {/* 颜色选择 */}
+            {/* Color Selection */}
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Palette className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-300">颜色</span>
+                <span className="text-sm text-slate-300">Color</span>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-1">
                 {COLORS.map((color) => (
@@ -164,11 +164,11 @@ export function WhiteboardPanel({
               </div>
             </div>
 
-            {/* 画笔大小 - 仅在非文本工具时显示 */}
+            {/* Brush Size - Only shown for non-text tools */}
             {currentTool !== 'text' && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-slate-300">画笔大小</span>
+                  <span className="text-sm text-slate-300">Brush Size</span>
                   <span className="text-xs text-slate-400">({currentBrushSize}px)</span>
                 </div>
                 <div className="flex gap-1">
@@ -190,15 +190,15 @@ export function WhiteboardPanel({
               </div>
             )}
 
-            {/* 文本工具选项 */}
+            {/* Text Tool Options */}
             {currentTool === 'text' && (
               <div className="mb-4 p-3 bg-slate-700/30 rounded-lg">
-                <h4 className="text-sm font-medium text-white mb-2">文本选项</h4>
+                <h4 className="text-sm font-medium text-white mb-2">Text Options</h4>
                 
-                {/* 字体大小 */}
+                {/* Font Size */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-300">字体大小</span>
+                    <span className="text-sm text-slate-300">Font Size</span>
                     <span className="text-xs text-slate-400">({currentFontSize}px)</span>
                   </div>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
@@ -218,10 +218,10 @@ export function WhiteboardPanel({
                   </div>
                 </div>
 
-                {/* 对齐方式 */}
+                {/* Text Alignment */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-300">对齐方式</span>
+                    <span className="text-sm text-slate-300">Alignment</span>
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -231,7 +231,7 @@ export function WhiteboardPanel({
                           ? 'bg-indigo-500 text-white' 
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                       }`}
-                      title="左对齐"
+                      title="Left Align"
                     >
                       <AlignLeft className="w-4 h-4" />
                     </button>
@@ -242,7 +242,7 @@ export function WhiteboardPanel({
                           ? 'bg-indigo-500 text-white' 
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                       }`}
-                      title="居中对齐"
+                      title="Center Align"
                     >
                       <AlignCenter className="w-4 h-4" />
                     </button>
@@ -253,7 +253,7 @@ export function WhiteboardPanel({
                           ? 'bg-indigo-500 text-white' 
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                       }`}
-                      title="右对齐"
+                      title="Right Align"
                     >
                       <AlignRight className="w-4 h-4" />
                     </button>
@@ -261,22 +261,22 @@ export function WhiteboardPanel({
                 </div>
 
                 <div className="text-xs text-slate-400">
-                  💡 点击白板任意位置创建文本框<br/>
-                  双击文本框编辑，单击拖动位置
+                  💡 Click anywhere on the whiteboard to create a text box<br/>
+                  Double-click to edit text, single-click to drag position
                 </div>
               </div>
             )}
 
-            {/* 操作按钮 */}
+            {/* Action Buttons */}
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" size="sm" onClick={onSaveCanvas}>
                   <Save className="w-4 h-4 mr-1" />
-                  保存到云端
+                  Save to Cloud
                 </Button>
                 <Button variant="outline" size="sm" onClick={onDownloadCanvas}>
                   <Download className="w-4 h-4 mr-1" />
-                  下载图片
+                  Download Image
                 </Button>
               </div>
               <Button 
@@ -286,20 +286,20 @@ export function WhiteboardPanel({
                 className="w-full"
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                清空画布
+                Clear Canvas
               </Button>
             </div>
           </div>
 
 
-          {/* 底部信息 */}
+          {/* Bottom Info */}
           <div className="p-2 sm:p-4 border-t border-slate-700/50">
             <div className="text-xs text-slate-400 space-y-1">
-              <div>教室: {classroomSlug}</div>
-              <div>会话: {sessionId || '默认'}</div>
-              <div>角色: {userRole === 'tutor' ? '导师' : '学生'}</div>
+              <div>Classroom: {classroomSlug}</div>
+              <div>Session: {sessionId || 'Default'}</div>
+              <div>Role: {userRole === 'tutor' ? 'Tutor' : 'Student'}</div>
               <div className="text-slate-500 mt-2">
-                💡 提示: 使用鼠标绘制，选择不同工具和颜色进行创作
+                💡 Tip: Use mouse to draw, select different tools and colors for creation
               </div>
             </div>
           </div>

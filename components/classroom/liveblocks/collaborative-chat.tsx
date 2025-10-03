@@ -10,12 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, Users, Smile, Heart, ThumbsUp } from 'lucide-react';
 
 const REACTIONS = [
-  { emoji: '👍', icon: ThumbsUp, label: '赞' },
-  { emoji: '❤️', icon: Heart, label: '爱心' },
-  { emoji: '😊', icon: Smile, label: '微笑' },
-  { emoji: '👏', label: '鼓掌' },
-  { emoji: '🔥', label: '火' },
-  { emoji: '💡', label: '想法' },
+  { emoji: '👍', icon: ThumbsUp, label: 'Like' },
+  { emoji: '❤️', icon: Heart, label: 'Love' },
+  { emoji: '😊', icon: Smile, label: 'Smile' },
+  { emoji: '👏', label: 'Applause' },
+  { emoji: '🔥', label: 'Fire' },
+  { emoji: '💡', label: 'Idea' },
 ];
 
 function ChatMessages() {
@@ -37,7 +37,7 @@ function ChatMessages() {
       {messages.length === 0 ? (
         <div className="text-center text-gray-500 py-8">
           <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>还没有消息，开始聊天吧！</p>
+          <p>No messages yet, start chatting!</p>
         </div>
       ) : (
         messages.map((message, index) => (
@@ -83,7 +83,9 @@ function ChatInput() {
   
   const addMessage = useMutation(({ storage }, newMessage) => {
     const messages = storage.get('messages');
-    messages.push(newMessage);
+    if (messages) {
+      messages.push(newMessage);
+    }
   }, []);
 
   const handleSend = () => {
@@ -93,7 +95,7 @@ function ChatInput() {
     const newMessage = {
       id: `${Date.now()}-${Math.random()}`,
       text: trimmedMessage,
-      userId: myPresence.userName, // 这里应该用实际的用户ID
+      userId: myPresence.userName, // Should use actual user ID here
       userName: myPresence.userName,
       userAvatar: myPresence.userAvatar,
       timestamp: Date.now(),
@@ -130,7 +132,7 @@ function ChatInput() {
 
   return (
     <div className="p-4 border-t bg-gray-50">
-      {/* 快速反应 */}
+      {/* Quick reactions */}
       {showReactions && (
         <div className="mb-3 p-2 bg-white rounded-lg border shadow-sm">
           <div className="flex gap-2 flex-wrap">
@@ -163,7 +165,7 @@ function ChatInput() {
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="输入消息... (回车发送)"
+          placeholder="Type message... (Enter to send)"
           onKeyPress={handleKeyPress}
           className="flex-1"
           maxLength={500}
@@ -177,7 +179,7 @@ function ChatInput() {
         </Button>
       </div>
       
-      {/* 字数统计 */}
+      {/* Character count */}
       {message.length > 0 && (
         <div className="text-xs text-gray-500 mt-1 text-right">
           {message.length}/500
@@ -213,7 +215,7 @@ function OnlineUsers() {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Users className="w-4 h-4" />
-          在线用户 ({allUsers.length})
+          Online Users ({allUsers.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -228,16 +230,16 @@ function OnlineUsers() {
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {user.name} {user.isMe && '(我)'}
+                  {user.name} {user.isMe && '(Me)'}
                 </div>
               </div>
               <Badge 
                 variant={user.role === 'tutor' ? 'default' : 'secondary'}
                 className="text-xs"
               >
-                {user.role === 'tutor' ? '导师' : '学生'}
+                {user.role === 'tutor' ? 'Tutor' : 'Student'}
               </Badge>
-              <div className="w-2 h-2 bg-green-500 rounded-full" title="在线"></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full" title="Online"></div>
             </div>
           ))}
         </div>
@@ -249,17 +251,17 @@ function OnlineUsers() {
 function SystemNotifications() {
   const [notifications, setNotifications] = useState<string[]>([]);
 
-  // 监听系统事件
+  // Listen for system events
   useEventListener(({ event, user }) => {
     if (event.type === 'CHAT_MESSAGE') {
-      // 可以添加消息通知逻辑
+      // Can add message notification logic here
     } else if (event.type === 'USER_REACTION') {
       setNotifications(prev => [
         ...prev,
-        `${user?.info?.name || '未知用户'} 发送了表情 ${event.data.emoji}`,
+        `${user?.info?.name || 'Unknown User'} sent emoji ${event.data.emoji}`,
       ]);
       
-      // 3秒后清除通知
+      // Clear notification after 3 seconds
       setTimeout(() => {
         setNotifications(prev => prev.slice(1));
       }, 3000);
@@ -285,18 +287,18 @@ function SystemNotifications() {
 export function CollaborativeChat() {
   return (
     <div className="h-full flex flex-col relative">
-      {/* 系统通知 */}
+      {/* System notifications */}
       <SystemNotifications />
       
-      {/* 在线用户 */}
+      {/* Online users */}
       <div className="p-4 border-b">
         <OnlineUsers />
       </div>
       
-      {/* 聊天消息 */}
+      {/* Chat messages */}
       <ChatMessages />
       
-      {/* 输入框 */}
+      {/* Input field */}
       <ChatInput />
     </div>
   );

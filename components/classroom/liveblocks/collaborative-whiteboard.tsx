@@ -64,23 +64,29 @@ function WhiteboardCanvas() {
 
   const insertShape = useMutation(({ storage }, shape: any) => {
     const shapes = storage.get('shapes');
-    shapes.set(shape.id, shape);
+    if (shapes) {
+      shapes.set(shape.id, shape);
+    }
   }, []);
 
   const deleteShape = useMutation(({ storage }, shapeId: string) => {
     const shapes = storage.get('shapes');
-    shapes.delete(shapeId);
+    if (shapes) {
+      shapes.delete(shapeId);
+    }
   }, []);
 
   const clearCanvas = useMutation(({ storage }) => {
     const shapes = storage.get('shapes');
     // LiveMap doesn't have clear(), need to delete all keys
-    Array.from(shapes.keys()).forEach(key => {
-      shapes.delete(key);
-    });
+    if (shapes) {
+      Array.from(shapes.keys()).forEach(key => {
+        shapes.delete(key);
+      });
+    }
   }, []);
 
-  // 处理鼠标移动
+  // Handle mouse movement
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!svgRef.current) return;
     
@@ -94,13 +100,13 @@ function WhiteboardCanvas() {
       isDrawing,
     });
 
-    // 如果正在绘制
+    // If currently drawing
     if (isDrawing && tool === 'pen') {
       setCurrentPath(prev => [...prev, { x, y }]);
     }
   }, [myPresence, updateMyPresence, isDrawing, tool]);
 
-  // 处理鼠标离开
+  // Handle mouse leave
   const handlePointerLeave = useCallback(() => {
     updateMyPresence({
       ...myPresence,
@@ -109,7 +115,7 @@ function WhiteboardCanvas() {
     });
   }, [myPresence, updateMyPresence]);
 
-  // 开始绘制
+  // Start drawing
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!svgRef.current) return;
     
@@ -123,7 +129,7 @@ function WhiteboardCanvas() {
       setCurrentPath([{ x, y }]);
       broadcast({ type: 'DRAWING_START', data: { x, y } });
     } else if (tool === 'rectangle' || tool === 'circle') {
-      // 创建形状
+      // Create shape
       const shape = {
         id: `${Date.now()}-${Math.random()}`,
         type: tool,
@@ -142,7 +148,7 @@ function WhiteboardCanvas() {
     }
   }, [tool, color, strokeWidth, myPresence.userName, insertShape, broadcast]);
 
-  // 结束绘制
+  // End drawing
   const handlePointerUp = useCallback(() => {
     if (isDrawing && tool === 'pen' && currentPath.length > 1) {
       const shape = {
@@ -165,20 +171,20 @@ function WhiteboardCanvas() {
     setCurrentPath([]);
   }, [isDrawing, tool, currentPath, color, strokeWidth, myPresence.userName, insertShape, broadcast]);
 
-  // 监听绘制事件
+  // Listen for drawing events
   useEventListener(({ event }) => {
     if (event.type === 'CLEAR_CANVAS') {
-      // 可以添加清除动画或通知
+      // Can add clear animation or notification
     }
   });
 
-  // 渲染路径
+  // Render path
   const renderPath = (points: { x: number; y: number }[]) => {
     if (points.length < 2) return '';
     return `M ${points[0].x} ${points[0].y} ${points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`;
   };
 
-  // 获取用户颜色
+  // Get user color
   const getUserColor = (connectionId: number) => {
     const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
     return colors[connectionId % colors.length];
@@ -186,11 +192,11 @@ function WhiteboardCanvas() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* 工具栏 */}
+      {/* Toolbar */}
       <Card className="mb-4">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            {/* 绘图工具 */}
+            {/* Drawing tools */}
             <div className="flex items-center gap-2">
               <Button
                 variant={tool === 'pen' ? 'default' : 'outline'}
@@ -198,7 +204,7 @@ function WhiteboardCanvas() {
                 onClick={() => setTool('pen')}
               >
                 <Pencil className="w-4 h-4 mr-1" />
-                画笔
+                Pen
               </Button>
               <Button
                 variant={tool === 'eraser' ? 'default' : 'outline'}
@@ -206,7 +212,7 @@ function WhiteboardCanvas() {
                 onClick={() => setTool('eraser')}
               >
                 <Eraser className="w-4 h-4 mr-1" />
-                橡皮擦
+                Eraser
               </Button>
               <Button
                 variant={tool === 'rectangle' ? 'default' : 'outline'}
@@ -214,7 +220,7 @@ function WhiteboardCanvas() {
                 onClick={() => setTool('rectangle')}
               >
                 <Square className="w-4 h-4 mr-1" />
-                矩形
+                Rectangle
               </Button>
               <Button
                 variant={tool === 'circle' ? 'default' : 'outline'}
@@ -222,11 +228,11 @@ function WhiteboardCanvas() {
                 onClick={() => setTool('circle')}
               >
                 <Circle className="w-4 h-4 mr-1" />
-                圆形
+                Circle
               </Button>
             </div>
 
-            {/* 颜色选择 */}
+            {/* Color selection */}
             <div className="flex items-center gap-2">
               <Palette className="w-4 h-4" />
               <div className="flex gap-1">
@@ -243,7 +249,7 @@ function WhiteboardCanvas() {
               </div>
             </div>
 
-            {/* 操作按钮 */}
+            {/* Action buttons */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -270,14 +276,14 @@ function WhiteboardCanvas() {
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                清空
+                Clear
               </Button>
             </div>
           </div>
 
-          {/* 笔刷大小 */}
+          {/* Brush size */}
           <div className="flex items-center gap-4 mt-4">
-            <label className="text-sm font-medium">笔刷大小:</label>
+            <label className="text-sm font-medium">Brush Size:</label>
             <input
               type="range"
               min="1"
@@ -291,13 +297,13 @@ function WhiteboardCanvas() {
         </CardContent>
       </Card>
 
-      {/* 在线用户 */}
+      {/* Online users */}
       <Card className="mb-4">
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            <span className="text-sm font-medium">在线用户 ({others.length + 1}):</span>
-            <Badge variant="outline">{myPresence.userName} (我)</Badge>
+            <span className="text-sm font-medium">Online Users ({others.length + 1}):</span>
+            <Badge variant="outline">{myPresence.userName} (Me)</Badge>
             {others.map(({ connectionId, presence }) => (
               <Badge key={connectionId} variant="secondary">
                 {presence.userName}
@@ -308,7 +314,7 @@ function WhiteboardCanvas() {
         </CardContent>
       </Card>
 
-      {/* 白板画布 */}
+      {/* Whiteboard canvas */}
       <div className="flex-1 relative bg-white border rounded-lg overflow-hidden">
         <svg
           ref={svgRef}
@@ -318,7 +324,7 @@ function WhiteboardCanvas() {
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
         >
-          {/* 渲染已有图形 */}
+          {/* Render existing shapes */}
           {shapes && Array.from(shapes.entries()).map(([id, shape]) => {
             if (shape.type === 'path' && shape.points) {
               return (
@@ -361,7 +367,7 @@ function WhiteboardCanvas() {
             return null;
           })}
 
-          {/* 渲染当前正在绘制的路径 */}
+          {/* Render current drawing path */}
           {isDrawing && tool === 'pen' && currentPath.length > 1 && (
             <path
               d={renderPath(currentPath)}
@@ -374,7 +380,7 @@ function WhiteboardCanvas() {
             />
           )}
           
-          {/* 渲染其他用户的光标 */}
+          {/* Render other users' cursors */}
           {others.map(({ connectionId, presence }) => {
             if (!presence.cursor) return null;
             
@@ -427,6 +433,8 @@ export function CollaborativeWhiteboard({ roomId, userInfo }: CollaborativeWhite
         userAvatar: userInfo.avatar,
         userRole: userInfo.role,
         isDrawing: false,
+        selection: null,
+        userColor: '#000000',
       }}
       initialStorage={initialStorage}
     >

@@ -29,7 +29,7 @@ export default function SessionManager({
   userId,
   userName
 }: SessionManagerProps) {
-  // 🎯 方案B：引入明确的用户意图状态
+  // 🎯 Solution B: Introduce explicit user intent state
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newSession, setNewSession] = useState({
@@ -39,7 +39,7 @@ export default function SessionManager({
     ends_at: '',
   });
   
-  // 🎯 使用 ref 确保自动加入只在首次加载时执行
+  // 🎯 Use ref to ensure auto-join only executes on first load
   const hasAutoJoinedRef = useRef(false);
 
   const {
@@ -52,18 +52,18 @@ export default function SessionManager({
     invalidateQueries
   } = useClassroomLiveSessions(classroomSlug);
 
-  // 🎯 计算当前活跃的会话（从用户选择的会话ID）
+  // 🎯 Calculate current active session (from user-selected session ID)
   const activeSession = useMemo(() => {
     if (!joinedSessionId) return null;
     return sessions?.find(s => s.id === joinedSessionId) || null;
   }, [joinedSessionId, sessions]);
 
-  // 🎯 修复：只在首次加载且学生身份时自动加入活跃会话
+  // 🎯 Fix: Auto-join active session only on first load and for students
   useEffect(() => {
     if (hasAutoJoinedRef.current) return;
     if (!sessions || sessions.length === 0) return;
     
-    // 只有学生才自动加入
+    // Only students auto-join
     if (userRole === 'student') {
       const activeSessions = sessions.filter(session => session.status === 'active');
       if (activeSessions.length > 0) {
@@ -75,7 +75,7 @@ export default function SessionManager({
 
   const handleCreateSession = async () => {
     if (!newSession.title || !newSession.starts_at) {
-      toast.error('请填写必要信息');
+      toast.error('Please fill in required information');
       return;
     }
 
@@ -90,21 +90,21 @@ export default function SessionManager({
 
       setShowCreateDialog(false);
       setNewSession({ title: '', description: '', starts_at: '', ends_at: '' });
-      toast.success('直播会话创建成功');
+      toast.success('Live session created successfully');
       invalidateQueries();
     } catch (error) {
-      toast.error('创建失败，请重试');
+      toast.error('Creation failed, please retry');
     }
   };
 
   const handleStartSession = async (session: LiveSession) => {
     try {
       await updateSession(session.id, { status: 'active' });
-      setJoinedSessionId(session.id);  // 🎯 使用新的状态
-      toast.success('课堂已开始');
+      setJoinedSessionId(session.id);  // 🎯 Use new state
+      toast.success('Classroom has started');
       invalidateQueries();
     } catch (error) {
-      toast.error('启动课堂失败');
+      toast.error('Failed to start classroom');
     }
   };
 
@@ -116,34 +116,34 @@ export default function SessionManager({
         status: 'ended',
         ends_at: new Date().toISOString()
       });
-      setJoinedSessionId(null);  // 🎯 使用新的状态
-      toast.success('课堂已结束');
+      setJoinedSessionId(null);  // 🎯 Use new state
+      toast.success('Classroom has ended');
       invalidateQueries();
     } catch (error) {
-      toast.error('结束课堂失败');
+      toast.error('Failed to end classroom');
     }
   };
 
   const handleJoinSession = (session: LiveSession) => {
-    setJoinedSessionId(session.id);  // 🎯 使用新的状态
+    setJoinedSessionId(session.id);  // 🎯 Use new state
   };
 
   const handleLeaveSession = () => {
-    setJoinedSessionId(null);  // 🎯 使用新的状态
+    setJoinedSessionId(null);  // 🎯 Use new state
   };
 
-  // 🎯 新增：处理删除会话
+  // 🎯 New: Handle delete session
   const handleDeleteSession = async (sessionId: string) => {
     try {
       await deleteSession(sessionId);
-      toast.success('会话已删除');
-      invalidateQueries();  // 🎯 确保刷新数据
+      toast.success('Session deleted');
+      invalidateQueries();  // 🎯 Ensure data refresh
     } catch (error) {
-      toast.error('删除失败');
+      toast.error('Delete failed');
     }
   };
 
-  // 如果正在参与课堂，显示 LiveKit 组件
+  // If participating in classroom, show LiveKit component
   if (activeSession) {
     return (
       <LiveClassroom
@@ -166,17 +166,17 @@ export default function SessionManager({
     );
   }
 
-  // 🎯 新增：显示错误状态
+  // 🎯 New: Show error state
   if (error) {
     return (
       <Card className="bg-transparent p-2">
         <CardContent className="flex flex-col items-center justify-center h-64 space-y-4">
           <div className="text-red-500 text-center">
-            <p className="font-medium">无法加载会话列表</p>
-            <p className="text-sm text-muted-foreground mt-2">请检查网络连接后重试</p>
+            <p className="font-medium">Unable to load session list</p>
+            <p className="text-sm text-muted-foreground mt-2">Please check network connection and retry</p>
           </div>
           <Button onClick={() => invalidateQueries()}>
-            重新加载
+            Reload
           </Button>
         </CardContent>
       </Card>
@@ -185,11 +185,11 @@ export default function SessionManager({
 
   return (
     <div className="space-y-6">
-      {/* 头部操作区 */}
+      {/* Header action area */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">直播课堂</h2>
-          <p className="text-muted-foreground">管理和参与实时视频课堂</p>
+          <h2 className="text-2xl font-bold">Live Classroom</h2>
+          <p className="text-muted-foreground">Manage and participate in real-time video classrooms</p>
         </div>
         
         {userRole === 'tutor' && (
@@ -197,35 +197,35 @@ export default function SessionManager({
             <DialogTrigger asChild>
               <Button>
                 <Video className="h-4 w-4 mr-2" />
-                创建直播
+                Create Live Session
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>创建直播会话</DialogTitle>
+                <DialogTitle>Create Live Session</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="title">课堂标题</Label>
+                  <Label htmlFor="title">Classroom Title</Label>
                   <Input
                     id="title"
                     value={newSession.title}
                     onChange={(e) => setNewSession(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="输入课堂标题"
+                    placeholder="Enter classroom title"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">课堂描述</Label>
+                  <Label htmlFor="description">Classroom Description</Label>
                   <Textarea
                     id="description"
                     value={newSession.description}
                     onChange={(e) => setNewSession(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="输入课堂描述（可选）"
+                    placeholder="Enter classroom description (optional)"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="starts_at">开始时间</Label>
+                    <Label htmlFor="starts_at">Start Time</Label>
                     <Input
                       id="starts_at"
                       type="datetime-local"
@@ -234,7 +234,7 @@ export default function SessionManager({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="ends_at">结束时间（可选）</Label>
+                    <Label htmlFor="ends_at">End Time (Optional)</Label>
                     <Input
                       id="ends_at"
                       type="datetime-local"
@@ -245,10 +245,10 @@ export default function SessionManager({
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                    取消
+                    Cancel
                   </Button>
                   <Button onClick={handleCreateSession}>
-                    创建
+                    Create
                   </Button>
                 </div>
               </div>
@@ -257,7 +257,7 @@ export default function SessionManager({
         )}
       </div>
 
-      {/* 会话列表 */}
+      {/* Session List */}
       <div className="grid gap-4">
         {sessions && sessions.length > 0 ? (
           sessions.map((session) => (
@@ -274,11 +274,11 @@ export default function SessionManager({
           <Card className="bg-transparent p-2">
             <CardContent className="flex flex-col items-center justify-center h-64 text-center">
               <Video className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">暂无直播课堂</h3>
+              <h3 className="text-lg font-semibold mb-2">No Live Classrooms</h3>
               <p className="text-muted-foreground mb-4">
                 {userRole === 'tutor' 
-                  ? '创建您的第一个直播课堂，开始与学生互动' 
-                  : '等待导师开启直播课堂'}
+                  ? 'Create your first live classroom to start interacting with students' 
+                  : 'Wait for tutor to start live classroom'}
               </p>
             </CardContent>
           </Card>
@@ -300,11 +300,11 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return <Badge variant="secondary">已安排</Badge>;
+        return <Badge variant="secondary">Scheduled</Badge>;
       case 'active':
-        return <Badge variant="default" className="animate-pulse">进行中</Badge>;
+        return <Badge variant="default" className="animate-pulse">In Progress</Badge>;
       case 'ended':
-        return <Badge variant="outline">已结束</Badge>;
+        return <Badge variant="outline">Ended</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -338,18 +338,18 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
             {canStart && (
               <Button onClick={onStart} size="sm">
                 <Play className="h-4 w-4 mr-2" />
-                开始
+                Start
               </Button>
             )}
             {canJoin && (
               <Button onClick={onJoin} size="sm">
                 <Video className="h-4 w-4 mr-2" />
-                加入
+                Join
               </Button>
             )}
             {canDelete && (
               <Button onClick={onDelete} size="sm" variant="outline">
-                删除
+                Delete
               </Button>
             )}
           </div>
@@ -359,12 +359,12 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
           <div className="flex items-center space-x-1">
             <Calendar className="h-4 w-4" />
-            <span>开始: {formatDateTime(session.starts_at)}</span>
+            <span>Start: {formatDateTime(session.starts_at)}</span>
           </div>
           {session.ends_at && (
             <div className="flex items-center space-x-1">
               <Clock className="h-4 w-4" />
-              <span>结束: {formatDateTime(session.ends_at)}</span>
+              <span>End: {formatDateTime(session.ends_at)}</span>
             </div>
           )}
         </div>

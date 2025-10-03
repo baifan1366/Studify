@@ -42,8 +42,8 @@ export function ClassroomCollaboration({
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <h3 className="text-lg font-medium mb-2">需要登录</h3>
-            <p className="text-gray-500">请先登录以参与实时协作</p>
+            <h3 className="text-lg font-medium mb-2">Login Required</h3>
+            <p className="text-gray-500">Please log in first to participate in real-time collaboration</p>
           </div>
         </CardContent>
       </Card>
@@ -69,7 +69,7 @@ export function ClassroomCollaboration({
     setIsFullscreen(!isFullscreen);
   };
 
-  // 监听全屏状态变化
+  // Listen for fullscreen state changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -83,31 +83,29 @@ export function ClassroomCollaboration({
 
   return (
     <div className={`h-full flex flex-col bg-gray-50 ${className}`}>
-      {/* 协作工具栏 */}
+      {/* Collaboration toolbar */}
       <Card className="mb-4">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
-              🎨 实时协作空间
+              🎨 Real-time Collaboration Space
               <Badge variant={connectionStatus === 'connected' ? 'default' : 'destructive'}>
-                {connectionStatus === 'connected' ? (
                   <>
                     <Wifi className="w-3 h-3 mr-1" />
-                    已连接
+                    Connected
                   </>
                 ) : connectionStatus === 'connecting' ? (
-                  '连接中...'
+                  <span className="animate-pulse">Connecting...</span>
                 ) : (
                   <>
                     <WifiOff className="w-3 h-3 mr-1" />
-                    已断开
+                    Disconnected
                   </>
-                )}
               </Badge>
             </CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant="outline">
-                {userInfo.role === 'tutor' ? '导师' : '学生'}
+                {userInfo.role === 'tutor' ? 'Tutor' : 'Student'}
               </Badge>
               <Button
                 variant="outline"
@@ -126,21 +124,21 @@ export function ClassroomCollaboration({
       </Card>
 
       <div className="flex-1 flex gap-4">
-        {/* 主要协作区域 */}
+        {/* Main collaboration area */}
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="whiteboard" className="flex items-center gap-2">
                 <Paintbrush className="w-4 h-4" />
-                协作白板
+                Collaborative Whiteboard
               </TabsTrigger>
               <TabsTrigger value="materials" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
-                课程内容
+                Course Content
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex items-center gap-2">
                 <Settings className="w-4 h-4" />
-                设置
+                Settings
               </TabsTrigger>
             </TabsList>
             
@@ -160,8 +158,8 @@ export function ClassroomCollaboration({
                 <CardContent className="pt-6">
                   <div className="text-center text-gray-500">
                     <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <h3 className="text-lg font-medium mb-2">课程资料</h3>
-                    <p>这里将显示课程相关的材料和资源</p>
+                    <h3 className="text-lg font-medium mb-2">Course Materials</h3>
+                    <p>Course-related materials and resources will be displayed here</p>
                   </div>
                 </CardContent>
               </Card>
@@ -170,20 +168,20 @@ export function ClassroomCollaboration({
             <TabsContent value="settings" className="h-full mt-4">
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle>协作设置</CardTitle>
+                  <CardTitle>Collaboration Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <h4 className="font-medium mb-2">用户信息</h4>
+                    <h4 className="font-medium mb-2">User Information</h4>
                     <div className="space-y-2 text-sm">
-                      <div>用户名: {userInfo.name}</div>
-                      <div>角色: {userInfo.role === 'tutor' ? '导师' : '学生'}</div>
-                      <div>房间ID: {whiteboardRoomId}</div>
+                      <div>Username: {userInfo.name}</div>
+                      <div>Role: {userInfo.role === 'tutor' ? 'Tutor' : 'Student'}</div>
+                      <div>Room ID: {whiteboardRoomId}</div>
                     </div>
                   </div>
                   
                   <div>
-                    <h4 className="font-medium mb-2">连接状态</h4>
+                    <h4 className="font-medium mb-2">Connection Status</h4>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         {connectionStatus === 'connected' ? (
@@ -201,12 +199,12 @@ export function ClassroomCollaboration({
           </Tabs>
         </div>
 
-        {/* 聊天侧边栏 */}
+        {/* Chat sidebar */}
         <Card className="w-80">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
-              实时聊天
+              Real-time Chat
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 h-[calc(100vh-200px)]">
@@ -218,6 +216,8 @@ export function ClassroomCollaboration({
                 userAvatar: userInfo.avatar,
                 userRole: userInfo.role,
                 isDrawing: false,
+                selection: null,
+                userColor: '#000000',
               }}
               initialStorage={initialStorage}
             >
@@ -227,16 +227,16 @@ export function ClassroomCollaboration({
         </Card>
       </div>
 
-      {/* 底部状态栏 */}
+      {/* Bottom status bar */}
       <Card className="mt-4">
         <CardContent className="py-2">
           <div className="flex items-center justify-between text-sm text-gray-600">
             <div className="flex items-center gap-4">
-              <span>教室: {classroomSlug}</span>
-              {sessionId && <span>会话: {sessionId}</span>}
+              <span>Classroom: {classroomSlug}</span>
+              {sessionId && <span>Session: {sessionId}</span>}
             </div>
             <div className="flex items-center gap-2">
-              <span>实时协作由 Liveblocks 提供支持</span>
+              <span>Real-time collaboration powered by Liveblocks</span>
             </div>
           </div>
         </CardContent>

@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const role = searchParams.get('role'); // Filter by role: 'student', 'tutor', 'owner'
   
   // Verify user authentication
-  const authResult = await authorize('student');
+  const authResult = await authorize(['student', 'tutor']);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -117,7 +117,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   
   // Verify user authentication
-  const authResult = await authorize('student');
+  const authResult = await authorize(['student', 'tutor']);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

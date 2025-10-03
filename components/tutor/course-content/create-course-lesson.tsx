@@ -22,7 +22,7 @@ import { StorageDialog } from '@/components/tutor/storage/storage-dialog';
 import { useUser } from '@/hooks/profile/use-user';
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing';
 
-const lessonKinds: Lesson['kind'][] = ['video', 'live', 'document', 'quiz', 'assignment', 'whiteboard'];
+const lessonKinds: Lesson['kind'][] = ['video', 'document', 'assignment'];
 
 interface CreateCourseLessonProps {
   courseId?: number;
@@ -48,13 +48,12 @@ export default function CreateCourseLesson({ courseId, moduleId, courseStatus }:
     const { data: userData } = useUser();
     const startVideoProcessingMutation = useStartVideoProcessing();
     
-    // Fetch attachments for the current course owner
-    const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(courseId);
+    // Fetch attachments for the current user (course owner)
+    const userProfileId = userData?.profile?.id ? parseInt(userData.profile.id) : undefined;
+    const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(userProfileId);
     
     // Fetch user's storage attachments
-    const userProfileId = userData?.profile?.id ? parseInt(userData.profile.id) : undefined;
     const { data: storageAttachments = [], isLoading: storageLoading } = useUserStorageAttachments(userProfileId);
-    
     const isDisabled = !canEditLessons(courseStatus || 'pending' as CourseStatus);
     const restrictionMessage = getStatusRestrictionMessage(courseStatus || 'pending' as CourseStatus);
 

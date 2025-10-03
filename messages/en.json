@@ -2423,6 +2423,7 @@
     "sgd": "SGD"
   },
   "CreateCourseLesson": {
+    "loading_attachments": "Loading attachments...",
     "create_lesson_button": "Create Lesson",
     "dialog_title": "Create a new course lesson",
     "dialog_description": "Fill in the details to add a new lesson.",
@@ -2442,7 +2443,7 @@
       "whiteboard": "Whiteboard"
     },
     "content_url_label": "Content URL",
-    "content_url_placeholder": "https://example.com/lesson|content",
+    "content_url_placeholder": "https://example.com/lesson-content",
     "duration_label": "Duration (seconds)",
     "duration_placeholder": "e.g., 300",
     "duration_description": "Duration of the video or estimated reading time.",
@@ -2833,8 +2834,8 @@
     "is_free": "This is a free course",
     "price": "Price (cents)",
     "currency": "Currency",
-    "auto_create_classroom": "Auto|create classroom",
-    "auto_create_community": "Auto|create community",
+    "auto_create_classroom": "Auto-create classroom",
+    "auto_create_community": "Auto-create community",
     "certificate_template": "Certificate Template",
     "errors": {
       "not_logged_in": "You must be logged in to create a course.",
@@ -2844,6 +2845,7 @@
     "select_level": "Select a level",
     "select_language": "Select a language",
     "english": "English",
+    "updating": "Updating...",
     "spanish": "Spanish",
     "french": "French",
     "german": "German",
@@ -2852,7 +2854,7 @@
     "malay": "Malay",
     "select_visibility": "Select visibility",
     "intro_video_url": "Introduction Video URL",
-    "intro_video_placeholder": "e.g., https://example.com/intro|video",
+    "intro_video_placeholder": "e.g., https://example.com/intro-video",
     "thumbnail_placeholder": "e.g., https://example.com/thumbnail.jpg",
     "total_duration_minutes": "Total Duration (minutes)",
     "course_requirements": "Course Requirements",
@@ -2957,10 +2959,14 @@
     "updateError": "Failed to update module. Please try again.",
     "deleteError": "Failed to delete module. Please try again.",
     "activePendingCourseRestriction": "Cannot edit or delete modules while course is active, pending, or banned.",
-    "pendingCourseRestriction": "Cannot edit or delete modules while course is active, pending, or banned."
+    "pendingCourseRestriction": "Cannot edit or delete modules while course is active, pending, or banned.",
+    "position": "Position",
+    "enterModulePosition": "Enter module position",
+    "positionHint": "Order in which this module appears in the course"
   },
   
   "CourseLessonGrid": {
+    "my_storage": "My Storage",
     "courseLessons": "Course Lessons",
     "lessonsCount": "{count} lessons",
     "list": "List",

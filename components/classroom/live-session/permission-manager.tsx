@@ -13,14 +13,14 @@ import { Settings, Shield, Users, Mic, MicOff, Video, VideoOff, Share, Crown } f
 import { toast } from 'sonner';
 
 /**
- * 扩展的权限接口 - 支持分别控制音频和视频
+ * Extended permissions interface - supports separate audio and video control
  */
 interface ParticipantPermission {
   participantId: string;
   participantName: string;
   role: 'host' | 'participant';
-  canPublishAudio: boolean;  // ✅ 分离：音频发布权限
-  canPublishVideo: boolean;  // ✅ 分离：视频发布权限
+  canPublishAudio: boolean;  // ✅ Separate: audio publish permission
+  canPublishVideo: boolean;  // ✅ Separate: video publish permission
   canSubscribe: boolean;
   canPublishData: boolean;
   canUpdateMetadata: boolean;
@@ -29,7 +29,7 @@ interface ParticipantPermission {
 }
 
 /**
- * 批量更新接口
+ * Batch update interface
  */
 interface BatchPermissionUpdate {
   participantIds: string[];
@@ -41,18 +41,18 @@ interface PermissionManagerProps {
   userRole: 'student' | 'tutor';
   participants: any[];
   onPermissionUpdate: (participantId: string, permissions: Partial<ParticipantPermission>) => void;
-  onBatchPermissionUpdate?: (update: BatchPermissionUpdate) => void;  // ✅ 新增：批量更新
+  onBatchPermissionUpdate?: (update: BatchPermissionUpdate) => void;  // ✅ New: batch update
 }
 
 /**
- * ✅ 完全重构的权限管理器 - 单一数据源，无本地状态
+ * ✅ Completely refactored permission manager - single data source, no local state
  * 
- * 改进：
- * 1. 移除本地 state - 使用 useMemo 从 props 派生数据
- * 2. 所有操作只通过 props 回调触发，等待父组件更新
- * 3. 实现真正的批量更新
- * 4. 分离音频和视频权限控制
- * 5. 改进 UI 反馈，清晰显示状态和操作
+ * Improvements:
+ * 1. Remove local state - use useMemo to derive data from props
+ * 2. All operations only triggered via props callbacks, waiting for parent component updates
+ * 3. Implement true batch updates
+ * 4. Separate audio and video permission control
+ * 5. Improve UI feedback, clearly display status and operations
  */
 export default function PermissionManager({
   sessionId,
@@ -62,7 +62,7 @@ export default function PermissionManager({
   onBatchPermissionUpdate
 }: PermissionManagerProps) {
   
-  // ✅ 使用 useMemo 从 props 派生权限数据 - 单一数据源
+  // ✅ Use useMemo to derive permission data from props - single data source
   const permissionsMap = useMemo(() => {
     const map: Record<string, ParticipantPermission> = {};
     
@@ -73,7 +73,7 @@ export default function PermissionManager({
         participantId: participant.identity,
         participantName: participant.name || participant.identity,
         role: isHost ? 'host' : 'participant',
-        // ✅ 分离音频和视频权限
+        // ✅ Separate audio and video permissions
         canPublishAudio: participant.permissions?.canPublishAudio ?? true,
         canPublishVideo: participant.permissions?.canPublishVideo ?? true,
         canSubscribe: participant.permissions?.canSubscribe ?? true,
@@ -87,37 +87,37 @@ export default function PermissionManager({
     return map;
   }, [participants]);
 
-  // ✅ 权限更新 - 只调用 prop 回调，不修改本地状态
+  // ✅ Permission update - only call prop callback, don't modify local state
   const updatePermission = (participantId: string, updates: Partial<ParticipantPermission>) => {
     if (userRole !== 'tutor') {
-      toast.error('只有导师可以修改权限');
+      toast.error('Only tutors can modify permissions');
       return;
     }
 
-    // 💡 显示正在处理的反馈
-    toast.info('正在更新权限...');
+    // 💡 Show processing feedback
+    toast.info('Updating permissions...');
     
-    // ✅ 只通过 prop 通知父组件，等待 props 更新来刷新 UI
+    // ✅ Only notify parent component via prop, wait for props update to refresh UI
     onPermissionUpdate(participantId, updates);
   };
 
-  // ✅ 批量更新 - 使用专门的批量更新函数
+  // ✅ Batch update - use dedicated batch update function
   const batchUpdatePermissions = (participantIds: string[], updates: Partial<ParticipantPermission>) => {
     if (userRole !== 'tutor') {
-      toast.error('只有导师可以修改权限');
+      toast.error('Only tutors can modify permissions');
       return;
     }
 
-    toast.info(`正在更新 ${participantIds.length} 位参与者的权限...`);
+    toast.info(`Updating permissions for ${participantIds.length} participants...`);
 
     if (onBatchPermissionUpdate) {
-      // ✅ 使用批量更新 API - 只发送一次请求
+      // ✅ Use batch update API - only send one request
       onBatchPermissionUpdate({
         participantIds,
         permissions: updates
       });
     } else {
-      // ⚠️ 降级方案：如果没有批量更新 API，逐个更新
+      // ⚠️ Fallback: if no batch update API, update individually
       console.warn('⚠️ No batch update API available, falling back to individual updates');
       participantIds.forEach(id => onPermissionUpdate(id, updates));
     }
@@ -154,7 +154,7 @@ export default function PermissionManager({
     updatePermission(participantId, rolePermissions);
   };
 
-  // ✅ 改进：静音/解除静音（仅音频）
+  // ✅ Improved: mute/unmute (audio only)
   const muteParticipant = (participantId: string) => {
     updatePermission(participantId, { canPublishAudio: false });
   };
@@ -163,7 +163,7 @@ export default function PermissionManager({
     updatePermission(participantId, { canPublishAudio: true });
   };
 
-  // ✅ 新增：关闭/开启摄像头（仅视频）
+  // ✅ New: disable/enable camera (video only)
   const disableVideo = (participantId: string) => {
     updatePermission(participantId, { canPublishVideo: false });
   };
@@ -172,14 +172,14 @@ export default function PermissionManager({
     updatePermission(participantId, { canPublishVideo: true });
   };
 
-  // ✅ 批量操作 - 使用批量更新 API
+  // ✅ Batch operations - use batch update API
   const muteAllStudents = () => {
     const studentIds = Object.values(permissionsMap)
       .filter(p => p.role !== 'host')
       .map(p => p.participantId);
     
     if (studentIds.length === 0) {
-      toast.info('没有可静音的学生');
+      toast.info('No students to mute');
       return;
     }
 
@@ -197,7 +197,7 @@ export default function PermissionManager({
       .map(p => p.participantId);
     
     if (studentIds.length === 0) {
-      toast.info('没有可关闭的学生摄像头');
+      toast.info('No student cameras to disable');
       return;
     }
 
@@ -205,7 +205,7 @@ export default function PermissionManager({
   };
 
   if (userRole !== 'tutor') {
-    return null; // 学生不显示权限管理界面
+    return null; // Students don't see permission management interface
   }
 
   return (
@@ -214,15 +214,15 @@ export default function PermissionManager({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Shield className="h-5 w-5" />
-            <span>权限管理</span>
+            <span>Permission Management</span>
             <Badge variant="outline" className="ml-2">
-              {Object.keys(permissionsMap).length} 位参与者
+              {Object.keys(permissionsMap).length} Participants
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* 快速操作 */}
+            {/* Quick Actions */}
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -231,7 +231,7 @@ export default function PermissionManager({
                 className="gap-2"
               >
                 <MicOff className="h-4 w-4" />
-                全体静音
+                Mute All
               </Button>
               <Button
                 size="sm"
@@ -240,7 +240,7 @@ export default function PermissionManager({
                 className="gap-2"
               >
                 <Mic className="h-4 w-4" />
-                解除静音
+                Unmute All
               </Button>
               <Button
                 size="sm"
@@ -249,11 +249,11 @@ export default function PermissionManager({
                 className="gap-2"
               >
                 <VideoOff className="h-4 w-4" />
-                关闭学生摄像头
+                Disable Student Cameras
               </Button>
             </div>
 
-            {/* 参与者列表 */}
+            {/* Participants List */}
             <div className="space-y-2">
               {Object.values(permissionsMap).map((participant) => (
                 <ParticipantPermissionCard
@@ -290,7 +290,7 @@ interface ParticipantPermissionCardProps {
 }
 
 /**
- * ✅ 改进的参与者权限卡片 - 清晰的状态显示和操作
+ * ✅ Improved participant permission card - clear status display and operations
  */
 function ParticipantPermissionCard({
   participant,
@@ -321,30 +321,30 @@ function ParticipantPermissionCard({
             </div>
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Badge variant={participant.role === 'host' ? 'default' : 'secondary'}>
-                {participant.role === 'host' ? '主持人' : '参与者'}
+                {participant.role === 'host' ? 'Host' : 'Participant'}
               </Badge>
-              {/* ✅ 音频状态 */}
+              {/* ✅ Audio status */}
               {participant.canPublishAudio ? (
                 <Badge variant="outline" className="text-green-600">
                   <Mic className="h-3 w-3 mr-1" />
-                  可发言
+                  Can Speak
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-red-600">
                   <MicOff className="h-3 w-3 mr-1" />
-                  已静音
+                  Muted
                 </Badge>
               )}
-              {/* ✅ 视频状态 */}
+              {/* ✅ Video status */}
               {participant.canPublishVideo ? (
                 <Badge variant="outline" className="text-green-600">
                   <Video className="h-3 w-3 mr-1" />
-                  摄像头开启
+                  Camera On
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-red-600">
                   <VideoOff className="h-3 w-3 mr-1" />
-                  摄像头关闭
+                  Camera Off
                 </Badge>
               )}
             </div>
@@ -352,13 +352,13 @@ function ParticipantPermissionCard({
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* ✅ 改进：清晰显示当前状态和将要执行的操作 */}
+          {/* ✅ Improved: clearly display current status and operations to be performed */}
           {participant.canPublishAudio ? (
             <Button 
               size="sm" 
               variant="outline" 
               onClick={onMute}
-              title="静音"
+              title="Mute"
               className="gap-1"
             >
               <MicOff className="h-4 w-4" />
@@ -368,20 +368,20 @@ function ParticipantPermissionCard({
               size="sm" 
               variant="outline" 
               onClick={onUnmute}
-              title="解除静音"
+              title="Unmute"
               className="gap-1"
             >
               <Mic className="h-4 w-4 text-green-600" />
             </Button>
           )}
 
-          {/* ✅ 新增：视频控制按钮 */}
+          {/* ✅ New: video control buttons */}
           {participant.canPublishVideo ? (
             <Button 
               size="sm" 
               variant="outline" 
               onClick={onDisableVideo}
-              title="关闭摄像头"
+              title="Disable Camera"
               className="gap-1"
             >
               <VideoOff className="h-4 w-4" />
@@ -391,14 +391,14 @@ function ParticipantPermissionCard({
               size="sm" 
               variant="outline" 
               onClick={onEnableVideo}
-              title="开启摄像头"
+              title="Enable Camera"
               className="gap-1"
             >
               <Video className="h-4 w-4 text-green-600" />
             </Button>
           )}
 
-          {/* 角色选择 */}
+          {/* Role Selection */}
           <Select
             value={participant.role}
             onValueChange={(value: 'host' | 'participant') => onRoleChange(value)}
@@ -407,12 +407,12 @@ function ParticipantPermissionCard({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="host">主持人</SelectItem>
-              <SelectItem value="participant">参与者</SelectItem>
+              <SelectItem value="host">Host</SelectItem>
+              <SelectItem value="participant">Participant</SelectItem>
             </SelectContent>
           </Select>
 
-          {/* 详细设置 */}
+          {/* Detailed Settings */}
           <Dialog open={showDetails} onOpenChange={setShowDetails}>
             <DialogTrigger asChild>
               <Button size="sm" variant="ghost">
@@ -422,48 +422,48 @@ function ParticipantPermissionCard({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {participant.participantName} 的权限设置
+                  {participant.participantName}'s Permission Settings
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <PermissionToggle
-                  label="发布音频"
-                  description="允许开启麦克风"
+                  label="Publish Audio"
+                  description="Allow microphone access"
                   icon={<Mic className="h-4 w-4" />}
                   checked={participant.canPublishAudio}
                   onToggle={() => onPermissionToggle('canPublishAudio')}
                 />
                 <PermissionToggle
-                  label="发布视频"
-                  description="允许开启摄像头"
+                  label="Publish Video"
+                  description="Allow camera access"
                   icon={<Video className="h-4 w-4" />}
                   checked={participant.canPublishVideo}
                   onToggle={() => onPermissionToggle('canPublishVideo')}
                 />
                 <PermissionToggle
-                  label="订阅内容"
-                  description="允许观看其他人的音视频"
+                  label="Subscribe Content"
+                  description="Allow viewing others' audio and video"
                   icon={<Users className="h-4 w-4" />}
                   checked={participant.canSubscribe}
                   onToggle={() => onPermissionToggle('canSubscribe')}
                 />
                 <PermissionToggle
-                  label="发送数据"
-                  description="允许发送聊天消息和数据"
+                  label="Send Data"
+                  description="Allow sending chat messages and data"
                   icon={<Share className="h-4 w-4" />}
                   checked={participant.canPublishData}
                   onToggle={() => onPermissionToggle('canPublishData')}
                 />
                 <PermissionToggle
-                  label="录制权限"
-                  description="允许录制课堂内容"
+                  label="Recording Permission"
+                  description="Allow recording classroom content"
                   icon={<Video className="h-4 w-4" />}
                   checked={participant.canRecord}
                   onToggle={() => onPermissionToggle('canRecord')}
                 />
                 <PermissionToggle
-                  label="隐藏参与者"
-                  description="在参与者列表中隐藏"
+                  label="Hide Participant"
+                  description="Hide in participants list"
                   icon={<Users className="h-4 w-4" />}
                   checked={participant.hidden}
                   onToggle={() => onPermissionToggle('hidden')}
@@ -506,5 +506,5 @@ function PermissionToggle({
   );
 }
 
-// 为了避免编译错误，需要导入 React
+// Import React to avoid compilation errors
 import React from 'react';

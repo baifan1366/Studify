@@ -197,10 +197,7 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
     switch (kind) {
       case 'video': return <Play className="h-4 w-4" />;
       case 'document': return <FileText className="h-4 w-4" />;
-      case 'live': return <Play className="h-4 w-4" />;
-      case 'quiz': return <BookOpen className="h-4 w-4" />;
       case 'assignment': return <FileText className="h-4 w-4" />;
-      case 'whiteboard': return <FileText className="h-4 w-4" />;
       default: return <BookOpen className="h-4 w-4" />;
     }
   };
@@ -208,11 +205,8 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
   const getKindColor = (kind: string) => {
     switch (kind) {
       case 'video': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'live': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'document': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'quiz': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
       case 'assignment': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
-      case 'whiteboard': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
     }
   };

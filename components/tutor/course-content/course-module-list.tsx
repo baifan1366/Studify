@@ -75,6 +75,7 @@ export default function CourseModuleList({
   const [editOpen, setEditOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [editPosition, setEditPosition] = useState<number>(1);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   
   // State for delete confirmation
@@ -100,6 +101,7 @@ export default function CourseModuleList({
     if (isEditDeleteDisabled) return;
     setEditingModule(module);
     setEditTitle(module.title);
+    setEditPosition(module.position);
     setEditOpen(true);
   };
 
@@ -121,7 +123,7 @@ export default function CourseModuleList({
       const formData = {
         courseId,
         title: editTitle.trim(),
-        position: editingModule.position || 1
+        position: editPosition
       };
       
       const moduleT = (key: string) => key; // Fallback translation function
@@ -132,7 +134,10 @@ export default function CourseModuleList({
       const result = await updateModule.mutateAsync({
         courseId,
         moduleId: editingModule.id,
-        body: { title: editTitle.trim() }
+        body: { 
+          title: editTitle.trim(),
+          position: editPosition
+        }
       });
       
       toast({
@@ -143,6 +148,7 @@ export default function CourseModuleList({
       setEditOpen(false);
       setEditingModule(null);
       setEditTitle('');
+      setEditPosition(1);
       setEditErrors({});
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -246,16 +252,9 @@ export default function CourseModuleList({
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-medium text-foreground truncate">
+                <h3 className="font-medium text-foreground break-words">
                   {module.title}
                 </h3>
-              </div>
-              
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <BookOpen className="h-3 w-3" />
-                  <span>{module.lessonCount} {t('lessons')}</span>
-                </div>
               </div>
             </div>
             
@@ -317,16 +316,17 @@ export default function CourseModuleList({
       
       {/* Edit Module Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{t('editModule')}</DialogTitle>
             <DialogDescription>
               {t('editModuleDescription')}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
+          <div className="grid gap-6 py-4">
+            {/* Title Field */}
+            <div className="space-y-2">
+              <Label htmlFor="title">
                 {t('title')}
               </Label>
               <Input
@@ -334,19 +334,39 @@ export default function CourseModuleList({
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 className={cn(
-                  "col-span-3",
+                  "w-full",
                   editErrors.title && "border-destructive focus:border-destructive"
                 )}
                 placeholder={t('enterModuleTitle')}
               />
               {editErrors.title && (
-                <div className="col-span-3 col-start-2">
-                  <span className="text-xs text-destructive">{editErrors.title}</span>
-                </div>
+                <span className="text-xs text-destructive">{editErrors.title}</span>
               )}
-              <div className="col-span-3 col-start-2">
-                <span className="text-xs text-muted-foreground">{editTitle.length}/100</span>
-              </div>
+              <div className="text-xs text-muted-foreground">{editTitle.length}/100</div>
+            </div>
+            
+            {/* Position Field */}
+            <div className="space-y-2">
+              <Label htmlFor="position">
+                {t('position')}
+              </Label>
+              <Input
+                id="position"
+                type="number"
+                min="1"
+                max="100"
+                value={editPosition}
+                onChange={(e) => setEditPosition(Number(e.target.value))}
+                className={cn(
+                  "w-full",
+                  editErrors.position && "border-destructive focus:border-destructive"
+                )}
+                placeholder={t('enterModulePosition')}
+              />
+              {editErrors.position && (
+                <span className="text-xs text-destructive">{editErrors.position}</span>
+              )}
+              <div className="text-xs text-muted-foreground">{t('positionHint')}</div>
             </div>
           </div>
           <DialogFooter>

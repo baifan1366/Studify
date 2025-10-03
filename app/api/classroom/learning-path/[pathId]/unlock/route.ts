@@ -10,7 +10,7 @@ export async function POST(
   const { params } = context;
   try {
     // 验证用户身份
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

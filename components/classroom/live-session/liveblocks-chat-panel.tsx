@@ -17,7 +17,7 @@ import {
 import { useDataChannel } from '@livekit/components-react';
 
 /**
- * 聊天消息接口
+ * Chat message interface
  */
 interface ChatMessage {
   id: string;
@@ -30,7 +30,7 @@ interface ChatMessage {
 }
 
 /**
- * 组件 Props
+ * Component Props
  */
 interface SessionChatPanelProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ interface SessionChatPanelProps {
     avatar: string;
     role: 'student' | 'tutor';
   };
-  // 从 LiveKit 获取的真实参与者列表
+  // Real participants list from LiveKit
   participants?: Array<{
     identity: string;
     displayName: string;
@@ -52,17 +52,17 @@ interface SessionChatPanelProps {
 }
 
 const REACTIONS = [
-  { emoji: '👍', icon: ThumbsUp, label: '赞' },
-  { emoji: '❤️', icon: Heart, label: '爱心' },
-  { emoji: '😊', icon: Smile, label: '微笑' },
-  { emoji: '👏', label: '鼓掌' },
-  { emoji: '🔥', label: '火' },
-  { emoji: '💡', label: '想法' },
+  { emoji: '👍', icon: ThumbsUp, label: 'Like' },
+  { emoji: '❤️', icon: Heart, label: 'Heart' },
+  { emoji: '😊', icon: Smile, label: 'Smile' },
+  { emoji: '👏', label: 'Clap' },
+  { emoji: '🔥', label: 'Fire' },
+  { emoji: '💡', label: 'Idea' },
 ];
 
 /**
- * 会话聊天 Hook - 集成 LiveKit DataChannel 实现实时通信
- * localStorage 仅作为辅助，用于恢复离线时的本地历史
+ * Session chat Hook - integrates LiveKit DataChannel for real-time communication
+ * localStorage only serves as auxiliary, used to restore local history when offline
  */
 function useSessionChat(
   classroomSlug: string, 
@@ -73,10 +73,10 @@ function useSessionChat(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // 🎯 使用 LiveKit DataChannel 进行实时通信
+  // 🎯 Use LiveKit DataChannel for real-time communication
   const { message: dataChannelMessage, send: sendData } = useDataChannel('chat');
 
-  // 从 localStorage 加载历史记录（仅用于初始化）
+  // Load history from localStorage (only for initialization)
   const loadLocalHistory = useCallback(() => {
     try {
       setIsLoading(true);
@@ -90,7 +90,6 @@ function useSessionChat(
       
       setError(null);
       
-      console.log('📝 Loading local chat history from localStorage for:', { classroomSlug, sessionId });
       
       const cacheKey = `chat:${classroomSlug}:${sessionId}`;
       const cachedData = localStorage.getItem(cacheKey);
@@ -109,13 +108,11 @@ function useSessionChat(
           }));
           
           setMessages(formattedMessages);
-          console.log('📨 Loaded', formattedMessages.length, 'messages from local history');
         } catch (parseError) {
           console.error('❌ Failed to parse cached messages:', parseError);
           setMessages([]);
         }
       } else {
-        console.log('📝 No local history found, starting with empty chat');
         setMessages([]);
       }
     } catch (error) {
@@ -126,7 +123,7 @@ function useSessionChat(
     }
   }, [classroomSlug, sessionId]);
 
-  // 保存消息到 localStorage（作为备份）
+  // Save message to localStorage (as backup)
   const saveToLocalHistory = useCallback((message: ChatMessage) => {
     try {
       if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
@@ -155,7 +152,7 @@ function useSessionChat(
         timestamp: message.timestamp
       });
       
-      // 限制保存最近100条
+      // Limit to save last 100 messages
       if (existingMessages.length > 100) {
         existingMessages = existingMessages.slice(-100);
       }
@@ -166,31 +163,29 @@ function useSessionChat(
     }
   }, [classroomSlug, sessionId]);
 
-  // 清除本地历史
+  // Clear local history
   const clearLocalHistory = useCallback(() => {
     try {
       if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
         return;
       }
       
-      console.log('🗑️ Clearing local chat history...');
       const cacheKey = `chat:${classroomSlug}:${sessionId}`;
       localStorage.removeItem(cacheKey);
       setMessages([]);
-      console.log('✅ Local history cleared');
     } catch (error) {
       console.error('💥 Error clearing local history:', error);
     }
   }, [classroomSlug, sessionId]);
 
-  // 组件加载时获取本地历史
+  // Get local history when component loads
   useEffect(() => {
     if (classroomSlug && sessionId) {
       loadLocalHistory();
     }
   }, [classroomSlug, sessionId, loadLocalHistory]);
 
-  // 🎯 监听 LiveKit DataChannel 接收消息
+  // 🎯 Listen to LiveKit DataChannel for receiving messages
   useEffect(() => {
     if (dataChannelMessage) {
       try {
@@ -198,7 +193,7 @@ function useSessionChat(
         const messageStr = decoder.decode(dataChannelMessage.payload);
         const data = JSON.parse(messageStr);
         
-        // 只处理聊天消息类型
+        // Only handle chat message types
         if (data.type === 'chat') {
           const newMessage: ChatMessage = {
             id: data.id,
@@ -210,18 +205,17 @@ function useSessionChat(
             type: data.messageType || 'text'
           };
           
-          console.log('📨 Received chat message via DataChannel:', newMessage.text.substring(0, 50));
           
-          // 添加到消息列表
+          // Add to message list
           setMessages(prev => {
-            // 防止重复消息
+            // Prevent duplicate messages
             if (prev.some(msg => msg.id === newMessage.id)) {
               return prev;
             }
             return [...prev, newMessage];
           });
           
-          // 备份到本地
+          // Backup to local
           saveToLocalHistory(newMessage);
         }
       } catch (error) {
@@ -230,7 +224,7 @@ function useSessionChat(
     }
   }, [dataChannelMessage, saveToLocalHistory]);
 
-  // 🎯 发送消息通过 LiveKit DataChannel
+  // 🎯 Send message via LiveKit DataChannel
   const sendMessage = useCallback((text: string, messageType: 'text' | 'reaction' = 'text') => {
     if (!userInfo || !text.trim() || !sendData) {
       console.warn('⚠️ Cannot send message:', { hasUserInfo: !!userInfo, hasText: !!text.trim(), hasSendData: !!sendData });
@@ -247,13 +241,13 @@ function useSessionChat(
       type: messageType,
     };
     
-    // 立即添加到本地显示（乐观更新）
+    // Immediately add to local display (optimistic update)
     setMessages(prev => [...prev, newMessage]);
     
-    // 备份到本地
+    // Backup to local
     saveToLocalHistory(newMessage);
     
-    // 🎯 通过 LiveKit DataChannel 发送给其他参与者
+    // 🎯 Send to other participants via LiveKit DataChannel
     try {
       const payload = {
         type: 'chat',
@@ -269,12 +263,11 @@ function useSessionChat(
       const encoder = new TextEncoder();
       const data = encoder.encode(JSON.stringify(payload));
       
-      sendData(data, { reliable: true }); // 使用可靠传输确保消息送达
-      console.log('✅ Message sent via DataChannel:', text.substring(0, 50));
+      sendData(data, { reliable: true }); // Use reliable transmission to ensure message delivery
     } catch (error) {
       console.error('❌ Error sending message via DataChannel:', error);
-      // 发送失败时可以显示错误提示
-      setError('消息发送失败，请重试');
+      // Can show error message when sending fails
+      setError('Message sending failed, please retry');
       setTimeout(() => setError(null), 3000);
     }
   }, [userInfo, sendData, saveToLocalHistory]);
@@ -298,7 +291,7 @@ function useSessionChat(
 }
 
 /**
- * 聊天消息列表组件
+ * Chat message list component
  */
 function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoading: boolean }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -312,7 +305,7 @@ function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoad
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-slate-400">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto mb-2"></div>
-          <p>正在加载聊天记录...</p>
+          <p>Loading chat history...</p>
         </div>
       </div>
     );
@@ -323,7 +316,7 @@ function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoad
       {messages.length === 0 ? (
         <div className="text-center text-slate-400 py-8">
           <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>还没有消息，开始聊天吧！</p>
+          <p>No messages yet, start chatting!</p>
         </div>
       ) : (
         messages.map((message) => (
@@ -367,7 +360,7 @@ function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoad
 }
 
 /**
- * 聊天输入框组件
+ * Chat input component
  */
 function ChatInput({ onSendMessage, onSendReaction }: {
   onSendMessage: (text: string) => void;
@@ -392,7 +385,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
 
   return (
     <div className="p-2 sm:p-4 border-t border-slate-700/50">
-      {/* 快速反应 */}
+      {/* Quick reactions */}
       {showReactions && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -433,7 +426,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="输入消息..."
+          placeholder="Enter message..."
           onKeyPress={handleKeyPress}
           className="flex-1 min-w-0 bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:ring-indigo-500"
           maxLength={500}
@@ -447,7 +440,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
         </Button>
       </div>
 
-      {/* 字数统计 */}
+      {/* Character count */}
       {message.length > 0 && (
         <div className="text-xs text-slate-400 mt-1 text-right">
           {message.length}/500
@@ -458,7 +451,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
 }
 
 /**
- * 在线参与者列表组件 - 使用真实的 LiveKit 参与者数据
+ * Online participants list component - uses real LiveKit participant data
  */
 function OnlineParticipants({ participants }: {
   participants: Array<{
@@ -472,9 +465,9 @@ function OnlineParticipants({ participants }: {
     <div className="p-4 border-b border-slate-700/50">
       <div className="flex items-center gap-2 mb-2">
         <Users className="w-4 h-4 text-slate-400" />
-        <span className="text-sm font-medium text-white">在线参与者 ({participants.length})</span>
+        <span className="text-sm font-medium text-white">Online Participants ({participants.length})</span>
         <Badge variant="default" className="ml-auto text-xs bg-green-500">
-          实时同步
+          Real-time Sync
         </Badge>
       </div>
       <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -495,9 +488,9 @@ function OnlineParticipants({ participants }: {
               variant={participant.role === 'tutor' ? 'default' : 'secondary'}
               className="text-xs flex-shrink-0"
             >
-              {participant.role === 'tutor' ? '导师' : '学生'}
+              {participant.role === 'tutor' ? 'Tutor' : 'Student'}
             </Badge>
-            <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="在线"></div>
+            <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="Online"></div>
           </div>
         ))}
       </div>
@@ -506,11 +499,11 @@ function OnlineParticipants({ participants }: {
 }
 
 /**
- * 会话聊天面板主组件
+ * Session chat panel main component
  * 
- * ✅ 使用 LiveKit DataChannel 实现真正的实时通信
- * ✅ 使用真实的参与者列表
- * ✅ localStorage 仅作为辅助（离线历史记录）
+ * ✅ Uses LiveKit DataChannel for real-time communication
+ * ✅ Uses real participants list
+ * ✅ localStorage only serves as auxiliary (offline history)
  */
 export function SessionChatPanel({ 
   isOpen, 
@@ -543,45 +536,25 @@ export function SessionChatPanel({
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.3 }}
         >
-          {/* 头部 */}
+          {/* Header */}
           <div className="p-4 border-b border-slate-700/50">
             <h3 className="text-lg font-medium text-white flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
-              实时聊天
+              Real-time Chat
             </h3>
             
-            {/* 开发调试面板 */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-2 text-xs text-slate-400 bg-slate-700/30 rounded p-2">
-                <div className="font-medium mb-1">🔧 调试信息</div>
-                <div>📨 消息数量: {messages.length}</div>
-                <div>👥 在线参与者: {participants.length}</div>
-                {error && <div className="text-red-400">❌ 错误: {error}</div>}
-                <div className="mt-1 text-green-400">✅ LiveKit DataChannel 实时通信</div>
-                <div className="mt-2">
-                  <button
-                    onClick={() => {
-                      clearLocalHistory();
-                      console.log('🧹 Debug: Local history cleared');
-                    }}
-                    className="text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
-                  >
-                    🗑️ 清除本地历史
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* 在线参与者列表 - 使用真实的 LiveKit 数据 */}
+          {/* Online participants list - uses real LiveKit data */}
           {participants.length > 0 && (
             <OnlineParticipants participants={participants} />
           )}
+          
 
-          {/* 聊天消息 */}
+          {/* Chat messages */}
           <ChatMessages messages={messages} isLoading={isLoading} />
 
-          {/* 输入框 */}
+          {/* Input box */}
           <ChatInput onSendMessage={sendMessage} onSendReaction={sendReaction} />
         </motion.div>
       )}

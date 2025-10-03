@@ -65,7 +65,7 @@ export function EditCourseLessonDialog({
 
   // Form state
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard'>('video')
+  const [kind, setKind] = useState<'video' | 'document' | 'assignment'>('video')
   const [contentUrl, setContentUrl] = useState('manual-url')
   const [manualUrl, setManualUrl] = useState('')
   const [selectedAttachments, setSelectedAttachments] = useState<number[]>([])
@@ -75,9 +75,9 @@ export function EditCourseLessonDialog({
 
   // Hooks
   const updateLessonMutation = useUpdateLesson()
-  const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(courseId)
   const { data: userData } = useUser()
   const userProfileId = userData?.profile?.id ? parseInt(userData.profile.id) : undefined
+  const { data: attachments = [], isLoading: attachmentsLoading } = useAttachments(userProfileId)
   const { data: storageAttachments = [], isLoading: storageLoading } = useUserStorageAttachments(userProfileId)
   const startVideoProcessingMutation = useStartVideoProcessing()
 
@@ -370,34 +370,16 @@ export function EditCourseLessonDialog({
                             {t('video')}
                           </div>
                         </SelectItem>
-                        <SelectItem value="live">
-                          <div className="flex items-center gap-2">
-                            <Eye className="h-4 w-4" />
-                            {t('live')}
-                          </div>
-                        </SelectItem>
                         <SelectItem value="document">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             {t('document')}
                           </div>
                         </SelectItem>
-                        <SelectItem value="quiz">
-                          <div className="flex items-center gap-2">
-                            <Circle className="h-4 w-4" />
-                            {t('quiz')}
-                          </div>
-                        </SelectItem>
                         <SelectItem value="assignment">
                           <div className="flex items-center gap-2">
                             <Star className="h-4 w-4" />
                             {t('assignment')}
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="whiteboard">
-                          <div className="flex items-center gap-2">
-                            <Edit className="h-4 w-4" />
-                            {t('whiteboard')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -446,32 +428,11 @@ export function EditCourseLessonDialog({
                                   <SelectItem disabled value="storage-header">
                                     <div className="flex items-center gap-2 font-semibold text-primary">
                                       <HardDrive className="h-4 w-4" />
-                                      My Storage
+                                      {gridT('my_storage')}
                                     </div>
                                   </SelectItem>
                                   {storageAttachments.map((attachment) => (
                                     <SelectItem key={`storage-${attachment.id}`} value={attachment.url || `attachment-${attachment.id}`}>
-                                      <div className="flex items-center gap-2 pl-4">
-                                        <File className="h-4 w-4" />
-                                        <span className="truncate">{attachment.title}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                          ({attachment.size ? (attachment.size / 1024 / 1024).toFixed(1) : '0'}MB)
-                                        </span>
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </>
-                              )}
-                              {attachments.length > 0 && (
-                                <>
-                                  <SelectItem disabled value="course-header">
-                                    <div className="flex items-center gap-2 font-semibold text-primary">
-                                      <FileText className="h-4 w-4" />
-                                      Course Files
-                                    </div>
-                                  </SelectItem>
-                                  {attachments.map((attachment) => (
-                                    <SelectItem key={`course-${attachment.id}`} value={attachment.url || `attachment-${attachment.id}`}>
                                       <div className="flex items-center gap-2 pl-4">
                                         <File className="h-4 w-4" />
                                         <span className="truncate">{attachment.title}</span>

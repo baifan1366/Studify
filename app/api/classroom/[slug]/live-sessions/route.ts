@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   
   try {
     // 验证用户身份
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -179,7 +179,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   
   try {
     // 验证用户身份
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -314,7 +314,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   
   try {
     // 验证用户身份
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

@@ -11,7 +11,7 @@ import { authorize } from '@/utils/auth/server-guard';
 export async function POST(request: NextRequest) {
   try {
     // 验证用户身份
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

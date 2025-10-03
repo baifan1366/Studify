@@ -100,7 +100,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
 
   try {
     // Verify authentication first
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       const tutorAuthResult = await authorize('tutor');
       if (tutorAuthResult instanceof NextResponse) {

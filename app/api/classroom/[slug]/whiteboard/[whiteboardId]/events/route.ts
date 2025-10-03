@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { slug, whiteboardId } = await params;
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -127,7 +127,7 @@ export async function POST(
 ) {
   try {
     const { slug, whiteboardId } = await params;
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

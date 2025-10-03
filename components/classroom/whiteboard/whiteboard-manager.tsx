@@ -3,12 +3,12 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWhiteboards, useCreateWhiteboard, useDeleteWhiteboard, WhiteboardSession } from '@/hooks/classroom/use-whiteboard';
-import WhiteboardCanvas from './whiteboard-canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Trash2, Edit, Users } from 'lucide-react';
+import { WhiteboardCanvas } from '../live-session/whiteboard-canvas';
 
 interface WhiteboardManagerProps {
   classroomSlug: string;

@@ -226,7 +226,9 @@ CREATE TABLE public.classroom (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     color text,
-    search_vector tsvector
+    search_vector tsvector,
+    is_deleted boolean DEFAULT false NOT NULL,
+    deleted_at timestamp with time zone
 );
 
 
@@ -884,6 +886,7 @@ CREATE TABLE public.course (
     auto_create_classroom boolean DEFAULT true,
     auto_create_community boolean DEFAULT true,
     status text DEFAULT 'inactive'::text,
+    rejected_message text,
     community_group_public_id uuid,
     search_vector tsvector
 );

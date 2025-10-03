@@ -220,6 +220,7 @@ export interface AdminCourse {
   category?: string;
   visibility: 'public' | 'private' | 'unlisted';
   status: 'active' | 'pending' | 'inactive';
+  rejected_message?: string;
   price_cents: number;
   currency: string;
   level: 'beginner' | 'intermediate' | 'advanced';

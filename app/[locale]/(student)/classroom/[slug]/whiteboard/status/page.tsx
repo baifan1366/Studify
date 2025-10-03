@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import DebugStatus from '@/components/classroom/whiteboard/debug-status';
 
 interface Props {
   params: Promise<{
@@ -30,7 +29,6 @@ export default async function WhiteboardStatusPage({ params }: Props) {
           <h1 className="text-2xl font-bold text-center mb-2">{t('page_title')}</h1>
           <p className="text-gray-600 text-center">{t('page_description')} {slug}</p>
         </div>
-        <DebugStatus classroomSlug={slug} />
       </div>
     </div>
   );

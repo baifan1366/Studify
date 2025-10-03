@@ -119,12 +119,28 @@ export async function GET(request: Request) {
                      user.identities?.[0]?.identity_data?.avatar_url ||
                      user.identities?.[0]?.identity_data?.picture;
 
+    // Get online status and last seen from Redis (non-blocking)
+    let isOnline = false;
+    let lastSeen = null;
+    try {
+      const [onlineStatus, lastSeenTimestamp] = await Promise.all([
+        redis.get(`user:online:${userId}`),
+        redis.get(`user:lastseen:${userId}`)
+      ]);
+      isOnline = onlineStatus === "true" || onlineStatus === true;
+      lastSeen = lastSeenTimestamp ? parseInt(lastSeenTimestamp as string) : null;
+    } catch (error) {
+      console.error('Failed to get online status:', error);
+    }
+
     const userInfo = {
       ...user,
       profile: profile ? {
         ...profile,
         display_name: resolvedDisplayName,
-        avatar_url: avatarUrl
+        avatar_url: avatarUrl,
+        is_online: isOnline,
+        last_seen: lastSeen
       } : null,
     };
 

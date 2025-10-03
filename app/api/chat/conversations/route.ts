@@ -1,12 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import redis from '@/utils/redis/redis';
 
 /**
  * Chat Conversations API
  * GET /api/chat/conversations - Get all conversations for current user
  * POST /api/chat/conversations - Create new conversation
  */
+
+// Helper function to get online status for multiple users
+async function getUsersOnlineStatus(userIds: string[]) {
+  if (userIds.length === 0) return {};
+  
+  try {
+    const pipeline = userIds.map(userId => [
+      redis.get(`user:online:${userId}`),
+      redis.get(`user:lastseen:${userId}`)
+    ]).flat();
+    
+    const results = await Promise.all(pipeline);
+    const statusMap: Record<string, { isOnline: boolean; lastSeen: number | null }> = {};
+    
+    for (let i = 0; i < userIds.length; i++) {
+      const userId = userIds[i];
+      const onlineStatus = results[i * 2];
+      const lastSeenTimestamp = results[i * 2 + 1];
+      
+      statusMap[userId] = {
+        isOnline: onlineStatus === "true" || onlineStatus === true,
+        lastSeen: lastSeenTimestamp ? parseInt(lastSeenTimestamp as string) : null
+      };
+    }
+    
+    return statusMap;
+  } catch (error) {
+    console.error('Failed to get users online status:', error);
+    return {};
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,6 +149,33 @@ export async function GET(request: NextRequest) {
 
     console.log(`Found ${directConversations?.length || 0} direct and ${userGroupConversations.length} group conversations`);
 
+    // Get all participant user IDs for online status lookup
+    // Note: We need to get the actual user_id from profiles, not the profile id
+    const participantProfileIds = directConversations?.map(conv => {
+      const isParticipant1 = conv.participant1_id === profile.id;
+      return isParticipant1 ? conv.participant2_id : conv.participant1_id;
+    }).filter(Boolean) || [];
+
+    // Get user_ids from profile_ids for online status lookup and create mapping
+    let participantUserIds: string[] = [];
+    const profileToUserMap: Record<string, string> = {};
+    
+    if (participantProfileIds.length > 0) {
+      const { data: participantProfiles } = await supabase
+        .from('profiles')
+        .select('id, user_id')
+        .in('id', participantProfileIds);
+      
+      participantProfiles?.forEach(p => {
+        profileToUserMap[p.id.toString()] = p.user_id;
+      });
+      
+      participantUserIds = participantProfiles?.map(p => p.user_id) || [];
+    }
+
+    // Get online status for all participants
+    const onlineStatusMap = await getUsersOnlineStatus(participantUserIds);
+
     // Transform direct conversations
     const directConversationsList = directConversations?.map(conv => {
       // Determine who the other participant is
@@ -129,6 +188,11 @@ export async function GET(request: NextRequest) {
         ? conv.last_message.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
         : null;
 
+      // Get real online status from Redis using user_id
+      const participantUserId = profileToUserMap[otherParticipantId.toString()];
+      const onlineStatus = participantUserId ? onlineStatusMap[participantUserId] : null;
+      const finalOnlineStatus = onlineStatus || { isOnline: false, lastSeen: null };
+
       return {
         id: `user_${otherParticipantId}`,
         type: 'direct' as const,
@@ -140,7 +204,8 @@ export async function GET(request: NextRequest) {
           avatar: Array.isArray(otherParticipant) 
             ? (otherParticipant[0] as any)?.avatar_url
             : (otherParticipant as any)?.avatar_url,
-          isOnline: Math.random() > 0.5, // Mock online status - replace with real presence
+          isOnline: finalOnlineStatus.isOnline,
+          lastSeen: finalOnlineStatus.lastSeen ? new Date(finalOnlineStatus.lastSeen).toISOString() : undefined,
         },
         lastMessage: lastMessage ? {
           content: lastMessage.content,
@@ -234,7 +299,7 @@ export async function POST(request: NextRequest) {
     // Get participant details from profiles table
     const { data: participant, error: participantError } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url')
+      .select('id, user_id, display_name, avatar_url')
       .eq('id', participant_id)
       .single();
 
@@ -279,6 +344,10 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Get real online status for the participant using their user_id
+    const participantOnlineStatus = await getUsersOnlineStatus([participant.user_id]);
+    const onlineStatus = participantOnlineStatus[participant.user_id] || { isOnline: false, lastSeen: null };
+
     // Return conversation object that matches the expected format
     const conversation = {
       id: `user_${participant_id}`,
@@ -287,7 +356,8 @@ export async function POST(request: NextRequest) {
         id: participant.id.toString(),
         name: participant.display_name || 'Unknown User',
         avatar: participant.avatar_url,
-        isOnline: Math.random() > 0.5, // Mock online status - replace with real presence
+        isOnline: onlineStatus.isOnline,
+        lastSeen: onlineStatus.lastSeen ? new Date(onlineStatus.lastSeen).toISOString() : undefined,
       },
       lastMessage: message ? {
         content: message,

@@ -7,6 +7,7 @@ import { ProfileModal } from './profile-modal';
 import { MessageTimestamp } from './message-timestamp';
 import { MessageStatus } from './message-status';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
+import SharedPostMessage from './shared-post-message';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -23,11 +24,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Message } from '@/hooks/chat/use-chat';
 
 interface MessageBubbleProps {
   message: Message;
   className?: string;
   onReply?: (message: Message) => void;
+  onProfileClick?: (senderId: string) => void;
   onDelete?: (message: Message) => void;
   onEdit?: (message: Message) => void;
   onCopy?: (message: Message) => void;
@@ -61,7 +64,7 @@ export function MessageBubble({ message, className, onReply, onProfileClick }: M
         >
           <AvatarImage src={message.senderAvatar} />
           <AvatarFallback className="text-xs">
-            {message.senderName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            {message.senderName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
           </AvatarFallback>
         </Avatar>
       )}

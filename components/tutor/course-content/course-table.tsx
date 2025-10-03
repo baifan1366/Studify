@@ -257,15 +257,11 @@ export default function CourseTable() {
         return <div className="text-red-500 p-4">{t('error')}</div>;
     }
 
-    if (!courses || courses.length === 0) {
-        return <div className="text-center p-8 text-gray-500">{t('noCourses')}</div>;
-    }
-
     // Pagination logic
-    const totalPages = Math.ceil(courses.length / itemsPerPage);
+    const totalPages = courses && courses.length > 0 ? Math.ceil(courses.length / itemsPerPage) : 1;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const currentCourses = courses.slice(startIndex, endIndex);
+    const currentCourses = courses && courses.length > 0 ? courses.slice(startIndex, endIndex) : [];
 
     return (
         <div className="w-full space-y-4">
@@ -413,7 +409,17 @@ export default function CourseTable() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {currentCourses.map((course, index) => (
+                        {currentCourses.length === 0 ? (
+                            <TableRow>
+                                <TableCell 
+                                    colSpan={Object.values(columnVisibility).filter(Boolean).length}
+                                    className="text-center p-8 text-gray-500"
+                                >
+                                    {t('noCourses')}
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            currentCourses.map((course, index) => (
                             <TableRow key={course.id}>
                                 {columnVisibility.no && (
                                     <TableCell className="w-12 sm:w-16 text-center">
@@ -606,12 +612,14 @@ export default function CourseTable() {
                                     </TableCell>
                                 )}
                         </TableRow>
-                    ))}
+                            ))
+                        )}
                 </TableBody>
                 </Table>
             </div>
 
-            {totalPages > 1 && (
+            {/* Always show pagination, even when empty, but disable it appropriately */}
+            {(
                 <Pagination>
                     <PaginationContent>
                         <PaginationItem>
@@ -619,23 +627,26 @@ export default function CourseTable() {
                                 href="#"
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    if (currentPage > 1) {
+                                    if (currentPage > 1 && currentCourses.length > 0) {
                                         setCurrentPage(currentPage - 1);
                                     }
                                 }}
-                                className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                                className={currentPage <= 1 || currentCourses.length === 0 ? "pointer-events-none opacity-50" : ""}
                             />
                         </PaginationItem>
                         
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        {Array.from({ length: Math.max(totalPages, 1) }, (_, i) => i + 1).map((page) => (
                             <PaginationItem key={page}>
                                 <PaginationLink
                                     href="#"
                                     onClick={(e) => {
                                         e.preventDefault();
-                                        setCurrentPage(page);
+                                        if (currentCourses.length > 0) {
+                                            setCurrentPage(page);
+                                        }
                                     }}
                                     isActive={currentPage === page}
+                                    className={currentCourses.length === 0 ? "pointer-events-none opacity-50" : ""}
                                 >
                                     {page}
                                 </PaginationLink>
@@ -647,11 +658,11 @@ export default function CourseTable() {
                                 href="#"
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    if (currentPage < totalPages) {
+                                    if (currentPage < totalPages && currentCourses.length > 0) {
                                         setCurrentPage(currentPage + 1);
                                     }
                                 }}
-                                className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                                className={currentPage >= totalPages || currentCourses.length === 0 ? "pointer-events-none opacity-50" : ""}
                             />
                         </PaginationItem>
                     </PaginationContent>

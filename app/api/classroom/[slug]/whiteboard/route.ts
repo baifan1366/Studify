@@ -21,7 +21,7 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -182,7 +182,7 @@ export async function POST(
     console.log('⚠️ DEBUGGING MODE: Skipping authentication for storage test');
     
     /*
-    const authResult = await authorize('student'); // 允许所有成员保存白板
+    const authResult = await authorize(['student', 'tutor']); // 允许所有成员保存白板
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -363,7 +363,7 @@ export async function DELETE(
 ) {
   try {
     const { slug } = await params;
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

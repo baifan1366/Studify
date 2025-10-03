@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ userId: string, courseId: string }> }
 ) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

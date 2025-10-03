@@ -13,7 +13,7 @@ export async function POST(
     console.log('POST Grade - Starting request:', { slug, assignmentId });
 
     // Authorize user (will check classroom-specific permissions later)
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       console.log('POST Grade - Authorization failed');
       return authResult;
@@ -181,7 +181,7 @@ export async function GET(
     console.log('GET Grade - Starting request:', { slug, assignmentId });
 
     // Authorize user (students can see their own grades, tutors can see all)
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       console.log('GET Grade - Authorization failed');
       return authResult;
@@ -293,7 +293,7 @@ export async function DELETE(
     const assignmentId = parseInt(id);
 
     // Authorize user (will check classroom-specific permissions later)
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

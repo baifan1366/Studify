@@ -15,7 +15,7 @@ export interface ModuleWithLessons extends Module {
     id: number;
     public_id: string;
     title: string;
-    kind: 'video' | 'live' | 'document' | 'quiz' | 'assignment' | 'whiteboard';
+    kind: 'video' | 'document' | 'assignment';
     content_url?: string;
     duration_sec?: number;
   }>;

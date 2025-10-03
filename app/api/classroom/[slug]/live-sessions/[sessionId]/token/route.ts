@@ -22,7 +22,7 @@ export async function POST(
     const { slug, sessionId } = await params;
     
     // 验证用户身份（学生和导师都可以加入）
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       // 尝试导师权限
       const tutorAuthResult = await authorize('tutor');
@@ -282,7 +282,7 @@ export async function PUT(
     const { slug, sessionId } = await params;
     
     // 验证用户身份
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       const tutorAuthResult = await authorize('tutor');
       if (tutorAuthResult instanceof NextResponse) {

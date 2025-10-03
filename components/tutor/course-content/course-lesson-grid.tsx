@@ -122,7 +122,6 @@ export default function CourseLessonGrid({
       duration: lesson.duration_sec ? `${Math.ceil(lesson.duration_sec / 60)}m` : '15m',
       type: lesson.kind === 'video' ? 'video' : 
             lesson.kind === 'document' ? 'reading' : 
-            lesson.kind === 'quiz' ? 'quiz' : 
             lesson.kind === 'assignment' ? 'assignment' : 'reading',
       difficulty: 'intermediate' as const,
       isCompleted: false,
@@ -216,7 +215,6 @@ export default function CourseLessonGrid({
     switch (type) {
       case 'video': return <Play className="h-4 w-4" />;
       case 'reading': return <BookOpen className="h-4 w-4" />;
-      case 'quiz': return <Circle className="h-4 w-4" />;
       case 'assignment': return <Star className="h-4 w-4" />;
       default: return <BookOpen className="h-4 w-4" />;
     }

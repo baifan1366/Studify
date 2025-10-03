@@ -5,7 +5,8 @@ import { z } from "zod";
 
 // Helper function to validate lesson ownership and get internal ID
 async function validateLessonOwnership(client: any, lessonId: string, ownerId?: number) {
-  const { data: lesson, error: lessonError } = await client
+  // First try to find by public_id
+  let { data: lesson, error: lessonError } = await client
     .from("course_lesson")
     .select(`
       id,
@@ -20,6 +21,28 @@ async function validateLessonOwnership(client: any, lessonId: string, ownerId?: 
     .eq("public_id", lessonId)
     .eq("is_deleted", false)
     .single();
+
+  // If not found and lessonId is numeric, try finding by internal id as fallback
+  if (lessonError && !isNaN(Number(lessonId))) {
+    const result = await client
+      .from("course_lesson")
+      .select(`
+        id,
+        public_id,
+        course_id,
+        course:course_id (
+          id,
+          owner_id,
+          status
+        )
+      `)
+      .eq("id", parseInt(lessonId))
+      .eq("is_deleted", false)
+      .single();
+    
+    lesson = result.data;
+    lessonError = result.error;
+  }
 
   if (lessonError || !lesson) {
     return { error: "Lesson not found", status: 404 };

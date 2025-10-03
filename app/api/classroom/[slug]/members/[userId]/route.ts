@@ -12,7 +12,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
   const { slug, userId } = await params;
   
   // Verify user authentication
-  const authResult = await authorize('student');
+  const authResult = await authorize(['student', 'tutor']);
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -86,7 +86,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
   const { slug, userId } = await params;
   
   // Verify user authentication
-  const authResult = await authorize('student');
+  const authResult = await authorize(['student', 'tutor']);
   if (authResult instanceof NextResponse) {
     return authResult;
   }

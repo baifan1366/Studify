@@ -10,7 +10,7 @@ export async function GET(
     const { slug } = await params;
 
     // Authorize user
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -155,7 +155,7 @@ export async function POST(
     const { slug } = await params;
 
     // Authorize tutor or owner
-    const authResult = await authorize('student');
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }

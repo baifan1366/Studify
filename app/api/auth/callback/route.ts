@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { signAppJwt, generateJti } from '@/utils/auth/jwt';
+import redis from '@/utils/redis/redis';
+
+const APP_SESSION_COOKIE = 'app_session';
+const APP_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 // Handle Supabase auth callbacks (email confirmations, password resets, etc.)
 export async function GET(request: NextRequest) {
@@ -52,6 +57,32 @@ export async function GET(request: NextRequest) {
     });
     
     if (!error && data?.session) {
+      const userId = data.session.user.id;
+      
+      // Get user profile to obtain role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, full_name, display_name')
+        .eq('user_id', userId)
+        .single();
+      
+      if (profileError) {
+        console.error('[AUTH CALLBACK] Failed to fetch profile:', profileError);
+        return NextResponse.redirect(`${origin}/en/sign-in?error=profile_not_found`);
+      }
+      
+      const role = profile?.role || 'student';
+      const name = profile?.display_name || profile?.full_name || data.session.user.email?.split('@')[0];
+      
+      console.log('[AUTH CALLBACK] User profile:', { userId, role, name });
+      
+      // Generate app JWT and store session in Redis
+      const jti = generateJti();
+      const jwt = await signAppJwt({ sub: userId, role, jti, name }, APP_SESSION_TTL_SECONDS);
+      await redis.set(`session:${jti}`, userId, { ex: APP_SESSION_TTL_SECONDS });
+      
+      console.log('[AUTH CALLBACK] App session created:', { jti: jti.substring(0, 10) + '...' });
+      
       // Determine redirect based on the type of auth flow
       let redirectPath = next;
       
@@ -72,8 +103,18 @@ export async function GET(request: NextRequest) {
       }
       
       console.log('[AUTH CALLBACK] Final redirect:', `${origin}${redirectPath}`);
-      // Redirect to the appropriate page
-      return NextResponse.redirect(`${origin}${redirectPath}`);
+      
+      // Create redirect response with app_session cookie
+      const response = NextResponse.redirect(`${origin}${redirectPath}`);
+      response.cookies.set(APP_SESSION_COOKIE, jwt, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: APP_SESSION_TTL_SECONDS,
+      });
+      
+      return response;
     } else {
       console.log('[AUTH CALLBACK] Session exchange failed:', {
         hasError: !!error,

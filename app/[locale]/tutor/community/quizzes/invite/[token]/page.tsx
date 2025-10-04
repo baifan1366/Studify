@@ -30,6 +30,7 @@ export default function QuizInvitePage() {
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   useEffect(() => {
     if (token) {
@@ -69,7 +70,10 @@ export default function QuizInvitePage() {
 
       // 延迟跳转到quiz页面
       setTimeout(() => {
-        router.push(`/community/quizzes/${response.quiz_slug}`);
+        const route = isTutor
+          ? `/tutor/community/quizzes/${response.quiz_slug}`
+          : `/community/quizzes/${response.quiz_slug}`;
+        router.push(route);
       }, 2000);
 
     } catch (err: any) {
@@ -127,7 +131,12 @@ export default function QuizInvitePage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => router.push('/community/quizzes')}
+              onClick={() => {
+                const route = isTutor
+                  ? '/tutor/community/quizzes'
+                  : '/community/quizzes';
+                router.push(route);
+              }}
               variant="outline"
               className="w-full"
             >
@@ -225,7 +234,12 @@ export default function QuizInvitePage() {
                 Login to Accept
               </Button>
               <Button 
-                onClick={() => router.push('/community/quizzes')}
+                onClick={() => {
+                  const route = isTutor
+                    ? '/tutor/community/quizzes'
+                    : '/community/quizzes';
+                  router.push(route);
+                }}
                 variant="outline"
               >
                 Cancel
@@ -241,7 +255,12 @@ export default function QuizInvitePage() {
                 {accepting ? "Accepting..." : "Accept Invitation"}
               </Button>
               <Button 
-                onClick={() => router.push('/community/quizzes')}
+                onClick={() => {
+                  const route = isTutor
+                    ? '/tutor/community/quizzes'
+                    : '/community/quizzes';
+                  router.push(route);
+                }}
                 variant="outline"
               >
                 Cancel

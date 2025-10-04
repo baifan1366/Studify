@@ -29,6 +29,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const isAuthor = currentUser?.id === quiz.author_id;
   const [isNavigating, setIsNavigating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   return (
     <div className="mb-8">
@@ -134,14 +135,23 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
                 }
 
                 if (sessionPublicId) {
-                  router.push(`/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`);
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`
+                    : `/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`;
+                  router.push(route);
                 } else {
                   // Fallback to guarded attempt page
-                  router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/attempt`
+                    : `/community/quizzes/${quiz.slug}/attempt`;
+                  router.push(route);
                 }
               } catch (e) {
                 console.error(e);
-                router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                const route = isTutor
+                  ? `/tutor/community/quizzes/${quiz.slug}/attempt`
+                  : `/community/quizzes/${quiz.slug}/attempt`;
+                router.push(route);
               } finally {
                 setIsNavigating(false);
               }
@@ -233,7 +243,10 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
             variant="outline"
             onClick={() => {
               const locale = (params as any)?.locale || 'en';
-              router.push(`/${locale}/community/quizzes/${quiz.slug}/edit`);
+              const route = isTutor
+                ? `/${locale}/tutor/community/quizzes/${quiz.slug}/edit`
+                : `/${locale}/community/quizzes/${quiz.slug}/edit`;
+              router.push(route);
             }}
           >
             <Pencil className="h-5 w-5 mr-2" />
@@ -263,7 +276,10 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               onOpenChange={setShowDeleteModal}
               onDeleteSuccess={() => {
                 const locale = (params as any)?.locale || 'en';
-                router.push(`/${locale}/community/quizzes`);
+                const route = isTutor
+                  ? `/${locale}/tutor/community/quizzes`
+                  : `/${locale}/community/quizzes`;
+                router.push(route);
               }}
             />
           </>

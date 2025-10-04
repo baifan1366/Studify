@@ -24,6 +24,7 @@ import {
   useCompleteAttempt,
 } from "@/hooks/community/use-quiz";
 import { useQuizSession } from "@/hooks/community/use-quiz-session";
+import { useUser } from "@/hooks/profile/use-user";
 import QuizTimer from "@/components/community/quiz/quiz-timer";
 import QuizDebugPanel from "@/components/community/quiz/quiz-debug-panel";
 import { toast } from "sonner";
@@ -51,6 +52,8 @@ export default function QuizAttemptPage() {
   const { quizSlug } = useParams<{ quizSlug: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   // 状态
   const [attemptId, setAttemptId] = useState<number | null>(null);
@@ -164,7 +167,10 @@ export default function QuizAttemptPage() {
             e
           );
         } finally {
-          router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
+          const route = isTutor
+            ? `/tutor/community/quizzes/${quizSlug}/result/${attemptId}`
+            : `/community/quizzes/${quizSlug}/result/${attemptId}`;
+          router.replace(route);
         }
       })();
     }
@@ -173,9 +179,12 @@ export default function QuizAttemptPage() {
   // 监听 session 标记为 completed 的情况，直接跳转结果页
   useEffect(() => {
     if (session?.status === "completed" && attemptId) {
-      router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
+      const route = isTutor
+        ? `/tutor/community/quizzes/${quizSlug}/result/${attemptId}`
+        : `/community/quizzes/${quizSlug}/result/${attemptId}`;
+      router.replace(route);
     }
-  }, [session?.status, attemptId, router, quizSlug]);
+  }, [session?.status, attemptId, router, quizSlug, isTutor]);
 
   // 当页面从 bfcache 恢复（pageshow persisted）或标签页可见性变化时，重新补水 session（解决刷新/前进/后退 timer 丢失）
   useEffect(() => {
@@ -243,9 +252,10 @@ export default function QuizAttemptPage() {
       }
 
       if (sessPublicId) {
-        router.replace(
-          `/community/quizzes/${quizSlug}/attempt?session=${sessPublicId}`
-        );
+        const route = isTutor
+          ? `/tutor/community/quizzes/${quizSlug}/attempt?session=${sessPublicId}`
+          : `/community/quizzes/${quizSlug}/attempt?session=${sessPublicId}`;
+        router.replace(route);
       } else {
         throw new Error("Failed to obtain session identifier");
       }
@@ -286,7 +296,12 @@ export default function QuizAttemptPage() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => router.push(`/community/quizzes/${quizSlug}`)}
+              onClick={() => {
+                const route = isTutor
+                  ? `/tutor/community/quizzes/${quizSlug}`
+                  : `/community/quizzes/${quizSlug}`;
+                router.push(route);
+              }}
             >
               Back to Quiz
             </Button>
@@ -308,7 +323,12 @@ export default function QuizAttemptPage() {
           </Alert>
           <div className="mt-4 flex gap-2 justify-center">
             <Button
-              onClick={() => router.push(`/community/quizzes/${quizSlug}`)}
+              onClick={() => {
+                const route = isTutor
+                  ? `/tutor/community/quizzes/${quizSlug}`
+                  : `/community/quizzes/${quizSlug}`;
+                router.push(route);
+              }}
               variant="outline"
             >
               Back to Quiz
@@ -418,7 +438,10 @@ export default function QuizAttemptPage() {
         // 完成 quiz
         await completeAttempt();
         // 跳转到结果页显示分数 Modal
-        router.replace(`/community/quizzes/${quizSlug}/result/${attemptId}`);
+        const route = isTutor
+          ? `/tutor/community/quizzes/${quizSlug}/result/${attemptId}`
+          : `/community/quizzes/${quizSlug}/result/${attemptId}`;
+        router.replace(route);
       }
     } catch (error) {
       console.error("Error in handleNextQuestion:", error);
@@ -436,7 +459,12 @@ export default function QuizAttemptPage() {
               variant="ghost"
               size="icon"
               className="hover:bg-white/10"
-              onClick={() => router.push(`/community/quizzes/${quizSlug}`)}
+              onClick={() => {
+                const route = isTutor
+                  ? `/tutor/community/quizzes/${quizSlug}`
+                  : `/community/quizzes/${quizSlug}`;
+                router.push(route);
+              }}
             >
               <X className="h-6 w-6" />
             </Button>

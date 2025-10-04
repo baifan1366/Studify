@@ -4,10 +4,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import QuizResultModal from "@/components/community/quiz/quiz-result-modal";
 import { useQuizQuestions } from "@/hooks/community/use-quiz-questions";
+import { useUser } from "@/hooks/profile/use-user";
 
 export default function QuizResultPage() {
   const { quizSlug, attemptId } = useParams<{ quizSlug: string; attemptId: string }>();
   const router = useRouter();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   // 获取题目数量用于百分比展示
   const { data: questions, isLoading } = useQuizQuestions(quizSlug);
@@ -16,9 +19,12 @@ export default function QuizResultPage() {
   useEffect(() => {
     // 无有效 attemptId 直接返回 quiz 页面
     if (!attemptId) {
-      router.replace(`/community/quizzes/${quizSlug}`);
+      const route = isTutor
+        ? `/tutor/community/quizzes/${quizSlug}`
+        : `/community/quizzes/${quizSlug}`;
+      router.replace(route);
     }
-  }, [attemptId, quizSlug, router]);
+  }, [attemptId, quizSlug, router, isTutor]);
 
   return (
     <div className="min-h-screen w-full bg-background">

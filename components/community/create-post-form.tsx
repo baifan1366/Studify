@@ -19,6 +19,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { useGroupPosts } from "@/hooks/community/use-community";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
+import { useUser } from "@/hooks/profile/use-user";
 
 interface CreatePostFormProps {
   groupSlug: string;
@@ -45,6 +46,8 @@ export default function CreatePostForm({
   const router = useRouter();
   const { createPost, isCreatingPost, createPostError } =
     useGroupPosts(groupSlug);
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   const handleTitleChange = (title: string) => {
     // Validate title length
@@ -103,7 +106,10 @@ export default function CreatePostForm({
         });
         toast.success("Post created successfully!");
         onSuccess?.(newPost.slug);
-        router.push(`/community/${groupSlug}/posts/${newPost.slug}`);
+        const route = isTutor
+          ? `/tutor/community/${groupSlug}/posts/${newPost.slug}`
+          : `/community/${groupSlug}/posts/${newPost.slug}`;
+        router.push(route);
       },
       onError: (error: any) => {
         toast.error(error?.message || "Failed to create post");

@@ -47,6 +47,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
+  const isTutor = currentUser?.profile?.role === 'tutor';
   
   // Debug log to check quiz data
   console.log("QuizCard received quiz data:", {
@@ -97,7 +98,10 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
       return;
     }
     
-    router.push(`/community/quizzes/${quiz.slug}`);
+    const route = isTutor
+      ? `/tutor/community/quizzes/${quiz.slug}`
+      : `/community/quizzes/${quiz.slug}`;
+    router.push(route);
   };
 
   return (
@@ -142,7 +146,10 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/community/quizzes/${quiz.slug}/edit`);
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/edit`
+                    : `/community/quizzes/${quiz.slug}/edit`;
+                  router.push(route);
                 }}
               >
                 <Edit className="h-4 w-4 mr-2" />
@@ -259,13 +266,22 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
                   }
 
                   if (sessionPublicId) {
-                    router.push(`/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`);
+                    const route = isTutor
+                      ? `/tutor/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`
+                      : `/community/quizzes/${quiz.slug}/attempt?session=${sessionPublicId}`;
+                    router.push(route);
                   } else {
-                    router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                    const route = isTutor
+                      ? `/tutor/community/quizzes/${quiz.slug}/attempt`
+                      : `/community/quizzes/${quiz.slug}/attempt`;
+                    router.push(route);
                   }
                 } catch (err) {
                   console.error(err);
-                  router.push(`/community/quizzes/${quiz.slug}/attempt`);
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/attempt`
+                    : `/community/quizzes/${quiz.slug}/attempt`;
+                  router.push(route);
                 }
               }}
             >

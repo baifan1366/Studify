@@ -72,7 +72,7 @@ export function AssignmentSubmissionsPageComponent({
   }, [assignmentId, classroomSlug]);
 
   const handleBack = () => {
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}`
       : `/classroom/${classroomSlug}`;

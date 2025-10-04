@@ -109,7 +109,7 @@ export function LiveSessionTab({
       });
 
       // Redirect to live session room URL with role-based routing
-      const isTutor = currentUser?.role === 'tutor';
+      const isTutor = currentUser?.profile?.role === 'tutor';
       const roomUrl = isTutor 
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;

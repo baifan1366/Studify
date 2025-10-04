@@ -71,7 +71,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}`
       : `/classroom/${classroomSlug}`;
@@ -105,7 +105,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       });
 
       // Redirect to live session room URL with role-based routing
-      const isTutor = currentUser?.role === 'tutor';
+      const isTutor = currentUser?.profile?.role === 'tutor';
       const roomUrl = isTutor 
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;

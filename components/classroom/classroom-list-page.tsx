@@ -29,7 +29,7 @@ export function ClassroomListPage() {
   const joinClassroomMutation = useJoinClassroom();
 
   const handleCreateClassroom = () => {
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? '/tutor/classroom/create'
       : '/classroom/create';
@@ -64,7 +64,7 @@ export function ClassroomListPage() {
   };
 
   const handleClassroomClick = (classroom: any) => {
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroom.slug}`
       : `/classroom/${classroom.slug}`;

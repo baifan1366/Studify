@@ -120,7 +120,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}`
       : `/classroom/${classroomSlug}`;
@@ -196,7 +196,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
   const handleViewFullSubmissions = (assignmentId: string) => {
     // Navigate to full submissions page
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}/assignment/${assignmentId}/submissions`
       : `/classroom/${classroomSlug}/assignment/${assignmentId}/submissions`;
@@ -477,7 +477,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                             classroomColor={classroom?.color}
                             onEditSubmission={() => {
                               // Navigate to assignment submission page
-                              const isTutor = currentUser?.role === 'tutor';
+                              const isTutor = currentUser?.profile?.role === 'tutor';
                               const route = isTutor 
                                 ? `/tutor/classroom/${classroomSlug}/assignment/${assignment.id}/submit`
                                 : `/classroom/${classroomSlug}/assignment/${assignment.id}/submit`;
@@ -485,7 +485,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                             }}
                             onViewAssignment={() => {
                               // Navigate to full assignment view
-                              const isTutor = currentUser?.role === 'tutor';
+                              const isTutor = currentUser?.profile?.role === 'tutor';
                               const route = isTutor 
                                 ? `/tutor/classroom/${classroomSlug}/assignment/${assignment.id}`
                                 : `/classroom/${classroomSlug}/assignment/${assignment.id}`;
@@ -501,7 +501,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                             classroomColor={classroom?.color}
                             onGradeSubmission={(submissionId) => {
                               // Handle grading action - could navigate to full submissions page
-                              const isTutor = currentUser?.role === 'tutor';
+                              const isTutor = currentUser?.profile?.role === 'tutor';
                               const route = isTutor 
                                 ? `/tutor/classroom/${classroomSlug}/assignment/${assignment.id}/submissions`
                                 : `/classroom/${classroomSlug}/assignment/${assignment.id}/submissions`;

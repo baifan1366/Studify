@@ -23,17 +23,17 @@ export function FontSizeDemo() {
       <div className="space-y-4">
         {/* Heading Example */}
         <div>
-          <h3 className={`font-semibold text-white ${getResponsiveClass('heading')}`}>
+          <h3 className={`font-semibold text-gray-900 dark:text-white ${getResponsiveClass('heading')}`}>
             {t('sample_heading')}
           </h3>
-          <p className={`text-white/70 ${getResponsiveClass('small')}`}>
+          <p className={`text-gray-600 dark:text-white/70 ${getResponsiveClass('small')}`}>
             {t('heading_description')}
           </p>
         </div>
 
         {/* Body Text Example */}
         <div>
-          <p className={`text-white ${getResponsiveClass('body')}`}>
+          <p className={`text-gray-600 dark:text-white ${getResponsiveClass('body')}`}>
             {t('body_text_description')}
           </p>
         </div>
@@ -41,27 +41,27 @@ export function FontSizeDemo() {
         {/* UI Elements Example */}
         <div className="flex flex-wrap gap-2">
           <motion.button 
-            className={`px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors ${getResponsiveClass('button')}`}
+            className={`px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-gray-900 dark:text-white rounded-md transition-colors ${getResponsiveClass('button')}`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
             {t('sample_button')}
           </motion.button>
           
-          <div className={`px-3 py-1.5 bg-white/10 text-white/80 rounded-md ${getResponsiveClass('small')}`}>
+          <div className={`px-3 py-1.5 bg-white/10 text-gray-600 dark:text-white/80 rounded-md ${getResponsiveClass('small')}`}>
             {t('small_text_label')}
           </div>
         </div>
 
         {/* Navigation Example */}
-        <div className="flex items-center gap-4 p-2 bg-white/5 rounded-md">
+        <div className="flex items-center gap-4 p-2 bg-white/5 dark:bg-gray-800 rounded-md">
           {[
             { icon: BookOpen, label: t('nav_courses') },
             { icon: MessageCircle, label: t('nav_messages') },
             { icon: Settings, label: t('nav_settings') },
             { icon: User, label: t('nav_profile') },
           ].map((item, index) => (
-            <div key={index} className="flex items-center gap-2 text-white/80">
+            <div key={index} className="flex items-center gap-2 text-gray-600 dark:text-white/80">
               <item.icon size={16} />
               <span className={getResponsiveClass('text')}>{item.label}</span>
             </div>
@@ -70,12 +70,12 @@ export function FontSizeDemo() {
 
         {/* List Example */}
         <div>
-          <h4 className={`font-medium text-white mb-2 ${getResponsiveClass('text')}`}>
+          <h4 className={`font-medium text-gray-900 dark:text-white mb-2 ${getResponsiveClass('text')}`}>
             {t('list_title')}
           </h4>
           <ul className="space-y-1">
             {[t('list_item_1'), t('list_item_2'), t('list_item_3')].map((item, index) => (
-              <li key={index} className={`text-white/70 ${getResponsiveClass('body')}`}>
+              <li key={index} className={`text-gray-600 dark:text-white/70 ${getResponsiveClass('body')}`}>
                 • {item}
               </li>
             ))}

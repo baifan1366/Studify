@@ -70,6 +70,7 @@ import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-task
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
 import { VideoPreview } from './video-preview'
+import { ImagePreview } from './image-preview'
 // VideoProcessingProgress is no longer needed - using toast notifications instead
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
@@ -566,6 +567,12 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
         previewData.fileType === 'video' ? (
           <VideoPreview 
             attachmentId={previewData.attachmentId}
+            title={previewData.title}
+            onClose={() => setPreviewData(null)}
+          />
+        ) : previewData.fileType === 'image' ? (
+          <ImagePreview 
+            attachmentUrl={previewData.url}
             title={previewData.title}
             onClose={() => setPreviewData(null)}
           />

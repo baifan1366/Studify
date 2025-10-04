@@ -59,6 +59,7 @@ import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-task
 import { validateAttachmentTitle } from '@/lib/validations/attachment'
 import { PreviewAttachment } from './preview-attachment'
 import { VideoPreview } from './video-preview'
+import { ImagePreview } from './image-preview'
 import type { ViewMode } from './storage-page-layout'
 
 interface StorageFileListProps {
@@ -389,6 +390,12 @@ export function StorageFileList({
               title={previewData.title}
               onClose={() => setPreviewData(null)}
             />
+          ) : previewData.fileType === 'image' ? (
+            <ImagePreview 
+              attachmentUrl={previewData.url}
+              title={previewData.title}
+              onClose={() => setPreviewData(null)}
+            />
           ) : (
             <PreviewAttachment 
               attachmentId={previewData.attachmentId}
@@ -639,6 +646,12 @@ export function StorageFileList({
         previewData.fileType === 'video' ? (
           <VideoPreview 
             attachmentId={previewData.attachmentId}
+            title={previewData.title}
+            onClose={() => setPreviewData(null)}
+          />
+        ) : previewData.fileType === 'image' ? (
+          <ImagePreview 
+            attachmentUrl={previewData.url}
             title={previewData.title}
             onClose={() => setPreviewData(null)}
           />

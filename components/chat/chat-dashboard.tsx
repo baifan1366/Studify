@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,39 @@ import { useChatNotifications, useRealtimeChatNotifications } from '@/hooks/chat
 import { ProfileModal } from '@/components/chat/profile-modal';
 import { ProfileData } from '@/interface/profile-interface';
 import { useProfile } from '@/hooks/profiles/use-profile';
+
+// Skeleton Components
+function ConversationItemSkeleton() {
+  return (
+    <Card className="mb-2 bg-gray-100/5">
+      <CardContent className="p-3">
+        <div className="flex items-start gap-3">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UserSearchItemSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg">
+      <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
+  );
+}
 
 // Mock data - replace with real API calls
 interface Conversation {
@@ -426,8 +460,10 @@ export function ChatDashboard() {
         <ScrollArea className="flex-1">
           <div className="p-2">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <ConversationItemSkeleton key={i} />
+                ))}
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -642,8 +678,10 @@ export function ChatDashboard() {
             {/* Search Results */}
             <div className="max-h-60 overflow-y-auto">
               {isSearching ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <UserSearchItemSkeleton key={i} />
+                  ))}
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="space-y-2">
@@ -759,8 +797,10 @@ export function ChatDashboard() {
             {/* User Search Results */}
             <div className="max-h-48 overflow-y-auto border rounded-md">
               {isSearching ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="space-y-1 p-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <UserSearchItemSkeleton key={i} />
+                  ))}
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="space-y-1 p-2">

@@ -17,7 +17,8 @@ import {
   X,
   Save,
   Trash2,
-  Reply
+  Reply,
+  MessageCircle
 } from 'lucide-react';
 import { MessageStatus } from './message-status';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
@@ -33,6 +34,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +51,27 @@ export interface ChatAttachment {
   size_bytes: number;
   file_url: string;
   custom_message?: string;
+}
+
+// Skeleton Components
+function MessageSkeleton({ isFromMe }: { isFromMe: boolean }) {
+  return (
+    <div className={cn(
+      'flex gap-3 mb-4',
+      isFromMe ? 'justify-end' : 'justify-start'
+    )}>
+      <div className="flex items-start gap-2 w-full max-w-xs lg:max-w-md">
+        {!isFromMe && <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />}
+        <div className="flex-1 space-y-2">
+          <Skeleton className={cn(
+            "h-16 rounded-lg",
+            isFromMe ? "ml-auto" : ""
+          )} style={{ width: isFromMe ? '80%' : '90%' }} />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 
@@ -77,7 +100,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use chat hooks
-  const { data: messagesData, refetch: refetchMessages } = useMessages(conversationId);
+  const { data: messagesData, isLoading: isLoadingMessages, refetch: refetchMessages } = useMessages(conversationId);
   const sendMessageMutation = useSendMessage();
   const editMessageMutation = useEditMessage();
   const deleteMessageMutation = useDeleteMessage();
@@ -318,7 +341,24 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
       {/* Messages Area */}
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
-          {messages.map((message, index) => {
+          {isLoadingMessages ? (
+            // Show skeleton while loading
+            <>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <MessageSkeleton key={i} isFromMe={i % 3 === 0} />
+              ))}
+            </>
+          ) : messages.length === 0 ? (
+            // Show empty state
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="text-center">
+                <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No messages yet</p>
+                <p className="text-xs mt-1">Start the conversation!</p>
+              </div>
+            </div>
+          ) : (
+            messages.map((message, index) => {
             const timestampGroup = timestampGroups.get(message.id);
             
             return (
@@ -401,7 +441,8 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                 </div>
               </div>
             );
-          })}
+          })
+          )}
 
           {isTyping && (
             <div className="flex gap-3">

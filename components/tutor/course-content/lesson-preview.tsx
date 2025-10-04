@@ -22,7 +22,7 @@ import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
 import { useAttachment } from '@/hooks/course/use-attachments';
 import { VideoPreview } from '@/components/tutor/storage/video-preview';
 import { PreviewAttachment } from '@/components/tutor/storage/preview-attachment';
-import { ImagePreview } from '@/components/tutor/storage/image-preview';
+import { ImagePreview } from '@/components/tutor/storage/storage-dialog';
 import MegaImage from '@/components/attachment/mega-blob-image';
 
 interface LessonPreviewProps {

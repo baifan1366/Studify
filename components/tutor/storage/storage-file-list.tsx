@@ -59,7 +59,7 @@ import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-task
 import { validateAttachmentTitle } from '@/lib/validations/attachment'
 import { PreviewAttachment } from './preview-attachment'
 import { VideoPreview } from './video-preview'
-import { ImagePreview } from './image-preview'
+import { ImagePreview } from './storage-dialog'
 import type { ViewMode } from './storage-page-layout'
 
 interface StorageFileListProps {

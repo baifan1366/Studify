@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useDeleteQuiz } from "@/hooks/community/use-quiz";
 import { toast } from "sonner";
+import { useUser } from "@/hooks/profile/use-user";
 
 interface DeleteQuizModalProps {
   quizSlug: string;
@@ -36,6 +37,8 @@ export default function DeleteQuizModal({
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
   
   const deleteQuizMutation = useDeleteQuiz(quizSlug);
 
@@ -54,9 +57,13 @@ export default function DeleteQuizModal({
       
       // Call the success callback if provided
       if (onDeleteSuccess) {
+        onDeleteSuccess();
       } else {
         // Default behavior: redirect to quizzes list
-        router.push("/community/quizzes");
+        const route = isTutor
+          ? "/tutor/community/quizzes"
+          : "/community/quizzes";
+        router.push(route);
       }
     } catch (error: any) {
       toast.error(t('delete_failed'));

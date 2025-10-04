@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import QuizScoreDisplay from "@/components/community/quiz/quiz-score-display";
+import { useUser } from "@/hooks/profile/use-user";
 
 interface QuizResultModalProps {
   quizSlug: string;
@@ -16,9 +17,14 @@ interface QuizResultModalProps {
 export default function QuizResultModal({ quizSlug, attemptId, totalQuestions = 0, open = true }: QuizResultModalProps) {
   const t = useTranslations('QuizResultModal');
   const router = useRouter();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   const handleClose = () => {
-    router.replace(`/community/quizzes/${quizSlug}`);
+    const route = isTutor
+      ? `/tutor/community/quizzes/${quizSlug}`
+      : `/community/quizzes/${quizSlug}`;
+    router.replace(route);
   };
 
   return (

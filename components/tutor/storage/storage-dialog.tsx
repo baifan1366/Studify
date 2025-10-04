@@ -70,9 +70,52 @@ import { useBackgroundTasks } from '@/hooks/background-tasks/use-background-task
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing'
 import { PreviewAttachment } from './preview-attachment'
 import { VideoPreview } from './video-preview'
+import MegaImage from '@/components/attachment/mega-blob-image'
 // VideoProcessingProgress is no longer needed - using toast notifications instead
 import { CourseAttachment } from '@/interface/courses/attachment-interface'
 
+// ImagePreview component (exported for use in other components)
+interface ImagePreviewProps {
+  attachmentUrl: string
+  title?: string
+  onClose: () => void
+}
+
+export function ImagePreview({ attachmentUrl, title, onClose }: ImagePreviewProps) {
+  const t = useTranslations('StorageDialog')
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto bg-background text-foreground border-border">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">
+            {title || t('image_preview')}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            {t('image_preview_description')}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-auto max-h-[calc(90vh-8rem)] flex items-center justify-center">
+          <MegaImage
+            megaUrl={attachmentUrl}
+            alt={title || 'Image preview'}
+            className="w-full h-auto object-contain rounded-lg"
+            onLoad={() => setIsLoading(false)}
+            onError={(error) => {
+              setIsLoading(false)
+              setHasError(true)
+              console.error('Image load error:', error)
+            }}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// StorageDialog component
 interface StorageDialogProps {
   ownerId: number
   children?: React.ReactNode
@@ -566,6 +609,12 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
         previewData.fileType === 'video' ? (
           <VideoPreview 
             attachmentId={previewData.attachmentId}
+            title={previewData.title}
+            onClose={() => setPreviewData(null)}
+          />
+        ) : previewData.fileType === 'image' ? (
+          <ImagePreview 
+            attachmentUrl={previewData.url}
             title={previewData.title}
             onClose={() => setPreviewData(null)}
           />

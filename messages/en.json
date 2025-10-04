@@ -581,7 +581,9 @@
       "invalid_title": "Invalid title",
       "file_preview_description": "Preview the file in the browser",
       "video_preview": "Video Preview",
-      "video_preview_description": "Watch the video file in the player"
+      "video_preview_description": "Watch the video file in the player",
+      "image_preview": "Image Preview",
+      "image_preview_description": "View the image file"
     },
     "DocumentPreview": {
       "minutes": "minutes",

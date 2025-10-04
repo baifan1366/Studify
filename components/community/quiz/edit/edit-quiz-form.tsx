@@ -19,6 +19,7 @@ import { useQuizQuestions, useUpdateQuizQuestion, useDeleteQuizQuestion } from "
 import { CommunityQuiz, CommunityQuizQuestion } from "@/interface/community/quiz-interface";
 import { useLocale } from "next-intl";
 import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
+import { useUser } from "@/hooks/profile/use-user";
 
 interface EditQuizFormProps {
   quizSlug: string;
@@ -53,6 +54,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const router = useRouter();
   const params = useParams();
   const locale = useLocale();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
   
   // Hooks
   const { data: quiz, isLoading, error } = useQuiz(quizSlug);
@@ -140,7 +143,10 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
         alert("Quiz updated successfully!");
         // Optionally redirect back to quiz detail page
         const locale = (params as any)?.locale ?? "en";
-        router.push(`/${locale}/community/quizzes/${quizSlug}`);
+        const route = isTutor
+          ? `/${locale}/tutor/community/quizzes/${quizSlug}`
+          : `/${locale}/community/quizzes/${quizSlug}`;
+        router.push(route);
       },
       onError: (err: any) => {
         alert(err?.message ?? "Update failed");
@@ -151,7 +157,10 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   // Handle back navigation
   const handleBack = () => {
     const locale = (params as any)?.locale ?? "en";
-    router.push(`/${locale}/community/quizzes/${quizSlug}`);
+    const route = isTutor
+      ? `/${locale}/tutor/community/quizzes/${quizSlug}`
+      : `/${locale}/community/quizzes/${quizSlug}`;
+    router.push(route);
   };
 
   // Question form handlers

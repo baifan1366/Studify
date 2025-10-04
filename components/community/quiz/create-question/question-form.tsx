@@ -42,6 +42,7 @@ export default function QuestionForm({ quizSlug }: Props) {
   const router = useRouter();
   const { data: user } = useUser();
   const { toast } = useToast();
+  const isTutor = user?.profile?.role === 'tutor';
   const { data: questions } = useQuizQuestions(quizSlug);
   const { mutate: createQuestion } = useCreateQuizQuestion(quizSlug);
   const { mutate: updateQuiz } = useUpdateQuiz(quizSlug);
@@ -140,12 +141,10 @@ export default function QuestionForm({ quizSlug }: Props) {
       });
       
       // Navigate based on user role
-      const userRole = user?.profile?.role;
-      if (userRole === "tutor") {
-        router.push("/tutor/community/quizzes");
-      } else {
-        router.push("/community/quizzes");
-      }
+      const route = isTutor
+        ? "/tutor/community/quizzes"
+        : "/community/quizzes";
+      router.push(route);
     } catch (error) {
       console.error("Save and quit error:", error);
       toast({

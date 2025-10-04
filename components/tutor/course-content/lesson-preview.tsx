@@ -22,6 +22,8 @@ import MegaDocumentPreview from '@/components/attachment/mega-document-preview';
 import { useAttachment } from '@/hooks/course/use-attachments';
 import { VideoPreview } from '@/components/tutor/storage/video-preview';
 import { PreviewAttachment } from '@/components/tutor/storage/preview-attachment';
+import { ImagePreview } from '@/components/tutor/storage/storage-dialog';
+import MegaImage from '@/components/attachment/mega-blob-image';
 
 interface LessonPreviewProps {
   lesson: Lesson | null;
@@ -350,6 +352,14 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
           onClose={() => setShowPreview(false)}
         />
       );
+    } else if (attachment.type === 'image') {
+      return (
+        <ImagePreview 
+          attachmentUrl={attachment.url || ''}
+          title={attachmentData.title}
+          onClose={() => setShowPreview(false)}
+        />
+      );
     } else {
       return (
         <PreviewAttachment 
@@ -400,8 +410,19 @@ export default function LessonPreview({ lesson, open, onOpenChange, ownerId }: L
               />
             </div>
           );
+        } else if (attachment.type === 'image' && attachment.url) {
+          // Use MegaImage for image attachments
+          return (
+            <div className="w-full min-h-[400px] flex items-center justify-center bg-muted/30 rounded-lg">
+              <MegaImage
+                megaUrl={attachment.url}
+                alt={attachment.title}
+                className="w-full h-auto object-contain rounded-lg max-h-[600px]"
+              />
+            </div>
+          );
         } else {
-          // Use MegaDocumentPreview for non-video attachments
+          // Use MegaDocumentPreview for non-video, non-image attachments
           return (
             <MegaDocumentPreview
               attachmentId={attachment.id}

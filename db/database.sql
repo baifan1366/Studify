@@ -256,7 +256,10 @@ CREATE TABLE public.classroom_assignment (
     due_date timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
     slug text,
-    search_vector tsvector
+    search_vector tsvector,
+    is_deleted boolean DEFAULT false NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
 );
 
 

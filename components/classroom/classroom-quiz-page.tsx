@@ -149,7 +149,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
   }, [classroomsData, classroomSlug]);
 
   const handleBack = () => {
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}`
       : `/classroom/${classroomSlug}`;
@@ -275,7 +275,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
 
   const handleViewResults = (quizId: string) => {
     // Navigate to quiz results page
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}/quiz/${quizId}/results`
       : `/classroom/${classroomSlug}/quiz/${quizId}/results`;
@@ -284,7 +284,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
 
   const handleTakeQuiz = (quizId: string) => {
     // Navigate to quiz taking page
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}/quiz/${quizId}/take`
       : `/classroom/${classroomSlug}/quiz/${quizId}/take`;
@@ -293,7 +293,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
 
   const handleEditQuestions = (quizId: string) => {
     // Navigate to quiz builder page
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}/quiz/${quizId}/edit`
       : `/classroom/${classroomSlug}/quiz/${quizId}/edit`;

@@ -52,7 +52,7 @@ export function CreateClassroomPage() {
         title: "Success",
         description: `Classroom "${result.classroom.name}" created successfully!`,
       });
-      const isTutor = currentUser?.role === 'tutor';
+      const isTutor = currentUser?.profile?.role === 'tutor';
       const route = isTutor 
         ? `/tutor/classroom/${result.classroom.slug}`
         : `/classroom/${result.classroom.slug}`;

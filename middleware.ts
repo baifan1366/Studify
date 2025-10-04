@@ -117,7 +117,6 @@ export async function middleware(request: NextRequest) {
 
     if (!jti || !userId) throw new Error("invalid token");
 
-    // Optimized session validation: check JWT expiry first, then Redis for revocation
     const currentTime = Math.floor(Date.now() / 1000);
     if (payload.exp && payload.exp < currentTime) {
       throw new Error("token expired");
@@ -126,6 +125,14 @@ export async function middleware(request: NextRequest) {
     // Check Redis for session revocation (consider caching this check)
     const exists = await redis.exists(SESSION_KEY(jti));
     if (!exists) throw new Error("session revoked");
+
+    // Update online status and last seen (non-blocking)
+    Promise.all([
+      redis.set(`user:online:${userId}`, "true", { ex: 70 }),
+      redis.set(`user:lastseen:${userId}`, Date.now().toString())
+    ]).catch((error: Error) => {
+      console.error('[middleware] failed to update online status:', error);
+    });
 
     // Inject headers for downstream API routes/handlers
     const reqHeaders = new Headers(request.headers);

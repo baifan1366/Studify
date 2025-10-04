@@ -181,7 +181,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   const navigateToSection = (section: string) => {
     // Check if current user is a tutor and add /tutor/ prefix
-    const isTutor = currentUser?.role === 'tutor';
+    const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
       ? `/tutor/classroom/${classroomSlug}/${section}`
       : `/classroom/${classroomSlug}/${section}`;
@@ -225,7 +225,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       });
 
       // Redirect to live session room URL with role-based routing
-      const isTutor = currentUser?.role === 'tutor';
+      const isTutor = currentUser?.profile?.role === 'tutor';
       const roomUrl = isTutor 
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;

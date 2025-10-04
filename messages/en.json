@@ -1222,6 +1222,11 @@
         }
       },
       "AchievementsSection": {
+        "recent": "Recent",
+        "unlocked": "Unlocked",
+        "recently": "Recently",
+        "unlocked_date": "Unlocked Date",
+        "no_recent_achievements": "No recent achievements",
         "title": "Achievements",
         "subtitle": "Track your learning milestones and unlock badges",
         "recent_unlocks": "Recent Unlocks",

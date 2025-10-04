@@ -41,6 +41,18 @@ export async function GET(req: NextRequest) {
         profile = JSON.parse(cachedProfile as string) as Profile;
         servedFromCache = true;
         console.log(`Profile for user ${user.id} retrieved from cache.`);
+        
+        // Even for cached profiles, get fresh online status
+        try {
+          const [onlineStatus, lastSeenTimestamp] = await Promise.all([
+            redis.get(`user:online:${user.id}`),
+            redis.get(`user:lastseen:${user.id}`)
+          ]);
+          (profile as any).is_online = onlineStatus === "true" || onlineStatus === true;
+          (profile as any).last_seen = lastSeenTimestamp ? parseInt(lastSeenTimestamp as string) : null;
+        } catch (error) {
+          console.error('Failed to get online status for cached profile:', error);
+        }
       }
     } catch (cacheError) {
       // If Redis fails, log the error but continue; we'll fetch from the DB instead.
@@ -60,10 +72,23 @@ export async function GET(req: NextRequest) {
 
       // If no profile exists in the DB for a valid user, it's a "Not Found" error
       if (profileError || !profileData) {
-        console.error('Profile not found in database for user:', user.id, profileError);
         return NextResponse.json({
           error: 'Profile not found. Please complete your profile setup.'
         }, { status: 404 });
+      }
+
+      // Get online status and last seen from Redis
+      let isOnline = false;
+      let lastSeen = null;
+      try {
+        const [onlineStatus, lastSeenTimestamp] = await Promise.all([
+          redis.get(`user:online:${user.id}`),
+          redis.get(`user:lastseen:${user.id}`)
+        ]);
+        isOnline = onlineStatus === "true" || onlineStatus === true;
+        lastSeen = lastSeenTimestamp ? parseInt(lastSeenTimestamp as string) : null;
+      } catch (error) {
+        console.error('Failed to get online status:', error);
       }
 
       // Construct the profile object to EXACTLY match the 'Profile' interface
@@ -98,7 +123,11 @@ export async function GET(req: NextRequest) {
         updated_at: profileData.updated_at,
         last_login: profileData.last_login,
         deleted_at: profileData.deleted_at,
-      };
+      } as Profile;
+
+      // Add online status fields using type assertion
+      (profile as any).is_online = isOnline;
+      (profile as any).last_seen = lastSeen;
 
       // 3. Cache the newly fetched profile in Redis for future requests
       try {

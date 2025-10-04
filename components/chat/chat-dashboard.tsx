@@ -10,8 +10,6 @@ import {
   Users, 
   Plus,
   MoreVertical,
-  Phone,
-  Video,
   UserPlus,
   X
 } from 'lucide-react';
@@ -567,12 +565,6 @@ export function ChatDashboard() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Video className="h-4 w-4" />
-                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm">
@@ -585,7 +577,6 @@ export function ChatDashboard() {
                     >
                       View Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Block User</DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={async () => {
                         if (!selectedConv) return;

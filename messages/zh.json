@@ -2895,7 +2895,8 @@
         "courseRejected": "This course has been rejected",
         "rejectionMessage": "Rejection message",
         "noted": "Noted",
-        "acknowledgeRejection": "I understand the rejection reason and will make necessary changes"
+        "acknowledgeRejection": "I understand the rejection reason and will make necessary changes",
+        "courseInactiveWithRejection": "此课程曾被拒绝"
       },
       "CourseModuleList": {
         "courseModules": "Course Modules",

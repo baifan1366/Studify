@@ -1756,7 +1756,11 @@
         "auto_creation_community_only": "Successfully joined community group!",
         "auto_creation_failed": "Unable to join auto-created resources",
         "classroom_joined": "Joined classroom: {name}",
-        "community_joined": "Joined community group: {name}"
+        "community_joined": "Joined community group: {name}",
+        "course_under_review": "Course Under Review",
+        "course_under_review_desc": "This course is currently being updated or is under review by our team. Please check back later for access to the course content.",
+        "status": "Status",
+        "browse_other_courses": "Browse Other Courses"
       },
       "StudentEnrollmentFlow": {
         "auto_creation_starting": "Setting up your learning environment...",
@@ -2935,7 +2939,8 @@
     "courseRejected": "This course has been rejected",
     "rejectionMessage": "Rejection message",
     "noted": "Noted",
-    "acknowledgeRejection": "I understand the rejection reason and will make necessary changes"
+    "acknowledgeRejection": "I understand the rejection reason and will make necessary changes",
+    "courseInactiveWithRejection": "This course was previously rejected"
   },
   "CourseModuleList": {
     "courseModules": "Course Modules",

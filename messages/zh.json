@@ -1,4 +1,4 @@
-{
+﻿{
     "HomePage": {
       "title": "你好，世界！",
       "metadata_title": "首页 | Studify",
@@ -1293,16 +1293,17 @@
           }
         },
         "preview": {
-          "select_feature": "Select an AI Feature",
-          "select_description": "Click on the feature cards on the left to view detailed introductions and start using the AI assistant",
-          "start_experience": "← Select a feature to start",
-          "collapsed_description": "Your intelligent learning companion ready to assist with questions, problem-solving, note-taking, and learning paths.",
-          "expand_hint": "Expand to see features"
+          "select_feature": "选择AI功能",
+          "select_description": "点击左侧功能卡片查看详细介绍，开始使用AI助手",
+          "start_experience": "← 选择功能开始体验",
+          "collapsed_description": "您的智能学习伙伴，随时准备协助您解答问题、解决难题、整理笔记和规划学习路径。",
+          "expand_hint": "展开查看功能",       
+          "ai_assistant_title": "AI助手"
         },
         "sidebar": {
-          "collapse": "Collapse sidebar",
-          "expand": "Expand sidebar",
-          "features": "Features"
+          "collapse": "收起侧边栏",
+          "expand": "展开侧边栏",
+          "features": "功能列表"
         },
         "chat": {
           "input": {

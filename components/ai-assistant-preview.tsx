@@ -376,7 +376,7 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
                           {/* 标题 */}
                           <div className="space-y-3">
                             <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-                              AI Assistant
+                              {t('preview.ai_assistant_title')}
                             </h3>
                             <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xs">
                               {t('preview.collapsed_description')}
@@ -1282,7 +1282,7 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
             analysis: response.analysis,
             toolsUsed: response.toolsUsed
           });
-          throw new Error(`AI分析返回空内容: ${JSON.stringify({
+          throw new Error(`${t('errors.empty_analysis')}: ${JSON.stringify({
             hasResult: !!response.result,
             hasAnswer: !!response.answer, 
             hasAnalysis: !!response.analysis,
@@ -1291,18 +1291,18 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
         }
       } else {
         console.error('❌ API response failed:', response);
-        throw new Error('AI服务请求失败: ' + (response?.error || 'Unknown error'));
+        throw new Error(t('errors.service_failed') + ': ' + (response?.error || t('errors.unknown')));
       }
     } catch (error) {
       console.error('❌ Smart notes error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : t('errors.unknown');
       console.error('Error details:', {
         message: errorMessage,
         stack: error instanceof Error ? error.stack : 'No stack trace',
         contentLength: content.length
       });
       
-      toast.error("笔记生成失败: " + (errorMessage.includes('fetch') ? '网络连接失败，请检查网络连接' : errorMessage));
+      toast.error(t('errors.notes_failed') + ": " + (errorMessage.includes('fetch') ? t('errors.network_error') : errorMessage));
     }
   };
 
@@ -1390,7 +1390,7 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
             analysis: response.analysis,
             toolsUsed: response.toolsUsed
           });
-          throw new Error(`学习路径生成返回空内容: ${JSON.stringify({
+          throw new Error(`${t('errors.empty_learning_path')}: ${JSON.stringify({
             hasResult: !!response.result,
             hasAnswer: !!response.answer, 
             hasAnalysis: !!response.analysis,
@@ -1399,11 +1399,11 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
         }
       } else {
         console.error('❌ Learning Path API response failed:', response);
-        throw new Error('学习路径服务请求失败: ' + (response?.error || 'Unknown error'));
+        throw new Error(t('errors.learning_path_failed') + ': ' + (response?.error || t('errors.unknown')));
       }
     } catch (error) {
       console.error('❌ Learning path error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : t('errors.unknown');
       console.error('Error details:', {
         message: errorMessage,
         stack: error instanceof Error ? error.stack : 'No stack trace',
@@ -1412,7 +1412,7 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
         timeConstraint
       });
       
-      toast.error("学习路径生成失败: " + (errorMessage.includes('fetch') ? '网络连接失败，请检查网络连接' : errorMessage));
+      toast.error(t('errors.learning_path_generation_failed') + ": " + (errorMessage.includes('fetch') ? t('errors.network_error') : errorMessage));
     }
   };
 
@@ -1945,8 +1945,8 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
                 <Calculator className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h4 className="font-medium text-red-800 dark:text-red-200">保存解题过程</h4>
-                <p className="text-sm text-red-600 dark:text-red-300">将错题和解题分析保存到错题本中</p>
+                <h4 className="font-medium text-red-800 dark:text-red-200">{t('actions.save_solution')}</h4>
+                <p className="text-sm text-red-600 dark:text-red-300">{t('actions.save_solution_description')}</p>
               </div>
             </div>
             <SaveToMistakeBookButton problemContent={fullText} analysis={fullText} />
@@ -1986,8 +1986,8 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
                 <FileText className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h4 className="font-medium text-purple-800 dark:text-purple-200">保存智能笔记</h4>
-                <p className="text-sm text-purple-600 dark:text-purple-300">将AI生成的笔记保存到您的笔记本中</p>
+                <h4 className="font-medium text-purple-800 dark:text-purple-200">{t('actions.save_notes')}</h4>
+                <p className="text-sm text-purple-600 dark:text-purple-300">{t('actions.save_notes_description')}</p>
               </div>
             </div>
             <SaveAINoteButton content={fullText} />
@@ -2007,6 +2007,7 @@ function SaveLearningPathButton({ learningPath }: SaveLearningPathButtonProps) {
   const saveLearningPath = useSaveLearningPath();
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const t = useTranslations('AIAssistant');
 
   const handleSave = async () => {
     if (isSaving || isSaved) return;
@@ -2015,8 +2016,8 @@ function SaveLearningPathButton({ learningPath }: SaveLearningPathButtonProps) {
     try {
       await saveLearningPath.mutateAsync({
         learningPath,
-        title: `${learningPath.learningGoal} 学习路径`,
-        description: `基于您的目标"${learningPath.learningGoal}"生成的个性化学习路径`
+        title: `${learningPath.learningGoal} ${t('actions.learning_path_title_suffix')}`,
+        description: t('actions.learning_path_description', { goal: learningPath.learningGoal })
       });
       setIsSaved(true);
     } catch (error) {
@@ -2035,7 +2036,7 @@ function SaveLearningPathButton({ learningPath }: SaveLearningPathButtonProps) {
         disabled
       >
         <CheckCircle className="w-4 h-4 mr-2" />
-        已保存
+        {t('actions.saved')}
       </Button>
     );
   }
@@ -2050,12 +2051,12 @@ function SaveLearningPathButton({ learningPath }: SaveLearningPathButtonProps) {
       {isSaving ? (
         <>
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          保存中...
+          {t('actions.saving')}
         </>
       ) : (
         <>
           <BookOpen className="w-4 h-4 mr-2" />
-          保存到仪表盘
+          {t('actions.save_to_dashboard')}
         </>
       )}
     </Button>
@@ -2071,6 +2072,7 @@ function SaveAINoteButton({ content }: SaveAINoteButtonProps) {
   const saveAINote = useSaveAINote();
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const t = useTranslations('AIAssistant');
 
   const handleSave = async () => {
     if (isSaving || isSaved || !content) return;
@@ -2080,7 +2082,7 @@ function SaveAINoteButton({ content }: SaveAINoteButtonProps) {
       await saveAINote.mutateAsync({
         content,
         aiSummary: content, // 将内容作为AI摘要
-        title: `AI智能笔记 - ${new Date().toLocaleDateString()}`,
+        title: `${t('actions.ai_note_title')} - ${new Date().toLocaleDateString()}`,
         tags: ['ai_generated', 'smart_notes']
       });
       setIsSaved(true);
@@ -2100,7 +2102,7 @@ function SaveAINoteButton({ content }: SaveAINoteButtonProps) {
         disabled
       >
         <CheckCircle className="w-4 h-4 mr-2" />
-        已保存
+        {t('actions.saved')}
       </Button>
     );
   }
@@ -2115,12 +2117,12 @@ function SaveAINoteButton({ content }: SaveAINoteButtonProps) {
       {isSaving ? (
         <>
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          保存中...
+          {t('actions.saving')}
         </>
       ) : (
         <>
           <FileText className="w-4 h-4 mr-2" />
-          保存笔记
+          {t('actions.save_note')}
         </>
       )}
     </Button>
@@ -2137,6 +2139,7 @@ function SaveToMistakeBookButton({ problemContent, analysis }: SaveToMistakeBook
   const saveMistake = useSaveMistake();
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const t = useTranslations('AIAssistant');
 
   const handleSave = async () => {
     if (isSaving || isSaved || !problemContent) return;
@@ -2166,7 +2169,7 @@ function SaveToMistakeBookButton({ problemContent, analysis }: SaveToMistakeBook
         disabled
       >
         <CheckCircle className="w-4 h-4 mr-2" />
-        已保存
+        {t('actions.saved')}
       </Button>
     );
   }
@@ -2181,12 +2184,12 @@ function SaveToMistakeBookButton({ problemContent, analysis }: SaveToMistakeBook
       {isSaving ? (
         <>
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          保存中...
+          {t('actions.saving')}
         </>
       ) : (
         <>
           <BookOpen className="w-4 h-4 mr-2" />
-          保存到错题本
+          {t('actions.save_to_mistake_book')}
         </>
       )}
     </Button>

@@ -16,6 +16,12 @@ const client = createClient({
   throttle: 16, // 60fps
   lostConnectionTimeout: 10000, // 10秒
   backgroundKeepAliveTimeout: 30000, // 30秒
+  // 开发模式下的额外配置
+  ...(process.env.NODE_ENV === 'development' && {
+    polyfills: {
+      fetch: global.fetch,
+    },
+  }),
 });
 
 // ============================================

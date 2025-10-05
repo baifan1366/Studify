@@ -3,5 +3,7 @@
     "i18n",
     "messages"
   ],
-  "i18n-ally.keystyle": "nested"
+  "i18n-ally.keystyle": "nested",
+  "files.encoding": "utf8"
+
 }

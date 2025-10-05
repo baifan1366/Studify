@@ -16,13 +16,16 @@ export async function POST(request: NextRequest) {
   try {
     // 首先检查环境变量
     if (!process.env.LIVEBLOCKS_SECRET_KEY) {
+      console.error('❌ LIVEBLOCKS_SECRET_KEY not configured');
       return NextResponse.json({ 
         error: 'LIVEBLOCKS_SECRET_KEY not configured',
-        details: 'Please set LIVEBLOCKS_SECRET_KEY in your environment variables'
+        details: 'Please set LIVEBLOCKS_SECRET_KEY in your environment variables',
+        hint: 'Get your key from https://liveblocks.io/dashboard/apikeys'
       }, { status: 500 });
     }
 
-    if (!process.env.LIVEBLOCKS_SECRET_KEY.startsWith('sk_')) {
+    if (!process.env.LIVEBLOCKS_SECRET_KEY.startsWith('sk_') && process.env.NODE_ENV !== 'development') {
+      console.error('❌ Invalid LIVEBLOCKS_SECRET_KEY format:', process.env.LIVEBLOCKS_SECRET_KEY?.substring(0, 10) + '...');
       return NextResponse.json({ 
         error: 'Invalid LIVEBLOCKS_SECRET_KEY format',
         details: 'LIVEBLOCKS_SECRET_KEY should start with sk_'
@@ -32,11 +35,32 @@ export async function POST(request: NextRequest) {
     // 验证用户身份
     const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
+      console.error('❌ Liveblocks auth: User authorization failed');
       return authResult;
     }
 
     const { user } = authResult;
-    const { room } = await request.json();
+    
+    // 解析请求体
+    let requestData;
+    try {
+      requestData = await request.json();
+    } catch (error) {
+      console.error('❌ Invalid JSON in request body:', error);
+      return NextResponse.json({ 
+        error: 'Invalid JSON in request body',
+        details: 'Please provide valid JSON with room parameter'
+      }, { status: 400 });
+    }
+
+    const { room } = requestData;
+    
+    if (!room) {
+      return NextResponse.json({ 
+        error: 'Missing room parameter',
+        details: 'Room ID is required for Liveblocks authentication'
+      }, { status: 400 });
+    }
 
     // 解析房间ID获取classroom信息
     // 格式: classroom:slug:type:sessionId 或 classroom:slug:type

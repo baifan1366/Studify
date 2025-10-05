@@ -1335,7 +1335,8 @@
           "select_description": "Click on the feature cards on the left to view detailed introductions and start using the AI assistant",
           "start_experience": "← Select a feature to start",
           "collapsed_description": "Your intelligent learning companion ready to assist with questions, problem-solving, note-taking, and learning paths.",
-          "expand_hint": "Expand to see features"
+          "expand_hint": "Expand to see features",
+          "ai_assistant_title": "AI Assistant"
         },
         "sidebar": {
           "collapse": "Collapse sidebar",
@@ -1429,7 +1430,14 @@
           "solve_failed": "❌ Problem solving failed", 
           "notes_failed": "❌ Note generation failed",
           "path_failed": "❌ Path generation failed",
-          "unknown_error": "Unknown error occurred"
+          "unknown_error": "Unknown error occurred",
+          "unknown": "Unknown error",
+          "empty_analysis": "AI analysis returned empty content",
+          "service_failed": "AI service request failed",
+          "network_error": "Network connection failed, please check your network connection",
+          "empty_learning_path": "Learning path generation returned empty content",
+          "learning_path_failed": "Learning path service request failed",
+          "learning_path_generation_failed": "Learning path generation failed"
         },
         "recommendations": {
           "title": "You might also like",
@@ -1474,6 +1482,20 @@
             "path_title": "Personalized Learning Path",
             "personalized_note": "This learning path is customized based on your personal profile and interests"
           }
+        },
+        "actions": {
+          "save_solution": "Save Solution Process",
+          "save_solution_description": "Save problem and solution analysis to mistake book",
+          "save_notes": "Save Smart Notes",
+          "save_notes_description": "Save AI-generated notes to your notebook",
+          "saved": "Saved",
+          "saving": "Saving...",
+          "save_to_dashboard": "Save to Dashboard",
+          "save_note": "Save Note",
+          "save_to_mistake_book": "Save to Mistake Book",
+          "ai_note_title": "AI Smart Note",
+          "learning_path_title_suffix": "Learning Path",
+          "learning_path_description": "Personalized learning path generated based on your goal \"{goal}\""
         }
       },
       "VideoAIAssistant": {

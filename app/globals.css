@@ -230,7 +230,51 @@ body {
 }
 
 /* ========================= */
-/* 6. Base Layer            */
+/* 6. Safe Area Utilities   */
+/* ========================= */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* ========================= */
+/* Mobile Bottom Tab Bar     */
+/* ========================= */
+/* Removed forced display rules to allow Tailwind md:hidden to work properly */
+
+/* ========================= */
+/* Mobile Classroom Layout   */
+/* ========================= */
+@media (max-width: 767px) {
+  /* Ensure content has bottom padding for bottom tab bar */
+  .classroom-content {
+    padding-bottom: calc(65px + env(safe-area-inset-bottom, 0px));
+  }
+  
+  /* Horizontal scrollable tabs without scrollbar */
+  .scrollable-tabs {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .scrollable-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Touch-friendly button sizing */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Responsive card grids */
+  .card-grid-mobile {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+/* ========================= */
+/* 7. Base Layer            */
 /* ========================= */
 @layer base {
   * {

@@ -585,7 +585,7 @@ export default function RedesiLiveClassroom({
 
   return (
     <div
-      className="relative w-full mb-12"
+      className="relative w-full mb-12 px-2 md:px-0"
       style={{
         paddingBottom: 'calc(env(safe-area-inset-bottom, 100px) + 4.5rem)'
       }}
@@ -597,10 +597,9 @@ export default function RedesiLiveClassroom({
         onConnected={handleConnected}
         onDisconnected={handleDisconnected}
         onError={handleError}
-        className=" bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative"
+        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col relative rounded-lg md:rounded-xl overflow-hidden"
         style={{
-          margin: '0 10px',
-          
+          margin: '0',
         }}
         options={{
           adaptiveStream: true,
@@ -1076,8 +1075,8 @@ function LiveClassroomContent({
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - fixed width, not affected by panel */}
-        <div className="flex-shrink-0">
+        {/* Sidebar - fixed width on desktop, hidden on mobile */}
+        <div className="hidden md:flex flex-shrink-0">
           <Sidebar 
             participants={participants}
             isParticipantsOpen={isParticipantsOpen}
@@ -1092,14 +1091,14 @@ function LiveClassroomContent({
 
         {/* Middle content area - contains video area and panel */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Video Area - fixed height, dynamic width */}
+          {/* Video Area - responsive width and padding */}
           <div 
-            className="relative p-4 z-[10] transition-all duration-300 flex-shrink-0"
+            className="relative p-2 md:p-4 z-[10] transition-all duration-300 flex-shrink-0"
             style={{
               width: (isChatOpen || isWhiteboardOpen) 
-                ? `calc(100% - ${panelWidth}% - 4px)` // Subtract divider width
+                ? window.innerWidth < 768 ? '100%' : `calc(100% - ${panelWidth}% - 4px)` // Full width on mobile
                 : '100%',
-              height: '100%' // Fixed height
+              height: '100%'
             }}
           >
             <VideoArea 
@@ -1118,26 +1117,25 @@ function LiveClassroomContent({
             />
           </div>
 
-          {/* Drag divider */}
+          {/* Drag divider - only on desktop */}
           {(isChatOpen || isWhiteboardOpen) && (
             <div
-              className={`w-1 bg-slate-600/20 hover:bg-slate-500/40 cursor-col-resize z-[15] flex-shrink-0 ${
+              className={`hidden md:block w-1 bg-slate-600/20 hover:bg-slate-500/40 cursor-col-resize z-[15] flex-shrink-0 ${
                 isResizing ? 'bg-slate-400/60' : ''
               } transition-colors`}
               onMouseDown={handleMouseDown}
             />
           )}
 
-          {/* Right Panel Container - fixed height, adaptive width */}
+          {/* Right Panel Container - full screen on mobile, side panel on desktop */}
           {(isChatOpen || isWhiteboardOpen) && (
             <div 
-              className="panel-container relative transition-all duration-300 flex-shrink-0 overflow-hidden"
+              className="panel-container fixed md:relative inset-0 md:inset-auto transition-all duration-300 flex-shrink-0 overflow-hidden bg-slate-900 md:bg-transparent z-50 md:z-10"
               style={{ 
-                width: `${panelWidth}%`,
+                width: window.innerWidth < 768 ? '100%' : `${panelWidth}%`,
                 height: '100%',
-                minWidth: '200px', 
-                maxWidth: '600px',
-                zIndex: 10,
+                minWidth: window.innerWidth < 768 ? 'auto' : '200px', 
+                maxWidth: window.innerWidth < 768 ? 'none' : '600px',
                 flexShrink: 0,
                 overflow: 'hidden'
               }}
@@ -1316,41 +1314,43 @@ function EnhancedParticipantsList({ participants }: any) {
 function Header({ isConnected, participantCount, sessionDuration, formatDuration, isRecording, userRole, layout, setLayout }: any) {
   return (
     <motion.header 
-      className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4"
+      className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-3 md:px-6 py-2 md:py-4"
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         {/* Status & Info */}
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-3">
-            <div className={`w-2.5 h-2.5 rounded-full ${
+        <div className="flex items-center space-x-2 md:space-x-6 flex-1 min-w-0">
+          <div className="flex items-center space-x-1.5 md:space-x-3">
+            <div className={`w-2 h-2 md:w-2.5 md:h-2.5 rounded-full ${
               isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
             }`} />
-            <h1 className="text-xl font-semibold text-white">Live Classroom</h1>
+            <h1 className="text-sm md:text-xl font-semibold text-white truncate">Live</h1>
           </div>
           
-          <div className="flex items-center space-x-4 text-sm text-slate-300">
-            <div className="flex items-center space-x-1.5">
-              <Users className="w-4 h-4" />
+          <div className="flex items-center space-x-2 md:space-x-4 text-xs md:text-sm text-slate-300">
+            <div className="flex items-center space-x-1">
+              <Users className="w-3 h-3 md:w-4 md:h-4" />
               <span>{participantCount}</span>
             </div>
-            <div className="flex items-center space-x-1.5">
-              <Clock className="w-4 h-4" />
+            <div className="hidden sm:flex items-center space-x-1">
+              <Clock className="w-3 h-3 md:w-4 md:h-4" />
               <span>{formatDuration(sessionDuration)}</span>
             </div>
             {isRecording && (
-              <div className="flex items-center space-x-1.5 bg-red-500/20 px-2 py-1 rounded-full border border-red-400/30">
-                <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
-                <span className="text-red-300 text-xs font-medium">REC</span>
+              <div className="flex items-center space-x-1 bg-red-500/20 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full border border-red-400/30">
+                <div className="w-1 h-1 md:w-1.5 md:h-1.5 bg-red-400 rounded-full animate-pulse" />
+                <span className="text-red-300 text-[10px] md:text-xs font-medium">REC</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Layout Controls */}
-        <LayoutControls layout={layout} setLayout={setLayout} />
+        {/* Layout Controls - hidden on mobile */}
+        <div className="hidden md:block">
+          <LayoutControls layout={layout} setLayout={setLayout} />
+        </div>
       </div>
     </motion.header>
   );

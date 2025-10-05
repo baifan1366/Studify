@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -343,7 +343,30 @@ export default function AnimatedSidebar({
       (route) => route.pathFragment && currentPath.includes(route.pathFragment)
     );
 
-    setCurrentActiveItem(activeRoute?.id || activeItem);
+    // 🎯 Improved mobile nav highlighting logic
+    if (window.innerWidth < 768 && activeRoute) {
+      // Check if current active route exists in mobile nav items
+      const isDirectlyInMobileNav = mobileNavItems.some(item => item.id === activeRoute.id);
+      
+      if (!isDirectlyInMobileNav) {
+        // Find parent item in mobile nav based on the route's parent
+        const parentId = activeRoute.expands;
+        
+        if (parentId === 'classroom') {
+          // Sub-pages of classroom should highlight "my-classrooms"
+          setCurrentActiveItem('my-classrooms');
+        } else if (parentId === 'courses') {
+          // Sub-pages of courses should highlight "all-courses"
+          setCurrentActiveItem('all-courses');
+        } else {
+          setCurrentActiveItem(activeRoute.id);
+        }
+      } else {
+        setCurrentActiveItem(activeRoute.id);
+      }
+    } else {
+      setCurrentActiveItem(activeRoute?.id || activeItem);
+    }
 
     if (activeRoute && typeof activeRoute.expands === "string") {
       setExpandedSections((prev) => ({
@@ -366,16 +389,31 @@ export default function AnimatedSidebar({
   // Determine if sidebar should be expanded (permanently or temporarily via hover)
   const isExpanded = isPermanentlyExpanded || isHovered;
 
-  // Notify parent of expansion state changes and set CSS variable for content positioning
-  useEffect(() => {
-    onExpansionChange?.(isExpanded);
-    // Set CSS variable for precise content positioning
-    const sidebarWidth = isExpanded ? 280 : 80;
+  // ✅ Create stable updateSidebarWidth function using useCallback
+  const updateSidebarWidth = useCallback(() => {
+    const isMobile = window.innerWidth < 768;
+    const sidebarWidth = isMobile ? 0 : (isExpanded ? 280 : 80);
     document.documentElement.style.setProperty(
       "--sidebar-width",
       `${sidebarWidth}px`
     );
-  }, [isExpanded, onExpansionChange]);
+  }, [isExpanded]);
+
+  // 🎯 First useEffect: Update on expansion change
+  useEffect(() => {
+    onExpansionChange?.(isExpanded);
+    updateSidebarWidth();
+  }, [isExpanded, onExpansionChange, updateSidebarWidth]);
+
+  // 🎯 Second useEffect: Manage resize listener (runs once)
+  useEffect(() => {
+    window.addEventListener('resize', updateSidebarWidth);
+    
+    return () => {
+      window.removeEventListener('resize', updateSidebarWidth);
+    };
+  }, [updateSidebarWidth]);
+
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -495,22 +533,35 @@ export default function AnimatedSidebar({
     }));
   };
 
+  // Define primary navigation items for mobile bottom bar
+  // Use the same IDs as the desktop sidebar sub-items to ensure proper navigation
+  const mobileNavItems = [
+    { id: "home", label: "Home", icon: Home, path: "/home" },
+    { id: "all-courses", label: "Courses", icon: GraduationCap, path: "/courses" }, // Maps to "All Courses"
+    { id: "my-classrooms", label: "Classroom", icon: Presentation, path: "/classroom" }, // Maps to "My Classrooms"
+    { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, path: "/dashboard" },
+  ];
+
   const handleItemClick = (itemId: string) => {
     setCurrentActiveItem(itemId);
 
-    // Find the menu item to get its path (including sub-items)
-    const allItems = menuSections.flatMap((section) =>
-      section.items.flatMap((item) =>
-        item.subItems ? [item, ...item.subItems] : [item]
-      )
-    );
+    // Find the menu item to get its path (including sub-items and mobile nav items)
+    const allItems = [
+      ...menuSections.flatMap((section) =>
+        section.items.flatMap((item) =>
+          item.subItems ? [item, ...item.subItems] : [item]
+        )
+      ),
+      ...mobileNavItems
+    ];
     const clickedItem = allItems.find((item) => item.id === itemId);
 
     if (clickedItem?.path) {
       // Get current locale from pathname
       const currentLocale = pathname?.split("/")[1] || "en";
       const fullPath = `/${currentLocale}${clickedItem.path}`;
-
+      
       // Navigate to the page
       router.push(fullPath);
     }
@@ -521,13 +572,14 @@ export default function AnimatedSidebar({
     }
   };
 
+
   return (
     <>
-      {/* Sidebar */}
+      {/* Desktop Sidebar - Hidden on mobile with CSS */}
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? "expanded" : "collapsed"}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md overflow-hidden"
+        className="hidden md:flex fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex-col backdrop-blur-md overflow-hidden"
         style={{
           backgroundColor: "hsl(var(--sidebar))",
           color: "hsl(var(--sidebar-foreground))",
@@ -861,6 +913,70 @@ export default function AnimatedSidebar({
           </motion.button>
         </div>
       </motion.div>
+
+      {/* Mobile Bottom Tab Bar - Only visible on mobile with CSS */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[9999] shadow-2xl border-t"
+        style={{
+          backgroundColor: "hsl(var(--sidebar))",
+          color: "hsl(var(--sidebar-foreground))",
+          borderColor: "hsl(var(--border))",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)", // ✅ Apply safe area to outer container
+        }}
+      >
+          <nav className="flex items-center justify-around px-2 py-3" style={{ minHeight: "60px" }}>
+          {mobileNavItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = currentActiveItem === item.id;
+
+            return (
+              <motion.button
+                key={item.id}
+                onClick={() => handleItemClick(item.id)}
+                className="flex flex-col items-center justify-center flex-1 gap-1 py-2 px-1 rounded-lg transition-colors relative"
+                whileTap={{ scale: 0.9 }}
+              >
+                <motion.div
+                  animate={{
+                    scale: isActive ? 1.1 : 1,
+                    y: isActive ? -2 : 0,
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  className={`relative ${
+                    isActive
+                      ? "text-orange-500 dark:text-green-500"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  <IconComponent size={22} />
+                  {isActive && (
+                    <motion.div
+                      layoutId="mobileActiveIndicator"
+                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-500 dark:bg-green-500 rounded-full"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                </motion.div>
+                <span
+                  className={`text-xs font-medium transition-colors ${
+                    isActive
+                      ? "text-orange-500 dark:text-green-500"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {getLabelForItem(item.id)}
+                </span>
+              </motion.button>
+            );
+          })}
+        </nav>
+      </div>
     </>
   );
 }

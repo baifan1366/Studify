@@ -97,9 +97,31 @@ export class StudifyLangChain {
     // Step 1: Load document(s)
     let documents: Document[];
     if (typeof source === 'string') {
-      if (source.startsWith('http')) {
+      // Check if source is a URL
+      if (source.startsWith('http://') || source.startsWith('https://')) {
         documents = await loadWebPage(source);
-      } else {
+      } 
+      // Check if source is a data URI or looks like content rather than a file path
+      else if (
+        source.startsWith('data:') || 
+        source.length > 500 || 
+        !source.includes('.') || 
+        source.includes('\n') ||
+        source.includes(' ')
+      ) {
+        // Treat as direct content, not a file path
+        documents = [{
+          pageContent: source,
+          metadata: {
+            source: 'direct-content',
+            contentType: 'text/plain',
+            contentLength: source.length,
+            timestamp: new Date().toISOString()
+          }
+        }];
+      } 
+      // Otherwise, try to load as a file
+      else {
         // Try to determine file type and load accordingly
         const ext = source.split('.').pop()?.toLowerCase();
         switch (ext) {
@@ -196,7 +218,7 @@ export class StudifyLangChain {
    */
   async analyzeDocument(
     source: string | Document,
-    analysisType: 'summary' | 'topics' | 'questions' | 'custom',
+    analysisType: 'summary' | 'topics' | 'questions' | 'custom' | 'problem_solving',
     customPrompt?: string
   ): Promise<any> {
     // Process document
@@ -236,6 +258,20 @@ ${fullText}
 
 Generate 5-10 questions in JSON format:`;
         parser = new StructuredOutputParser(CommonSchemas.quiz);
+        break;
+
+      case 'problem_solving':
+        prompt = `Analyze and solve the problem presented in the following content. Provide:
+1. Problem understanding and clarification
+2. Step-by-step solution approach
+3. Detailed solution with explanations
+4. Alternative approaches if applicable
+5. Key concepts and learning points
+
+Content:
+${fullText}
+
+Solution:`;
         break;
 
       case 'custom':
@@ -555,7 +591,7 @@ export const langchain = StudifyLangChain.getInstance();
  */
 export async function analyzeDocument(
   source: string | Document,
-  type: 'summary' | 'topics' | 'questions' = 'summary'
+  type: 'summary' | 'topics' | 'questions' | 'problem_solving' = 'summary'
 ) {
   return langchain.analyzeDocument(source, type);
 }

@@ -18,6 +18,7 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
       // Check if we have OAuth callback parameters
       const code = searchParams.get('code');
       const error = searchParams.get('error');
+      const type = searchParams.get('type');
 
       if (error) {
         console.error('OAuth error:', error);
@@ -26,10 +27,36 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
 
       if (code && !isProcessing) {
         setIsProcessing(true);
-        console.log('Processing OAuth callback with code:', code);
+        console.log('Processing OAuth/Email callback with code:', code);
 
         try {
-          // Wait for auth state change from Supabase
+          // Check if this is an email confirmation (type=signup or type=recovery)
+          // or if we're already on sign-in page (email confirmation links redirect here)
+          const isEmailConfirmation = type === 'signup' || type === 'recovery' || window.location.pathname.includes('/sign-in');
+          
+          if (isEmailConfirmation) {
+            // For email confirmations, redirect to the callback API route
+            // which will handle exchangeCodeForSession on the server
+            console.log('Email confirmation detected, redirecting to callback API...');
+            const callbackUrl = new URL('/api/auth/callback', window.location.origin);
+            callbackUrl.searchParams.set('code', code);
+            if (type) callbackUrl.searchParams.set('type', type);
+            
+            // Preserve the next parameter if it exists
+            const next = searchParams.get('next');
+            if (next) {
+              callbackUrl.searchParams.set('next', next);
+            } else {
+              // Set default next path based on locale
+              callbackUrl.searchParams.set('next', `/${locale}/home`);
+            }
+            
+            console.log('Redirecting to:', callbackUrl.toString());
+            window.location.href = callbackUrl.toString();
+            return;
+          }
+
+          // For OAuth logins (Google, etc.), wait for auth state change
           const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
               console.log('Auth state change:', event);

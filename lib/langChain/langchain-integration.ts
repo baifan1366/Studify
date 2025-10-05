@@ -97,9 +97,31 @@ export class StudifyLangChain {
     // Step 1: Load document(s)
     let documents: Document[];
     if (typeof source === 'string') {
-      if (source.startsWith('http')) {
+      // Check if source is a URL
+      if (source.startsWith('http://') || source.startsWith('https://')) {
         documents = await loadWebPage(source);
-      } else {
+      } 
+      // Check if source is a data URI or looks like content rather than a file path
+      else if (
+        source.startsWith('data:') || 
+        source.length > 500 || 
+        !source.includes('.') || 
+        source.includes('\n') ||
+        source.includes(' ')
+      ) {
+        // Treat as direct content, not a file path
+        documents = [{
+          pageContent: source,
+          metadata: {
+            source: 'direct-content',
+            contentType: 'text/plain',
+            contentLength: source.length,
+            timestamp: new Date().toISOString()
+          }
+        }];
+      } 
+      // Otherwise, try to load as a file
+      else {
         // Try to determine file type and load accordingly
         const ext = source.split('.').pop()?.toLowerCase();
         switch (ext) {

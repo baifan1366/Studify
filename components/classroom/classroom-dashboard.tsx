@@ -273,16 +273,16 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{classroom.name}</h1>
-            <p className="text-muted-foreground mt-1">
+      <div className="mb-6 md:mb-8">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{classroom.name}</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
               {classroom.description || t('no_description')}
             </p>
-            <div className="flex items-center gap-4 mt-4">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-3 md:mt-4">
               <Badge variant={classroom.visibility === 'public' ? 'default' : 'secondary'}>
                 {classroom.visibility}
               </Badge>
@@ -297,16 +297,16 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             </div>
           </div>
           {isOwnerOrTutor && (
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               <Button
                 variant="outline"
                 onClick={handleCopyClassCode}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 text-sm"
               >
                 <Copy className="h-4 w-4" />
-                {t('class_code')}: {classroom.class_code}
+                <span className="truncate">{t('class_code')}: {classroom.class_code}</span>
               </Button>
-              <Button variant="outline" onClick={() => navigateToSection('members')}>
+              <Button variant="outline" onClick={() => navigateToSection('members')} className="text-sm">
                 <Settings className="h-4 w-4 mr-2" />
                 {t('manage')}
               </Button>
@@ -333,7 +333,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         ease: "easeInOut",
       }
     }}
-    className="mb-6 relative"
+    className="mb-4 md:mb-6 relative"
   >
     {/* Intensified Ripple Animation Container */}
     <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
@@ -489,49 +489,49 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     </motion.div>
 )}
 
-      <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-6">
+      <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
         <div ref={tabsContainerRef}>
-          <div className="relative">
-          <TabsList className="relative border-b border-gray-100/10 bg-transparent p-0 h-auto w-full justify-start">
+          <div className="relative -mx-4 md:mx-0">
+          <TabsList className="relative border-b border-gray-100/10 bg-transparent p-0 h-auto w-full justify-start overflow-x-auto overflow-y-hidden scrollbar-hide px-4 md:px-0">
             <AnimatedTabsTrigger 
               value="overview" 
               isActive={activeTab === 'overview'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
             >
               {t('overview')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="recent" 
               isActive={activeTab === 'recent'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
             >
               {t('recent_activity')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="members" 
               isActive={activeTab === 'members'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
             >
               {t('members')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="live-sessions" 
               isActive={activeTab === 'live-sessions'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
             >
               {t('schedule')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="assignments" 
               isActive={activeTab === 'assignments'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
             >
               {t('assignments')}
             </AnimatedTabsTrigger>
             <AnimatedTabsTrigger 
               value="quizzes" 
               isActive={activeTab === 'quizzes'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
             >
               {t('quizzes')}
             </AnimatedTabsTrigger>
@@ -545,9 +545,9 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           </TabsList>
         </div>
 
-        <AnimatedTabsContent value="overview" className="space-y-6">
+        <AnimatedTabsContent value="overview" className="space-y-4 md:space-y-6">
           {/* Quick Actions */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('members')}
@@ -631,9 +631,9 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               </CardContent>
             </Card>
           </div>
-          <div className="py-4"></div>
+          <div className="py-2 md:py-4"></div>
           {/* Main Content Grid */}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
             {/* Upcoming Sessions */}
             <Card 
               style={{

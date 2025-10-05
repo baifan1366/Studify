@@ -39,8 +39,13 @@ const getSiteInfo = () => {
     ? "http://localhost:3000" 
     : "https://studify-platform.vercel.app";
     
+  // 在开发环境中，优先使用 localhost
+  const siteUrl = isDevelopment 
+    ? "http://localhost:3000"
+    : (process.env.NEXT_PUBLIC_SITE_URL || defaultUrl);
+    
   return {
-    siteUrl: process.env.NEXT_PUBLIC_SITE_URL || defaultUrl,
+    siteUrl,
     siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Studify",
   };
 };

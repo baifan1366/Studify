@@ -73,7 +73,7 @@ export function ClassroomListPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
         </div>
@@ -83,7 +83,7 @@ export function ClassroomListPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
         <div className="text-center text-red-600">
           <p>Failed to load classrooms. Please try again later.</p>
         </div>
@@ -94,18 +94,18 @@ export function ClassroomListPage() {
   const classrooms: Classroom[] = classroomsData?.classrooms || [];
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('my_classrooms')}</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t('my_classrooms')}</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
             {t('manage_classrooms_description')}
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-4 w-full md:w-auto">
           <Dialog open={isJoinDialogOpen} onOpenChange={setIsJoinDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <Users className="mr-2 h-4 w-4" />
                 {t('join_classroom')}
               </Button>
@@ -138,7 +138,7 @@ export function ClassroomListPage() {
               </div>
             </DialogContent>
           </Dialog>
-          <Button onClick={handleCreateClassroom}>
+          <Button onClick={handleCreateClassroom} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             {t('create_classroom')}
           </Button>
@@ -146,25 +146,25 @@ export function ClassroomListPage() {
       </div>
 
       {classrooms.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-8 md:py-12">
           <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-semibold">{t('no_classrooms_yet')}</h3>
-          <p className="text-muted-foreground">
+          <h3 className="mt-4 text-base md:text-lg font-semibold">{t('no_classrooms_yet')}</h3>
+          <p className="text-sm md:text-base text-muted-foreground">
             {t('create_or_join_description')}
           </p>
-          <div className="mt-6 flex justify-center gap-4">
-            <Button onClick={handleCreateClassroom}>
+          <div className="mt-6 flex flex-col sm:flex-row justify-center gap-2 md:gap-4 px-4 sm:px-0">
+            <Button onClick={handleCreateClassroom} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               {t('create_classroom')}
             </Button>
-            <Button variant="outline" onClick={() => setIsJoinDialogOpen(true)}>
+            <Button variant="outline" onClick={() => setIsJoinDialogOpen(true)} className="w-full sm:w-auto">
               <Users className="mr-2 h-4 w-4" />
               {t('join_classroom')}
             </Button>
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {classrooms.map((classroom) => {
             // Get the classroom color, fallback to palette color based on ID
             const classroomColor = (classroom.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
@@ -177,7 +177,7 @@ export function ClassroomListPage() {
             return (
               <Card 
                 key={classroom.id} 
-                className="cursor-pointer backdrop-blur-md transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
+                className="cursor-pointer backdrop-blur-md transition-all duration-200 hover:scale-[1.01] md:hover:scale-[1.02] hover:shadow-xl touch-target"
                 onClick={() => handleClassroomClick(classroom)}
                 style={{
                   backgroundColor: cardStyling.backgroundColor,
@@ -194,21 +194,21 @@ export function ClassroomListPage() {
                   target.style.backgroundColor = cardStyling.backgroundColor;
                 }}
               >
-              <CardHeader>
-                <div className="flex justify-between items-start">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start gap-2">
                   <div>
-                    <CardTitle className="text-lg">{classroom.name}</CardTitle>
-                    <CardDescription className="mt-1">
+                    <CardTitle className="text-base md:text-lg line-clamp-1">{classroom.name}</CardTitle>
+                    <CardDescription className="mt-1 text-xs md:text-sm line-clamp-2">
                       {classroom.description || t('no_description')}
                     </CardDescription>
                   </div>
-                  <Badge variant={classroom.visibility === 'public' ? 'default' : 'secondary'}>
+                  <Badge variant={classroom.visibility === 'public' ? 'default' : 'secondary'} className="flex-shrink-0 text-xs">
                     {classroom.visibility}
                   </Badge>
                 </div>
               </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <CardContent className="pt-3">
+                  <div className="flex justify-between items-center text-xs md:text-sm text-muted-foreground">
                     <div className="flex items-center">
                       <Users className="mr-1 h-4 w-4" />
                       {t('members_count', { count: classroom.member_count })}
@@ -219,7 +219,7 @@ export function ClassroomListPage() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-2 md:mt-3 space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center">
                         <Calendar className="mr-1 h-3 w-3" />

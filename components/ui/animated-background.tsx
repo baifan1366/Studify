@@ -92,7 +92,7 @@ export default function AnimatedBackground({
   const themeColors = getThemeColors();
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden ${className}`} style={{ backgroundColor: themeColors.backgroundColor }}>
+    <div className={`relative w-full h-screen overflow-x-hidden ${className}`} style={{ backgroundColor: themeColors.backgroundColor }}>
       {/* Animated Orange Gradient Sphere - GPU optimized */}
       {enableMouseTracking && (
         <motion.div

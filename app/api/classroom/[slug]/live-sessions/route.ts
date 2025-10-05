@@ -112,9 +112,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    // Generate slug for the session (using classroom slug + timestamp)
-    const sessionSlug = `${slug}-${Date.now()}`;
-
+    // Use the classroom's slug for the foreign key reference
     // 创建直播课程
     const { data: liveSession, error: sessionError } = await supabase
       .from('classroom_live_session')
@@ -125,7 +123,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         starts_at: startTime.toISOString(),
         ends_at: endTime?.toISOString() || null,
         status: 'scheduled',
-        slug: sessionSlug,
+        slug: slug,
       })
       .select(`
         id,
@@ -136,7 +134,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         host_id,
         starts_at,
         ends_at,
-        status,
         created_at,
         updated_at
       `)
@@ -145,7 +142,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (sessionError) {
       console.error('Error creating live session:', sessionError);
       return NextResponse.json(
-        { error: 'Failed to create live session' },
+        { 
+          error: 'Failed to create live session',
+          details: sessionError.message,
+          code: sessionError.code
+        },
         { status: 500 }
       );
     }

@@ -391,7 +391,7 @@ Please format your response as JSON:
     try {
       const llm = await getLLM({
         temperature: 0.3,
-        model: 'x-ai/grok-4-fast:free'
+        model: 'deepseek/deepseek-chat-v3.1:free'
       });
       
       const enhancementResponse = await llm.invoke([new HumanMessage(enhancementPrompt)]);
@@ -474,7 +474,7 @@ ${includeSourceReferences ? 'Include references to context sources using [1], [2
     try {
       const llm = await getAnalyticalLLM({
         temperature: 0.2,
-        model: 'x-ai/grok-4-fast:free'
+        model: 'deepseek/deepseek-chat-v3.1:free'
       });
       
       const response = await llm.invoke([new HumanMessage(answerPrompt)]);

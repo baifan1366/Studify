@@ -120,7 +120,7 @@ export class AISummarySystem {
         meta: {
           itemCount: posts.length,
           processingTimeMs: processingTime,
-          model: 'x-ai/grok-4-fast:free',
+          model: 'deepseek/deepseek-chat-v3.1:free',
           locale: opts.locale
         }
       };
@@ -197,7 +197,7 @@ export class AISummarySystem {
         meta: {
           itemCount: 1,
           processingTimeMs: processingTime,
-          model: 'x-ai/grok-4-fast:free',
+          model: 'deepseek/deepseek-chat-v3.1:free',
           locale: opts.locale
         }
       };
@@ -224,7 +224,7 @@ export class AISummarySystem {
   }>> {
     const llm = await getAnalyticalLLM({
       temperature: 0.1,
-      model: 'x-ai/grok-4-fast:free'
+      model: 'deepseek/deepseek-chat-v3.1:free'
     });
 
     const mapPrompt = this.getMapPrompt(query, options.locale);
@@ -298,7 +298,7 @@ export class AISummarySystem {
   }> {
     const llm = await getLongContextLLM({
       temperature: 0.2,
-      model: 'x-ai/grok-4-fast:free'
+      model: 'deepseek/deepseek-chat-v3.1:free'
     });
 
     // Combine all key points
@@ -333,7 +333,7 @@ export class AISummarySystem {
   }> {
     const llm = await getAnalyticalLLM({
       temperature: 0.1,
-      model: 'x-ai/grok-4-fast:free'
+      model: 'deepseek/deepseek-chat-v3.1:free'
     });
 
     const singlePostPrompt = this.getSinglePostPrompt(content, options);

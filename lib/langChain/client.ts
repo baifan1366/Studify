@@ -19,9 +19,9 @@ export interface GrokConfig {
 
 // 默认配置
 const DEFAULT_GROK_CONFIG: GrokConfig = {
-  model: "x-ai/grok-4-fast:free",
+  model: "deepseek/deepseek-chat-v3.1:free",
   temperature: 0.3,
-  maxTokens: 4096, // Grok-4支持最大2M tokens，但实际使用建议4K-8K
+  maxTokens: 4096, // DeepSeek支持最大64K tokens，但实际使用建议4K-8K
   topP: 1.0,
   frequencyPenalty: 0,
   presencePenalty: 0,
@@ -115,24 +115,24 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
 }
 
 /**
- * 获取推理模式的Grok-4实例（更强的推理能力，但成本更高）
+ * 获取推理模式的DeepSeek实例（更强的推理能力，但成本更高）
  */
 export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
     enableReasoning: true,
     temperature: 0.1, // 推理模式使用更低的温度
-    model: "x-ai/grok-4-fast:free", // 或使用付费版本获得更好性能
+    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
   });
 }
 
 /**
- * 获取创意写作专用的Grok-4实例
+ * 获取创意写作专用的DeepSeek实例
  */
 export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
+    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -141,12 +141,12 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
 }
 
 /**
- * 获取分析专用的Grok-4实例
+ * 获取分析专用的DeepSeek实例
  */
 export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
+    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
     enableReasoning: true, // 启用推理提升分析质量
@@ -154,14 +154,26 @@ export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
 }
 
 /**
- * 获取大上下文窗口的Grok-4实例（用于长文档处理）
+ * 获取大上下文窗口的DeepSeek实例（用于长文档处理）
  */
 export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
+    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
+  });
+}
+
+/**
+ * 获取视觉模型实例（用于图文理解）- 使用Kimi VL模型
+ */
+export function getVisionLLM(config: Partial<GrokConfig> = {}) {
+  return getLLM({
+    ...config,
+    model: "moonshotai/kimi-vl-a3b-thinking:free", // 使用Kimi视觉模型
+    temperature: 0.3,
+    maxTokens: 4096,
   });
 }
 

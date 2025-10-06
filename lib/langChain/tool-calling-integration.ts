@@ -14,7 +14,7 @@ import {
 
 // Re-export TOOL_CATEGORIES for external use
 export { TOOL_CATEGORIES };
-import { getLLM, getReasoningLLM } from './client';
+import { getLLM, getReasoningLLM, getVisionLLM } from './client';
 import { aiWorkflowExecutor } from './ai-workflow';
 
 // === TOOL CALLING CONFIGURATION ===
@@ -59,7 +59,7 @@ export class StudifyToolCallingAgent {
 
   constructor(config: ToolCallingConfig = {}) {
     this.config = {
-      model: "x-ai/grok-4-fast:free",
+      model: "deepseek/deepseek-chat-v3.1:free",
       temperature: 0.3,
       enabledTools: 'all',
       maxIterations: 10,
@@ -461,11 +461,14 @@ Please provide a contextually appropriate response considering our previous conv
     toolsUsed: string[];
     executionTime: number;
   }> {
+    // 判断是否需要使用视觉模型（针对图片分析）
+    const isImageAnalysis = analysisType === 'problem_solving' && content.startsWith('data:image/');
+    
     const config: ToolCallingConfig = {
       toolCategories: ['CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
       userId: options.userId,
       verbose: true, // Enable verbose logging
-      model: "gpt-4o-mini", // Use a model that definitely supports function calling
+      model: isImageAnalysis ? "moonshotai/kimi-vl-a3b-thinking:free" : "deepseek/deepseek-chat-v3.1:free", // 图片分析使用Kimi VL，其他使用DeepSeek
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For course content analysis:

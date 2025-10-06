@@ -3368,6 +3368,7 @@
     "page_title": "Banned List"
   },
   "AdminUsersList": {
+    "not_provided": "Not Provided",
     "page_title": "User Management",
     "page_description": "Manage all users in your system",
     "promote_to_admin": "Promote to Admin",

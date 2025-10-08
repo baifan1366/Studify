@@ -16,6 +16,7 @@ export interface Conversation {
     content: string;
     timestamp: string;
     isFromMe: boolean;
+    isDeleted?: boolean;
   } | null;
   unreadCount: number;
   // Group-specific fields

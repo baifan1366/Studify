@@ -87,7 +87,8 @@ export async function GET(request: NextRequest) {
           content,
           sender_id,
           created_at,
-          message_type
+          message_type,
+          is_deleted
         )
       `)
       .eq('is_deleted', false)
@@ -211,6 +212,7 @@ export async function GET(request: NextRequest) {
           content: lastMessage.content,
           timestamp: lastMessage.created_at,
           isFromMe: lastMessage.sender_id === profile.id,
+          isDeleted: lastMessage.is_deleted || false,
         } : null,
         unreadCount: 0, // TODO: Implement unread count logic
       };

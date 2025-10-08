@@ -90,12 +90,16 @@ interface Conversation {
     content: string;
     timestamp: string;
     isFromMe: boolean;
-  };
+    isDeleted?: boolean;
+  } | null;
   unreadCount: number;
   type: 'direct' | 'group';
+  memberCount?: number;
+  description?: string;
 }
 
 export function ChatDashboard() {
+  const t = useTranslations('MessageBubble');
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -537,7 +541,11 @@ export function ChatDashboard() {
                         {conversation.lastMessage ? (
                           <>
                             {conversation.lastMessage.isFromMe && 'You: '}
-                            {conversation.lastMessage.content}
+                            {conversation.lastMessage.isDeleted ? (
+                              <span className="italic">{t('message_deleted')}</span>
+                            ) : (
+                              conversation.lastMessage.content
+                            )}
                           </>
                         ) : conversation.type === 'group' && conversation.description ? (
                           conversation.description

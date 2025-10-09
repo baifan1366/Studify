@@ -80,7 +80,7 @@ export default function CompactRecommendations({
       )}
 
       {/* Recommendations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-hidden break-words w-full">
         {recommendations.recommendations.slice(0, limit).map((post, index) => (
           <motion.div
             key={post.id}
@@ -100,7 +100,8 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
   const t = useTranslations('CompactRecommendations');
   
   return (
-    <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-200 group h-full">
+    <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-200 group h-full w-full max-w-full overflow-hidden">
+
       <CardContent className="p-4 flex flex-col justify-between h-full">
         {/* Score Badge */}
         <div className="flex items-center justify-between mb-3">

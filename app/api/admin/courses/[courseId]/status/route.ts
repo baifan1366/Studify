@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { Receiver } from "@upstash/qstash";
+import { authorize } from '@/utils/auth/server-guard';
 
 // PATCH /api/admin/courses/[courseId]/status - admin update course status (including ban)
 export async function PATCH(
@@ -7,7 +9,41 @@ export async function PATCH(
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const body = await req.json();
+    // Check if this is a QStash webhook call
+    const isBanExpiration = req.headers.get("X-Ban-Expiration") === "true";
+    const qstashSignature = req.headers.get("Upstash-Signature");
+    
+    // Read body once
+    const bodyText = await req.text();
+    const body = JSON.parse(bodyText);
+    
+    // Verify QStash signature if it's from QStash
+    if (qstashSignature && process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY) {
+      try {
+        const receiver = new Receiver({
+          currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
+          nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY,
+        });
+
+        await receiver.verify({
+          body: bodyText,
+          signature: qstashSignature,
+        });
+        
+        console.log("✅ QStash signature verified successfully for ban expiration");
+      } catch (error) {
+        console.error("❌ QStash signature verification failed:", error);
+        return NextResponse.json({ error: "Invalid QStash signature" }, { status: 401 });
+      }
+    } 
+    // If not from QStash, require admin authorization
+    else if (!isBanExpiration) {
+      const authResult = await authorize('admin');
+      if (authResult instanceof NextResponse) {
+        return authResult;
+      }
+    }
+
     const client = await createServerClient();
     
     // Parse courseId from URL parameter (Next.js params are always strings)
@@ -56,9 +92,15 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Log if this was an automatic ban expiration reversion
+    if (isBanExpiration && status === 'inactive') {
+      const banId = req.headers.get("X-Ban-Id");
+      console.log(`✅ Automatic course status reversion completed for course ${courseId} (ban ${banId} expired)`);
+    }
+
     return NextResponse.json({ 
       data,
-      message: `Course status updated to ${status}` 
+      message: `Course status updated to ${status}${isBanExpiration ? ' (automatic ban expiration)' : ''}` 
     });
 
   } catch (e: any) {

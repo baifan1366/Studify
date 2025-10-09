@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import Link from "next/link";
 import { useTranslations } from 'next-intl';
 import { useResendVerification } from "@/hooks/profile/use-auth";
@@ -8,7 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Mail, Clock } from "lucide-react";
 
-export default function VerifyEmailPage({ params }: { params: { locale: string } }) {
+export default function VerifyEmailPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = use(params);
   const t = useTranslations('VerifyEmailPage');
   const [email, setEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
@@ -45,7 +46,7 @@ export default function VerifyEmailPage({ params }: { params: { locale: string }
       // Pass locale to the hook
       await resendMutation.mutateAsync({ 
         email, 
-        locale: params.locale 
+        locale 
       });
       
       toast({
@@ -161,7 +162,7 @@ export default function VerifyEmailPage({ params }: { params: { locale: string }
         {/* Sign In Link */}
         <p className="text-sm text-[#555] dark:text-[#E5E7EB]">
           {t('already_confirmed')}{" "}
-          <Link href={`/${params.locale}/sign-in`} className="text-[#FF6B00] hover:text-[#E05E00] font-medium transition-colors">
+          <Link href={`/${locale}/sign-in`} className="text-[#FF6B00] hover:text-[#E05E00] font-medium transition-colors">
             {t('sign_in_link')}
           </Link>
         </p>

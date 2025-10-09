@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 as Spinner, UploadCloud, X } from "lucide-react";
+import { Loader2 as Spinner, UploadCloud, X, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDropzone } from "react-dropzone";
 import { useDebounce } from "use-debounce";
@@ -249,12 +249,30 @@ export function NewPostForm({
 
           {/* Hashtag Section */}
           <div className="space-y-2 pt-2">
-            <label
-              htmlFor="hashtags"
-              className="text-sm font-medium text-gray-300"
-            >
-              {t("hashtags_label")}
-            </label>
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="hashtags"
+                className="text-sm font-medium text-gray-300"
+              >
+                {t("hashtags_label")}
+              </label>
+              <div className="group relative">
+                <Info className="h-4 w-4 text-gray-400 hover:text-blue-400 cursor-help transition-colors" />
+                {/* Hint Box */}
+                <div
+                  className="
+                    absolute left-0 top-6 z-50 w-64 p-3 rounded-lg 
+                    border border-blue-400/30 shadow-lg
+                    backdrop-blur-md bg-blue-500/20 text-white text-xs leading-relaxed
+                    opacity-0 scale-95 translate-y-1 
+                    transition-all duration-300 ease-out
+                    group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0
+                  "
+                >
+                  {t("hashtags_hint")}
+                </div>
+              </div>
+            </div>
 
             <div className="relative">
               <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-dashed border-white/20 bg-black/30">
@@ -326,8 +344,6 @@ export function NewPostForm({
                 </span>
               ))}
             </div>
-
-            <p className="text-xs text-gray-400">{t("hashtags_hint")}</p>
           </div>
           {/* END: Hashtag Section */}
 

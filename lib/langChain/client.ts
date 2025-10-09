@@ -21,7 +21,7 @@ export interface GrokConfig {
 const DEFAULT_GROK_CONFIG: GrokConfig = {
   model: "deepseek/deepseek-chat-v3.1:free",
   temperature: 0.3,
-  maxTokens: 4096, // DeepSeek支持最大64K tokens，但实际使用建议4K-8K
+  maxTokens: 15000, // DeepSeek支持最大64K tokens，但实际使用建议4K-8K
   topP: 1.0,
   frequencyPenalty: 0,
   presencePenalty: 0,
@@ -122,7 +122,7 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
     ...config,
     enableReasoning: true,
     temperature: 0.1, // 推理模式使用更低的温度
-    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
+    model: "openai/gpt-4o", // Use GPT-4o for reasoning tasks
   });
 }
 
@@ -132,7 +132,7 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
 export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
+    model: "openai/gpt-4o-mini", // Use GPT-4o-mini for creative tasks
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -146,7 +146,7 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
 export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
+    model: "openai/gpt-4o", // Use GPT-4o for analytical tasks
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
     enableReasoning: true, // 启用推理提升分析质量
@@ -159,7 +159,7 @@ export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
 export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "deepseek/deepseek-chat-v3.1:free", // 使用DeepSeek模型
+    model: "openai/gpt-4o", // Use GPT-4o for long context tasks
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
   });
@@ -171,7 +171,7 @@ export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
 export function getVisionLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "moonshotai/kimi-vl-a3b-thinking:free", // 使用Kimi视觉模型
+    model: "openai/gpt-4o", // Use GPT-4o for vision tasks (supports images and function calling)
     temperature: 0.3,
     maxTokens: 4096,
   });

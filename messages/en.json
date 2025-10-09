@@ -1,4 +1,4 @@
-{
+﻿{
     "HomePage": {
       "title": "Hello world!",
       "metadata_title": "Home | Studify",
@@ -733,7 +733,19 @@
       "title": "Check your email",
       "description": "We sent a confirmation link to your email. Please confirm your email to continue.",
       "already_confirmed": "Already confirmed?",
-      "sign_in_link": "Sign in"
+      "sign_in_link": "Sign in",
+      "resend_button": "Resend Verification Email",
+      "resending": "Sending...",
+      "resend_cooldown": "Resend in",
+      "resend_success_title": "Email Sent!",
+      "resend_success_desc": "Verification email has been sent. Please check your inbox.",
+      "resend_error_title": "Failed to Send",
+      "resend_error_desc": "Failed to send verification email. Please try again.",
+      "email_placeholder": "Enter your email",
+      "tips_title": "📧 Check your email",
+      "tip_1": "Check your spam/junk folder",
+      "tip_2": "Make sure you entered the correct email",
+      "tip_3": "The link expires after 24 hours"
     },
     "OnboardingStudentPage": {
       "metadata_title": "Student Onboarding | Studify",

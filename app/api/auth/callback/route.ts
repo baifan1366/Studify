@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code') || searchParams.get('token_hash');
   const redirectTo = searchParams.get('redirect_to');
   let next = searchParams.get('next') ?? '/';
+  const requestedRole = searchParams.get('role') as 'student' | 'tutor' | null;
   
   // Parse next from redirect_to if needed
   if (!searchParams.get('next') && redirectTo) {
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     next, 
     type, 
     origin,
+    requestedRole,
     rawRedirectTo: searchParams.get('redirect_to'),
     allParams: Object.fromEntries(searchParams.entries())
   });
@@ -60,13 +62,54 @@ export async function GET(request: NextRequest) {
       const userId = data.session.user.id;
       
       // Get user profile to obtain role
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role, full_name, display_name')
         .eq('user_id', userId)
         .single();
       
-      if (profileError) {
+      // If profile doesn't exist, create it (for OAuth users)
+      if (profileError && profileError.code === 'PGRST116') {
+        console.log('[AUTH CALLBACK] Profile not found, creating new profile with role:', requestedRole || 'student');
+        
+        // Extract name from OAuth user data
+        const user = data.session.user;
+        const googleName = user.user_metadata?.full_name || 
+                          user.user_metadata?.name ||
+                          user.user_metadata?.display_name ||
+                          user.identities?.[0]?.identity_data?.name ||
+                          user.identities?.[0]?.identity_data?.full_name;
+        
+        const avatarUrl = user.user_metadata?.avatar_url ||
+                         user.user_metadata?.picture ||
+                         user.identities?.[0]?.identity_data?.avatar_url ||
+                         user.identities?.[0]?.identity_data?.picture;
+        
+        const displayName = googleName || user.email?.split('@')[0];
+        const profileRole = requestedRole || 'student';
+        
+        // Create the profile
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: userId,
+            role: profileRole,
+            full_name: googleName,
+            email: user.email,
+            display_name: displayName,
+            avatar_url: avatarUrl,
+            email_verified: true // OAuth users have verified emails
+          })
+          .select('role, full_name, display_name')
+          .single();
+        
+        if (createError) {
+          console.error('[AUTH CALLBACK] Failed to create profile:', createError);
+          return NextResponse.redirect(`${origin}/en/sign-in?error=profile_creation_failed`);
+        }
+        
+        profile = newProfile;
+      } else if (profileError) {
         console.error('[AUTH CALLBACK] Failed to fetch profile:', profileError);
         return NextResponse.redirect(`${origin}/en/sign-in?error=profile_not_found`);
       }

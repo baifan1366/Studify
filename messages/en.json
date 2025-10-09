@@ -5896,6 +5896,7 @@
     "ban_creation_failed_message": "Failed to create ban request. Please try again."
   },
   "ContentReports": {
+    "view_user": "View User",
     "page_title": "Content Reports",
     "page_description": "Monitor and manage content across courses, posts, and comments with comprehensive reporting and engagement analytics",
     "content_reports": "Content Reports",

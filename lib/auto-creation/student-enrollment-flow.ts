@@ -98,11 +98,12 @@ async function handleClassroomAutoCreation(
     const classroomName = `${course.title} - Classroom`;
     console.log(`[ClassroomAutoCreation] Looking for classroom: ${classroomName}`);
 
-    // Check if classroom exists by name (following the naming convention)
+    // Check if classroom exists by name AND owner_id (to ensure it's for this specific course)
     const { data: existingClassroom, error: classroomError } = await supabase
       .from('classroom')
       .select('*')
       .eq('name', classroomName)
+      .eq('owner_id', course.owner_id)
       .maybeSingle();
 
     if (classroomError) {
@@ -127,6 +128,7 @@ async function handleClassroomAutoCreation(
         .from('classroom')
         .insert({
           name: classroomName,
+          slug: `${classroomName} Auto`,
           description: `Auto-created classroom for ${course.title}`,
           owner_id: course.owner_id,
           class_code: generateClassCode(),
@@ -243,11 +245,12 @@ async function handleCommunityAutoCreation(
     const communityName = `${course.title} - Group`;
     console.log(`[CommunityAutoCreation] Looking for community group: ${communityName}`);
 
-    // Check if community group exists by name (following the naming convention)
+    // Check if community group exists by name AND owner_id (to ensure it's for this specific course)
     const { data: existingGroup, error: groupError } = await supabase
       .from('community_group')
       .select('*')
       .eq('name', communityName)
+      .eq('owner_id', course.owner_id)
       .maybeSingle();
 
     if (groupError) {

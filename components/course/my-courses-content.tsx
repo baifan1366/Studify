@@ -330,7 +330,7 @@ export default function MyCoursesContent() {
 
       return {
         id: enrollment.id,
-        courseId: course.id,
+        courseId: course.id.toString(),
         course: { // Include the full course object for nested access
           ...course,
           slug: course.slug || `course-${course.public_id}` // Ensure we always have a slug

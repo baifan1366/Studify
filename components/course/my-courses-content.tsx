@@ -26,6 +26,7 @@ interface EnrichedEnrollment {
   created_at: string;
   updated_at: string;
   course: {
+    id: number;
     title: string;
     slug: string;
     total_duration_minutes?: number;
@@ -40,9 +41,10 @@ interface EnrichedEnrollment {
 
 // UI course type for better type safety
 interface UICourse {
-  id: string;
+  id: number;
   courseId: string;
   course: {
+    id: number;
     title: string;
     slug: string;
     total_duration_minutes?: number;
@@ -154,7 +156,7 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
         </div>
         <div className="flex-shrink-0">
           <ReportButton 
-            targetId={parseInt(course.course.public_id)} 
+            targetId={course.course.id} 
             targetType="course" 
           />
         </div>
@@ -327,8 +329,8 @@ export default function MyCoursesContent() {
       const progress = Math.min(Math.max(enrollment.progress || 0, 0), 100);
 
       return {
-        id: enrollment.public_id,
-        courseId: course.public_id,
+        id: enrollment.id,
+        courseId: course.id,
         course: { // Include the full course object for nested access
           ...course,
           slug: course.slug || `course-${course.public_id}` // Ensure we always have a slug

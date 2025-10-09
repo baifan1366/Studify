@@ -111,7 +111,6 @@ export default function ContentReports() {
   };
 
   const handleBanSuccess = () => {
-    // Refresh data after successful ban creation
     refetchOverview();
     setBanDialogOpen(false);
     setBanContent(undefined);
@@ -119,9 +118,9 @@ export default function ContentReports() {
 
   // Calculate overview stats
   const totalContent = overviewData?.total || 0;
-  const totalReports = overviewData?.data.reduce((sum, item) => sum + (item.report_count || 0), 0) || 0;
-  const pendingReviews = overviewData?.data.filter(item => item.status === 'pending').length || 0;
-  const bannedContent = overviewData?.data.filter(item => item.status === 'ban').length || 0;
+  const totalReports = (overviewData?.data || []).reduce((sum, item) => sum + (item.report_count || 0), 0);
+  const pendingReviews = (overviewData?.data || []).filter(item => item.status === 'pending').length;
+  const bannedContent = (overviewData?.data || []).filter(item => item.status === 'ban').length;
 
   return (
     <div className="space-y-6">

@@ -185,8 +185,8 @@ export function PostList({ onViewPost, onBanPost, onBanUser }: PostListProps) {
                       <Avatar className="w-12 h-12">
                         <AvatarImage src={post.author.avatar_url} alt={post.author.full_name} />
                         <AvatarFallback>
-                          {post.author.full_name?.charAt(0)?.toUpperCase() || 
-                           post.author.email.charAt(0).toUpperCase()}
+                          {post.author.full_name?.[0]?.toUpperCase() || 
+                           post.author.email[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
 

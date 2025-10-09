@@ -86,7 +86,7 @@ export default function ClassroomHeader({
                 alt="Studify Logo" 
                 className="w-8 h-8 rounded-md"
               />
-              <h1 className="text-xl font-bold text-foreground">
+              <h1 className="text-xl font-bold text-foreground truncate max-w-md">
                 {title}
               </h1>
             </div>

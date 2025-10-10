@@ -383,11 +383,11 @@ export function ChatDashboard() {
 
 
   return (
-    <div className="h-screen flex bg-transparent">
+    <div className="w-full h-full flex bg-transparent overflow-hidden">
       {/* Sidebar - Conversations List */}
-      <div className="w-1/3 border-r flex flex-col">
+      <div className="w-1/3 border-r flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b">
+        <div className="p-2 border-b">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <MessageCircle className="h-6 w-6" />
@@ -429,7 +429,7 @@ export function ChatDashboard() {
         </div>
 
         {/* Conversations List */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-y-auto">
           <div className="p-2">
             {isLoading ? (
               <div className="space-y-2">
@@ -538,9 +538,9 @@ export function ChatDashboard() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {selectedConversation && selectedConv ? (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Chat Header */}
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">

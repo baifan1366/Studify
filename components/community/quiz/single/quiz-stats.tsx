@@ -148,19 +148,6 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               </>
             )}
           </div>
-
-          {quiz.tags && quiz.tags.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-2">Tags</h4>
-              <div className="flex flex-wrap gap-2">
-                {quiz.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline">
-                    {typeof tag === 'string' ? tag : tag.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

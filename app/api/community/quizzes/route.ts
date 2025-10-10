@@ -13,7 +13,6 @@ type Body = {
   title: string;
   description?: string;
   difficulty?: number; // 1-5
-  tags?: string[];
   max_attempts?: number;
   visibility?: 'public' | 'private';
   subject_id?: number;
@@ -344,7 +343,6 @@ export async function POST(req: Request) {
       title, 
       description = null, 
       difficulty = 1, 
-      tags = [], 
       max_attempts = 1, 
       visibility = 'public',
       subject_id = null,
@@ -383,7 +381,6 @@ export async function POST(req: Request) {
           title,
           description,
           difficulty,
-          tags,
           max_attempts,
           visibility,
           author_id: userId, // 关键：记录是谁创建的

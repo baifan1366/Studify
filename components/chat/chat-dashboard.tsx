@@ -36,7 +36,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ChatPanel } from './chat-panel';
-import { MultipleTypingIndicator } from './typing-indicator';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useChatNotifications, useRealtimeChatNotifications } from '@/hooks/chat/use-chat-notifications';
 import { ProfileModal } from '@/components/chat/profile-modal';
@@ -115,9 +114,6 @@ export function ChatDashboard() {
   const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   
-  // Typing indicator state
-  const [typingUsers, setTypingUsers] = useState<{ id: string; name: string; avatar?: string }[]>([]);
-  
   // Profile modal state
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -167,34 +163,6 @@ export function ChatDashboard() {
     };
   }, []);
 
-  // Mock typing indicator simulation (for demo purposes)
-  useEffect(() => {
-    if (!selectedConversation) return;
-
-    // Simulate random typing activity
-    const interval = setInterval(() => {
-      const shouldShowTyping = Math.random() > 0.8; // 20% chance
-      
-      if (shouldShowTyping) {
-        // Find current conversation participant
-        const currentConv = conversations.find(c => c.id === selectedConversation);
-        if (currentConv) {
-          setTypingUsers([{
-            id: currentConv.participant.id,
-            name: currentConv.participant.name,
-            avatar: currentConv.participant.avatar
-          }]);
-          
-          // Hide typing after 2-4 seconds
-          setTimeout(() => {
-            setTypingUsers([]);
-          }, Math.random() * 2000 + 2000);
-        }
-      }
-    }, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [selectedConversation, conversations]);
 
   const filteredConversations = conversations.filter(
     (conv) =>
@@ -643,9 +611,6 @@ export function ChatDashboard() {
                 </DropdownMenu>
               </div>
             </div>
-
-            {/* Typing Indicator */}
-            <MultipleTypingIndicator typingUsers={typingUsers} className="px-4 py-2" />
 
             {/* Chat Panel */}
             <ChatPanel conversationId={selectedConversation} />

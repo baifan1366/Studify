@@ -81,7 +81,6 @@ interface ChatPanelProps {
 }
 export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -442,21 +441,6 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
               </div>
             );
           })
-          )}
-
-          {isTyping && (
-            <div className="flex gap-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">...</AvatarFallback>
-              </Avatar>
-              <div className="bg-muted rounded-lg px-3 py-2">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-              </div>
-            </div>
           )}
 
           <div ref={messagesEndRef} />

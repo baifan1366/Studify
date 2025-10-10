@@ -517,7 +517,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$function$;;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_tutor_earnings_summary()

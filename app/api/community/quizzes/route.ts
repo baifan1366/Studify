@@ -15,6 +15,7 @@ type Body = {
   difficulty?: number; // 1-5
   max_attempts?: number;
   visibility?: 'public' | 'private';
+  time_limit_minutes?: number | null;
   subject_id?: number;
   grade_id?: number;
 };
@@ -345,6 +346,7 @@ export async function POST(req: Request) {
       difficulty = 1, 
       max_attempts = 1, 
       visibility = 'public',
+      time_limit_minutes = null,
       subject_id = null,
       grade_id = null
     } = body;
@@ -383,6 +385,7 @@ export async function POST(req: Request) {
           difficulty,
           max_attempts,
           visibility,
+          time_limit_minutes,
           author_id: userId, // 关键：记录是谁创建的
           subject_id,
           grade_id

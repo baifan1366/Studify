@@ -22,6 +22,7 @@ export default function QuizForm() {
   const [difficulty, setDifficulty] = useState(1);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>();
   const [selectedGradeId, setSelectedGradeId] = useState<number | undefined>();
   
@@ -54,6 +55,7 @@ export default function QuizForm() {
         difficulty, 
         visibility, 
         max_attempts: maxAttempts,
+        time_limit_minutes: timeLimitMinutes,
         subject_id: selectedSubjectId,
         grade_id: selectedGradeId
       },
@@ -180,6 +182,19 @@ export default function QuizForm() {
             <SelectItem value="999">Unlimited</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Time Limit */}
+      <div>
+        <Label htmlFor="timeLimit" className="block mb-2 font-medium">Time Limit (minutes)</Label>
+        <Input
+          id="timeLimit"
+          type="number"
+          min="1"
+          value={timeLimitMinutes || ""}
+          onChange={(e) => setTimeLimitMinutes(e.target.value ? parseInt(e.target.value) : null)}
+          placeholder="Leave empty for no time limit"
+        />
       </div>
 
       <Button

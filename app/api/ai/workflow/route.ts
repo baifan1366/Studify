@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aiWorkflowExecutor, WorkflowType } from '@/lib/langChain/ai-workflow';
 import { authorize } from '@/utils/auth/server-guard';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     // 验证用户身份 (允许所有已认证用户)
     const authResult = await authorize('student'); // 基础权限验证
@@ -12,6 +15,26 @@ export async function POST(request: NextRequest) {
 
     const { user, payload } = authResult;
     const profile = user.profile;
+    const userId = profile?.id || parseInt(payload.sub);
+    
+    // ✅ Rate limiting check
+    const checkLimit = createRateLimitCheck('ai');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
+    
+    if (!allowed) {
+      return NextResponse.json(
+        rateLimitResponse(resetTime, limit),
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': resetTime.toString()
+          }
+        }
+      );
+    }
+
     const body = await request.json();
     
     const { 
@@ -39,34 +62,53 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    console.log(`🚀 Starting AI workflow: ${workflowId} for user ${profile?.id || payload.sub}`);
+    console.log(`🚀 Starting AI workflow: ${workflowId} for user ${userId}`);
 
     // 执行工作流
     const result = await aiWorkflowExecutor.executeWorkflow(
       workflowId as WorkflowType,
       {
         query,
-        userId: profile?.id || parseInt(payload.sub),
+        userId,
         additionalContext
       },
       sessionId
     );
 
     // 记录使用情况
-    await recordWorkflowUsage(profile?.id || parseInt(payload.sub), workflowId, result.success);
+    await recordWorkflowUsage(userId, workflowId, result.success);
+
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ Workflow ${workflowId} completed in ${processingTime}ms`);
 
     return NextResponse.json({
       ...result,
       message: result.success 
         ? `Workflow ${workflowId} completed successfully`
-        : `Workflow ${workflowId} failed: ${result.error}`
+        : `Workflow ${workflowId} failed: ${result.error}`,
+      metadata: {
+        ...result.metadata,
+        processingTimeMs: processingTime
+      }
+    }, {
+      headers: {
+        'X-RateLimit-Limit': limit.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': resetTime.toString()
+      }
     });
 
   } catch (error) {
     console.error('❌ Workflow API error:', error);
+    
+    const processingTime = Date.now() - startTime;
+    
     return NextResponse.json({
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      metadata: {
+        processingTimeMs: processingTime
+      }
     }, { status: 500 });
   }
 }

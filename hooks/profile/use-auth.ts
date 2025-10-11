@@ -41,3 +41,37 @@ export function useSignUp() {
     }),
   });
 }
+
+// Resend Verification Email Hook
+type ResendVerificationArgs = { 
+  email: string;
+  locale?: string;
+};
+type ResendVerificationResponse = { success: boolean; message: string };
+
+export function useResendVerification() {
+  return useMutation<ResendVerificationResponse, Error, ResendVerificationArgs>({
+    mutationFn: async (vars) => {
+      const { supabase } = await import("@/utils/supabase/client");
+      
+      // Construct redirect URL with locale
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const locale = vars.locale || 'en';
+      const emailRedirectTo = `${siteUrl}/${locale}/sign-in`;
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: vars.email,
+        options: {
+          emailRedirectTo,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return { success: true, message: 'Verification email sent successfully' };
+    },
+  });
+}

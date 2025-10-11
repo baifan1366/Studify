@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { createAdminClient } from '@/utils/supabase/server';
-import { aiWorkflowExecutor } from '@/lib/langChain/ai-workflow';
+import { StudifyToolCallingAgent } from '@/lib/langChain/tool-calling-integration';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
-// 每日学习计划生成接口
+// 每日学习计划生成接口 (升级版：Tool Calling)
 export async function POST(req: NextRequest) {
   try {
     // 用户认证
@@ -30,6 +31,23 @@ export async function POST(req: NextRequest) {
     const userId = profile.id;
     const today = new Date().toISOString().split('T')[0];
 
+    // Rate limiting check
+    const checkLimit = createRateLimitCheck('ai');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
+    
+    if (!allowed) {
+      console.log(`⚠️ Rate limit exceeded for user ${userId}`);
+      return NextResponse.json(
+        rateLimitResponse(resetTime, limit),
+        { 
+          status: 429,
+          headers: rateLimitResponse(resetTime, limit).headers
+        }
+      );
+    }
+    
+    console.log(`✅ Rate limit OK: ${remaining}/${limit} remaining for user ${userId}`);
+
     // 检查今天是否已经有计划
     const { data: existingPlan } = await supabase
       .from('daily_learning_plans')
@@ -46,11 +64,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 获取用户学习数据用于AI分析
+    // 收集学习上下文
     const learningContext = await gatherLearningContext(supabase, userId);
-    
-    // 使用AI生成每日学习计划
-    const aiPlan = await generateDailyPlanWithAI(learningContext);
+
+    // 使用AI Tool Calling生成每日学习计划
+    console.log('🤖 Generating daily plan with tool calling...');
+    const aiPlan = await generateDailyPlanWithToolCalling(userId, today);
 
     // 保存或更新计划到数据库
     let savedPlan;
@@ -67,7 +86,7 @@ export async function POST(req: NextRequest) {
           total_points: aiPlan.tasks.reduce((sum: number, task: any) => sum + task.pointsReward, 0),
           estimated_duration_minutes: aiPlan.tasks.reduce((sum: number, task: any) => sum + task.estimatedMinutes, 0),
           status: 'active',
-          ai_model_version: 'grok-4-fast',
+          ai_model_version: process.env.OPEN_ROUTER_MODEL || 'deepseek-chat-v3.1',
           generation_context: learningContext,
           updated_at: new Date().toISOString()
         })
@@ -95,7 +114,7 @@ export async function POST(req: NextRequest) {
           total_points: aiPlan.tasks.reduce((sum: number, task: any) => sum + task.pointsReward, 0),
           estimated_duration_minutes: aiPlan.tasks.reduce((sum: number, task: any) => sum + task.estimatedMinutes, 0),
           status: 'active',
-          ai_model_version: 'grok-4-fast',
+          ai_model_version: process.env.OPEN_ROUTER_MODEL || 'deepseek-chat-v3.1',
           generation_context: learningContext
         })
         .select()
@@ -154,6 +173,12 @@ export async function POST(req: NextRequest) {
       success: true,
       plan: fullPlan,
       message: 'Daily learning plan generated successfully'
+    }, {
+      headers: {
+        'X-RateLimit-Limit': limit.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': resetTime.toString()
+      }
     });
 
   } catch (error) {
@@ -369,48 +394,36 @@ async function gatherLearningContext(supabase: any, userId: number) {
   return context;
 }
 
-// 使用AI生成每日学习计划
-async function generateDailyPlanWithAI(context: any) {
+// 使用 Tool Calling 生成每日学习计划（升级版）
+async function generateDailyPlanWithToolCalling(userId: number, today: string) {
   try {
-    // Get user's preferred language from coach settings
-    const userLanguage = context.coachSettings?.language || 'en';
-    
-    const prompts = {
-      en: `As an AI learning coach, generate a personalized daily learning plan for the user.
+    // 创建 AI agent
+    const agent = new StudifyToolCallingAgent({
+      enabledTools: ['get_user_profile', 'get_course_data', 'search'],
+      temperature: 0.7,
+      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+    });
 
-User Context:
-- Points: ${context.profile?.points || 0}
-- Recent Study Sessions: ${context.recentStudySessions?.length || 0} sessions
-- Active Courses: ${context.activeCourses?.map((c: any) => c.course?.title).join(', ') || 'None'}
-- Learning Paths: ${context.activeLearningPaths?.map((p: any) => p.title).join(', ') || 'None'}
-- Recent Mistakes: ${context.recentMistakes?.length || 0} questions
-- Daily Study Goal: ${context.coachSettings?.target_daily_minutes || 60} minutes
+    await agent.initialize();
 
-Please generate a learning plan with the following structure:`,
-      zh: `作为AI学习教练，为用户生成今日个性化学习计划。
+    const prompt = `You are an AI learning coach. Generate a personalized daily learning plan for user ID ${userId}.
 
-用户上下文：
-- 积分：${context.profile?.points || 0}
-- 最近学习时长：${context.recentStudySessions?.length || 0}个会话
-- 活跃课程：${context.activeCourses?.map((c: any) => c.course?.title).join(', ') || '无'}
-- 学习路径：${context.activeLearningPaths?.map((p: any) => p.title).join(', ') || '无'}
-- 最近错题：${context.recentMistakes?.length || 0}道
-- 目标每日学习：${context.coachSettings?.target_daily_minutes || 60}分钟
+**Your Task:**
+1. Use get_user_profile tool to understand the user's learning history, preferences, and current progress
+2. Use get_course_data tool to get details about their active courses
+3. Use search tool if you need to find specific learning resources
 
-请生成包含以下结构的学习计划：`
-    };
-
-    const jsonStructure = {
-      en: `
+**Generate a plan with this JSON structure:**
+\`\`\`json
 {
   "title": "Daily Learning Plan Title",
-  "description": "Plan description",
-  "insights": "Learning insights based on user data",
-  "motivationMessage": "Motivational message",
+  "description": "Brief plan description",
+  "insights": "Key insights based on user's data (mention specific courses, progress, patterns)",
+  "motivationMessage": "Personalized motivational message",
   "tasks": [
     {
       "title": "Task title",
-      "description": "Task description",
+      "description": "Specific, actionable description",
       "type": "study|review|quiz|reading|practice|video|exercise",
       "priority": "low|medium|high|urgent",
       "difficulty": "easy|medium|hard",
@@ -418,77 +431,57 @@ Please generate a learning plan with the following structure:`,
       "pointsReward": 10,
       "category": "Category label",
       "relatedCourseId": null,
-      "relatedLessonId": null,
-      "relatedContentType": null,
-      "relatedContentId": null
+      "relatedLessonId": null
     }
   ]
 }
+\`\`\`
 
-Requirements:
-1. Generate 4-8 micro-tasks, total time should not exceed target time
-2. Tasks should be specific and actionable, avoid vague descriptions
-3. Arrange review tasks based on mistake patterns
-4. Arrange learning tasks based on course progress
-5. Include motivational language
-6. Progressive task difficulty and reasonable priorities`,
-      zh: `
-{
-  "title": "今日学习计划标题",
-  "description": "计划描述",
-  "insights": "基于用户数据的学习洞察",
-  "motivationMessage": "激励消息",
-  "tasks": [
-    {
-      "title": "任务标题",
-      "description": "任务描述",
-      "type": "study|review|quiz|reading|practice|video|exercise",
-      "priority": "low|medium|high|urgent",
-      "difficulty": "easy|medium|hard",
-      "estimatedMinutes": 25,
-      "pointsReward": 10,
-      "category": "分类标签",
-      "relatedCourseId": null,
-      "relatedLessonId": null,
-      "relatedContentType": null,
-      "relatedContentId": null
-    }
-  ]
-}
+**Requirements:**
+- Generate 4-8 micro-tasks (total time ~60 minutes)
+- Tasks must be SPECIFIC (e.g., "Review React Hooks lesson", not "Study React")
+- Include review tasks for courses with <70% progress
+- Include new learning tasks for active courses
+- Progressive difficulty
+- Motivational and personalized
 
-要求：
-1. 生成4-8个微任务，总时长不超过目标时间
-2. 任务要具体可执行，避免泛泛而谈
-3. 根据错题情况安排复习任务
-4. 根据课程进度安排学习任务
-5. 包含激励性语言
-6. 任务难度递进，优先级合理`
-    };
+Return ONLY the JSON object, no markdown formatting.`;
 
-    const fullPrompt = prompt + (jsonStructure[userLanguage as keyof typeof jsonStructure] || jsonStructure.en);
-
-    const result = await aiWorkflowExecutor.simpleAICall(fullPrompt);
+    const result = await agent.execute(prompt, { userId });
     
-    // 解析AI响应
+    console.log('🎯 Tool calling result:', {
+      toolsUsed: result.toolsUsed,
+      outputLength: result.output?.length
+    });
+
+    // 解析 AI 响应
     let aiPlan;
     try {
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      // Remove markdown code blocks if present
+      let cleanedOutput = result.output.trim();
+      if (cleanedOutput.startsWith('```')) {
+        cleanedOutput = cleanedOutput.replace(/```json?\n?/g, '').replace(/```$/g, '');
+      }
+      
+      const jsonMatch = cleanedOutput.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         aiPlan = JSON.parse(jsonMatch[0]);
+        console.log('✅ Successfully parsed AI plan');
       } else {
         throw new Error('No JSON found in AI response');
       }
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
+      console.error('❌ Error parsing AI response:', parseError);
+      console.log('Raw output:', result.output);
       // 回退到默认计划
-      aiPlan = getDefaultDailyPlan(context);
+      aiPlan = getDefaultDailyPlan({ userId });
     }
 
     return aiPlan;
 
   } catch (error) {
-    console.error('Error generating AI plan:', error);
-    return getDefaultDailyPlan(context);
+    console.error('❌ Error generating AI plan with tools:', error);
+    return getDefaultDailyPlan({ userId });
   }
 }
 

@@ -76,9 +76,9 @@ export const useCreateQuiz = () => {
       title: string;
       description?: string;
       difficulty?: number;
-      tags?: string[];
       max_attempts?: number;
       visibility?: 'public' | 'private';
+      time_limit_minutes?: number | null;
       subject_id?: number;
       grade_id?: number;
     }) =>

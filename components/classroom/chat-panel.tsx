@@ -43,47 +43,6 @@ interface ChatMessage {
   attachment?: ClassroomAttachment;
 }
 
-// Typing Indicator Component
-function TypingIndicator({ isCurrentUser = false }: { isCurrentUser?: boolean }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      className={`flex mb-3 mt-5 ${isCurrentUser ? 'justify-end mr-5' : 'justify-start ml-5'}`}
-    >
-      <div className={`px-4 py-3 rounded-2xl shadow-sm ${
-        isCurrentUser 
-          ? 'bg-primary/10 rounded-br-md' 
-          : 'bg-gray-100/2 dark:bg-gray-100/2 rounded-bl-md'
-      }`}>
-        <div className="flex items-center space-x-2">
-          <div className="relative w-8 h-4">
-            {[0, 1, 2].map((index) => (
-              <motion.div
-                key={index}
-                className="absolute w-3 h-3 bg-gradient-to-br from-primary/70 to-primary rounded-full"
-                style={{ left: `${index * 8}px` }}
-                animate={{
-                  y: [0, -8, 0],
-                  opacity: [0.6, 1, 0.6],
-                  scale: [0.8, 1, 0.8]
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  delay: index * 0.3,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-          </div>
-          <span className="text-xs text-muted-foreground font-medium">is typing</span>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
 // Chat panel props
 interface ChatPanelProps {
@@ -192,7 +151,6 @@ export function ChatPanel({
   classroomSlug
 }: ChatPanelProps) {
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -513,16 +471,6 @@ export function ChatPanel({
     }
   };
 
-  // Toggle typing indicator
-  useEffect(() => {
-    if (inputValue.length > 0) {
-      setIsTyping(true);
-      const timer = setTimeout(() => setIsTyping(false), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setIsTyping(false);
-    }
-  }, [inputValue]);
 
   if (!isOpen) {
     return (
@@ -579,8 +527,6 @@ export function ChatPanel({
               />
             ))}
           </AnimatePresence>
-          {/* Typing indicator */}
-          {isTyping && <TypingIndicator isCurrentUser={true} />}
           <div ref={messagesEndRef} />
         </ScrollArea>
         

@@ -3,6 +3,7 @@
  * Provides personalized course recommendations based on user profile, learning history, and preferences
  */
 
+import { DynamicTool } from "@langchain/core/tools";
 import { createAdminClient } from '@/utils/supabase/server';
 import { calculateDualEmbeddingSimilarity } from '@/utils/embedding/vector-similarity';
 
@@ -462,78 +463,50 @@ export async function getSimilarCourses(
 /**
  * AI Tool definition for Course Recommendations
  */
-export const courseRecommendationTool = {
+export const courseRecommendationTool = new DynamicTool({
   name: "course_recommendations",
-  description: `
-    Generate personalized course recommendations based on user's learning profile, interests, and history.
-    
-    Use this when users ask about:
-    - Course recommendations or suggestions
-    - What to learn next
-    - Courses matching their interests or goals
-    - Similar courses to ones they like
-    - Learning path suggestions
-  `,
+  description: `Generate personalized course recommendations based on user's learning profile, interests, and history.
   
-  parameters: {
-    type: "object",
-    properties: {
-      recommendationType: {
-        type: "string",
-        enum: ["personalized", "similar", "category"],
-        description: "Type of recommendation to generate",
-        default: "personalized"
-      },
-      sourceCourseId: {
-        type: "number",
-        description: "Course ID for finding similar courses (only for 'similar' type)"
-      },
-      category: {
-        type: "string",
-        description: "Category filter for recommendations"
-      },
-      level: {
-        type: "string",
-        enum: ["beginner", "intermediate", "advanced"],
-        description: "Level filter for recommendations"
-      },
-      freeOnly: {
-        type: "boolean",
-        description: "Only recommend free courses",
-        default: false
-      },
-      maxResults: {
-        type: "number",
-        description: "Maximum number of recommendations",
-        minimum: 1,
-        maximum: 20,
-        default: 5
-      }
-    }
-  },
+Use this when users ask about:
+- Course recommendations or suggestions
+- What to learn next
+- Courses matching their interests or goals
+- Similar courses to ones they like
+- Learning path suggestions
 
-  handler: async function(parameters: any, context?: { userId?: number }) {
-    const { 
-      recommendationType, 
-      sourceCourseId, 
-      category, 
-      level, 
-      freeOnly, 
-      maxResults 
-    } = parameters;
-    const userId = context?.userId;
-
+Input should be a JSON string with:
+{
+  "recommendationType": "personalized" | "similar" | "category",
+  "sourceCourseId": number (optional, for similar type),
+  "category": string (optional filter),
+  "level": "beginner" | "intermediate" | "advanced" (optional filter),
+  "freeOnly": boolean (optional, default false),
+  "maxResults": number (optional, 1-20, default 5)
+}`,
+  
+  func: async (input: string, runManager?: any) => {
     try {
+      const parameters = JSON.parse(input);
+      const { 
+        recommendationType = 'personalized', 
+        sourceCourseId, 
+        category, 
+        level, 
+        freeOnly = false, 
+        maxResults = 5,
+        userId
+      } = parameters;
+
       let results: any = {};
 
       switch (recommendationType) {
         case 'similar':
           if (!sourceCourseId) {
-            return {
+            return JSON.stringify({
               success: false,
               error: "Source course ID required for similar recommendations",
               message: "Please specify a course to find similar courses for"
-            };
+            });
           }
           results = await getSimilarCourses(sourceCourseId, { maxResults, userId });
           break;
@@ -541,11 +514,11 @@ export const courseRecommendationTool = {
         case 'personalized':
         default:
           if (!userId) {
-            return {
+            return JSON.stringify({
               success: false,
               error: "User authentication required for personalized recommendations",
               message: "Please log in to get personalized course recommendations"
-            };
+            });
           }
           results = await generateCourseRecommendations(userId, {
             maxResults,
@@ -557,11 +530,11 @@ export const courseRecommendationTool = {
       }
 
       if (!results.success) {
-        return {
+        return JSON.stringify({
           success: false,
           error: results.error,
           message: `Course recommendations failed: ${results.error}`
-        };
+        });
       }
 
       // Format results for AI response
@@ -579,7 +552,7 @@ export const courseRecommendationTool = {
         reasons: rec.recommendation_reasons || [`Similar to source course`]
       }));
 
-      return {
+      return JSON.stringify({
         success: true,
         recommendationType: recommendationType,
         userId: userId,
@@ -587,18 +560,21 @@ export const courseRecommendationTool = {
         userProfile: results.userProfile,
         recommendations: formattedResults,
         message: `Generated ${formattedResults.length} course recommendations`
-      };
+      }, null, 2);
 
     } catch (error) {
       console.error('Course recommendation tool error:', error);
-      return {
+      if (error instanceof SyntaxError) {
+        return 'Error: Invalid JSON input. Please provide valid JSON with at least userId parameter.';
+      }
+      return JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         message: `Recommendation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
+      });
     }
   }
-};
+});
 
 /**
  * Get user's embedding vectors for similarity matching

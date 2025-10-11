@@ -31,7 +31,6 @@ export interface CommunityQuiz {
   author_id?: string;
   title: string;
   description?: string;
-  tags?: (string | Hashtag)[];
   difficulty: number; // 1-5
   max_attempts: number; // 最大尝试次数
   visibility: 'public' | 'private'; // 可见性

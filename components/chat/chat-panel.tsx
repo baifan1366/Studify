@@ -81,7 +81,6 @@ interface ChatPanelProps {
 }
 export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -337,9 +336,10 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   }, [conversationId, messages.length]);
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
+    <div className={cn('flex flex-col h-full overflow-hidden', className)}>
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full p-4">
         <div className="space-y-4">
           {isLoadingMessages ? (
             // Show skeleton while loading
@@ -444,35 +444,20 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
           })
           )}
 
-          {isTyping && (
-            <div className="flex gap-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">...</AvatarFallback>
-              </Avatar>
-              <div className="bg-muted rounded-lg px-3 py-2">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div ref={messagesEndRef} />
         </div>
-      </ScrollArea>
+        </ScrollArea>
+      </div>
 
       {/* Enhanced Message Input */}
-      <motion.div 
-        className="relative"
+      <motion.div className="relative flex-shrink-0 p-2 border-t"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {/* Editing Mode Indicator */}
         {editingMessageId && (
-          <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200">
+          <div className="px-3 py-2 mb-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
             <div className="flex items-center justify-between">
               <span>✏️ Editing message</span>
               <Button 
@@ -489,7 +474,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
 
         {/* Reply Preview */}
         {replyingToMessage && (
-          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 text-sm">
+          <div className="px-3 py-2 mb-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">

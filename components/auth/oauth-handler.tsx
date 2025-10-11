@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { BookOpen, GraduationCap } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface OAuthHandlerProps {
   locale: string;
@@ -12,6 +15,48 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [pendingSession, setPendingSession] = useState<any>(null);
+
+  const handleRoleSelection = async (selectedRole: 'student' | 'tutor') => {
+    setShowRoleDialog(false);
+    setIsProcessing(true);
+    
+    if (!pendingSession) return;
+    
+    console.log('🎯 User selected role:', selectedRole);
+    
+    // Call sync API with selected role
+    const syncResponse = await fetch("/api/auth/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        access_token: pendingSession.access_token,
+        role: selectedRole
+      }),
+    });
+
+    if (syncResponse.ok) {
+      const syncResult = await syncResponse.json();
+      console.log('✅ Sync successful:', syncResult);
+      
+      // Role-based redirect
+      const userRole = syncResult?.user?.role || selectedRole;
+      const redirectPaths = {
+        student: `/${locale}/home`,
+        tutor: `/${locale}/tutor/dashboard`, 
+        admin: `/${locale}/admin/dashboard`
+      };
+      
+      const redirectPath = redirectPaths[userRole as keyof typeof redirectPaths] || `/${locale}/home`;
+      console.log('🔄 Redirecting OAuth user to:', redirectPath);
+      
+      router.replace(redirectPath);
+    } else {
+      console.error('❌ Sync failed');
+      setIsProcessing(false);
+    }
+  };
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -70,11 +115,39 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
                   identities: session.user.identities?.[0]?.identity_data
                 });
                 
+                // Extract role from URL params if available
+                const role = searchParams.get('role');
+                console.log('🎯 OAuth role from URL:', role);
+                
+                // If no role provided, check if user has a profile
+                if (!role) {
+                  console.log('🔍 No role provided, checking for existing profile...');
+                  const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('id, role')
+                    .eq('user_id', session.user.id)
+                    .single();
+                  
+                  if (profileError && profileError.code === 'PGRST116') {
+                    // Profile doesn't exist - show role selection dialog
+                    console.log('🎭 No profile found, showing role selection dialog');
+                    setPendingSession(session);
+                    setShowRoleDialog(true);
+                    subscription.unsubscribe();
+                    return;
+                  }
+                  
+                  console.log('✅ Existing profile found:', profile);
+                }
+                
                 // Call our sync API to set up JWT session
                 const syncResponse = await fetch("/api/auth/sync", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ access_token: session.access_token }),
+                  body: JSON.stringify({ 
+                    access_token: session.access_token,
+                    role: role || undefined
+                  }),
                 });
 
                 if (syncResponse.ok) {
@@ -146,5 +219,50 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
     );
   }
 
-  return null;
+  return (
+    <>
+      {/* Role Selection Dialog */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">Choose Your Account Type</DialogTitle>
+            <DialogDescription className="text-center">
+              Please select how you want to use Studify
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleRoleSelection('student')}
+              className="flex flex-col items-center p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-[#FF6B00] dark:hover:border-[#FF6B00] transition-colors duration-200 group"
+            >
+              <BookOpen className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
+              <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
+                Student
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
+                Learn and explore courses
+              </p>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleRoleSelection('tutor')}
+              className="flex flex-col items-center p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-[#FF6B00] dark:hover:border-[#FF6B00] transition-colors duration-200 group"
+            >
+              <GraduationCap className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
+              <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
+                Tutor
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
+                Teach and create courses
+              </p>
+            </motion.button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

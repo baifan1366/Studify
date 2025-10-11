@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { createAdminClient } from '@/utils/supabase/server';
-import { aiWorkflowExecutor } from '@/lib/langChain/ai-workflow';
+import { StudifyToolCallingAgent } from '@/lib/langChain/tool-calling-integration';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
-// 创建学习复盘
+// 创建学习复盘 (升级版：Tool Calling)
 export async function POST(req: NextRequest) {
   try {
     const authResult = await authorize('student');
@@ -27,6 +28,23 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = profile.id;
+
+    // Rate limiting check
+    const checkLimit = createRateLimitCheck('ai');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
+    
+    if (!allowed) {
+      console.log(`⚠️ Rate limit exceeded for user ${userId}`);
+      return NextResponse.json(
+        rateLimitResponse(resetTime, limit),
+        { 
+          status: 429,
+          headers: rateLimitResponse(resetTime, limit).headers
+        }
+      );
+    }
+    
+    console.log(`✅ Rate limit OK: ${remaining}/${limit} remaining for user ${userId}`);
     const {
       retroDate,
       retroType = 'daily',
@@ -63,8 +81,10 @@ export async function POST(req: NextRequest) {
     // 收集今日学习数据用于AI分析
     const learningData = await gatherRetroLearningData(supabase, userId, date);
     
-    // 使用AI生成复盘分析
-    const aiAnalysis = await generateRetroAnalysisWithAI({
+    // 使用AI Tool Calling生成复盘分析
+    console.log('🤖 Generating retrospective analysis with tool calling...');
+    const aiAnalysis = await generateRetroAnalysisWithToolCalling({
+      userId,
       userInput: {
         selfRating,
         moodRating,
@@ -77,7 +97,8 @@ export async function POST(req: NextRequest) {
         tomorrowGoals
       },
       learningData,
-      retroType
+      retroType,
+      date
     });
 
     const retroData = {
@@ -105,7 +126,7 @@ export async function POST(req: NextRequest) {
       points_earned: learningData.pointsEarned,
       courses_progressed: learningData.coursesProgressed,
       achievements_unlocked: learningData.achievementsUnlocked,
-      ai_model_version: 'grok-4-fast',
+      ai_model_version: process.env.OPEN_ROUTER_MODEL || 'deepseek-chat-v3.1',
       analysis_context: learningData
     };
 
@@ -143,6 +164,12 @@ export async function POST(req: NextRequest) {
       success: true,
       retrospective: savedRetro,
       message: existingRetro ? 'Retrospective updated successfully' : 'Retrospective created successfully'
+    }, {
+      headers: {
+        'X-RateLimit-Limit': limit.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': resetTime.toString()
+      }
     });
 
   } catch (error) {
@@ -308,63 +335,94 @@ async function gatherRetroLearningData(supabase: any, userId: number, date: stri
   return data;
 }
 
-// 使用AI生成复盘分析
-async function generateRetroAnalysisWithAI(context: any) {
+// 使用 Tool Calling 生成复盘分析（升级版）
+async function generateRetroAnalysisWithToolCalling(context: any) {
   try {
-    const { userInput, learningData, retroType } = context;
+    const { userId, userInput, learningData, retroType, date } = context;
     
-    const prompt = `作为AI学习教练，基于用户的复盘输入和学习数据，生成深度分析和建议。
+    // 创建 AI agent
+    const agent = new StudifyToolCallingAgent({
+      enabledTools: ['get_user_profile', 'get_course_data', 'search'],
+      temperature: 0.7,
+      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+    });
 
-用户自评：
-- 总体评分：${userInput.selfRating}/5
-- 心情状态：${userInput.moodRating}
-- 精力水平：${userInput.energyLevel}/5
-- 专注质量：${userInput.focusQuality}/5
+    await agent.initialize();
 
-用户反思：
-- 今日成就：${userInput.achievementsToday || '无'}
-- 遇到挑战：${userInput.challengesFaced || '无'}
-- 学到经验：${userInput.lessonsLearned || '无'}
-- 改进需求：${userInput.improvementsNeeded || '无'}
-- 明日目标：${userInput.tomorrowGoals || '无'}
+    const prompt = `You are an AI learning coach conducting a learning retrospective for user ID ${userId} on ${date}.
 
-学习数据：
-- 学习时长：${learningData.totalStudyTime}分钟
-- 完成任务：${learningData.tasksCompleted}个
-- 获得积分：${learningData.pointsEarned}分
-- 课程进展：${learningData.coursesProgressed}门
-- 解锁成就：${learningData.achievementsUnlocked}个
+**Your Task:**
+1. Use get_user_profile tool to understand the user's overall learning journey and patterns
+2. Use get_course_data tool to get context about their courses and progress
+3. Analyze the user's self-assessment against their actual performance data
 
-请生成以下结构的分析：
+**User Self-Assessment:**
+- Overall Rating: ${userInput.selfRating}/5
+- Mood: ${userInput.moodRating}
+- Energy Level: ${userInput.energyLevel}/5
+- Focus Quality: ${userInput.focusQuality}/5
+
+**User Reflections:**
+- Achievements: ${userInput.achievementsToday || 'None provided'}
+- Challenges: ${userInput.challengesFaced || 'None provided'}
+- Lessons Learned: ${userInput.lessonsLearned || 'None provided'}
+- Areas for Improvement: ${userInput.improvementsNeeded || 'None provided'}
+- Tomorrow's Goals: ${userInput.tomorrowGoals || 'None provided'}
+
+**Actual Performance Data:**
+- Study Duration: ${learningData.totalStudyTime} minutes
+- Tasks Completed: ${learningData.tasksCompleted}
+- Points Earned: ${learningData.pointsEarned}
+- Courses Progressed: ${learningData.coursesProgressed}
+- Achievements Unlocked: ${learningData.achievementsUnlocked}
+
+**Generate analysis with this JSON structure:**
+\`\`\`json
 {
-  "analysis": "综合分析用户今日学习表现和状态",
-  "suggestions": "具体的改进建议和优化策略",
-  "nextFocus": "明日学习重点和方向",
-  "strengths": "识别出的学习优势",
-  "weaknesses": "需要改进的薄弱环节",
-  "patterns": "发现的学习模式和习惯"
+  "analysis": "Deep, specific analysis comparing self-assessment with actual data. Mention specific courses and patterns.",
+  "suggestions": "Actionable, personalized suggestions based on their specific challenges and courses.",
+  "nextFocus": "Clear learning priorities for tomorrow based on current progress and goals.",
+  "strengths": "Specific strengths identified from both data and reflections.",
+  "weaknesses": "Areas needing improvement with constructive framing.",
+  "patterns": "Learning patterns and habits discovered from the data."
 }
+\`\`\`
 
-要求：
-1. 分析要深入具体，不要泛泛而谈
-2. 建议要可操作，有针对性
-3. 语言要鼓励性，同时诚实
-4. 考虑学习数据与自评的一致性
-5. 提供个性化的学习策略`;
+**Requirements:**
+- Be SPECIFIC (mention actual courses, numbers, patterns from the tools)
+- Compare self-rating with actual performance
+- Provide actionable, not generic advice
+- Be encouraging but honest
+- Focus on growth mindset
 
-    const result = await aiWorkflowExecutor.simpleAICall(prompt);
+Return ONLY the JSON object, no markdown formatting.`;
+
+    const result = await agent.execute(prompt, { userId });
     
+    console.log('🎯 Tool calling result:', {
+      toolsUsed: result.toolsUsed,
+      outputLength: result.output?.length
+    });
+
     // 解析AI响应
     let aiAnalysis;
     try {
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      // Remove markdown code blocks if present
+      let cleanedOutput = result.output.trim();
+      if (cleanedOutput.startsWith('```')) {
+        cleanedOutput = cleanedOutput.replace(/```json?\n?/g, '').replace(/```$/g, '');
+      }
+      
+      const jsonMatch = cleanedOutput.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         aiAnalysis = JSON.parse(jsonMatch[0]);
+        console.log('✅ Successfully parsed AI analysis');
       } else {
         throw new Error('No JSON found in AI response');
       }
     } catch (parseError) {
-      console.error('Error parsing AI analysis:', parseError);
+      console.error('❌ Error parsing AI analysis:', parseError);
+      console.log('Raw output:', result.output);
       // 回退到默认分析
       aiAnalysis = getDefaultRetroAnalysis(userInput, learningData);
     }
@@ -372,7 +430,7 @@ async function generateRetroAnalysisWithAI(context: any) {
     return aiAnalysis;
 
   } catch (error) {
-    console.error('Error generating AI analysis:', error);
+    console.error('❌ Error generating AI analysis with tools:', error);
     return getDefaultRetroAnalysis(context.userInput, context.learningData);
   }
 }

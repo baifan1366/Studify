@@ -70,17 +70,6 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
         )}
       </div>
       
-      {/* Tags */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {quiz.tags?.map((tag: string | Hashtag) => (
-          <Badge
-            key={typeof tag === "string" ? tag : tag.id}
-            variant="secondary"
-          >
-            {typeof tag === "string" ? tag : tag.name}
-          </Badge>
-        ))}
-      </div>
       <div className="flex items-center gap-4">
         {/* 主要操作按钮 */}
         {statusLoading ? (

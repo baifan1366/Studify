@@ -208,7 +208,7 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
         toolCategories: ['CONTENT_ANALYSIS'],
         userId,
         enableTools: true,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.2
       });
 
@@ -660,7 +660,7 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
       const result = await this.simpleAICallWithTools(webSearchPrompt, {
         toolCategories: ['SEARCH_AND_QA'],
         enableTools: true,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.3
       });
 
@@ -737,7 +737,7 @@ export class VideoLearningAIAssistant extends EnhancedAIWorkflowExecutor {
       const result = await this.simpleAICallWithTools(synthesisPrompt, {
         toolCategories: ['CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
         enableTools: true,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.4
       });
 

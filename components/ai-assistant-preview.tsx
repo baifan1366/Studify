@@ -575,12 +575,12 @@ function MarkdownContent({ content, isStreaming }: { content: string; isStreamin
           </h3>
         ),
         // 列表渲染
-        ul: ({ children, ...props }) => (
+        ul: ({ children, ordered, ...props }) => (
           <ul className="list-disc list-inside my-2 space-y-1 text-sm" {...props}>
             {children}
           </ul>
         ),
-        ol: ({ children, ...props }) => (
+        ol: ({ children, ordered, ...props }) => (
           <ol className="list-decimal list-inside my-2 space-y-1 text-sm" {...props}>
             {children}
           </ol>

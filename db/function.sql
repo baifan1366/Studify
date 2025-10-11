@@ -318,6 +318,22 @@ BEGIN
         END IF;
       END IF;
       
+    WHEN 'mistake_book' THEN
+      DECLARE
+        mistake_data record;
+      BEGIN
+        SELECT mb.mistake_content, mb.analysis, mb.knowledge_points
+        INTO mistake_data
+        FROM mistake_book mb
+        WHERE mb.id = p_content_id AND mb.is_deleted = false;
+        
+        IF FOUND THEN
+          result_text := COALESCE(mistake_data.mistake_content, '') || ' ' ||
+                        COALESCE(mistake_data.analysis, '') || ' ' ||
+                        COALESCE(array_to_string(mistake_data.knowledge_points, ' '), '');
+        END IF;
+      END;
+      
     ELSE
       RAISE NOTICE 'Unknown content type: %', p_content_type;
       RETURN NULL;
@@ -4597,9 +4613,8 @@ AS $function$
 BEGIN
   IF TG_OP = 'INSERT' OR 
      (TG_OP = 'UPDATE' AND (
-       NEW.notes IS DISTINCT FROM OLD.notes OR
-       NEW.solution IS DISTINCT FROM OLD.solution OR
-       NEW.question_text IS DISTINCT FROM OLD.question_text
+       NEW.mistake_content IS DISTINCT FROM OLD.mistake_content OR
+       NEW.analysis IS DISTINCT FROM OLD.analysis
      )) THEN
     
     -- 队列embedding，高优先级（个性化学习）

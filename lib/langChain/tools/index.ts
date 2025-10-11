@@ -6,6 +6,7 @@ import { userProfileTool } from './user-profile-tool';
 import { classroomTool } from './classroom-tool';
 import { contentAnalysisTool } from './content-analysis-tool';
 import { recommendationTool } from './recommendation-tool';
+import { courseRecommendationTool } from './course-recommendation-tool';
 import { quizGenerationTool } from './quiz-generation-tool';
 import { calculatorTool, dateTimeTool, textProcessingTool } from './utility-tools';
 
@@ -18,6 +19,7 @@ export const AVAILABLE_TOOLS = {
   get_classroom_data: classroomTool,
   analyze_content: contentAnalysisTool,
   recommend_content: recommendationTool,
+  course_recommendations: courseRecommendationTool,
   generate_quiz: quizGenerationTool,
   calculate: calculatorTool,
   get_datetime: dateTimeTool,
@@ -30,7 +32,7 @@ export const TOOL_CATEGORIES = {
   CONTENT_ANALYSIS: ['analyze_content'],
   CONTENT_GENERATION: ['generate_quiz'],
   DATA_ACCESS: ['get_course_data', 'get_user_profile', 'get_classroom_data'],
-  RECOMMENDATIONS: ['recommend_content'],
+  RECOMMENDATIONS: ['recommend_content', 'course_recommendations'],
   UTILITIES: ['calculate', 'get_datetime', 'process_text']
 };
 
@@ -57,6 +59,7 @@ export {
   classroomTool,
   contentAnalysisTool,
   recommendationTool,
+  courseRecommendationTool,
   quizGenerationTool,
   calculatorTool,
   dateTimeTool,

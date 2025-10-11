@@ -310,7 +310,7 @@ Response: {
     try {
       const llm = await getLLM({
         temperature: 0.1,
-        model: 'deepseek/deepseek-chat-v3.1:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
       });
       
       const response = await llm.invoke([new HumanMessage(parsePrompt)]);
@@ -412,7 +412,7 @@ Relevant parts:
 
         const llm = await getLLM({
           temperature: 0.1,
-          model: 'deepseek/deepseek-chat-v3.1:free'
+          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
         });
         
         const response = await llm.invoke([new HumanMessage(prompt)]);
@@ -552,7 +552,7 @@ Generate ${this.numQueries} alternative questions:
     try {
       const llm = await getLLM({
         temperature: 0.7,
-        model: 'deepseek/deepseek-chat-v3.1:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
       });
       
       const response = await llm.invoke([new HumanMessage(prompt)]);

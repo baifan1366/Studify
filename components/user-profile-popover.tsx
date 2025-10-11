@@ -233,7 +233,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                 <div className="flex flex-col items-start">
                   <span className="font-semibold text-slate-800 dark:text-slate-100">{t('switch_account') || 'Switch Account'}</span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {allAccounts.length} account{allAccounts.length !== 1 ? 's' : ''}
+                    {t('account_count', { count: allAccounts.length })}
                   </span>
                 </div>
               </div>
@@ -257,7 +257,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                 >
                   <div className="p-3">
                     <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-3 px-2 uppercase tracking-wider">
-                      Accounts
+                      {t('accounts')}
                     </div>
                     
                     {/* Show switching loading state */}
@@ -265,7 +265,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                       <div className="flex items-center justify-center py-4">
                         <Loader2 size={20} className="text-blue-500 animate-spin" />
                         <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">
-                          Switching account...
+                          {t('switching_account')}
                         </span>
                       </div>
                     )}
@@ -336,7 +336,15 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                               <div
                                 onClick={(e) => handleRemoveAccount(account.id, e)}
                                 className="w-5 h-5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer"
-                                title="Remove account"
+                                title={t('remove_account')}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleRemoveAccount(account.id, e as any);
+                                  }
+                                }}
                               >
                                 <X size={12} className="text-red-500" />
                               </div>
@@ -355,7 +363,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
                         <User size={16} className="text-white" />
                       </div>
-                      <span className="text-sm font-semibold">Add another account</span>
+                      <span className="text-sm font-semibold">{t('add_account')}</span>
                     </motion.button>
                   </div>
                 </motion.div>

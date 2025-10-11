@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { createAdminClient } from '@/utils/supabase/server';
 import { getLLM } from '@/lib/langChain/client';
+import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
 // 视频时间轴智能问答API
 export async function POST(request: NextRequest) {
@@ -15,6 +17,23 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
+
+    // Rate limiting check
+    const checkLimit = createRateLimitCheck('videoQA');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
+    
+    if (!allowed) {
+      console.log(`⚠️ Rate limit exceeded for user ${userId}`);
+      return NextResponse.json(
+        rateLimitResponse(resetTime, limit),
+        { 
+          status: 429,
+          headers: rateLimitResponse(resetTime, limit).headers
+        }
+      );
+    }
+    
+    console.log(`✅ Rate limit OK: ${remaining}/${limit} remaining for user ${userId}`);
 
     const body = await request.json();
     const {
@@ -105,30 +124,26 @@ export async function POST(request: NextRequest) {
 章节：${moduleTitle}  
 课时：${lessonTitle}`;
 
-    // 4. 使用AI生成答案
-    const model = await getLLM({ model: 'x-ai/grok-beta' });
+    // 4. 使用AI生成答案 (升级版：Tool Calling)
+    console.log(`🎓 Video QA with tool calling: "${question.substring(0, 50)}..."`);
     
-    const prompt = `你是一个智能视频学习助手。用户正在观看教育视频，在特定时间点提出了问题。
+    const enhancedQuestion = `${courseContext}
 
-${courseContext}
-
-当前播放时间：${currentTime}秒
-相关视频内容：
+Current video time: ${currentTime}s
+Video content:
 ${contextText}
 
-用户问题：${question}
+Question: ${question}`;
 
-请基于视频内容回答用户的问题，要求：
-1. 答案要简洁明了，直接回答问题
-2. 如果视频内容中有相关信息，请引用具体时间点
-3. 如果问题超出视频内容范围，请说明并提供学习建议
-4. 保持友好和鼓励的语调
-5. 答案控制在200字以内
+    const result = await enhancedAIExecutor.educationalQA(enhancedQuestion, {
+      userId,
+      includeAnalysis: true
+    });
 
-请直接返回答案，不需要额外格式。`;
-
-    const completion = await model.invoke(prompt);
-    const answer = completion.content as string;
+    const answer = result.answer;
+    const toolsUsed = result.toolsUsed || [];
+    
+    console.log(`✅ Video QA completed using tools: ${toolsUsed.join(', ')}`);
 
     // 5. 保存问答记录（可选）
     await supabase
@@ -165,6 +180,12 @@ ${contextText}
         courseName: courseTitle,
         moduleName: moduleTitle,
         lessonName: lessonTitle
+      }
+    }, {
+      headers: {
+        'X-RateLimit-Limit': limit.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': resetTime.toString()
       }
     });
 
@@ -231,21 +252,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 使用AI提取关键术语
-    const model = await getLLM({ model: 'x-ai/grok-beta' });
+    // 使用AI提取关键术语 (升级版：可选择使用 tool calling)
     const contextText = segments.map(s => s.text).join(' ');
+    
+    // 简单的术语提取仍然可以使用直接 LLM 调用（快速且成本低）
+    // 对于复杂分析可以切换到 tool calling
+    const model = await getLLM({ model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free' });
 
-    const prompt = `请从以下视频内容中提取3-5个最重要的学术术语或概念，并给出简短解释：
+    const prompt = `Extract 3-5 of the most important academic terms or concepts from the following video content and provide brief explanations:
 
-内容：${contextText}
+Content: ${contextText}
 
-要求：
-1. 只提取专业术语、概念名词或关键技术词汇
-2. 每个术语提供20-50字的简洁解释
-3. 返回JSON格式：[{"term": "术语", "definition": "解释", "timestamp": 时间点}]
-4. 如果内容中没有明显术语，返回空数组
+Requirements:
+1. Only extract professional terms, concept nouns, or key technical vocabulary
+2. Provide a concise explanation of 20-50 words for each term
+3. Return in JSON format: [{"term": "term name", "definition": "explanation", "timestamp": time_point}]
+4. If there are no obvious terms in the content, return an empty array
 
-直接返回JSON数组，不要其他格式：`;
+Return the JSON array directly without additional formatting:`;
 
     const completion = await model.invoke(prompt);
     let terms = [];

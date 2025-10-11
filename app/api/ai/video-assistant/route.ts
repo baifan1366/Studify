@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
-import { VideoLearningAIAssistant, VideoContext } from '@/lib/langChain/video-ai-assistant';
+import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 import { z } from 'zod';
 
 // Request validation schema for video AI assistant
@@ -28,6 +29,24 @@ export async function POST(request: NextRequest) {
     const user = authResult.user;
     const userId = parseInt(authResult.payload.sub);
 
+    // Rate limiting check
+    const checkLimit = createRateLimitCheck('videoQA');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
+    
+    if (!allowed) {
+      return NextResponse.json(
+        rateLimitResponse(resetTime, limit),
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': resetTime.toString()
+          }
+        }
+      );
+    }
+
     // Parse and validate request
     const body = await request.json();
     const validatedData = videoAssistantRequestSchema.parse(body);
@@ -37,38 +56,73 @@ export async function POST(request: NextRequest) {
     console.log(`🎓 Video AI Assistant request from user ${userId}: "${question.substring(0, 50)}..."`);
     console.log(`📍 Context: Course=${videoContext.courseSlug}, Lesson=${videoContext.currentLessonId}, Time=${videoContext.currentTimestamp}s`);
 
-    // Create video AI assistant instance and call with double-call pattern
-    const videoAIAssistant = new VideoLearningAIAssistant();
+    // ✅ Use unified Tool Calling Agent instead of manual orchestration
     const startTime = Date.now();
-    const result = await videoAIAssistant.assistUser(
-      question,
-      videoContext,
+    
+    // Build context-aware question with video metadata
+    const contextualizedQuestion = `Video Learning Context:
+- Course: ${videoContext.courseSlug}
+- Lesson: ${videoContext.currentLessonId || 'Not specified'}
+- Video timestamp: ${videoContext.currentTimestamp || 0} seconds
+${videoContext.selectedText ? `- Selected text: "${videoContext.selectedText}"` : ''}
+
+Student Question: ${question}
+
+Please provide a clear, educational answer that:
+1. Connects to the specific video content and timestamp
+2. Uses course materials and lesson context
+3. Provides actionable learning suggestions
+4. Encourages deeper understanding`;
+
+    const result = await enhancedAIExecutor.educationalQA(contextualizedQuestion, {
       userId,
-      conversationHistory
-    );
+      includeAnalysis: true,
+      conversationContext: conversationHistory
+    });
 
     const totalProcessingTime = Date.now() - startTime;
 
-    console.log(`✅ Video AI Assistant completed in ${totalProcessingTime}ms using ${result.webSearchUsed ? 'local + web' : 'local only'} sources`);
-    console.log(`📊 Response confidence: ${(result.confidence * 100).toFixed(1)}%, Sources: ${result.sources.length}`);
+    console.log(`✅ Video AI Assistant completed in ${totalProcessingTime}ms using tools: ${result.toolsUsed?.join(', ')}`);
+    console.log(`📊 Response quality: Sources=${result.sources?.length || 0}, Tools=${result.toolsUsed?.length || 0}`);
+
+    // Format sources for compatibility
+    const formattedSources = (result.sources || []).map((source: any) => ({
+      type: source.type || 'course_content',
+      title: source.title || 'Course Content',
+      timestamp: source.timestamp,
+      url: source.url,
+      contentPreview: source.contentPreview || source.content?.substring(0, 100)
+    }));
 
     return NextResponse.json({
       success: true,
       question,
       answer: result.answer,
-      sources: result.sources,
-      confidence: result.confidence,
-      webSearchUsed: result.webSearchUsed,
-      suggestedActions: result.suggestedActions,
-      relatedConcepts: result.relatedConcepts,
+      sources: formattedSources,
+      confidence: result.confidence || 0.85,
+      webSearchUsed: result.toolsUsed?.includes('search') || false,
+      suggestedActions: [
+        "Review related course materials",
+        "Take notes on key points",
+        "Try related practice questions"
+      ],
+      relatedConcepts: formattedSources.slice(0, 3).map((s: any) => s.title),
       metadata: {
         processingTimeMs: totalProcessingTime,
-        aiProcessingTimeMs: result.processingTime,
+        aiProcessingTimeMs: totalProcessingTime,
         videoContext,
-        sourcesCount: result.sources.length,
+        sourcesCount: formattedSources.length,
+        toolsUsed: result.toolsUsed || [],
         timestamp: new Date().toISOString(),
         userId: authResult.payload.sub,
-        conversationHistoryLength: conversationHistory?.length || 0
+        conversationHistoryLength: conversationHistory?.length || 0,
+        upgraded: true // Mark as using new Tool Calling architecture
+      }
+    }, {
+      headers: {
+        'X-RateLimit-Limit': limit.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': resetTime.toString()
       }
     });
 

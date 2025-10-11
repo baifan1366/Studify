@@ -72,7 +72,7 @@ Please provide a structured analysis in the following format:
 
 Be concise but comprehensive.`,
         requiresContext: true,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.2
       },
       {
@@ -92,7 +92,7 @@ Create a summary that includes:
 
 Make it engaging and informative.`,
         requiresContext: true,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.3
       },
       {
@@ -112,7 +112,7 @@ Generate a study plan with:
 5. Additional Resources (if needed)
 
 Tailor the plan to be practical and achievable.`,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.4
       }
     ],
@@ -146,7 +146,7 @@ Identify:
 
 Provide a structured analysis of question-worthy content.`,
         requiresContext: true,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.1
       },
       {
@@ -172,7 +172,7 @@ For each question, provide:
 6. Learning objective addressed
 
 Format as JSON for easy parsing.`,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.3,
         outputParser: (output: string) => {
           try {
@@ -197,7 +197,7 @@ Please review and:
 5. Suggest improvements if needed
 
 Provide the final optimized question set with your review comments.`,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.2
       }
     ]
@@ -229,7 +229,7 @@ Provide insights that will help in content recommendation.`,
           contentTypes: ['profile', 'course_note', 'quiz_question'],
           maxChunks: 5
         },
-        model: "x-ai/grok-4-fast:free"
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free"
       },
       {
         id: 'find-relevant-content',
@@ -253,7 +253,7 @@ Provide top 10 recommendations with reasoning for each.`,
           maxChunks: 15,
           minSimilarity: 0.6
         },
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.4
       },
       {
@@ -274,7 +274,7 @@ Design a learning path that includes:
 7. Alternative paths for different learning speeds
 
 Make it practical and motivating.`,
-        model: "x-ai/grok-4-fast:free",
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         temperature: 0.3
       }
     ]
@@ -398,7 +398,7 @@ export class AIWorkflowExecutor {
       try {
         // 获取LLM实例
         const llm = await getLLM({
-          model: step.model || "x-ai/grok-4-fast:free",
+          model: step.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
           temperature: step.temperature || 0.3,
           maxRetries: 1
         });
@@ -586,7 +586,7 @@ export class AIWorkflowExecutor {
     }
 
     const llm = await getLLM({
-      model: options.model || "x-ai/grok-4-fast:free",
+      model: options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
       temperature: options.temperature || 0.3
     });
 

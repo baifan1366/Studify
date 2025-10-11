@@ -297,11 +297,11 @@ Solution:`;
     const llm = isImageAnalysis 
       ? await getLLM({
           temperature: 0.3,
-          model: 'moonshotai/kimi-vl-a3b-thinking:free'
+          model: process.env.OPEN_ROUTER_IMAGE_MODEL || 'moonshotai/kimi-vl-a3b-thinking:free'
         })
       : await getLLM({
           temperature: 0.3,
-          model: 'deepseek/deepseek-chat-v3.1:free'
+          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
         });
     
     const response = await llm.invoke([new HumanMessage(prompt)]);
@@ -391,7 +391,7 @@ Please format your response as JSON:
     try {
       const llm = await getLLM({
         temperature: 0.3,
-        model: 'deepseek/deepseek-chat-v3.1:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
       });
       
       const enhancementResponse = await llm.invoke([new HumanMessage(enhancementPrompt)]);
@@ -474,7 +474,7 @@ ${includeSourceReferences ? 'Include references to context sources using [1], [2
     try {
       const llm = await getAnalyticalLLM({
         temperature: 0.2,
-        model: 'deepseek/deepseek-chat-v3.1:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
       });
       
       const response = await llm.invoke([new HumanMessage(answerPrompt)]);

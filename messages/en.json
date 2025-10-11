@@ -8038,5 +8038,19 @@
     "enable": "Enable",
     "disable": "Disable",
     "general_notifications": "General Notifications"
+  },
+  "BannedUserDialog": {
+    "title": "Account Suspended",
+    "description": "Your account has been suspended and you cannot access student pages.",
+    "access_restricted": "Access Restricted",
+    "access_restricted_message": "Your account has been suspended. You will not be able to access any student pages until the suspension is lifted.",
+    "reason_label": "Suspension Reason",
+    "banned_on": "Suspended on",
+    "expires_on": "Suspension expires on",
+    "permanent_ban": "Permanent Suspension",
+    "permanent_ban_message": "This is a permanent suspension with no expiry date.",
+    "contact_support_message": "If you believe this is a mistake, please contact our support team for assistance.",
+    "logout": "Log Out",
+    "logging_out": "Logging out..."
   }
 }

@@ -529,15 +529,11 @@ BEGIN
     setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
     setweight(to_tsvector('english', coalesce(NEW.description, '')), 'B') ||
     setweight(to_tsvector('english', coalesce(NEW.difficulty::text, '')), 'C') ||
-    setweight(to_tsvector('english', coalesce(NEW.visibility, '')), 'D') ||
-    -- Process tags array
-    setweight(to_tsvector('english', coalesce(
-      array_to_string(NEW.tags, ' '), ''
-    )), 'B');
+    setweight(to_tsvector('english', coalesce(NEW.visibility, '')), 'D');
   
   RETURN NEW;
 END;
-$function$;;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_tutor_earnings_summary()
@@ -799,8 +795,7 @@ BEGIN
     COALESCE(NEW.title, '') || ' ' ||
     COALESCE(NEW.description, '') || ' ' ||
     COALESCE(subject_translations->>'en', '') || ' ' ||
-    COALESCE(grade_translations->>'en', '') || ' ' ||
-    COALESCE(array_to_string(NEW.tags, ' '), '')
+    COALESCE(grade_translations->>'en', '')
   );
   
   -- Update Chinese search vector
@@ -808,8 +803,7 @@ BEGIN
     COALESCE(NEW.title, '') || ' ' ||
     COALESCE(NEW.description, '') || ' ' ||
     COALESCE(subject_translations->>'zh', '') || ' ' ||
-    COALESCE(grade_translations->>'zh', '') || ' ' ||
-    COALESCE(array_to_string(NEW.tags, ' '), '')
+    COALESCE(grade_translations->>'zh', '')
   );
   
   RETURN NEW;
@@ -2448,7 +2442,6 @@ BEGIN
           'author_id', cq.author_id,
           'difficulty', cq.difficulty,
           'visibility', cq.visibility,
-          'tags', cq.tags,
           'public_id', cq.public_id
         ) as additional_data
       FROM community_quiz cq

@@ -347,15 +347,6 @@ async function handleUpdate(
       updates.difficulty = difficulty;
     }
 
-    // Temporarily disable updating 'tags' field. Incoming 'tags' will be ignored.
-    // if (Object.prototype.hasOwnProperty.call(body, "tags")) {
-    //   const tags = body.tags;
-    //   if (tags != null && !Array.isArray(tags)) {
-    //     return NextResponse.json({ error: "Invalid tags (must be string array)" }, { status: 400 });
-    //   }
-    //   updates.tags = Array.isArray(tags) ? tags.map((t: any) => String(t)) : null;
-    // }
-
     if (Object.prototype.hasOwnProperty.call(body, "max_attempts")) {
       const max_attempts = body.max_attempts;
       if (
@@ -425,7 +416,7 @@ async function handleUpdate(
       .update(updates)
       .eq("id", quiz.id)
       .select(
-        `id, public_id, slug, title, description, tags, difficulty, max_attempts, visibility, time_limit_minutes, author_id, created_at`
+        `id, public_id, slug, title, description, difficulty, max_attempts, visibility, time_limit_minutes, author_id, created_at`
       )
       .single();
 

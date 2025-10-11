@@ -108,16 +108,6 @@ const AttemptCard = ({ attempt }: { attempt: QuizAttemptDetail }) => {
           </div>
         )}
       </div>
-
-      {attempt.quiz.tags && attempt.quiz.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-3">
-          {attempt.quiz.tags.slice(0, 3).map((tag, index) => (
-            <Badge key={index} variant="outline" className="text-xs border-white/20 text-gray-300">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

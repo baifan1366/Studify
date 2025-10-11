@@ -20,9 +20,9 @@ export default function QuizForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState(1);
-  const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>();
   const [selectedGradeId, setSelectedGradeId] = useState<number | undefined>();
   
@@ -53,9 +53,9 @@ export default function QuizForm() {
         title, 
         description, 
         difficulty, 
-        tags, 
         visibility, 
         max_attempts: maxAttempts,
+        time_limit_minutes: timeLimitMinutes,
         subject_id: selectedSubjectId,
         grade_id: selectedGradeId
       },
@@ -102,23 +102,6 @@ export default function QuizForm() {
           max={5}
           value={difficulty}
           onChange={(e) => setDifficulty(Number(e.target.value))}
-        />
-      </div>
-
-      {/* 你可以把 TagInput 拆出来；这里先用简单实现 */}
-      <div>
-        <label className="block mb-2 font-medium">Tags (comma separated)</label>
-        <Input
-          placeholder="math, calculus"
-          value={tags.join(", ")}
-          onChange={(e) =>
-            setTags(
-              e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            )
-          }
         />
       </div>
 
@@ -199,6 +182,19 @@ export default function QuizForm() {
             <SelectItem value="999">Unlimited</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Time Limit */}
+      <div>
+        <Label htmlFor="timeLimit" className="block mb-2 font-medium">Time Limit (minutes)</Label>
+        <Input
+          id="timeLimit"
+          type="number"
+          min="1"
+          value={timeLimitMinutes || ""}
+          onChange={(e) => setTimeLimitMinutes(e.target.value ? parseInt(e.target.value) : null)}
+          placeholder="Leave empty for no time limit"
+        />
       </div>
 
       <Button

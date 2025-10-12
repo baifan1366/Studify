@@ -9,7 +9,7 @@ import { HookChatMessage } from '@/interface/classroom/chat-message-interface';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 import { useNotifications, useCreateNotification } from '@/hooks/notifications/use-notifications';
 import { useNotificationSettings, useUpdateNotificationSettings } from '@/hooks/notifications/use-notification-settings';
 
@@ -388,20 +388,17 @@ export function ChatTabs({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, markAsRead]);
+  }, [activeTab, markAsRead, classroom]);
   
-  // Get classroom color styling
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  // Get classroom color
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
 
 
   const tabs: ChatTab[] = [
     {
       id: 'general',
-      label: 'Chat',
+      label: 'General',
       icon: <MessageCircle className="w-4 h-4" />,
       count: (unreadCount > 0 && activeTab !== 'general') ? unreadCount : undefined,
     },

@@ -283,13 +283,21 @@ export default function MegaImage({
       alt={alt}
       className={className}
       onLoad={() => {
-        // Additional onLoad handling if needed
+        if (onLoad) {
+          onLoad();
+        }
       }}
-      onError={() => {
-        // Handle image load error
+      onError={(e) => {
+        // Silently handle image rendering errors
+        console.warn('Image failed to render from blob URL:', megaUrl);
+        
+        // Call error callback if provided
         if (onError) {
           onError(new Error('Failed to display image'));
         }
+        
+        // Prevent error from bubbling up
+        e.preventDefault();
       }}
     />
   );

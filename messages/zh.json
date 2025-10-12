@@ -1,4 +1,4 @@
-﻿{
+{
     "HomePage": {
       "title": "你好，世界！",
       "metadata_title": "首页 | Studify",
@@ -518,7 +518,6 @@
       "disable": "停用"
     },
     "StorageDialog": {
-      "selected": "已选择",
       "unknown_size": "未知大小",
       "loading_attachments": "正在加载附件...",
       "title": "存储管理",
@@ -531,7 +530,6 @@
       "upload_tab": "上传",
       "manage_tab": "管理文件",
       "upload_title": "上传新文件",
-      "Selected": "已选择",
       "loading_attachment": "正在加载附件...",
       "upload_description": "上传课程资料与资源",
       "file_title_label": "文件标题",

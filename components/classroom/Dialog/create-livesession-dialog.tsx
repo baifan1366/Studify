@@ -30,6 +30,7 @@ interface CreateLiveSessionDialogProps {
   onFormDataChange: (updater: (prev: FormData) => FormData) => void;
   onCreateSession: () => void;
   canManageSessions: boolean;
+  isCreating?: boolean;
 }
 
 export function CreateLiveSessionDialog({
@@ -38,9 +39,19 @@ export function CreateLiveSessionDialog({
   formData,
   onFormDataChange,
   onCreateSession,
-  canManageSessions
+  canManageSessions,
+  isCreating = false
 }: CreateLiveSessionDialogProps) {
   if (!canManageSessions) return null;
+
+  // Check if start time is within 5 minutes (will auto-start)
+  const willAutoStart = React.useMemo(() => {
+    if (!formData.starts_at) return false;
+    const startTime = new Date(formData.starts_at);
+    const now = new Date();
+    const diffMinutes = (startTime.getTime() - now.getTime()) / (1000 * 60);
+    return diffMinutes <= 5;
+  }, [formData.starts_at]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -55,6 +66,7 @@ export function CreateLiveSessionDialog({
           <DialogTitle>Schedule Live Session</DialogTitle>
           <DialogDescription>
             Create a new live session for your classroom.
+            {willAutoStart && " This session will start immediately!"}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -86,24 +98,33 @@ export function CreateLiveSessionDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="ends_at">End Time</Label>
+            <Label htmlFor="ends_at">End Time (Optional)</Label>
             <Input
               id="ends_at"
               type="datetime-local"
               value={formData.ends_at}
               onChange={(e) => onFormDataChange(prev => ({ ...prev, ends_at: e.target.value }))}
+              placeholder="Leave empty for open-ended session"
             />
+            <p className="text-xs text-muted-foreground">
+              Leave empty if you want an open-ended session
+            </p>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
             Cancel
           </Button>
           <Button 
             onClick={onCreateSession}
-            disabled={!formData.title || !formData.starts_at || !formData.ends_at}
+            disabled={!formData.title || !formData.starts_at || isCreating}
+            className={willAutoStart ? 'bg-green-600 hover:bg-green-700' : ''}
           >
-            Schedule Session
+            {isCreating 
+              ? 'Creating...' 
+              : willAutoStart 
+              ? '🎬 Start Live Now' 
+              : 'Schedule Session'}
           </Button>
         </DialogFooter>
       </DialogContent>

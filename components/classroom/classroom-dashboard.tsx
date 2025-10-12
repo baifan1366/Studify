@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -16,9 +15,15 @@ import {
   Copy,
   ExternalLink,
   Plus,
-  Play
+  Play,
+  UserPlus,
+  CheckCircle,
+  Clock,
+  MessageSquare,
+  Edit,
+  Trash
 } from 'lucide-react';
-import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
+import { useClassrooms, useLiveSessions, useUpdateLiveSession } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { useClassroomAssignments, ClassroomAssignment } from '@/hooks/classroom/use-classroom-assignments';
 import { ChatTabs } from './tabs/chat-tabs';
@@ -31,12 +36,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger as OriginalTabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { MembersTab } from './tabs/members-tab';
 import { LiveSessionTab } from './tabs/live-session-tab';
 import { AssignmentsTab } from './tabs/assignments-tab';
 import { QuizTab } from './tabs/quiz-tab';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomDashboardProps {
   classroomSlug: string;
@@ -93,6 +103,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [activeSession, setActiveSession] = useState<any>(null);
+  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
   // Get current user data to check role
   const { data: currentUser } = useUser();
@@ -117,6 +129,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   }, [membersData, isMembersLoading]);
   const { data: liveSessionsData, isLoading: isLiveSessionsLoading } = useLiveSessions(classroomSlug);
   const { data: assignmentsResponse, isLoading: isAssignmentsLoading } = useClassroomAssignments(classroomSlug, 'upcoming');
+  const updateSessionMutation = useUpdateLiveSession();
+  
+  // Track processed sessions to avoid duplicate updates
+  const processedSessionsRef = useRef<Set<string>>(new Set());
 
   // Type the assignments data properly using hook's Assignment type
   const typedAssignments: ClassroomAssignment[] = assignmentsResponse?.assignments || [];
@@ -144,6 +160,37 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   // Find the specific classroom from the list
   const classroom = classroomsData?.classrooms?.find(c => c.slug === classroomSlug);
   
+  // Debug: Log classroom data to verify color
+  useEffect(() => {
+    if (classroom) {
+      console.log('🎨 [Dashboard] Classroom data:', {
+        slug: classroom.slug,
+        name: classroom.name,
+        color: classroom.color,
+        hasColor: !!classroom.color,
+        rawClassroom: classroom
+      });
+    }
+  }, [classroom]);
+  
+  // Manage classroom form state
+  const [manageFormData, setManageFormData] = useState({
+    name: classroom?.name || '',
+    description: classroom?.description || '',
+    color: (classroom as any)?.color || CLASSROOM_COLORS[0],
+  });
+
+  // Update form data when classroom data loads
+  useEffect(() => {
+    if (classroom) {
+      setManageFormData({
+        name: classroom.name || '',
+        description: classroom.description || '',
+        color: (classroom as any)?.color || CLASSROOM_COLORS[0],
+      });
+    }
+  }, [classroom]);
+  
   // useEffect for classroom data validation
   useEffect(() => {
     if (classroom && typedAssignments.length > 0) {
@@ -169,6 +216,122 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     }
   }, [classroom, typedAssignments]);
 
+  // useEffect to check and update expired live sessions
+  useEffect(() => {
+    if (!liveSessionsData?.sessions || !classroomSlug) return;
+
+    const checkExpiredSessions = async () => {
+      const now = new Date();
+      const expiredSessions = liveSessionsData.sessions.filter((session: any) => {
+        const sessionKey = `expired-${session.id}`;
+        
+        // Skip if already processed
+        if (processedSessionsRef.current.has(sessionKey)) {
+          return false;
+        }
+        
+        // Check if session is live or scheduled but has ended
+        if (session.status === 'live' || session.status === 'scheduled') {
+          const endsAt = session.ends_at ? new Date(session.ends_at) : null;
+          const startsAt = new Date(session.starts_at);
+          
+          // If session has an end time and it's past
+          if (endsAt && endsAt < now) {
+            return true;
+          }
+          
+          // If session is live but has no end time, check if it started more than 24 hours ago
+          if (session.status === 'live' && !endsAt) {
+            const hoursSinceStart = (now.getTime() - startsAt.getTime()) / (1000 * 60 * 60);
+            if (hoursSinceStart > 24) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+
+      // Update expired sessions
+      for (const session of expiredSessions) {
+        const sessionKey = `expired-${session.id}`;
+        try {
+          console.log(`🕐 Updating expired session: ${session.id} (${session.title})`);
+          processedSessionsRef.current.add(sessionKey);
+          
+          await updateSessionMutation.mutateAsync({
+            classroomSlug,
+            session_id: session.id,
+            status: 'ended'
+          });
+        } catch (error) {
+          console.error(`Failed to update expired session ${session.id}:`, error);
+          // Remove from processed on error so it can be retried
+          processedSessionsRef.current.delete(sessionKey);
+        }
+      }
+    };
+
+    // Check immediately
+    checkExpiredSessions();
+
+    // Check every 5 minutes
+    const interval = setInterval(checkExpiredSessions, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [classroomSlug]);
+
+  // useEffect to auto-start scheduled sessions when they reach start time
+  useEffect(() => {
+    if (!liveSessionsData?.sessions || !classroomSlug) return;
+
+    const checkScheduledSessions = async () => {
+      const now = new Date();
+      const sessionsToStart = liveSessionsData.sessions.filter((session: any) => {
+        const sessionKey = `started-${session.id}`;
+        
+        // Skip if already processed
+        if (processedSessionsRef.current.has(sessionKey)) {
+          return false;
+        }
+        
+        // Check if session is scheduled and start time has arrived
+        if (session.status === 'scheduled') {
+          const startsAt = new Date(session.starts_at);
+          // Start if current time is past or within 1 minute of start time
+          return startsAt <= now;
+        }
+        return false;
+      });
+
+      // Update scheduled sessions to live
+      for (const session of sessionsToStart) {
+        const sessionKey = `started-${session.id}`;
+        try {
+          console.log(`🎬 Auto-starting session: ${session.id} (${session.title})`);
+          processedSessionsRef.current.add(sessionKey);
+          
+          await updateSessionMutation.mutateAsync({
+            classroomSlug,
+            session_id: session.id,
+            status: 'live'
+          });
+        } catch (error) {
+          console.error(`Failed to auto-start session ${session.id}:`, error);
+          // Remove from processed on error so it can be retried
+          processedSessionsRef.current.delete(sessionKey);
+        }
+      }
+    };
+
+    // Check immediately
+    checkScheduledSessions();
+
+    // Check every minute
+    const interval = setInterval(checkScheduledSessions, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [classroomSlug]);
+
   const handleCopyClassCode = () => {
     if (classroom?.class_code) {
       navigator.clipboard.writeText(classroom.class_code);
@@ -178,6 +341,202 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       });
     }
   };
+
+  // Handle opening manage dialog
+  const handleOpenManageDialog = () => {
+    setIsManageDialogOpen(true);
+  };
+
+  // Handle saving classroom changes
+  const handleSaveClassroom = async () => {
+    if (!classroom) return;
+
+    try {
+      console.log('🔄 Updating classroom:', {
+        slug: classroomSlug,
+        data: manageFormData
+      });
+
+      const response = await fetch(`/api/classroom/${classroomSlug}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: manageFormData.name,
+          description: manageFormData.description,
+          color: manageFormData.color,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update classroom');
+      }
+
+      console.log('✅ Classroom updated:', data);
+      
+      toast({
+        title: "Success",
+        description: "Classroom updated successfully",
+      });
+      
+      setIsManageDialogOpen(false);
+      
+      // Invalidate queries to refresh data without full page reload
+      // Note: We need to import QueryClient for this
+      window.location.reload(); // For now, use full reload until we add QueryClient
+    } catch (error: any) {
+      console.error('❌ Error updating classroom:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update classroom",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle deleting classroom
+  const handleDeleteClassroom = async () => {
+    if (!classroom) return;
+
+    try {
+      console.log('🗑️ Deleting classroom:', {
+        slug: classroomSlug,
+        id: classroom.id
+      });
+
+      const response = await fetch(`/api/classroom/${classroomSlug}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete classroom');
+      }
+
+      console.log('✅ Classroom deleted:', data);
+      
+      toast({
+        title: "Success",
+        description: "Classroom deleted successfully",
+      });
+      
+      setIsDeleteConfirmOpen(false);
+      
+      // Redirect to classroom list
+      const isTutor = currentUser?.profile?.role === 'tutor';
+      const route = isTutor ? '/tutor/classroom' : '/classroom';
+      router.push(route);
+    } catch (error: any) {
+      console.error('❌ Error deleting classroom:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete classroom",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Generate recent activities from various data sources
+  const generateRecentActivities = () => {
+    const activities: Array<{
+      id: string;
+      type: 'member' | 'session' | 'assignment' | 'quiz';
+      icon: any;
+      title: string;
+      description: string;
+      timestamp: Date;
+      user?: string;
+      status?: string;
+    }> = [];
+
+    // Add member activities
+    if (membersData) {
+      const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+      members.slice(0, 5).forEach((member: any) => {
+        if (member.joined_at) {
+          activities.push({
+            id: `member-${member.id}`,
+            type: 'member',
+            icon: UserPlus,
+            title: 'New member joined',
+            description: `${member.user?.name || member.user?.email || 'A user'} joined the classroom`,
+            timestamp: new Date(member.joined_at),
+            user: member.user?.name || member.user?.email,
+            status: member.role
+          });
+        }
+      });
+    }
+
+    // Add live session activities
+    if (liveSessionsData?.sessions) {
+      liveSessionsData.sessions.slice(0, 5).forEach((session: any) => {
+        activities.push({
+          id: `session-${session.id}`,
+          type: 'session',
+          icon: Video,
+          title: session.status === 'live' ? 'Live session started' : 
+                 session.status === 'scheduled' ? 'Live session scheduled' : 
+                 'Live session ended',
+          description: session.title,
+          timestamp: new Date(session.starts_at || session.created_at),
+          status: session.status
+        });
+      });
+    }
+
+    // Add assignment activities
+    if (typedAssignments && typedAssignments.length > 0) {
+      typedAssignments.slice(0, 5).forEach((assignment: ClassroomAssignment) => {
+        activities.push({
+          id: `assignment-${assignment.id}`,
+          type: 'assignment',
+          icon: FileText,
+          title: 'New assignment posted',
+          description: assignment.title,
+          timestamp: new Date(assignment.created_at || Date.now())
+        });
+      });
+    }
+
+    // Add quiz activities (if available)
+    if (sampleQuizzes && sampleQuizzes.length > 0) {
+      sampleQuizzes.slice(0, 3).forEach((quiz: Quiz) => {
+        activities.push({
+          id: `quiz-${quiz.id}`,
+          type: 'quiz',
+          icon: Brain,
+          title: 'New quiz available',
+          description: quiz.title,
+          timestamp: new Date(quiz.created_at || Date.now())
+        });
+      });
+    }
+
+    // Sort by timestamp (most recent first)
+    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 15);
+  };
+
+  // Get relative time string
+  const getRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  const recentActivities = generateRecentActivities();
 
   const navigateToSection = (section: string) => {
     // Check if current user is a tutor and add /tutor/ prefix
@@ -266,11 +625,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const liveSessions = liveSessionsData?.sessions?.filter(s => s.status === 'live') || [];
   
   // Get classroom color styling
-  const classroomColor = ((classroom as any)?.color && CLASSROOM_COLORS.includes((classroom as any).color as ClassroomColor)) 
-    ? (classroom as any).color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
 
   return (
     <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
@@ -306,7 +662,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <Copy className="h-4 w-4" />
                 <span className="truncate">{t('class_code')}: {classroom.class_code}</span>
               </Button>
-              <Button variant="outline" onClick={() => navigateToSection('members')} className="text-sm">
+              <Button variant="outline" onClick={handleOpenManageDialog} className="text-sm">
                 <Settings className="h-4 w-4 mr-2" />
                 {t('manage')}
               </Button>
@@ -543,6 +899,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               Chat
             </AnimatedTabsTrigger> */}
           </TabsList>
+          </div>
         </div>
 
         <AnimatedTabsContent value="overview" className="space-y-4 md:space-y-6">
@@ -786,7 +1143,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           />
         </AnimatedTabsContent> */}
 
-        <AnimatedTabsContent value="recent" className="space-y-6">
+        <AnimatedTabsContent value="recent" className="space-y-4 md:space-y-6">
           <Card 
             style={{
               backgroundColor: cardStyling.backgroundColor,
@@ -798,14 +1155,214 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               <CardDescription>{t('latest_activities')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                {t('activity_feed_coming_soon')}
-              </p>
+              {recentActivities.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No recent activities yet
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {recentActivities.map((activity, index) => {
+                    const Icon = activity.icon;
+                    const iconColorClass = 
+                      activity.type === 'member' ? 'bg-blue-500/10' :
+                      activity.type === 'session' ? 'bg-red-500/10' :
+                      activity.type === 'assignment' ? 'bg-green-500/10' :
+                      'bg-purple-500/10';
+                    const textColorClass = 
+                      activity.type === 'member' ? 'text-blue-500' :
+                      activity.type === 'session' ? 'text-red-500' :
+                      activity.type === 'assignment' ? 'text-green-500' :
+                      'text-purple-500';
+                    
+                    return (
+                      <motion.div
+                        key={activity.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className={`p-2 rounded-full flex-shrink-0 ${iconColorClass}`}>
+                          <Icon className={`h-4 w-4 ${textColorClass}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">
+                                {activity.title}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {activity.description}
+                              </p>
+                              {activity.user && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  by {activity.user}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {getRelativeTime(activity.timestamp)}
+                              </span>
+                              {activity.status && (
+                                <Badge 
+                                  variant={
+                                    activity.status === 'live' ? 'destructive' : 
+                                    activity.status === 'scheduled' ? 'default' : 
+                                    'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {activity.status}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </AnimatedTabsContent>
-        </div>
       </Tabs>
+
+      {/* Manage Classroom Dialog */}
+      <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Manage Classroom</DialogTitle>
+            <DialogDescription>
+              Update classroom settings or delete this classroom.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {/* Classroom Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="name">Classroom Name</Label>
+              <Input
+                id="name"
+                value={manageFormData.name}
+                onChange={(e) => setManageFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter classroom name"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={manageFormData.description}
+                onChange={(e) => setManageFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter classroom description"
+                rows={3}
+              />
+            </div>
+
+            {/* Color Picker */}
+            <div className="grid gap-2">
+              <Label htmlFor="color">Theme Color</Label>
+              <Select
+                value={manageFormData.color}
+                onValueChange={(value) => setManageFormData(prev => ({ ...prev, color: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSROOM_COLORS.map((color) => (
+                    <SelectItem key={color} value={color}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full border"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span>{color}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setIsManageDialogOpen(false);
+                setIsDeleteConfirmOpen(true);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Trash className="h-4 w-4 mr-2" />
+              Delete Classroom
+            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => setIsManageDialogOpen(false)}
+                className="flex-1 sm:flex-none"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveClassroom}
+                className="flex-1 sm:flex-none"
+                disabled={!manageFormData.name.trim()}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Classroom?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the classroom
+              and remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 my-4">
+            <div className="flex items-start gap-3">
+              <Trash className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-destructive">Warning</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You are about to delete <strong>{classroom?.name}</strong>. All members
+                  will lose access and all content will be removed.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteClassroom}
+            >
+              <Trash className="h-4 w-4 mr-2" />
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -902,24 +902,25 @@ function LiveClassroomContent({
   const isCameraEnabled = currentLocalMediaState.camera;
   const isMicEnabled = currentLocalMediaState.microphone;
   
-  // Ensure local participant publishes tracks on connect
+  // Keep camera and microphone OFF by default when joining
+  // Users can manually enable them using the controls
   useEffect(() => {
     if (!localParticipant || !room) return;
     
-    const enableLocalTracks = async () => {
+    const disableLocalTracks = async () => {
       try {
-        // Enable camera and microphone by default
-        await localParticipant.setCameraEnabled(true);
-        await localParticipant.setMicrophoneEnabled(true);
+        // Start with camera and microphone OFF
+        await localParticipant.setCameraEnabled(false);
+        await localParticipant.setMicrophoneEnabled(false);
         
-        // Verify local publications
+        console.log('🎥 [LiveClassroom] Local tracks initialized (OFF by default)');
       } catch (error) {
-        console.error('Failed to enable local tracks:', error);
+        console.error('Failed to initialize local tracks:', error);
       }
     };
     
     // Small delay to ensure room is fully connected
-    const timer = setTimeout(enableLocalTracks, 1000);
+    const timer = setTimeout(disableLocalTracks, 1000);
     return () => clearTimeout(timer);
   }, [localParticipant, room]);
 
@@ -2052,11 +2053,12 @@ function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = fa
 
         ) : (
           <div 
-            className={`${sizeClasses[size]} flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800`}
+            className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-700 to-slate-800"
           >
-            <VideoOff className="w-20 h-20 mb-2 text-slate-400" />
-            <span className="text-m font-large">No Camera</span>
-            <span className="text-sm mt-1 opacity-75">Camera is off for {participantName}</span>
+            {/* Fixed absolute size (48px x 48px) across all layouts */}
+            <VideoOff className="w-12 h-12 mb-2 text-slate-400" />
+            <span className="text-sm font-medium">No Camera</span>
+            <span className="text-xs mt-1 opacity-75">Camera is off for {participantName}</span>
           </div>
         )}
 
@@ -2316,19 +2318,97 @@ function getVideoTileGridStyle(
 }
 
 /**
- * Simplified VideoTile component (for refactored layout)
+ * Simplified VideoTile component (for refactored layout) with camera overlay
  */
 function VideoTileSimple({ participant, layout, onFocus }: any) {
+  // Use the original LiveKit participant object for track operations
+  const livekitParticipant = participant.livekitParticipant || participant.participantObj || participant;
+  
+  // Safety check
+  if (!livekitParticipant) {
+    return (
+      <div className="w-full h-full relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+        <span className="text-slate-400 text-sm">No Participant</span>
+      </div>
+    );
+  }
+  
+  const allTracks = useTracks([Track.Source.Camera, Track.Source.Microphone, Track.Source.ScreenShare]);
+  const participantTracks = allTracks.filter(trackRef => 
+    trackRef.participant.identity === livekitParticipant.identity
+  );
+
+  const cameraTrackRef = participantTracks.find(trackRef => trackRef.source === Track.Source.Camera);
+  const micTrackRef = participantTracks.find(trackRef => trackRef.source === Track.Source.Microphone);
+  const screenShareTrackRef = participantTracks.find(trackRef => trackRef.source === Track.Source.ScreenShare);
+
+  // Use merged participant data
+  const participantName = participant.displayName || participant.identity || 'Unknown';
+  const isLocal = livekitParticipant.isLocal;
+  
+  // Check camera status
+  const hasCameraTrack = !!cameraTrackRef;
+  const hasTrack = !!cameraTrackRef?.publication?.track;
+  const isMuted = !!cameraTrackRef?.publication?.isMuted;
+  const showCamera = hasCameraTrack && hasTrack && !isMuted;
+
   return (
     <motion.div
       className="w-full h-full relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800"
       whileHover={{ scale: layout === 'grid' ? 1.02 : 1 }}
       onClick={onFocus}
     >
-      {/* Video content */}
-      <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-        {participant.displayName || participant.identity}
+      {/* Screen Share */}
+      {screenShareTrackRef && (
+        <div className="absolute inset-0 bg-black">
+          <VideoTrack 
+            trackRef={screenShareTrackRef}
+            className="w-full h-full object-contain"
+          />
+          <div className="absolute top-2 left-2 bg-blue-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+            Screen Share - {participantName}
+          </div>
+        </div>
+      )}
+      
+      {/* Camera Video */}
+      {!screenShareTrackRef && showCamera ? (
+        <div className="absolute inset-0">
+          <VideoTrack
+            trackRef={cameraTrackRef}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ) : !screenShareTrackRef && (
+        /* Camera Off Overlay */
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+          <VideoOff className="w-12 h-12 mb-2 text-slate-400" />
+          <span className="text-sm font-medium">{participantName}</span>
+          <span className="text-xs opacity-75">Camera Off</span>
+        </div>
+      )}
+      
+      {/* Participant Name Overlay */}
+      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+        <div className="bg-slate-900/80 backdrop-blur-sm px-2 py-1 rounded flex items-center space-x-2">
+          <span className="text-white text-sm font-medium truncate">{participantName}</span>
+          {isLocal && (
+            <span className="text-yellow-400 text-xs">(You)</span>
+          )}
+        </div>
+        
+        {/* Mic Status */}
+        <div className="bg-slate-900/80 backdrop-blur-sm p-1.5 rounded">
+          {micTrackRef && !micTrackRef.publication?.isMuted ? (
+            <Mic className="w-3 h-3 text-green-400" />
+          ) : (
+            <MicOff className="w-3 h-3 text-red-400" />
+          )}
+        </div>
       </div>
+      
+      {/* Audio */}
+      {micTrackRef && <AudioTrack trackRef={micTrackRef} />}
     </motion.div>
   );
 }

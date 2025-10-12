@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CreateLiveSessionDialog } from '@/components/classroom/Dialog/create-livesession-dialog';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 const LiveClassroom = lazy(() => import('@/components/classroom/live-session/live-classroom'));
 
@@ -50,32 +50,57 @@ export function LiveSessionTab({
   const liveSessions = liveSessionsData?.sessions?.filter((s: any) => s.status === 'live') || [];
 
   // Get classroom color
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
 
   const handleCreateSession = async () => {
     if (!classroom) return;
 
+    // Prevent duplicate submissions
+    if (createSessionMutation.isPending) {
+      console.log('⏳ Session creation already in progress');
+      return;
+    }
+
     try {
-      await createSessionMutation.mutateAsync({
+      const requestData: any = {
         classroomSlug: classroomSlug,
         title: formData.title,
         description: formData.description,
         starts_at: formData.starts_at,
-        ends_at: formData.ends_at
-      });
+      };
+      
+      // Only include ends_at if it's provided
+      if (formData.ends_at && formData.ends_at.trim() !== '') {
+        requestData.ends_at = formData.ends_at;
+      }
+      
+      console.log('📤 [LiveSessionTab] Creating session with data:', requestData);
+      
+      const result = await createSessionMutation.mutateAsync(requestData);
+      
+      console.log('✅ [LiveSessionTab] Session created:', result);
+      
+      const isLive = result?.session?.status === 'live';
       
       toast({
         title: "Success",
-        description: "Live session created successfully",
+        description: isLive 
+          ? "Live session created and started! Click 'Join Session' to enter." 
+          : "Live session scheduled successfully",
       });
       
       setIsDialogOpen(false);
       setFormData({ title: '', description: '', starts_at: '', ends_at: '' });
+      
+      // Optionally auto-join if session is live
+      if (isLive && result?.session) {
+        console.log('🎬 [LiveSessionTab] Session is live, you can join now');
+        // Could auto-navigate here if desired
+        // handleJoinSession(result.session);
+      }
     } catch (error: any) {
+      console.error('❌ [LiveSessionTab] Failed to create session:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create live session",
@@ -113,7 +138,7 @@ export function LiveSessionTab({
       const roomUrl = isTutor 
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
-      console.log(' [LiveSessionTab] Redirecting to room URL:', roomUrl);
+      console.log('🔗 [LiveSessionTab] Redirecting to room URL:', roomUrl);
       router.push(roomUrl);
       
     } catch (error) {
@@ -174,6 +199,7 @@ export function LiveSessionTab({
             onFormDataChange={setFormData}
             onCreateSession={handleCreateSession}
             canManageSessions={isOwnerOrTutor}
+            isCreating={createSessionMutation.isPending}
           />
         )}
       </CardHeader>
@@ -200,7 +226,7 @@ export function LiveSessionTab({
                     disabled={false}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Join Session (Debug)
+                    Join Session 
                   </Button>
                 </div>
               ))}

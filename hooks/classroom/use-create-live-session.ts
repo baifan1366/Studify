@@ -147,6 +147,7 @@ export function useClassrooms() {
       description: string | null;
       visibility: string;
       class_code: string;
+      color: string | null;
       owner_id: number;
       created_at: string;
       updated_at: string;

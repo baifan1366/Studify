@@ -39,7 +39,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomMembersPageProps {
   classroomSlug: string;
@@ -154,17 +154,14 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
       </div>
     );
   }
-
+  
   const isOwner = classroom.user_role === 'owner';
   const members = membersData?.members || [];
   const currentUserRole = membersData?.current_user_role;
 
-  // Get classroom color styling
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  // Get classroom color
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
 
   return (
     <div className="container mx-auto py-8">

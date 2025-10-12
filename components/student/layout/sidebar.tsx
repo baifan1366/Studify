@@ -963,15 +963,6 @@ export default function AnimatedSidebar({
                     />
                   )}
                 </motion.div>
-                <span
-                  className={`text-xs font-medium transition-colors ${
-                    isActive
-                      ? "text-orange-500 dark:text-green-500"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {getLabelForItem(item.id)}
-                </span>
               </motion.button>
             );
           })}

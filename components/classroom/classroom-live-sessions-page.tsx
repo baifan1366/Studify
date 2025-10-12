@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
@@ -32,6 +32,17 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
@@ -62,6 +73,9 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   const { data: sessionsData, isLoading } = useLiveSessions(classroomSlug);
   const createSessionMutation = useCreateLiveSession();
   const updateSessionMutation = useUpdateLiveSession();
+  
+  // Track processed sessions to avoid duplicate updates
+  const processedSessionsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (classroomsData?.classrooms) {
@@ -70,6 +84,132 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
     }
   }, [classroomsData, classroomSlug]);
 
+  // useEffect to check and update expired live sessions
+  useEffect(() => {
+    if (!sessionsData?.sessions || !classroomSlug) return;
+
+    const checkExpiredSessions = async () => {
+      const now = new Date();
+      const expiredSessions = sessionsData.sessions.filter((session: any) => {
+        const sessionKey = `expired-${session.id}`;
+        
+        // Skip if already processed
+        if (processedSessionsRef.current.has(sessionKey)) {
+          return false;
+        }
+        
+        // Check if session is live or scheduled but has ended
+        if (session.status === 'live' || session.status === 'scheduled') {
+          const endsAt = session.ends_at ? new Date(session.ends_at) : null;
+          const startsAt = new Date(session.starts_at);
+          
+          // If session has an end time and it's past
+          if (endsAt && endsAt < now) {
+            return true;
+          }
+          
+          // If session is live but has no end time, check if it started more than 24 hours ago
+          if (session.status === 'live' && !endsAt) {
+            const hoursSinceStart = (now.getTime() - startsAt.getTime()) / (1000 * 60 * 60);
+            if (hoursSinceStart > 24) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+
+      // Update expired sessions to "ended" status (soft delete)
+      for (const session of expiredSessions) {
+        const sessionKey = `expired-${session.id}`;
+        try {
+          console.log(`🕐 [LiveSessions] Auto-updating expired session: ${session.id} (${session.title})`);
+          processedSessionsRef.current.add(sessionKey);
+          
+          await updateSessionMutation.mutateAsync({
+            classroomSlug,
+            session_id: session.id,
+            status: 'ended'
+          });
+          toast({
+            title: "Session Ended",
+            description: `"${session.title}" has been automatically ended.`,
+          });
+        } catch (error) {
+          console.error(`Failed to update expired session ${session.id}:`, error);
+          // Remove from processed on error so it can be retried
+          processedSessionsRef.current.delete(sessionKey);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkExpiredSessions();
+
+    // Check every 5 minutes
+    const interval = setInterval(checkExpiredSessions, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [classroomSlug, toast]);
+
+  // useEffect to auto-start scheduled sessions when they reach start time
+  useEffect(() => {
+    if (!sessionsData?.sessions || !classroomSlug) return;
+
+    const checkScheduledSessions = async () => {
+      const now = new Date();
+      const sessionsToStart = sessionsData.sessions.filter((session: any) => {
+        const sessionKey = `started-${session.id}`;
+        
+        // Skip if already processed
+        if (processedSessionsRef.current.has(sessionKey)) {
+          return false;
+        }
+        
+        // Check if session is scheduled and start time has arrived
+        if (session.status === 'scheduled') {
+          const startsAt = new Date(session.starts_at);
+          // Start if current time is past or within 1 minute of start time
+          return startsAt <= now;
+        }
+        return false;
+      });
+
+      // Update scheduled sessions to live
+      for (const session of sessionsToStart) {
+        const sessionKey = `started-${session.id}`;
+        try {
+          console.log(`🎬 [LiveSessions] Auto-starting session: ${session.id} (${session.title})`);
+          processedSessionsRef.current.add(sessionKey);
+          
+          await updateSessionMutation.mutateAsync({
+            classroomSlug,
+            session_id: session.id,
+            status: 'live'
+          });
+          toast({
+            title: "Session Started",
+            description: `"${session.title}" is now live!`,
+          });
+        } catch (error) {
+          console.error(`Failed to auto-start session ${session.id}:`, error);
+          // Remove from processed on error so it can be retried
+          processedSessionsRef.current.delete(sessionKey);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkScheduledSessions();
+
+    // Check every minute
+    const interval = setInterval(checkScheduledSessions, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [classroomSlug, toast]);
+
+  const [activeSession, setActiveSession] = useState<any>(null);
+
   const handleBack = () => {
     const isTutor = currentUser?.profile?.role === 'tutor';
     const route = isTutor 
@@ -77,8 +217,6 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       : `/classroom/${classroomSlug}`;
     router.push(route);
   };
-
-  const [activeSession, setActiveSession] = useState<any>(null);
 
   const handleJoinSession = async (session: any) => {
     console.log('🚀 [LiveSessionsPage] handleJoinSession called with session:', session);
@@ -330,6 +468,73 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
           />
         </div>
       </div>
+
+      {/* Edit Live Session Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Live Session</DialogTitle>
+            <DialogDescription>
+              Update the details of your live session.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Session title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Session description (optional)"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-starts_at">Start Time</Label>
+              <Input
+                id="edit-starts_at"
+                type="datetime-local"
+                value={formData.starts_at}
+                onChange={(e) => setFormData(prev => ({ ...prev, starts_at: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-ends_at">End Time (Optional)</Label>
+              <Input
+                id="edit-ends_at"
+                type="datetime-local"
+                value={formData.ends_at}
+                onChange={(e) => setFormData(prev => ({ ...prev, ends_at: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateSession}
+              disabled={updateSessionMutation.isPending}
+            >
+              {updateSessionMutation.isPending ? 'Updating...' : 'Update Session'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-6">
         {/* Stats */}

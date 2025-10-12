@@ -190,6 +190,7 @@ export async function GET(request: NextRequest) {
           description,
           visibility,
           class_code,
+          color,
           owner_id,
           created_at,
           updated_at
@@ -197,6 +198,13 @@ export async function GET(request: NextRequest) {
       `)
       .eq('user_id', profile.id)
       .order('joined_at', { ascending: false });
+
+    console.log('📚 [GET] Classrooms fetched:', {
+      count: classrooms?.length || 0,
+      firstClassroom: classrooms?.[0]?.classroom ? 
+        (Array.isArray(classrooms[0].classroom) ? classrooms[0].classroom[0] : classrooms[0].classroom) : 
+        null
+    });
 
     if (classroomsError) {
       console.error('Error fetching classrooms:', classroomsError);

@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 import { AssignmentSubmissions } from '../submissions/assignment-submissions';
 import { SubmissionDialog } from '../submissions/submission-dialog';
 import { CreateAssignmentDialog } from '../Dialog/create-assignment-dialog';
@@ -44,13 +44,34 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
   const { data: assignmentsResponse, refetch: refetchAssignments } = useClassroomAssignments(classroomSlug);
   
   // Use hook data if available, fallback to prop data
-  const currentAssignmentsData = assignmentsResponse?.assignments || assignmentsData || [];
-  // Get classroom color
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : CLASSROOM_COLORS[0]; // Use first color as fallback
+  // Ensure we always have an array
+  const currentAssignmentsData = Array.isArray(assignmentsResponse?.assignments) 
+    ? assignmentsResponse.assignments 
+    : Array.isArray(assignmentsData) 
+    ? assignmentsData 
+    : [];
   
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  // Debug logging
+  React.useEffect(() => {
+    if (assignmentsResponse && !Array.isArray(assignmentsResponse?.assignments)) {
+      console.warn('⚠️ assignmentsResponse.assignments is not an array:', {
+        assignmentsResponse,
+        type: typeof assignmentsResponse?.assignments,
+        isArray: Array.isArray(assignmentsResponse?.assignments)
+      });
+    }
+    if (assignmentsData && !Array.isArray(assignmentsData)) {
+      console.warn('⚠️ assignmentsData is not an array:', {
+        assignmentsData,
+        type: typeof assignmentsData,
+        isArray: Array.isArray(assignmentsData)
+      });
+    }
+  }, [assignmentsResponse, assignmentsData]);
+  
+  // Get classroom color
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
 
   // Handle viewing submissions (for tutors)
   const handleViewSubmissions = (assignment: any) => {
@@ -95,7 +116,6 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
     console.log('Assignment submitted successfully - status refreshed');
   };
 
-  // Create a simple state to track submission status
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<number, boolean>>({});
   
   // Create a simple state to track grading status  
@@ -108,6 +128,21 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
     const now = new Date();
     return due < now;
   };
+
+  // Function to get days overdue
+  const getDaysOverdue = (dueDate: string | null) => {
+    if (!dueDate) return 0;
+    const due = new Date(dueDate);
+    const now = new Date();
+    const diffMs = now.getTime() - due.getTime();
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  };
+
+  // Filter out assignments overdue by more than 3 days
+  const filteredAssignments = currentAssignmentsData.filter((assignment: any) => {
+    const daysOverdue = getDaysOverdue(assignment.due_date || assignment.due_on);
+    return daysOverdue <= 3; // Only show assignments that are not overdue or overdue by 3 days or less
+  });
 
   // Function to check submission status without using hooks
   const checkSubmissionStatus = async (assignmentId: number) => {
@@ -165,13 +200,13 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
 
   // Load submission and grading statuses when component mounts or data changes
   React.useEffect(() => {
-    if (userRole === 'student' && currentUserId && currentAssignmentsData.length > 0) {
-      currentAssignmentsData.forEach((assignment: any) => {
+    if (userRole === 'student' && currentUserId && Array.isArray(filteredAssignments) && filteredAssignments.length > 0) {
+      filteredAssignments.forEach((assignment: any) => {
         checkSubmissionStatus(assignment.id);
         checkGradingStatus(assignment.id);
       });
     }
-  }, [userRole, currentUserId, currentAssignmentsData.length, classroomSlug]);
+  }, [userRole, currentUserId, filteredAssignments.length, classroomSlug]);
 
   // If showing submissions, render the submissions component
   if (showSubmissions && selectedAssignment) {
@@ -218,19 +253,24 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
         )}
       </CardHeader>
       <CardContent>
-        {!currentAssignmentsData?.length ? (
+        {!Array.isArray(filteredAssignments) || filteredAssignments.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No assignments yet</p>
+            <p className="text-muted-foreground">No active assignments</p>
             {userRole === 'tutor' && (
               <p className="text-sm text-muted-foreground mt-2">
                 Create an assignment to get started
               </p>
             )}
+            {userRole === 'student' && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Assignments overdue by more than 3 days are hidden
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {currentAssignmentsData.slice(0, 5).map((assignment: any) => {
+            {filteredAssignments.slice(0, 5).map((assignment: any) => {
               const isSubmitted = submissionStatusMap[assignment.id] || false;
               const isGraded = gradingStatusMap[assignment.id] || false;
               const isOverdue = isAssignmentOverdue(assignment.due_date || assignment.due_on);
@@ -404,11 +444,11 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                   )}
                 </div>
               </div>
-              );
+            );
             })}
-            {currentAssignmentsData.length > 5 && (
+            {filteredAssignments.length > 5 && (
               <Button variant="outline" className="w-full" onClick={() => navigateToSection('assignment')}>
-                View All Assignments ({currentAssignmentsData.length})
+                View All Assignments ({filteredAssignments.length})
               </Button>
             )}
           </div>

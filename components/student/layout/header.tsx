@@ -58,10 +58,10 @@ export default function ClassroomHeader({
       <div className="flex items-center justify-between h-full px-6">
         {/* Left side - Menu Button and Title */}
         <div className="flex items-center gap-4">
-          {/* Menu Toggle Button */}
+          {/* Menu Toggle Button - Hidden on mobile */}
           <motion.button
             onClick={onMenuToggle}
-            className="p-2 rounded-lg transition-colors hover:bg-accent/50"
+            className="hidden md:block p-2 rounded-lg transition-colors hover:bg-accent/50"
             style={{
               backdropFilter: 'blur(16px) saturate(180%)',
               WebkitBackdropFilter: 'blur(16px) saturate(180%)',

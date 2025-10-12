@@ -248,16 +248,27 @@ export default function AnimatedSidebar({
     }));
   };
 
+  // Define primary navigation items for mobile bottom bar
+  // Use the same IDs as the desktop sidebar sub-items to ensure proper navigation
+  const mobileNavItems = [
+    { id: "dashboard", label: "Home", icon: Home, path: "/tutor/dashboard" },
+    { id: "quiz-content", label: "Teaching", icon: BookOpen, path: "/tutor/teaching/quiz-content" },
+    { id: "classroom", label: "Classroom", icon: Users, path: "/tutor/classroom" },
+    { id: "groups", label: "Community", icon: MessageCircle, path: "/tutor/community" },
+    { id: "students", label: "Students", icon: GraduationCap, path: "/tutor/student" },
+  ];
+
   const handleItemClick = (itemId: string) => {
     setCurrentActiveItem(itemId);
 
-    // Find the menu item to get its path (including sub-items)
+    // Find the menu item to get its path (including sub-items and mobile nav items)
     const allItems = menuSections.flatMap(section =>
       section.items.flatMap(item =>
         item.subItems ? [item, ...item.subItems] : [item]
       )
     );
-    const clickedItem = allItems.find(item => item.id === itemId);
+    const clickedItem = allItems.find(item => item.id === itemId) || 
+                        mobileNavItems.find(item => item.id === itemId);
 
     if (clickedItem?.path) {
       // Get current locale from pathname
@@ -276,11 +287,11 @@ export default function AnimatedSidebar({
 
   return (
     <>
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile */}
       <motion.div
         variants={sidebarVariants}
         animate={isExpanded ? 'expanded' : 'collapsed'}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex flex-col backdrop-blur-md"
+        className="hidden md:flex fixed left-0 top-16 h-[calc(100vh-4rem)] shadow-lg z-20 flex-col backdrop-blur-md"
         style={{
           backgroundColor: 'hsl(var(--sidebar))',
           color: 'hsl(var(--sidebar-foreground))',
@@ -539,6 +550,61 @@ export default function AnimatedSidebar({
           </motion.button>
         </div>
       </motion.div>
+
+      {/* Mobile Bottom Tab Bar - Only visible on mobile with CSS */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[9999] shadow-2xl border-t"
+        style={{
+          backgroundColor: "hsl(var(--sidebar))",
+          color: "hsl(var(--sidebar-foreground))",
+          borderColor: "hsl(var(--border))",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)", // ✅ Apply safe area to outer container
+        }}
+      >
+        <nav className="flex items-center justify-around px-2 py-3" style={{ minHeight: "60px" }}>
+          {mobileNavItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = currentActiveItem === item.id;
+
+            return (
+              <motion.button
+                key={item.id}
+                onClick={() => handleItemClick(item.id)}
+                className="flex flex-col items-center justify-center flex-1 gap-1 py-2 px-1 rounded-lg transition-colors relative"
+                whileTap={{ scale: 0.9 }}
+              >
+                <motion.div
+                  animate={{
+                    scale: isActive ? 1.1 : 1,
+                    y: isActive ? -2 : 0,
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  className={`relative ${
+                    isActive
+                      ? "text-orange-500 dark:text-green-500"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  <IconComponent size={22} />
+                  {isActive && (
+                    <motion.div
+                      layoutId="mobileActiveIndicator"
+                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-500 dark:bg-green-500 rounded-full"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                </motion.div>
+              </motion.button>
+            );
+          })}
+        </nav>
+      </div>
     </>
   );
 }

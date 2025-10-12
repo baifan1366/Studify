@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     let endTime = null;
-    if (ends_at) {
+    if (ends_at && ends_at.trim() !== '') {
       endTime = new Date(ends_at);
       if (isNaN(endTime.getTime())) {
         return NextResponse.json(
@@ -71,6 +71,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         );
       }
     }
+    
+    console.log('⏰ [POST] Session time validation:', {
+      starts_at: startTime.toISOString(),
+      ends_at: endTime?.toISOString() || 'No end time (open-ended)',
+      hasEndTime: !!endTime
+    });
 
     // Check if classroom exists
     const { data: classroomExists, error: existsError } = await supabase
@@ -113,6 +119,33 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Use the classroom's slug for the foreign key reference
+    // Determine initial status based on start time
+    const now = new Date();
+    let initialStatus: 'scheduled' | 'live' = 'scheduled';
+    
+    // If start time is now or in the past (within 5 minutes), set to live immediately
+    const timeDiffMs = startTime.getTime() - now.getTime();
+    const timeDiffMinutes = timeDiffMs / (1000 * 60);
+    
+    if (timeDiffMinutes <= 5) {
+      initialStatus = 'live';
+      console.log('🎬 [POST] Auto-starting session:', {
+        title,
+        startTime: startTime.toISOString(),
+        now: now.toISOString(),
+        timeDiffMinutes,
+        status: 'live'
+      });
+    } else {
+      console.log('📅 [POST] Scheduling session:', {
+        title,
+        startTime: startTime.toISOString(),
+        now: now.toISOString(),
+        timeDiffMinutes,
+        status: 'scheduled'
+      });
+    }
+    
     // 创建直播课程
     const { data: liveSession, error: sessionError } = await supabase
       .from('classroom_live_session')
@@ -122,7 +155,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         host_id: profile.id,
         starts_at: startTime.toISOString(),
         ends_at: endTime?.toISOString() || null,
-        status: 'scheduled',
+        status: initialStatus,
         slug: slug,
       })
       .select(`
@@ -134,6 +167,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         host_id,
         starts_at,
         ends_at,
+        status,
         created_at,
         updated_at
       `)
@@ -151,14 +185,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
+    console.log('✅ [POST] Live session created:', {
+      id: liveSession.id,
+      title: liveSession.title,
+      status: liveSession.status,
+      starts_at: liveSession.starts_at,
+      isLiveNow: liveSession.status === 'live'
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Live session created successfully',
+      message: liveSession.status === 'live' 
+        ? 'Live session created and started successfully' 
+        : 'Live session scheduled successfully',
       session: {
         ...liveSession,
         classroom_name: classroom.name,
         host_name: profile?.display_name || authResult.user.email?.split('@')[0] || 'Unknown',
         host_email: authResult.user.email,
+        is_host: true,
+        can_manage: true,
       },
     });
 

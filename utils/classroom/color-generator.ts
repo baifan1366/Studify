@@ -218,3 +218,27 @@ export function getCardStyling(
     activeBackground: getCardBackgroundColor(color, 'strong')
   };
 }
+
+/**
+ * Get classroom color from classroom object with fallback
+ * @param classroom Classroom object
+ * @returns Valid classroom color
+ */
+export function getClassroomColor(classroom: any): ClassroomColor {
+  console.log('🎨 [getClassroomColor] Input:', {
+    hasClassroom: !!classroom,
+    color: classroom?.color,
+    isValidColor: classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor),
+    willUseFallback: !classroom?.color || !CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)
+  });
+  
+  // Check if classroom has a color property and it's valid
+  if (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) {
+    console.log('✅ [getClassroomColor] Using classroom color:', classroom.color);
+    return classroom.color as ClassroomColor;
+  }
+  
+  // Fallback to first color in palette
+  console.log('⚠️ [getClassroomColor] Using fallback color:', CLASSROOM_COLORS[0]);
+  return CLASSROOM_COLORS[0];
+}

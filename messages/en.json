@@ -520,7 +520,6 @@
       "language_updated_desc": "The interface language has been changed. The page will reload to apply changes."
     },
     "StorageDialog": {
-      "selected": "Selected",
       "unknown_size": "Unknown Size",
       "loading_attachments": "Loading Attachments...",
       "title": "Storage Management",
@@ -533,7 +532,6 @@
       "upload_tab": "Upload",
       "manage_tab": "Manage Files",
       "upload_title": "Upload New File",
-      "Selected": "Selected",
       "loading_attachment": "Loading attachments...",
       "upload_description": "Upload course materials and resources",
       "file_title_label": "File Title",

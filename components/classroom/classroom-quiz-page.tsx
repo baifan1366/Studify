@@ -52,7 +52,7 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface ClassroomQuizPageProps {
   classroomSlug: string;
@@ -341,17 +341,13 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
       </div>
     );
   }
-
   const publishedQuizzes = quizzes.filter(q => q.status === 'published');
   const draftQuizzes = quizzes.filter(q => q.status === 'draft');
   const closedQuizzes = quizzes.filter(q => q.status === 'closed');
 
-  // Get classroom color styling
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  // Get classroom color
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
 
   return (
     <div className="container mx-auto py-8">

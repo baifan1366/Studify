@@ -4,7 +4,7 @@ import React from 'react';
 import { Brain, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 
 interface QuizTabProps {
   isOwnerOrTutor: boolean;
@@ -15,17 +15,13 @@ interface QuizTabProps {
 
 export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, classroom }: QuizTabProps) {
   // Get classroom color
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
   
   return (
     <Card 
       style={{
         backgroundColor: cardStyling.backgroundColor,
-        borderColor: cardStyling.borderColor
       }}
     >
       <CardHeader className="flex flex-row items-center justify-between">

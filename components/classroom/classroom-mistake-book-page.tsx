@@ -1,138 +1,117 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertCircle, BookOpen, Brain, Calendar, FileText, Filter, Plus, Search, Tag, TrendingUp, X } from 'lucide-react';
-import { MistakeBookWithDetails, CreateMistakeBookRequest } from '@/interface/classroom/mistake-book-interface';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  AlertCircle, 
+  BookOpen, 
+  Brain, 
+  Calendar, 
+  FileText, 
+  Filter, 
+  Plus, 
+  Search, 
+  Tag, 
+  TrendingUp, 
+  X,
+  Trash2,
+  Lightbulb,
+  Target,
+  CheckCircle2
+} from 'lucide-react';
+import { useMistakeBook, useSaveMistake, useDeleteMistake } from '@/hooks/dashboard/use-mistake-book';
 
-interface ClassroomMistakeBookPageProps {
-  classroomSlug: string;
-}
-
-export default function ClassroomMistakeBookPage({ 
-  classroomSlug 
-}: ClassroomMistakeBookPageProps) {
+export default function MistakeBookPageContent() {
   const t = useTranslations('MistakeBookPage');
-  const [mistakes, setMistakes] = useState<MistakeBookWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSourceType, setSelectedSourceType] = useState<string>('all');
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedMistake, setSelectedMistake] = useState<MistakeBookWithDetails | null>(null);
+  const [knowledgePointInput, setKnowledgePointInput] = useState('');
+
+  // Fetch mistakes data
+  const { data: mistakes = [], isLoading } = useMistakeBook({ limit: 100 });
+  const saveMistake = useSaveMistake();
+  const deleteMistake = useDeleteMistake();
 
   // Create mistake form state
-  const [newMistake, setNewMistake] = useState<CreateMistakeBookRequest>({
-    mistake_content: '',
+  const [newMistake, setNewMistake] = useState({
+    mistakeContent: '',
     analysis: '',
-    source_type: 'manual',
-    knowledge_points: [],
+    sourceType: 'manual' as 'quiz' | 'assignment' | 'manual',
+    knowledgePoints: [] as string[],
   });
 
-  // Mock data for development
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setMistakes([
-        {
-          id: 1,
-          public_id: 'mistake-1',
-          user_id: 1,
-          assignment_id: 1,
-          mistake_content: '在解二次方程时，忘记考虑判别式为负数的情况，导致答案不完整。',
-          analysis: '需要加强对二次方程判别式的理解，特别是当Δ<0时方程无实数解的概念。',
-          source_type: 'assignment',
-          knowledge_points: ['二次方程', '判别式', '实数解'],
-          recommended_exercises: {
-            exercises: ['练习题1', '练习题2'],
-            difficulty: 'medium'
-          },
-          is_deleted: false,
-          created_at: '2024-03-15T10:30:00Z',
-          updated_at: '2024-03-15T10:30:00Z',
-          assignment_title: '二次方程综合练习',
-          user_name: '张三',
-          user_email: 'zhangsan@example.com'
-        },
-        {
-          id: 2,
-          public_id: 'mistake-2',
-          user_id: 1,
-          question_id: 1,
-          mistake_content: '在计算三角函数值时，角度和弧度制混淆，导致计算错误。',
-          analysis: '需要明确区分角度制和弧度制，并熟练掌握两者之间的转换关系。',
-          source_type: 'quiz',
-          knowledge_points: ['三角函数', '角度制', '弧度制'],
-          recommended_exercises: {
-            exercises: ['角度弧度转换练习', '三角函数计算练习'],
-            difficulty: 'easy'
-          },
-          is_deleted: false,
-          created_at: '2024-03-14T14:20:00Z',
-          updated_at: '2024-03-14T14:20:00Z',
-          question_stem: '计算sin(π/6)的值',
-          user_name: '张三',
-          user_email: 'zhangsan@example.com'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
-
-  const filteredMistakes = mistakes.filter(mistake => {
+  const filteredMistakes = mistakes.filter((mistake: any) => {
     const matchesSearch = mistake.mistake_content.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          mistake.analysis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         mistake.knowledge_points.some(point => point.toLowerCase().includes(searchTerm.toLowerCase()));
+                         mistake.knowledge_points?.some((point: string) => point.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesSourceType = selectedSourceType === 'all' || mistake.source_type === selectedSourceType;
     
     const matchesKnowledgePoint = selectedKnowledgePoint === 'all' || 
-                                 mistake.knowledge_points.includes(selectedKnowledgePoint);
+                                 mistake.knowledge_points?.includes(selectedKnowledgePoint);
     
     return matchesSearch && matchesSourceType && matchesKnowledgePoint;
   });
 
   const allKnowledgePoints = Array.from(
-    new Set(mistakes.flatMap(mistake => mistake.knowledge_points))
+    new Set(mistakes.flatMap((mistake: any) => mistake.knowledge_points || []))
   );
 
-  const handleCreateMistake = () => {
-    // TODO: Implement API call to create mistake
-    console.log('Creating mistake:', newMistake);
+  const handleCreateMistake = async () => {
+    if (!newMistake.mistakeContent.trim()) {
+      return;
+    }
+
+    await saveMistake.mutateAsync({
+      mistakeContent: newMistake.mistakeContent,
+      analysis: newMistake.analysis,
+      knowledgePoints: newMistake.knowledgePoints,
+      sourceType: newMistake.sourceType,
+    });
+
     setIsCreateDialogOpen(false);
     setNewMistake({
-      mistake_content: '',
+      mistakeContent: '',
       analysis: '',
-      source_type: 'manual',
-      knowledge_points: [],
+      sourceType: 'manual',
+      knowledgePoints: [],
     });
   };
 
-  const addKnowledgePoint = (point: string) => {
-    if (point && !newMistake.knowledge_points.includes(point)) {
+  const addKnowledgePoint = () => {
+    const point = knowledgePointInput.trim();
+    if (point && !newMistake.knowledgePoints.includes(point)) {
       setNewMistake(prev => ({
         ...prev,
-        knowledge_points: [...prev.knowledge_points, point]
+        knowledgePoints: [...prev.knowledgePoints, point]
       }));
+      setKnowledgePointInput('');
     }
   };
 
   const removeKnowledgePoint = (point: string) => {
     setNewMistake(prev => ({
       ...prev,
-      knowledge_points: prev.knowledge_points.filter(p => p !== point)
+      knowledgePoints: prev.knowledgePoints.filter(p => p !== point)
     }));
+  };
+
+  const handleDelete = async (mistakeId: string) => {
+    if (confirm(t('delete') + '?')) {
+      await deleteMistake.mutateAsync(mistakeId);
+    }
   };
 
   const getSourceTypeIcon = (sourceType: string) => {
@@ -146,325 +125,398 @@ export default function ClassroomMistakeBookPage({
 
   const getSourceTypeColor = (sourceType: string) => {
     switch (sourceType) {
-      case 'quiz': return 'bg-blue-100 text-blue-800';
-      case 'assignment': return 'bg-green-100 text-green-800';
-      case 'manual': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'quiz': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+      case 'assignment': return 'bg-green-500/20 text-green-300 border-green-500/30';
+      case 'manual': return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+      default: return 'bg-white/10 text-white/70 border-white/20';
     }
   };
 
-  if (loading) {
+  const getSourceTypeLabel = (sourceType: string) => {
+    switch (sourceType) {
+      case 'quiz': return t('quiz');
+      case 'assignment': return t('assignment');
+      case 'manual': return t('manual');
+      default: return sourceType;
+    }
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <Skeleton className="w-full h-32" />
+          <Skeleton className="w-full h-64" />
+          <Skeleton className="w-full h-96" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('mistake_book')}</h1>
-          <p className="text-gray-600">{t('track_mistakes')}</p>
-        </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('create_mistake')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t('create_mistake')}</DialogTitle>
-              <DialogDescription>
-                {t('track_mistakes')}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="source-type">{t('source_type')}</Label>
-                <Select 
-                  value={newMistake.source_type} 
-                  onValueChange={(value: 'quiz' | 'assignment' | 'manual') => 
-                    setNewMistake(prev => ({ ...prev, source_type: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manual">{t('manual')}</SelectItem>
-                    <SelectItem value="quiz">{t('quiz')}</SelectItem>
-                    <SelectItem value="assignment">{t('assignment')}</SelectItem>
-                  </SelectContent>
-                </Select>
+    <div className="min-h-screen p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-2xl border border-red-500/30">
+                <AlertCircle className="h-8 w-8 text-red-400" />
               </div>
-
-              <div>
-                <Label htmlFor="mistake-content">{t('mistake_content')}</Label>
-                <Textarea
-                  id="mistake-content"
-                  placeholder={t('mistake_content')}
-                  value={newMistake.mistake_content}
-                  onChange={(e) => setNewMistake(prev => ({ ...prev, mistake_content: e.target.value }))}
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="analysis">错误分析</Label>
-                <Textarea
-                  id="analysis"
-                  placeholder="分析错误原因和改进方法..."
-                  value={newMistake.analysis}
-                  onChange={(e) => setNewMistake(prev => ({ ...prev, analysis: e.target.value }))}
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label>知识点标签</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {newMistake.knowledge_points.map((point, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                      {point}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => removeKnowledgePoint(point)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="添加知识点..."
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        addKnowledgePoint(e.currentTarget.value);
-                        e.currentTarget.value = '';
-                      }
-                    }}
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={(e) => {
-                      const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                      addKnowledgePoint(input.value);
-                      input.value = '';
-                    }}
-                  >
-                    添加
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                取消
-              </Button>
-              <Button onClick={handleCreateMistake}>
-                保存错题
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <Card className="bg-transparent p-2">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="搜索错题内容、分析或知识点..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            
-            <Select value={selectedSourceType} onValueChange={setSelectedSourceType}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="来源类型" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">所有类型</SelectItem>
-                <SelectItem value="quiz">测验</SelectItem>
-                <SelectItem value="assignment">作业</SelectItem>
-                <SelectItem value="manual">手动添加</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedKnowledgePoint} onValueChange={setSelectedKnowledgePoint}>
-              <SelectTrigger className="w-[180px]">
-                <Tag className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="知识点" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">所有知识点</SelectItem>
-                {allKnowledgePoints.map((point) => (
-                  <SelectItem key={point} value={point}>{point}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {t('mistake_book')}
+            </h1>
+            <p className="text-white/70 text-lg">{t('track_mistakes')}</p>
           </div>
-        </CardContent>
-      </Card>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Plus className="h-4 w-4 mr-2" />
+                {t('create_mistake')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-gray-900/95 border-white/10">
+              <DialogHeader>
+                <DialogTitle className="text-white text-xl">{t('create_mistake')}</DialogTitle>
+                <DialogDescription className="text-white/60">
+                  {t('track_mistakes')}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="source-type" className="text-white">{t('source_type')}</Label>
+                  <Select 
+                    value={newMistake.sourceType} 
+                    onValueChange={(value: 'quiz' | 'assignment' | 'manual') => 
+                      setNewMistake(prev => ({ ...prev, sourceType: value }))
+                    }
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/10">
+                      <SelectItem value="manual">{t('manual')}</SelectItem>
+                      <SelectItem value="quiz">{t('quiz')}</SelectItem>
+                      <SelectItem value="assignment">{t('assignment')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-transparent p-2">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <AlertCircle className="h-8 w-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">总错题数</p>
-                <p className="text-2xl font-bold">{mistakes.length}</p>
+                <div>
+                  <Label htmlFor="mistake-content" className="text-white">{t('mistake_content')}</Label>
+                  <Textarea
+                    id="mistake-content"
+                    placeholder={t('mistake_content')}
+                    value={newMistake.mistakeContent}
+                    onChange={(e) => setNewMistake(prev => ({ ...prev, mistakeContent: e.target.value }))}
+                    rows={4}
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="analysis" className="text-white">{t('analysis')}</Label>
+                  <Textarea
+                    id="analysis"
+                    placeholder={t('error_analysis_placeholder')}
+                    value={newMistake.analysis}
+                    onChange={(e) => setNewMistake(prev => ({ ...prev, analysis: e.target.value }))}
+                    rows={3}
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-white">{t('knowledge_points')}</Label>
+                  <div className="flex flex-wrap gap-2 mt-2 mb-3">
+                    {newMistake.knowledgePoints.map((point, index) => (
+                      <Badge key={index} className="bg-purple-500/20 text-purple-300 border-purple-500/30 flex items-center gap-1">
+                        {point}
+                        <X 
+                          className="h-3 w-3 cursor-pointer hover:text-purple-100" 
+                          onClick={() => removeKnowledgePoint(point)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={t('add_knowledge_point_placeholder')}
+                      value={knowledgePointInput}
+                      onChange={(e) => setKnowledgePointInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addKnowledgePoint();
+                        }
+                      }}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={addKnowledgePoint}
+                      className="border-white/10 hover:bg-white/5"
+                    >
+                      {t('add')}
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="bg-transparent p-2">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <Brain className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">测验错题</p>
-                <p className="text-2xl font-bold">
-                  {mistakes.filter(m => m.source_type === 'quiz').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-transparent p-2">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <FileText className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">作业错题</p>
-                <p className="text-2xl font-bold">
-                  {mistakes.filter(m => m.source_type === 'assignment').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-transparent p-2">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <Tag className="h-8 w-8 text-purple-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">知识点</p>
-                <p className="text-2xl font-bold">{allKnowledgePoints.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Mistake List */}
-      <div className="space-y-4">
-        {filteredMistakes.length === 0 ? (
-          <Card className="bg-transparent p-2">
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无错题记录</h3>
-                <p className="text-gray-600 mb-4">开始记录错题，提升学习效果</p>
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  添加第一个错题
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="border-white/10 hover:bg-white/5">
+                  {t('cancel')}
                 </Button>
+                <Button 
+                  onClick={handleCreateMistake}
+                  disabled={!newMistake.mistakeContent.trim() || saveMistake.isPending}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  {saveMistake.isPending ? t('create') + '...' : t('save_mistake')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </motion.div>
+
+        {/* Statistics */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-4 gap-6"
+        >
+          <Card className="bg-gradient-to-br from-red-600/20 to-orange-600/20 border-red-500/30 backdrop-blur-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/70">{t('total_mistakes')}</p>
+                  <p className="text-3xl font-bold text-white">{mistakes.length}</p>
+                </div>
+                <AlertCircle className="h-12 w-12 text-red-400" />
               </div>
             </CardContent>
           </Card>
-        ) : (
-          filteredMistakes.map((mistake) => (
-            <Card key={mistake.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge className={`flex items-center gap-1 ${getSourceTypeColor(mistake.source_type)}`}>
-                        {getSourceTypeIcon(mistake.source_type)}
-                        {mistake.source_type === 'quiz' ? '测验' : 
-                         mistake.source_type === 'assignment' ? '作业' : '手动添加'}
-                      </Badge>
-                      
-                      {mistake.assignment_title && (
-                        <span className="text-sm text-gray-600">
-                          来自: {mistake.assignment_title}
-                        </span>
-                      )}
-                      
-                      {mistake.question_stem && (
-                        <span className="text-sm text-gray-600">
-                          题目: {mistake.question_stem}
-                        </span>
-                      )}
+
+          <Card className="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-blue-500/30 backdrop-blur-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/70">{t('quiz_mistakes')}</p>
+                  <p className="text-3xl font-bold text-white">
+                    {mistakes.filter((m: any) => m.source_type === 'quiz').length}
+                  </p>
+                </div>
+                <Brain className="h-12 w-12 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 backdrop-blur-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/70">{t('assignment_mistakes')}</p>
+                  <p className="text-3xl font-bold text-white">
+                    {mistakes.filter((m: any) => m.source_type === 'assignment').length}
+                  </p>
+                </div>
+                <FileText className="h-12 w-12 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border-purple-500/30 backdrop-blur-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/70">{t('knowledge_point_count')}</p>
+                  <p className="text-3xl font-bold text-white">{allKnowledgePoints.length}</p>
+                </div>
+                <Tag className="h-12 w-12 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 h-4 w-4" />
+                  <Input
+                    placeholder={t('search_content_analysis_knowledge')}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  />
+                </div>
+                
+                <Select value={selectedSourceType} onValueChange={setSelectedSourceType}>
+                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-white">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-white/10">
+                    <SelectItem value="all">{t('all_types')}</SelectItem>
+                    <SelectItem value="quiz">{t('quiz')}</SelectItem>
+                    <SelectItem value="assignment">{t('assignment')}</SelectItem>
+                    <SelectItem value="manual">{t('manual')}</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedKnowledgePoint} onValueChange={setSelectedKnowledgePoint}>
+                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-white">
+                    <Tag className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-white/10">
+                    <SelectItem value="all">{t('all_knowledge_points')}</SelectItem>
+                    {allKnowledgePoints.map((point: string) => (
+                      <SelectItem key={point} value={point}>{point}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Mistake List */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-4"
+        >
+          <AnimatePresence mode="popLayout">
+            {filteredMistakes.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                  <CardContent className="pt-6">
+                    <div className="text-center py-12">
+                      <BookOpen className="h-16 w-16 text-white/30 mx-auto mb-4" />
+                      <h3 className="text-xl font-medium text-white mb-2">{t('no_mistake_records')}</h3>
+                      <p className="text-white/60 mb-6">{t('start_recording_mistakes')}</p>
+                      <Button 
+                        onClick={() => setIsCreateDialogOpen(true)}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('add_first_mistake')}
+                      </Button>
                     </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              filteredMistakes.map((mistake: any, index: number) => (
+                <motion.div
+                  key={mistake.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-all duration-300 group">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-4">
+                          {/* Header with badges */}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <Badge className={`flex items-center gap-1.5 ${getSourceTypeColor(mistake.source_type)}`}>
+                              {getSourceTypeIcon(mistake.source_type)}
+                              {getSourceTypeLabel(mistake.source_type)}
+                            </Badge>
+                            
+                            <div className="flex items-center text-sm text-white/50">
+                              <Calendar className="h-3.5 w-3.5 mr-1" />
+                              {new Date(mistake.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
 
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-1">错误内容</h4>
-                        <p className="text-gray-700">{mistake.mistake_content}</p>
-                      </div>
+                          {/* Mistake Content */}
+                          <div className="space-y-2">
+                            <div className="flex items-start gap-2">
+                              <Target className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h4 className="font-medium text-white/90 mb-1">{t('mistake_content_label')}</h4>
+                                <p className="text-white/70 leading-relaxed">{mistake.mistake_content}</p>
+                              </div>
+                            </div>
 
-                      {mistake.analysis && (
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-1">错误分析</h4>
-                          <p className="text-gray-700">{mistake.analysis}</p>
-                        </div>
-                      )}
+                            {/* Analysis */}
+                            {mistake.analysis && (
+                              <div className="flex items-start gap-2 bg-white/5 rounded-lg p-4 border border-white/10">
+                                <Lightbulb className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <h4 className="font-medium text-white/90 mb-1">{t('error_analysis_label')}</h4>
+                                  <p className="text-white/70 leading-relaxed">{mistake.analysis}</p>
+                                </div>
+                              </div>
+                            )}
 
-                      <div className="flex flex-wrap gap-2">
-                        {mistake.knowledge_points.map((point, index) => (
-                          <Badge key={index} variant="outline">
-                            {point}
-                          </Badge>
-                        ))}
-                      </div>
+                            {/* Knowledge Points */}
+                            {mistake.knowledge_points && mistake.knowledge_points.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {mistake.knowledge_points.map((point: string, idx: number) => (
+                                  <Badge 
+                                    key={idx} 
+                                    variant="outline" 
+                                    className="bg-purple-500/10 text-purple-300 border-purple-500/30"
+                                  >
+                                    <Tag className="h-3 w-3 mr-1" />
+                                    {point}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
 
-                      {mistake.recommended_exercises && (
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-1">推荐练习</h4>
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm text-gray-600">
-                              难度: {mistake.recommended_exercises.difficulty}
-                            </span>
+                            {/* Recommended Exercises */}
+                            {mistake.recommended_exercises && (
+                              <div className="flex items-center gap-2 text-sm text-white/60">
+                                <TrendingUp className="h-4 w-4 text-blue-400" />
+                                <span>{t('from')}: {mistake.recommended_exercises.difficulty}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="text-right text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(mistake.created_at).toLocaleDateString('zh-CN')}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                        {/* Actions */}
+                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDelete(mistake.id)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );

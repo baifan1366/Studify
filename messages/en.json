@@ -7742,6 +7742,11 @@
     "progress": "Progress"
   },
   "MistakeBookPage": {
+    "metadata_title": "Mistake Book | Studify",
+    "metadata_description": "Track and analyze your learning mistakes",
+    "metadata_keywords": "mistakes,learning,improvement,analysis,study",
+    "og_title": "Mistake Book - Track Your Learning Journey",
+    "og_description": "Record and review your mistakes to improve learning effectiveness",
     "mistake_book": "Mistake Book",
     "track_mistakes": "Track and analyze your mistakes to improve learning",
     "create_mistake": "Create Mistake Entry",

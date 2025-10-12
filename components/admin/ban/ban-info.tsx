@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Ban } from "@/interface/admin/ban-interface";
 import { useUpdateBanStatus } from "@/hooks/ban/use-ban";
 import { useFormat } from "@/hooks/use-format";
+import { useUpdateContentStatus } from "@/hooks/admin/use-admin-content-reports";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ export function BanInfo({ ban, isOpen, onClose }: BanInfoProps) {
   const t = useTranslations('BanInfo');
   const { formatDate, formatRelativeTime } = useFormat();
   const updateBanStatus = useUpdateBanStatus();
+  const updateContentStatus = useUpdateContentStatus();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [durationType, setDurationType] = useState<string>("days");
@@ -96,11 +98,43 @@ export function BanInfo({ ban, isOpen, onClose }: BanInfoProps) {
     try {
       const expires_at = calculateExpiryDate();
       
+      // Update ban status to approved
       await updateBanStatus.mutateAsync({
         banId: ban.public_id,
         status: "approved",
         expires_at,
       });
+      
+      // Update target entity status to "ban" if it's a course or post
+      if (ban.target_type === 'course' || ban.target_type === 'post') {
+        try {
+          await updateContentStatus.mutateAsync({
+            content_type: ban.target_type,
+            content_id: ban.target_id,
+            status: 'ban',
+            reason: ban.reason || 'Banned by admin',
+          });
+        } catch (contentError) {
+          console.error(`Failed to update ${ban.target_type} status:`, contentError);
+          // Don't fail the entire operation if content status update fails
+        }
+      }
+      
+      // If target_type is 'comment', ban the comment owner (user)
+      if (ban.target_type === 'comment') {
+        try {
+          // target_id should be the user ID (comment owner) when reporting a comment
+          await updateContentStatus.mutateAsync({
+            content_type: 'comment',
+            content_id: ban.target_id,
+            status: 'banned',
+            reason: ban.reason || 'Banned for inappropriate comment',
+          });
+        } catch (userBanError) {
+          console.error('Failed to ban comment owner:', userBanError);
+          // Don't fail the entire operation if user ban fails
+        }
+      }
       
       onClose();
     } catch (error) {

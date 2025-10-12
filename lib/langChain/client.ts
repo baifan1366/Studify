@@ -1,6 +1,72 @@
-// lib/langChain/client.ts - Optimized OpenRouter + Grok-4 Configuration with Multi-Key Support
+// lib/langChain/client.ts - Optimized OpenRouter + Grok-4 Configuration with Multi-Key Support + Caching
 import { ChatOpenAI } from "@langchain/openai";
 import { apiKeyManager } from "./api-key-manager";
+
+// Simple in-memory cache for LLM responses
+class SimpleCache {
+  private cache: Map<string, { response: any; timestamp: number }> = new Map();
+  private ttl: number = 3600000; // 1 hour TTL
+
+  get(key: string): any | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    // Check if expired
+    if (Date.now() - item.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    console.log(`💾 Cache HIT: ${key.substring(0, 50)}...`);
+    return item.response;
+  }
+
+  set(key: string, response: any): void {
+    this.cache.set(key, {
+      response,
+      timestamp: Date.now()
+    });
+    console.log(`💾 Cache SET: ${key.substring(0, 50)}...`);
+  }
+
+  clear(): void {
+    this.cache.clear();
+    console.log('🧹 Cache cleared');
+  }
+
+  size(): number {
+    return this.cache.size;
+  }
+}
+
+// Global cache instance
+let globalCache: SimpleCache | null = null;
+
+function getCache(): SimpleCache {
+  if (!globalCache) {
+    globalCache = new SimpleCache();
+    console.log('💾 LLM Cache initialized');
+  }
+  return globalCache;
+}
+
+/**
+ * Clear the global cache
+ */
+export function clearLLMCache() {
+  getCache().clear();
+}
+
+/**
+ * Get cache statistics
+ */
+export function getCacheStats() {
+  const cache = getCache();
+  return {
+    size: cache.size(),
+    enabled: true
+  };
+}
 
 // Grok-4 模型配置选项
 export interface GrokConfig {
@@ -15,13 +81,14 @@ export interface GrokConfig {
   timeout?: number;
   keySelectionStrategy?: 'round_robin' | 'least_used' | 'best_performance';
   maxRetries?: number;
+  enableCache?: boolean; // 是否启用缓存
 }
 
 // 默认配置
 const DEFAULT_GROK_CONFIG: GrokConfig = {
-  model: "x-ai/grok-4-fast:free",
+  model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
   temperature: 0.3,
-  maxTokens: 4096, // Grok-4支持最大2M tokens，但实际使用建议4K-8K
+  maxTokens: 15000, // DeepSeek支持最大64K tokens，但实际使用建议4K-8K
   topP: 1.0,
   frequencyPenalty: 0,
   presencePenalty: 0,
@@ -30,6 +97,7 @@ const DEFAULT_GROK_CONFIG: GrokConfig = {
   timeout: 60000, // 60秒超时
   keySelectionStrategy: 'round_robin', // 默认轮询策略
   maxRetries: 3, // 默认重试3次
+  enableCache: true, // 默认启用缓存
 };
 
 // 获取站点信息用于OpenRouter排名
@@ -115,24 +183,24 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
 }
 
 /**
- * 获取推理模式的Grok-4实例（更强的推理能力，但成本更高）
+ * 获取推理模式的DeepSeek实例（更强的推理能力，但成本更高）
  */
 export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
     enableReasoning: true,
     temperature: 0.1, // 推理模式使用更低的温度
-    model: "x-ai/grok-4-fast:free", // 或使用付费版本获得更好性能
+    model: process.env.OPEN_ROUTER_REASONING_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
   });
 }
 
 /**
- * 获取创意写作专用的Grok-4实例
+ * 获取创意写作专用的DeepSeek实例
  */
 export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
+    model: process.env.OPEN_ROUTER_CREATIVE_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -141,27 +209,39 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
 }
 
 /**
- * 获取分析专用的Grok-4实例
+ * 获取分析专用的DeepSeek实例
  */
 export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
+    model: process.env.OPEN_ROUTER_ANALYTICAL_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
-    enableReasoning: true, // 启用推理提升分析质量
+    enableReasoning: false, // DeepSeek doesn't support reasoning mode
   });
 }
 
 /**
- * 获取大上下文窗口的Grok-4实例（用于长文档处理）
+ * 获取大上下文窗口的DeepSeek实例（用于长文档处理）
  */
 export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: "x-ai/grok-4-fast:free", // 明确指定使用Grok模型
+    model: process.env.OPEN_ROUTER_LONG_CONTEXT_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
+  });
+}
+
+/**
+ * 获取视觉模型实例（用于图文理解）- 使用Kimi VL模型
+ */
+export function getVisionLLM(config: Partial<GrokConfig> = {}) {
+  return getLLM({
+    ...config,
+    model: process.env.OPEN_ROUTER_IMAGE_MODEL || "moonshotai/kimi-vl-a3b-thinking:free", // Use image model for vision tasks
+    temperature: 0.3,
+    maxTokens: 4096,
   });
 }
 

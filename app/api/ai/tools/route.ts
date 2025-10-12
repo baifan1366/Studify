@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Create tool calling agent
     const agent = new StudifyToolCallingAgent({
-      model: model || "x-ai/grok-4-fast:free",
+      model: model || process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || "z-ai/glm-4.5-air:free",
       temperature: temperature || 0.3,
       enabledTools: enabledTools || 'all',
       toolCategories: toolCategories,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       intermediateSteps: includeSteps ? result.intermediateSteps : undefined,
       metadata: {
         processingTimeMs: processingTime,
-        model: model || "x-ai/grok-4-fast:free",
+        model: model || process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || "z-ai/glm-4.5-air:free",
         toolsEnabled: true,
         timestamp: new Date().toISOString(),
         userId: authResult.payload.sub

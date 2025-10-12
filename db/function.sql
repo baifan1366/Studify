@@ -318,6 +318,22 @@ BEGIN
         END IF;
       END IF;
       
+    WHEN 'mistake_book' THEN
+      DECLARE
+        mistake_data record;
+      BEGIN
+        SELECT mb.mistake_content, mb.analysis, mb.knowledge_points
+        INTO mistake_data
+        FROM mistake_book mb
+        WHERE mb.id = p_content_id AND mb.is_deleted = false;
+        
+        IF FOUND THEN
+          result_text := COALESCE(mistake_data.mistake_content, '') || ' ' ||
+                        COALESCE(mistake_data.analysis, '') || ' ' ||
+                        COALESCE(array_to_string(mistake_data.knowledge_points, ' '), '');
+        END IF;
+      END;
+      
     ELSE
       RAISE NOTICE 'Unknown content type: %', p_content_type;
       RETURN NULL;
@@ -513,15 +529,11 @@ BEGIN
     setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
     setweight(to_tsvector('english', coalesce(NEW.description, '')), 'B') ||
     setweight(to_tsvector('english', coalesce(NEW.difficulty::text, '')), 'C') ||
-    setweight(to_tsvector('english', coalesce(NEW.visibility, '')), 'D') ||
-    -- Process tags array
-    setweight(to_tsvector('english', coalesce(
-      array_to_string(NEW.tags, ' '), ''
-    )), 'B');
+    setweight(to_tsvector('english', coalesce(NEW.visibility, '')), 'D');
   
   RETURN NEW;
 END;
-$function$;;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_tutor_earnings_summary()
@@ -783,8 +795,7 @@ BEGIN
     COALESCE(NEW.title, '') || ' ' ||
     COALESCE(NEW.description, '') || ' ' ||
     COALESCE(subject_translations->>'en', '') || ' ' ||
-    COALESCE(grade_translations->>'en', '') || ' ' ||
-    COALESCE(array_to_string(NEW.tags, ' '), '')
+    COALESCE(grade_translations->>'en', '')
   );
   
   -- Update Chinese search vector
@@ -792,8 +803,7 @@ BEGIN
     COALESCE(NEW.title, '') || ' ' ||
     COALESCE(NEW.description, '') || ' ' ||
     COALESCE(subject_translations->>'zh', '') || ' ' ||
-    COALESCE(grade_translations->>'zh', '') || ' ' ||
-    COALESCE(array_to_string(NEW.tags, ' '), '')
+    COALESCE(grade_translations->>'zh', '')
   );
   
   RETURN NEW;
@@ -2432,7 +2442,6 @@ BEGIN
           'author_id', cq.author_id,
           'difficulty', cq.difficulty,
           'visibility', cq.visibility,
-          'tags', cq.tags,
           'public_id', cq.public_id
         ) as additional_data
       FROM community_quiz cq
@@ -4597,9 +4606,8 @@ AS $function$
 BEGIN
   IF TG_OP = 'INSERT' OR 
      (TG_OP = 'UPDATE' AND (
-       NEW.notes IS DISTINCT FROM OLD.notes OR
-       NEW.solution IS DISTINCT FROM OLD.solution OR
-       NEW.question_text IS DISTINCT FROM OLD.question_text
+       NEW.mistake_content IS DISTINCT FROM OLD.mistake_content OR
+       NEW.analysis IS DISTINCT FROM OLD.analysis
      )) THEN
     
     -- 队列embedding，高优先级（个性化学习）

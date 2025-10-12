@@ -290,11 +290,19 @@ Solution:`;
       prompt += '\n\n' + parser.getFormatInstructions();
     }
 
-    // 使用您的 client.ts 中的 getLLM 函数
-    const llm = await getLLM({
-      temperature: 0.3,
-      model: 'x-ai/grok-4-fast:free'
-    });
+    // 判断是否为图片分析（problem_solving且包含base64图片数据）
+    const isImageAnalysis = analysisType === 'problem_solving' && fullText.startsWith('data:image/');
+    
+    // 使用您的 client.ts 中的 getLLM 函数，图片分析使用Kimi VL视觉模型
+    const llm = isImageAnalysis 
+      ? await getLLM({
+          temperature: 0.3,
+          model: process.env.OPEN_ROUTER_IMAGE_MODEL || 'moonshotai/kimi-vl-a3b-thinking:free'
+        })
+      : await getLLM({
+          temperature: 0.3,
+          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+        });
     
     const response = await llm.invoke([new HumanMessage(prompt)]);
     const responseText = response.content as string;
@@ -383,7 +391,7 @@ Please format your response as JSON:
     try {
       const llm = await getLLM({
         temperature: 0.3,
-        model: 'x-ai/grok-4-fast:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
       });
       
       const enhancementResponse = await llm.invoke([new HumanMessage(enhancementPrompt)]);
@@ -466,7 +474,7 @@ ${includeSourceReferences ? 'Include references to context sources using [1], [2
     try {
       const llm = await getAnalyticalLLM({
         temperature: 0.2,
-        model: 'x-ai/grok-4-fast:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
       });
       
       const response = await llm.invoke([new HumanMessage(answerPrompt)]);

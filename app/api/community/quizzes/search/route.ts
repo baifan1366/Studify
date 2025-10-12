@@ -85,7 +85,6 @@ export async function GET(req: Request) {
         slug, 
         title, 
         description, 
-        tags, 
         difficulty, 
         max_attempts, 
         visibility,

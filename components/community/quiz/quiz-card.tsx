@@ -105,10 +105,12 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   };
 
   return (
-    <Card 
-      className="h-full flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 relative cursor-pointer" 
-      onClick={handleCardClick}
-    >
+      <Card
+        className="h-full flex flex-col justify-between relative cursor-pointer 
+        bg-white/5 backdrop-blur-lg border border-white/10 text-white 
+        rounded-xl shadow-lg hover:bg-white/10 transition-all duration-200"
+        onClick={handleCardClick}
+      >
       <div className="absolute top-3 right-3 flex gap-2 items-center">
         <Badge className="bg-red-500 text-white">{difficultyLabel}</Badge>
         {isPrivate && (
@@ -136,7 +138,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 bg-white/80 hover:bg-white shadow-sm"
+                className="h-8 w-8 p-0 hover:bg-white shadow-sm"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreVertical className="h-4 w-4" />

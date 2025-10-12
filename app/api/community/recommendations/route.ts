@@ -843,16 +843,16 @@ function generateRecommendationReasons(
       return post.body?.toLowerCase().includes(il) || (post.title || '').toLowerCase().includes(il);
     });
     if (matchingInterests.length > 0) {
-      reasons.push(`Your interests match：${matchingInterests.slice(0, 2).join(', ')}`);
+      reasons.push(`Your interests match："${matchingInterests.slice(0, 2).join(', ')}"`);
     }
   }
 
   if (factors.group_membership) {
-    reasons.push(`From groups you are in：${post.community_group?.name}`);
+    reasons.push(`From groups you are in："${post.community_group?.name}"`);
   }
 
   if (factors.author_affinity > 0) {
-    reasons.push(`You interact with this author：${post.profiles?.display_name}`);
+    reasons.push(`You interact with this author："${post.profiles?.display_name}"`);
   }
 
   if (factors.hashtag_relevance > 0.5) {

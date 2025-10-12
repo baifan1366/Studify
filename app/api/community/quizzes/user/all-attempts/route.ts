@@ -24,8 +24,7 @@ export async function GET() {
           id,
           title,
           slug,
-          difficulty,
-          tags
+          difficulty
         )
       `)
       .eq("user_id", authResult.payload.sub)

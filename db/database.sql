@@ -698,7 +698,6 @@ CREATE TABLE public.community_quiz (
     author_id uuid NOT NULL,
     title text NOT NULL,
     description text,
-    tags text[],
     difficulty integer,
     is_deleted boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,

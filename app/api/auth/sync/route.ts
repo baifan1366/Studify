@@ -8,10 +8,13 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const access_token = body?.access_token;
+    const requestedRole = body?.role as 'student' | 'tutor' | undefined;
     
     if (!access_token) {
       return NextResponse.json({ error: "missing token" }, { status: 400 });
     }
+    
+    console.log('🎯 Sync API called with role:', requestedRole);
 
     // 用 server client (service role key) 根据 token 获取 user
     const supabase = await createServerClient();
@@ -61,11 +64,15 @@ export async function POST(req: Request) {
       
       const displayName = googleName || user.email?.split('@')[0];
       
+      // Determine role: use requested role or default to 'student'
+      const profileRole = requestedRole || 'student';
+      
       console.log('📝 Creating profile with enhanced data:', {
         name: displayName,
         googleName,
         avatarUrl,
-        email: user.email
+        email: user.email,
+        role: profileRole
       });
       
       // If profile doesn't exist, create it (for OAuth users)
@@ -73,11 +80,12 @@ export async function POST(req: Request) {
         .from('profiles')
         .insert({
           user_id: user.id,
-          role: 'student',
+          role: profileRole,
           full_name: googleName,
           email: user.email,
           display_name: displayName,
-          avatar_url: avatarUrl
+          avatar_url: avatarUrl,
+          email_verified: true // OAuth users have verified emails
         })
         .select()
         .single();

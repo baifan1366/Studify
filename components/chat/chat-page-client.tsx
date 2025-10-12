@@ -19,8 +19,10 @@ export function ChatPageClient() {
   };
 
   return (
-    <ChatNotificationsProvider onNavigateToChat={handleNavigateToChat}>
-      <ChatDashboard />
-    </ChatNotificationsProvider>
+    <div className="fixed inset-0 top-16 left-0 right-0 bottom-0 overflow-hidden" style={{ marginLeft: 'var(--sidebar-width)' }}>
+      <ChatNotificationsProvider onNavigateToChat={handleNavigateToChat}>
+        <ChatDashboard />
+      </ChatNotificationsProvider>
+    </div>
   );
 }

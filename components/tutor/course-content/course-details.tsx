@@ -228,6 +228,19 @@ export default function CourseDetails() {
               </Alert>
             )}
 
+            {/* Inactive Course with Rejection Message Alert */}
+            {course?.status === 'inactive' && course.rejected_message && (
+              <Alert className="mb-6 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/50">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                  <div className="space-y-2">
+                    <div className="font-semibold">{t('courseInactiveWithRejection')}</div>
+                    <div><strong>{t('rejectionMessage')}:</strong> {course.rejected_message}</div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {selectedModuleId ? (
               <CourseLessonGrid
                 moduleId={selectedModuleId}

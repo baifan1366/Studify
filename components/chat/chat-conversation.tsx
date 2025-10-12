@@ -5,12 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Phone, Video, MoreVertical, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ChatPanel } from './chat-panel';
 
 interface ChatConversationProps {
@@ -26,9 +20,9 @@ export function ChatConversation({ conversationId }: ChatConversationProps) {
   const isOnline = Math.random() > 0.5; // Mock online status
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="fixed inset-0 top-16 left-0 right-0 bottom-0 flex flex-col bg-background overflow-hidden" style={{ marginLeft: 'var(--sidebar-width)' }}>
       {/* Header */}
-      <div className="p-4 border-b flex items-center justify-between">
+      <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
@@ -51,23 +45,6 @@ export function ChatConversation({ conversationId }: ChatConversationProps) {
               {isOnline ? 'Online' : 'Offline'}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-<DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>View Profile</DropdownMenuItem>
-              <DropdownMenuItem>Mute Conversation</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
-                Delete Conversation
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

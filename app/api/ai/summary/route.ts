@@ -192,7 +192,6 @@ export async function POST(request: NextRequest) {
       if (posts.length === 0) {
         return NextResponse.json({
           success: true,
-          summary: locale === 'zh' ? '未找到相关帖子进行总结。' : 'No relevant posts found to summarize.',
           bullets: [],
           themes: [],
           citations: [],
@@ -200,7 +199,7 @@ export async function POST(request: NextRequest) {
             mode: 'search',
             itemCount: 0,
             processingTimeMs: Date.now() - startTime,
-            model: 'x-ai/grok-4-fast:free',
+            model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free',
             locale
           }
         });

@@ -151,15 +151,28 @@ export function AuthForm({
       const currentOrigin = window.location.origin;
       let oauthRedirectUrl = `${currentOrigin}/${locale}/sign-in`;
       
+      // Build query parameters for OAuth callback
+      const params = new URLSearchParams();
+      
+      // Pass role information if available (from sign-up pages)
+      if (role) {
+        params.set('role', role);
+      }
+      
       // If adding new account, preserve the mode and redirect parameters
       if (authMode === 'add') {
-        oauthRedirectUrl += `?mode=add`;
+        params.set('mode', 'add');
         if (redirectUrl) {
-          oauthRedirectUrl += `&redirect=${encodeURIComponent(redirectUrl)}`;
+          params.set('redirect', redirectUrl);
         }
       }
       
-      console.log('OAuth redirect URL:', oauthRedirectUrl);
+      // Append params to redirect URL if any exist
+      if (params.toString()) {
+        oauthRedirectUrl += `?${params.toString()}`;
+      }
+      
+      console.log('OAuth redirect URL:', oauthRedirectUrl, 'with role:', role);
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

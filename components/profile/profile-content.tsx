@@ -211,13 +211,13 @@ export default function ProfileContent() {
     
     switch (userRole) {
       case 'tutor':
-        router.push(`/${locale}/tutor/courses`);
+        router.push(`/${locale}/tutor/teaching/course-content`);
         break;
       case 'admin':
         router.push(`/${locale}/admin/courses`);
         break;
       default:
-        router.push(`/${locale}/course`);
+        router.push(`/${locale}/courses`);
     }
   };
 
@@ -242,6 +242,9 @@ export default function ProfileContent() {
       case 'admin':
         router.push(`/${locale}/admin/community`);
         break;
+      case 'tutor':
+        router.push(`/${locale}/tutor/community`);
+        break;
       default:
         router.push(`/${locale}/community`);
     }
@@ -259,7 +262,7 @@ export default function ProfileContent() {
         router.push(`/${locale}/admin/dashboard`);
         break;
       default:
-        router.push(`/${locale}/home`);
+        router.push(`/${locale}/dashboard`);
     }
   };
 

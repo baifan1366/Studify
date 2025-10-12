@@ -2,8 +2,9 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { DynamicTool } from "@langchain/core/tools";
+import { BufferMemory } from "langchain/memory";
 import { 
   AVAILABLE_TOOLS, 
   TOOL_CATEGORIES, 
@@ -14,7 +15,7 @@ import {
 
 // Re-export TOOL_CATEGORIES for external use
 export { TOOL_CATEGORIES };
-import { getLLM, getReasoningLLM } from './client';
+import { getLLM, getReasoningLLM, getVisionLLM } from './client';
 import { aiWorkflowExecutor } from './ai-workflow';
 
 // === TOOL CALLING CONFIGURATION ===
@@ -55,11 +56,20 @@ Remember: You're helping students and educators learn more effectively!`;
 export class StudifyToolCallingAgent {
   private agent: AgentExecutor | null = null;
   private llm: ChatOpenAI | null = null;
+  private memory: BufferMemory | null = null;
   protected config: ToolCallingConfig;
 
   constructor(config: ToolCallingConfig = {}) {
+    const selectedModel = process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || process.env.OPEN_ROUTER_MODEL || "openai/gpt-4o-mini";
+    console.log('🔧 Tool Calling Model Config:', {
+      OPEN_ROUTER_TOOL_CALLING_MODEL: process.env.OPEN_ROUTER_TOOL_CALLING_MODEL,
+      OPEN_ROUTER_MODEL: process.env.OPEN_ROUTER_MODEL,
+      selectedModel: selectedModel
+    });
+    
     this.config = {
-      model: "x-ai/grok-4-fast:free",
+      // Tool calling requires function calling support - use GPT-4o or compatible model
+      model: selectedModel,
       temperature: 0.3,
       enabledTools: 'all',
       maxIterations: 10,
@@ -68,6 +78,14 @@ export class StudifyToolCallingAgent {
       verbose: false,
       ...config
     };
+    
+    // Initialize memory for conversation history
+    this.memory = new BufferMemory({
+      returnMessages: true,
+      memoryKey: "chat_history",
+      inputKey: "input",
+      outputKey: "output"
+    });
   }
 
   /**
@@ -93,9 +111,10 @@ export class StudifyToolCallingAgent {
         throw new Error('No tools selected for the agent');
       }
 
-      // Create system prompt
+      // Create system prompt with memory support
       const prompt = ChatPromptTemplate.fromMessages([
         ["system", this.config.systemPrompt!],
+        new MessagesPlaceholder("chat_history"),
         ["human", "{input}"],
         ["placeholder", "{agent_scratchpad}"],
       ]);
@@ -156,8 +175,21 @@ export class StudifyToolCallingAgent {
       }
 
       console.log('📡 Calling AgentExecutor...');
-      const result = await this.agent!.invoke({ input: enhancedInput });
+      
+      // Get chat history from memory
+      const chatHistory = await this.memory!.chatHistory.getMessages();
+      
+      const result = await this.agent!.invoke({ 
+        input: enhancedInput,
+        chat_history: chatHistory
+      });
       const executionTime = Date.now() - startTime;
+      
+      // Save to memory
+      await this.memory!.saveContext(
+        { input: enhancedInput },
+        { output: result.output }
+      );
 
       console.log('🔍 Raw AgentExecutor result:', {
         hasOutput: !!result.output,
@@ -205,6 +237,119 @@ export class StudifyToolCallingAgent {
         output: `I encountered an error while processing your request: ${error instanceof Error ? error.message : 'Unknown error'}`,
         toolsUsed: [],
         executionTime
+      };
+    }
+  }
+
+  /**
+   * Execute with streaming support for real-time responses
+   */
+  async *executeStream(
+    input: string,
+    options: {
+      userId?: number;
+      includeSteps?: boolean;
+    } = {}
+  ): AsyncGenerator<{
+    type: 'token' | 'tool_start' | 'tool_end' | 'error' | 'final';
+    content: string;
+    toolName?: string;
+    metadata?: any;
+  }> {
+    if (!this.agent) {
+      await this.initialize();
+    }
+
+    const startTime = Date.now();
+
+    try {
+      console.log(`🎬 Starting streaming execution: "${input.substring(0, 100)}..."`);
+
+      // Add user context if provided
+      let enhancedInput = input;
+      if (options.userId) {
+        enhancedInput = `[User ID: ${options.userId}] ${input}`;
+      }
+
+      const toolsUsed: string[] = [];
+      let fullOutput = '';
+
+      // Stream the agent execution
+      const stream = await this.agent!.stream({ input: enhancedInput });
+
+      for await (const chunk of stream) {
+        // Handle intermediate steps (tool calls)
+        if (chunk.intermediateSteps && chunk.intermediateSteps.length > 0) {
+          for (const step of chunk.intermediateSteps) {
+            if (step.action && step.action.tool) {
+              const toolName = step.action.tool;
+              
+              // Tool start event
+              yield {
+                type: 'tool_start',
+                content: `Using ${toolName}...`,
+                toolName,
+                metadata: {
+                  toolInput: step.action.toolInput
+                }
+              };
+
+              toolsUsed.push(toolName);
+
+              // Tool end event (with observation)
+              if (step.observation) {
+                yield {
+                  type: 'tool_end',
+                  content: `${toolName} completed`,
+                  toolName,
+                  metadata: {
+                    observation: step.observation
+                  }
+                };
+              }
+            }
+          }
+        }
+
+        // Handle output tokens
+        if (chunk.output) {
+          fullOutput += chunk.output;
+          yield {
+            type: 'token',
+            content: chunk.output,
+            metadata: {
+              cumulative: fullOutput
+            }
+          };
+        }
+      }
+
+      const executionTime = Date.now() - startTime;
+
+      // Final event with summary
+      yield {
+        type: 'final',
+        content: fullOutput || 'Execution completed',
+        metadata: {
+          toolsUsed: [...new Set(toolsUsed)],
+          executionTime,
+          totalTokens: fullOutput.length
+        }
+      };
+
+      console.log(`✅ Streaming completed in ${executionTime}ms using tools: ${[...new Set(toolsUsed)].join(', ')}`);
+
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error(`❌ Streaming failed after ${executionTime}ms:`, error);
+      
+      yield {
+        type: 'error',
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        metadata: {
+          executionTime,
+          error: error instanceof Error ? error.stack : undefined
+        }
       };
     }
   }
@@ -271,6 +416,26 @@ export class StudifyToolCallingAgent {
     }
 
     return tools;
+  }
+
+  /**
+   * Clear conversation memory
+   */
+  clearMemory(): void {
+    if (this.memory) {
+      this.memory.clear();
+      console.log('🧹 Conversation memory cleared');
+    }
+  }
+
+  /**
+   * Get conversation history
+   */
+  async getMemory(): Promise<any[]> {
+    if (this.memory) {
+      return await this.memory.chatHistory.getMessages();
+    }
+    return [];
   }
 
   /**
@@ -390,21 +555,21 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     confidence: number;
   }> {
     const config: ToolCallingConfig = {
-      toolCategories: ['SEARCH_AND_QA', 'CONTENT_ANALYSIS'],
+      toolCategories: ['SEARCH_AND_QA', 'CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
       userId: options.userId,
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For this educational Q&A session:
 1. Search for relevant information using the search tool
 2. Use the answer_question tool for detailed responses
-3. ${options.includeAnalysis ? 'Provide additional analysis if helpful' : ''}
-4. Always cite sources and provide confidence levels
-5. Focus on educational value and accuracy`
+3. When users ask for recommendations, course suggestions, or what to learn, use the recommend_content tool
+4. ${options.includeAnalysis ? 'Provide additional analysis if helpful' : ''}
+5. Always cite sources and provide confidence levels
+6. Focus on educational value and accuracy`
     };
 
     const agent = new StudifyToolCallingAgent(config);
     await agent.initialize();
-
     // Build enhanced question with context if available
     let enhancedQuestion = question;
     
@@ -461,11 +626,14 @@ Please provide a contextually appropriate response considering our previous conv
     toolsUsed: string[];
     executionTime: number;
   }> {
+    // 判断是否需要使用视觉模型（针对图片分析）
+    const isImageAnalysis = analysisType === 'problem_solving' && content.startsWith('data:image/');
+    
     const config: ToolCallingConfig = {
       toolCategories: ['CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
       userId: options.userId,
       verbose: true, // Enable verbose logging
-      model: "gpt-4o-mini", // Use a model that definitely supports function calling
+      model: isImageAnalysis ? (process.env.OPEN_ROUTER_IMAGE_MODEL || "moonshotai/kimi-vl-a3b-thinking:free") : (process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free"), // 图片分析使用Kimi VL，其他使用DeepSeek
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For course content analysis:
@@ -500,20 +668,9 @@ ${options.includeRecommendations ? '\n5. Related learning resources and next ste
         const isImageData = content.startsWith('data:image/');
         
         if (isImageData) {
-          prompt = `I've received an image that contains an academic problem or question. Please analyze the image and solve the problem step by step:
-
-Image Data: ${content}
-
-Please provide:
-1. **Problem Recognition**: What type of problem or question is shown in the image?
-2. **Problem Analysis**: Break down the problem and identify key components
-3. **Solution Steps**: Provide detailed step-by-step solution
-4. **Calculations**: Show all mathematical work and reasoning
-5. **Final Answer**: State the final answer clearly
-6. **Learning Concepts**: Identify the academic concepts and formulas used
-7. **Study Tips**: Suggest how to approach similar problems
-
-Format your response in clear markdown with proper headings and formatting.`;
+          // ✅ For images, we'll handle this separately using vision LLM
+          // Don't embed base64 in prompt - return special marker
+          prompt = '__USE_VISION_API__';
         } else {
           prompt = `Analyze and solve the following academic problem step by step:
 
@@ -572,13 +729,62 @@ ${options.includeRecommendations ? '\nAlso provide content recommendations based
     console.log(`🔧 Executing ${analysisType} analysis with tools:`, {
       toolCategories: config.toolCategories,
       promptLength: prompt.length,
-      userId: options.userId
+      userId: options.userId,
+      isImageAnalysis
     });
 
-    const result = await agent.execute(prompt, {
-      userId: options.userId,
-      includeSteps: true // Enable steps to see what tools were called
-    });
+    let result;
+    
+    // ✅ Handle image analysis using vision LLM with multimodal format
+    if (isImageAnalysis && prompt === '__USE_VISION_API__') {
+      console.log('📸 Using vision LLM with multimodal message format');
+      
+      const visionLLM = await getVisionLLM();
+      const visionPrompt = `I've received an image that contains an academic problem or question. Please analyze the image and solve the problem step by step:
+
+Please provide:
+1. **Problem Recognition**: What type of problem or question is shown in the image?
+2. **Problem Analysis**: Break down the problem and identify key components
+3. **Solution Steps**: Provide detailed step-by-step solution
+4. **Calculations**: Show all mathematical work and reasoning
+5. **Final Answer**: State the final answer clearly
+6. **Learning Concepts**: Identify the academic concepts and formulas used
+7. **Study Tips**: Suggest how to approach similar problems
+
+Format your response in clear markdown with proper headings and formatting.`;
+
+      const startTime = Date.now();
+      
+      // Use multimodal message format
+      const visionMessage = new HumanMessage({
+        content: [
+          { type: 'text', text: visionPrompt },
+          { 
+            type: 'image_url', 
+            image_url: { 
+              url: content  // The base64 image data
+            } 
+          }
+        ]
+      });
+      
+      const visionResponse = await visionLLM.invoke([visionMessage]);
+      const executionTime = Date.now() - startTime;
+      
+      result = {
+        output: visionResponse.content as string,
+        toolsUsed: ['vision_analysis'],
+        executionTime
+      };
+      
+      console.log(`📸 Vision analysis completed in ${executionTime}ms, output length: ${result.output.length}`);
+    } else {
+      // Normal text-based analysis with agent
+      result = await agent.execute(prompt, {
+        userId: options.userId,
+        includeSteps: true // Enable steps to see what tools were called
+      });
+    }
 
     console.log(`🎯 Analysis result:`, {
       outputLength: result.output?.length || 0,

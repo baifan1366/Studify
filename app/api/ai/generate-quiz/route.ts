@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
-import { aiWorkflowExecutor } from '@/lib/langChain/ai-workflow';
-import { getToolsByCategory } from '@/lib/langChain/tools';
+import { StudifyToolCallingAgent } from '@/lib/langChain/tool-calling-integration';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
+import { z } from 'zod';
 
 export interface GenerateQuizRequest {
   topic: string;
@@ -36,6 +37,11 @@ export interface GenerateQuizResponse {
   };
   error?: string;
   message?: string;
+  metadata?: {
+    aiGenerated: boolean;
+    toolsUsed?: string[];
+    processingTimeMs?: number;
+  };
 }
 
 /**
@@ -43,11 +49,37 @@ export interface GenerateQuizResponse {
  * Generate quiz questions using AI based on provided parameters
  */
 export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizResponse>> {
+  const startTime = Date.now();
+  
   try {
     // Authorize request
     const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult as NextResponse<GenerateQuizResponse>;
+    }
+
+    const userId = authResult.user.profile?.id || parseInt(authResult.payload.sub);
+
+    // Rate limiting check
+    const checkLimit = createRateLimitCheck('ai');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
+    
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Rate limit exceeded',
+          message: rateLimitResponse(resetTime, limit).message
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': resetTime.toString()
+          }
+        }
+      );
     }
 
     const body: GenerateQuizRequest = await req.json();
@@ -61,7 +93,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
       }, { status: 400 });
     }
 
-    console.log(`🎯 AI Quiz Generation Request from user ${authResult.user.profile?.id}:`, {
+    console.log(`🎯 AI Quiz Generation Request from user ${userId}:`, {
       topic: body.topic,
       num_questions: body.num_questions,
       difficulty: body.difficulty,
@@ -69,32 +101,66 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
       lessonId: body.lessonId
     });
 
-    // Generate quiz using our internal generation logic
-    console.log('🎯 Generating quiz with parameters:', {
-      topic: body.topic,
-      num_questions: body.num_questions || 5,
-      difficulty: body.difficulty || 2,
-      question_types: body.question_types || ['multiple_choice', 'true_false']
-    });
-    
-    // Create a mock quiz for now (this would be replaced with actual AI generation)
-    const generatedQuiz = await generateMockQuiz({
-      topic: body.topic,
-      num_questions: body.num_questions || 5,
-      difficulty: body.difficulty || 2,
-      question_types: body.question_types || ['multiple_choice', 'true_false'],
-      focus_topics: body.focus_topics,
-      include_explanations: body.include_explanations ?? true,
-      lesson_content: body.lesson_content,
-      custom_instructions: body.custom_instructions
-    });
+    // ✅ Generate quiz using real AI with Tool Calling
+    try {
+      const generatedQuiz = await generateQuizWithAI({
+        topic: body.topic,
+        num_questions: body.num_questions || 5,
+        difficulty: body.difficulty || 2,
+        question_types: body.question_types || ['multiple_choice', 'true_false'],
+        focus_topics: body.focus_topics,
+        include_explanations: body.include_explanations ?? true,
+        lesson_content: body.lesson_content,
+        custom_instructions: body.custom_instructions
+      }, userId);
 
-    // Return successful response
-    return NextResponse.json({
-      success: true,
-      quiz: generatedQuiz,
-      message: `Successfully generated ${generatedQuiz.questions.length} quiz questions`
-    });
+      const processingTime = Date.now() - startTime;
+      console.log(`✅ Quiz generated successfully in ${processingTime}ms with ${generatedQuiz.quiz.questions.length} questions`);
+
+      // Return successful response
+      return NextResponse.json({
+        success: true,
+        quiz: generatedQuiz.quiz,
+        message: `Successfully generated ${generatedQuiz.quiz.questions.length} quiz questions using AI`,
+        metadata: {
+          aiGenerated: true,
+          toolsUsed: generatedQuiz.toolsUsed || [],
+          processingTimeMs: processingTime
+        }
+      }, {
+        headers: {
+          'X-RateLimit-Limit': limit.toString(),
+          'X-RateLimit-Remaining': remaining.toString(),
+          'X-RateLimit-Reset': resetTime.toString()
+        }
+      });
+    } catch (aiError) {
+      console.error('❌ AI Quiz Generation failed, falling back to mock:', aiError);
+      
+      // Fallback to mock quiz if AI fails
+      const mockQuiz = await generateMockQuiz({
+        topic: body.topic,
+        num_questions: body.num_questions || 5,
+        difficulty: body.difficulty || 2,
+        question_types: body.question_types || ['multiple_choice', 'true_false'],
+        focus_topics: body.focus_topics,
+        include_explanations: body.include_explanations ?? true,
+        lesson_content: body.lesson_content,
+        custom_instructions: body.custom_instructions
+      });
+
+      const processingTime = Date.now() - startTime;
+
+      return NextResponse.json({
+        success: true,
+        quiz: mockQuiz,
+        message: `Generated ${mockQuiz.questions.length} quiz questions (fallback mode)`,
+        metadata: {
+          aiGenerated: false,
+          processingTimeMs: processingTime
+        }
+      });
+    }
 
   } catch (error) {
     console.error('❌ Quiz Generation API Error:', error);
@@ -105,6 +171,150 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
       message: error instanceof Error ? error.message : 'An unexpected error occurred'
     }, { status: 500 });
   }
+}
+
+/**
+ * Generate quiz using real AI with Tool Calling
+ */
+async function generateQuizWithAI(params: {
+  topic: string;
+  num_questions: number;
+  difficulty: number;
+  question_types: string[];
+  focus_topics?: string;
+  include_explanations: boolean;
+  lesson_content?: string;
+  custom_instructions?: string;
+}, userId: number) {
+  console.log('🤖 Starting AI quiz generation with Tool Calling Agent...');
+  
+  const difficultyLabels: Record<number, string> = {
+    1: 'Beginner (Easy)',
+    2: 'Intermediate (Medium)',
+    3: 'Advanced (Hard)',
+    4: 'Expert (Very Hard)',
+    5: 'Master (Extremely Hard)'
+  };
+
+  // Build comprehensive AI prompt
+  const prompt = `You are an expert educational content creator. Generate a comprehensive quiz on the topic: "${params.topic}".
+
+QUIZ REQUIREMENTS:
+- Number of questions: ${params.num_questions}
+- Difficulty level: ${difficultyLabels[params.difficulty] || 'Intermediate'}
+- Question types: ${params.question_types.join(', ')}
+- Include explanations: ${params.include_explanations ? 'Yes' : 'No'}
+${params.focus_topics ? `- Focus areas: ${params.focus_topics}` : ''}
+${params.lesson_content ? `\n\nBASE CONTENT:\n"${params.lesson_content.slice(0, 1000)}${params.lesson_content.length > 1000 ? '...' : ''}"` : ''}
+${params.custom_instructions ? `\n\nADDITIONAL INSTRUCTIONS:\n${params.custom_instructions}` : ''}
+
+CRITICAL: Return a valid JSON object in this EXACT format (no markdown, no code blocks):
+{
+  "title": "Quiz title about the topic",
+  "description": "Brief description of what the quiz covers",
+  "total_points": 10,
+  "estimated_time_minutes": 10,
+  "questions": [
+    {
+      "id": "q1",
+      "question_text": "Your question text here?",
+      "question_type": "multiple_choice",
+      "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+      "correct_answer": "Option A text",
+      "explanation": "Why this answer is correct and what concept it tests",
+      "points": 2,
+      "difficulty": ${params.difficulty},
+      "position": 1
+    }
+  ]
+}
+
+IMPORTANT RULES:
+1. For multiple_choice questions:
+   - Provide EXACTLY 4 options
+   - correct_answer must match one option EXACTLY (same text)
+   - Make distractors plausible but clearly incorrect
+   
+2. For true_false questions:
+   - options should be empty array []
+   - correct_answer should be true or false (boolean)
+   
+3. For other question types:
+   - correct_answer should be a string with the expected answer
+   
+4. Make questions:
+   - Educational and test real understanding
+   - Clear and unambiguous
+   - Appropriate for the difficulty level
+   - Diverse in content coverage
+   
+5. Return ONLY the JSON object, no markdown formatting, no \`\`\`json code blocks.`;
+
+  // Create Tool Calling Agent
+  const agent = new StudifyToolCallingAgent({
+    enabledTools: ['get_course_data', 'search'],
+    temperature: 0.8, // Higher creativity for quiz generation
+    model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+  });
+
+  await agent.initialize();
+
+  // Execute with tools
+  const result = await agent.execute(prompt, { userId });
+  
+  console.log('🤖 AI response received, parsing JSON...', {
+    outputLength: result.output?.length || 0,
+    toolsUsed: result.toolsUsed || [],
+    executionTime: result.executionTime
+  });
+
+  // Parse the JSON response
+  let quiz;
+  try {
+    let cleanedOutput = result.output.trim();
+    
+    // Remove markdown code blocks if present
+    cleanedOutput = cleanedOutput.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
+    
+    // Try to find JSON object
+    const jsonMatch = cleanedOutput.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      quiz = JSON.parse(jsonMatch[0]);
+      console.log('✅ Successfully parsed quiz JSON');
+    } else {
+      throw new Error('No JSON object found in AI response');
+    }
+  } catch (parseError) {
+    console.error('❌ Failed to parse AI response:', parseError);
+    console.log('Raw AI output:', result.output?.substring(0, 500));
+    throw new Error(`Failed to parse quiz JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+  }
+
+  // Validate quiz structure
+  if (!quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+    throw new Error('Invalid quiz structure: missing or empty questions array');
+  }
+
+  // Ensure all questions have required fields
+  quiz.questions.forEach((q: any, index: number) => {
+    if (!q.id) q.id = `q${index + 1}`;
+    if (!q.position) q.position = index + 1;
+    if (typeof q.points !== 'number') q.points = 1;
+    if (typeof q.difficulty !== 'number') q.difficulty = params.difficulty;
+  });
+
+  // Calculate total points if not provided
+  if (typeof quiz.total_points !== 'number') {
+    quiz.total_points = quiz.questions.reduce((sum: number, q: any) => sum + (q.points || 1), 0);
+  }
+
+  console.log(`✅ Quiz validated: ${quiz.questions.length} questions, ${quiz.total_points} total points`);
+
+  return {
+    quiz,
+    toolsUsed: result.toolsUsed || [],
+    executionTime: result.executionTime
+  };
 }
 
 /**

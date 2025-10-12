@@ -32,8 +32,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState(1);
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagsInput, setTagsInput] = useState("");
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [maxAttempts, setMaxAttempts] = useState(1);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
@@ -77,15 +75,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       setTimeLimitMinutes(quiz.time_limit_minutes || null);
       setSelectedSubjectId(quiz.subject_id || undefined);
       setSelectedGradeId(quiz.grade_id || undefined);
-      
-      // Handle tags
-      if (quiz.tags && Array.isArray(quiz.tags)) {
-        const tagStrings = quiz.tags.map(tag => 
-          typeof tag === 'string' ? tag : (tag as any).name || String(tag)
-        );
-        setTags(tagStrings);
-        setTagsInput(tagStrings.join(", "));
-      }
     }
   }, [quiz]);
 
@@ -108,16 +97,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       }
     }
   }, [editingQuestion]);
-
-  // Handle tags input change
-  const handleTagsChange = (value: string) => {
-    setTagsInput(value);
-    const tagArray = value
-      .split(",")
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0);
-    setTags(tagArray);
-  };
 
   // Handle form submission
   const handleSubmit = () => {
@@ -392,29 +371,6 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                 value={difficulty}
                 onChange={(e) => setDifficulty(parseInt(e.target.value) || 1)}
               />
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags (comma separated)</Label>
-              <Input
-                id="tags"
-                value={tagsInput}
-                onChange={(e) => handleTagsChange(e.target.value)}
-                placeholder="e.g. math, algebra, beginner"
-              />
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground">
-                Note: Tags editing is temporarily disabled on the backend
-              </p>
             </div>
 
             {/* Subject Selection */}

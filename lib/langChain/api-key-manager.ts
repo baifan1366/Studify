@@ -354,7 +354,7 @@ export class ApiKeyManager {
   /**
    * 创建LLM实例with自动key轮换
    */
-  async createLLM(model = "x-ai/grok-4-fast:free", maxRetries = 3): Promise<ChatOpenAI> {
+  async createLLM(model = process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free", maxRetries = 3): Promise<ChatOpenAI> {
     const { key: apiKey, name: keyName } = await this.getAvailableKey();
     
     return new ChatOpenAI({

@@ -80,7 +80,7 @@ export default function CompactRecommendations({
       )}
 
       {/* Recommendations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-hidden break-words w-full">
         {recommendations.recommendations.slice(0, limit).map((post, index) => (
           <motion.div
             key={post.id}
@@ -100,8 +100,9 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
   const t = useTranslations('CompactRecommendations');
   
   return (
-    <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-200 group">
-      <CardContent className="p-4">
+    <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-200 group h-full w-full max-w-full overflow-hidden">
+
+      <CardContent className="p-4 flex flex-col justify-between h-full">
         {/* Score Badge */}
         <div className="flex items-center justify-between mb-3">
           <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
@@ -145,7 +146,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
         {post.recommendation_reasons && post.recommendation_reasons.length > 0 && (
           <div className="mb-3 space-y-1">
             {post.recommendation_reasons.slice(0, 2).map((reason, idx) => (
-              <p key={idx} className="text-xs text-blue-400 line-clamp-1">
+              <p key={idx} className="text-xs text-blue-400 ">
                 💡 {reason}
               </p>
             ))}

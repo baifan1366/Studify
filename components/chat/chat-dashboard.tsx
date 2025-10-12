@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,12 +36,44 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ChatPanel } from './chat-panel';
-import { MultipleTypingIndicator } from './typing-indicator';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useChatNotifications, useRealtimeChatNotifications } from '@/hooks/chat/use-chat-notifications';
 import { ProfileModal } from '@/components/chat/profile-modal';
 import { ProfileData } from '@/interface/profile-interface';
 import { useProfile } from '@/hooks/profiles/use-profile';
+
+// Skeleton Components
+function ConversationItemSkeleton() {
+  return (
+    <Card className="mb-2 bg-gray-100/5">
+      <CardContent className="p-3">
+        <div className="flex items-start gap-3">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UserSearchItemSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg">
+      <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
+  );
+}
 
 // Mock data - replace with real API calls
 interface Conversation {
@@ -56,12 +89,16 @@ interface Conversation {
     content: string;
     timestamp: string;
     isFromMe: boolean;
-  };
+    isDeleted?: boolean;
+  } | null;
   unreadCount: number;
   type: 'direct' | 'group';
+  memberCount?: number;
+  description?: string;
 }
 
 export function ChatDashboard() {
+  const t = useTranslations('MessageBubble');
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -76,9 +113,6 @@ export function ChatDashboard() {
   const [groupDescription, setGroupDescription] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  
-  // Typing indicator state
-  const [typingUsers, setTypingUsers] = useState<{ id: string; name: string; avatar?: string }[]>([]);
   
   // Profile modal state
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -129,34 +163,6 @@ export function ChatDashboard() {
     };
   }, []);
 
-  // Mock typing indicator simulation (for demo purposes)
-  useEffect(() => {
-    if (!selectedConversation) return;
-
-    // Simulate random typing activity
-    const interval = setInterval(() => {
-      const shouldShowTyping = Math.random() > 0.8; // 20% chance
-      
-      if (shouldShowTyping) {
-        // Find current conversation participant
-        const currentConv = conversations.find(c => c.id === selectedConversation);
-        if (currentConv) {
-          setTypingUsers([{
-            id: currentConv.participant.id,
-            name: currentConv.participant.name,
-            avatar: currentConv.participant.avatar
-          }]);
-          
-          // Hide typing after 2-4 seconds
-          setTimeout(() => {
-            setTypingUsers([]);
-          }, Math.random() * 2000 + 2000);
-        }
-      }
-    }, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [selectedConversation, conversations]);
 
   const filteredConversations = conversations.filter(
     (conv) =>
@@ -377,11 +383,11 @@ export function ChatDashboard() {
 
 
   return (
-    <div className="h-screen flex bg-transparent">
+    <div className="w-full h-full flex bg-transparent overflow-hidden">
       {/* Sidebar - Conversations List */}
-      <div className="w-1/3 border-r flex flex-col">
+      <div className="w-1/3 border-r flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b">
+        <div className="p-2 border-b">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <MessageCircle className="h-6 w-6" />
@@ -423,11 +429,13 @@ export function ChatDashboard() {
         </div>
 
         {/* Conversations List */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-y-auto">
           <div className="p-2">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <ConversationItemSkeleton key={i} />
+                ))}
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -501,7 +509,11 @@ export function ChatDashboard() {
                         {conversation.lastMessage ? (
                           <>
                             {conversation.lastMessage.isFromMe && 'You: '}
-                            {conversation.lastMessage.content}
+                            {conversation.lastMessage.isDeleted ? (
+                              <span className="italic">{t('message_deleted')}</span>
+                            ) : (
+                              conversation.lastMessage.content
+                            )}
                           </>
                         ) : conversation.type === 'group' && conversation.description ? (
                           conversation.description
@@ -526,9 +538,9 @@ export function ChatDashboard() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {selectedConversation && selectedConv ? (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Chat Header */}
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -600,9 +612,6 @@ export function ChatDashboard() {
               </div>
             </div>
 
-            {/* Typing Indicator */}
-            <MultipleTypingIndicator typingUsers={typingUsers} className="px-4 py-2" />
-
             {/* Chat Panel */}
             <ChatPanel conversationId={selectedConversation} />
           </div>
@@ -642,8 +651,10 @@ export function ChatDashboard() {
             {/* Search Results */}
             <div className="max-h-60 overflow-y-auto">
               {isSearching ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <UserSearchItemSkeleton key={i} />
+                  ))}
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="space-y-2">
@@ -759,8 +770,10 @@ export function ChatDashboard() {
             {/* User Search Results */}
             <div className="max-h-48 overflow-y-auto border rounded-md">
               {isSearching ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="space-y-1 p-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <UserSearchItemSkeleton key={i} />
+                  ))}
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="space-y-1 p-2">

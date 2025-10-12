@@ -41,18 +41,21 @@ export async function POST(request: NextRequest) {
         course_id: courseId || null,
         lesson_id: lessonId || null,
         mistake_content: mistakeContent,
-        analysis,
+        analysis: analysis || null,
         source_type: sourceType,
         knowledge_points: knowledgePoints || [],
-        recommended_exercises: recommendedExercises || {},
-        created_at: new Date().toISOString()
+        recommended_exercises: recommendedExercises || null
       })
       .select()
       .single();
 
     if (error) {
       console.error('Error saving mistake:', error);
-      return NextResponse.json({ error: 'Failed to save mistake' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Failed to save mistake',
+        details: error.message,
+        code: error.code 
+      }, { status: 500 });
     }
 
     return NextResponse.json({ 

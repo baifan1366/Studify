@@ -16,6 +16,7 @@ export interface Conversation {
     content: string;
     timestamp: string;
     isFromMe: boolean;
+    isDeleted?: boolean;
   } | null;
   unreadCount: number;
   // Group-specific fields
@@ -534,17 +535,6 @@ export function useDeleteMessage() {
   });
 }
 
-/**
- * Hook for typing indicators
- */
-export function useTypingIndicator(conversationId: string | undefined) {
-  // TODO: Implement typing indicators with real-time updates
-  return {
-    isTyping: false,
-    startTyping: () => {},
-    stopTyping: () => {},
-  };
-}
 
 /**
  * Hook for deleting a conversation

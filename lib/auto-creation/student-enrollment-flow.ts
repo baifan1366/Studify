@@ -95,15 +95,33 @@ async function handleClassroomAutoCreation(
   userId: number
 ): Promise<{ success: boolean; created: boolean; joined: boolean; name?: string; error?: string }> {
   try {
-    const classroomName = `${course.title} - Classroom`;
-    console.log(`[ClassroomAutoCreation] Looking for classroom: ${classroomName}`);
+    const safeCourseTitle = course.title?.trim() || 'Course';
+    const classroomName = `${safeCourseTitle} - Classroom`;
+    const classroomSlug = `${course.slug}-classroom`;
+    console.log(`[ClassroomAutoCreation] Looking for classroom: ${classroomName}, slug: ${classroomSlug}`);
 
-    // Check if classroom exists by name (following the naming convention)
-    const { data: existingClassroom, error: classroomError } = await supabase
+    // First, try to find by slug (most reliable since slug is unique)
+    let { data: existingClassroom, error: classroomError } = await supabase
       .from('classroom')
       .select('*')
-      .eq('name', classroomName)
+      .eq('slug', classroomSlug)
+      .eq('is_deleted', false)
       .maybeSingle();
+
+    // If not found by slug, try by name and owner_id as fallback
+    if (!existingClassroom && !classroomError) {
+      console.log(`[ClassroomAutoCreation] Classroom not found by slug, trying by name`);
+      const result = await supabase
+        .from('classroom')
+        .select('*')
+        .eq('name', classroomName)
+        .eq('owner_id', course.owner_id)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      
+      existingClassroom = result.data;
+      classroomError = result.error;
+    }
 
     if (classroomError) {
       console.error('[ClassroomAutoCreation] Failed to lookup classroom:', classroomError);
@@ -122,12 +140,16 @@ async function handleClassroomAutoCreation(
     if (!existingClassroom) {
       console.log('[ClassroomAutoCreation] Classroom not found, creating new one');
       
-      // Create new classroom
+      // Create new classroom with consistent naming (matching course-approval-flow)
+      const classroomDescription = `Classroom for ${safeCourseTitle}. Join this classroom to participate in discussions, activities, and collaborative learning related to the course. This is an interactive learning environment where students can engage with course materials, ask questions, share insights, and connect with peers and instructors.`;
+      
       const { data: newClassroom, error: createError } = await supabase
         .from('classroom')
         .insert({
           name: classroomName,
-          description: `Auto-created classroom for ${course.title}`,
+          slug: classroomSlug,
+          description: classroomDescription,
+          visibility: 'public',
           owner_id: course.owner_id,
           class_code: generateClassCode(),
         })
@@ -240,15 +262,33 @@ async function handleCommunityAutoCreation(
   userId: number
 ): Promise<{ success: boolean; created: boolean; joined: boolean; name?: string; error?: string }> {
   try {
-    const communityName = `${course.title} - Group`;
-    console.log(`[CommunityAutoCreation] Looking for community group: ${communityName}`);
+    const safeCourseTitle = course.title?.trim() || 'Course';
+    const communityName = `${safeCourseTitle} - Group`;
+    const communitySlug = `${course.slug}-group`;
+    console.log(`[CommunityAutoCreation] Looking for community group: ${communityName}, slug: ${communitySlug}`);
 
-    // Check if community group exists by name (following the naming convention)
-    const { data: existingGroup, error: groupError } = await supabase
+    // First, try to find by slug (most reliable since slug is unique)
+    let { data: existingGroup, error: groupError } = await supabase
       .from('community_group')
       .select('*')
-      .eq('name', communityName)
+      .eq('slug', communitySlug)
+      .eq('is_deleted', false)
       .maybeSingle();
+
+    // If not found by slug, try by name and owner_id as fallback
+    if (!existingGroup && !groupError) {
+      console.log(`[CommunityAutoCreation] Community not found by slug, trying by name`);
+      const result = await supabase
+        .from('community_group')
+        .select('*')
+        .eq('name', communityName)
+        .eq('owner_id', course.owner_id)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      
+      existingGroup = result.data;
+      groupError = result.error;
+    }
 
     if (groupError) {
       console.error('[CommunityAutoCreation] Failed to lookup community group:', groupError);
@@ -267,14 +307,16 @@ async function handleCommunityAutoCreation(
     if (!existingGroup) {
       console.log('[CommunityAutoCreation] Community group not found, creating new one');
       
-      // Create new community group
+      // Create new community group with consistent naming (matching course-approval-flow)
+      const communityDescription = `Discussion group for ${safeCourseTitle}. Connect with other learners, ask questions, share insights, and engage in meaningful discussions about the course content. This community provides a platform for collaborative learning, peer support, knowledge sharing, and building connections with fellow students and educators.`;
+      
       const { data: newGroup, error: createError } = await supabase
         .from('community_group')
         .insert({
           name: communityName,
-          description: `Auto-created study group for ${course.title}`,
-          slug: course.slug + '-group',
-          visibility: 'private',
+          description: communityDescription,
+          slug: communitySlug,
+          visibility: 'public',
           owner_id: course.owner_id,
         })
         .select()

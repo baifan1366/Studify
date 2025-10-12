@@ -27,6 +27,8 @@ interface ExtendedUser extends User {
     currency?: string;
     onboarded?: boolean;
     onboarded_step?: number;
+    banned_reason?: string;
+    banned_at?: string;
   };
 }
 

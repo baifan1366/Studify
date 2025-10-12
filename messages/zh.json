@@ -6559,7 +6559,20 @@
     "you_will_receive_push_notifications": "你将接收推送通知",
     "click_to_enable_push_notifications": "点击启用推送通知",
     "enable": "启用",
-    "disable": "禁用",
-    "general_notifications": "常规通知"
+    "disable": "禁用"
+  },
+  "BannedUserDialog": {
+    "title": "账户已暂停",
+    "description": "您的账户已暂停，您无法访问学生页面。",
+    "access_restricted": "访问受限",
+    "access_restricted_message": "您的账户已暂停。您将无法访问任何学生页面，直到暂停被解除。",
+    "reason_label": "暂停原因",
+    "banned_on": "暂停于",
+    "expires_on": "暂停到期于",
+    "permanent_ban": "永久暂停",
+    "permanent_ban_message": "此暂停没有到期日期。",
+    "contact_support_message": "如果您认为这是错误，请联系我们的支持团队以获得帮助。",
+    "logout": "退出登录",
+    "logging_out": "正在退出..."
   }
 }

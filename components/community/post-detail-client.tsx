@@ -47,6 +47,7 @@ import { useUpdatePost, useDeletePost } from "@/hooks/community/use-community";
 import { validateFiles } from "@/utils/file-validation";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
 import SharePostDialog from "./share-post-dialog";
+import { ReportButton } from "@/components/ui/report-button";
 
 // Reaction button component
 const ReactionButton = ({
@@ -290,38 +291,44 @@ const CommentItem = ({
                 {formatRelativeTime(comment.created_at)}
               </p>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setShowEditForm(!showEditForm);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  {t("comment_actions.edit")}
-                </DropdownMenuItem>
-                {depth < commentMaxDepth && (
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
                   <DropdownMenuItem
-                    onClick={() => setShowReplyForm(!showReplyForm)}
+                    onClick={() => {
+                      setShowEditForm(!showEditForm);
+                    }}
                   >
-                    <Reply className="h-4 w-4 mr-2" />
-                    {t("comment_actions.reply")}
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {t("comment_actions.edit")}
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={handleDelete}
-                  className="text-red-400"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {t("comment_actions.delete")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {depth < commentMaxDepth && (
+                    <DropdownMenuItem
+                      onClick={() => setShowReplyForm(!showReplyForm)}
+                    >
+                      <Reply className="h-4 w-4 mr-2" />
+                      {t("comment_actions.reply")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onClick={handleDelete}
+                    className="text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {t("comment_actions.delete")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ReportButton 
+                targetId={comment.author_id} 
+                targetType="comment" 
+              />
+            </div>
           </div>
           {/* 这里判断是否在编辑 */}
           {showEditForm ? (

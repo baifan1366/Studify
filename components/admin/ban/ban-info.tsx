@@ -120,6 +120,22 @@ export function BanInfo({ ban, isOpen, onClose }: BanInfoProps) {
         }
       }
       
+      // If target_type is 'comment', ban the comment owner (user)
+      if (ban.target_type === 'comment') {
+        try {
+          // target_id should be the user ID (comment owner) when reporting a comment
+          await updateContentStatus.mutateAsync({
+            content_type: 'comment',
+            content_id: ban.target_id,
+            status: 'banned',
+            reason: ban.reason || 'Banned for inappropriate comment',
+          });
+        } catch (userBanError) {
+          console.error('Failed to ban comment owner:', userBanError);
+          // Don't fail the entire operation if user ban fails
+        }
+      }
+      
       onClose();
     } catch (error) {
       console.error("Failed to approve ban:", error);

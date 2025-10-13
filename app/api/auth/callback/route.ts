@@ -9,11 +9,27 @@ const APP_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // Handle Supabase auth callbacks (email confirmations, password resets, etc.)
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
-  // Handle both Supabase auth code and OAuth provider code
-  const code = searchParams.get('code') || searchParams.get('token_hash') || searchParams.get('access_token');
+  const flowType = searchParams.get('type');
+  const provider = searchParams.get('provider');
   const redirectTo = searchParams.get('redirect_to');
   let next = searchParams.get('next') ?? '/';
   const requestedRole = searchParams.get('role') as 'student' | 'tutor' | null;
+  
+  // Handle different authentication flows
+  let code: string | null = null;
+  if (flowType === 'recovery') {
+    // Password reset flow uses token_hash
+    code = searchParams.get('token_hash');
+  } else if (provider) {
+    // OAuth flow uses code or access_token
+    code = searchParams.get('code') || searchParams.get('access_token');
+  } else {
+    // Email magic link or other flows
+    code = searchParams.get('code');
+  }
+  
+  // PKCE verification for OAuth flows
+  const codeVerifier = provider ? searchParams.get('code_verifier') : null;
   
   // Log the full URL for debugging
   console.log('[AUTH CALLBACK] Full callback URL:', request.url);
@@ -27,15 +43,15 @@ export async function GET(request: NextRequest) {
       console.log('[AUTH CALLBACK] Failed to parse redirect_to:', redirectTo);
     }
   }
-  
-  const type = searchParams.get('type');
 
   console.log('[AUTH CALLBACK] Parameters:', { 
     code: !!code, 
     next, 
-    type, 
+    flowType, 
+    provider,
     origin,
     requestedRole,
+    hasPkceVerifier: !!codeVerifier,
     rawRedirectTo: searchParams.get('redirect_to'),
     allParams: Object.fromEntries(searchParams.entries())
   });
@@ -47,7 +63,7 @@ export async function GET(request: NextRequest) {
       console.log('[AUTH CALLBACK] Attempting session exchange:', {
         codeLength: code.length,
         codePrefix: code.substring(0, 10) + '...',
-        type,
+        flowType,
         next,
         provider: searchParams.get('provider') || 'unknown'
       });
@@ -135,7 +151,7 @@ export async function GET(request: NextRequest) {
       // Determine redirect based on the type of auth flow
       let redirectPath = next;
       
-      if (type === 'recovery') {
+      if (flowType === 'recovery') {
         // Password reset flow - use the next parameter which contains the locale
         // If next parameter is provided (e.g., /en/reset-password), use it
         // Otherwise, fallback to /en/reset-password
@@ -146,7 +162,7 @@ export async function GET(request: NextRequest) {
           sessionUser: data.session.user?.email,
           sessionId: data.session.access_token?.substring(0, 20) + '...'
         });
-      } else if (type === 'signup') {
+      } else if (flowType === 'signup') {
         // Email verification flow - redirect to onboarding or dashboard
         redirectPath = next;
       }
@@ -169,7 +185,7 @@ export async function GET(request: NextRequest) {
         hasError: !!error,
         errorMessage: error?.message,
         hasSession: !!data?.session,
-        type,
+        flowType,
         next
       });
       // More specific error message for debugging

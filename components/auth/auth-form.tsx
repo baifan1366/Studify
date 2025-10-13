@@ -147,9 +147,9 @@ export function AuthForm({
     try {
       console.log('Starting OAuth flow with Google');
       
-      // Use current page as callback since Supabase is configured to redirect here
+      // Use auth callback endpoint for consistent session handling
       const currentOrigin = window.location.origin;
-      let oauthRedirectUrl = `${currentOrigin}/${locale}/sign-in`;
+      let oauthRedirectUrl = `${currentOrigin}/api/auth/callback`;
       
       // Build query parameters for OAuth callback
       const params = new URLSearchParams();

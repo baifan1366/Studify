@@ -234,7 +234,9 @@ export default function GroupDetailContent({
                             : "default"
                         }
                       >
-                        {group.visibility}
+                        {group.visibility === "private"
+                          ? t('visibility_private')
+                          : t('visibility_public')}
                       </Badge>
                       {group.user_membership?.role === "owner" && (
                         <Button
@@ -253,11 +255,11 @@ export default function GroupDetailContent({
                     <div className="flex items-center gap-6 text-sm text-gray-400">
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {group.member_count || 0} members
+                        {t('members_count', { count: group.member_count || 0 })}
                       </div>
-                      <div>{group.post_count || 0} posts</div>
+                      <div>{t('posts_count', { count: group.post_count || 0 })}</div>
                       {group.owner && (
-                        <div>Owner: {group.owner.display_name}</div>
+                        <div>{t('owner_label', { name: group.owner.display_name })}</div>
                       )}
                     </div>
 
@@ -268,7 +270,9 @@ export default function GroupDetailContent({
                             variant="outline"
                             className="border-green-400 text-green-400"
                           >
-                            {group.user_membership.role}
+                            {group.user_membership.role === "owner"
+                              ? t('role_owner')
+                              : t('role_member')}
                           </Badge>
                           {group.user_membership.role !== "owner" && (
                             <Button
@@ -318,7 +322,7 @@ export default function GroupDetailContent({
                     <Alert className="border-red-400 bg-red-400/10 mt-4">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription className="text-red-400">
-                        Failed to create post: {createPostError.message}
+                        {t('create_post_error', { message: createPostError.message })}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -349,10 +353,10 @@ export default function GroupDetailContent({
                     posts.map((post) => <PostCard key={post.id} post={post} />)
                   ) : (
                     <div className="text-center py-12">
-                      <p className="text-gray-400 mb-4">No posts yet</p>
+                      <p className="text-gray-400 mb-4">{t('no_posts_yet')}</p>
                       {group.user_membership && (
                         <p className="text-gray-500">
-                          Be the first to start a discussion!
+                          {t('start_discussion_prompt')}
                         </p>
                       )}
                     </div>

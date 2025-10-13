@@ -192,8 +192,11 @@ export function NewPostForm({
               <p className="text-sm text-blue-300">{t("drop_here")}</p>
             ) : (
               <p className="text-sm text-gray-400">
-                {t("drag_drop_or_click")} (Max {MAX_FILES} files, videos ≤{" "}
-                {MAX_VIDEO_SIZE_MB}MB, others ≤ {MAX_NON_VIDEO_SIZE_MB}MB)
+                {t("drag_drop_or_click")} {t("upload_limits_hint", {
+                  maxFiles: MAX_FILES,
+                  maxVideoSize: MAX_VIDEO_SIZE_MB,
+                  maxOtherSize: MAX_NON_VIDEO_SIZE_MB,
+                })}
               </p>
             )}
           </div>

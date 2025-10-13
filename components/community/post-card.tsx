@@ -96,7 +96,7 @@ export default function PostCard({ post }: { post: Post }) {
               </Link>
             </CardTitle>
             <p className="text-sm text-gray-300 mt-1">
-              by {post.author?.display_name || t('unknown_user')}
+              {t('by_prefix')}{post.author?.display_name || t('unknown_user')}
             </p>
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function PostCard({ post }: { post: Post }) {
               variant="outline"
               className="border-white/20 text-white hover:bg-white/10"
             >
-              Read More
+              {t('read_more')}
             </Button>
           </Link>
         </div>

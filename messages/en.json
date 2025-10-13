@@ -1046,7 +1046,10 @@
   "CommunityPostCard": {
     "by_prefix": "by ",
     "view_post_button": "View Post",
-    "days_ago": "Days Ago"
+    "hours_ago": "{hours} hours ago",
+    "days_ago": "{days} days ago",
+    "just_now": "Just now",
+    "read_more": "Read More"
   },
   "CommunityNewPostForm": {
     "drop_here": "Drop files here",
@@ -1057,7 +1060,8 @@
     "drag_drop_or_click": "Drag and drop or click to upload",
     "hashtags_label": "Hashtags",
     "add_or_search_tags": "Add or search tags",
-    "hashtags_hint": "Press Enter to add a tag"
+    "hashtags_hint": "Press Enter to add a tag",
+    "upload_limits_hint": "(Max {maxFiles} files, videos ≤ {maxVideoSize}MB, others ≤ {maxOtherSize}MB)"
   },
   "CommunityContent": {
     "community_header_title": "Community",
@@ -1075,6 +1079,16 @@
     "join_group": "Join Group",
     "leaving": "Leaving...",
     "leave": "Leave",
+    "members_count": "{count} members",
+    "posts_count": "{count} posts",
+    "owner_label": "Owner: {name}",
+    "create_post_error": "Failed to create post: {message}",
+    "start_discussion_prompt": "Be the first to start a discussion!",
+    "visibility_label": "Visibility",
+    "visibility_public": "Public",
+    "visibility_private": "Private",
+    "role_owner": "Owner",
+    "role_member": "Member",
     "request_to_join": "Request to Join",
     "access_denied": "Access denied",
     "publishing": "Publishing...",
@@ -7399,9 +7413,13 @@
     "create_group": "Create Group",
     "view_all": "View All",
     "join": "Join",
+    "joining": "Joining...",
     "members": "members",
     "no_groups": "No groups yet",
-    "join_groups": "Join some groups to get started!"
+    "join_groups": "Join some groups to get started!",
+    "community_stats": "Community Stats",
+    "total_groups": "Total Groups",
+    "your_groups": "Your Groups"
   },
   "QuizList": {
     "available_quizzes": "Available Quizzes",

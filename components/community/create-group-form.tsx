@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useGroups } from '@/hooks/community/use-community';
+import { toast } from 'sonner';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 interface CreateGroupFormProps {
@@ -49,18 +50,29 @@ export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupForm
     e.preventDefault();
     
     // Validation
-    if (!formData.name.trim() || formData.name.length < 2 || formData.name.length > 80) {
+    if (!formData.name.trim()) {
+      toast.error('Please enter a group name');
       return;
     }
-    
+
+    if (formData.name.length < 2 || formData.name.length > 80) {
+      toast.error('Group name must be between 2 and 80 characters');
+      return;
+    }
+
     if (!formData.slug.trim()) {
+      toast.error('Please provide a slug');
       return;
     }
 
     createGroup(formData, {
       onSuccess: () => {
         setFormData({ name: '', description: '', slug: '', visibility: 'public' });
+        toast.success('Group created successfully! 🎉');
         onSuccess?.();
+      },
+      onError: (error: any) => {
+        toast.error(error?.message || 'Failed to create group');
       }
     });
   };

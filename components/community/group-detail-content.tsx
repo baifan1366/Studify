@@ -34,6 +34,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface GroupDetailContentProps {
   groupSlug: string;
@@ -92,15 +93,39 @@ export default function GroupDetailContent({
     files: File[];
     hashtags: string[];
   }) => {
-    createPost({ title, body, files, hashtags });
+    createPost(
+      { title, body, files, hashtags },
+      {
+        onSuccess: () => {
+          toast.success("Post created successfully! 🎉");
+        },
+        onError: (error: any) => {
+          toast.error(error?.message || "Failed to create post");
+        },
+      }
+    );
   };
 
   const handleJoinGroup = () => {
-    joinGroup();
+    joinGroup(undefined, {
+      onSuccess: () => {
+        toast.success("Successfully joined the group! 🎉");
+      },
+      onError: (error: any) => {
+        toast.error(error?.message || "Failed to join group");
+      },
+    });
   };
 
   const handleLeaveGroup = () => {
-    leaveGroup();
+    leaveGroup(undefined, {
+      onSuccess: () => {
+        toast.success("You have left the group");
+      },
+      onError: (error: any) => {
+        toast.error(error?.message || "Failed to leave group");
+      },
+    });
   };
 
   // Handle access denied for private groups

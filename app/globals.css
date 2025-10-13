@@ -274,7 +274,22 @@ body {
 }
 
 /* ========================= */
-/* 7. Base Layer            */
+/* 7. Sonner Toast Styles   */
+/* ========================= */
+[data-sonner-toaster] {
+  z-index: 9999 !important;
+}
+
+[data-sonner-toast] {
+  z-index: 9999 !important;
+}
+
+.sonner-toast {
+  z-index: 9999 !important;
+}
+
+/* ========================= */
+/* 8. Base Layer            */
 /* ========================= */
 @layer base {
   * {

@@ -218,7 +218,7 @@ export class StudifyLangChain {
    */
   async analyzeDocument(
     source: string | Document,
-    analysisType: 'summary' | 'topics' | 'questions' | 'custom' | 'problem_solving',
+    analysisType: 'summary' | 'topics' | 'questions' | 'custom' | 'problem_solving' | 'notes',
     customPrompt?: string
   ): Promise<any> {
     // Process document
@@ -272,6 +272,22 @@ Content:
 ${fullText}
 
 Solution:`;
+        break;
+
+      case 'notes':
+        prompt = `Generate comprehensive smart study notes from the following content. Extract key points, create summaries, and identify important concepts.
+
+Content:
+${fullText}
+
+Please provide:
+1. **Concise Summary**: A brief overview of the main topic
+2. **Key Learning Points**: Important concepts in bullet format
+3. **Important Concepts and Definitions**: Core terminology and their meanings
+4. **Suggested Study Focus Areas**: What to prioritize when studying
+5. **Related Learning Resources**: Recommended next steps and resources
+
+Format your response in clear markdown with proper headings and formatting.`;
         break;
 
       case 'custom':

@@ -4,8 +4,8 @@ import { analyzeDocument } from '@/lib/langChain/langchain-integration';
 
 export const contentAnalysisTool = new DynamicTool({
   name: "analyze_content",
-  description: `Analyze course content to extract topics, generate summaries, create quiz questions, solve problems, or generate learning paths. 
-  Input should be a JSON string with either 'content' or 'input' field: {"content": "content text", "analysisType": "summary|topics|questions|learning_path|problem_solving", "customPrompt"?: "optional custom prompt"} OR {"input": "content text", "analysisType": "learning_path|problem_solving", "customPrompt": "custom prompt"}`,
+  description: `Analyze course content to extract topics, generate summaries, create quiz questions, solve problems, generate smart study notes, or generate learning paths. 
+  Input should be a JSON string with either 'content' or 'input' field: {"content": "content text", "analysisType": "summary|topics|questions|notes|learning_path|problem_solving", "customPrompt"?: "optional custom prompt"} OR {"input": "content text", "analysisType": "notes|learning_path|problem_solving", "customPrompt": "custom prompt"}`,
   func: async (input: string) => {
     console.log('🚨 CONTENT ANALYSIS TOOL EXECUTED! 🚨');
     console.log('📥 Raw input received:', typeof input, input.length);

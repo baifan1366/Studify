@@ -9,10 +9,14 @@ const APP_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // Handle Supabase auth callbacks (email confirmations, password resets, etc.)
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code') || searchParams.get('token_hash');
+  // Handle both Supabase auth code and OAuth provider code
+  const code = searchParams.get('code') || searchParams.get('token_hash') || searchParams.get('access_token');
   const redirectTo = searchParams.get('redirect_to');
   let next = searchParams.get('next') ?? '/';
   const requestedRole = searchParams.get('role') as 'student' | 'tutor' | null;
+  
+  // Log the full URL for debugging
+  console.log('[AUTH CALLBACK] Full callback URL:', request.url);
   
   // Parse next from redirect_to if needed
   if (!searchParams.get('next') && redirectTo) {
@@ -39,26 +43,28 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createClient();
     
-    console.log('[AUTH CALLBACK] Attempting session exchange:', {
-      codeLength: code.length,
-      codePrefix: code.substring(0, 10) + '...',
-      type,
-      next
-    });
+    try {
+      console.log('[AUTH CALLBACK] Attempting session exchange:', {
+        codeLength: code.length,
+        codePrefix: code.substring(0, 10) + '...',
+        type,
+        next,
+        provider: searchParams.get('provider') || 'unknown'
+      });
     
     // Exchange the code for a session
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    
-    console.log('[AUTH CALLBACK] Session exchange result:', {
-      success: !error && !!data?.session,
-      hasError: !!error,
-      errorMessage: error?.message,
-      errorCode: error?.status,
-      hasSession: !!data?.session,
-      userEmail: data?.session?.user?.email
-    });
-    
-    if (!error && data?.session) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      
+      console.log('[AUTH CALLBACK] Session exchange result:', {
+        success: !error && !!data?.session,
+        hasError: !!error,
+        errorMessage: error?.message,
+        errorCode: error?.status,
+        hasSession: !!data?.session,
+        userEmail: data?.session?.user?.email
+      });
+      
+      if (!error && data?.session) {
       const userId = data.session.user.id;
       
       // Get user profile to obtain role
@@ -166,9 +172,17 @@ export async function GET(request: NextRequest) {
         type,
         next
       });
+      // More specific error message for debugging
+      return NextResponse.redirect(`${origin}/en/sign-in?error=session_exchange_failed&details=${encodeURIComponent(error?.message || 'unknown_error')}`);
     }
+  } catch (error: any) {
+    console.error('[AUTH CALLBACK] Unexpected error:', error);
+    const errorMessage = error?.message || 'unknown_error';
+    return NextResponse.redirect(`${origin}/en/sign-in?error=unexpected_error&details=${encodeURIComponent(errorMessage)}`);
   }
+}
 
   // If there's an error or no code, redirect to sign-in with error
-  return NextResponse.redirect(`${origin}/en/sign-in?error=auth_callback_error`);
+  console.log('[AUTH CALLBACK] No code provided in callback');
+  return NextResponse.redirect(`${origin}/en/sign-in?error=no_code_provided`);
 }

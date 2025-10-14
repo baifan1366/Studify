@@ -6285,6 +6285,7 @@
     "stat_max_score": "最高分",
     "stat_avg_time": "平均用时",
     "no_attempts": "未找到尝试记录",
+    "no_attempts_message": "暂无尝试记录",
     "view_more_attempts": "查看更多尝试记录",
     "status_submitted": "已提交",
     "status_graded": "已评分",

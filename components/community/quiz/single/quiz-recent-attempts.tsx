@@ -254,62 +254,75 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
   });
 
   if (!trigger) {
-    if (!data?.attempts?.length)
-      return <p className="text-sm text-muted-foreground">{t("no_attempts")}</p>;
-
-    const visibleAttempts = data.attempts.slice(0, 3);
+    const hasAttempts = (data?.attempts?.length ?? 0) > 0;
+    const visibleAttempts = hasAttempts ? data!.attempts!.slice(0, 3) : [];
 
     return (
       <Card className="bg-transparent p-2 border border-white/10 text-white rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            {t("recent_attempts_title", { title: data.quiz.title })}
+            {t("recent_attempts_title", { title: data?.quiz?.title ?? "" })}
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="space-y-2 ">
-          {visibleAttempts.map((attempt, i) => (
-            <div
-              key={attempt.id}
-              className="flex items-center justify-between p-3 border border-white/10 rounded-lg hover:bg-muted/50 transition"
-            >
-              <div>
-                <p className="font-medium">Attempt #{attempt.attemptNumber ?? i + 1}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t("score_label")}: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {new Date(attempt.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
-          ))}
-
-          {/* ✅ “Show More” 弹窗 */}
-          {data.attempts.length > 3 && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="mt-2 flex items-center gap-2 cursor-pointer">
-                  <Eye className="h-4 w-4" />
-                  {t("view_more_attempts")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    {t("recent_attempts_title", { title: data.quiz.title ?? "" })}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="overflow-y-auto">
-                  <AttemptsList attempts={data.attempts} role={data.role} />
+        <CardContent className="space-y-2">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading recent attempts...</p>
+          ) : error ? (
+            <p className="text-sm text-red-400">Failed to load attempts.</p>
+          ) : hasAttempts ? (
+            <>
+              {visibleAttempts.map((attempt, i) => (
+                <div
+                  key={attempt.id}
+                  className="flex items-center justify-between p-3 border border-white/10 rounded-lg hover:bg-muted/50 transition"
+                >
+                  <div>
+                    <p className="font-medium">Attempt #{attempt.attemptNumber ?? i + 1}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("score_label")}: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(attempt.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
                 </div>
-              </DialogContent>
-            </Dialog>
+              ))}
+
+              {data && data.attempts && data.attempts.length > 3 && (
+                <Dialog open={open} onOpenChange={setOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="mt-2 flex items-center gap-2 cursor-pointer">
+                      <Eye className="h-4 w-4" />
+                      {t("view_more_attempts")}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        {t("recent_attempts_title", { title: data?.quiz?.title ?? "" })}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="overflow-y-auto">
+                      <AttemptsList attempts={data.attempts} role={data.role} />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Clock className="h-12 w-12 mb-3 opacity-50" />
+              <p>{t("no_attempts")}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("no_attempts_message")}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>

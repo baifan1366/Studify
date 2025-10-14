@@ -39,7 +39,7 @@ export default function QuizLeaderboard({
   };
 
   return (
-    <Card className="bg-transparent p-2">
+    <Card className="bg-transparent p-2 border border-white/10 text-white rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Award className="h-5 w-5" />
@@ -59,7 +59,7 @@ export default function QuizLeaderboard({
             {leaderboard.map((entry) => (
               <div
                 key={`${entry.user_id}-${entry.rank}`}
-                className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-50"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition"
               >
                 <div className="w-10 flex-shrink-0">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center ${medalFor(entry.rank)}`}>

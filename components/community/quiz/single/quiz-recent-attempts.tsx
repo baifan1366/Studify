@@ -250,9 +250,73 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
   const { data, isLoading, error } = useQuery<RecentAttemptsData>({
     queryKey: ["recentAttempts", quizSlug],
     queryFn: () => fetchRecentAttempts(quizSlug),
-    enabled: open, // Only fetch when modal is open
+    enabled: trigger ? open : true,
   });
 
+  if (!trigger) {
+    if (!data?.attempts?.length)
+      return <p className="text-sm text-muted-foreground">{t("no_attempts")}</p>;
+
+    const visibleAttempts = data.attempts.slice(0, 3);
+
+    return (
+      <Card className="bg-transparent p-2 border border-white/10 text-white rounded-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            {t("recent_attempts_title", { title: data.quiz.title })}
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-2 ">
+          {visibleAttempts.map((attempt, i) => (
+            <div
+              key={attempt.id}
+              className="flex items-center justify-between p-3 border border-white/10 rounded-lg hover:bg-muted/50 transition"
+            >
+              <div>
+                <p className="font-medium">Attempt #{attempt.attemptNumber ?? i + 1}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("score_label")}: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {new Date(attempt.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+          ))}
+
+          {/* ✅ “Show More” 弹窗 */}
+          {data.attempts.length > 3 && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="mt-2 flex items-center gap-2 cursor-pointer">
+                  <Eye className="h-4 w-4" />
+                  {t("view_more_attempts")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    {t("recent_attempts_title", { title: data.quiz.title ?? "" })}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="overflow-y-auto">
+                  <AttemptsList attempts={data.attempts} role={data.role} />
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ✅ 有 trigger 时 — 原样保留 modal 模式
   const defaultTrigger = (
     <Button variant="outline" size="sm">
       <Eye className="h-4 w-4 mr-2" />
@@ -262,10 +326,7 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
-      
+      <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -273,40 +334,36 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
             {t("recent_attempts_title", { title: data?.quiz.title ?? "" })}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="overflow-y-auto">
           {isLoading && (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
-          
           {error && (
             <div className="text-center py-8 text-red-500">
               <p>{t("load_error")}</p>
             </div>
           )}
-          
           {data && (
             <>
               {data.role === "admin" ? (
-                // Admin/Editor view: Show tabs with all attempts and statistics
                 <Tabs defaultValue="attempts" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="attempts">{t("all_attempts_tab", { count: data.attempts.length })}</TabsTrigger>
+                    <TabsTrigger value="attempts">
+                      {t("all_attempts_tab", { count: data.attempts.length })}
+                    </TabsTrigger>
                     <TabsTrigger value="statistics">Statistics</TabsTrigger>
                   </TabsList>
-                  
                   <TabsContent value="attempts" className="space-y-4">
                     <AttemptsList attempts={data.attempts} role="admin" />
                   </TabsContent>
-                  
                   <TabsContent value="statistics" className="space-y-4">
                     {data.statistics && <StatisticsCards stats={data.statistics} />}
                   </TabsContent>
                 </Tabs>
               ) : (
-                // Regular user view: Only their attempts
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">{t("your_attempts")}</h3>

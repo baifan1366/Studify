@@ -1,10 +1,13 @@
 // hooks/auth/use-account-switcher.ts
 
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { AccountStorageManager, StoredAccount } from '@/utils/auth/account-storage';
-import { useUser } from '@/hooks/profile/use-user';
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import {
+  AccountStorageManager,
+  StoredAccount,
+} from "@/utils/auth/account-storage";
+import { useUser } from "@/hooks/profile/use-user";
 
 interface SwitchAccountParams {
   accountId: string;
@@ -12,20 +15,20 @@ interface SwitchAccountParams {
 }
 
 const switchAccountAPI = async ({ accountId, email }: SwitchAccountParams) => {
-  const response = await fetch('/api/auth/switch-account', {
-    method: 'POST',
+  const response = await fetch("/api/auth/switch-account", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       target_user_id: accountId,
-      email: email
+      email: email,
     }),
   });
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to switch account');
+    throw new Error(errorData.error || "Failed to switch account");
   }
 
   return response.json();
@@ -49,11 +52,11 @@ export const useAccountSwitcher = () => {
       const profile = currentUser.profile;
       AccountStorageManager.storeAccount({
         id: profile.user_id,
-        email: currentUser.email || '',
+        email: currentUser.email || "",
         display_name: profile.display_name || undefined,
         avatar_url: profile.avatar_url || undefined,
-        role: profile.role as 'student' | 'tutor' | 'admin',
-        last_login: new Date().toISOString()
+        role: profile.role as "student" | "tutor" | "admin",
+        last_login: new Date().toISOString(),
       });
 
       // Refresh local state
@@ -67,16 +70,16 @@ export const useAccountSwitcher = () => {
     onSuccess: async (data) => {
       // Update current account in storage
       AccountStorageManager.setCurrentAccount(data.user.id);
-      
+
       // Clear all cached user data
       queryClient.clear();
-      
+
       // Refresh stored accounts list
       const accounts = AccountStorageManager.getStoredAccounts();
       setStoredAccounts(accounts);
 
-      const currentLocale = window.location.pathname.split('/')[1] || 'en';
-      const userRole = data.user.role || 'student';
+      const currentLocale = window.location.pathname.split("/")[1] || "en";
+      const userRole = data.user.role || "student";
 
       // Check if the switched user needs onboarding (from API response)
       if (data.needsOnboarding) {
@@ -84,15 +87,15 @@ export const useAccountSwitcher = () => {
         router.push(`/${currentLocale}/${userRole}`);
       } else {
         // Redirect to role-specific home page
-        let homePath = '';
+        let homePath = "";
         switch (userRole) {
-          case 'student':
+          case "student":
             homePath = `/${currentLocale}/home`;
             break;
-          case 'tutor':
+          case "tutor":
             homePath = `/${currentLocale}/tutor/dashboard`;
             break;
-          case 'admin':
+          case "admin":
             homePath = `/${currentLocale}/admin/dashboard`;
             break;
           default:
@@ -103,24 +106,30 @@ export const useAccountSwitcher = () => {
       router.refresh();
     },
     onError: (error) => {
-      console.error('Account switch failed:', error);
-    }
+      console.error("Account switch failed:", error);
+    },
   });
 
   const switchToAccount = (accountId: string, email?: string) => {
-    if (accountId === currentUser?.profile?.user_id || accountId === currentUser?.id) {
+    if (
+      accountId === currentUser?.profile?.user_id ||
+      accountId === currentUser?.id
+    ) {
       return; // Already current account
     }
-    
+
     switchAccountMutation.mutate({ accountId, email });
   };
 
   const removeAccount = (accountId: string) => {
-    if (accountId === currentUser?.profile?.user_id || accountId === currentUser?.id) {
+    if (
+      accountId === currentUser?.profile?.user_id ||
+      accountId === currentUser?.id
+    ) {
       // Can't remove current account, user should logout instead
       return;
     }
-    
+
     AccountStorageManager.removeAccount(accountId);
     const accounts = AccountStorageManager.getStoredAccounts();
     setStoredAccounts(accounts);
@@ -129,13 +138,17 @@ export const useAccountSwitcher = () => {
   const addAccount = () => {
     // Redirect to login with add mode, respecting current locale
     const currentPath = window.location.pathname;
-    const currentLocale = window.location.pathname.split('/')[1] || 'en';
-    router.push(`/${currentLocale}/sign-in?mode=add&redirect=${encodeURIComponent(currentPath)}`);
+    const currentLocale = window.location.pathname.split("/")[1] || "en";
+    router.push(
+      `/${currentLocale}/sign-in?mode=add&redirect=${encodeURIComponent(
+        currentPath
+      )}`
+    );
   };
 
   // Handle login success for account addition
   const handleLoginSuccess = (responseData: any) => {
-    if (responseData.accountInfo && responseData.mode === 'add') {
+    if (responseData.accountInfo && responseData.mode === "add") {
       // Store the new account
       const { accountInfo } = responseData;
       AccountStorageManager.storeAccount({
@@ -144,7 +157,7 @@ export const useAccountSwitcher = () => {
         display_name: accountInfo.display_name,
         avatar_url: accountInfo.avatar_url,
         role: accountInfo.role,
-        last_login: accountInfo.last_login
+        last_login: accountInfo.last_login,
       });
 
       // Refresh accounts list

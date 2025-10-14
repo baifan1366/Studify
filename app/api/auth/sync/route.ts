@@ -9,12 +9,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const access_token = body?.access_token;
     const requestedRole = body?.role as 'student' | 'tutor' | undefined;
+    const mode = body?.mode as 'login' | 'add' | undefined;
     
     if (!access_token) {
       return NextResponse.json({ error: "missing token" }, { status: 400 });
     }
     
-    console.log('🎯 Sync API called with role:', requestedRole);
+    console.log('🎯 Sync API called with role:', requestedRole, 'mode:', mode);
 
     // 用 server client (service role key) 根据 token 获取 user
     const supabase = await createServerClient();

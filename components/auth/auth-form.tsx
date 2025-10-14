@@ -4,7 +4,15 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Mail, Lock, User, Eye, EyeOff, GraduationCap, BookOpen } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  BookOpen,
+} from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/utils/supabase/client";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { useAccountSwitcher } from "@/hooks/auth/use-account-switcher";
-import { useTranslations } from 'next-intl';
+import { useTranslations } from "next-intl";
 import MFAVerificationForm from "./mfa-verification-form";
 import { Button } from "../ui/button";
 import {
@@ -61,48 +69,51 @@ export function AuthForm({
   const signIn = useSignIn();
   const signUp = useSignUp();
   const { handleLoginSuccess } = useAccountSwitcher();
-  const t = useTranslations('AuthSignInPage');
+  const t = useTranslations("AuthSignInPage");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [requiresMFA, setRequiresMFA] = useState(false);
-  const [loginCredentials, setLoginCredentials] = useState<{email: string; password: string} | null>(null);
+  const [loginCredentials, setLoginCredentials] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const captchaRef = useRef<HCaptcha>(null);
   const { toast } = useToast();
 
   // CAPTCHA handlers
   const handleCaptchaVerify = (token: string) => {
-    console.log('CAPTCHA verified:', token);
+    console.log("CAPTCHA verified:", token);
     setCaptchaToken(token);
     setError(null); // Clear any previous captcha errors
   };
 
   const handleCaptchaExpire = () => {
-    console.log('CAPTCHA expired');
+    console.log("CAPTCHA expired");
     setCaptchaToken(null);
   };
 
   const handleCaptchaError = (err: string) => {
-    console.error('CAPTCHA error:', err);
+    console.error("CAPTCHA error:", err);
     setCaptchaToken(null);
-    setError('CAPTCHA verification failed. Please try again.');
+    setError("CAPTCHA verification failed. Please try again.");
   };
 
   // MFA handlers
   const handleMFAVerificationSuccess = (data: any) => {
     // Handle login success for account addition
-    if (data.mode === 'add' || authMode === 'add') {
+    if (data.mode === "add" || authMode === "add") {
       handleLoginSuccess(data);
-      
+
       // Show success message and redirect
       toast({
         title: "Account Added Successfully",
         description: "The account has been added to your account switcher.",
         duration: 3000,
       });
-      
+
       // For account addition, redirect to specified URL or home
       const targetUrl = redirectUrl || `/${locale}/home`;
       setTimeout(() => router.replace(targetUrl), 1000);
@@ -129,9 +140,12 @@ export function AuthForm({
     setShowRoleDialog(true);
   };
 
-  const handleRoleSelection = (selectedRole: 'student' | 'tutor') => {
+  const handleRoleSelection = (selectedRole: "student" | "tutor") => {
     setShowRoleDialog(false);
-    const signUpPath = selectedRole === 'student' ? `/${locale}/student/sign-up` : `/${locale}/tutor/sign-up`;
+    const signUpPath =
+      selectedRole === "student"
+        ? `/${locale}/student/sign-up`
+        : `/${locale}/tutor/sign-up`;
     router.push(signUpPath);
   };
 
@@ -145,62 +159,62 @@ export function AuthForm({
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      console.log('Starting OAuth flow with Google');
-      
-      // Use auth callback endpoint for consistent session handling
+      console.log("Starting OAuth flow with Google");
+
+      // Redirect to the current page (client-side) to complete PKCE flow
       const currentOrigin = window.location.origin;
-      let oauthRedirectUrl = `${currentOrigin}/api/auth/callback`;
-      
-      // Build query parameters for OAuth callback
-      const params = new URLSearchParams();
-      
+      const currentPath = window.location.pathname;
+
+      // Build redirect URL with state parameters
+      const oauthRedirectUrl = new URL(currentPath, currentOrigin);
+
       // Pass role information if available (from sign-up pages)
       if (role) {
-        params.set('role', role);
+        oauthRedirectUrl.searchParams.set("role", role);
       }
-      
+
       // If adding new account, preserve the mode and redirect parameters
-      if (authMode === 'add') {
-        params.set('mode', 'add');
+      if (authMode === "add") {
+        oauthRedirectUrl.searchParams.set("mode", "add");
         if (redirectUrl) {
-          params.set('redirect', redirectUrl);
+          oauthRedirectUrl.searchParams.set("redirect", redirectUrl);
         }
       }
-      
-      // Append params to redirect URL if any exist
-      if (params.toString()) {
-        oauthRedirectUrl += `?${params.toString()}`;
-      }
-      
-      console.log('OAuth redirect URL:', oauthRedirectUrl, 'with role:', role);
-      
+
+      console.log(
+        "OAuth redirect URL:",
+        oauthRedirectUrl.toString(),
+        "with role:",
+        role
+      );
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: oauthRedirectUrl,
-          queryParams: { 
+          redirectTo: oauthRedirectUrl.toString(),
+          queryParams: {
             access_type: "offline",
-            prompt: "consent"
+            prompt: "consent",
           },
         },
       });
 
       if (error) {
         console.error("OAuth error:", error);
-        toast({ 
-          title: "Google Login Failed", 
+        toast({
+          title: "Google Login Failed",
           description: error.message,
-          variant: "destructive" 
+          variant: "destructive",
         });
         setLoading(false);
       }
       // Note: setLoading(false) is not called on success because we're redirecting
     } catch (err) {
       console.error("OAuth error:", err);
-      toast({ 
-        title: "Google Login Failed", 
+      toast({
+        title: "Google Login Failed",
         description: "An unexpected error occurred",
-        variant: "destructive" 
+        variant: "destructive",
       });
       setLoading(false);
     }
@@ -209,33 +223,35 @@ export function AuthForm({
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    
+
     // Check CAPTCHA verification
     if (!captchaToken) {
       setError("Please complete the CAPTCHA verification");
       return;
     }
-    
+
     setPending(true);
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email") || "");
     const password = String(form.get("password") || "");
     const fullName = (form.get("fullName") as string) || undefined;
-    const confirmPassword = (form.get("confirmPassword") as string) || undefined;
-    
+    const confirmPassword =
+      (form.get("confirmPassword") as string) || undefined;
+
     try {
       if (mode === "sign-up") {
-        if (!email || !password) throw new Error("Email and password are required");
+        if (!email || !password)
+          throw new Error("Email and password are required");
         if (confirmPassword !== undefined && confirmPassword !== password) {
           throw new Error("Passwords do not match");
         }
-        const res = await signUp.mutateAsync({ 
-          email, 
-          password, 
-          fullName, 
-          locale, 
-          role, 
-          captchaToken 
+        const res = await signUp.mutateAsync({
+          email,
+          password,
+          fullName,
+          locale,
+          role,
+          captchaToken,
         });
         if (res.requiresConfirmation) {
           router.replace(`/${locale}/verify-email`);
@@ -250,21 +266,22 @@ export function AuthForm({
         } as const;
         router.replace(pathByRole[r]);
       } else {
-        if (!email || !password) throw new Error("Email and password are required");
-        
+        if (!email || !password)
+          throw new Error("Email and password are required");
+
         // First attempt sign-in to check for MFA requirement
         try {
-          const response = await fetch('/api/auth/sign-in', {
-            method: 'POST',
+          const response = await fetch("/api/auth/sign-in", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               email,
               password,
               locale,
               captchaToken,
-              mode: authMode === 'add' ? 'add' : 'login'
+              mode: authMode === "add" ? "add" : "login",
             }),
           });
 
@@ -281,18 +298,19 @@ export function AuthForm({
 
             // Normal login success
             const res = data;
-            
+
             // Handle login success for account addition
-            if (res.mode === 'add' || authMode === 'add') {
+            if (res.mode === "add" || authMode === "add") {
               handleLoginSuccess(res);
-              
+
               // Show success message and redirect
               toast({
                 title: "Account Added Successfully",
-                description: "The account has been added to your account switcher.",
+                description:
+                  "The account has been added to your account switcher.",
                 duration: 3000,
               });
-              
+
               // For account addition, redirect to specified URL or home
               const targetUrl = redirectUrl || `/${locale}/home`;
               setTimeout(() => router.replace(targetUrl), 1000);
@@ -314,7 +332,7 @@ export function AuthForm({
               setPending(false);
               return;
             }
-            throw new Error(data.error || 'Sign-in failed');
+            throw new Error(data.error || "Sign-in failed");
           }
         } catch (fetchError) {
           throw fetchError;
@@ -356,31 +374,32 @@ export function AuthForm({
     );
   }
 
-
   return (
     <div className="w-screen min-h-screen flex items-center justify-center p-4 bg-[#FDF5E6] dark:bg-[#0D1F1A] transition-colors duration-300">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 flex items-center justify-center">
-              <Image 
-                src="/favicon.png" 
-                alt="Logo" 
-                width={64} 
-                height={64} 
+              <Image
+                src="/favicon.png"
+                alt="Logo"
+                width={64}
+                height={64}
                 className="object-contain"
                 priority
-                style={{width: "auto", height: "auto"}}
+                style={{ width: "auto", height: "auto" }}
               />
             </div>
           </div>
           <h2 className="text-3xl font-bold text-[#222] dark:text-[#F1F5F9] mb-2 transition-colors duration-200">
             {title}
           </h2>
-          <p className="text-gray-700 dark:text-gray-300 transition-colors duration-200">{subtitle}</p>
+          <p className="text-gray-700 dark:text-gray-300 transition-colors duration-200">
+            {subtitle}
+          </p>
         </div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -401,83 +420,85 @@ export function AuthForm({
                 <input type="hidden" name="locale" value={locale} />
                 {children}
 
-            {/* HCaptcha Component */}
-            <div className="flex justify-center">
-              <HCaptcha
-                ref={captchaRef}
-                sitekey={HCAPTCHA_SITE_KEY}
-                onVerify={handleCaptchaVerify}
-                onExpire={handleCaptchaExpire}
-                onError={handleCaptchaError}
-                theme={theme === 'dark' ? 'dark' : 'light'}
-                size="normal"
-              />
-            </div>
-
-            {error && (
-              <div className="p-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800/50">
-                {error}
-              </div>
-            )}
-
-            <motion.button
-              type="submit"
-              disabled={pending}
-              whileTap={{ scale: 0.98 }}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              {pending ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Loading...</span>
+                {/* HCaptcha Component */}
+                <div className="flex justify-center">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey={HCAPTCHA_SITE_KEY}
+                    onVerify={handleCaptchaVerify}
+                    onExpire={handleCaptchaExpire}
+                    onError={handleCaptchaError}
+                    theme={theme === "dark" ? "dark" : "light"}
+                    size="normal"
+                  />
                 </div>
-              ) : (
-                buttonText
+
+                {error && (
+                  <div className="p-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800/50">
+                    {error}
+                  </div>
+                )}
+
+                <motion.button
+                  type="submit"
+                  disabled={pending}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  {pending ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
+                    buttonText
+                  )}
+                </motion.button>
+              </form>
+
+              <div className="mt-2 text-center text-sm">
+                {/* Hide Google login for add account mode */}
+                {authMode !== "add" && (
+                  <motion.button
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
+                  >
+                    {loading ? "Loading..." : "Continue with Google"}
+                  </motion.button>
+                )}
+              </div>
+
+              <div className="mt-6 text-center text-sm">
+                <span className="text-gray-600 dark:text-gray-300">
+                  {footerText}{" "}
+                </span>
+                {footerLinkHref ? (
+                  <Link
+                    href={footerLinkHref}
+                    className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200"
+                  >
+                    {footerLinkText}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleFooterLinkClick}
+                    className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200 underline"
+                  >
+                    {footerLinkText}
+                  </button>
+                )}
+              </div>
+
+              {/* Show message for add account mode */}
+              {authMode === "add" && (
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-[#FF6B00] dark:text-[#FF6B00] text-center">
+                    {t("add_account_notice")}
+                  </p>
+                </div>
               )}
-            </motion.button>
-          </form>
-
-          <div className="mt-2 text-center text-sm">
-            {/* Hide Google login for add account mode */}
-            {authMode !== 'add' && (
-              <motion.button
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                whileTap={{ scale: 0.98 }}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {loading ? "Loading..." : "Continue with Google"}
-              </motion.button>
-            )}    
-          </div>
-
-          <div className="mt-6 text-center text-sm">
-            <span className="text-gray-600 dark:text-gray-300">{footerText} </span>
-            {footerLinkHref ? (
-              <Link
-                href={footerLinkHref}
-                className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200"
-              >
-                {footerLinkText}
-              </Link>
-            ) : (
-              <button
-                onClick={handleFooterLinkClick}
-                className="font-medium text-[#FF6B00] hover:text-[#E55F00] dark:text-[#FF6B00] dark:hover:text-[#FF8C42] transition-colors duration-200 underline"
-              >
-                {footerLinkText}
-              </button>
-            )}
-          </div>
-          
-          {/* Show message for add account mode */}
-          {authMode === 'add' && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-[#FF6B00] dark:text-[#FF6B00] text-center">
-                {t('add_account_notice')}
-              </p>
-            </div>
-          )}
             </>
           )}
         </motion.div>
@@ -486,39 +507,41 @@ export function AuthForm({
         <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-center">{t('choose_account_type')}</DialogTitle>
+              <DialogTitle className="text-center">
+                {t("choose_account_type")}
+              </DialogTitle>
               <DialogDescription className="text-center">
-                {t('select_account_type_description')}
+                {t("select_account_type_description")}
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 mt-6">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => handleRoleSelection('student')}
+                onClick={() => handleRoleSelection("student")}
                 className="flex flex-col items-center p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-[#FF6B00] dark:hover:border-[#FF6B00] transition-colors duration-200 group"
               >
                 <BookOpen className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
                 <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
-                  {t('student')}
+                  {t("student")}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
-                  {t('student_description')}
+                  {t("student_description")}
                 </p>
               </motion.button>
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => handleRoleSelection('tutor')}
+                onClick={() => handleRoleSelection("tutor")}
                 className="flex flex-col items-center p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-[#FF6B00] dark:hover:border-[#FF6B00] transition-colors duration-200 group"
               >
                 <GraduationCap className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
                 <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
-                  {t('tutor')}
+                  {t("tutor")}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
-                  {t('tutor_description')}
+                  {t("tutor_description")}
                 </p>
               </motion.button>
             </div>

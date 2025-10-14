@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Users, Trophy, Target, TrendingUp, Eye, Calendar } from "lucide-react";
+
+type TranslateFn = ReturnType<typeof useTranslations>;
 
 interface AttemptData {
   id: number;
@@ -83,21 +86,22 @@ function formatDate(dateString: string): string {
 }
 
 // Get status badge variant
-function getStatusBadge(status: string) {
+function getStatusBadge(status: string, t: TranslateFn) {
   switch (status) {
     case "submitted":
-      return <Badge variant="default">Submitted</Badge>;
+      return <Badge variant="default">{t("status_submitted")}</Badge>;
     case "graded":
-      return <Badge variant="secondary">Graded</Badge>;
+      return <Badge variant="secondary">{t("status_graded")}</Badge>;
     case "expired":
-      return <Badge variant="destructive">Expired</Badge>;
+      return <Badge variant="destructive">{t("status_expired")}</Badge>;
     default:
-      return <Badge variant="outline">{status}</Badge>;
+      return <Badge variant="outline">{t("status_default", { status })}</Badge>;
   }
 }
 
 // Statistics Cards Component
 function StatisticsCards({ stats }: { stats: Statistics }) {
+  const t = useTranslations("QuizRecentAttempts");
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
       <Card>
@@ -105,7 +109,7 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-blue-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Total Attempts</p>
+              <p className="text-sm text-muted-foreground">{t("stat_total_attempts")}</p>
               <p className="text-2xl font-bold">{stats.totalAttempts}</p>
             </div>
           </div>
@@ -117,7 +121,7 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
           <div className="flex items-center gap-2">
             <Trophy className="h-4 w-4 text-yellow-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Unique Users</p>
+              <p className="text-sm text-muted-foreground">{t("stat_unique_users")}</p>
               <p className="text-2xl font-bold">{stats.uniqueUsers}</p>
             </div>
           </div>
@@ -129,7 +133,7 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-green-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Success Rate</p>
+              <p className="text-sm text-muted-foreground">{t("stat_success_rate")}</p>
               <p className="text-2xl font-bold">{stats.successRate}%</p>
             </div>
           </div>
@@ -141,7 +145,7 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-purple-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Avg Score</p>
+              <p className="text-sm text-muted-foreground">{t("stat_avg_score")}</p>
               <p className="text-2xl font-bold">{stats.avgScore}</p>
             </div>
           </div>
@@ -153,7 +157,7 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
           <div className="flex items-center gap-2">
             <Trophy className="h-4 w-4 text-orange-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Max Score</p>
+              <p className="text-sm text-muted-foreground">{t("stat_max_score")}</p>
               <p className="text-2xl font-bold">{stats.maxScore}</p>
             </div>
           </div>
@@ -165,7 +169,7 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-indigo-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Avg Time</p>
+              <p className="text-sm text-muted-foreground">{t("stat_avg_time")}</p>
               <p className="text-2xl font-bold">{formatDuration(stats.avgTimeSpent)}</p>
             </div>
           </div>
@@ -177,11 +181,12 @@ function StatisticsCards({ stats }: { stats: Statistics }) {
 
 // Attempts List Component
 function AttemptsList({ attempts, role }: { attempts: AttemptData[]; role: "admin" | "user" }) {
+  const t = useTranslations("QuizRecentAttempts");
   if (attempts.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No attempts found</p>
+        <p>{t("no_attempts")}</p>
       </div>
     );
   }
@@ -203,7 +208,7 @@ function AttemptsList({ attempts, role }: { attempts: AttemptData[]; role: "admi
                 <div>
                   <p className="font-medium">{attempt.profiles.display_name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Score: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
+                    {t("score_label")}: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
                   </p>
                 </div>
               </>
@@ -214,9 +219,9 @@ function AttemptsList({ attempts, role }: { attempts: AttemptData[]; role: "admi
                   <span className="text-sm font-medium">#{attempt.attemptNumber}</span>
                 </div>
                 <div>
-                  <p className="font-medium">Attempt #{attempt.attemptNumber}</p>
+                  <p className="font-medium">{t("attempt_label", { number: attempt.attemptNumber ?? "?" })}</p>
                   <p className="text-sm text-muted-foreground">
-                    Score: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
+                    {t("score_label")}: {attempt.score} • {formatDuration(attempt.time_spent_seconds || 0)}
                   </p>
                 </div>
               </div>
@@ -224,7 +229,7 @@ function AttemptsList({ attempts, role }: { attempts: AttemptData[]; role: "admi
           </div>
           
           <div className="flex items-center gap-3">
-            {getStatusBadge(attempt.status)}
+            {getStatusBadge(attempt.status, t)}
             <div className="text-right">
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -240,6 +245,7 @@ function AttemptsList({ attempts, role }: { attempts: AttemptData[]; role: "admi
 
 function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalProps) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("QuizRecentAttempts");
 
   const { data, isLoading, error } = useQuery<RecentAttemptsData>({
     queryKey: ["recentAttempts", quizSlug],
@@ -250,7 +256,7 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
   const defaultTrigger = (
     <Button variant="outline" size="sm">
       <Eye className="h-4 w-4 mr-2" />
-      View Attempts
+      {t("view_attempts")}
     </Button>
   );
 
@@ -264,7 +270,7 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Recent Attempts - {data?.quiz.title}
+            {t("recent_attempts_title", { title: data?.quiz.title ?? "" })}
           </DialogTitle>
         </DialogHeader>
         
@@ -277,7 +283,7 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
           
           {error && (
             <div className="text-center py-8 text-red-500">
-              <p>Failed to load attempts</p>
+              <p>{t("load_error")}</p>
             </div>
           )}
           
@@ -287,7 +293,7 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
                 // Admin/Editor view: Show tabs with all attempts and statistics
                 <Tabs defaultValue="attempts" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="attempts">All Attempts ({data.attempts.length})</TabsTrigger>
+                    <TabsTrigger value="attempts">{t("all_attempts_tab", { count: data.attempts.length })}</TabsTrigger>
                     <TabsTrigger value="statistics">Statistics</TabsTrigger>
                   </TabsList>
                   
@@ -303,10 +309,13 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
                 // Regular user view: Only their attempts
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Your Attempts</h3>
+                    <h3 className="text-lg font-semibold">{t("your_attempts")}</h3>
                     {data.quiz.maxAttempts && (
                       <Badge variant="outline">
-                        {data.quiz.userAttemptCount} / {data.quiz.maxAttempts} attempts used
+                        {t("attempts_used", {
+                          used: data.quiz.userAttemptCount ?? 0,
+                          max: data.quiz.maxAttempts ?? 0,
+                        })}
                       </Badge>
                     )}
                   </div>

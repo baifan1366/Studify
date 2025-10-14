@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ function formatCode(code: string): string {
 
 export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const t = useTranslations('QuizHeader');
+  const tSubjects = useTranslations('QuizHeader.subjects');
+  const tGrades = useTranslations('QuizHeader.grades');
+  const locale = useLocale();
   const { data: currentUser } = useUser();
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const router = useRouter();
@@ -30,6 +33,24 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const isTutor = currentUser?.profile?.role === 'tutor';
+
+  const subjectLabel = (() => {
+    const code = quiz.subject?.code;
+    if (!code) return null;
+    const localized = quiz.subject?.translations?.[locale];
+    if (localized) return localized;
+    if (tSubjects.has(code)) return tSubjects(code);
+    return formatCode(code);
+  })();
+
+  const gradeLabel = (() => {
+    const code = quiz.grade?.code;
+    if (!code) return null;
+    const localized = quiz.grade?.translations?.[locale];
+    if (localized) return localized;
+    if (tGrades.has(code)) return tGrades(code);
+    return formatCode(code);
+  })();
 
   return (
     <div className="mb-8">
@@ -56,16 +77,16 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
       
       {/* Subject and Grade badges */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {quiz.subject && quiz.subject.code && (
+        {subjectLabel && (
           <Badge variant="outline" className="flex items-center gap-1">
             <BookOpen className="h-3 w-3" />
-            {formatCode(quiz.subject.code)}
+            {subjectLabel}
           </Badge>
         )}
-        {quiz.grade && quiz.grade.code && (
+        {gradeLabel && (
           <Badge variant="outline" className="flex items-center gap-1">
             <GraduationCap className="h-3 w-3" />
-            {formatCode(quiz.grade.code)}
+            {gradeLabel}
           </Badge>
         )}
       </div>
@@ -74,7 +95,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
         {/* 主要操作按钮 */}
         {statusLoading ? (
           <Button size="lg" disabled>
-            Loading...
+            {t('loading')}
           </Button>
         ) : attemptStatus?.canAttempt ? (
           <Button 
@@ -147,34 +168,38 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
             }}
           >
             <Play className="h-5 w-5 mr-2" />
-            {isNavigating ? "Starting..." : 
-             attemptStatus?.hasInProgressAttempt ? "Continue Quiz" :
-             (isAuthor ? "Preview Quiz" : "Start Quiz")}
+            {isNavigating
+              ? t('starting')
+              : attemptStatus?.hasInProgressAttempt
+                ? t('continue_quiz')
+                : isAuthor
+                  ? t('preview_quiz')
+                  : t('start_quiz')}
           </Button>
         ) : (
           <Button size="lg" disabled>
             {attemptStatus?.accessReason === "no_permission" && (
               <>
                 <Lock className="h-5 w-5 mr-2" />
-                No Access
+                {t('status.no_access')}
               </>
             )}
             {attemptStatus?.accessReason === "view_only_permission" && (
               <>
                 <Eye className="h-5 w-5 mr-2" />
-                View Only
+                {t('status.view_only')}
               </>
             )}
             {attemptStatus?.accessReason === "max_attempts_reached" && (
               <>
                 <CheckCircle className="h-5 w-5 mr-2" />
-                Completed
+                {t('status.completed')}
               </>
             )}
             {!attemptStatus?.accessReason && (
               <>
                 <Lock className="h-5 w-5 mr-2" />
-                Unavailable
+                {t('status.unavailable')}
               </>
             )}
           </Button>
@@ -185,11 +210,13 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
           <div className="text-sm text-gray-600">
             {attemptStatus.userPermission && (
               <Badge variant="outline" className="capitalize">
-                {attemptStatus.userPermission} Permission
+                {t('permission_badge', {
+                  permission: t(`permissions.${attemptStatus.userPermission}`),
+                })}
               </Badge>
             )}
             {attemptStatus.accessReason === "granted_permission" && (
-              <span className="ml-2">Access granted via invite</span>
+              <span className="ml-2">{t('access_granted_invite')}</span>
             )}
           </div>
         )}

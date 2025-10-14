@@ -54,7 +54,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
-            Quiz Overview
+            {t("quiz_overview")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -65,7 +65,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               </div>
               <div className="text-sm text-gray-600 flex items-center justify-center gap-1">
                 <HelpCircle className="h-4 w-4" />
-                Questions
+                {t("questions")}
               </div>
             </div>
             
@@ -75,7 +75,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               </div>
               <div className="text-sm text-gray-600 flex items-center justify-center gap-1">
                 <Users className="h-4 w-4" />
-                Attempts
+                {t("attempts")}
               </div>
             </div>
             
@@ -85,7 +85,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               </div>
               <div className="text-sm text-gray-600 flex items-center justify-center gap-1">
                 <Heart className="h-4 w-4" />
-                Likes
+                {t("likes")}
               </div>
             </div>
             
@@ -94,7 +94,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
                 {quiz.max_attempts}
               </div>
               <div className="text-sm text-gray-600">
-                Max Attempts
+                {t("max_attempts")}
               </div>
             </div>
           </div>
@@ -104,7 +104,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
       {/* Quiz Details */}
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle>Quiz Details</CardTitle>
+          <CardTitle>{t("quiz_details")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
@@ -116,12 +116,12 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               {quiz.visibility === 'private' ? (
                 <>
                   <Lock className="h-3 w-3" />
-                  Private
+                  {t("private")}
                 </>
               ) : (
                 <>
                   <Eye className="h-3 w-3" />
-                  Public
+                  {t("public")}
                 </>
               )}
             </Badge>
@@ -131,7 +131,7 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
           {quiz.created_at && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Calendar className="h-4 w-4" />
-              Created {new Date(quiz.created_at).toLocaleDateString()}
+              {t("created")} {new Date(quiz.created_at).toLocaleDateString()}
             </div>
           )}
 
@@ -140,12 +140,10 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
             <Timer className="h-4 w-4" />
             {typeof quiz.time_limit_minutes === 'number' && quiz.time_limit_minutes > 0 ? (
               <>
-                Duration: <span className="font-medium">{quiz.time_limit_minutes} min</span>
+                {t("time_limit")}: <span className="font-medium">{quiz.time_limit_minutes} {t("minutes")}</span>
               </>
             ) : (
-              <>
-                No time limit
-              </>
+              <>{t("unlimited")}</>
             )}
           </div>
         </CardContent>

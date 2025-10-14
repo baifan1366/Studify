@@ -3,7 +3,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap, Trash2 } from "lucide-react";
+import { Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap, Trash2 } from "lucide-react";
 import { CommunityQuiz } from "@/interface/community/quiz-interface";
 import { Hashtag } from "@/interface/community/post-interface";
 import ShareQuizModal from "@/components/community/quiz/share-quiz-modal";
@@ -300,10 +300,6 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
             />
           </>
         )}
-        
-        <Button variant="ghost" size="icon">
-          <Heart className="h-6 w-6" />
-        </Button>
       </div>
     </div>
   );

@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
   Target, 
-  Heart, 
   HelpCircle, 
   Calendar,
   Timer,
@@ -17,7 +16,6 @@ interface QuizStatsProps {
   quiz: CommunityQuiz & {
     question_count?: number;
     attempt_count?: number;
-    like_count?: number;
   };
 }
 
@@ -76,16 +74,6 @@ export default function QuizStats({ quiz }: QuizStatsProps) {
               <div className="text-sm text-gray-600 flex items-center justify-center gap-1">
                 <Users className="h-4 w-4" />
                 {t("attempts")}
-              </div>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">
-                {quiz.like_count || 0}
-              </div>
-              <div className="text-sm text-gray-600 flex items-center justify-center gap-1">
-                <Heart className="h-4 w-4" />
-                {t("likes")}
               </div>
             </div>
             

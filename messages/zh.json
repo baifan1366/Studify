@@ -1388,6 +1388,8 @@
       "join_group": "加入小组",
       "step_number": "Step",
       "min": "min",
+      "students": "学生",
+      "generating_path": "🧠 AI正在生成个性化学习路径...",
       "mermaid": {
         "title": "Mermaid Diagram Code:",
         "copy_hint": "Copy this code to",
@@ -1462,6 +1464,22 @@
         "path_title": "Personalized Learning Path",
         "personalized_note": "This learning path is customized based on your personal profile and interests"
       }
+    },
+    "actions": {
+      "save_solution": "保存解题过程",
+      "save_solution_description": "将问题和解题分析保存到错题本",
+      "save_notes": "保存智能笔记",
+      "save_notes_description": "将AI生成的笔记保存到笔记本",
+      "saved": "已保存",
+      "saving": "保存中...",
+      "save_to_dashboard": "保存到仪表盘",
+      "save_note": "保存笔记",
+      "save_to_mistake_book": "保存到错题本",
+      "ai_note_title": "AI智能笔记",
+      "learning_path_title_suffix": "学习路径",
+      "learning_path_description": "基于您的目标\"{goal}\"生成的个性化学习路径",
+      "learning_path_complete_title": "个性化学习路径生成完成",
+      "learning_path_complete_description": "保存到仪表盘以便随时查看和跟踪进度"
     }
   },
   "VideoAIAssistant": {

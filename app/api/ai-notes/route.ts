@@ -20,12 +20,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
 
-    // 保存AI笔记到数据库
+    // Get profile ID (bigint) from user_id (UUID)
     const supabase = await createAdminClient();
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Error fetching profile:', profileError);
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
+    // 保存AI笔记到数据库
     const { data, error } = await supabase
       .from('course_notes')
       .insert({
-        user_id: userId,
+        user_id: profile.id,
         lesson_id: lessonId || null,
         course_id: courseId || null,
         content,
@@ -71,11 +83,23 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const courseId = searchParams.get('course_id');
 
+    // Get profile ID (bigint) from user_id (UUID)
     const supabase = await createAdminClient();
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Error fetching profile:', profileError);
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
     let query = supabase
       .from('course_notes')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', profile.id)
       .eq('note_type', 'ai_generated')
       .order('created_at', { ascending: false });
 

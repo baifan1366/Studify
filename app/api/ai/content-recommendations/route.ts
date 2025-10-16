@@ -4,10 +4,15 @@ import { createClient } from '@/utils/supabase/server';
 import { searchSimilarContentDual } from '@/lib/langChain/vectorstore';
 
 interface RecommendationRequest {
-  aiResponse: string;
+  aiResponse?: string;
   questionContext?: string;
   userId?: number;
   maxRecommendations?: number;
+  // Learning path specific fields
+  learningGoal?: string;
+  currentLevel?: string;
+  timeConstraint?: string;
+  recommendationType?: 'general' | 'learning_path';
 }
 
 export async function POST(request: NextRequest) {
@@ -20,9 +25,45 @@ export async function POST(request: NextRequest) {
     }
 
     const requestBody: RecommendationRequest = await request.json();
-    const { aiResponse, questionContext, userId } = requestBody;
+    const { 
+      aiResponse, 
+      questionContext, 
+      userId, 
+      learningGoal,
+      currentLevel,
+      timeConstraint,
+      recommendationType = 'general'
+    } = requestBody;
     maxRecommendations = requestBody.maxRecommendations || 6;
 
+    // For learning path recommendations
+    if (recommendationType === 'learning_path' && learningGoal) {
+      const searchQuery = extractKeywords(learningGoal);
+      const supabase = await createClient();
+      
+      const [courses, quizzes] = await Promise.all([
+        findCoursesForLearningPath(supabase, searchQuery, currentLevel || 'beginner', 5),
+        findQuizzesForLearningPath(supabase, searchQuery, currentLevel || 'beginner', 3)
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        recommendations: {
+          courses,
+          quizzes
+        },
+        searchQuery,
+        metadata: {
+          learningGoal,
+          currentLevel: currentLevel || 'beginner',
+          timeConstraint,
+          totalCourses: courses.length,
+          totalQuizzes: quizzes.length
+        }
+      });
+    }
+
+    // For general content recommendations
     if (!aiResponse || aiResponse.length < 10) {
       return NextResponse.json({ 
         success: false, 
@@ -360,6 +401,228 @@ async function getFallbackRecommendations(supabase: any, limit: number) {
   } catch (error) {
     console.error('Error getting fallback recommendations:', error);
     // 如果连降级都失败了，返回一个空数组而不是崩溃
+    return [];
+  }
+}
+
+// Find courses for learning path with difficulty matching
+async function findCoursesForLearningPath(
+  supabase: any,
+  searchQuery: string,
+  currentLevel: string,
+  limit: number
+) {
+  try {
+    const difficultyMap: Record<string, string> = {
+      'beginner': 'beginner',
+      'intermediate': 'intermediate',
+      'advanced': 'advanced'
+    };
+    const targetDifficulty = difficultyMap[currentLevel.toLowerCase()] || 'beginner';
+
+    const keywords = searchQuery.split(' ').filter(k => k.length > 0);
+    let query = supabase
+      .from('course')
+      .select(`
+        id,
+        public_id,
+        title,
+        description,
+        slug,
+        difficulty_level,
+        category,
+        thumbnail_url,
+        student_count,
+        average_rating,
+        estimated_hours,
+        instructor:profiles!course_instructor_id_fkey(
+          display_name,
+          avatar_url
+        )
+      `)
+      .eq('status', 'active')
+      .eq('is_deleted', false)
+      .eq('visibility', 'public');
+
+    if (keywords.length > 0) {
+      const searchConditions = keywords.map(keyword => 
+        `title.ilike.%${keyword}%,description.ilike.%${keyword}%`
+      ).join(',');
+      query = query.or(searchConditions);
+    }
+
+    const { data: courses } = await query
+      .order('student_count', { ascending: false })
+      .limit(limit * 2);
+
+    if (!courses || courses.length === 0) {
+      const { data: popularCourses } = await supabase
+        .from('course')
+        .select(`
+          id,
+          public_id,
+          title,
+          description,
+          slug,
+          difficulty_level,
+          thumbnail_url,
+          student_count,
+          average_rating,
+          estimated_hours,
+          instructor:profiles!course_instructor_id_fkey(
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('status', 'active')
+        .eq('is_deleted', false)
+        .eq('visibility', 'public')
+        .order('student_count', { ascending: false })
+        .limit(limit);
+      
+      return popularCourses?.map((course: any) => ({
+        id: course.public_id,
+        title: course.title,
+        description: course.description?.substring(0, 150) + '...' || '',
+        level: course.difficulty_level || 'beginner',
+        duration: course.estimated_hours ? `${course.estimated_hours} hours` : undefined,
+        thumbnail: course.thumbnail_url,
+        slug: course.slug,
+        instructor: course.instructor?.display_name,
+        stats: {
+          students: course.student_count || 0,
+          rating: course.average_rating || 0
+        }
+      })) || [];
+    }
+
+    const sortedCourses = courses.sort((a: any, b: any) => {
+      const aDiffMatch = a.difficulty_level === targetDifficulty ? 1 : 0;
+      const bDiffMatch = b.difficulty_level === targetDifficulty ? 1 : 0;
+      if (aDiffMatch !== bDiffMatch) return bDiffMatch - aDiffMatch;
+      return (b.student_count || 0) - (a.student_count || 0);
+    });
+
+    return sortedCourses.slice(0, limit).map((course: any) => ({
+      id: course.public_id,
+      title: course.title,
+      description: course.description?.substring(0, 150) + '...' || '',
+      level: course.difficulty_level || 'beginner',
+      duration: course.estimated_hours ? `${course.estimated_hours} hours` : undefined,
+      thumbnail: course.thumbnail_url,
+      slug: course.slug,
+      instructor: course.instructor?.display_name,
+      stats: {
+        students: course.student_count || 0,
+        rating: course.average_rating || 0
+      }
+    }));
+  } catch (error) {
+    console.error('Error finding courses for learning path:', error);
+    return [];
+  }
+}
+
+// Find quizzes for learning path with difficulty matching
+async function findQuizzesForLearningPath(
+  supabase: any,
+  searchQuery: string,
+  currentLevel: string,
+  limit: number
+) {
+  try {
+    const difficultyMap: Record<string, number> = {
+      'beginner': 2,
+      'intermediate': 3,
+      'advanced': 4
+    };
+    const targetDifficulty = difficultyMap[currentLevel.toLowerCase()] || 2;
+
+    const keywords = searchQuery.split(' ').filter(k => k.length > 0);
+    let query = supabase
+      .from('tutor_quiz')
+      .select(`
+        id,
+        public_id,
+        title,
+        description,
+        difficulty,
+        estimated_time,
+        question_count,
+        subject:tutor_subjects(name),
+        grade:tutor_grades(name),
+        author:profiles!tutor_quiz_author_id_fkey(
+          display_name,
+          avatar_url
+        )
+      `)
+      .eq('visibility', 'public');
+
+    if (keywords.length > 0) {
+      const searchConditions = keywords.map(keyword => 
+        `title.ilike.%${keyword}%,description.ilike.%${keyword}%`
+      ).join(',');
+      query = query.or(searchConditions);
+    }
+
+    const { data: quizzes } = await query
+      .order('created_at', { ascending: false })
+      .limit(limit * 2);
+
+    if (!quizzes || quizzes.length === 0) {
+      const { data: recentQuizzes } = await supabase
+        .from('tutor_quiz')
+        .select(`
+          id,
+          public_id,
+          title,
+          description,
+          difficulty,
+          estimated_time,
+          question_count,
+          subject:tutor_subjects(name),
+          grade:tutor_grades(name),
+          author:profiles!tutor_quiz_author_id_fkey(
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      return recentQuizzes?.map((quiz: any) => ({
+        id: quiz.public_id,
+        title: quiz.title,
+        description: quiz.description?.substring(0, 150) + '...' || '',
+        difficulty: quiz.difficulty || 3,
+        questions: quiz.question_count || 10,
+        estimatedTime: quiz.estimated_time || 15,
+        subject: quiz.subject?.name,
+        grade: quiz.grade?.name,
+        author: quiz.author?.display_name
+      })) || [];
+    }
+
+    const sortedQuizzes = quizzes.sort((a: any, b: any) => {
+      const aDiffDist = Math.abs((a.difficulty || 3) - targetDifficulty);
+      const bDiffDist = Math.abs((b.difficulty || 3) - targetDifficulty);
+      return aDiffDist - bDiffDist;
+    });
+
+    return sortedQuizzes.slice(0, limit).map((quiz: any) => ({
+      id: quiz.public_id,
+      title: quiz.title,
+      description: quiz.description?.substring(0, 150) + '...' || '',
+      difficulty: quiz.difficulty || 3,
+      questions: quiz.question_count || 10,
+      estimatedTime: quiz.estimated_time || 15,
+      subject: quiz.subject?.name,
+      grade: quiz.grade?.name,
+      author: quiz.author?.display_name
+    }));
+  } catch (error) {
+    console.error('Error finding quizzes for learning path:', error);
     return [];
   }
 }

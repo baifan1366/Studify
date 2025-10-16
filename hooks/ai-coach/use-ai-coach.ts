@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '@/lib/api-config';
 import { useToast } from '@/hooks/use-toast';
 
-// 数据类型定义
+// Data type definitions
 export interface DailyPlanTask {
   id: number;
   public_id: string;
@@ -110,7 +110,7 @@ export interface CoachSettings {
   updated_at: string;
 }
 
-// 1. 获取今日学习计划
+// 1. Get today's learning plan
 export function useDailyPlan(date?: string) {
   return useQuery({
     queryKey: ['daily-plan', date || 'today'],
@@ -120,44 +120,54 @@ export function useDailyPlan(date?: string) {
       // API returns { success: true, plan: plan || null, date }
       return (response as any).plan || null;
     },
-    staleTime: 5 * 60 * 1000, // 5分钟内不重新获取
-    gcTime: 10 * 60 * 1000, // 10分钟后垃圾回收
+    staleTime: 5 * 60 * 1000, // Don't refetch within 5 minutes
+    gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
   });
 }
 
-// 2. 生成每日学习计划
+// 2. Generate daily learning plan
+// Enhanced with learning paths and AI notes context for personalized planning
 export function useGenerateDailyPlan() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
-      const response = await apiPost<any>('/api/ai/coach/daily-plan', {});
+      // Force regeneration even if plan exists for today
+      const response = await apiPost<any>('/api/ai/coach/daily-plan', {
+        forceRegenerate: true
+      });
       // API returns { success: true, plan: savedPlan, message: string }
       return response;
     },
     onSuccess: (data) => {
-      // 刷新今日计划缓存
+      const response = data as any;
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Immediately update the cache with new data
+      queryClient.setQueryData(['daily-plan', 'today'], response.plan);
+      queryClient.setQueryData(['daily-plan', today], response.plan);
+      
+      // Also invalidate to ensure fresh data on next mount
       queryClient.invalidateQueries({ queryKey: ['daily-plan'] });
       
-      const response = data as any;
       toast({
-        title: "学习计划生成成功",
-        description: `为您生成了 ${response.plan?.total_tasks || 0} 个学习任务`,
+        title: "Learning Plan Generated Successfully",
+        description: `Generated ${response.plan?.total_tasks || 0} learning tasks for you`,
       });
     },
     onError: (error: any) => {
       console.error('Generate daily plan error:', error);
       toast({
-        title: "生成计划失败",
-        description: "请稍后重试或联系客服",
+        title: "Plan Generation Failed",
+        description: "Please try again later or contact support",
         variant: "destructive",
       });
     },
   });
 }
 
-// 3. 更新任务完成状态
+// 3. Update task completion status
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -180,30 +190,66 @@ export function useUpdateTaskStatus() {
       // API returns { success: true, task: updatedTask, pointsEarned: number }
       return response;
     },
+    onMutate: async (variables) => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['daily-plan'] });
+      
+      // Snapshot the previous value
+      const previousPlan = queryClient.getQueryData(['daily-plan', 'today']);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['daily-plan', 'today'], (old: any) => {
+        if (!old || !old.tasks) return old;
+        
+        return {
+          ...old,
+          tasks: old.tasks.map((task: any) => 
+            task.public_id === variables.taskId
+              ? { 
+                  ...task, 
+                  is_completed: variables.isCompleted,
+                  actual_minutes: variables.actualMinutes || task.actual_minutes,
+                  completed_at: variables.isCompleted ? new Date().toISOString() : null
+                }
+              : task
+          )
+        };
+      });
+      
+      return { previousPlan };
+    },
     onSuccess: (data, variables) => {
-      // 刷新计划缓存
+      // Refresh plan cache to sync with server
       queryClient.invalidateQueries({ queryKey: ['daily-plan'] });
       
       const response = data as any;
       if (variables.isCompleted && response.pointsEarned > 0) {
         toast({
-          title: "任务完成！",
-          description: `恭喜获得 ${response.pointsEarned} 积分 🎉`,
+          title: "Task Completed!",
+          description: `Congratulations! You earned ${response.pointsEarned} points 🎉`,
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // Rollback on error
+      if (context?.previousPlan) {
+        queryClient.setQueryData(['daily-plan', 'today'], context.previousPlan);
+      }
+      
       console.error('Update task status error:', error);
       toast({
-        title: "更新失败",
-        description: "任务状态更新失败，请重试",
+        title: "Update Failed",
+        description: "Failed to update task status, please try again",
         variant: "destructive",
       });
     },
   });
 }
 
-// 4. 创建学习复盘
+// 4. Create learning retrospective
+// Enhanced with learning paths and AI notes context for comprehensive analysis
 export function useCreateRetrospective() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -226,26 +272,26 @@ export function useCreateRetrospective() {
       return (response as any).data;
     },
     onSuccess: (data) => {
-      // 刷新复盘缓存
+      // Refresh retrospectives cache
       queryClient.invalidateQueries({ queryKey: ['retrospectives'] });
       
       toast({
-        title: "学习复盘完成",
-        description: "AI已为您生成深度分析和改进建议",
+        title: "Learning Reflection Completed",
+        description: "AI has generated in-depth analysis and improvement suggestions for you",
       });
     },
     onError: (error: any) => {
       console.error('Create retrospective error:', error);
       toast({
-        title: "复盘保存失败",
-        description: "请稍后重试",
+        title: "Reflection Save Failed",
+        description: "Please try again later",
         variant: "destructive",
       });
     },
   });
 }
 
-// 5. 获取学习复盘记录
+// 5. Get learning retrospective records
 export function useRetrospectives(options?: {
   date?: string;
   type?: 'daily' | 'weekly' | 'monthly';
@@ -269,7 +315,7 @@ export function useRetrospectives(options?: {
   });
 }
 
-// 6. 获取今日复盘
+// 6. Get today's retrospective
 export function useTodayRetrospective() {
   const today = new Date().toISOString().split('T')[0];
   
@@ -284,7 +330,7 @@ export function useTodayRetrospective() {
   });
 }
 
-// 7. 辅助函数：计算学习计划统计
+// 7. Helper function: Calculate learning plan statistics
 export function usePlanStats(plan: DailyLearningPlan | null) {
   if (!plan) {
     return {
@@ -322,56 +368,56 @@ export function usePlanStats(plan: DailyLearningPlan | null) {
   };
 }
 
-// 8. 辅助函数：格式化时间
+// 8. Helper function: Format duration
 export function formatDuration(minutes: number): string {
   if (minutes < 60) {
-    return `${minutes}分钟`;
+    return `${minutes} minutes`;
   }
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   if (remainingMinutes === 0) {
-    return `${hours}小时`;
+    return `${hours} hours`;
   }
-  return `${hours}小时${remainingMinutes}分钟`;
+  return `${hours}h ${remainingMinutes}min`;
 }
 
-// 9. 辅助函数：获取任务类型图标和颜色
+// 9. Helper function: Get task type icon and color
 export function getTaskTypeInfo(type: DailyPlanTask['task_type']) {
   const typeMap = {
-    study: { icon: '📚', color: 'blue', label: '学习' },
-    review: { icon: '🔄', color: 'green', label: '复习' },
-    quiz: { icon: '📝', color: 'orange', label: '测验' },
-    reading: { icon: '📖', color: 'purple', label: '阅读' },
-    practice: { icon: '⚡', color: 'yellow', label: '练习' },
-    video: { icon: '🎥', color: 'red', label: '视频' },
-    exercise: { icon: '🏃', color: 'teal', label: '作业' },
-    project: { icon: '🛠️', color: 'gray', label: '项目' }
+    study: { icon: '📚', color: 'blue', label: 'Study' },
+    review: { icon: '🔄', color: 'green', label: 'Review' },
+    quiz: { icon: '📝', color: 'orange', label: 'Quiz' },
+    reading: { icon: '📖', color: 'purple', label: 'Reading' },
+    practice: { icon: '⚡', color: 'yellow', label: 'Practice' },
+    video: { icon: '🎥', color: 'red', label: 'Video' },
+    exercise: { icon: '🏃', color: 'teal', label: 'Exercise' },
+    project: { icon: '🛠️', color: 'gray', label: 'Project' }
   };
   
-  return typeMap[type] || { icon: '📌', color: 'gray', label: '任务' };
+  return typeMap[type] || { icon: '📌', color: 'gray', label: 'Task' };
 }
 
-// 10. 辅助函数：获取优先级信息
+// 10. Helper function: Get priority info
 export function getPriorityInfo(priority: DailyPlanTask['priority']) {
   const priorityMap = {
-    low: { color: 'gray', label: '低', order: 1 },
-    medium: { color: 'blue', label: '中', order: 2 },
-    high: { color: 'orange', label: '高', order: 3 },
-    urgent: { color: 'red', label: '紧急', order: 4 }
+    low: { color: 'gray', label: 'Low', order: 1 },
+    medium: { color: 'blue', label: 'Medium', order: 2 },
+    high: { color: 'orange', label: 'High', order: 3 },
+    urgent: { color: 'red', label: 'Urgent', order: 4 }
   };
   
-  return priorityMap[priority] || { color: 'gray', label: '普通', order: 1 };
+  return priorityMap[priority] || { color: 'gray', label: 'Normal', order: 1 };
 }
 
-// 11. 辅助函数：获取心情评级信息
+// 11. Helper function: Get mood rating info
 export function getMoodInfo(mood: LearningRetrospective['mood_rating']) {
   const moodMap = {
-    very_bad: { emoji: '😰', color: 'red', label: '很糟糕' },
-    bad: { emoji: '😔', color: 'orange', label: '不太好' },
-    neutral: { emoji: '😐', color: 'gray', label: '一般' },
-    good: { emoji: '😊', color: 'blue', label: '不错' },
-    excellent: { emoji: '🤩', color: 'green', label: '很棒' }
+    very_bad: { emoji: '😰', color: 'red', label: 'Very Bad' },
+    bad: { emoji: '😔', color: 'orange', label: 'Not Good' },
+    neutral: { emoji: '😐', color: 'gray', label: 'Neutral' },
+    good: { emoji: '😊', color: 'blue', label: 'Good' },
+    excellent: { emoji: '🤩', color: 'green', label: 'Excellent' }
   };
   
-  return mood ? moodMap[mood] : { emoji: '😐', color: 'gray', label: '未评价' };
+  return mood ? moodMap[mood] : { emoji: '😐', color: 'gray', label: 'Not Rated' };
 }

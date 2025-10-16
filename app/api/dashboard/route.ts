@@ -21,6 +21,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    // Get course enrollment data (more accurate than progress)
+    const { data: enrollments } = await supabase
+      .from('course_enrollment')
+      .select(`
+        id,
+        status,
+        completed_at,
+        course:course_id (
+          id,
+          public_id,
+          slug,
+          title,
+          thumbnail_url
+        )
+      `)
+      .eq('user_id', profile.id)
+      .eq('status', 'active');
+
     // Get course enrollment and progress data with lessons
     const { data: courseProgress } = await supabase
       .from('course_progress')
@@ -66,9 +84,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Calculate stats
-    const coursesEnrolled = uniqueCourses.size;
-    const coursesCompleted = courseProgress?.filter(p => p.progress_pct >= 100).length || 0;
+    // Calculate stats from enrollments and progress
+    const coursesEnrolled = enrollments?.length || 0;
+    
+    // Count completed courses from enrollments
+    const coursesCompleted = enrollments?.filter(e => e.status === 'completed' && e.completed_at).length || 0;
+    
+    // Calculate total study time from progress data
     const totalStudyTime = courseProgress?.reduce((total, p) => total + (p.time_spent_sec || 0), 0) || 0;
 
     // Get recent courses (last 3 accessed) - for continue watching
@@ -133,16 +155,19 @@ export async function GET(request: NextRequest) {
     ].sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())
      .slice(0, 5);
 
-    // Get recent notes count for streak calculation (simplified)
-    const { data: recentNotes } = await supabase
-      .from('course_notes')
-      .select('created_at')
+    // Get study sessions for streak calculation (more accurate)
+    const { data: studySessions } = await supabase
+      .from('study_session')
+      .select('session_start')
       .eq('user_id', profile.id)
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order('created_at', { ascending: false });
+      .eq('is_deleted', false)
+      .gte('session_start', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('session_start', { ascending: false });
 
-    // Calculate current streak (simplified - days with activity)
-    const currentStreak = calculateStreak(recentNotes?.map(n => n.created_at) || []);
+    // Calculate current streak from study sessions
+    const currentStreak = studySessions && studySessions.length > 0 
+      ? calculateStreak(studySessions.map(s => s.session_start))
+      : 0;
 
     const dashboardData = {
       stats: {
@@ -160,6 +185,18 @@ export async function GET(request: NextRequest) {
         points: profile.points
       }
     };
+
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Dashboard API Response:', {
+        userId: user.id,
+        profileId: profile.id,
+        enrollmentsCount: enrollments?.length,
+        progressCount: courseProgress?.length,
+        studySessionsCount: studySessions?.length,
+        stats: dashboardData.stats
+      });
+    }
 
     return NextResponse.json(dashboardData);
 

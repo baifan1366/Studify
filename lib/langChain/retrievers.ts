@@ -1,9 +1,14 @@
-import { Document } from './document-loaders';
-import { VectorStore, getVectorStore, ContentType, SearchResult } from './vectorstore';
-import { generateEmbedding, cosineSimilarity } from './embedding';
-import { contextManager } from './context-manager';
-import { aiWorkflowExecutor } from './ai-workflow';
-import { getLLM } from './client';
+import { Document } from "./document-loaders";
+import {
+  VectorStore,
+  getVectorStore,
+  ContentType,
+  SearchResult,
+} from "./vectorstore";
+import { generateEmbedding, cosineSimilarity } from "./embedding";
+import { contextManager } from "./context-manager";
+import { aiWorkflowExecutor } from "./ai-workflow";
+import { getLLM } from "./client";
 import { HumanMessage } from "@langchain/core/messages";
 
 // Base retriever interface
@@ -15,8 +20,8 @@ export interface BaseRetriever {
 
 // Vector store retriever
 export class VectorStoreRetriever implements BaseRetriever {
-  name = 'vector_store';
-  description = 'Retrieves documents using vector similarity search';
+  name = "vector_store";
+  description = "Retrieves documents using vector similarity search";
 
   constructor(
     private vectorStore: VectorStore,
@@ -28,60 +33,70 @@ export class VectorStoreRetriever implements BaseRetriever {
     } = { k: 5 }
   ) {}
 
-  async getRelevantDocuments(query: string, options?: {
-    k?: number;
-    scoreThreshold?: number;
-    filter?: Record<string, any>;
-    contentTypes?: ContentType[];
-  }): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: {
+      k?: number;
+      scoreThreshold?: number;
+      filter?: Record<string, any>;
+      contentTypes?: ContentType[];
+    }
+  ): Promise<Document[]> {
     const config = { ...this.searchConfig, ...options };
-    
+
     const searchResults = await this.vectorStore.dualSemanticSearch(query, {
       contentTypes: config.contentTypes,
       similarityThreshold: config.scoreThreshold || 0.7,
       maxResults: config.k || 5,
-      searchType: 'hybrid'
+      searchType: "hybrid", // Using hybrid with E5-only (BGE has dimension mismatch)
+      embeddingWeights: { e5: 1.0, bge: 0.0 }, // BGE produces 1024 dims but DB expects 384
     });
 
-    return searchResults.map(result => ({
+    return searchResults.map((result) => ({
       pageContent: result.content_text,
       metadata: {
         source: `${result.content_type}:${result.content_id}`,
         contentType: result.content_type,
         contentId: result.content_id,
         similarity: result.similarity,
-        ...result.metadata
-      }
+        ...result.metadata,
+      },
     }));
   }
 }
 
 // Multi-vector retriever (combines multiple vector stores)
 export class MultiVectorRetriever implements BaseRetriever {
-  name = 'multi_vector';
-  description = 'Retrieves documents from multiple vector stores and combines results';
+  name = "multi_vector";
+  description =
+    "Retrieves documents from multiple vector stores and combines results";
 
   constructor(
     private retrievers: BaseRetriever[],
-    private combineMethod: 'concat' | 'interleave' | 'weighted' = 'interleave',
+    private combineMethod: "concat" | "interleave" | "weighted" = "interleave",
     private weights?: number[]
   ) {}
 
-  async getRelevantDocuments(query: string, options?: any): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: any
+  ): Promise<Document[]> {
     const allResults = await Promise.all(
-      this.retrievers.map(retriever => retriever.getRelevantDocuments(query, options))
+      this.retrievers.map((retriever) =>
+        retriever.getRelevantDocuments(query, options)
+      )
     );
 
     switch (this.combineMethod) {
-      case 'concat':
+      case "concat":
         return allResults.flat();
-      
-      case 'interleave':
+
+      case "interleave":
         return this.interleaveResults(allResults);
-      
-      case 'weighted':
+
+      case "weighted":
         return this.weightedCombine(allResults, this.weights || []);
-      
+
       default:
         return allResults.flat();
     }
@@ -89,8 +104,8 @@ export class MultiVectorRetriever implements BaseRetriever {
 
   private interleaveResults(results: Document[][]): Document[] {
     const combined: Document[] = [];
-    const maxLength = Math.max(...results.map(r => r.length));
-    
+    const maxLength = Math.max(...results.map((r) => r.length));
+
     for (let i = 0; i < maxLength; i++) {
       for (const resultSet of results) {
         if (i < resultSet.length) {
@@ -98,67 +113,73 @@ export class MultiVectorRetriever implements BaseRetriever {
         }
       }
     }
-    
+
     return combined;
   }
 
-  private weightedCombine(results: Document[][], weights: number[]): Document[] {
+  private weightedCombine(
+    results: Document[][],
+    weights: number[]
+  ): Document[] {
     const combined: Array<{ doc: Document; score: number }> = [];
-    
+
     results.forEach((resultSet, index) => {
       const weight = weights[index] || 1;
-      resultSet.forEach(doc => {
+      resultSet.forEach((doc) => {
         const similarity = doc.metadata.similarity || 0;
         combined.push({
           doc,
-          score: similarity * weight
+          score: similarity * weight,
         });
       });
     });
-    
-    return combined
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.doc);
+
+    return combined.sort((a, b) => b.score - a.score).map((item) => item.doc);
   }
 }
 
 // Time-weighted retriever
 export class TimeWeightedVectorStoreRetriever implements BaseRetriever {
-  name = 'time_weighted';
-  description = 'Vector store retriever with time-based scoring decay';
+  name = "time_weighted";
+  description = "Vector store retriever with time-based scoring decay";
 
   constructor(
     private vectorStore: VectorStore,
     private decayRate: number = -0.01, // Decay rate per day
     private k: number = 5,
     private otherScoreKeys: string[] = [],
-    private defaultSalienceKey: string = 'bufferIdx'
+    private defaultSalienceKey: string = "bufferIdx"
   ) {}
 
-  async getRelevantDocuments(query: string, options?: {
-    k?: number;
-    scoreThreshold?: number;
-    contentTypes?: ContentType[];
-  }): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: {
+      k?: number;
+      scoreThreshold?: number;
+      contentTypes?: ContentType[];
+    }
+  ): Promise<Document[]> {
     const searchResults = await this.vectorStore.dualSemanticSearch(query, {
       contentTypes: options?.contentTypes,
       similarityThreshold: options?.scoreThreshold || 0.7,
       maxResults: (options?.k || this.k) * 2, // Get more to account for time weighting
-      searchType: 'hybrid'
+      searchType: "hybrid", // Using hybrid with BGE-only weights
+      embeddingWeights: { e5: 0.0, bge: 1.0 }, // E5 server has dimension mismatch
     });
 
     // Apply time weighting
-    const timeWeightedResults = searchResults.map(result => {
+    const timeWeightedResults = searchResults.map((result) => {
       const createdAt = new Date(result.metadata.created_at || Date.now());
-      const hoursSinceCreated = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
-      const timeWeight = Math.exp(this.decayRate * hoursSinceCreated / 24); // Convert hours to days
-      
+      const hoursSinceCreated =
+        (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+      const timeWeight = Math.exp((this.decayRate * hoursSinceCreated) / 24); // Convert hours to days
+
       const combinedScore = result.similarity * timeWeight;
-      
+
       return {
         ...result,
         combinedScore,
-        timeWeight
+        timeWeight,
       };
     });
 
@@ -166,7 +187,7 @@ export class TimeWeightedVectorStoreRetriever implements BaseRetriever {
     timeWeightedResults.sort((a, b) => b.combinedScore - a.combinedScore);
     const topResults = timeWeightedResults.slice(0, options?.k || this.k);
 
-    return topResults.map(result => ({
+    return topResults.map((result) => ({
       pageContent: result.content_text,
       metadata: {
         source: `${result.content_type}:${result.content_id}`,
@@ -175,32 +196,38 @@ export class TimeWeightedVectorStoreRetriever implements BaseRetriever {
         similarity: result.similarity,
         timeWeight: result.timeWeight,
         combinedScore: result.combinedScore,
-        ...result.metadata
-      }
+        ...result.metadata,
+      },
     }));
   }
 }
 
 // Parent document retriever
 export class ParentDocumentRetriever implements BaseRetriever {
-  name = 'parent_document';
-  description = 'Retrieves small chunks but returns larger parent documents';
+  name = "parent_document";
+  description = "Retrieves small chunks but returns larger parent documents";
 
   constructor(
     private childRetriever: BaseRetriever,
-    private parentIdKey: string = 'parent_id',
+    private parentIdKey: string = "parent_id",
     private k: number = 5
   ) {}
 
-  async getRelevantDocuments(query: string, options?: any): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: any
+  ): Promise<Document[]> {
     // Get child documents
-    const childDocs = await this.childRetriever.getRelevantDocuments(query, options);
-    
+    const childDocs = await this.childRetriever.getRelevantDocuments(
+      query,
+      options
+    );
+
     // Extract parent IDs
     const parentIds = new Set(
       childDocs
-        .map(doc => doc.metadata[this.parentIdKey])
-        .filter(id => id != null)
+        .map((doc) => doc.metadata[this.parentIdKey])
+        .filter((id) => id != null)
     );
 
     // Retrieve parent documents
@@ -215,8 +242,10 @@ export class ParentDocumentRetriever implements BaseRetriever {
             metadata: {
               ...parentDoc.metadata,
               retrievedViaChild: true,
-              childSimilarity: childDocs.find(child => child.metadata[this.parentIdKey] === parentId)?.metadata.similarity
-            }
+              childSimilarity: childDocs.find(
+                (child) => child.metadata[this.parentIdKey] === parentId
+              )?.metadata.similarity,
+            },
           });
         }
       } catch (error) {
@@ -227,7 +256,9 @@ export class ParentDocumentRetriever implements BaseRetriever {
     return parentDocs.slice(0, this.k);
   }
 
-  private async retrieveParentDocument(parentId: string): Promise<Document | null> {
+  private async retrieveParentDocument(
+    parentId: string
+  ): Promise<Document | null> {
     // This is a placeholder - implement based on your document storage
     // For example, query your vector store or database for the parent document
     const vectorStore = getVectorStore();
@@ -238,40 +269,59 @@ export class ParentDocumentRetriever implements BaseRetriever {
 
 // Self-query retriever (with metadata filtering)
 export class SelfQueryRetriever implements BaseRetriever {
-  name = 'self_query';
-  description = 'Retriever that can parse queries and extract metadata filters';
+  name = "self_query";
+  description = "Retriever that can parse queries and extract metadata filters";
 
   constructor(
     private vectorStore: VectorStore,
-    private allowedComparators: string[] = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'in', 'nin'],
-    private allowedOperators: string[] = ['and', 'or', 'not'],
+    private allowedComparators: string[] = [
+      "eq",
+      "ne",
+      "gt",
+      "gte",
+      "lt",
+      "lte",
+      "in",
+      "nin",
+    ],
+    private allowedOperators: string[] = ["and", "or", "not"],
     private k: number = 5
   ) {}
 
-  async getRelevantDocuments(query: string, options?: any): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: any
+  ): Promise<Document[]> {
     // Parse query to extract filters
     const { cleanQuery, filters } = await this.parseQuery(query);
-    
+
     // Use the clean query for semantic search with extracted filters
-    const searchResults = await this.vectorStore.dualSemanticSearch(cleanQuery, {
-      contentTypes: filters.contentTypes || options?.contentTypes,
-      similarityThreshold: options?.scoreThreshold || 0.7,
-      maxResults: options?.k || this.k,
-      searchType: 'hybrid'
-    });
+    const searchResults = await this.vectorStore.dualSemanticSearch(
+      cleanQuery,
+      {
+        contentTypes: filters.contentTypes || options?.contentTypes,
+        similarityThreshold: options?.scoreThreshold || 0.7,
+        maxResults: options?.k || this.k,
+        searchType: "hybrid", // Using hybrid with BGE-only weights
+        embeddingWeights: { e5: 0.0, bge: 1.0 }, // E5 server has dimension mismatch
+      }
+    );
 
     // Apply additional metadata filters
-    const filteredResults = this.applyMetadataFilters(searchResults, filters.metadata || {});
+    const filteredResults = this.applyMetadataFilters(
+      searchResults,
+      filters.metadata || {}
+    );
 
-    return filteredResults.map(result => ({
+    return filteredResults.map((result) => ({
       pageContent: result.content_text,
       metadata: {
         source: `${result.content_type}:${result.content_id}`,
         contentType: result.content_type,
         contentId: result.content_id,
         similarity: result.similarity,
-        ...result.metadata
-      }
+        ...result.metadata,
+      },
     }));
   }
 
@@ -310,46 +360,52 @@ Response: {
     try {
       const llm = await getLLM({
         temperature: 0.1,
-        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
       });
-      
+
       const response = await llm.invoke([new HumanMessage(parsePrompt)]);
       const responseText = response.content as string;
 
       const parsed = JSON.parse(responseText);
       return {
         cleanQuery: parsed.cleanQuery || query,
-        filters: parsed.filters || {}
+        filters: parsed.filters || {},
       };
     } catch (error) {
-      console.warn('Failed to parse query filters, using original query:', error);
+      console.warn(
+        "Failed to parse query filters, using original query:",
+        error
+      );
       return { cleanQuery: query, filters: {} };
     }
   }
 
-  private applyMetadataFilters(results: SearchResult[], filters: Record<string, any>): SearchResult[] {
+  private applyMetadataFilters(
+    results: SearchResult[],
+    filters: Record<string, any>
+  ): SearchResult[] {
     if (!filters || Object.keys(filters).length === 0) {
       return results;
     }
 
-    return results.filter(result => {
+    return results.filter((result) => {
       for (const [key, value] of Object.entries(filters)) {
         const metadataValue = (result.metadata as any)[key];
-        
-        if (key === 'created_after' && metadataValue) {
+
+        if (key === "created_after" && metadataValue) {
           const createdDate = new Date(metadataValue);
           const filterDate = new Date(value);
           if (createdDate <= filterDate) return false;
         }
-        
-        if (key === 'created_before' && metadataValue) {
+
+        if (key === "created_before" && metadataValue) {
           const createdDate = new Date(metadataValue);
           const filterDate = new Date(value);
           if (createdDate >= filterDate) return false;
         }
-        
+
         // Add more filter conditions as needed
-        if (typeof value === 'string' && metadataValue !== value) {
+        if (typeof value === "string" && metadataValue !== value) {
           return false;
         }
       }
@@ -360,8 +416,8 @@ Response: {
 
 // Contextual compression retriever
 export class ContextualCompressionRetriever implements BaseRetriever {
-  name = 'contextual_compression';
-  description = 'Retriever that compresses documents to relevant parts only';
+  name = "contextual_compression";
+  description = "Retriever that compresses documents to relevant parts only";
 
   constructor(
     private baseRetriever: BaseRetriever,
@@ -369,11 +425,14 @@ export class ContextualCompressionRetriever implements BaseRetriever {
     private k: number = 5
   ) {}
 
-  async getRelevantDocuments(query: string, options?: any): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: any
+  ): Promise<Document[]> {
     // Get documents from base retriever
     const docs = await this.baseRetriever.getRelevantDocuments(query, {
       ...options,
-      k: (options?.k || this.k) * 2 // Get more documents before compression
+      k: (options?.k || this.k) * 2, // Get more documents before compression
     });
 
     // Compress documents
@@ -401,20 +460,23 @@ Relevant parts:
 `
   ) {}
 
-  async compressDocuments(documents: Document[], query: string): Promise<Document[]> {
+  async compressDocuments(
+    documents: Document[],
+    query: string
+  ): Promise<Document[]> {
     const compressedDocs: Document[] = [];
 
     for (const doc of documents) {
       try {
         const prompt = this.promptTemplate
-          .replace('{question}', query)
-          .replace('{context}', doc.pageContent);
+          .replace("{question}", query)
+          .replace("{context}", doc.pageContent);
 
         const llm = await getLLM({
           temperature: 0.1,
-          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+          model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
         });
-        
+
         const response = await llm.invoke([new HumanMessage(prompt)]);
         const compressedContent = response.content as string;
 
@@ -425,8 +487,8 @@ Relevant parts:
               ...doc.metadata,
               compressed: true,
               originalLength: doc.pageContent.length,
-              compressedLength: compressedContent.length
-            }
+              compressedLength: compressedContent.length,
+            },
           });
         }
       } catch (error) {
@@ -446,7 +508,10 @@ export class EmbeddingsFilter implements DocumentCompressor {
     private k: number = 20
   ) {}
 
-  async compressDocuments(documents: Document[], query: string): Promise<Document[]> {
+  async compressDocuments(
+    documents: Document[],
+    query: string
+  ): Promise<Document[]> {
     if (documents.length === 0) return documents;
 
     try {
@@ -455,20 +520,22 @@ export class EmbeddingsFilter implements DocumentCompressor {
 
       // Calculate similarities
       const docsWithSimilarity = await Promise.all(
-        documents.map(async doc => {
+        documents.map(async (doc) => {
           try {
-            const { embedding: docEmbedding } = await generateEmbedding(doc.pageContent);
+            const { embedding: docEmbedding } = await generateEmbedding(
+              doc.pageContent
+            );
             const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-            
+
             return {
               doc,
-              similarity
+              similarity,
             };
           } catch (error) {
-            console.warn('Failed to generate embedding for document:', error);
+            console.warn("Failed to generate embedding for document:", error);
             return {
               doc,
-              similarity: 0
+              similarity: 0,
             };
           }
         })
@@ -476,18 +543,18 @@ export class EmbeddingsFilter implements DocumentCompressor {
 
       // Filter and sort by similarity
       return docsWithSimilarity
-        .filter(item => item.similarity >= this.similarityThreshold)
+        .filter((item) => item.similarity >= this.similarityThreshold)
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, this.k)
-        .map(item => ({
+        .map((item) => ({
           ...item.doc,
           metadata: {
             ...item.doc.metadata,
-            compressionSimilarity: item.similarity
-          }
+            compressionSimilarity: item.similarity,
+          },
         }));
     } catch (error) {
-      console.warn('Failed to filter documents by embeddings:', error);
+      console.warn("Failed to filter documents by embeddings:", error);
       return documents;
     }
   }
@@ -495,8 +562,8 @@ export class EmbeddingsFilter implements DocumentCompressor {
 
 // Multi-query retriever
 export class MultiQueryRetriever implements BaseRetriever {
-  name = 'multi_query';
-  description = 'Generates multiple queries and combines results';
+  name = "multi_query";
+  description = "Generates multiple queries and combines results";
 
   constructor(
     private baseRetriever: BaseRetriever,
@@ -504,24 +571,27 @@ export class MultiQueryRetriever implements BaseRetriever {
     private k: number = 5
   ) {}
 
-  async getRelevantDocuments(query: string, options?: any): Promise<Document[]> {
+  async getRelevantDocuments(
+    query: string,
+    options?: any
+  ): Promise<Document[]> {
     // Generate multiple queries
     const queries = await this.queryGenerator.generateQueries(query);
-    
+
     // Get results for all queries
     const allResults = await Promise.all(
-      queries.map(q => this.baseRetriever.getRelevantDocuments(q, options))
+      queries.map((q) => this.baseRetriever.getRelevantDocuments(q, options))
     );
 
     // Deduplicate and combine results
     const uniqueResults = this.deduplicateResults(allResults.flat());
-    
+
     return uniqueResults.slice(0, options?.k || this.k);
   }
 
   private deduplicateResults(results: Document[]): Document[] {
     const seen = new Set<string>();
-    return results.filter(doc => {
+    return results.filter((doc) => {
       const key = `${doc.metadata.contentType}:${doc.metadata.contentId}`;
       if (seen.has(key)) {
         return false;
@@ -552,22 +622,24 @@ Generate ${this.numQueries} alternative questions:
     try {
       const llm = await getLLM({
         temperature: 0.7,
-        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+        model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
       });
-      
+
       const response = await llm.invoke([new HumanMessage(prompt)]);
       const responseText = response.content as string;
 
       // Parse the response to extract queries
-      const lines = responseText.split('\n').filter((line: string) => line.trim().length > 0);
+      const lines = responseText
+        .split("\n")
+        .filter((line: string) => line.trim().length > 0);
       const queries = lines
-        .map((line: string) => line.replace(/^\d+\.\s*/, '').trim())
+        .map((line: string) => line.replace(/^\d+\.\s*/, "").trim())
         .filter((line: string) => line.length > 0)
         .slice(0, this.numQueries);
 
       return [query, ...queries]; // Include original query
     } catch (error) {
-      console.warn('Failed to generate multiple queries:', error);
+      console.warn("Failed to generate multiple queries:", error);
       return [query];
     }
   }
@@ -594,14 +666,14 @@ export class RetrieverManager {
     if (!retriever) {
       throw new Error(`Retriever '${retrieverName}' not found`);
     }
-    
+
     return retriever.getRelevantDocuments(query, options);
   }
 
   listRetrievers(): Array<{ name: string; description: string }> {
-    return Array.from(this.retrievers.values()).map(retriever => ({
+    return Array.from(this.retrievers.values()).map((retriever) => ({
       name: retriever.name,
-      description: retriever.description
+      description: retriever.description,
     }));
   }
 }
@@ -611,13 +683,22 @@ export const retrieverManager = new RetrieverManager();
 
 // Initialize default retrievers
 const vectorStore = getVectorStore();
-retrieverManager.registerRetriever('vector_store', new VectorStoreRetriever(vectorStore));
-retrieverManager.registerRetriever('time_weighted', new TimeWeightedVectorStoreRetriever(vectorStore));
+retrieverManager.registerRetriever(
+  "vector_store",
+  new VectorStoreRetriever(vectorStore)
+);
+retrieverManager.registerRetriever(
+  "time_weighted",
+  new TimeWeightedVectorStoreRetriever(vectorStore)
+);
 
 // Utility functions
 export async function retrieveRelevantDocuments(
   query: string,
-  retrieverType: 'vector_store' | 'time_weighted' | 'multi_vector' = 'vector_store',
+  retrieverType:
+    | "vector_store"
+    | "time_weighted"
+    | "multi_vector" = "vector_store",
   options?: any
 ): Promise<Document[]> {
   return retrieverManager.retrieve(retrieverType, query, options);
@@ -625,12 +706,11 @@ export async function retrieveRelevantDocuments(
 
 export function createContextualCompressionRetriever(
   baseRetriever: BaseRetriever,
-  compressorType: 'llm' | 'embeddings' = 'embeddings'
+  compressorType: "llm" | "embeddings" = "embeddings"
 ): ContextualCompressionRetriever {
-  const compressor = compressorType === 'llm' 
-    ? new LLMChainExtractor()
-    : new EmbeddingsFilter();
-  
+  const compressor =
+    compressorType === "llm" ? new LLMChainExtractor() : new EmbeddingsFilter();
+
   return new ContextualCompressionRetriever(baseRetriever, compressor);
 }
 

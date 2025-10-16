@@ -4943,3 +4943,132 @@ CREATE TRIGGER announcements_embedding_trigger AFTER INSERT OR UPDATE ON announc
 -- Tutoring Note
 DROP TRIGGER IF EXISTS tutoring_note_embedding_trigger ON tutoring_note;
 CREATE TRIGGER tutoring_note_embedding_trigger AFTER INSERT OR UPDATE ON tutoring_note FOR EACH ROW EXECUTE FUNCTION trigger_tutoring_note_embedding();
+
+
+-- ============================================================================
+-- DUAL EMBEDDING MIGRATION: Support both E5 (384d) and BGE-M3 (1024d)
+-- ============================================================================
+-- Migration Date: 2025-01-15
+-- Purpose: Add dual embedding support with separate columns for E5 and BGE-M3
+-- This allows hybrid search combining both embedding models
+
+-- Step 1: Add new dual embedding columns if they don't exist
+ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS embedding_e5_small vector(384);
+ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS embedding_bge_m3 vector(1024);
+ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS has_e5_embedding boolean DEFAULT false;
+ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS has_bge_embedding boolean DEFAULT false;
+
+-- Step 2: Migrate existing embeddings to E5 column (assuming they are 384-dim E5 embeddings)
+UPDATE embeddings 
+SET embedding_e5_small = embedding,
+    has_e5_embedding = true
+WHERE embedding IS NOT NULL 
+  AND array_length(embedding::float[], 1) = 384
+  AND embedding_e5_small IS NULL;
+
+-- Step 3: Create indexes for both embedding types
+DROP INDEX IF EXISTS embeddings_e5_idx;
+DROP INDEX IF EXISTS embeddings_bge_idx;
+
+CREATE INDEX embeddings_e5_idx ON embeddings 
+USING ivfflat (embedding_e5_small vector_cosine_ops)
+WITH (lists = 100);
+
+CREATE INDEX embeddings_bge_idx ON embeddings 
+USING ivfflat (embedding_bge_m3 vector_cosine_ops)
+WITH (lists = 100);
+
+-- Step 4: Keep legacy embedding column for backward compatibility
+-- Don't drop it, just add a comment
+COMMENT ON COLUMN embeddings.embedding IS 'Legacy embedding column (384 dimensions, E5). Use embedding_e5_small and embedding_bge_m3 for dual embedding support.';
+COMMENT ON COLUMN embeddings.embedding_e5_small IS 'E5-small embedding (384 dimensions)';
+COMMENT ON COLUMN embeddings.embedding_bge_m3 IS 'BGE-M3 embedding (1024 dimensions)';
+
+
+-- ============================================================================
+-- HYBRID SEARCH FUNCTION: search_embeddings_hybrid
+-- ============================================================================
+-- Purpose: Hybrid semantic search using both E5 and BGE embeddings
+-- Note: Currently prioritizes BGE embeddings as E5 service is unstable
+
+-- Drop the old function if it exists
+DROP FUNCTION IF EXISTS public.search_embeddings_hybrid(vector, vector, text[], double precision, integer, double precision, double precision, bigint);
+
+-- Create the hybrid search function with proper dual embedding support
+CREATE OR REPLACE FUNCTION public.search_embeddings_hybrid(
+  query_embedding_e5 vector(384) DEFAULT NULL::vector,
+  query_embedding_bge vector(1024) DEFAULT NULL::vector,
+  content_types text[] DEFAULT NULL::text[],
+  match_threshold double precision DEFAULT 0.7,
+  match_count integer DEFAULT 10,
+  weight_e5 double precision DEFAULT 0.4,
+  weight_bge double precision DEFAULT 0.6,
+  user_id bigint DEFAULT NULL::bigint
+)
+RETURNS TABLE(
+  id bigint,
+  public_id uuid,
+  content_type text,
+  content_id bigint,
+  content_text text,
+  similarity double precision,
+  embedding_model text,
+  token_count integer,
+  created_at timestamp with time zone,
+  e5_similarity double precision,
+  bge_similarity double precision,
+  has_e5_embedding boolean,
+  has_bge_embedding boolean
+)
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT
+    e.id,
+    e.public_id,
+    e.content_type,
+    e.content_id,
+    e.content_text,
+    -- Weighted hybrid similarity score
+    CASE 
+      WHEN query_embedding_e5 IS NOT NULL AND query_embedding_bge IS NOT NULL 
+           AND e.has_e5_embedding AND e.has_bge_embedding THEN
+        (weight_e5 * (1 - (e.embedding_e5_small <=> query_embedding_e5))) +
+        (weight_bge * (1 - (e.embedding_bge_m3 <=> query_embedding_bge)))
+      WHEN query_embedding_e5 IS NOT NULL AND e.has_e5_embedding THEN
+        1 - (e.embedding_e5_small <=> query_embedding_e5)
+      WHEN query_embedding_bge IS NOT NULL AND e.has_bge_embedding THEN
+        1 - (e.embedding_bge_m3 <=> query_embedding_bge)
+      ELSE 0
+    END as similarity,
+    e.embedding_model,
+    e.token_count,
+    e.created_at,
+    -- Individual similarity scores for debugging
+    CASE WHEN query_embedding_e5 IS NOT NULL AND e.has_e5_embedding 
+         THEN 1 - (e.embedding_e5_small <=> query_embedding_e5) 
+         ELSE NULL END as e5_similarity,
+    CASE WHEN query_embedding_bge IS NOT NULL AND e.has_bge_embedding 
+         THEN 1 - (e.embedding_bge_m3 <=> query_embedding_bge) 
+         ELSE NULL END as bge_similarity,
+    e.has_e5_embedding,
+    e.has_bge_embedding
+  FROM embeddings e
+  WHERE 
+    e.status = 'completed'
+    AND e.is_deleted = false
+    AND (content_types IS NULL OR e.content_type = ANY(content_types))
+    AND (
+      (query_embedding_e5 IS NOT NULL AND e.has_e5_embedding AND 
+       1 - (e.embedding_e5_small <=> query_embedding_e5) > match_threshold)
+      OR
+      (query_embedding_bge IS NOT NULL AND e.has_bge_embedding AND 
+       1 - (e.embedding_bge_m3 <=> query_embedding_bge) > match_threshold)
+    )
+  ORDER BY similarity DESC
+  LIMIT match_count;
+END;
+$function$;
+
+COMMENT ON FUNCTION public.search_embeddings_hybrid IS 'Hybrid semantic search with dual embeddings. Supports E5 (384d) and BGE-M3 (1024d) with weighted combination. Returns individual scores for analysis.';

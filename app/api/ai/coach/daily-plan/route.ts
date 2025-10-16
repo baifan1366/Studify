@@ -48,7 +48,10 @@ export async function POST(req: NextRequest) {
     
     console.log(`✅ Rate limit OK: ${remaining}/${limit} remaining for user ${userId}`);
 
-    // 检查今天是否已经有计划
+    // Check if we should force regeneration (from client request)
+    const { forceRegenerate } = await req.json().catch(() => ({ forceRegenerate: false }));
+
+    // Check if plan already exists for today
     const { data: existingPlan } = await supabase
       .from('daily_learning_plans')
       .select('*')
@@ -56,7 +59,9 @@ export async function POST(req: NextRequest) {
       .eq('plan_date', today)
       .single();
 
-    if (existingPlan && existingPlan.status !== 'draft') {
+    // Only return existing plan if NOT forcing regeneration AND plan is not draft
+    if (existingPlan && existingPlan.status !== 'draft' && !forceRegenerate) {
+      console.log(`📋 Returning existing plan for ${today}`);
       return NextResponse.json({
         success: true,
         plan: existingPlan,
@@ -64,17 +69,29 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 收集学习上下文
+    // Log regeneration
+    if (forceRegenerate) {
+      console.log(`🔄 Force regenerating plan for ${today}`);
+    }
+
+    // Gather learning context
     const learningContext = await gatherLearningContext(supabase, userId);
 
-    // 使用AI Tool Calling生成每日学习计划
+    // Use AI Tool Calling to generate daily learning plan
     console.log('🤖 Generating daily plan with tool calling...');
     const aiPlan = await generateDailyPlanWithToolCalling(userId, today);
+    
+    console.log('✅ AI Plan generated:', {
+      title: aiPlan.title,
+      tasksCount: aiPlan.tasks.length,
+      insights: aiPlan.insights?.substring(0, 50) + '...',
+      isEnglish: /^[a-zA-Z0-9\s.,!?'-]+$/.test(aiPlan.title)
+    });
 
-    // 保存或更新计划到数据库
+    // Save or update plan to database
     let savedPlan;
     if (existingPlan) {
-      // 更新现有草稿
+      // Update existing draft or regenerated plan
       const { data: updatedPlan, error: updateError } = await supabase
         .from('daily_learning_plans')
         .update({
@@ -100,7 +117,7 @@ export async function POST(req: NextRequest) {
       }
       savedPlan = updatedPlan;
     } else {
-      // 创建新计划
+      // Create new plan
       const { data: newPlan, error: insertError } = await supabase
         .from('daily_learning_plans')
         .insert({
@@ -127,7 +144,7 @@ export async function POST(req: NextRequest) {
       savedPlan = newPlan;
     }
 
-    // 删除旧任务（如果是更新）
+    // Delete old tasks (if updating)
     if (existingPlan) {
       await supabase
         .from('daily_plan_tasks')
@@ -135,7 +152,7 @@ export async function POST(req: NextRequest) {
         .eq('plan_id', savedPlan.id);
     }
 
-    // 插入任务
+    // Insert new tasks
     const tasksToInsert = aiPlan.tasks.map((task: any, index: number) => ({
       plan_id: savedPlan.id,
       task_title: task.title,
@@ -163,7 +180,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create tasks' }, { status: 500 });
     }
 
-    // 返回完整的计划数据
+    // Return complete plan data
     const fullPlan = {
       ...savedPlan,
       tasks: insertedTasks
@@ -190,7 +207,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// 获取今日学习计划
+// Get today's learning plan
 export async function GET(req: NextRequest) {
   try {
     const authResult = await authorize('student');
@@ -216,7 +233,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-    // 获取指定日期的计划和任务
+    // Get plan and tasks for specified date
     const { data: plan, error: planError } = await supabase
       .from('daily_learning_plans')
       .select(`
@@ -247,7 +264,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// 更新任务完成状态
+// Update task completion status
 export async function PATCH(req: NextRequest) {
   try {
     const authResult = await authorize('student');
@@ -363,6 +380,17 @@ async function gatherLearningContext(supabase: any, userId: number) {
 
     context.activeLearningPaths = learningPaths || [];
 
+    // 获取最近的AI笔记
+    const { data: aiNotes } = await supabase
+      .from('course_notes')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('note_type', 'ai_generated')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    context.recentAINotes = aiNotes || [];
+
     // 获取最近的错题记录
     const { data: mistakes } = await supabase
       .from('quiz_submission_answers')
@@ -397,144 +425,169 @@ async function gatherLearningContext(supabase: any, userId: number) {
 // 使用 Tool Calling 生成每日学习计划（升级版）
 async function generateDailyPlanWithToolCalling(userId: number, today: string) {
   try {
-    // 创建 AI agent
+    // 首先收集上下文数据
+    const supabase = await createAdminClient();
+    const context = await gatherLearningContext(supabase, userId);
+    
+    // 使用收集的上下文生成计划
     const agent = new StudifyToolCallingAgent({
-      enabledTools: ['get_user_profile', 'get_course_data', 'search'],
+      enabledTools: [],  // 不使用工具，直接提供上下文
       temperature: 0.7,
       model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
     });
 
     await agent.initialize();
 
-    const prompt = `You are an AI learning coach. Generate a personalized daily learning plan for user ID ${userId}.
+    // 构建包含完整上下文的提示
+    const contextInfo = `
+**User Profile:**
+- Total Study Time: ${context.recentStudySessions?.reduce((sum: number, s: any) => sum + (s.duration_minutes || 0), 0) || 0} minutes (recent sessions)
+- Active Courses: ${context.activeCourses?.length || 0}
+- Learning Paths: ${context.activeLearningPaths?.length || 0}
+- Recent Mistakes: ${context.recentMistakes?.length || 0}
 
-**Your Task:**
-1. Use get_user_profile tool to understand the user's learning history, preferences, and current progress
-2. Use get_course_data tool to get details about their active courses
-3. Use search tool if you need to find specific learning resources
+**Active Courses:**
+${context.activeCourses?.map((c: any) => `- ${c.course?.title || 'Course'} (${c.progress_percentage || 0}% complete)`).join('\n') || 'None'}
 
-**Generate a plan with this JSON structure:**
-\`\`\`json
+**Learning Paths:**
+${context.activeLearningPaths?.map((p: any) => `- ${p.title}: ${p.description}`).join('\n') || 'None'}
+
+**Recent AI Notes:**
+${context.recentAINotes?.map((n: any) => `- ${n.title}: ${n.ai_summary || n.content?.substring(0, 100)}`).join('\n') || 'None'}
+
+**Coach Settings:**
+- Target Daily Minutes: ${context.coachSettings?.target_daily_minutes || 60}
+- Preferred Difficulty: ${context.coachSettings?.preferred_difficulty || 'medium'}
+- Max Daily Tasks: ${context.coachSettings?.max_daily_tasks || 8}
+`;
+
+    const prompt = `You are an AI learning coach creating a personalized daily learning plan.
+
+${contextInfo}
+
+**CRITICAL INSTRUCTION:** You MUST respond EXCLUSIVELY IN ENGLISH. All text including titles, descriptions, insights, and motivation messages MUST be in English language. Do NOT use Chinese or any other language.
+
+**RESPONSE FORMAT:** You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks, just pure JSON.
+
+**Generate a plan with EXACTLY this structure:**
 {
-  "title": "Daily Learning Plan Title",
-  "description": "Brief plan description",
-  "insights": "Key insights based on user's data (mention specific courses, progress, patterns)",
-  "motivationMessage": "Personalized motivational message",
+  "title": "Today's Learning Plan",
+  "description": "Brief plan description IN ENGLISH",
+  "insights": "Key insights based on user's courses, learning paths, and recent notes IN ENGLISH",
+  "motivationMessage": "Personalized message referencing their progress IN ENGLISH",
   "tasks": [
     {
-      "title": "Task title",
-      "description": "Specific, actionable description",
-      "type": "study|review|quiz|reading|practice|video|exercise",
-      "priority": "low|medium|high|urgent",
-      "difficulty": "easy|medium|hard",
+      "title": "Specific task title IN ENGLISH",
+      "description": "Detailed, actionable description IN ENGLISH",
+      "type": "study",
+      "priority": "high",
+      "difficulty": "medium",
       "estimatedMinutes": 25,
       "pointsReward": 10,
-      "category": "Category label",
-      "relatedCourseId": null,
-      "relatedLessonId": null
+      "category": "Learning"
     }
   ]
 }
-\`\`\`
 
 **Requirements:**
-- Generate 4-8 micro-tasks (total time ~60 minutes)
-- Tasks must be SPECIFIC (e.g., "Review React Hooks lesson", not "Study React")
-- Include review tasks for courses with <70% progress
-- Include new learning tasks for active courses
-- Progressive difficulty
-- Motivational and personalized
+- Generate 4-6 tasks totaling ~${context.coachSettings?.target_daily_minutes || 60} minutes
+- Use actual course names from the user's active courses
+- Reference learning paths in task descriptions when relevant
+- Build upon concepts from recent AI notes
+- Task types: study, review, quiz, reading, practice, video, exercise
+- Priorities: low, medium, high, urgent
+- Difficulties: easy, medium, hard
+- ALL TEXT MUST BE IN ENGLISH - NO CHINESE CHARACTERS ALLOWED
 
-Return ONLY the JSON object, no markdown formatting.`;
+**IMPORTANT:** Respond with ONLY the JSON object in ENGLISH. Start with { and end with }. No other text.`;
 
     const result = await agent.execute(prompt, { userId });
     
-    console.log('🎯 Tool calling result:', {
-      toolsUsed: result.toolsUsed,
-      outputLength: result.output?.length
-    });
+    console.log('🎯 AI response preview:', result.output?.substring(0, 200));
 
     // 解析 AI 响应
     let aiPlan;
     try {
-      // Remove markdown code blocks if present
+      // Remove any markdown or code block markers
       let cleanedOutput = result.output.trim();
-      if (cleanedOutput.startsWith('```')) {
-        cleanedOutput = cleanedOutput.replace(/```json?\n?/g, '').replace(/```$/g, '');
-      }
       
+      // Remove markdown code blocks
+      cleanedOutput = cleanedOutput.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Find JSON object
       const jsonMatch = cleanedOutput.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         aiPlan = JSON.parse(jsonMatch[0]);
-        console.log('✅ Successfully parsed AI plan');
+        console.log('✅ Successfully parsed AI plan with', aiPlan.tasks?.length || 0, 'tasks');
       } else {
+        console.error('❌ No JSON object found in response');
         throw new Error('No JSON found in AI response');
       }
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
-      console.log('Raw output:', result.output);
+      console.log('Raw output (first 500 chars):', result.output?.substring(0, 500));
       // 回退到默认计划
-      aiPlan = getDefaultDailyPlan({ userId });
+      aiPlan = getDefaultDailyPlan(context);
     }
 
     return aiPlan;
 
   } catch (error) {
-    console.error('❌ Error generating AI plan with tools:', error);
+    console.error('❌ Error generating AI plan:', error);
     return getDefaultDailyPlan({ userId });
   }
 }
 
-// 默认学习计划模板
+// Default learning plan template - ALL IN ENGLISH
 function getDefaultDailyPlan(context: any) {
   const targetMinutes = context.coachSettings?.target_daily_minutes || 60;
   const sessionLength = context.coachSettings?.preferred_session_length || 25;
   
   return {
-    title: "今日学习计划",
-    description: "为您精心安排的个性化学习任务",
-    insights: "基于您的学习进度，今天适合巩固基础知识并推进新内容。",
-    motivationMessage: "每一小步都是进步，坚持就是胜利！🚀",
+    title: "Today's Learning Plan",
+    description: "Personalized learning tasks crafted for you",
+    insights: "Based on your progress, today is ideal for consolidating fundamentals and advancing new content.",
+    motivationMessage: "Every small step is progress. Persistence leads to victory! 🚀",
     tasks: [
       {
-        title: "回顾昨日学习内容",
-        description: "快速回顾昨天学习的知识点，加深记忆",
+        title: "Review Yesterday's Content",
+        description: "Quickly review the key concepts you learned yesterday to reinforce memory",
         type: "review",
         priority: "high",
         difficulty: "easy",
         estimatedMinutes: 10,
         pointsReward: 5,
-        category: "复习"
+        category: "Review"
       },
       {
-        title: "专注学习25分钟",
-        description: "使用番茄钟技术，专注学习当前课程",
+        title: "Focused Study Session",
+        description: "Use the Pomodoro technique for focused learning on your current course",
         type: "study",
         priority: "high",
         difficulty: "medium",
         estimatedMinutes: sessionLength,
         pointsReward: 15,
-        category: "学习"
+        category: "Study"
       },
       {
-        title: "练习题巩固",
-        description: "完成相关练习题，检验学习效果",
+        title: "Practice Exercises",
+        description: "Complete relevant practice problems to test your understanding",
         type: "quiz",
         priority: "medium",
         difficulty: "medium",
         estimatedMinutes: 15,
         pointsReward: 10,
-        category: "练习"
+        category: "Practice"
       },
       {
-        title: "总结今日所学",
-        description: "用自己的话总结今天学到的重点内容",
+        title: "Summarize Today's Learning",
+        description: "Write a summary of today's key points in your own words",
         type: "exercise",
         priority: "medium",
         difficulty: "easy",
         estimatedMinutes: 10,
         pointsReward: 8,
-        category: "总结"
+        category: "Reflection"
       }
     ]
   };

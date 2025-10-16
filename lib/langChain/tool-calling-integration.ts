@@ -49,14 +49,16 @@ const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant for Studify, an education
 - Performing calculations and utility functions
 
 Guidelines:
-1. Always use tools when you need information from the knowledge base
+1. Always try to use tools when available, but if tools don't return results, use your general knowledge to help
 2. Be helpful, accurate, and educational in your responses
 3. When answering questions, cite sources when available
-4. For course analysis, provide actionable insights
-5. Respect user privacy and only access authorized data
-6. Use multiple tools when needed to provide comprehensive answers
+4. If no specific course content is found, provide helpful general educational guidance
+5. Never say "I can't find information" - always provide some helpful response
+6. For course analysis, provide actionable insights
+7. Respect user privacy and only access authorized data
+8. Use multiple tools when needed to provide comprehensive answers
 
-Remember: You're helping students and educators learn more effectively!`;
+Remember: You're helping students and educators learn more effectively! Even without specific course content, you can still provide valuable educational assistance using your general knowledge.`;
 
 // === TOOL CALLING AGENT ===
 
@@ -213,10 +215,20 @@ export class StudifyToolCallingAgent {
       console.log("🔍 Raw AgentExecutor result:", {
         hasOutput: !!result.output,
         outputLength: result.output?.length || 0,
+        outputPreview: result.output?.substring(0, 200) || "No output",
         hasIntermediateSteps: !!result.intermediateSteps,
         intermediateStepsLength: result.intermediateSteps?.length || 0,
         resultKeys: Object.keys(result),
       });
+
+      // Log the actual output for debugging
+      if (result.output) {
+        console.log("📝 Agent Output (first 500 chars):");
+        console.log(result.output.substring(0, 500));
+        console.log("📝 Agent Output (full length):", result.output.length);
+      } else {
+        console.log("⚠️ Agent Output is empty or undefined!");
+      }
 
       // Extract tools used from intermediate steps
       const toolsUsed: string[] = [];
@@ -237,12 +249,15 @@ export class StudifyToolCallingAgent {
         }
       } else {
         console.log("⚠️ No intermediate steps found in result");
+        console.log(
+          "⚠️ This means the LLM answered directly without using tools!"
+        );
       }
 
       console.log(
-        `✅ Tool calling completed in ${executionTime}ms using tools: ${toolsUsed.join(
-          ", "
-        )}`
+        `✅ Tool calling completed in ${executionTime}ms using tools: ${
+          toolsUsed.join(", ") || "NONE"
+        }`
       );
 
       return {
@@ -589,15 +604,17 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     const config: ToolCallingConfig = {
       toolCategories: ["SEARCH_AND_QA", "CONTENT_ANALYSIS", "RECOMMENDATIONS"],
       userId: options.userId,
+      verbose: true, // Enable verbose logging to debug
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For this educational Q&A session:
-1. Search for relevant information using the search tool
-2. Use the answer_question tool for detailed responses
-3. When users ask for recommendations, course suggestions, or what to learn, use the recommend_content tool
+1. You MUST use the answer_question tool to provide detailed, accurate responses
+2. You MUST use the search tool to find relevant course content before answering
+3. When users ask for recommendations, course suggestions, or what to learn, you MUST use the recommend_content tool
 4. ${options.includeAnalysis ? "Provide additional analysis if helpful" : ""}
 5. Always cite sources and provide confidence levels
-6. Focus on educational value and accuracy`,
+6. Focus on educational value and accuracy
+7. DO NOT answer directly without using tools - always use the available tools first`,
     };
 
     const agent = new StudifyToolCallingAgent(config);
@@ -623,10 +640,82 @@ Please provide a contextually appropriate response considering our previous conv
       )}`;
     }
 
+    console.log(
+      `🎯 Executing educationalQA with enhanced question (length: ${enhancedQuestion.length})`
+    );
+
     const result = await agent.execute(enhancedQuestion, {
       userId: options.userId,
       includeSteps: true,
     });
+
+    console.log(`📊 educationalQA result:`, {
+      outputLength: result.output?.length || 0,
+      outputPreview: result.output?.substring(0, 200),
+      toolsUsed: result.toolsUsed,
+      hasIntermediateSteps: !!result.intermediateSteps,
+      intermediateStepsCount: result.intermediateSteps?.length || 0,
+    });
+
+    console.log("📝 Full educationalQA output:");
+    console.log(result.output || "NO OUTPUT");
+
+    // If no tools were used, the LLM answered directly - log warning and try fallback
+    if (result.toolsUsed.length === 0) {
+      console.warn(
+        "⚠️ educationalQA: No tools were used! LLM answered directly without using tools."
+      );
+      console.warn("⚠️ Direct answer (first 300 chars):");
+      console.warn(result.output?.substring(0, 300) || "NO OUTPUT");
+      console.warn(
+        "⚠️ This may indicate the model does not properly support function calling."
+      );
+
+      // Try to manually call the answer_question tool as fallback
+      try {
+        console.log("🔧 Attempting manual tool call as fallback...");
+        const qaToolInstance = getToolByName("answer_question");
+
+        if (qaToolInstance) {
+          const toolInput = JSON.stringify({
+            question: question, // Use original question, not enhanced
+            contentTypes: options.contentTypes,
+            includeSourceReferences: true,
+          });
+
+          console.log(
+            "🔧 Calling answer_question tool directly with input:",
+            toolInput.substring(0, 200)
+          );
+          // Type assertion to fix TypeScript union type issue
+          const toolResult = await (
+            qaToolInstance.func as (input: string) => Promise<string>
+          )(toolInput);
+          console.log(
+            "✅ Manual tool call successful, result length:",
+            toolResult.length
+          );
+          console.log("✅ Tool result preview:", toolResult.substring(0, 300));
+
+          // Return the tool result instead
+          return {
+            answer: toolResult,
+            sources: [],
+            analysis: options.includeAnalysis ? toolResult : undefined,
+            toolsUsed: ["answer_question"],
+            confidence: 0.85,
+          };
+        } else {
+          console.error("❌ answer_question tool not found!");
+        }
+      } catch (fallbackError) {
+        console.error("❌ Manual tool call fallback failed:", fallbackError);
+        console.error(
+          "❌ Error details:",
+          fallbackError instanceof Error ? fallbackError.stack : fallbackError
+        );
+      }
+    }
 
     // Extract relevant information from the result
     return {

@@ -328,6 +328,39 @@ async function gatherRetroLearningData(supabase: any, userId: number, date: stri
 
     data.todayPlan = todayPlan;
 
+    // 获取用户的学习路径
+    const { data: learningPaths } = await supabase
+      .from('learning_paths')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    data.activeLearningPaths = learningPaths || [];
+
+    // 获取今日的AI笔记
+    const { data: aiNotes } = await supabase
+      .from('course_notes')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('note_type', 'ai_generated')
+      .gte('created_at', startOfDay.toISOString())
+      .lte('created_at', endOfDay.toISOString());
+
+    data.todayAINotes = aiNotes || [];
+
+    // 获取最近的AI笔记（用于上下文）
+    const { data: recentAINotes } = await supabase
+      .from('course_notes')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('note_type', 'ai_generated')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    data.recentAINotes = recentAINotes || [];
+
   } catch (error) {
     console.error('Error gathering retro learning data:', error);
   }
@@ -340,89 +373,101 @@ async function generateRetroAnalysisWithToolCalling(context: any) {
   try {
     const { userId, userInput, learningData, retroType, date } = context;
     
-    // 创建 AI agent
+    // 创建 AI agent - 不使用工具，直接提供上下文
     const agent = new StudifyToolCallingAgent({
-      enabledTools: ['get_user_profile', 'get_course_data', 'search'],
+      enabledTools: [],
       temperature: 0.7,
       model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
     });
 
     await agent.initialize();
 
-    const prompt = `You are an AI learning coach conducting a learning retrospective for user ID ${userId} on ${date}.
+    // 构建完整上下文信息
+    const contextInfo = `
+**Learning Paths:**
+${learningData.activeLearningPaths?.map((p: any) => `- ${p.title}: ${p.description}`).join('\n') || 'None'}
 
-**Your Task:**
-1. Use get_user_profile tool to understand the user's overall learning journey and patterns
-2. Use get_course_data tool to get context about their courses and progress
-3. Analyze the user's self-assessment against their actual performance data
+**Today's AI Notes:**
+${learningData.todayAINotes?.map((n: any) => `- ${n.title}: ${n.ai_summary || n.content?.substring(0, 100)}`).join('\n') || 'None created today'}
 
-**User Self-Assessment:**
+**Recent AI Notes:**
+${learningData.recentAINotes?.map((n: any) => `- ${n.title}`).join('\n') || 'None'}
+`;
+
+    const prompt = `You are an AI learning coach analyzing today's learning session for a student.
+
+**Date:** ${date}
+
+**Student's Self-Assessment:**
 - Overall Rating: ${userInput.selfRating}/5
 - Mood: ${userInput.moodRating}
 - Energy Level: ${userInput.energyLevel}/5
 - Focus Quality: ${userInput.focusQuality}/5
 
-**User Reflections:**
+**Student's Reflections:**
 - Achievements: ${userInput.achievementsToday || 'None provided'}
 - Challenges: ${userInput.challengesFaced || 'None provided'}
 - Lessons Learned: ${userInput.lessonsLearned || 'None provided'}
-- Areas for Improvement: ${userInput.improvementsNeeded || 'None provided'}
+- Improvements Needed: ${userInput.improvementsNeeded || 'None provided'}
 - Tomorrow's Goals: ${userInput.tomorrowGoals || 'None provided'}
 
-**Actual Performance Data:**
+**Actual Performance:**
 - Study Duration: ${learningData.totalStudyTime} minutes
 - Tasks Completed: ${learningData.tasksCompleted}
 - Points Earned: ${learningData.pointsEarned}
 - Courses Progressed: ${learningData.coursesProgressed}
 - Achievements Unlocked: ${learningData.achievementsUnlocked}
+- AI Notes Created: ${learningData.todayAINotes?.length || 0}
 
-**Generate analysis with this JSON structure:**
-\`\`\`json
+${contextInfo}
+
+**CRITICAL INSTRUCTION:** You MUST respond EXCLUSIVELY IN ENGLISH. All analysis, suggestions, and feedback MUST be in English language. Do NOT use Chinese or any other language.
+
+**RESPONSE FORMAT:** Respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks.
+
+**Generate analysis with EXACTLY this structure:**
 {
-  "analysis": "Deep, specific analysis comparing self-assessment with actual data. Mention specific courses and patterns.",
-  "suggestions": "Actionable, personalized suggestions based on their specific challenges and courses.",
-  "nextFocus": "Clear learning priorities for tomorrow based on current progress and goals.",
-  "strengths": "Specific strengths identified from both data and reflections.",
-  "weaknesses": "Areas needing improvement with constructive framing.",
-  "patterns": "Learning patterns and habits discovered from the data."
+  "analysis": "Compare self-assessment with actual data IN ENGLISH. Reference learning paths and notes.",
+  "suggestions": "Actionable advice based on challenges and learning path progress IN ENGLISH.",
+  "nextFocus": "Tomorrow's priorities aligned with learning path milestones IN ENGLISH.",
+  "strengths": "Specific strengths from data and reflections IN ENGLISH.",
+  "weaknesses": "Areas for improvement with constructive framing IN ENGLISH.",
+  "patterns": "Learning patterns including note-taking habits IN ENGLISH."
 }
-\`\`\`
 
 **Requirements:**
-- Be SPECIFIC (mention actual courses, numbers, patterns from the tools)
-- Compare self-rating with actual performance
-- Provide actionable, not generic advice
+- Be specific (use actual numbers and course names)
+- Compare self-rating with performance data
+- Reference learning paths when showing progress
+- Acknowledge note-taking as deep learning evidence
 - Be encouraging but honest
 - Focus on growth mindset
+- ALL TEXT MUST BE IN ENGLISH - NO CHINESE CHARACTERS ALLOWED
 
-Return ONLY the JSON object, no markdown formatting.`;
+**IMPORTANT:** Respond with ONLY the JSON object in ENGLISH. Start with { and end with }. No other text.`;
 
     const result = await agent.execute(prompt, { userId });
     
-    console.log('🎯 Tool calling result:', {
-      toolsUsed: result.toolsUsed,
-      outputLength: result.output?.length
-    });
+    console.log('🎯 AI response preview:', result.output?.substring(0, 200));
 
     // 解析AI响应
     let aiAnalysis;
     try {
       // Remove markdown code blocks if present
       let cleanedOutput = result.output.trim();
-      if (cleanedOutput.startsWith('```')) {
-        cleanedOutput = cleanedOutput.replace(/```json?\n?/g, '').replace(/```$/g, '');
-      }
+      cleanedOutput = cleanedOutput.replace(/```json\s*/g, '').replace(/```\s*/g, '');
       
       const jsonMatch = cleanedOutput.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         aiAnalysis = JSON.parse(jsonMatch[0]);
         console.log('✅ Successfully parsed AI analysis');
       } else {
+        console.error('❌ No JSON object found in response');
         throw new Error('No JSON found in AI response');
       }
     } catch (parseError) {
       console.error('❌ Error parsing AI analysis:', parseError);
-      console.log('Raw output:', result.output);
+      console.log('Raw output (first 500 chars):', result.output?.substring(0, 500));
       // 回退到默认分析
       aiAnalysis = getDefaultRetroAnalysis(userInput, learningData);
     }
@@ -430,29 +475,29 @@ Return ONLY the JSON object, no markdown formatting.`;
     return aiAnalysis;
 
   } catch (error) {
-    console.error('❌ Error generating AI analysis with tools:', error);
+    console.error('❌ Error generating AI analysis:', error);
     return getDefaultRetroAnalysis(context.userInput, context.learningData);
   }
 }
 
-// 默认复盘分析模板
+// Default retrospective analysis template - ALL IN ENGLISH
 function getDefaultRetroAnalysis(userInput: any, learningData: any) {
-  const performance = learningData.tasksCompleted >= 3 ? '出色' : learningData.tasksCompleted >= 1 ? '不错' : '需要改进';
+  const performance = learningData.tasksCompleted >= 3 ? 'excellent' : learningData.tasksCompleted >= 1 ? 'good' : 'needs improvement';
   
   return {
-    analysis: `今日学习表现${performance}，完成了${learningData.tasksCompleted}个任务，学习${learningData.totalStudyTime}分钟。您的自评${userInput.selfRating}/5分反映了对学习状态的认知。`,
+    analysis: `Today's learning performance was ${performance}, completing ${learningData.tasksCompleted} tasks with ${learningData.totalStudyTime} minutes of study time. Your self-rating of ${userInput.selfRating}/5 reflects awareness of your learning state.`,
     suggestions: learningData.totalStudyTime < 30 
-      ? "建议明天增加专注学习时间，可以尝试番茄钟技术。"
-      : "保持良好的学习节奏，可以适当增加复习和巩固环节。",
+      ? "Consider increasing focused study time tomorrow. Try using the Pomodoro technique for better time management."
+      : "Maintain your good learning rhythm. You might benefit from adding more review and consolidation sessions.",
     nextFocus: learningData.tasksCompleted === 0 
-      ? "明日重点放在建立学习习惯，从简单任务开始。"
-      : "继续当前的学习轨道，深化理解，增加实践。",
+      ? "Tomorrow, focus on building study habits. Start with simple tasks to build momentum."
+      : "Continue your current learning trajectory. Deepen understanding and increase practical application.",
     strengths: userInput.selfRating >= 4 
-      ? "学习自觉性强，能够客观评估自己的表现。"
-      : "有改进意识，愿意反思和调整学习策略。",
+      ? "Strong learning motivation and ability to objectively assess your performance."
+      : "Awareness of areas for improvement and willingness to reflect and adjust learning strategies.",
     weaknesses: learningData.totalStudyTime < 30 
-      ? "学习时间较短，可能存在专注度不够或时间安排问题。"
-      : "可以在学习方法和效率方面进一步优化。",
-    patterns: `您倾向于${userInput.energyLevel >= 4 ? '高能量' : '中低能量'}状态下学习，专注质量${userInput.focusQuality >= 4 ? '较好' : '有待提升'}。`
+      ? "Limited study time may indicate focus challenges or scheduling issues."
+      : "Consider optimizing learning methods and efficiency for better results.",
+    patterns: `You tend to study in a ${userInput.energyLevel >= 4 ? 'high-energy' : 'moderate-energy'} state, with focus quality ${userInput.focusQuality >= 4 ? 'generally good' : 'room for improvement'}.`
   };
 }

@@ -82,8 +82,9 @@ Please provide a clear, educational answer that:
 
     const totalProcessingTime = Date.now() - startTime;
 
-    console.log(`✅ Video AI Assistant completed in ${totalProcessingTime}ms using tools: ${result.toolsUsed?.join(', ')}`);
+    console.log(`✅ Video AI Assistant completed in ${totalProcessingTime}ms using tools: ${result.toolsUsed?.join(', ') || 'NONE'}`);
     console.log(`📊 Response quality: Sources=${result.sources?.length || 0}, Tools=${result.toolsUsed?.length || 0}`);
+    console.log(`📝 Answer preview: ${result.answer?.substring(0, 200) || 'No answer'}`);
 
     // Format sources for compatibility
     const formattedSources = (result.sources || []).map((source: any) => ({

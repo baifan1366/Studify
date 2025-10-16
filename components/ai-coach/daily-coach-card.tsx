@@ -14,7 +14,10 @@ import {
   Play,
   Plus,
   Lightbulb,
-  Heart
+  Heart,
+  Route,
+  TrendingUp,
+  Award
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -31,6 +34,7 @@ import {
   getPriorityInfo,
   DailyLearningPlan 
 } from '@/hooks/ai-coach/use-ai-coach';
+import { useLearningPathProgress } from '@/hooks/ai-coach/use-learning-path-progress';
 
 interface DailyCoachCardProps {
   className?: string;
@@ -40,16 +44,24 @@ interface DailyCoachCardProps {
 export default function DailyCoachCard({ className, onReflectionClick }: DailyCoachCardProps) {
   const t = useTranslations('AICoach');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showPathProgress, setShowPathProgress] = useState(false);
   
   // Hooks
   const { data: planData, isLoading, error } = useDailyPlan();
   const generatePlan = useGenerateDailyPlan();
   const updateTaskStatus = useUpdateTaskStatus();
+  const { data: pathProgress, isLoading: pathProgressLoading } = useLearningPathProgress();
   
   const plan = planData;
   const stats = usePlanStats(plan);
 
   const handleGeneratePlan = () => {
+    // AI Coach generates personalized plan using:
+    // - User's learning paths (long-term goals and roadmaps)
+    // - Recent AI notes (insights and key learnings)
+    // - Active courses and progress
+    // - Learning statistics and patterns
+    // This ensures tasks align with learning paths and build upon saved notes
     generatePlan.mutate();
   };
 
@@ -308,10 +320,19 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
               size="sm"
               onClick={handleGeneratePlan}
               disabled={generatePlan.isPending}
-              className="flex-1 bg-white/5 border-white/20 text-white hover:bg-white/10"
+              className="flex-1 bg-white/5 border-white/20 text-white hover:bg-white/10 disabled:opacity-50"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              {t('regenerate_plan')}
+              {generatePlan.isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  {t('generating_plan')}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  {t('regenerate_plan')}
+                </>
+              )}
             </Button>
             
             {onReflectionClick && (
@@ -341,6 +362,131 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
                 <p className="text-xs text-green-500 mt-2">{t('time_to_reflect')}</p>
               )}
             </motion.div>
+          )}
+
+          {/* Learning Path Progress Section */}
+          {pathProgress && pathProgress.length > 0 && (
+            <div className="border-t border-white/10 pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-white/80 flex items-center gap-2">
+                  <Route className="w-4 h-4 text-indigo-400" />
+                  Learning Path Progress
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPathProgress(!showPathProgress)}
+                  className="text-white/60 hover:text-white/80 h-auto p-1"
+                >
+                  {showPathProgress ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </Button>
+              </div>
+
+              {/* Path Progress Overview (Always Visible) */}
+              <div className="space-y-2">
+                {pathProgress.slice(0, showPathProgress ? pathProgress.length : 2).map((path) => (
+                  <div key={path.pathId} className="p-3 bg-white/5 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h5 className="text-sm font-medium text-white truncate">{path.pathTitle}</h5>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1 text-xs text-white/50">
+                            <Award className="w-3 h-3" />
+                            {path.completedMilestones}/{path.totalMilestones} milestones
+                          </div>
+                          {path.currentMilestone && (
+                            <div className="flex items-center gap-1 text-xs text-indigo-300">
+                              <Target className="w-3 h-3" />
+                              {path.currentMilestone.name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right ml-3">
+                        <div className="text-lg font-bold text-white">{path.overallProgress}%</div>
+                        <div className="text-xs text-white/40">complete</div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+                      <motion.div
+                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-purple-600"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${path.overallProgress}%` }}
+                        transition={{ duration: 1, ease: 'easeOut' }}
+                      />
+                      
+                      {/* Milestone Markers */}
+                      {path.milestones.map((milestone, idx) => (
+                        <div
+                          key={milestone.id}
+                          className="absolute top-0 bottom-0 w-0.5 bg-white/20"
+                          style={{ 
+                            left: `${((idx + 1) / path.totalMilestones) * 100}%` 
+                          }}
+                          title={milestone.name}
+                        >
+                          {milestone.completed && (
+                            <CheckCircle2 
+                              className="absolute -top-1 -left-1.5 w-3 h-3 text-green-400 bg-slate-900 rounded-full" 
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Milestones Detail (when expanded) */}
+                    {showPathProgress && (
+                      <div className="mt-3 space-y-1">
+                        {path.milestones.map((milestone) => (
+                          <div
+                            key={milestone.id}
+                            className={cn(
+                              "flex items-center gap-2 text-xs p-2 rounded",
+                              milestone.completed 
+                                ? "bg-green-500/10 text-green-300" 
+                                : milestone.id === path.currentMilestone?.id
+                                ? "bg-indigo-500/10 text-indigo-300"
+                                : "text-white/40"
+                            )}
+                          >
+                            {milestone.completed ? (
+                              <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+                            ) : (
+                              <div className="w-3 h-3 rounded-full border border-current flex-shrink-0" />
+                            )}
+                            <span className="flex-1 truncate">{milestone.name}</span>
+                            {milestone.completedAt && (
+                              <span className="text-xs opacity-60">
+                                {new Date(milestone.completedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Next Milestone Hint */}
+                    {path.nextMilestone && !showPathProgress && (
+                      <div className="mt-2 text-xs text-white/60 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        Next: {path.nextMilestone.name}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {pathProgress.length > 2 && !showPathProgress && (
+                <button 
+                  onClick={() => setShowPathProgress(true)}
+                  className="w-full text-xs text-white/60 hover:text-white/80 transition-colors mt-2"
+                >
+                  View all {pathProgress.length} learning paths →
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

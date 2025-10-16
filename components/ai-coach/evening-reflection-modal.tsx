@@ -58,6 +58,12 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
 
   const handleSubmit = async () => {
     try {
+      // AI Coach analyzes reflection using:
+      // - User's learning paths (to show progress toward goals)
+      // - Today's AI notes (evidence of deep learning)
+      // - Recent AI notes (for pattern analysis)
+      // - Actual performance data vs self-assessment
+      // This provides comprehensive, context-aware insights
       await createRetro.mutateAsync(formData);
       setShowAnalysis(true);
     } catch (error) {

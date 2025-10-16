@@ -71,8 +71,16 @@ The system uses the existing `aiWorkflowExecutor` to generate personalized plans
 - User's learning history and progress
 - Recent mistakes and weak areas
 - Active courses and learning paths
+- **Active learning paths**: Long-term goals and roadmaps
+- **Recent AI notes**: Saved insights and key learnings (last 10 notes)
 - Coach settings and preferences
 - Learning statistics and patterns
+
+**Enhanced Personalization:**
+- Tasks are aligned with the user's active learning paths
+- Daily tasks build upon concepts from recent AI notes
+- AI references specific learning path milestones in task descriptions
+- Motivation messages incorporate learning path progress
 
 ### Retrospective Analysis
 AI analyzes user reflections to provide:
@@ -81,6 +89,13 @@ AI analyzes user reflections to provide:
 - Tomorrow's focus areas
 - Identified strengths and weaknesses
 - Learning pattern recognition
+
+**Enhanced Context Awareness:**
+- **Learning path alignment**: Analysis includes progress toward learning path goals
+- **AI notes integration**: Acknowledges note-taking activity as evidence of deep learning
+- References today's AI notes (created during learning sessions)
+- Provides insights on how daily learning aligns with long-term paths
+- Suggests how to better utilize learning paths and notes for future sessions
 
 ## 📱 Push Notification System
 
@@ -154,9 +169,15 @@ Run the migration to create all necessary tables:
 8. **Cron Jobs**: Automated notification scheduling
 
 ### 🔄 Data Flow
-1. **Daily Plan**: User opens dashboard → AI generates plan → Tasks displayed → User completes tasks → Points awarded
-2. **Evening Reflection**: User reflects → AI analyzes → Insights provided → Tomorrow's focus suggested
+1. **Daily Plan**: User opens dashboard → AI generates plan (using learning paths & notes context) → Tasks displayed → User completes tasks → Points awarded
+2. **Evening Reflection**: User reflects → AI analyzes (considering learning paths & notes) → Insights provided → Tomorrow's focus suggested
 3. **Notifications**: Cron jobs → Check user settings → Send targeted notifications → Track engagement
+
+**Context Integration:**
+- Learning paths provide long-term direction for daily tasks
+- AI notes capture insights that inform future plan generation
+- Retrospective analysis tracks progress along learning paths
+- System learns from user's note-taking patterns
 
 ### 🎯 User Experience
 - **Morning**: Receive daily plan notification, review AI-generated tasks

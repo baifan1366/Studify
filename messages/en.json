@@ -1752,9 +1752,16 @@
   },
   "ClassroomContent": {
     "error_title": "Error",
-    "error_fetch_user": "Failed to load user data",
-    "default_user_name": "Student",
+    "attempts_used": "{used}/{max} attempts used",
+    "attempts_used_unlimited": "{used} attempts used",
     "loading": "Loading...",
+    "actions": {
+      "edit_quiz": "Edit Quiz",
+      "delete_quiz": "Delete Quiz",
+      "continue": "Continue",
+      "preview": "Preview",
+      "start": "Start"
+    },
     "welcome": "Welcome to your Classroom, {name}!",
     "subtitle": "Explore courses, track progress, and enhance your learning experience"
   },
@@ -7457,22 +7464,40 @@
     "total_groups": "Total Groups",
     "your_groups": "Your Groups"
   },
-  "QuizList": {
-    "available_quizzes": "Available Quizzes",
-    "my_quizzes": "My Quizzes",
-    "no_quizzes": "No quizzes found",
-    "create_quiz": "Create your first quiz!"
-  },
-  "QuizCard": {
-    "questions": "questions",
-    "attempts": "attempts",
-    "difficulty": "Difficulty",
-    "created_by": "Created by",
-    "take_quiz": "Take Quiz",
-    "view_quiz": "View Quiz",
-    "edit": "Edit",
-    "delete": "Delete",
-    "no_questions_warning": "This quiz has no questions yet"
+  "CommunityQuizHeader": {
+    "search_placeholder": "Search quizzes...",
+    "tabs": {
+      "popular": "Popular",
+      "newest": "Newest",
+      "mine": "My Quizzes"
+    },
+    "create_quiz": "Create Quiz",
+    "filters_label": "Filters:",
+    "filters": {
+      "subject": {
+        "label": "Subject:",
+        "placeholder": "All subjects",
+        "all": "All subjects"
+      },
+      "grade": {
+        "label": "Grade:",
+        "placeholder": "All grades",
+        "all": "All grades"
+      },
+      "difficulty": {
+        "label": "Difficulty:",
+        "placeholder": "All",
+        "options": {
+          "all": "All",
+          "easy": "⭐ Easy",
+          "fair": "⭐⭐ Fair",
+          "good": "⭐⭐⭐ Good",
+          "hard": "⭐⭐⭐⭐ Hard",
+          "expert": "⭐⭐⭐⭐⭐ Expert"
+        }
+      }
+    },
+    "clear": "Clear"
   },
   "AllMyGroupsModal": {
     "title": "All My Groups",
@@ -7507,7 +7532,49 @@
     "total_quizzes": "Total Quizzes",
     "total_attempts": "Total Attempts",
     "your_quizzes": "Your Quizzes",
-    "your_attempts": "Your Attempts"
+    "your_attempts": "Your Attempts",
+    "attempt_status": {
+      "not_started": "Not Started",
+      "in_progress": "In Progress",
+      "submitted": "Completed",
+      "graded": "Graded"
+    },
+    "points_abbrev": "{points} pts",
+    "my_attempts": {
+      "title": "My Attempts",
+      "show_more": "Show More",
+      "empty_message": "No quiz attempts yet",
+      "browse_button": "Browse Quizzes"
+    },
+    "shared": {
+      "title": "Shared with Me",
+      "private_label": "Private",
+      "permission": {
+        "view": "View Only",
+        "attempt": "Can Attempt",
+        "edit": "Can Edit"
+      },
+      "shared_by_prefix": "Shared by",
+      "private_quiz": "Private Quiz",
+      "empty_message": "No private quizzes shared with you",
+      "empty_subtitle": "Private quizzes require explicit permission",
+      "expiry": {
+        "none": "No expiry",
+        "expired": "Expired",
+        "today": "Expires today",
+        "tomorrow": "Expires tomorrow",
+        "in_days": "Expires in {count} days",
+        "full_format": "MMM d, yyyy"
+      }
+    },
+    "stats": {
+      "title": "My Stats",
+      "total_attempts": "Total Attempts",
+      "completed": "Completed",
+      "in_progress": "In Progress",
+      "average_score": "Average Score",
+      "best_score": "Best Score"
+    }
   },
   "QuizTimer": {
     "time_up": "Time's up!",
@@ -7634,12 +7701,41 @@
     "share_quiz": "Share Quiz",
     "copy_link": "Copy Link",
     "link_copied": "Link copied to clipboard!",
-    "share_description": "Share this quiz with others using the link below:"
+    "share_description": "Share this quiz with others using the link below:",
+    "points_abbr": "pts"
+  },
+  "QuizLeaderboard": {
+    "title": "Leaderboard",
+    "empty_title": "No completions yet",
+    "empty_subtitle": "Be the first to complete this quiz!",
+    "points_abbr": "pts"
+  },
+  "QuizRecentAttempts": {
+    "view_attempts": "View Attempts",
+    "recent_attempts_title": "Recent Attempts - {title}",
+    "your_attempts": "Your Attempts",
+    "load_error": "Failed to load attempts",
+    "all_attempts_tab": "All Attempts ({count})",
+    "attempts_used": "{used} / {max} attempts used",
+    "attempt_label": "Attempt #{number}",
+    "score_label": "Score",
+    "stat_total_attempts": "Total Attempts",
+    "stat_unique_users": "Unique Users",
+    "stat_success_rate": "Success Rate",
+    "stat_avg_score": "Avg Score",
+    "stat_max_score": "Max Score",
+    "stat_avg_time": "Avg Time",
+    "no_attempts": "No attempts found",
+    "no_attempts_message": "暂无尝试记录",
+    "view_more_attempts": "View More Attempts",
+    "status_submitted": "Submitted",
+    "status_graded": "Graded",
+    "status_expired": "Expired",
+    "status_default": "{status}"
   },
   "QuizHeader": {
     "quiz_creator": "Quiz Creator",
     "you": "(You)",
-    "take_quiz": "Take Quiz",
     "retake_quiz": "Retake Quiz",
     "view_results": "View Results",
     "share": "Share",
@@ -7649,7 +7745,53 @@
     "attempts": "attempts",
     "difficulty": "Difficulty",
     "visibility_private": "Private",
-    "visibility_public": "Public"
+    "visibility_public": "Public",
+    "loading": "Loading...",
+    "starting": "Starting...",
+    "continue_quiz": "Continue Quiz",
+    "preview_quiz": "Preview Quiz",
+    "start_quiz": "Start Quiz",
+    "status": {
+      "no_access": "No Access",
+      "view_only": "View Only",
+      "completed": "Completed",
+      "unavailable": "Unavailable"
+    },
+    "permission_badge": "{permission} Permission",
+    "permissions": {
+      "view": "View",
+      "attempt": "Attempt",
+      "edit": "Edit",
+      "owner": "Owner"
+    },
+    "access_granted_invite": "Access granted via invite",
+    "subjects": {
+      "mathematics": "Mathematics",
+      "science": "Science",
+      "english": "English",
+      "history": "History",
+      "geography": "Geography",
+      "computer_science": "Computer Science",
+      "physics": "Physics",
+      "chemistry": "Chemistry",
+      "biology": "Biology",
+      "literature": "Literature",
+      "economics": "Economics"
+    },
+    "grades": {
+      "grade_1": "Grade 1",
+      "grade_2": "Grade 2",
+      "grade_3": "Grade 3",
+      "grade_4": "Grade 4",
+      "grade_5": "Grade 5",
+      "grade_6": "Grade 6",
+      "grade_7": "Grade 7",
+      "grade_8": "Grade 8",
+      "grade_9": "Grade 9",
+      "grade_10": "Grade 10",
+      "grade_11": "Grade 11",
+      "grade_12": "Grade 12"
+    }
   },
   "QuizStats": {
     "quiz_overview": "Quiz Overview",

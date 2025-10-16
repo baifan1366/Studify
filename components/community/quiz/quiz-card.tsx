@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Card,
   CardHeader,
@@ -25,6 +25,7 @@ import { useUser } from "@/hooks/profile/use-user";
 import DeleteQuizModal from "@/components/community/quiz/delete-quiz-modal";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
+import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
 
 interface QuizCardProps {
   quiz: CommunityQuiz & { question_count?: number };
@@ -42,6 +43,7 @@ function formatCode(code: string): string {
 
 export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   const t = useTranslations('QuizCard');
+  const locale = useLocale();
   const { data: attemptStatus, isLoading: statusLoading } = useUserAttemptStatus(quiz.slug);
   const { data: currentUser } = useUser();
   const router = useRouter();
@@ -49,30 +51,23 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   const [isModalClosing, setIsModalClosing] = useState(false);
   const isTutor = currentUser?.profile?.role === 'tutor';
   
-  // Debug log to check quiz data
-  console.log("QuizCard received quiz data:", {
-    title: quiz.title,
-    subject: quiz.subject,
-    grade: quiz.grade,
-    subject_id: quiz.subject_id,
-    grade_id: quiz.grade_id
-  });
-
   // difficulty label: convert number -> text if needed
-  const difficultyLabel =
-    typeof quiz.difficulty === "number"
-      ? quiz.difficulty === 1
-        ? "Easy"
-        : quiz.difficulty === 2
-        ? "Medium"
-        : quiz.difficulty === 3
-        ? "Hard"
-        : quiz.difficulty === 4
-        ? "Very Hard"
-        : quiz.difficulty === 5
-        ? "Expert"
-        : String(quiz.difficulty)
-      : String(quiz.difficulty);
+  const difficultyLabel = (() => {
+    if (typeof quiz.difficulty === "number") {
+      const knownLevels = [1, 2, 3, 4, 5];
+      if (knownLevels.includes(quiz.difficulty)) {
+        return t(`difficulty_levels.${quiz.difficulty}` as const);
+      }
+      return t("difficulty_levels.custom_number", { value: quiz.difficulty });
+    }
+    if (quiz.difficulty) {
+      return t("difficulty_levels.custom_text", { value: String(quiz.difficulty) });
+    }
+    return t("difficulty_levels.unknown");
+  })();
+
+  const subjectName = quiz.subject ? getSubjectName(quiz.subject, locale) : undefined;
+  const gradeName = quiz.grade ? getGradeName(quiz.grade, locale) : undefined;
 
 
   // 确定按钮状态
@@ -116,7 +111,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
         {isPrivate && (
           <Badge className="bg-orange-500 text-white flex items-center gap-1">
             <Lock className="h-3 w-3" />
-            Private
+            {t("badges.private")}
           </Badge>
         )}
         
@@ -155,7 +150,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
                 }}
               >
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Quiz
+                {t("actions.edit_quiz")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -166,7 +161,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Quiz
+                {t("actions.delete_quiz")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -188,8 +183,8 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               </AvatarFallback>
             </Avatar>
             <span className="text-xs text-gray-500">
-              by {quiz.author.display_name || 'Anonymous'}
-              {isAuthor && <span className="text-blue-600 font-medium"> (You)</span>}
+              {t("author_by", { name: quiz.author.display_name || t("unknown_author") })}
+              {isAuthor && <span className="text-blue-600 font-medium"> {t("you_suffix")}</span>}
             </span>
           </div>
         )}
@@ -198,13 +193,13 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
           {quiz.subject && quiz.subject.code && (
             <Badge variant="outline" className="flex items-center gap-1">
               <BookOpen className="h-3 w-3" />
-              {formatCode(quiz.subject.code)}
+              {subjectName || formatCode(quiz.subject.code)}
             </Badge>
           )}
           {quiz.grade && quiz.grade.code && (
             <Badge variant="outline" className="flex items-center gap-1">
               <GraduationCap className="h-3 w-3" />
-              {formatCode(quiz.grade.code)}
+              {gradeName || formatCode(quiz.grade.code)}
             </Badge>
           )}
         </div>
@@ -214,9 +209,13 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
         {!statusLoading && attemptStatus && (
           <div className="text-xs text-gray-500 text-center">
             {isAuthor ? (
-              <span className="text-blue-600">Author Preview</span>
+              <span className="text-blue-600">{t("author_preview")}</span>
             ) : (
-              <span>{attemptCount}/{maxAttempts} attempts used</span>
+              <span>
+                {maxAttempts && maxAttempts > 0
+                  ? t("attempts_used", { used: attemptCount, max: maxAttempts })
+                  : t("attempts_used_unlimited", { used: attemptCount })}
+              </span>
             )}
           </div>
         )}
@@ -225,7 +224,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
         <div className="flex justify-end w-full">
           {statusLoading ? (
             <Button size="sm" disabled className="rounded-lg">
-              Loading...
+              {t("loading")}
             </Button>
           ) : attemptStatus?.canAttempt ? (
             <Button 
@@ -288,8 +287,9 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               }}
             >
               <Play className="h-4 w-4 mr-1" />
-              {attemptStatus?.hasInProgressAttempt ? "Continue" :
-               (isAuthor ? "Preview" : "Start")}
+              {attemptStatus?.hasInProgressAttempt
+                ? t("actions.continue")
+                : (isAuthor ? t("actions.preview") : t("actions.start"))}
             </Button>
           ) : (
             <Button size="sm" disabled className="rounded-lg">

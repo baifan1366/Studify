@@ -106,17 +106,34 @@ export async function POST(
   // Check if user is already a member
   const { data: existingMembership } = await supabaseClient
     .from('community_group_member')
-    .select('id')
+    .select('id, is_deleted')
     .eq('group_id', group.id)
     .eq('user_id', profile.id)
-    .eq('is_deleted', false)
-    .single();
+    .maybeSingle();
 
-  if (existingMembership) {
+  if (existingMembership && !existingMembership.is_deleted) {
     return NextResponse.json({ error: 'Already a member' }, { status: 400 });
   }
 
-  // Join group
+  if (existingMembership && existingMembership.is_deleted) {
+    const { data: restoredMembership, error } = await supabaseClient
+      .from('community_group_member')
+      .update({
+        is_deleted: false,
+        deleted_at: null,
+        joined_at: new Date().toISOString()
+      })
+      .eq('id', existingMembership.id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(restoredMembership);
+  }
+
   const { data: newMembership, error } = await supabaseClient
     .from('community_group_member')
     .insert({

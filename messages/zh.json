@@ -5532,6 +5532,50 @@
     "minutes": "minutes",
     "points": "points"
   },
+  "QuizList": {
+    "available_quizzes": "可用测验",
+    "my_quizzes": "我的测验",
+    "no_quizzes": "未找到测验",
+    "create_quiz": "创建你的第一个测验！"
+  },
+  "QuizCard": {
+    "questions": "题目",
+    "attempts": "尝试次数",
+    "difficulty": "难度",
+    "created_by": "创建者",
+    "take_quiz": "参加测验",
+    "view_quiz": "查看测验",
+    "edit": "编辑",
+    "delete": "删除",
+    "no_questions_warning": "该测验尚未添加题目",
+    "difficulty_levels": {
+      "1": "简单",
+      "2": "中等",
+      "3": "困难",
+      "4": "非常困难",
+      "5": "专家级",
+      "custom_number": "等级 {value}",
+      "custom_text": "{value}",
+      "unknown": "未知"
+    },
+    "badges": {
+      "private": "私有"
+    },
+    "author_by": "来自 {name}",
+    "unknown_author": "匿名",
+    "you_suffix": "（你）",
+    "author_preview": "作者预览",
+    "attempts_used": "已使用 {used}/{max} 次",
+    "attempts_used_unlimited": "已使用 {used} 次",
+    "loading": "加载中...",
+    "actions": {
+      "edit_quiz": "编辑测验",
+      "delete_quiz": "删除测验",
+      "continue": "继续",
+      "preview": "预览",
+      "start": "开始"
+    }
+  },
   "ClassroomList": {
     "my_classrooms": "My Classrooms",
     "manage_classrooms_description": "Manage your classrooms and join new ones",
@@ -5998,22 +6042,40 @@
     "total_groups": "总群组",
     "your_groups": "你的群组"
   },
-  "QuizList": {
-    "available_quizzes": "Available Quizzes",
-    "my_quizzes": "My Quizzes",
-    "no_quizzes": "No quizzes found",
-    "create_quiz": "Create your first quiz!"
-  },
-  "QuizCard": {
-    "questions": "questions",
-    "attempts": "attempts",
-    "difficulty": "Difficulty",
-    "created_by": "Created by",
-    "take_quiz": "Take Quiz",
-    "view_quiz": "View Quiz",
-    "edit": "Edit",
-    "delete": "Delete",
-    "no_questions_warning": "This quiz has no questions yet"
+  "CommunityQuizHeader": {
+    "search_placeholder": "搜索测验...",
+    "tabs": {
+      "popular": "热门",
+      "newest": "最新",
+      "mine": "我的测验"
+    },
+    "create_quiz": "创建测验",
+    "filters_label": "筛选条件：",
+    "filters": {
+      "subject": {
+        "label": "科目：",
+        "placeholder": "所有科目",
+        "all": "所有科目"
+      },
+      "grade": {
+        "label": "年级：",
+        "placeholder": "所有年级",
+        "all": "所有年级"
+      },
+      "difficulty": {
+        "label": "难度：",
+        "placeholder": "全部",
+        "options": {
+          "all": "全部",
+          "easy": "⭐ 简单",
+          "fair": "⭐⭐ 尚可",
+          "good": "⭐⭐⭐ 良好",
+          "hard": "⭐⭐⭐⭐ 困难",
+          "expert": "⭐⭐⭐⭐⭐ 专家"
+        }
+      }
+    },
+    "clear": "清除"
   },
   "AllMyGroupsModal": {
     "title": "All My Groups",
@@ -6022,33 +6084,75 @@
     "explore_groups": "Explore groups to join!"
   },
   "QuizContent": {
-    "title": "Community Quizzes",
-    "no_search_results": "No quizzes found for your search",
-    "no_quizzes_available": "No quizzes available",
-    "loading": "Loading quizzes..."
+    "title": "社区测验",
+    "no_search_results": "没有找到测验",
+    "no_quizzes_available": "没有可用的测验",
+    "loading": "加载测验..."
   },
   "QuizSearchHeader": {
-    "search_placeholder": "Search quizzes...",
-    "popular": "Popular",
-    "recent": "Recent",
-    "mine": "My Quizzes",
-    "filter_by_subject": "Filter by Subject",
-    "filter_by_grade": "Filter by Grade",
-    "filter_by_difficulty": "Filter by Difficulty",
-    "all_subjects": "All Subjects",
-    "all_grades": "All Grades",
-    "all_difficulties": "All Difficulties",
-    "easy": "Easy",
-    "medium": "Medium",
-    "hard": "Hard"
+    "search_placeholder": "搜索测验...",
+    "popular": "热门",
+    "recent": "最近",
+    "mine": "我的测验",
+    "filter_by_subject": "按科目筛选",
+    "filter_by_grade": "按年级筛选",
+    "filter_by_difficulty": "按难度筛选",
+    "all_subjects": "所有科目",
+    "all_grades": "所有年级",
+    "all_difficulties": "所有难度",
+    "easy": "简单",
+    "medium": "中等",
+    "hard": "困难"
   },
   "QuizzesSidebar": {
-    "create_quiz": "Create Quiz",
-    "quiz_stats": "Quiz Statistics",
-    "total_quizzes": "Total Quizzes",
-    "total_attempts": "Total Attempts",
-    "your_quizzes": "Your Quizzes",
-    "your_attempts": "Your Attempts"
+    "create_quiz": "创建测验",
+    "quiz_stats": "测验统计",
+    "total_quizzes": "总测验",
+    "total_attempts": "总尝试",
+    "your_quizzes": "你的测验",
+    "your_attempts": "你的尝试",
+    "attempt_status": {
+      "not_started": "未开始",
+      "in_progress": "进行中",
+      "submitted": "已完成",
+      "graded": "已评分"
+    },
+    "points_abbrev": "{points} 分",
+    "my_attempts": {
+      "title": "我的尝试",
+      "show_more": "显示更多",
+      "empty_message": "尚无测验尝试",
+      "browse_button": "浏览测验"
+    },
+    "shared": {
+      "title": "分享给我",
+      "private_label": "私有",
+      "permission": {
+        "view": "仅可查看",
+        "attempt": "可尝试",
+        "edit": "可编辑"
+      },
+      "shared_by_prefix": "分享者",
+      "private_quiz": "私有测验",
+      "empty_message": "暂未有私有测验分享给你",
+      "empty_subtitle": "私有测验需要授权才能访问",
+      "expiry": {
+        "none": "无过期时间",
+        "expired": "已过期",
+        "today": "今天到期",
+        "tomorrow": "明天到期",
+        "in_days": "{count} 天后到期",
+        "full_format": "MMM d, yyyy"
+      }
+    },
+    "stats": {
+      "title": "我的统计",
+      "total_attempts": "总尝试次数",
+      "completed": "已完成",
+      "in_progress": "进行中",
+      "average_score": "平均得分",
+      "best_score": "最佳得分"
+    }
   },
   "QuizTimer": {
     "time_up": "时间到！",
@@ -6175,22 +6279,96 @@
     "share_quiz": "分享测验",
     "copy_link": "复制链接",
     "link_copied": "链接已复制！",
-    "share_description": "通过以下链接分享此测验："
+    "share_description": "使用下面的链接与他人分享此测验："
+  },
+  "QuizLeaderboard": {
+    "title": "排行榜",
+    "empty_title": "暂无完成记录",
+    "empty_subtitle": "快来成为第一个完成此测验的人！",
+    "points_abbr": "分"
+  },
+  "QuizRecentAttempts": {
+    "view_attempts": "查看尝试记录",
+    "recent_attempts_title": "最近尝试 - {title}",
+    "your_attempts": "你的尝试",
+    "load_error": "获取尝试记录失败",
+    "all_attempts_tab": "全部尝试（{count}）",
+    "attempts_used": "已使用 {used} / {max} 次尝试",
+    "attempt_label": "第 {number} 次尝试",
+    "score_label": "分数",
+    "stat_total_attempts": "总尝试次数",
+    "stat_unique_users": "独立用户",
+    "stat_success_rate": "成功率",
+    "stat_avg_score": "平均分",
+    "stat_max_score": "最高分",
+    "stat_avg_time": "平均用时",
+    "no_attempts": "未找到尝试记录",
+    "no_attempts_message": "暂无尝试记录",
+    "view_more_attempts": "查看更多尝试记录",
+    "status_submitted": "已提交",
+    "status_graded": "已评分",
+    "status_expired": "已过期",
+    "status_default": "{status}"
   },
   "QuizHeader": {
-    "quiz_creator": "创建者",
+    "quiz_creator": "测验创建者",
     "you": "（你）",
-    "take_quiz": "开始测验",
-    "retake_quiz": "重新测验",
+    "retake_quiz": "重新参加测验",
     "view_results": "查看结果",
     "share": "分享",
     "edit": "编辑",
     "delete": "删除",
     "questions": "题目",
-    "attempts": "尝试次数",
+    "attempts": "次尝试",
     "difficulty": "难度",
-    "visibility_private": "私有",
-    "visibility_public": "公开"
+    "visibility_private": "私密",
+    "visibility_public": "公开",
+    "loading": "加载中...",
+    "starting": "正在开始...",
+    "continue_quiz": "继续测验",
+    "preview_quiz": "预览测验",
+    "start_quiz": "开始测验",
+    "status": {
+      "no_access": "无访问权限",
+      "view_only": "仅可查看",
+      "completed": "已完成",
+      "unavailable": "不可用"
+    },
+    "permission_badge": "{permission} 权限",
+    "permissions": {
+      "view": "查看",
+      "attempt": "尝试",
+      "edit": "编辑",
+      "owner": "拥有者"
+    },
+    "access_granted_invite": "已通过邀请获得访问权限",
+    "subjects": {
+      "mathematics": "数学",
+      "science": "科学",
+      "english": "英语",
+      "history": "历史",
+      "geography": "地理",
+      "computer_science": "计算机科学",
+      "physics": "物理",
+      "chemistry": "化学",
+      "biology": "生物",
+      "literature": "文学",
+      "economics": "经济"
+    },
+    "grades": {
+      "grade_1": "一年级",
+      "grade_2": "二年级",
+      "grade_3": "三年级",
+      "grade_4": "四年级",
+      "grade_5": "五年级",
+      "grade_6": "六年级",
+      "grade_7": "七年级",
+      "grade_8": "八年级",
+      "grade_9": "九年级",
+      "grade_10": "十年级",
+      "grade_11": "十一年级",
+      "grade_12": "十二年级"
+    }
   },
   "QuizStats": {
     "quiz_overview": "测验概览",

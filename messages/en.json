@@ -7690,6 +7690,7 @@
     "stat_max_score": "Max Score",
     "stat_avg_time": "Avg Time",
     "no_attempts": "No attempts found",
+    "no_attempts_message": "暂无尝试记录",
     "view_more_attempts": "View More Attempts",
     "status_submitted": "Submitted",
     "status_graded": "Graded",

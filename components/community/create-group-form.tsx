@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useGroups } from '@/hooks/community/use-community';
 import { toast } from 'sonner';
 import { AlertCircle, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface CreateGroupFormProps {
   onSuccess?: () => void;
@@ -20,6 +21,7 @@ interface CreateGroupFormProps {
 
 export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupFormProps) {
   const t = useTranslations('CreateGroupForm');
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -70,6 +72,7 @@ export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupForm
         setFormData({ name: '', description: '', slug: '', visibility: 'public' });
         toast.success('Group created successfully! 🎉');
         onSuccess?.();
+        router.back();
       },
       onError: (error: any) => {
         toast.error(error?.message || 'Failed to create group');

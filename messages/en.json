@@ -130,7 +130,15 @@
     "hours_short": "h",
     "plan_completed": "Plan Completed!",
     "great_job": "Great job completing your daily plan!",
-    "time_to_reflect": "Time to reflect on your learning journey"
+    "time_to_reflect": "Time to reflect on your learning journey",
+    "today_progress": "Today's Progress",
+    "today_tasks": "Today's Tasks",
+    "learning_path_progress": "Learning Path Progress",
+    "milestones": "milestones",
+    "complete": "complete",
+    "view_all_paths": "View all {count} learning paths →",
+    "next_milestone": "Next: {name}",
+    "pts": "pts"
   },
   "CourseLearningExtra": {
     "course_category": "Category",

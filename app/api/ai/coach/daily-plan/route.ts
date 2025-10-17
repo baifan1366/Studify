@@ -429,14 +429,28 @@ async function generateDailyPlanWithToolCalling(userId: number, today: string) {
     const supabase = await createAdminClient();
     const context = await gatherLearningContext(supabase, userId);
     
-    // 使用收集的上下文生成计划
-    const agent = new StudifyToolCallingAgent({
-      enabledTools: [],  // 不使用工具，直接提供上下文
-      temperature: 0.7,
-      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+    console.log('📊 Context gathered:', {
+      userId,
+      hasProfile: !!context.profile,
+      activeCourses: context.activeCourses?.length || 0,
+      learningPaths: context.activeLearningPaths?.length || 0,
+      aiNotes: context.recentAINotes?.length || 0,
+      studySessions: context.recentStudySessions?.length || 0
     });
-
-    await agent.initialize();
+    
+    // 使用更强大的模型来保证JSON生成质量
+    // DeepSeek V3 或 GPT-4o-mini 都支持良好的JSON格式输出
+    const modelToUse = process.env.OPEN_ROUTER_MODEL || 'deepseek/deepseek-chat';
+    
+    console.log('🤖 Using model for plan generation:', modelToUse);
+    
+    // 不使用agent，直接使用LLM生成JSON
+    // Agent可能会导致工具调用失败，我们直接用LLM生成计划
+    const { getLLM } = require('@/lib/langChain/client');
+    const llm = await getLLM({
+      model: modelToUse,
+      temperature: 0.7,
+    });
 
     // 构建包含完整上下文的提示
     const contextInfo = `
@@ -467,7 +481,7 @@ ${contextInfo}
 
 **CRITICAL INSTRUCTION:** You MUST respond EXCLUSIVELY IN ENGLISH. All text including titles, descriptions, insights, and motivation messages MUST be in English language. Do NOT use Chinese or any other language.
 
-**RESPONSE FORMAT:** You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks, just pure JSON.
+**RESPONSE FORMAT:** You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks, just pure JSON. Start directly with { and end with }.
 
 **Generate a plan with EXACTLY this structure:**
 {
@@ -499,33 +513,60 @@ ${contextInfo}
 - Difficulties: easy, medium, hard
 - ALL TEXT MUST BE IN ENGLISH - NO CHINESE CHARACTERS ALLOWED
 
-**IMPORTANT:** Respond with ONLY the JSON object in ENGLISH. Start with { and end with }. No other text.`;
+**IMPORTANT:** Respond with ONLY the JSON object in ENGLISH. Start with { and end with }. No other text. No markdown. No code blocks.`;
 
-    const result = await agent.execute(prompt, { userId });
+    console.log('📤 Sending prompt to LLM (length:', prompt.length, ')');
     
-    console.log('🎯 AI response preview:', result.output?.substring(0, 200));
+    const response = await llm.invoke(prompt);
+    const rawOutput = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+    
+    console.log('📥 LLM raw response (first 300 chars):', rawOutput.substring(0, 300));
+    console.log('📏 Full response length:', rawOutput.length);
 
     // 解析 AI 响应
     let aiPlan;
     try {
       // Remove any markdown or code block markers
-      let cleanedOutput = result.output.trim();
+      let cleanedOutput = rawOutput.trim();
+      
+      console.log('🧹 Cleaning output...');
       
       // Remove markdown code blocks
       cleanedOutput = cleanedOutput.replace(/```json\s*/g, '').replace(/```\s*/g, '');
       
-      // Find JSON object
-      const jsonMatch = cleanedOutput.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        aiPlan = JSON.parse(jsonMatch[0]);
-        console.log('✅ Successfully parsed AI plan with', aiPlan.tasks?.length || 0, 'tasks');
+      // Remove any leading/trailing non-JSON text
+      const jsonStart = cleanedOutput.indexOf('{');
+      const jsonEnd = cleanedOutput.lastIndexOf('}');
+      
+      if (jsonStart >= 0 && jsonEnd >= 0 && jsonEnd > jsonStart) {
+        cleanedOutput = cleanedOutput.substring(jsonStart, jsonEnd + 1);
+        console.log('🔍 Extracted JSON (first 200 chars):', cleanedOutput.substring(0, 200));
       } else {
-        console.error('❌ No JSON object found in response');
-        throw new Error('No JSON found in AI response');
+        console.error('❌ No valid JSON boundaries found');
+        throw new Error('No JSON boundaries found in AI response');
       }
+      
+      // Parse the JSON
+      aiPlan = JSON.parse(cleanedOutput);
+      
+      console.log('✅ Successfully parsed AI plan:', {
+        title: aiPlan.title,
+        tasksCount: aiPlan.tasks?.length || 0,
+        hasInsights: !!aiPlan.insights,
+        hasMotivation: !!aiPlan.motivationMessage,
+        isEnglish: /^[a-zA-Z0-9\s.,!?'"\-:;()]+$/.test(aiPlan.title)
+      });
+      
+      // Validate the plan structure
+      if (!aiPlan.title || !aiPlan.tasks || !Array.isArray(aiPlan.tasks)) {
+        console.error('❌ Invalid plan structure:', { hasTitle: !!aiPlan.title, hasTasks: !!aiPlan.tasks, isArray: Array.isArray(aiPlan.tasks) });
+        throw new Error('Invalid plan structure from AI');
+      }
+      
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
-      console.log('Raw output (first 500 chars):', result.output?.substring(0, 500));
+      console.log('❌ Raw output (first 500 chars):', rawOutput.substring(0, 500));
+      console.log('❌ Falling back to default plan');
       // 回退到默认计划
       aiPlan = getDefaultDailyPlan(context);
     }

@@ -209,14 +209,13 @@ export default function DashboardContent() {
             ))}
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Courses */}
-            <motion.div
-              className="lg:col-span-2"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-            >
+          {/* Continue Learning Section - Full Width */}
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
               <div className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
                 <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                   <PlayCircle size={20} />
@@ -312,121 +311,19 @@ export default function DashboardContent() {
                   )}
                 </div>
               </div>
-            </motion.div>
+          </motion.div>
 
-            {/* Sidebar */}
+          {/* Cards Grid - 2 columns on large screens */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column */}
             <motion.div
               className="space-y-6"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6, duration: 0.6 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
             >
-              {/* Upcoming Events */}
-              <div className="relative bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Calendar size={18} />
-                  {t('upcoming')}
-                </h3>
-                
-                <div className="space-y-3">
-                  {upcomingEvents.map((event: UpcomingEvent) => (
-                    <div key={event.id} className="p-3 bg-white/10 rounded-lg">
-                      <h4 className="font-medium text-white text-sm">{event.title}</h4>
-                      <p className="text-xs text-white/60">{event.date} at {event.time}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Recent Achievements */}
-              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Award size={18} />
-                    {t('recent_achievements')}
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {stats.achievements} {t('unlocked')}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-3">
-                  {recentAchievements.length > 0 ? (
-                    recentAchievements.slice(0, 3).map((achievement, index) => (
-                      <div key={achievement.id || index} className="p-3 bg-white/10 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{achievement.category === 'learning' ? '📚' : achievement.category === 'consistency' ? '🔥' : '⭐'}</span>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-white text-sm">{achievement.name}</h4>
-                              <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                                +{achievement.pointsReward} pts
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-white/60">{achievement.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-white/60 text-sm">Complete your first lesson to unlock achievements!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Weekly Progress Chart */}
-              <div className="relative bg-gradient-to-br from-green-600/20 via-emerald-600/20 to-teal-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <TrendingUp size={18} />
-                  {t('this_week_progress')}
-                </h3>
-                
-                <div className="space-y-3">
-                  {dailyStats.slice(-7).map((day, index) => (
-                    <div key={day.date} className="flex items-center gap-3">
-                      <div className="w-12 text-xs text-white/60">
-                        {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="flex-1 bg-white/10 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${Math.min((day.minutes / 120) * 100, 100)}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-white/70 w-12 text-right">
-                            {day.hours}h
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-4 p-3 bg-white/5 rounded-lg">
-                  <div className="flex justify-between text-xs text-white/60">
-                    <span>Weekly Goal: {userPreferences?.preferences?.weekly_study_goal_hours || 10}h</span>
-                    <span>{dailyStats.reduce((sum, day) => sum + day.hours, 0).toFixed(1)}h completed</span>
-                  </div>
-                  <div className="mt-2">
-                    <div className="flex-1 bg-white/10 rounded-full h-1.5">
-                      <div 
-                        className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${Math.min((dailyStats.reduce((sum, day) => sum + day.hours, 0) / (userPreferences?.preferences?.weekly_study_goal_hours || 10)) * 100, 100)}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
               {/* Daily Learning Coach */}
               <DailyCoachCard 
-                className="mb-6"
                 onReflectionClick={() => setShowReflectionModal(true)}
               />
               
@@ -560,6 +457,118 @@ export default function DashboardContent() {
                   </div>
                 </div>
               )}
+            </motion.div>
+
+            {/* Right Column */}
+            <motion.div
+              className="space-y-6"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+            >
+              {/* Upcoming Events */}
+              <div className="relative bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Calendar size={18} />
+                  {t('upcoming')}
+                </h3>
+                
+                <div className="space-y-3">
+                  {upcomingEvents.map((event: UpcomingEvent) => (
+                    <div key={event.id} className="p-3 bg-white/10 rounded-lg">
+                      <h4 className="font-medium text-white text-sm">{event.title}</h4>
+                      <p className="text-xs text-white/60">{event.date} at {event.time}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recent Achievements */}
+              <div className="relative bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <Award size={18} />
+                    {t('recent_achievements')}
+                  </h3>
+                  <Badge variant="secondary" className="text-xs">
+                    {stats.achievements} {t('unlocked')}
+                  </Badge>
+                </div>
+                
+                <div className="space-y-3">
+                  {recentAchievements.length > 0 ? (
+                    recentAchievements.slice(0, 3).map((achievement, index) => (
+                      <div key={achievement.id || index} className="p-3 bg-white/10 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{achievement.category === 'learning' ? '📚' : achievement.category === 'consistency' ? '🔥' : '⭐'}</span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-white text-sm">{achievement.name}</h4>
+                              <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                                +{achievement.pointsReward} pts
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-white/60">{achievement.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-white/60 text-sm">Complete your first lesson to unlock achievements!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Weekly Progress Chart */}
+              <div className="relative bg-gradient-to-br from-green-600/20 via-emerald-600/20 to-teal-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp size={18} />
+                  {t('this_week_progress')}
+                </h3>
+                
+                <div className="space-y-3">
+                  {dailyStats.slice(-7).map((day, index) => (
+                    <div key={day.date} className="flex items-center gap-3">
+                      <div className="w-12 text-xs text-white/60">
+                        {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="flex-1 bg-white/10 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min((day.minutes / 120) * 100, 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-white/70 w-12 text-right">
+                            {day.hours}h
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-4 p-3 bg-white/5 rounded-lg">
+                  <div className="flex justify-between text-xs text-white/60">
+                    <span>Weekly Goal: {userPreferences?.preferences?.weekly_study_goal_hours || 10}h</span>
+                    <span>{dailyStats.slice(-7).reduce((sum, day) => sum + day.hours, 0).toFixed(1)}h completed</span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="flex-1 bg-white/10 rounded-full h-1.5">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min((dailyStats.slice(-7).reduce((sum, day) => sum + day.hours, 0) / (userPreferences?.preferences?.weekly_study_goal_hours || 10)) * 100, 100)}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
             </motion.div>
           </div>
         </div>

@@ -130,7 +130,15 @@
     "hours_short": "小时",
     "plan_completed": "计划已完成！",
     "great_job": "完成今日计划，做得很棒！",
-    "time_to_reflect": "是时候回顾你的学习之旅了"
+    "time_to_reflect": "是时候回顾你的学习之旅了",
+    "today_progress": "今日进度",
+    "today_tasks": "今日任务",
+    "learning_path_progress": "学习路径进度",
+    "milestones": "里程碑",
+    "complete": "完成",
+    "view_all_paths": "查看全部 {count} 条学习路径 →",
+    "next_milestone": "下一个：{name}",
+    "pts": "积分"
   },
   "CourseLearningExtra": {
     "course_category": "分类",

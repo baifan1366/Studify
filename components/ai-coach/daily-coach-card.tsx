@@ -185,7 +185,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-white/70">
-              <span>Today's Progress</span>
+              <span>{t('today_progress')}</span>
               <span>{stats.completionRate}%</span>
             </div>
             <Progress 
@@ -226,7 +226,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
                 className="space-y-3 overflow-hidden"
               >
                 <div className="border-t border-white/10 pt-4">
-                  <h4 className="text-sm font-medium text-white/80 mb-3">Today's Tasks</h4>
+                  <h4 className="text-sm font-medium text-white/80 mb-3">{t('today_tasks')}</h4>
                   
                   {plan.tasks
                     .sort((a: any, b: any) => getPriorityInfo(b.priority).order - getPriorityInfo(a.priority).order)
@@ -295,7 +295,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Star className="w-3 h-3" />
-                                  {task.points_reward} pts
+                                  {task.points_reward} {t('pts')}
                                 </span>
                                 {task.category && (
                                   <span className="px-2 py-0.5 bg-white/10 rounded-full">
@@ -370,7 +370,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-medium text-white/80 flex items-center gap-2">
                   <Route className="w-4 h-4 text-indigo-400" />
-                  Learning Path Progress
+                  {t('learning_path_progress')}
                 </h4>
                 <Button
                   variant="ghost"
@@ -392,7 +392,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
                         <div className="flex items-center gap-2 mt-1">
                           <div className="flex items-center gap-1 text-xs text-white/50">
                             <Award className="w-3 h-3" />
-                            {path.completedMilestones}/{path.totalMilestones} milestones
+                            {path.completedMilestones}/{path.totalMilestones} {t('milestones')}
                           </div>
                           {path.currentMilestone && (
                             <div className="flex items-center gap-1 text-xs text-indigo-300">
@@ -404,7 +404,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
                       </div>
                       <div className="text-right ml-3">
                         <div className="text-lg font-bold text-white">{path.overallProgress}%</div>
-                        <div className="text-xs text-white/40">complete</div>
+                        <div className="text-xs text-white/40">{t('complete')}</div>
                       </div>
                     </div>
                     
@@ -483,7 +483,7 @@ export default function DailyCoachCard({ className, onReflectionClick }: DailyCo
                   onClick={() => setShowPathProgress(true)}
                   className="w-full text-xs text-white/60 hover:text-white/80 transition-colors mt-2"
                 >
-                  View all {pathProgress.length} learning paths →
+                  {t('view_all_paths', { count: pathProgress.length })}
                 </button>
               )}
             </div>

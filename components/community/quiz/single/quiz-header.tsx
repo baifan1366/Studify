@@ -222,23 +222,11 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
         )}
         
         {/* 分享按钮 */}
-        {isAuthor ? (
+        {isAuthor || attemptStatus?.userPermission === 'edit' || quiz.visibility === 'public' ? (
           <ShareQuizModal 
             quizSlug={quiz.slug} 
             quizTitle={quiz.title}
             isAuthor={isAuthor}
-            visibility={quiz.visibility}
-          >
-            <Button variant="outline">
-              <Share2 className="h-5 w-5 mr-2" />
-              {t('share')}
-            </Button>
-          </ShareQuizModal>
-        ) : attemptStatus?.userPermission === 'edit' ? (
-          <ShareQuizModal 
-            quizSlug={quiz.slug} 
-            quizTitle={quiz.title}
-            isAuthor={false}
             visibility={quiz.visibility}
           >
             <Button variant="outline">

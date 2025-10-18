@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { BookOpen, GraduationCap } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 interface OAuthHandlerProps {
   locale: string;
 }
 
 export function OAuthHandler({ locale }: OAuthHandlerProps) {
+  const t = useTranslations('OAuthHandler');
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -241,7 +243,7 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             <span className="text-gray-700 dark:text-gray-300">
-              Processing login...
+              {t('processing_login')}
             </span>
           </div>
         </div>
@@ -256,10 +258,10 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-center">
-              Choose Your Account Type
+              {t('choose_account_type')}
             </DialogTitle>
             <DialogDescription className="text-center">
-              Please select how you want to use Studify
+              {t('select_account_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 mt-6">
@@ -271,10 +273,10 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
             >
               <BookOpen className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
               <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
-                Student
+                {t('student')}
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
-                Learn and explore courses
+                {t('student_desc')}
               </p>
             </motion.button>
 
@@ -286,10 +288,10 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
             >
               <GraduationCap className="h-12 w-12 text-gray-400 group-hover:text-[#FF6B00] transition-colors duration-200" />
               <h3 className="mt-3 font-semibold text-gray-900 dark:text-gray-100 group-hover:text-[#FF6B00] transition-colors duration-200">
-                Tutor
+                {t('tutor')}
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">
-                Teach and create courses
+                {t('tutor_desc')}
               </p>
             </motion.button>
           </div>

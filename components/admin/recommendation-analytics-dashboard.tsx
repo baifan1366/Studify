@@ -112,9 +112,9 @@ export default function RecommendationAnalyticsDashboard() {
         <TabsContent value="performance" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Recommendation Comparison */}
-            <Card>
+            <Card className="bg-white dark:bg-gray-800">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <BarChart3 className="h-5 w-5" />
                   Recommendation Performance Comparison
                 </CardTitle>
@@ -150,9 +150,9 @@ export default function RecommendationAnalyticsDashboard() {
             </Card>
 
             {/* Score Distribution */}
-            <Card>
+            <Card className="bg-white dark:bg-gray-800">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <Activity className="h-5 w-5" />
                   Score Distribution
                 </CardTitle>
@@ -162,15 +162,15 @@ export default function RecommendationAnalyticsDashboard() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>Average Total Score</span>
-                        <span className="font-semibold">{analytics.average_scores.total}/100</span>
+                        <span className="text-gray-600 dark:text-gray-400">Average Total Score</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{analytics.average_scores.total}/100</span>
                       </div>
                       <Progress value={analytics.average_scores.total} className="h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>Traditional Component</span>
-                        <span className="font-semibold">{analytics.average_scores.traditional}/60</span>
+                        <span className="text-gray-600 dark:text-gray-400">Traditional Component</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{analytics.average_scores.traditional}/60</span>
                       </div>
                       <Progress 
                         value={(analytics.average_scores.traditional / 60) * 100} 
@@ -179,8 +179,8 @@ export default function RecommendationAnalyticsDashboard() {
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>AI Component</span>
-                        <span className="font-semibold">{analytics.average_scores.embedding}/40</span>
+                        <span className="text-gray-600 dark:text-gray-400">AI Component</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{analytics.average_scores.embedding}/40</span>
                       </div>
                       <Progress 
                         value={(analytics.average_scores.embedding / 40) * 100} 
@@ -226,26 +226,26 @@ export default function RecommendationAnalyticsDashboard() {
         </TabsContent>
 
         <TabsContent value="similarity" className="space-y-4">
-          <Card>
+          <Card className="bg-white dark:bg-gray-800">
             <CardHeader>
-              <CardTitle>Similarity Distribution</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">Similarity Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               {analytics && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {analytics.embedding_distribution.high_similarity}
                     </div>
-                    <div className="text-sm text-gray-600">High Similarity</div>
-                    <div className="text-xs text-gray-500">&gt;80%</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">High Similarity</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">&gt;80%</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                       {analytics.embedding_distribution.medium_similarity}
                     </div>
-                    <div className="text-sm text-gray-600">Medium Similarity</div>
-                    <div className="text-xs text-gray-500">50-80%</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Medium Similarity</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">50-80%</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
@@ -261,9 +261,9 @@ export default function RecommendationAnalyticsDashboard() {
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">
-          <Card>
+          <Card className="bg-white dark:bg-gray-800">
             <CardHeader>
-              <CardTitle>Top AI-Generated Reasons</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">Top AI-Generated Reasons</CardTitle>
             </CardHeader>
             <CardContent>
               {analytics?.top_embedding_reasons && (
@@ -271,7 +271,7 @@ export default function RecommendationAnalyticsDashboard() {
                   {analytics.top_embedding_reasons.map((reason, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <Badge variant="outline">{index + 1}</Badge>
-                      <span className="text-sm">{reason}</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{reason}</span>
                     </div>
                   ))}
                 </div>
@@ -306,7 +306,7 @@ function MetricCard({
   }[color];
 
   return (
-    <Card>
+    <Card className="bg-white dark:bg-gray-800">
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg ${colorClasses}`}>
@@ -320,7 +320,7 @@ function MetricCard({
               {value}
             </p>
             {subtitle && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {subtitle}
               </p>
             )}
@@ -349,17 +349,17 @@ function ComparisonRow({
   return (
     <div className={`p-3 rounded-lg ${isHighlighted ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800'}`}>
       <div className="flex justify-between items-center mb-2">
-        <span className="font-medium">{label}</span>
-        <span className="text-sm text-gray-600">{count} recs</span>
+        <span className="font-medium text-gray-900 dark:text-white">{label}</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">{count} recs</span>
       </div>
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-gray-600">Click Rate: </span>
-          <span className="font-semibold">{(clickRate * 100).toFixed(1)}%</span>
+          <span className="text-gray-600 dark:text-gray-400">Click Rate: </span>
+          <span className="font-semibold text-gray-900 dark:text-white">{(clickRate * 100).toFixed(1)}%</span>
         </div>
         <div>
-          <span className="text-gray-600">Enrollment: </span>
-          <span className="font-semibold">{(enrollmentRate * 100).toFixed(1)}%</span>
+          <span className="text-gray-600 dark:text-gray-400">Enrollment: </span>
+          <span className="font-semibold text-gray-900 dark:text-white">{(enrollmentRate * 100).toFixed(1)}%</span>
         </div>
       </div>
     </div>
@@ -382,31 +382,31 @@ function ModelMetricCard({
   isHighlighted?: boolean; 
 }) {
   return (
-    <Card className={isHighlighted ? 'border-purple-200 dark:border-purple-800' : ''}>
+    <Card className={`bg-white dark:bg-gray-800 ${isHighlighted ? 'border-purple-200 dark:border-purple-800' : ''}`}>
       <CardHeader>
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-gray-900 dark:text-white">
           <Zap className="h-4 w-4" />
           {title}
         </CardTitle>
-        <p className="text-xs text-gray-600">{description}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400">{description}</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span>Avg Similarity</span>
-              <span className="font-semibold">{(similarity * 100).toFixed(1)}%</span>
+              <span className="text-gray-600 dark:text-gray-400">Avg Similarity</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{(similarity * 100).toFixed(1)}%</span>
             </div>
             <Progress value={similarity * 100} className="h-2" />
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-gray-600">Speed: </span>
-              <span className="font-semibold">{processingTime}ms</span>
+              <span className="text-gray-600 dark:text-gray-400">Speed: </span>
+              <span className="font-semibold text-gray-900 dark:text-white">{processingTime}ms</span>
             </div>
             <div>
-              <span className="text-gray-600">Usage: </span>
-              <span className="font-semibold">{usageCount}</span>
+              <span className="text-gray-600 dark:text-gray-400">Usage: </span>
+              <span className="font-semibold text-gray-900 dark:text-white">{usageCount}</span>
             </div>
           </div>
         </div>

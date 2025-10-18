@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 
 interface HCaptchaProps {
   siteKey: string;
@@ -9,6 +9,11 @@ interface HCaptchaProps {
   onExpired?: () => void;
   theme?: 'light' | 'dark';
   size?: 'normal' | 'compact';
+}
+
+export interface HCaptchaRef {
+  reset: () => void;
+  getResponse: () => string;
 }
 
 declare global {
@@ -22,14 +27,17 @@ declare global {
   }
 }
 
-export default function HCaptchaComponent({
-  siteKey,
-  onChange,
-  onError,
-  onExpired,
-  theme = 'light',
-  size = 'normal'
-}: HCaptchaProps) {
+const HCaptchaComponent = forwardRef<HCaptchaRef, HCaptchaProps>((
+  {
+    siteKey,
+    onChange,
+    onError,
+    onExpired,
+    theme = 'light',
+    size = 'normal'
+  },
+  ref
+) => {
   const hcaptchaRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -158,13 +166,11 @@ export default function HCaptchaComponent({
     return '';
   };
 
-  // Expose methods via ref
-  useEffect(() => {
-    if (hcaptchaRef.current) {
-      (hcaptchaRef.current as any).reset = reset;
-      (hcaptchaRef.current as any).getResponse = getResponse;
-    }
-  });
+  // Expose methods via ref using useImperativeHandle
+  useImperativeHandle(ref, () => ({
+    reset,
+    getResponse
+  }));
 
   return (
     <div 
@@ -172,4 +178,8 @@ export default function HCaptchaComponent({
       className="hcaptcha-container flex justify-center my-4"
     />
   );
-}
+});
+
+HCaptchaComponent.displayName = 'HCaptchaComponent';
+
+export default HCaptchaComponent;

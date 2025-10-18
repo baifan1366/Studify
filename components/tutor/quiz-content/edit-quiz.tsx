@@ -488,7 +488,7 @@ export function EditQuiz({ quiz, open, onOpenChange, onSuccess }: EditQuizProps)
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                    <p className="font-medium text-foreground mb-2">
                       {editedQuiz.question_text}
                     </p>
                   </div>

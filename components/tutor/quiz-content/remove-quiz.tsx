@@ -165,10 +165,10 @@ export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizPr
             <CardContent className="space-y-3">
               {/* Question Text */}
               <div>
-                <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                <h4 className="font-medium text-foreground mb-2">
                   {t('question_text')}:
                 </h4>
-                <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                <p className="text-muted-foreground bg-muted p-3 rounded">
                   {truncateText(quiz.question_text)}
                 </p>
               </div>
@@ -176,7 +176,7 @@ export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizPr
               {/* Preview based on question type */}
               {quiz.question_type === 'multiple_choice' && quiz.options && (
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  <h4 className="font-medium text-foreground mb-2">
                     {t('options')}:
                   </h4>
                   <div className="space-y-1">
@@ -199,7 +199,7 @@ export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizPr
 
               {quiz.question_type === 'true_false' && (
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  <h4 className="font-medium text-foreground mb-2">
                     {t('correct_answer')}:
                   </h4>
                   <Badge className={quiz.correct_answer === true ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'}>
@@ -210,7 +210,7 @@ export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizPr
 
               {['short_answer', 'essay', 'fill_blank'].includes(quiz.question_type) && quiz.correct_answer && (
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  <h4 className="font-medium text-foreground mb-2">
                     {t('correct_answer')}:
                   </h4>
                   <p className="text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 p-2 rounded text-sm">
@@ -221,10 +221,10 @@ export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizPr
 
               {quiz.explanation && (
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  <h4 className="font-medium text-foreground mb-2">
                     {t('explanation')}:
                   </h4>
-                  <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-2 rounded text-sm">
+                  <p className="text-muted-foreground bg-muted p-2 rounded text-sm">
                     {truncateText(quiz.explanation, 80)}
                   </p>
                 </div>
@@ -252,11 +252,11 @@ export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizPr
           </Alert>
 
           {/* Impact Information */}
-          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+          <div className="bg-muted p-4 rounded-lg">
+            <h4 className="font-medium text-foreground mb-2">
               {t('deletion_impact')}:
             </h4>
-            <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+            <ul className="text-sm text-muted-foreground space-y-1">
               <li>• {t('impact_question_removed')}</li>
               <li>• {t('impact_submissions_kept')}</li>
               <li>• {t('impact_position_reorder')}</li>

@@ -7,6 +7,7 @@ import { useResendVerification } from "@/hooks/profile/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Mail, Clock } from "lucide-react";
+import HCaptchaComponent from "@/components/auth/hcaptcha-component";
 
 export default function VerifyEmailPage({
   params,
@@ -18,9 +19,14 @@ export default function VerifyEmailPage({
   const [email, setEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const { toast } = useToast();
   const resendMutation = useResendVerification();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const captchaRef = useRef<any>(null);
+
+  // Get hCaptcha site key from environment
+  const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001';
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -46,11 +52,21 @@ export default function VerifyEmailPage({
       return;
     }
 
+    if (!captchaToken) {
+      toast({
+        title: t("captcha_required_title"),
+        description: t("captcha_required_desc"),
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Pass locale to the hook
+      // Pass locale and captcha token to the hook
       await resendMutation.mutateAsync({
         email,
         locale,
+        captchaToken,
       });
 
       toast({
@@ -58,6 +74,12 @@ export default function VerifyEmailPage({
         description: t("resend_success_desc"),
         duration: 5000,
       });
+
+      // Reset captcha
+      setCaptchaToken(null);
+      if (captchaRef.current?.reset) {
+        captchaRef.current.reset();
+      }
 
       // Set cooldown for 60 seconds
       setResendCooldown(60);
@@ -86,7 +108,26 @@ export default function VerifyEmailPage({
         description: error.message || t("resend_error_desc"),
         variant: "destructive",
       });
+      
+      // Reset captcha on error
+      setCaptchaToken(null);
+      if (captchaRef.current?.reset) {
+        captchaRef.current.reset();
+      }
     }
+  };
+
+  const handleCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token);
+  };
+
+  const handleCaptchaError = () => {
+    setCaptchaToken(null);
+    toast({
+      title: t("captcha_error_title"),
+      description: t("captcha_error_desc"),
+      variant: "destructive",
+    });
   };
 
   return (
@@ -126,7 +167,7 @@ export default function VerifyEmailPage({
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            className="mb-4"
+            className="mb-4 space-y-4"
           >
             <input
               type="email"
@@ -135,6 +176,18 @@ export default function VerifyEmailPage({
               placeholder={t("email_placeholder")}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] dark:bg-gray-800 dark:text-gray-100"
             />
+            
+            {/* hCaptcha */}
+            <div className="flex justify-center">
+              <HCaptchaComponent
+                ref={captchaRef}
+                siteKey={HCAPTCHA_SITE_KEY}
+                onChange={handleCaptchaChange}
+                onError={handleCaptchaError}
+                theme="light"
+                size="normal"
+              />
+            </div>
           </motion.div>
         )}
 
@@ -142,7 +195,7 @@ export default function VerifyEmailPage({
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleResend}
-          disabled={resendMutation.isPending || resendCooldown > 0}
+          disabled={resendMutation.isPending || resendCooldown > 0 || (showEmailInput && !captchaToken)}
           className="w-full mb-4 flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#FF6B00] hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B00] disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
         >
           {resendMutation.isPending ? (

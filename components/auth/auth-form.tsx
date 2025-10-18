@@ -159,31 +159,37 @@ export function AuthForm({
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      console.log("Starting OAuth flow with Google");
+      console.log("Starting OAuth flow with Google", { role, authMode });
 
-      // Redirect to the current page (client-side) to complete PKCE flow
-      const currentOrigin = window.location.origin;
-      const currentPath = window.location.pathname;
-
-      // Build redirect URL with state parameters
-      const oauthRedirectUrl = new URL(currentPath, currentOrigin);
-
-      // Pass role information if available (from sign-up pages)
+      // Build the callback URL that Supabase will redirect to after OAuth
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const callbackUrl = new URL('/api/auth/callback', siteUrl);
+      
+      // Add role parameter to callback URL
       if (role) {
-        oauthRedirectUrl.searchParams.set("role", role);
+        callbackUrl.searchParams.set('role', role);
       }
-
-      // If adding new account, preserve the mode and redirect parameters
+      
+      // Add auth mode if present
       if (authMode === "add") {
-        oauthRedirectUrl.searchParams.set("mode", "add");
+        callbackUrl.searchParams.set("mode", "add");
         if (redirectUrl) {
-          oauthRedirectUrl.searchParams.set("redirect", redirectUrl);
+          callbackUrl.searchParams.set("redirect", redirectUrl);
         }
       }
+      
+      // Set the next redirect path based on role
+      const nextPath = role === 'tutor' 
+        ? `/${locale}/tutor/dashboard`
+        : role === 'admin'
+        ? `/${locale}/admin/dashboard`
+        : `/${locale}/home`;
+      
+      callbackUrl.searchParams.set('next', nextPath);
 
       console.log(
-        "OAuth redirect URL:",
-        oauthRedirectUrl.toString(),
+        "OAuth callback URL:",
+        callbackUrl.toString(),
         "with role:",
         role
       );
@@ -191,7 +197,7 @@ export function AuthForm({
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: oauthRedirectUrl.toString(),
+          redirectTo: callbackUrl.toString(),
           queryParams: {
             access_type: "offline",
             prompt: "consent",

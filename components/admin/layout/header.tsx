@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Bell, User, Settings, Menu, X } from 'lucide-react';
-import { ThemeSwitcher } from '@/components/ui/theme-switcher';
-import { useUser } from '@/hooks/profile/use-user';
-import Image from 'next/image';
-import UserProfilePopover from '@/components/admin/layout/user-profile-popover';
+import React, { useState, useRef } from "react";
+import { motion } from "framer-motion";
+import { User, Menu, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useUser } from "@/hooks/profile/use-user";
+import Image from "next/image";
+import UserProfilePopover from "@/components/admin/layout/user-profile-popover";
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -22,15 +22,16 @@ export default function ClassroomHeader({
   title,
   onProfileClick,
   sidebarExpanded = false,
-  onMenuToggle
+  onMenuToggle,
 }: ClassroomHeaderProps) {
-  const { data: userData, isLoading, error } = useUser();
+  const t = useTranslations("AdminHeader");
+  const { data: userData } = useUser();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
-  
-  
-  const resolvedUserName = userData?.profile?.display_name || userData?.email || 'User';
-  const userAvatar = userData?.profile?.avatar_url || '';
+
+  const resolvedUserName =
+    userData?.profile?.display_name || userData?.email || "User";
+  const userAvatar = userData?.profile?.avatar_url || "";
 
   const handleProfileClick = () => {
     if (onProfileClick) {
@@ -41,14 +42,14 @@ export default function ClassroomHeader({
   };
   return (
     <motion.header
-      className="fixed top-0 left-0 right-0 h-16 z-30 backdrop-blur-md border-b border-border/40 dark:bg-[#0D1F1A]/80 bg-[#FDF5E6]/80 text-foreground"
+      className="fixed top-0 left-0 right-0 h-16 z-30 backdrop-blur-md border-b border-border/40 bg-background/80 text-foreground"
       style={{
-        backdropFilter: 'blur(16px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        backdropFilter: "blur(16px) saturate(180%)",
+        WebkitBackdropFilter: "blur(16px) saturate(180%)",
       }}
       initial={{ y: -64 }}
       animate={{ y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
       <div className="flex items-center justify-between h-full px-6">
         <div className="flex items-center gap-4">
@@ -57,8 +58,8 @@ export default function ClassroomHeader({
             onClick={onMenuToggle}
             className="p-2 rounded-lg transition-colors hover:bg-accent/50"
             style={{
-              backdropFilter: 'blur(16px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+              backdropFilter: "blur(16px) saturate(180%)",
+              WebkitBackdropFilter: "blur(16px) saturate(180%)",
             }}
             whileHover={{
               scale: 1.1,
@@ -68,8 +69,13 @@ export default function ClassroomHeader({
             <motion.div
               animate={{ rotate: sidebarExpanded ? 180 : 0 }}
               transition={{ duration: 0.2 }}
+              title={sidebarExpanded ? t("close_menu") : t("menu")}
             >
-              {sidebarExpanded ? <X size={20} className="dark:text-white text-gray-800" /> : <Menu size={20} className="dark:text-white text-gray-800" />}
+              {sidebarExpanded ? (
+                <X size={20} className="text-gray-800 dark:text-white" />
+              ) : (
+                <Menu size={20} className="text-gray-800 dark:text-white" />
+              )}
             </motion.div>
           </motion.button>
 
@@ -80,13 +86,13 @@ export default function ClassroomHeader({
             transition={{ delay: 0.2, duration: 0.3 }}
           >
             <div className="flex items-center gap-3">
-              <img 
-                src="/favicon.png" 
-                alt="Studify Logo" 
+              <img
+                src="/favicon.png"
+                alt="Studify Logo"
                 className="w-8 h-8 rounded-md"
               />
               <h1 className="text-xl font-bold text-foreground">
-                {title}
+                {title || t("dashboard")}
               </h1>
             </div>
           </motion.div>
@@ -95,37 +101,37 @@ export default function ClassroomHeader({
           <ThemeSwitcher />
         </div> */}
         <div className="flex items-center gap-4">
-            <motion.button
-              ref={profileButtonRef}
-              onClick={handleProfileClick}
-              className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
-                {userAvatar ? (
-                  <Image
-                    src={userAvatar}
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                ) : (
-                  <User size={16} className="text-white" />
-                )}
-              </div>
-              <span className="text-sm font-medium text-foreground hidden sm:block">
-                {resolvedUserName}
-              </span>
-            </motion.button>
-            
-            <UserProfilePopover
-              isOpen={isPopoverOpen}
-              onClose={() => setIsPopoverOpen(false)}
-              triggerRef={profileButtonRef}
-            />
-          </div>
+          <motion.button
+            ref={profileButtonRef}
+            onClick={handleProfileClick}
+            className="flex items-center space-x-2 p-2 rounded-lg text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
+              {userAvatar ? (
+                <Image
+                  src={userAvatar}
+                  alt="Profile"
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <User size={16} className="text-white" />
+              )}
+            </div>
+            <span className="text-sm font-medium text-foreground hidden sm:block">
+              {resolvedUserName}
+            </span>
+          </motion.button>
+
+          <UserProfilePopover
+            isOpen={isPopoverOpen}
+            onClose={() => setIsPopoverOpen(false)}
+            triggerRef={profileButtonRef}
+          />
+        </div>
       </div>
     </motion.header>
   );

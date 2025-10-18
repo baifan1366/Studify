@@ -393,7 +393,7 @@ export default function AnimatedSidebar({
                                   transition={{ duration: 0.2 }}
                                   className="ml-auto"
                                 >
-                                  <ChevronDown size={16} className="dark:text-white/60 text-gray-800" />
+                                  <ChevronDown size={16} className="text-gray-800 dark:text-gray-200" />
                                 </motion.div>
                               )}
 

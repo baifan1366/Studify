@@ -46,6 +46,7 @@ export function useSignUp() {
 type ResendVerificationArgs = { 
   email: string;
   locale?: string;
+  captchaToken?: string;
 };
 type ResendVerificationResponse = { success: boolean; message: string };
 
@@ -64,6 +65,7 @@ export function useResendVerification() {
         email: vars.email,
         options: {
           emailRedirectTo,
+          ...(vars.captchaToken ? { captchaToken: vars.captchaToken } : {}),
         },
       });
 

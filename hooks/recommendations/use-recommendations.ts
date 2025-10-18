@@ -43,3 +43,46 @@ export function useRecommendations() {
     refetchOnWindowFocus: false,
   });
 }
+
+// Helper function to transform recommendations data for components
+export function transformRecommendationsData(data?: CourseRecommendations) {
+  if (!data) {
+    return { courses: [], categories: {} };
+  }
+  
+  return {
+    courses: data.recommendations || [],
+    categories: data.categories || {
+      continue_learning: [],
+      similar_to_completed: [],
+      trending: [],
+      for_you: []
+    }
+  };
+}
+
+// Hook for fetching recommendations by groups
+export function useRecommendationGroups() {
+  return useQuery({
+    queryKey: ['recommendations', 'groups'],
+    queryFn: async () => {
+      const response = await api.get('/recommendations/groups');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+// Hook for fetching recommendations by posts
+export function useRecommendationPosts() {
+  return useQuery({
+    queryKey: ['recommendations', 'posts'],
+    queryFn: async () => {
+      const response = await api.get('/recommendations/posts');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}

@@ -103,11 +103,18 @@ export default function DashboardContent() {
   
   // Debug logging in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('Dashboard Stats Debug:', {
+    console.log('📊 Dashboard Stats Debug:', {
       dashStats,
       learningData,
       profilePoints: profile?.points,
-      computedStats: stats
+      computedStats: stats,
+      dataSources: {
+        coursesEnrolled: 'dashStats (from course_enrollment)',
+        coursesCompleted: 'learningData or dashStats',
+        totalStudyTime: 'learningData (from study_session) or dashStats',
+        currentStreak: 'learningData or dashStats (from study_session)',
+        points: 'profile.points or learningData or dashStats'
+      }
     });
   }
   
@@ -121,6 +128,8 @@ export default function DashboardContent() {
   return (
       <div className="min-h-screen p-6 pb-32">
         <div className="max-w-7xl mx-auto">
+
+
           {/* Header */}
           <motion.div
             className="mb-8"

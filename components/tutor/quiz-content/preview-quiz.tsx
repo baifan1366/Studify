@@ -6,6 +6,7 @@ import { Eye, X, Clock, Trophy, Users, CheckCircle, XCircle, HelpCircle } from '
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useQuizAnalysis } from '@/hooks/quiz/use-quiz-analysis';
 import {
   Dialog,
   DialogContent,
@@ -53,17 +54,35 @@ export function PreviewQuiz({ quiz, open, onOpenChange, showStatistics = true }:
   const [selectedAnswer, setSelectedAnswer] = useState<string | boolean | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
 
-  // Mock statistics data - replace with actual data from hooks
-  const mockStatistics = {
+  // Fetch real statistics data from quiz analysis API using the lesson_id
+  const { data: analysisData, isLoading: statsLoading } = useQuizAnalysis(
+    showStatistics && currentView === 'tutor' ? quiz.lesson_id : null
+  );
+
+  // Find the current question's data in the analysis
+  const questionAnalysis = analysisData?.questions.find(q => q.id === quiz.id);
+  
+  // Use real statistics or fallback to basic data
+  const statistics = analysisData ? {
+    total_submissions: analysisData.lesson_stats.total_submissions,
+    correct_submissions: questionAnalysis 
+      ? analysisData.questions.filter(q => q.id === quiz.id && q.is_correct).length
+      : 0,
+    average_score: analysisData.lesson_stats.average_score,
+    completion_rate: analysisData.lesson_stats.completion_rate,
+    difficulty_rating: quiz.difficulty,
+    time_spent_avg: analysisData.user_stats.time_taken_sec / (analysisData.questions.length || 1),
+    common_wrong_answers: quiz.question_type === 'multiple_choice' && quiz.options 
+      ? quiz.options.slice(1, 3).map(opt => ({ answer: opt, count: 0 })) // TODO: Calculate from submissions
+      : []
+  } : {
     total_submissions: quiz.submission_count || 0,
     correct_submissions: Math.floor((quiz.submission_count || 0) * 0.7),
     average_score: 75,
     completion_rate: 85,
     difficulty_rating: quiz.difficulty,
-    time_spent_avg: 120, // seconds
-    common_wrong_answers: quiz.question_type === 'multiple_choice' && quiz.options 
-      ? quiz.options.slice(1, 3).map(opt => ({ answer: opt, count: Math.floor(Math.random() * 10) + 1 }))
-      : []
+    time_spent_avg: 120,
+    common_wrong_answers: []
   };
 
   const handleClose = () => {
@@ -144,7 +163,7 @@ export function PreviewQuiz({ quiz, open, onOpenChange, showStatistics = true }:
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-4">
-            <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <p className="text-lg font-medium text-foreground">
               {quiz.question_text}
             </p>
 
@@ -272,111 +291,183 @@ export function PreviewQuiz({ quiz, open, onOpenChange, showStatistics = true }:
     </div>
   );
 
-  const renderStatistics = () => (
-    <div className="space-y-6">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <div>
-                <p className="text-2xl font-bold">{mockStatistics.total_submissions}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('total_submissions')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-              <div>
-                <p className="text-2xl font-bold">{mockStatistics.correct_submissions}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('correct_answers')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
-              <div>
-                <p className="text-2xl font-bold">{mockStatistics.average_score}%</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('average_score')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Clock className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-              <div>
-                <p className="text-2xl font-bold">{formatTime(mockStatistics.time_spent_avg)}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('avg_time')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('performance_breakdown')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <div className="flex justify-between mb-2">
-              <span>{t('correct_rate')}</span>
-              <span>{Math.round((mockStatistics.correct_submissions / mockStatistics.total_submissions) * 100)}%</span>
-            </div>
-            <Progress value={(mockStatistics.correct_submissions / mockStatistics.total_submissions) * 100} className="h-2" />
+  const renderStatistics = () => {
+    if (statsLoading) {
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="pt-6">
+                  <div className="animate-pulse">
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-1" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
+        </div>
+      );
+    }
 
-          <div>
-            <div className="flex justify-between mb-2">
-              <span>{t('completion_rate')}</span>
-              <span>{mockStatistics.completion_rate}%</span>
-            </div>
-            <Progress value={mockStatistics.completion_rate} className="h-2" />
-          </div>
+    return (
+      <div className="space-y-6">
+        {/* Overview Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2">
+                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <div>
+                  <p className="text-2xl font-bold">{statistics.total_submissions}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('total_submissions')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div>
-            <div className="flex justify-between mb-2">
-              <span>{t('difficulty_rating')}</span>
-              <span>{getDifficultyLabel(mockStatistics.difficulty_rating)}</span>
-            </div>
-            <Progress value={(mockStatistics.difficulty_rating / 5) * 100} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                <div>
+                  <p className="text-2xl font-bold">{statistics.correct_submissions}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('correct_answers')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Common Wrong Answers */}
-      {mockStatistics.common_wrong_answers.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+                <div>
+                  <p className="text-2xl font-bold">{Math.round(statistics.average_score)}%</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('average_score')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2">
+                <Clock className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                <div>
+                  <p className="text-2xl font-bold">{formatTime(Math.round(statistics.time_spent_avg))}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('avg_time')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Performance Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('common_wrong_answers')}</CardTitle>
+            <CardTitle>{t('performance_breakdown')}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {mockStatistics.common_wrong_answers.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
-                  <span className="text-red-700 dark:text-red-300">{item.answer}</span>
-                  <Badge variant="destructive">{item.count} {t('students')}</Badge>
-                </div>
-              ))}
+          <CardContent className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-2">
+                <span>{t('correct_rate')}</span>
+                <span>
+                  {statistics.total_submissions > 0 
+                    ? Math.round((statistics.correct_submissions / statistics.total_submissions) * 100)
+                    : 0}%
+                </span>
+              </div>
+              <Progress 
+                value={statistics.total_submissions > 0 
+                  ? (statistics.correct_submissions / statistics.total_submissions) * 100 
+                  : 0} 
+                className="h-2" 
+              />
             </div>
+
+            <div>
+              <div className="flex justify-between mb-2">
+                <span>{t('completion_rate')}</span>
+                <span>{Math.round(statistics.completion_rate)}%</span>
+              </div>
+              <Progress value={statistics.completion_rate} className="h-2" />
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-2">
+                <span>{t('difficulty_rating')}</span>
+                <span>{getDifficultyLabel(statistics.difficulty_rating)}</span>
+              </div>
+              <Progress value={(statistics.difficulty_rating / 5) * 100} className="h-2" />
+            </div>
+
+            {analysisData && (
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span>{t('lesson_average')}</span>
+                  <span>{Math.round(analysisData.lesson_stats.average_score)}%</span>
+                </div>
+                <Progress value={analysisData.lesson_stats.average_score} className="h-2" />
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
-    </div>
-  );
+
+        {/* Difficulty Breakdown */}
+        {analysisData?.lesson_stats.difficulty_breakdown && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('difficulty_breakdown')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-green-600 dark:text-green-400">{t('easy_questions')}</span>
+                  <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">
+                    {analysisData.lesson_stats.difficulty_breakdown.easy}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-yellow-600 dark:text-yellow-400">{t('medium_questions')}</span>
+                  <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20">
+                    {analysisData.lesson_stats.difficulty_breakdown.medium}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-red-600 dark:text-red-400">{t('hard_questions')}</span>
+                  <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20">
+                    {analysisData.lesson_stats.difficulty_breakdown.hard}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Common Wrong Answers */}
+        {statistics.common_wrong_answers.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('common_wrong_answers')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {statistics.common_wrong_answers.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
+                    <span className="text-red-700 dark:text-red-300">{item.answer}</span>
+                    <Badge variant="destructive">{item.count} {t('students')}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>

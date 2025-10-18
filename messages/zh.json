@@ -138,7 +138,94 @@
     "complete": "完成",
     "view_all_paths": "查看全部 {count} 条学习路径 →",
     "next_milestone": "下一个：{name}",
-    "pts": "积分"
+    "pts": "积分",
+    "self_rating_desc": "你如何评价今天的整体学习？",
+    "mood_desc": "学习期间你的心情如何？",
+    "energy_desc": "今天你的精力水平如何？",
+    "focus_desc": "你的专注程度如何？",
+    "reflection_questions": "反思问题",
+    "reflection_questions_desc": "分享你对今天学习的想法",
+    "previous": "上一步",
+    "next": "下一步",
+    "reflection_complete": "反思完成！",
+    "ai_analysis_ready": "这是你的个性化 AI 分析",
+    "close_reflection": "关闭反思"
+  },
+  "AdvancedFeatures": {
+    "title": "高级学习功能",
+    "subtitle": "基于你的笔记和学习路径",
+    "quiz_generator": "测验生成器",
+    "flashcards": "闪卡",
+    "synthesis": "知识综合",
+    "generate_quiz_title": "从笔记生成测验",
+    "generate_quiz_desc": "选择 AI 笔记自动生成练习测验",
+    "generating_quiz": "正在生成测验...",
+    "generate_quiz_button": "生成测验（{count} 条笔记）",
+    "questions_count": "{count} 道题目",
+    "generate_flashcards_title": "生成闪卡",
+    "generate_flashcards_desc": "从你的笔记创建间隔重复闪卡",
+    "creating_flashcards": "正在创建闪卡...",
+    "generate_flashcards_button": "生成闪卡（{count} 条笔记）",
+    "cards_due_review": "待复习闪卡",
+    "card_progress": "{current} / {total}",
+    "cards_due": "{count} 张待复习",
+    "show_answer": "显示答案",
+    "review_again": "重来",
+    "review_hard": "困难",
+    "review_good": "良好",
+    "review_easy": "简单",
+    "no_cards_due": "暂无待复习闪卡",
+    "generate_cards_hint": "从你的笔记生成闪卡开始学习",
+    "synthesis_title": "跨路径概念综合",
+    "synthesis_desc": "发现你的学习路径之间的联系",
+    "analyzing_connections": "正在分析联系...",
+    "synthesize_button": "综合分析（{count} 条路径）",
+    "ai_insights": "AI 洞察",
+    "discovered_connections": "发现的联系",
+    "suggested_projects": "建议项目"
+  },
+  "CoachSettings": {
+    "title": "AI 学习教练设置",
+    "subtitle": "自定义你的个性化学习体验",
+    "notification_times": "通知时间",
+    "daily_plan_reminder": "每日计划提醒",
+    "evening_reflection_reminder": "晚间反思提醒",
+    "learning_preferences": "学习偏好",
+    "preferred_difficulty": "首选难度级别",
+    "difficulty_easy": "简单 - 温和的学习节奏",
+    "difficulty_medium": "中等 - 平衡的挑战",
+    "difficulty_hard": "困难 - 挑战我的极限",
+    "difficulty_adaptive": "自适应 - AI 根据进度决定",
+    "daily_target": "每日学习目标：{minutes} 分钟",
+    "max_tasks": "每日最大任务数：{count}",
+    "session_length": "首选学习时长：{minutes} 分钟",
+    "coaching_style": "教练风格",
+    "coaching_approach": "教练方式",
+    "style_gentle": "温和 - 支持和鼓励",
+    "style_balanced": "平衡 - 支持与挑战并重",
+    "style_intensive": "强化 - 高能量和高要求",
+    "style_adaptive": "自适应 - 根据你的心情调整",
+    "motivation_type": "激励类型",
+    "motivation_achievement": "成就 - 专注于成就",
+    "motivation_progress": "进步 - 庆祝小胜利",
+    "motivation_social": "社交 - 社区和分享",
+    "motivation_learning": "学习 - 知识和成长",
+    "motivation_mixed": "混合 - 多种激励方式",
+    "notification_preferences": "通知偏好",
+    "enable_daily_plan": "每日计划提醒",
+    "enable_daily_plan_desc": "获取关于每日学习计划的通知",
+    "enable_task_reminders": "任务提醒",
+    "enable_task_reminders_desc": "未完成任务的提醒",
+    "enable_evening_retro": "晚间反思",
+    "enable_evening_retro_desc": "每日学习反思提示",
+    "enable_motivation": "激励消息",
+    "enable_motivation_desc": "全天的鼓励消息",
+    "enable_achievements": "成就庆祝",
+    "enable_achievements_desc": "庆祝你的学习里程碑",
+    "enable_streaks": "连续学习提醒",
+    "enable_streaks_desc": "保持你的学习连续记录",
+    "save_settings": "保存设置",
+    "saving": "保存中..."
   },
   "CourseLearningExtra": {
     "course_category": "分类",
@@ -749,7 +836,11 @@
     "tips_title": "📧 检查你的邮箱",
     "tip_1": "检查你的垃圾邮件/垃圾箱",
     "tip_2": "确保你输入的邮箱地址正确",
-    "tip_3": "链接将在24小时后过期"
+    "tip_3": "链接将在24小时后过期",
+    "captcha_required_title": "需要验证",
+    "captcha_required_desc": "请完成验证码验证",
+    "captcha_error_title": "验证码错误",
+    "captcha_error_desc": "验证码验证失败，请重试。"
   },
   "OnboardingStudentPage": {
     "metadata_title": "Student Onboarding | Studify",
@@ -1153,7 +1244,16 @@
     "wishlist_description": "课程已添加到你的愿望清单",
     "link_copied": "链接已复制",
     "link_copied_description": "课程链接已复制到剪贴板",
-    "jump_to_chapter": "跳转到章节"
+    "jump_to_chapter": "跳转到章节",
+    "free": "免费",
+    "progress": "进度",
+    "continue_learning": "继续学习",
+    "start_learning": "开始学习",
+    "enroll_free": "免费注册",
+    "add_to_cart": "加入购物车",
+    "preview_course": "预览课程",
+    "course_syllabus": "课程大纲",
+    "more_topics": "+{count} 个更多主题..."
   },
   "CourseDetail": {
     "access_classroom_community": "你现在可以访问你的课堂和社区资源"
@@ -3324,6 +3424,38 @@
       "on_subject": "on {subject}"
     }
   },
+  "ApiKeyMonitor": {
+    "title": "API 密钥监控",
+    "description": "实时监控您的 {count} 个 OpenRouter API 密钥",
+    "loading": "正在加载 API 密钥状态...",
+    "failed_to_load": "加载 API 密钥统计失败",
+    "refresh": "刷新",
+    "total_keys": "总密钥数",
+    "active_keys": "活跃密钥",
+    "in_cooldown": "冷却中",
+    "total_requests": "总请求数",
+    "api_keys_status": "API 密钥状态",
+    "rpm_keys": "{rateLimit} RPM 密钥",
+    "keys_count": "{count} 个密钥",
+    "inactive": "未激活",
+    "cooldown": "冷却中",
+    "active": "活跃",
+    "usage": "使用量",
+    "errors": "错误",
+    "last_used": "最后使用",
+    "cooldown_until": "冷却至",
+    "reset": "重置",
+    "usage_distribution": "使用量分布"
+  },
+  "AdminHeader": {
+    "dashboard": "管理员仪表板",
+    "menu": "菜单",
+    "close_menu": "关闭菜单",
+    "profile": "个人资料",
+    "settings": "设置",
+    "notifications": "通知",
+    "search": "搜索"
+  },
   "AdminAnnouncementsPage": {
     "metadata_title": "Announcements | Admin | Studify",
     "metadata_description": "View and manage announcements for your courses",
@@ -5346,7 +5478,21 @@
     "check_spam_folder": "Don't see the email? Check your spam folder or try again.",
     "request_failed": "Failed to send reset email. Please try again.",
     "captcha_required": "Please complete the CAPTCHA verification",
-    "captcha_failed": "CAPTCHA verification failed. Please try again."
+    "captcha_failed": "CAPTCHA verification failed. Please try again.",
+    "close": "关闭",
+    "cancel": "取消"
+  },
+  "OAuthHandler": {
+    "processing_login": "正在处理登录...",
+    "choose_account_type": "选择账户类型",
+    "select_account_desc": "请选择你想如何使用 Studify",
+    "student": "学生",
+    "student_desc": "学习和探索课程",
+    "tutor": "导师",
+    "tutor_desc": "教学和创建课程",
+    "processing": "正在处理身份验证...",
+    "redirecting": "正在重定向...",
+    "error_occurred": "身份验证过程中发生错误"
   },
   "ResetPassword": {
     "title": "Reset Password",
@@ -5917,10 +6063,11 @@
     "reanalyze": "Re-analyze"
   },
   "MegaBlobImage": {
-    "loading": "Loading image...",
-    "error_loading": "Error loading image",
-    "failed_to_load": "Failed to load image from MEGA",
-    "retry": "Retry"
+    "loading": "加载图片中...",
+    "error_loading": "加载图片出错",
+    "failed_to_load": "从 MEGA 加载图片失败",
+    "retry": "重试",
+    "no_image": "无图片显示"
   },
   "ChatDashboard": {
     "title": "Messages",
@@ -5960,14 +6107,17 @@
     "copy": "Copy",
     "message_deleted": "这条消息已被删除"
   },
+  "SharedPostMessage": {
+    "shared_post": "分享的帖子",
+    "loading": "加载帖子中...",
+    "unavailable": "帖子不可用",
+    "unknown_author": "未知",
+    "more": "更多",
+    "view_original": "查看原帖"
+  },
   "HCaptchaComponent": {
     "verification_failed": "Captcha verification failed",
     "please_verify": "Please complete the verification"
-  },
-  "OAuthHandler": {
-    "processing": "Processing authentication...",
-    "redirecting": "Redirecting...",
-    "error_occurred": "An error occurred during authentication"
   },
   "AttachmentViewer": {
     "view": "View",

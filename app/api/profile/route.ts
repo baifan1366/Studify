@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 /**
  * PATCH /api/profile
  * Update current user's profile information and settings
+ * Admins can update any user's profile by passing user_id in the body
  */
 export async function PATCH(request: NextRequest) {
   try {
@@ -48,9 +49,18 @@ export async function PATCH(request: NextRequest) {
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const userId = authResult.sub; // This is the auth UUID
+    const authenticatedUserId = authResult.sub; // This is the auth UUID
     const supabase = await createClient();
     const body = await request.json();
+
+    // Determine which user's profile to update
+    // Admins can update any user's profile, others can only update their own
+    let targetUserId = authenticatedUserId;
+    if (body.user_id && authResult.payload.role === 'admin') {
+      targetUserId = body.user_id;
+      // Remove user_id from body so it doesn't get updated
+      delete body.user_id;
+    }
 
     // Handle smart merging for nested JSON objects
     let updateData: any = {
@@ -79,7 +89,7 @@ export async function PATCH(request: NextRequest) {
       const { data: currentProfile } = await supabase
         .from('profiles')
         .select('notification_settings')
-        .eq('user_id', userId)
+        .eq('user_id', targetUserId)
         .single();
 
       const currentNotifications = currentProfile?.notification_settings || {};
@@ -95,7 +105,7 @@ export async function PATCH(request: NextRequest) {
       const { data: currentProfile } = await supabase
         .from('profiles')
         .select('privacy_settings')
-        .eq('user_id', userId)
+        .eq('user_id', targetUserId)
         .single();
 
       const currentPrivacy = currentProfile?.privacy_settings || {};
@@ -111,7 +121,7 @@ export async function PATCH(request: NextRequest) {
       const { data: currentProfile } = await supabase
         .from('profiles')
         .select('preferences')
-        .eq('user_id', userId)
+        .eq('user_id', targetUserId)
         .single();
 
       const currentPreferences = currentProfile?.preferences || {};
@@ -132,7 +142,7 @@ export async function PATCH(request: NextRequest) {
     const { data: profile, error } = await supabase
       .from('profiles')
       .update(updateData)
-      .eq('user_id', userId)
+      .eq('user_id', targetUserId)
       .eq('is_deleted', false)
       .select()
       .single();

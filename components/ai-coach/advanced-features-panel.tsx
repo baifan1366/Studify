@@ -41,6 +41,7 @@ interface AdvancedFeaturesPanelProps {
 }
 
 export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPanelProps) {
+  const t = useTranslations('AdvancedFeatures');
   const [activeTab, setActiveTab] = useState('quiz');
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
@@ -104,12 +105,12 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
   return (
     <Card className={cn("bg-white/5 border-white/10 p-6", className)}>
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-purple-500/20 rounded-lg">
-          <Sparkles className="w-6 h-6 text-purple-400" />
+        <div className="p-2 bg-purple-500/20 dark:bg-purple-500/30 rounded-lg">
+          <Sparkles className="w-6 h-6 text-purple-400 dark:text-purple-300" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-white">Advanced Learning Features</h2>
-          <p className="text-sm text-white/60">Powered by your notes and learning paths</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('title')}</h2>
+          <p className="text-sm text-slate-600 dark:text-white/60">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -117,24 +118,24 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
         <TabsList className="grid grid-cols-3 w-full mb-6">
           <TabsTrigger value="quiz">
             <Brain className="w-4 h-4 mr-2" />
-            Quiz Generator
+            {t('quiz_generator')}
           </TabsTrigger>
           <TabsTrigger value="flashcards">
             <BookOpen className="w-4 h-4 mr-2" />
-            Flashcards
+            {t('flashcards')}
           </TabsTrigger>
           <TabsTrigger value="synthesis">
             <Network className="w-4 h-4 mr-2" />
-            Synthesis
+            {t('synthesis')}
           </TabsTrigger>
         </TabsList>
 
         {/* Quiz Generation Tab */}
         <TabsContent value="quiz" className="space-y-4">
-          <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <h3 className="text-sm font-medium text-blue-300 mb-2">Generate Quiz from Notes</h3>
-            <p className="text-xs text-white/60 mb-4">
-              Select AI notes to automatically generate a practice quiz
+          <div className="p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20 dark:border-blue-500/30">
+            <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">{t('generate_quiz_title')}</h3>
+            <p className="text-xs text-slate-600 dark:text-white/60 mb-4">
+              {t('generate_quiz_desc')}
             </p>
 
             {/* Note Selection */}
@@ -177,12 +178,12 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
               {generateQuiz.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Quiz...
+                  {t('generating_quiz')}
                 </>
               ) : (
                 <>
                   <Brain className="w-4 h-4 mr-2" />
-                  Generate Quiz ({selectedNotes.length} notes)
+                  {t('generate_quiz_button', { count: selectedNotes.length })}
                 </>
               )}
             </Button>
@@ -200,8 +201,8 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
                   <h3 className="text-lg font-semibold text-white">{generatedQuiz.title}</h3>
                   <p className="text-sm text-white/60">{generatedQuiz.description}</p>
                 </div>
-                <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
-                  {generatedQuiz.questions?.length} questions
+                <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30">
+                  {t('questions_count', { count: generatedQuiz.questions?.length })}
                 </Badge>
               </div>
 
@@ -241,10 +242,10 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
         {/* Spaced Repetition Tab */}
         <TabsContent value="flashcards" className="space-y-4">
           {/* Generate Cards Section */}
-          <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20 mb-4">
-            <h3 className="text-sm font-medium text-purple-300 mb-2">Generate Flashcards</h3>
-            <p className="text-xs text-white/60 mb-4">
-              Create spaced repetition flashcards from your notes
+          <div className="p-4 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg border border-purple-500/20 dark:border-purple-500/30 mb-4">
+            <h3 className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">{t('generate_flashcards_title')}</h3>
+            <p className="text-xs text-slate-600 dark:text-white/60 mb-4">
+              {t('generate_flashcards_desc')}
             </p>
 
             <Button
@@ -255,12 +256,12 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
               {generateCards.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating Flashcards...
+                  {t('creating_flashcards')}
                 </>
               ) : (
                 <>
                   <BookOpen className="w-4 h-4 mr-2" />
-                  Generate Flashcards ({selectedNotes.length} notes)
+                  {t('generate_flashcards_button', { count: selectedNotes.length })}
                 </>
               )}
             </Button>
@@ -271,13 +272,13 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
             <div className="p-4 bg-white/5 rounded-lg border border-white/10">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-medium text-white">Cards Due for Review</h3>
-                  <p className="text-xs text-white/60">
-                    {currentCardIndex + 1} of {srCards.length}
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-white">{t('cards_due_review')}</h3>
+                  <p className="text-xs text-slate-600 dark:text-white/60">
+                    {t('card_progress', { current: currentCardIndex + 1, total: srCards.length })}
                   </p>
                 </div>
-                <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
-                  {srCards.length} due
+                <Badge className="bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30">
+                  {t('cards_due', { count: srCards.length })}
                 </Badge>
               </div>
 
@@ -298,10 +299,10 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
                       >
                         <Button
                           onClick={() => setShowAnswer(true)}
-                          className="bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                          className="bg-white/10 hover:bg-white/20 text-slate-900 dark:text-white border border-slate-300 dark:border-white/20"
                         >
                           <HelpCircle className="w-4 h-4 mr-2" />
-                          Show Answer
+                          {t('show_answer')}
                         </Button>
                       </motion.div>
                     ) : (
@@ -319,17 +320,17 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
                         {/* Review Quality Buttons */}
                         <div className="grid grid-cols-4 gap-2">
                           {[
-                            { label: 'Again', quality: 0, color: 'red' },
-                            { label: 'Hard', quality: 3, color: 'orange' },
-                            { label: 'Good', quality: 4, color: 'blue' },
-                            { label: 'Easy', quality: 5, color: 'green' }
+                            { label: t('review_again'), quality: 0, color: 'red' },
+                            { label: t('review_hard'), quality: 3, color: 'orange' },
+                            { label: t('review_good'), quality: 4, color: 'blue' },
+                            { label: t('review_easy'), quality: 5, color: 'green' }
                           ].map((option) => (
                             <Button
                               key={option.quality}
                               onClick={() => handleReviewCard(option.quality)}
                               className={cn(
                                 "text-xs",
-                                `bg-${option.color}-500/20 hover:bg-${option.color}-500/30 text-${option.color}-300 border border-${option.color}-500/30`
+                                `bg-${option.color}-500/20 hover:bg-${option.color}-500/30 text-${option.color}-700 dark:text-${option.color}-300 border border-${option.color}-500/30`
                               )}
                             >
                               {option.label}
@@ -351,19 +352,19 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
 
           {(!srCards || srCards.length === 0) && (
             <div className="text-center py-8">
-              <Calendar className="w-12 h-12 text-white/30 mx-auto mb-3" />
-              <p className="text-white/60">No cards due for review</p>
-              <p className="text-sm text-white/40 mt-1">Generate flashcards from your notes to start learning</p>
+              <Calendar className="w-12 h-12 text-slate-400 dark:text-white/30 mx-auto mb-3" />
+              <p className="text-slate-600 dark:text-white/60">{t('no_cards_due')}</p>
+              <p className="text-sm text-slate-500 dark:text-white/40 mt-1">{t('generate_cards_hint')}</p>
             </div>
           )}
         </TabsContent>
 
         {/* Concept Synthesis Tab */}
         <TabsContent value="synthesis" className="space-y-4">
-          <div className="p-4 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-            <h3 className="text-sm font-medium text-indigo-300 mb-2">Cross-Path Concept Synthesis</h3>
-            <p className="text-xs text-white/60 mb-4">
-              Discover connections between your learning paths
+          <div className="p-4 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-lg border border-indigo-500/20 dark:border-indigo-500/30">
+            <h3 className="text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-2">{t('synthesis_title')}</h3>
+            <p className="text-xs text-slate-600 dark:text-white/60 mb-4">
+              {t('synthesis_desc')}
             </p>
 
             {/* Path Selection */}
@@ -406,12 +407,12 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
               {generateSynthesis.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing Connections...
+                  {t('analyzing_connections')}
                 </>
               ) : (
                 <>
                   <Network className="w-4 h-4 mr-2" />
-                  Synthesize ({selectedPaths.length} paths)
+                  {t('synthesize_button', { count: selectedPaths.length })}
                 </>
               )}
             </Button>
@@ -431,17 +432,17 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
               </div>
 
               {/* AI Insights */}
-              <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+              <div className="p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20 dark:border-blue-500/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <Lightbulb className="w-4 h-4 text-blue-400" />
-                  <h4 className="text-sm font-medium text-blue-300">AI Insights</h4>
+                  <Lightbulb className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">{t('ai_insights')}</h4>
                 </div>
-                <p className="text-sm text-white/80">{generatedSynthesis.aiInsights}</p>
+                <p className="text-sm text-slate-700 dark:text-white/80">{generatedSynthesis.aiInsights}</p>
               </div>
 
               {/* Connections */}
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <h4 className="text-sm font-medium text-white mb-3">Discovered Connections</h4>
+              <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
+                <h4 className="text-sm font-medium text-slate-900 dark:text-white mb-3">{t('discovered_connections')}</h4>
                 <div className="space-y-3">
                   {generatedSynthesis.connections?.map((conn: any, idx: number) => (
                     <div key={idx} className="p-3 bg-indigo-500/10 rounded-lg">
@@ -461,10 +462,10 @@ export default function AdvancedFeaturesPanel({ className }: AdvancedFeaturesPan
               </div>
 
               {/* Suggested Projects */}
-              <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+              <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg border border-green-500/20 dark:border-green-500/30">
                 <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-green-400" />
-                  <h4 className="text-sm font-medium text-green-300">Suggested Projects</h4>
+                  <Zap className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <h4 className="text-sm font-medium text-green-700 dark:text-green-300">{t('suggested_projects')}</h4>
                 </div>
                 <div className="space-y-2">
                   {generatedSynthesis.suggestedProjects?.map((project: any, idx: number) => (

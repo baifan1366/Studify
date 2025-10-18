@@ -13,7 +13,32 @@ export async function GET(request: NextRequest) {
   const provider = searchParams.get('provider');
   const redirectTo = searchParams.get('redirect_to');
   let next = searchParams.get('next') ?? '/';
-  const requestedRole = searchParams.get('role') as 'student' | 'tutor' | null;
+  
+  // Extract role from multiple possible sources
+  let requestedRole = searchParams.get('role') as 'student' | 'tutor' | null;
+  
+  // If role not in direct params, check redirect_to URL
+  if (!requestedRole && redirectTo) {
+    try {
+      const redirectUrl = new URL(decodeURIComponent(redirectTo));
+      requestedRole = redirectUrl.searchParams.get('role') as 'student' | 'tutor' | null;
+    } catch (e) {
+      console.log('[AUTH CALLBACK] Failed to parse redirect_to for role:', redirectTo);
+    }
+  }
+  
+  // If still no role, check the state parameter (OAuth providers may encode it there)
+  if (!requestedRole) {
+    const state = searchParams.get('state');
+    if (state) {
+      try {
+        const stateData = JSON.parse(decodeURIComponent(state));
+        requestedRole = stateData.role as 'student' | 'tutor' | null;
+      } catch (e) {
+        console.log('[AUTH CALLBACK] Failed to parse state for role');
+      }
+    }
+  }
   
   // Handle different authentication flows
   let code: string | null = null;
@@ -92,7 +117,15 @@ export async function GET(request: NextRequest) {
       
       // If profile doesn't exist, create it (for OAuth users)
       if (profileError && profileError.code === 'PGRST116') {
-        console.log('[AUTH CALLBACK] Profile not found, creating new profile with role:', requestedRole || 'student');
+        // Determine the role to use for the new profile
+        const profileRole = requestedRole || 'student';
+        
+        console.log('[AUTH CALLBACK] Profile not found, creating new profile', {
+          requestedRole,
+          finalRole: profileRole,
+          userId,
+          provider: searchParams.get('provider')
+        });
         
         // Extract name from OAuth user data
         const user = data.session.user;
@@ -108,9 +141,8 @@ export async function GET(request: NextRequest) {
                          user.identities?.[0]?.identity_data?.picture;
         
         const displayName = googleName || user.email?.split('@')[0];
-        const profileRole = requestedRole || 'student';
         
-        // Create the profile
+        // Create the profile with the determined role
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
@@ -127,13 +159,18 @@ export async function GET(request: NextRequest) {
         
         if (createError) {
           console.error('[AUTH CALLBACK] Failed to create profile:', createError);
-          return NextResponse.redirect(`${origin}/en/sign-in?error=profile_creation_failed`);
+          return NextResponse.redirect(`${origin}/en/sign-in?error=profile_creation_failed&details=${encodeURIComponent(createError.message)}`);
         }
+        
+        console.log('[AUTH CALLBACK] Profile created successfully', {
+          role: newProfile?.role,
+          displayName: newProfile?.display_name
+        });
         
         profile = newProfile;
       } else if (profileError) {
         console.error('[AUTH CALLBACK] Failed to fetch profile:', profileError);
-        return NextResponse.redirect(`${origin}/en/sign-in?error=profile_not_found`);
+        return NextResponse.redirect(`${origin}/en/sign-in?error=profile_not_found&details=${encodeURIComponent(profileError.message)}`);
       }
       
       const role = profile?.role || 'student';

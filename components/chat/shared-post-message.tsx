@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ export default function SharedPostMessage({
   postId, 
   className = "" 
 }: SharedPostMessageProps) {
+  const t = useTranslations('SharedPostMessage');
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,11 +91,11 @@ export default function SharedPostMessage({
 
   if (loading) {
     return (
-      <Card className={`bg-gray-800 border-gray-700 ${className}`}>
+      <Card className={`bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 ${className}`}>
         <CardContent className="p-4">
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-            <span className="ml-2 text-sm text-gray-400">Loading post...</span>
+            <Loader2 className="h-5 w-5 animate-spin text-slate-400 dark:text-slate-500" />
+            <span className="ml-2 text-sm text-slate-600 dark:text-slate-400">{t('loading')}</span>
           </div>
         </CardContent>
       </Card>
@@ -102,11 +104,11 @@ export default function SharedPostMessage({
 
   if (error || !post) {
     return (
-      <Card className={`bg-gray-800 border-gray-700 ${className}`}>
+      <Card className={`bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 ${className}`}>
         <CardContent className="p-4">
-          <div className="flex items-center text-gray-400">
+          <div className="flex items-center text-slate-600 dark:text-slate-400">
             <AlertCircle className="h-5 w-5 mr-2" />
-            <span className="text-sm">{error || "Post unavailable"}</span>
+            <span className="text-sm">{error || t('unavailable')}</span>
           </div>
         </CardContent>
       </Card>
@@ -114,12 +116,12 @@ export default function SharedPostMessage({
   }
 
   return (
-    <Card className={`bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors ${className}`}>
+    <Card className={`bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-750 transition-colors ${className}`}>
       <CardContent className="p-4">
         {/* 分享标识 */}
-        <div className="flex items-center gap-2 mb-3 text-blue-400">
+        <div className="flex items-center gap-2 mb-3 text-blue-500 dark:text-blue-400">
           <ExternalLink className="h-4 w-4" />
-          <span className="text-xs font-medium">Shared Post</span>
+          <span className="text-xs font-medium">{t('shared_post')}</span>
         </div>
 
         {/* 帖子内容 */}
@@ -137,14 +139,14 @@ export default function SharedPostMessage({
                     {post.group.name}
                   </Badge>
                 )}
-                <div className="flex items-center text-xs text-gray-400">
+                <div className="flex items-center text-xs text-slate-500 dark:text-slate-400">
                   <Clock className="w-3 h-3 mr-1" />
                   {formatTimeAgo(post.created_at || new Date().toISOString())}
                 </div>
               </div>
               
               {/* 标题 */}
-              <h4 className="text-sm font-semibold text-white line-clamp-2 mb-1">
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 mb-1">
                 {post.title}
               </h4>
               
@@ -156,15 +158,15 @@ export default function SharedPostMessage({
                     {post.author?.display_name?.[0]}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs text-gray-300">
-                  {post.author?.display_name || "Unknown"}
+                <span className="text-xs text-slate-700 dark:text-slate-300">
+                  {post.author?.display_name || t('unknown_author')}
                 </span>
               </div>
             </div>
           </div>
 
           {/* 帖子内容预览 */}
-          <p className="text-sm text-gray-300 line-clamp-3">
+          <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-3">
             {post.body}
           </p>
 
@@ -180,16 +182,16 @@ export default function SharedPostMessage({
                       className="w-full h-20 object-cover rounded-md"
                     />
                   ) : (
-                    <div className="w-full h-20 bg-gray-700 rounded-md flex items-center justify-center">
-                      <span className="text-xs text-gray-400 truncate px-2">
+                    <div className="w-full h-20 bg-slate-200 dark:bg-slate-700 rounded-md flex items-center justify-center">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 truncate px-2">
                         {file.file_name}
                       </span>
                     </div>
                   )}
                   {index === 3 && post.files && post.files.length > 4 && (
-                    <div className="absolute inset-0 bg-black/60 rounded-md flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60 dark:bg-black/70 rounded-md flex items-center justify-center">
                       <span className="text-white text-xs font-medium">
-                        +{post.files.length - 4} more
+                        +{post.files.length - 4} {t('more')}
                       </span>
                     </div>
                   )}
@@ -199,7 +201,7 @@ export default function SharedPostMessage({
           )}
 
           {/* 统计信息 */}
-          <div className="flex items-center gap-4 text-xs text-gray-400">
+          <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-1">
               <ThumbsUp className="h-3 w-3" />
               <span>{post.reactions?.["👍"] || 0}</span>
@@ -215,15 +217,15 @@ export default function SharedPostMessage({
           </div>
 
           {/* 查看原帖按钮 */}
-          <div className="pt-2 border-t border-gray-700">
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
             <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
+                className="w-full text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-400/10"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                View Original Post
+                {t('view_original')}
               </Button>
             </Link>
           </div>

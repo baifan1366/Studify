@@ -102,23 +102,23 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
 
       {/* Modal */}
       <motion.div
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900/95 via-purple-900/95 to-indigo-900/95 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white/95 via-purple-50/95 to-indigo-50/95 dark:from-slate-900/95 dark:via-purple-900/95 dark:to-indigo-900/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/20 shadow-2xl"
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ duration: 0.3 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/10">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <Moon className="w-5 h-5 text-purple-400" />
+            <div className="p-2 bg-purple-500/20 dark:bg-purple-500/30 rounded-lg">
+              <Moon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
                 {t('evening_retro')}
               </h2>
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-slate-600 dark:text-white/60">
                 {t('how_was_today')}
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
             variant="ghost"
             size="sm" 
             onClick={handleClose}
-            className="text-white/70 hover:text-white hover:bg-white/10"
+            className="text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10"
           >
             <X className="w-5 h-5" />
           </Button>
@@ -169,17 +169,17 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                   >
                     <div className="text-center">
                       <Star className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                         {t('self_rating')}
                       </h3>
-                      <p className="text-white/60 text-sm">
-                        How would you rate your overall learning today?
+                      <p className="text-slate-600 dark:text-white/60 text-sm">
+                        {t('self_rating_desc')}
                       </p> 
                     </div>
 
                     <div className="space-y-4">
                       <div className="text-center">
-                        <div className="text-4xl font-bold text-white mb-2">
+                        <div className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
                           {formData.selfRating}/5
                         </div>
                         <div className="flex justify-center gap-1">
@@ -216,12 +216,12 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                     className="space-y-6"
                   >
                     <div className="text-center">
-                      <Heart className="w-12 h-12 text-pink-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                      <Heart className="w-12 h-12 text-pink-600 dark:text-pink-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                         {t('mood_today')}
                       </h3>
-                      <p className="text-white/60 text-sm">
-                        How was your mood during learning?
+                      <p className="text-slate-600 dark:text-white/60 text-sm">
+                        {t('mood_desc')}
                       </p>
                     </div>
 
@@ -267,18 +267,18 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                     className="space-y-6"
                   >
                     <div className="text-center">
-                      <Zap className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                      <Zap className="w-12 h-12 text-yellow-600 dark:text-yellow-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                         {t('energy_level')}
                       </h3>
-                      <p className="text-white/60 text-sm">
-                        How was your energy level today?
+                      <p className="text-slate-600 dark:text-white/60 text-sm">
+                        {t('energy_desc')}
                       </p>
                     </div>
 
                     <div className="space-y-4">
                       <div className="text-center">
-                        <div className="text-4xl font-bold text-white mb-2">
+                        <div className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
                           {formData.energyLevel}/5
                         </div>
                         <div className="flex justify-center gap-1">
@@ -315,18 +315,18 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                     className="space-y-6"
                   >
                     <div className="text-center">
-                      <Eye className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                      <Eye className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                         {t('focus_quality')}
                       </h3>
-                      <p className="text-white/60 text-sm">
-                        How well were you able to focus?
+                      <p className="text-slate-600 dark:text-white/60 text-sm">
+                        {t('focus_desc')}
                       </p>
                     </div>
 
                     <div className="space-y-4">
                       <div className="text-center">
-                        <div className="text-4xl font-bold text-white mb-2">
+                        <div className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
                           {formData.focusQuality}/5
                         </div>
                         <div className="flex justify-center gap-1">
@@ -363,64 +363,64 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                     className="space-y-6"
                   >
                     <div className="text-center mb-6">
-                      <MessageSquare className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">
-                        Reflection Questions
+                      <MessageSquare className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                        {t('reflection_questions')}
                       </h3>
-                      <p className="text-white/60 text-sm">
-                        Share your thoughts about today's learning
+                      <p className="text-slate-600 dark:text-white/60 text-sm">
+                        {t('reflection_questions_desc')}
                       </p>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-white/80 text-sm font-medium">
+                        <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
                           {t('achievements_today')}
                         </Label>
                         <Textarea
                           value={formData.achievementsToday}
                           onChange={(e) => setFormData(prev => ({ ...prev, achievementsToday: e.target.value }))}
-                          placeholder="What did you accomplish today?"
-                          className="mt-2 bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                          placeholder={t('achievements_today')}
+                          className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40"
                           rows={2}
                         />
                       </div>
 
                       <div>
-                        <Label className="text-white/80 text-sm font-medium">
+                        <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
                           {t('challenges_faced')}
                         </Label>
                         <Textarea
                           value={formData.challengesFaced}
                           onChange={(e) => setFormData(prev => ({ ...prev, challengesFaced: e.target.value }))}
-                          placeholder="What difficulties did you encounter?"
-                          className="mt-2 bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                          placeholder={t('challenges_faced')}
+                          className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40"
                           rows={2}
                         />
                       </div>
 
                       <div>
-                        <Label className="text-white/80 text-sm font-medium">
+                        <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
                           {t('lessons_learned')}
                         </Label>
                         <Textarea
                           value={formData.lessonsLearned}
                           onChange={(e) => setFormData(prev => ({ ...prev, lessonsLearned: e.target.value }))}
-                          placeholder="What insights did you gain?"
-                          className="mt-2 bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                          placeholder={t('lessons_learned')}
+                          className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40"
                           rows={2}
                         />
                       </div>
 
                       <div>
-                        <Label className="text-white/80 text-sm font-medium">
+                        <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
                           {t('tomorrow_goals')}
                         </Label>
                         <Textarea
                           value={formData.tomorrowGoals}
                           onChange={(e) => setFormData(prev => ({ ...prev, tomorrowGoals: e.target.value }))}
-                          placeholder="What do you want to focus on tomorrow?"
-                          className="mt-2 bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                          placeholder={t('tomorrow_goals')}
+                          className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40"
                           rows={2}
                         />
                       </div>
@@ -435,9 +435,9 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                   variant="outline"
                   onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
                   disabled={currentStep === 0}
-                  className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                  className="bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
                 >
-                  Previous
+                  {t('previous')}
                 </Button>
 
                 {currentStep < steps.length - 1 ? (
@@ -445,7 +445,7 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                     onClick={() => setCurrentStep(currentStep + 1)}
                     className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
                   >
-                    Next
+                    {t('next')}
                   </Button>
                 ) : (
                   <Button
@@ -476,12 +476,12 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
               className="space-y-6"
             >
               <div className="text-center">
-                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">
-                  Reflection Complete!
+                <CheckCircle2 className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                  {t('reflection_complete')}
                 </h3>
-                <p className="text-white/60">
-                  Here's your personalized AI analysis
+                <p className="text-slate-600 dark:text-white/60">
+                  {t('ai_analysis_ready')}
                 </p>
               </div>
 
@@ -556,7 +556,7 @@ export default function EveningReflectionModal({ isOpen, onClose }: EveningRefle
                   onClick={handleClose}
                   className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
                 >
-                  Close Reflection
+                  {t('close_reflection')}
                 </Button>
               </div>
             </motion.div>

@@ -44,6 +44,7 @@ import { useModuleByCourseId } from '@/hooks/course/use-course-module';
 import { useLessonByCourseModuleId, useAllLessonsByCourseId } from '@/hooks/course/use-course-lesson';
 import { useCourseProgress, useCourseProgressByLessonId, useUpdateCourseProgress, useUpdateCourseProgressByLessonId } from '@/hooks/course/use-course-progress';
 import { useLessonProgress, useVideoProgressTracker } from '@/hooks/learning/use-learning-progress';
+import { useStudySessionTracker } from '@/hooks/learning/use-study-session-tracker';
 import { useUser } from '@/hooks/profile/use-user';
 import { useKnowledgeGraph } from '@/hooks/course/use-knowledge-graph';
 import { useQuiz } from '@/hooks/course/use-quiz';
@@ -229,6 +230,21 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
   } = useVideoProgressTracker(currentLessonIdMemo || '', {
     updateInterval: 10, // Save every 10 seconds
     autoSave: true
+  });
+  
+  // Study session time tracking for gamification
+  const {
+    isTracking,
+    accumulatedTime,
+    isSaving: isSessionSaving
+  } = useStudySessionTracker({
+    lessonId: currentLessonIdMemo,
+    courseId: course?.public_id,
+    activityType: currentLesson?.kind === 'video' ? 'video_watching' : 
+                  currentLesson?.kind === 'quiz' ? 'quiz_taking' : 
+                  currentLesson?.kind === 'document' ? 'reading' : 'practice',
+    autoStart: true,
+    minDuration: 2 // Only record sessions >= 2 minutes
   });
   
   // Store trackProgress in a ref to avoid dependency issues - only update when lessonId changes
@@ -915,6 +931,16 @@ export default function CourseLearningContent({ courseSlug, initialLessonId }: C
               total: allLessons.length 
             })}
           </p>
+          
+          {/* Study Time Tracker Indicator */}
+          {isTracking && (
+            <div className="flex items-center justify-center gap-1 mt-2 text-xs text-green-600 dark:text-green-400">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>⏱️ {Math.round(accumulatedTime)} min studied</span>
+              {isSessionSaving && <span className="text-xs text-gray-500">💾</span>}
+            </div>
+          )}
+          
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-2">
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {t('LessonNavigation.duration', { 

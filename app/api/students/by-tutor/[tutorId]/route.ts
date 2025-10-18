@@ -41,7 +41,7 @@ export async function GET(
     // Step 2: Get course IDs for the query
     const courseIds = courses.map(course => course.id);
 
-    // Step 3: Get all enrollments for tutor's courses with student profiles
+    // Step 3: Get all enrollments for tutor's courses with student profiles and progress
     const { data: enrollments, error: enrollmentsError } = await client
       .from("course_enrollment")
       .select(`
@@ -70,7 +70,45 @@ export async function GET(
       );
     }
 
-    // Step 4: Structure the response data
+    // Step 4: Get progress data for all enrollments
+    if (enrollments && enrollments.length > 0) {
+      const userCourseMap = enrollments.map(e => ({
+        user_id: e.user_id,
+        course_id: e.course_id
+      }));
+
+      // Fetch progress for all user-course combinations
+      const { data: progressData, error: progressError } = await client
+        .from("course_progress")
+        .select("user_id, course_id, progress_pct, completed_lessons, last_accessed_at")
+        .in("course_id", courseIds);
+
+      if (!progressError && progressData) {
+        // Create a map for quick lookup: "userId-courseId" -> progress
+        const progressMap = new Map(
+          progressData.map(p => [`${p.user_id}-${p.course_id}`, p])
+        );
+
+        // Attach progress to each enrollment
+        enrollments.forEach(enrollment => {
+          const key = `${enrollment.user_id}-${enrollment.course_id}`;
+          const progress = progressMap.get(key);
+          
+          // Add progress data to enrollment
+          (enrollment as any).progress = progress ? {
+            progress_pct: progress.progress_pct || 0,
+            completed_lessons: progress.completed_lessons || 0,
+            last_accessed_at: progress.last_accessed_at
+          } : {
+            progress_pct: 0,
+            completed_lessons: 0,
+            last_accessed_at: null
+          };
+        });
+      }
+    }
+
+    // Step 5: Structure the response data
     const responseData = {
       tutor_id: tutorId,
       total_courses: courses.length,

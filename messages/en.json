@@ -1273,13 +1273,6 @@
     "exit_fullscreen": "Exit Fullscreen",
     "fullscreen": "Fullscreen"
   },
-  "CourseCard": {
-    "wishlist_added": "Added to Wishlist",
-    "wishlist_description": "Course added to your wishlist",
-    "link_copied": "Link Copied",
-    "link_copied_description": "Course link copied to clipboard",
-    "jump_to_chapter": "Jump to chapter"
-  },
   "CourseDetail": {
     "access_classroom_community": "You can now access your classroom and community resources"
   },
@@ -8402,5 +8395,21 @@
     "contact_support_message": "If you believe this is a mistake, please contact our support team for assistance.",
     "logout": "Log Out",
     "logging_out": "Logging out..."
+  },
+  "CourseCard": {
+    "free": "Free",
+    "progress": "Progress",
+    "continue_learning": "Continue Learning",
+    "start_learning": "Start Learning",
+    "enroll_free": "Enroll Free",
+    "add_to_cart": "Add to Cart",
+    "preview_course": "Preview Course",
+    "course_syllabus": "Course Syllabus",
+    "more_topics": "+{count} more topics",
+    "wishlist_added": "Added to Wishlist",
+    "wishlist_description": "Course added to your wishlist",
+    "link_copied": "Link Copied",
+    "link_copied_description": "Course link copied to clipboard",
+    "jump_to_chapter": "Jump to chapter"
   }
 }

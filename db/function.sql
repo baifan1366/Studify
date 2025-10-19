@@ -1644,66 +1644,77 @@ END;
 $function$;
 
 
-CREATE OR REPLACE FUNCTION public.trg_after_comment_insert_update_progress()
- RETURNS trigger
- LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION public.trg_after_comment_insert_update_progress() 
+RETURNS trigger
+LANGUAGE plpgsql
 AS $function$
-declare
+DECLARE
   ach record;
   post_author_id bigint;
-begin
-  -- 先把帖子作者查出来（供后面复用）
-  select author_id into post_author_id from community_post where id = NEW.post_id;
+  has_commented_before boolean;
+BEGIN
+  -- 查出帖子作者
+  SELECT author_id INTO post_author_id FROM community_post WHERE id = NEW.post_id;
 
-  for ach in
-    select id, rule from community_achievement
-    where (rule->>'type') in ('comment_count','comment_counts')
-      and is_deleted = false
-  loop
-    -- 1) 确保评论者在这项成就上有一条记录（初始化）
-    insert into community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
-    values (NEW.author_id, ach.id, 0, now(), now())
-    on conflict (user_id, achievement_id) do nothing;
+  FOR ach IN
+    SELECT id, rule FROM community_achievement
+    WHERE (rule->>'type') IN ('comment_count','comment_counts')
+      AND is_deleted = false
+  LOOP
+    -- 初始化 user_achievement
+    INSERT INTO community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
+    VALUES (NEW.author_id, ach.id, 0, now(), now())
+    ON CONFLICT (user_id, achievement_id) DO NOTHING;
 
-    -- 2) comment_count: 给评论者 +1，使用原子 INSERT ... ON CONFLICT DO UPDATE
-    if (ach.rule->>'type') = 'comment_count' then
-      insert into community_user_achievement(user_id, achievement_id, current_value, updated_at)
-      values (NEW.author_id, ach.id, 1, now())
-      on conflict (user_id, achievement_id) do update
-      set current_value = community_user_achievement.current_value + 1,
-          updated_at = now();
+    -- comment_count: 评论者的成就 +1，但仅限第一次评论该帖
+    IF (ach.rule->>'type') = 'comment_count' THEN
+      SELECT EXISTS(
+        SELECT 1 FROM community_comment
+        WHERE post_id = NEW.post_id
+          AND author_id = NEW.author_id
+          AND id != NEW.id
+          AND is_deleted = false
+      ) INTO has_commented_before;
 
-    -- 3) comment_counts: 更新“帖子作者”收到的（非作者自己）评论总数
-    elsif (ach.rule->>'type') = 'comment_counts' then
-      -- 只在评论者不是帖子作者时更新（避免作者自评导致置 0）
-      if post_author_id is not null and NEW.author_id != post_author_id then
-        -- 确保帖子作者有行
-        insert into community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
-        values (post_author_id, ach.id, 0, now(), now())
-        on conflict (user_id, achievement_id) do nothing;
+      IF NOT has_commented_before THEN
+        INSERT INTO community_user_achievement(user_id, achievement_id, current_value, updated_at)
+        VALUES (NEW.author_id, ach.id, 1, now())
+        ON CONFLICT (user_id, achievement_id) DO UPDATE
+        SET current_value = community_user_achievement.current_value + 1,
+            updated_at = now();
+      END IF;
 
-        update community_user_achievement
-        set current_value = (
-          select count(*) from community_comment
-          where post_id = NEW.post_id
-            and is_deleted = false
-            and author_id != post_author_id
-        ), updated_at = now()
-        where user_id = post_author_id
-          and achievement_id = ach.id;
-      end if;
-    end if;
+    -- comment_counts: 帖子作者收到的评论数（排除自己）
+    ELSIF (ach.rule->>'type') = 'comment_counts' THEN
+      IF post_author_id IS NOT NULL AND NEW.author_id != post_author_id THEN
+        INSERT INTO community_user_achievement(user_id, achievement_id, current_value, created_at, updated_at)
+        VALUES (post_author_id, ach.id, 0, now(), now())
+        ON CONFLICT (user_id, achievement_id) DO NOTHING;
 
-    -- 4) 调用解锁函数：对不同规则要传不同的 user_id
-    perform unlock_achievement(
-      case when (ach.rule->>'type') = 'comment_counts' then post_author_id else NEW.author_id end,
+        UPDATE community_user_achievement
+        SET current_value = (
+          SELECT COUNT(DISTINCT author_id)
+          FROM community_comment
+          WHERE post_id = NEW.post_id
+            AND is_deleted = false
+            AND author_id != post_author_id
+        ),
+        updated_at = now()
+        WHERE user_id = post_author_id
+          AND achievement_id = ach.id;
+      END IF;
+    END IF;
+
+    -- 调用解锁函数
+    PERFORM unlock_achievement(
+      CASE WHEN (ach.rule->>'type') = 'comment_counts' THEN post_author_id ELSE NEW.author_id END,
       ach.id
     );
-  end loop;
+  END LOOP;
 
-  return NEW;
+  RETURN NEW;
 END;
-$function$;;
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.fail_embedding(p_queue_id bigint, p_error_message text)

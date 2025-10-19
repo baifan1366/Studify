@@ -29,14 +29,44 @@ export default function AchievementsContent() {
   const t = useTranslations('Achievements');
   const { data: userData } = useUser();
   const userId = userData?.id || '';
-  const [viewMode, setViewMode] = useState<'all' | 'user'>('user');
+  const [filterMode, setFilterMode] = useState<'all' | 'unlocked' | 'locked'>('all');
   
-  // Use the correct hooks based on view mode
+  // Fetch all achievements and user progress
   const { achievements: allAchievements, isLoading: isLoadingAll } = useAchievements();
   const { achievements: userAchievements, isLoading: isLoadingUser } = useUserAchievements(userId);
   
-  const isLoading = viewMode === 'all' ? isLoadingAll : isLoadingUser;
-  const achievements = viewMode === 'all' ? (allAchievements || []) : (userAchievements || []);
+  const isLoading = isLoadingAll || isLoadingUser;
+  
+  // Merge all achievements with user progress
+  const achievements = useMemo(() => {
+    if (!allAchievements) return [];
+    
+    // Create a map of user achievements for quick lookup
+    const userAchievementMap = new Map(
+      (userAchievements || []).map(ua => [ua.id, ua])
+    );
+    
+    // Merge all achievements with user data
+    return allAchievements.map(achievement => {
+      const userProgress = userAchievementMap.get(achievement.id);
+      return {
+        ...achievement,
+        current_value: userProgress?.current_value || 0,
+        unlocked: userProgress?.unlocked || false,
+        unlocked_at: userProgress?.unlocked_at,
+      };
+    });
+  }, [allAchievements, userAchievements]);
+  
+  // Filter achievements based on selected filter
+  const filteredAchievements = useMemo(() => {
+    if (filterMode === 'unlocked') {
+      return achievements.filter(a => a.unlocked);
+    } else if (filterMode === 'locked') {
+      return achievements.filter(a => !a.unlocked);
+    }
+    return achievements;
+  }, [achievements, filterMode]);
   
   // Calculate statistics
   const stats = useMemo(() => {
@@ -106,46 +136,55 @@ export default function AchievementsContent() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Trophy size={32} className="text-yellow-400" />
-              <h1 className="text-4xl font-bold">Achievements</h1>
+              <div>
+                <h1 className="text-4xl font-bold">Achievements</h1>
+                <p className="text-muted-foreground mt-1">
+                  Track your learning milestones and unlock rewards
+                </p>
+              </div>
             </div>
             
-            {/* View Mode Toggle */}
+            {/* Filter Buttons */}
             <div className="flex gap-2">
               <button
-                onClick={() => setViewMode('user')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  viewMode === 'user'
+                onClick={() => setFilterMode('all')}
+                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                  filterMode === 'all'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
-                My Achievements
+                All ({achievements.length})
               </button>
               <button
-                onClick={() => setViewMode('all')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  viewMode === 'all'
-                    ? 'bg-primary text-primary-foreground'
+                onClick={() => setFilterMode('unlocked')}
+                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                  filterMode === 'unlocked'
+                    ? 'bg-green-600 text-white'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
-                All Achievements
+                Unlocked ({stats.unlockedCount})
+              </button>
+              <button
+                onClick={() => setFilterMode('locked')}
+                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                  filterMode === 'locked'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                Locked ({stats.totalCount - stats.unlockedCount})
               </button>
             </div>
           </div>
-          
-          <p className="text-muted-foreground mb-6">
-            {viewMode === 'user' 
-              ? 'Track your personal learning milestones and unlock rewards'
-              : 'Browse all available achievements in the system'}
-          </p>
 
           {/* Progress Stats Card */}
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Your Progress</CardTitle>
               <CardDescription>
-                {viewMode === 'user' ? 'Your achievement statistics' : 'Overall achievement statistics'}
+                Your achievement statistics and overall completion
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -191,7 +230,7 @@ export default function AchievementsContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          {achievements.map((achievement, index) => (
+          {filteredAchievements.map((achievement, index) => (
             <motion.div
               key={achievement.id}
               initial={{ opacity: 0, y: 20 }}
@@ -199,7 +238,7 @@ export default function AchievementsContent() {
               transition={{ delay: 0.05 * index, duration: 0.4 }}
             >
               <Card
-                className={`relative overflow-hidden transition-all hover:scale-105 ${
+                className={`relative overflow-hidden transition-all hover:scale-105 border border-white/10 ${
                   achievement.unlocked
                     ? 'border-yellow-500/50 shadow-lg shadow-yellow-500/10'
                     : 'border-border'
@@ -283,13 +322,21 @@ export default function AchievementsContent() {
                     </div>
                   )}
                   
-                  {/* Created Date */}
-                  {viewMode === 'all' && achievement.created_at && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Created:</span>
-                      <span className="text-xs">
-                        {formatDate(achievement.created_at)}
-                      </span>
+                  {/* Progress Bar for Locked Achievements */}
+                  {!achievement.unlocked && achievement.rule?.target && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">
+                          {Math.round((achievement.current_value / achievement.rule.target) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min((achievement.current_value / achievement.rule.target) * 100, 100)}%` }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -321,14 +368,14 @@ export default function AchievementsContent() {
           ))}
         </motion.div>
 
-        {achievements.length === 0 && (
+        {filteredAchievements.length === 0 && (
           <Card className="py-12">
             <CardContent className="text-center">
               <Award size={48} className="text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
-                {viewMode === 'user' 
-                  ? "You haven't unlocked any achievements yet. Keep learning!"
-                  : "No achievements found in the system."}
+                {filterMode === 'unlocked' && "You haven't unlocked any achievements yet. Keep learning!"}
+                {filterMode === 'locked' && "Congratulations! You've unlocked all achievements!"}
+                {filterMode === 'all' && "No achievements found in the system."}
               </p>
             </CardContent>
           </Card>

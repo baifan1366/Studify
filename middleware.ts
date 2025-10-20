@@ -25,6 +25,8 @@ const PUBLIC_PATHS = [
   /\/course\/webhook/, // Stripe webhooks
   /\/stripe\/webhook/, // Stripe webhooks
   /\/webhook$/, // Generic webhooks
+  /^\/api\/ai\/coach\/cron\//,
+  /^\/api\/tutor\/earnings\/release/
 ];
 
 // Cache key generators

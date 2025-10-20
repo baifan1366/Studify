@@ -44,6 +44,7 @@ import { useToggleReaction } from "@/hooks/community/use-reactions";
 import { useFormat } from "@/hooks/use-format";
 import { useTranslations } from "next-intl";
 import { useUpdatePost, useDeletePost } from "@/hooks/community/use-community";
+import { useUser } from "@/hooks/profile/use-user";
 import { validateFiles } from "@/utils/file-validation";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
 import SharePostDialog from "./share-post-dialog";
@@ -214,11 +215,13 @@ const CommentItem = ({
   groupSlug,
   postSlug,
   depth = 0,
+  currentUserId,
 }: {
   comment: Comment;
   groupSlug: string;
   postSlug: string;
   depth?: number;
+  currentUserId?: number;
 }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -292,38 +295,42 @@ const CommentItem = ({
               </p>
             </div>
             <div className="flex items-center gap-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setShowEditForm(!showEditForm);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t("comment_actions.edit")}
-                  </DropdownMenuItem>
-                  {depth < commentMaxDepth && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {currentUserId === comment.author_id && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setShowEditForm(!showEditForm);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        {t("comment_actions.edit")}
+                      </DropdownMenuItem>
+                    )}
+                    {depth < commentMaxDepth && (
+                      <DropdownMenuItem
+                        onClick={() => setShowReplyForm(!showReplyForm)}
+                      >
+                        <Reply className="h-4 w-4 mr-2" />
+                        {t("comment_actions.reply")}
+                      </DropdownMenuItem>
+                    )}
+                    {currentUserId === comment.author_id && (
                     <DropdownMenuItem
-                      onClick={() => setShowReplyForm(!showReplyForm)}
+                      onClick={handleDelete}
+                      className="text-red-400"
                     >
-                      <Reply className="h-4 w-4 mr-2" />
-                      {t("comment_actions.reply")}
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t("comment_actions.delete")}
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t("comment_actions.delete")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               <ReportButton 
                 targetId={comment.author_id} 
                 targetType="comment" 
@@ -434,6 +441,7 @@ const CommentItem = ({
                   groupSlug={groupSlug}
                   postSlug={postSlug}
                   depth={depth + 1}
+                  currentUserId={currentUserId}
                 />
               ))}
             </div>
@@ -742,6 +750,8 @@ const PostDetailContent = ({
   );
   const updatePostMutation = useUpdatePost(groupSlug, postSlug);
   const deletePostMutation = useDeletePost(groupSlug, postSlug);
+  const { data: userData } = useUser();
+  const currentUserId = userData?.profile?.id ? Number(userData.profile.id) : undefined;
 
   const handleSave = async (updates: any) => {
     try {
@@ -996,6 +1006,7 @@ const PostDetailContent = ({
                     comment={comment}
                     groupSlug={groupSlug}
                     postSlug={postSlug}
+                    currentUserId={currentUserId}
                   />
                 ))
               : comments.map((comment) => (
@@ -1005,6 +1016,7 @@ const PostDetailContent = ({
                     groupSlug={groupSlug}
                     postSlug={postSlug}
                     depth={0}
+                    currentUserId={currentUserId}
                   />
                 ))}
           </div>

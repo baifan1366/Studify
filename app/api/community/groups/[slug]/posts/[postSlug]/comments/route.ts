@@ -197,7 +197,7 @@ export async function POST(
     // 检查 group
     const { data: group } = await supabaseClient
       .from("community_group")
-      .select("id")
+      .select("id, visibility")
       .eq("slug", slug)
       .eq("is_deleted", false)
       .single();
@@ -206,21 +206,24 @@ export async function POST(
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    // 检查 membership
-    const { data: membership } = await supabaseClient
-      .from("community_group_member")
-      .select("id")
-      .eq("group_id", group.id)
-      .eq("user_id", profile.id)
-      .eq("is_deleted", false)
-      .single();
+    // 检查 membership - 只有 private group 需要检查成员资格
+    if (group.visibility === "private") {
+      const { data: membership } = await supabaseClient
+        .from("community_group_member")
+        .select("id")
+        .eq("group_id", group.id)
+        .eq("user_id", profile.id)
+        .eq("is_deleted", false)
+        .single();
 
-    if (!membership) {
-      return NextResponse.json(
-        { error: "You must be a group member to comment" },
-        { status: 403 }
-      );
+      if (!membership) {
+        return NextResponse.json(
+          { error: "You must be a group member to comment on private posts" },
+          { status: 403 }
+        );
+      }
     }
+    // public group 的 post 任何登录用户都可以评论
 
     // 检查 post
     const { data: post } = await supabaseClient

@@ -201,6 +201,8 @@ export function AuthForm({
           queryParams: {
             access_type: "offline",
             prompt: "consent",
+            // Pass role as a query parameter that will be in the callback URL
+            role: role || 'student'
           },
         },
       });

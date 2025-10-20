@@ -168,7 +168,8 @@ export async function middleware(request: NextRequest) {
             const url = request.nextUrl.clone();
             const locale = request.cookies.get("next-intl-locale")?.value || "en";
             const userRole = profile.role || role || 'student';
-            url.pathname = `/${locale}/${userRole}`;
+            // Tutor onboarding uses /step1, student uses root path
+            url.pathname = userRole === 'tutor' ? `/${locale}/${userRole}/step1` : `/${locale}/${userRole}`;
             
             debugLog('redirecting to onboarding', { userId, role: userRole, pathname });
             return NextResponse.redirect(url);

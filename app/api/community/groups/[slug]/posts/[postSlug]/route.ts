@@ -60,20 +60,26 @@ export async function GET(
     }
   }
 
-  // 4. Get post (注意这里取 public_id)
+  // 4. Get post (注意这里取 public_id 和 author_id)
   const { data: post, error: postError } = await supabaseClient
     .from("community_post")
     .select(
       `
       id,
       public_id,
+      author_id,
       title,
       body,
       slug,
       created_at,
       updated_at,
       author:profiles ( display_name, avatar_url ),
-      group:community_group ( name, slug, visibility ),
+      group:community_group ( 
+        name, 
+        slug, 
+        visibility,
+        user_membership:community_group_member!community_group_member_group_id_fkey ( user_id, role, joined_at )
+      ),
       comments:community_comment ( *,
         author:profiles ( display_name, avatar_url )
       )
@@ -141,9 +147,36 @@ export async function GET(
     console.error("[API] Failed to fetch hashtags:", hashtagsError);
   }
 
+  // Filter user_membership to only include current user's membership
+  let filteredGroup = post.group;
+  if (post.group) {
+    const groupData: any = Array.isArray(post.group) ? post.group[0] : post.group;
+    if (groupData) {
+      console.log('[API] Before filtering user_membership:', {
+        profileId: profile.id,
+        allMemberships: groupData.user_membership
+      });
+      
+      const filteredMembership = Array.isArray(groupData.user_membership) 
+        ? groupData.user_membership.filter((m: any) => {
+            console.log('[API] Checking membership:', { memberId: m.user_id, currentUserId: profile.id, match: m.user_id === profile.id });
+            return m.user_id === profile.id;
+          })
+        : [];
+      
+      console.log('[API] After filtering user_membership:', filteredMembership);
+      
+      filteredGroup = {
+        ...groupData,
+        user_membership: filteredMembership
+      } as any;
+    }
+  }
+
   // ✅ 最后再组装返回对象
   const processedPost = {
     ...post,
+    group: filteredGroup,
     comments_count: post.comments.length,
     reactions,
     files: attachments || [],
@@ -212,25 +245,12 @@ export async function PUT(
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
 
-  // Check if user can edit (author or group admin/owner)
-  const canEdit = post.author_id === profile.id;
-
-  if (!canEdit) {
-    // Check if user is group admin/owner
-    const { data: membership } = await supabaseClient
-      .from("community_group_member")
-      .select("role")
-      .eq("group_id", group.id)
-      .eq("user_id", profile.id)
-      .eq("is_deleted", false)
-      .single();
-
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+  // Check if user can edit (only author)
+  if (post.author_id !== profile.id) {
+    return NextResponse.json(
+      { error: "Insufficient permissions. Only the post author can edit this post." },
+      { status: 403 }
+    );
   }
 
   // Update post
@@ -309,22 +329,12 @@ export async function PATCH(
   }
 
   // ===== 权限检查 =====
-  const canEdit = post.author_id === profile.id;
-  if (!canEdit) {
-    const { data: membership } = await supabaseClient
-      .from("community_group_member")
-      .select("role")
-      .eq("group_id", group.id)
-      .eq("user_id", profile.id)
-      .eq("is_deleted", false)
-      .single();
-
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
+  // Only author can edit
+  if (post.author_id !== profile.id) {
+    return NextResponse.json(
+      { error: "Insufficient permissions. Only the post author can edit this post." },
+      { status: 403 }
+    );
   }
 
   // ===== 执行部分更新 =====
@@ -487,11 +497,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
 
-  // Check if user can delete (author or group admin/owner)
+  // Check if user can delete (author or group owner only)
   const canDelete = post.author_id === profile.id;
 
   if (!canDelete) {
-    // Check if user is group admin/owner
+    // Check if user is group owner (not admin)
     const { data: membership } = await supabaseClient
       .from("community_group_member")
       .select("role")
@@ -500,9 +510,9 @@ export async function DELETE(
       .eq("is_deleted", false)
       .single();
 
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
+    if (!membership || membership.role !== "owner") {
       return NextResponse.json(
-        { error: "Insufficient permissions" },
+        { error: "Insufficient permissions. Only post author or group owner can delete posts." },
         { status: 403 }
       );
     }

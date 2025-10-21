@@ -755,6 +755,15 @@ const PostDetailContent = ({
   const isTutor = userData?.profile?.role === 'tutor';
   const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
 
+  // Check permissions - ensure user is logged in
+  const isPostAuthor = currentUserId !== undefined && post.author_id === currentUserId;
+  const userGroupRole = post.group?.user_membership?.[0]?.role; // 'owner', 'admin', 'member'
+  const isGroupOwner = currentUserId !== undefined && userGroupRole === 'owner';
+  
+  // Permissions: only author can edit, only author or group owner can delete
+  const canEdit = isPostAuthor;
+  const canDelete = isPostAuthor || isGroupOwner;
+
   const handleSave = async (updates: any) => {
     try {
       await updatePostMutation.mutateAsync(updates);
@@ -841,28 +850,34 @@ const PostDetailContent = ({
               </p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                {t("edit_post")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (confirm(t("confirm_delete_post"))) {
-                    handleDeletePost();
-                  }
-                }}
-                className="text-red-500"
-              >
-                {t("delete_post")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {(canEdit || canDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-8 w-8">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    {t("edit_post")}
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (confirm(t("confirm_delete_post"))) {
+                        handleDeletePost();
+                      }
+                    }}
+                    className="text-red-500"
+                  >
+                    {t("delete_post")}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-0">

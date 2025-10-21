@@ -62,12 +62,31 @@ export async function POST(req: Request) {
       .single();
 
     if (attachmentError || !attachment) {
-      return NextResponse.json({ error: "Attachment not found or access denied" }, { status: 404 });
+      console.error('Attachment lookup error:', {
+        attachment_id,
+        profile_id: profile.id,
+        error: attachmentError
+      });
+      return NextResponse.json({ 
+        error: "Attachment not found or access denied",
+        details: attachmentError?.message || "Attachment does not exist or you don't have permission"
+      }, { status: 404 });
     }
 
     // 3. Verify it's a video file
     if (attachment.type !== 'video') {
-      return NextResponse.json({ error: "Only video files can be processed" }, { status: 422 });
+      return NextResponse.json({ 
+        error: "Only video files can be processed",
+        details: `File type is '${attachment.type}', expected 'video'`
+      }, { status: 422 });
+    }
+
+    // 4. Verify video URL is accessible
+    if (!attachment.url) {
+      return NextResponse.json({ 
+        error: "Video file URL is missing",
+        details: "The attachment does not have a valid URL"
+      }, { status: 422 });
     }
 
     // 4. Check if processing queue already exists
@@ -154,14 +173,27 @@ export async function POST(req: Request) {
 
       // Use QStash queue manager for better video processing
       const queueManager = getQueueManager();
-      // Use a simpler queue name without UUID to avoid issues
+      // Use a simpler queue name without special characters
+      // QStash queue names must be alphanumeric with underscores/hyphens only
       const userIdHash = authResult.payload.sub.replace(/-/g, '').substring(0, 12);
       const queueName = `video_${userIdHash}`;
       
+      console.log('📦 Queue name validation:', {
+        original_user_id: authResult.payload.sub,
+        hash: userIdHash,
+        queue_name: queueName,
+        is_valid: /^[a-zA-Z0-9_-]+$/.test(queueName)
+      });
+      
       // Ensure the queue exists with proper parallelism (1 video at a time per user)
       console.log('📦 Ensuring queue exists:', queueName);
-      await queueManager.ensureQueue(queueName, 1);
-      console.log('✅ Queue ensured successfully');
+      try {
+        await queueManager.ensureQueue(queueName, 1);
+        console.log('✅ Queue ensured successfully');
+      } catch (queueError: any) {
+        console.warn('⚠️ Queue creation failed, will attempt enqueue anyway:', queueError.message);
+        // Continue - the queue might already exist or QStash might create it automatically
+      }
 
       // Enqueue the video processing job with improved retry configuration
       console.log('📤 Enqueuing job to QStash...');
@@ -210,7 +242,8 @@ export async function POST(req: Request) {
         name: qstashError.name,
         message: qstashError.message,
         status: qstashError.status,
-        response: qstashError.response
+        response: qstashError.response,
+        stack: qstashError.stack
       });
       
       // Mark queue as failed
@@ -231,6 +264,12 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         error: "Failed to start video processing",
+        details: qstashError.message || "QStash service error",
+        debug: {
+          endpoint: transcribeEndpoint,
+          queueName: `video_${authResult.payload.sub.replace(/-/g, '').substring(0, 12)}`,
+          hasToken: !!qstashToken
+        }
       }, { status: 500 });
     }
 

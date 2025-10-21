@@ -25,12 +25,17 @@ import { useToggleReaction } from "@/hooks/community/use-reactions";
 import SharePostDialog from "./share-post-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
+import { useUser } from "@/hooks/profile/use-user";
 
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
   const toggleReactionMutation = useToggleReaction(post.group?.slug || '', post.slug || '');
   const [showShareDialog, setShowShareDialog] = React.useState(false);
   const { toast: toastHook } = useToast();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
+  const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
+  const postPath = isTutor ? `/tutor/community/${post.group?.slug}/posts/${post.slug}` : `/community/${post.group?.slug}/posts/${post.slug}`;
 
   const handleReaction = (emoji: string) => {
     if (!post.group?.slug || !post.slug) {
@@ -75,7 +80,7 @@ export default function PostCard({ post }: { post: Post }) {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               {post.group && (
-                <Link href={`/community/${post.group.slug}`}>
+                <Link href={groupPath}>
                   <Badge
                     variant="outline"
                     className="border-blue-400 text-blue-400 hover:bg-blue-400/10 cursor-pointer"
@@ -91,7 +96,7 @@ export default function PostCard({ post }: { post: Post }) {
               </div>
             </div>
             <CardTitle className="text-lg leading-tight hover:text-blue-300 cursor-pointer">
-              <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
+              <Link href={postPath}>
                 {post.title}
               </Link>
             </CardTitle>
@@ -184,7 +189,7 @@ export default function PostCard({ post }: { post: Post }) {
               <Send className="mr-1 h-4 w-4" />
             </Button>
           </div>
-          <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
+          <Link href={postPath}>
             <Button
               size="sm"
               variant="outline"

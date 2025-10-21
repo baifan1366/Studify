@@ -17,6 +17,7 @@ import PostCard from "./post-card";
 import CommunitySidebar from "./community-sidebar";
 import CompactRecommendations from "./recommendations/compact-recommendations";
 import AISummaryCard from "./ai-summary-card";
+import { useUser } from "@/hooks/profile/use-user";
 
 export default function CommunityContent() {
   const t = useTranslations("CommunityContent");
@@ -26,6 +27,11 @@ export default function CommunityContent() {
   
   // Debounce the query to avoid excessive API calls
   const debouncedQuery = useDebouncedValue(query, 500);
+  
+  // Determine user role for routing
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
+  const createGroupPath = isTutor ? '/tutor/community/create' : '/community/create';
 
   // Fetch user for header
   useEffect(() => {
@@ -176,7 +182,7 @@ export default function CommunityContent() {
                         : t('be_first_to_share')}
                     </p>
                     <div className="flex gap-3 justify-center">
-                      <Link href="/community/create">
+                      <Link href={createGroupPath}>
                         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                           <Plus className="w-4 h-4 mr-2" />
                           {debouncedQuery.trim().length > 0

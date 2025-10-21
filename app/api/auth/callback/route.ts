@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
             }
           );
 
-          // Determine role
+          // Determine role - only use requestedRole for new users
           const role = requestedRole || user.user_metadata?.role || "student";
 
           // Extract user information from OAuth data
@@ -264,10 +264,15 @@ export async function GET(request: NextRequest) {
             );
           }
         } else {
-          console.log("[AUTH CALLBACK] Profile found:", {
+          console.log("[AUTH CALLBACK] Profile found, using existing role:", {
             id: profile.id,
             role: profile.role,
+            requestedRole,
           });
+
+          // For existing users, ALWAYS use their existing role from the database
+          // Ignore any role parameter from the OAuth flow
+          console.log("[AUTH CALLBACK] Using existing profile role:", profile.role);
 
           // Update last login (non-blocking)
           Promise.resolve(
@@ -292,6 +297,7 @@ export async function GET(request: NextRequest) {
           );
         }
 
+        // Use the profile's role (existing users keep their role, new users get the determined role)
         const role = profile?.role || "student";
         const name =
           profile?.display_name ||

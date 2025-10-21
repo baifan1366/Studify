@@ -163,38 +163,44 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
         identities: session.user.identities?.[0]?.identity_data,
       });
 
-      // Extract role from URL params if available
-      const role = searchParams.get("role");
-      console.log("🎯 OAuth role from URL:", role);
+      // Check if user has an existing profile first
+      console.log("🔍 Checking for existing profile...");
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", session.user.id)
+        .single();
 
-      // If no role provided, check if user has a profile
-      if (!role) {
-        console.log("🔍 No role provided, checking for existing profile...");
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("id, role")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (profileError && profileError.code === "PGRST116") {
-          // Profile doesn't exist - show role selection dialog
-          console.log("🎭 No profile found, showing role selection dialog");
+      if (profileError && profileError.code === "PGRST116") {
+        // Profile doesn't exist - check if role was provided in URL
+        const role = searchParams.get("role");
+        console.log("🎯 OAuth role from URL:", role);
+        
+        if (!role) {
+          // No profile and no role - show role selection dialog
+          console.log("🎭 No profile found and no role provided, showing role selection dialog");
           setPendingSession(session);
           setShowRoleDialog(true);
           setIsProcessing(false);
           return;
         }
-
-        console.log("✅ Existing profile found:", profile);
+        
+        // Has role from URL, will use it for new profile creation
+        console.log("✅ Using role from URL for new profile:", role);
+      } else if (profile) {
+        // Profile exists - use existing role, ignore URL role parameter
+        console.log("✅ Existing profile found, using existing role:", profile.role);
       }
 
       // Call our sync API to set up JWT session
+      // Only pass role if profile doesn't exist (for new users)
+      const role = searchParams.get("role");
       const syncResponse = await fetch("/api/auth/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           access_token: session.access_token,
-          role: role || undefined,
+          role: profile ? undefined : (role || undefined), // Only use role for new profiles
         }),
       });
 

@@ -19,16 +19,20 @@ import { Group } from "@/interface/community/group-interface";
 import { toast } from "sonner";
 import AllMyGroupsModal from "./all-my-groups-modal";
 import { useTranslations } from "next-intl";
+import { useUser } from "@/hooks/profile/use-user";
 
 function GroupCard({
   group,
   showJoinButton = false,
+  isTutor,
 }: {
   group: Group;
   showJoinButton?: boolean;
+  isTutor: boolean;
 }) {
   const { joinGroup, isJoining } = useGroupMembers(group.slug);
   const t = useTranslations();
+  const groupPath = isTutor ? `/tutor/community/${group.slug}` : `/community/${group.slug}`;
 
   const handleJoinGroup = () => {
     joinGroup(undefined, {
@@ -56,7 +60,7 @@ function GroupCard({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link href={`/community/${group.slug}`}>
+          <Link href={groupPath}>
             <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
               {group.name}
             </h4>
@@ -88,6 +92,9 @@ export default function CommunitySidebar() {
   const { groups: suggestedGroups, isLoading: loadingSuggested } =
     useSuggestedGroups();
   const t = useTranslations();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
+  const createGroupPath = isTutor ? '/tutor/community/create' : '/community/create';
 
   return (
     <>
@@ -97,7 +104,7 @@ export default function CommunitySidebar() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-white text-lg">{t("CommunitySidebar.my_groups")}</CardTitle>
-              <Link href="/community/create">
+              <Link href={createGroupPath}>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -115,14 +122,14 @@ export default function CommunitySidebar() {
               ))
             ) : userGroups && userGroups.length > 0 ? (
               userGroups.map((group) => (
-                <GroupCard key={group.id} group={group} />
+                <GroupCard key={group.id} group={group} isTutor={isTutor} />
               ))
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-400 text-sm mb-3">
                   You haven't joined any groups yet
                 </p>
-                <Link href="/community/create">
+                <Link href={createGroupPath}>
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-1" />
                     Create Group
@@ -157,7 +164,7 @@ export default function CommunitySidebar() {
               ))
             ) : suggestedGroups && suggestedGroups.length > 0 ? (
               suggestedGroups.map((group) => (
-                <GroupCard key={group.id} group={group} showJoinButton />
+                <GroupCard key={group.id} group={group} showJoinButton isTutor={isTutor} />
               ))
             ) : (
               <div className="text-center py-6">

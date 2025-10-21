@@ -33,13 +33,17 @@ import {
 } from "@/hooks/community/use-quiz-sidebar";
 import AllAttemptsModal from "./all-attempts-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@/hooks/profile/use-user";
 
 const AttemptCard = ({
   attempt,
+  isTutor,
 }: {
   attempt: any;
+  isTutor: boolean;
 }) => {
   const t = useTranslations('QuizzesSidebar');
+  const quizPath = isTutor ? `/tutor/community/quizzes/${attempt.quiz.slug}` : `/community/quizzes/${attempt.quiz.slug}`;
   const statusConfig = {
     not_started: { label: t('attempt_status.not_started'), color: "text-gray-400" },
     in_progress: { label: t('attempt_status.in_progress'), color: "text-blue-400" },
@@ -62,7 +66,7 @@ const AttemptCard = ({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link href={`/community/quizzes/${attempt.quiz.slug}`}>
+          <Link href={quizPath}>
             <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
               {attempt.quiz.title}
             </h4>
@@ -84,10 +88,13 @@ const AttemptCard = ({
 
 const SharedPrivateQuizCard = ({
   quiz,
+  isTutor,
 }: {
   quiz: SharedPrivateQuiz;
+  isTutor: boolean;
 }) => {
   const t = useTranslations('QuizzesSidebar');
+  const quizPath = isTutor ? `/tutor/community/quizzes/${quiz.quiz_slug}` : `/community/quizzes/${quiz.quiz_slug}`;
   const permissionConfig = {
     view: { icon: Eye, label: t('shared.permission.view'), color: "text-blue-400" },
     attempt: { icon: Target, label: t('shared.permission.attempt'), color: "text-green-400" },
@@ -119,7 +126,7 @@ const SharedPrivateQuizCard = ({
     <div className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
       {/* Header with title and permission badge */}
       <div className="flex items-start justify-between mb-2">
-        <Link href={`/community/quizzes/${quiz.quiz_slug}`} className="flex-1 min-w-0">
+        <Link href={quizPath} className="flex-1 min-w-0">
           <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
             {quiz.title}
           </h4>
@@ -163,6 +170,9 @@ export default function QuizzesSidebar() {
   const { data: stats, isLoading: loadingStats } = useQuizAttemptStats();
   const [showAllAttemptsModal, setShowAllAttemptsModal] = useState(false);
   const t = useTranslations('QuizzesSidebar');
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
+  const quizzesPath = isTutor ? '/tutor/community/quizzes' : '/community/quizzes';
   
   const sharedQuizzes = sharedData?.quizzes || [];
 
@@ -187,7 +197,7 @@ export default function QuizzesSidebar() {
             ) : attempts && attempts.length > 0 ? (
               <>
                 {attempts.slice(0, 5).map((attempt) => (
-                  <AttemptCard key={attempt.id} attempt={attempt} />
+                  <AttemptCard key={attempt.id} attempt={attempt} isTutor={isTutor} />
                 ))}
                 {(stats?.total_attempts ?? 0) > 5 && (
                   <Button
@@ -205,7 +215,7 @@ export default function QuizzesSidebar() {
                 <p className="text-gray-400 text-sm mb-3">
                   {t('my_attempts.empty_message')}
                 </p>
-                <Link href="/community/quizzes">
+                <Link href={quizzesPath}>
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                     <FileText className="w-4 h-4 mr-1" />
                     {t('my_attempts.browse_button')}
@@ -236,7 +246,7 @@ export default function QuizzesSidebar() {
               ))
             ) : sharedQuizzes && sharedQuizzes.length > 0 ? (
               sharedQuizzes.slice(0, 5).map((quiz) => (
-                <SharedPrivateQuizCard key={quiz.quiz_id} quiz={quiz} />
+                <SharedPrivateQuizCard key={quiz.quiz_id} quiz={quiz} isTutor={isTutor} />
               ))
             ) : (
               <div className="text-center py-6">

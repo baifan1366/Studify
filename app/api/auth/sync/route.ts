@@ -65,8 +65,10 @@ export async function POST(req: Request) {
       
       const displayName = googleName || user.email?.split('@')[0];
       
-      // Determine role: use requested role or default to 'student'
+      // Determine role: ONLY use requested role for NEW users, default to 'student'
       const profileRole = requestedRole || 'student';
+      
+      console.log('📝 Creating NEW profile with role:', profileRole);
       
       console.log('📝 Creating profile with enhanced data:', {
         name: displayName,
@@ -108,6 +110,9 @@ export async function POST(req: Request) {
       }
       
       profile = newProfile;
+    } else {
+      // Profile exists - ALWAYS use existing role, ignore requested role
+      console.log('✅ Existing profile found, using existing role:', profile.role, '(ignoring requested role:', requestedRole, ')');
     }
 
     // Enhanced name resolution for Google OAuth users with more comprehensive fallbacks

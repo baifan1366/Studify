@@ -752,6 +752,8 @@ const PostDetailContent = ({
   const deletePostMutation = useDeletePost(groupSlug, postSlug);
   const { data: userData } = useUser();
   const currentUserId = userData?.profile?.id ? Number(userData.profile.id) : undefined;
+  const isTutor = userData?.profile?.role === 'tutor';
+  const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
 
   const handleSave = async (updates: any) => {
     try {
@@ -766,7 +768,8 @@ const PostDetailContent = ({
     try {
       await deletePostMutation.mutateAsync();
       // delete 后跳转到社区主页
-      window.location.href = `/community/${groupSlug}`; // TODO: use a better redirect method
+      const redirectPath = isTutor ? `/tutor/community/${groupSlug}` : `/community/${groupSlug}`;
+      window.location.href = redirectPath; // TODO: use a better redirect method
     } catch (err) {
       console.error("Failed to delete post:", err);
     }
@@ -803,7 +806,7 @@ const PostDetailContent = ({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               {post.group && (
-                <Link href={`/community/${post.group.slug}`}>
+                <Link href={groupPath}>
                   <Badge
                     variant="outline"
                     className="border-blue-400 text-blue-400 hover:bg-blue-400/10 cursor-pointer"

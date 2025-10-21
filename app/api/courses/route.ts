@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { authorize } from "@/utils/auth/server-guard";
 
-// GET /api/courses - list public courses
+// GET /api/courses - list courses (public courses or user's own courses)
 export async function GET(req: Request) {
   try {
     const client = await createServerClient();
     const { searchParams } = new URL(req.url);
-    const owner_id = searchParams.get('owner_id');
-    const slug = searchParams.get('slug');
+    const owner_id = searchParams.get("owner_id");
+    const slug = searchParams.get("slug");
 
-    if(owner_id) {
-      const {data, error} = await client
+    if (owner_id) {
+      const { data, error } = await client
         .from("course")
         .select("*")
         .eq("is_deleted", false)
@@ -23,8 +24,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ data });
     }
 
-    if(slug) {
-      const {data, error} = await client
+    if (slug) {
+      const { data, error } = await client
         .from("course")
         .select("*")
         .eq("is_deleted", false)
@@ -37,6 +38,30 @@ export async function GET(req: Request) {
       return NextResponse.json({ data });
     }
 
+    // Try to get authenticated user (optional - don't fail if not authenticated)
+    const authResult = await authorize(["student", "tutor", "admin"]);
+
+    // If user is authenticated as tutor/admin, return their courses
+    if (!(authResult instanceof NextResponse)) {
+      const profile = authResult.user.profile;
+
+      if (profile && (profile.role === "tutor" || profile.role === "admin")) {
+        // Return tutor's own courses (all statuses and visibilities)
+        const { data, error } = await client
+          .from("course")
+          .select("*")
+          .eq("is_deleted", false)
+          .eq("owner_id", profile.id)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        return NextResponse.json({ data });
+      }
+    }
+
+    // Default: return public active courses (for students or unauthenticated users)
     const { data, error } = await client
       .from("course")
       .select("*")
@@ -51,7 +76,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ data });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Internal error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -63,7 +91,10 @@ export async function POST(req: Request) {
 
     // Require owner_id explicitly until auth->profiles mapping is clarified
     if (!body.owner_id) {
-      return NextResponse.json({ error: "owner_id is required" }, { status: 422 });
+      return NextResponse.json(
+        { error: "owner_id is required" },
+        { status: 422 }
+      );
     }
 
     const payload = {
@@ -84,7 +115,9 @@ export async function POST(req: Request) {
       owner_id: parseInt(body.owner_id),
       video_intro_url: body.video_intro_url ?? null,
       requirements: Array.isArray(body.requirements) ? body.requirements : [],
-      learning_objectives: Array.isArray(body.learning_objectives) ? body.learning_objectives : [],
+      learning_objectives: Array.isArray(body.learning_objectives)
+        ? body.learning_objectives
+        : [],
       category: body.category ?? null,
       language: body.language ?? "en",
       certificate_template: body.certificate_template ?? null,
@@ -113,6 +146,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Internal error" },
+      { status: 500 }
+    );
   }
 }

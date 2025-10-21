@@ -258,21 +258,6 @@ export function ChatDashboard() {
         memberData: selectedMembers.map(m => ({ id: m.id, name: m.name, type: typeof m.id }))
       });
 
-      // First test the system
-      console.log('Testing group system...');
-      const testResponse = await fetch('/api/chat/groups/test');
-      const testData = await testResponse.json();
-      console.log('Group system test:', testData);
-      
-      if (!testData.success) {
-        throw new Error(`System test failed: ${testData.error}`);
-      }
-      
-      // Check if required tables exist
-      if (!testData.tableTests.group_conversations || !testData.tableTests.group_members) {
-        throw new Error('Group chat tables not found. Please run the database migration: 007_create_group_conversations.sql');
-      }
-
       // API call to create group
       const response = await fetch('/api/chat/groups', {
         method: 'POST',

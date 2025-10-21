@@ -14,6 +14,8 @@ const PUBLIC_PATHS = [
   /^\/auth\/callback/, // auth callbacks
   /^\/api\/currency/, // public currency API
   /^\/api\/video-processing\/warmup/, // warmup endpoints
+  /^\/api\/video-processing\/steps\//, // QStash video processing steps
+  /^\/api\/video-processing\/local-processor/, // local video processor
   /\/sign-in$/, // sign-in pages
   /\/forgot-password$/, // forgot-password pages
   /\/reset-password$/, // reset-password pages
@@ -26,7 +28,7 @@ const PUBLIC_PATHS = [
   /\/stripe\/webhook/, // Stripe webhooks
   /\/webhook$/, // Generic webhooks
   /^\/api\/ai\/coach\/cron\//,
-  /^\/api\/tutor\/earnings\/release/
+  /^\/api\/tutor\/earnings\/release/,
 ];
 
 // Cache key generators
@@ -35,7 +37,7 @@ const PROFILE_KEY = (userId: string) => `profile:${userId}`;
 
 // Debug logger (only in development)
 const debugLog = (message: string, data?: any) => {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     if (data !== undefined) {
       //console.log(`[middleware] ${message}`, data);
     } else {
@@ -51,32 +53,45 @@ export async function middleware(request: NextRequest) {
 
   // Smart warmup - only for embedding-related requests (non-blocking)
   smartWarmupMiddleware(request).catch((error: Error) => {
-    console.error('Smart warmup middleware error:', error);
+    console.error("Smart warmup middleware error:", error);
   });
 
   // Detect API paths, including locale-prefixed ones: /api/... or /{locale}/api/...
-  const parts = pathname.split('/').filter(Boolean);
-  const isApi = parts[0] === 'api' || (parts.length > 1 && parts[1] === 'api');
-  const isAuthApi = (parts[0] === 'api' && parts[1] === 'auth') || (parts[1] === 'api' && parts[2] === 'auth');
+  const parts = pathname.split("/").filter(Boolean);
+  const isApi = parts[0] === "api" || (parts.length > 1 && parts[1] === "api");
+  const isAuthApi =
+    (parts[0] === "api" && parts[1] === "auth") ||
+    (parts[1] === "api" && parts[2] === "auth");
 
   // Static assets and basic bypasses
-  const isStatic = pathname.startsWith("/_next") || /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname);
+  const isStatic =
+    pathname.startsWith("/_next") ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname);
   const isWellKnown = pathname.startsWith("/.well-known");
   const isServiceWorker = pathname === "/sw.js";
-  
+
   // Check if this is sign-in with mode=add (allow even for logged in users)
-  const isAddAccountMode = pathname.includes('/sign-in') && request.nextUrl.searchParams.get('mode') === 'add';
-  
+  const isAddAccountMode =
+    pathname.includes("/sign-in") &&
+    request.nextUrl.searchParams.get("mode") === "add";
+
   // Onboarding pages (allow access without onboarding check)
-  const isOnboardingPage = /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/onboarding/.test(pathname) || 
-                           /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname) ||
-                           /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)(?:\/)?$/.test(pathname);
+  const isOnboardingPage =
+    /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/onboarding/.test(pathname) ||
+    /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)\/.*onboarding/.test(pathname) ||
+    /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)(?:\/)?$/.test(pathname);
 
   // Use centralized public path checking for better performance
   const isPublicPath = PUBLIC_PATHS.some((regex) => regex.test(pathname));
 
   // Early return for static assets, auth APIs, and basic bypasses
-  if (isStatic || isWellKnown || isServiceWorker || isAuthApi || isAddAccountMode) {
+  if (
+    isStatic ||
+    isWellKnown ||
+    isServiceWorker ||
+    isAuthApi ||
+    isAddAccountMode
+  ) {
     // For API routes, bypass intl middleware to avoid locale rewriting
     return isApi ? NextResponse.next() : intlMiddleware(request);
   }
@@ -115,7 +130,8 @@ export async function middleware(request: NextRequest) {
     const jti = String(payload.jti || "");
     const userId = String(payload.sub || "");
     const role = String(payload.role || "student");
-    const name = payload && typeof payload.name === 'string' ? payload.name : undefined;
+    const name =
+      payload && typeof payload.name === "string" ? payload.name : undefined;
 
     if (!jti || !userId) throw new Error("invalid token");
 
@@ -131,9 +147,9 @@ export async function middleware(request: NextRequest) {
     // Update online status and last seen (non-blocking)
     Promise.all([
       redis.set(`user:online:${userId}`, "true", { ex: 70 }),
-      redis.set(`user:lastseen:${userId}`, Date.now().toString())
+      redis.set(`user:lastseen:${userId}`, Date.now().toString()),
     ]).catch((error: Error) => {
-      console.error('[middleware] failed to update online status:', error);
+      console.error("[middleware] failed to update online status:", error);
     });
 
     // Inject headers for downstream API routes/handlers
@@ -147,14 +163,14 @@ export async function middleware(request: NextRequest) {
         // Try to get cached profile first
         const cachedProfileKey = PROFILE_KEY(userId);
         let profileData = await redis.get(cachedProfileKey);
-        
+
         if (!profileData) {
           // Cache miss - fetch from database
           const supabase = await createServerClient();
           const { data: profile } = await supabase
-            .from('profiles')
-            .select('onboarded, role')
-            .eq('user_id', userId)
+            .from("profiles")
+            .select("onboarded, role")
+            .eq("user_id", userId)
             .single();
 
           if (profile) {
@@ -164,21 +180,32 @@ export async function middleware(request: NextRequest) {
           }
         }
 
-        if (profileData && typeof profileData === 'string') {
-          const profile = JSON.parse(profileData) as { onboarded: boolean; role: string };
+        if (profileData && typeof profileData === "string") {
+          const profile = JSON.parse(profileData) as {
+            onboarded: boolean;
+            role: string;
+          };
           if (!profile.onboarded) {
             const url = request.nextUrl.clone();
-            const locale = request.cookies.get("next-intl-locale")?.value || "en";
-            const userRole = profile.role || role || 'student';
+            const locale =
+              request.cookies.get("next-intl-locale")?.value || "en";
+            const userRole = profile.role || role || "student";
             // Tutor onboarding uses /step1, student uses root path
-            url.pathname = userRole === 'tutor' ? `/${locale}/${userRole}/step1` : `/${locale}/${userRole}`;
-            
-            debugLog('redirecting to onboarding', { userId, role: userRole, pathname });
+            url.pathname =
+              userRole === "tutor"
+                ? `/${locale}/${userRole}/step1`
+                : `/${locale}/${userRole}`;
+
+            debugLog("redirecting to onboarding", {
+              userId,
+              role: userRole,
+              pathname,
+            });
             return NextResponse.redirect(url);
           }
         }
       } catch (error) {
-        console.error('[middleware] failed to check onboarding status:', error);
+        console.error("[middleware] failed to check onboarding status:", error);
         // Continue without onboarding check if there's an error
       }
     }
@@ -190,12 +217,12 @@ export async function middleware(request: NextRequest) {
     intlResponse.headers.forEach((v, k) => nextRes.headers.set(k, v));
 
     // Debug log of authorized user (development only)
-    debugLog('authorized user', { id: userId, role, name });
+    debugLog("authorized user", { id: userId, role, name });
     return nextRes;
   } catch (error) {
     // Improved error handling - log the actual error for debugging
-    console.error('[middleware] auth error:', error);
-    
+    console.error("[middleware] auth error:", error);
+
     if (isApi) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

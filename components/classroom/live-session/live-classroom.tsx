@@ -321,6 +321,11 @@ export default function RedesiLiveClassroom({
   onSessionEnd,
   classroomColor = '#6366f1'
 }: LiveClassroomProps) {
+  // Debug logging
+  useEffect(() => {
+    console.log('🎯 userRole in LiveClassroom:', userRole);
+  }, [userRole]);
+  
   const [isConnected, setIsConnected] = useState(true);
   const [layout, setLayout] = useState('grid');
   const [isRecording, setIsRecording] = useState(false);
@@ -338,11 +343,35 @@ export default function RedesiLiveClassroom({
   
   // Whiteboard canvas reference - store all canvas references
   const whiteboardCanvasRefs = useRef<{ [key: string]: any }>({});
+  // Single whiteboard canvas reference for the main whiteboard
+  const whiteboardCanvasRef = useRef<any>(null);
+  
+  // Function to register a canvas ref
+  const registerCanvasRef = useCallback((key: string, ref: any) => {
+    if (ref) {
+      whiteboardCanvasRefs.current[key] = ref;
+    } else {
+      delete whiteboardCanvasRefs.current[key];
+    }
+  }, []);
 
   // Whiteboard clear function
   const handleClearWhiteboard = () => {
+    console.log('🎯 handleClearWhiteboard called');
+    console.log('Main canvas ref:', whiteboardCanvasRef.current);
+    console.log('Canvas refs collection:', whiteboardCanvasRefs.current);
+    
+    // Try the main ref first
+    if (whiteboardCanvasRef.current?.clearCanvas) {
+      console.log('Clearing via main ref');
+      whiteboardCanvasRef.current.clearCanvas();
+      return;
+    }
+    
+    // Fallback to the collection of refs
     Object.values(whiteboardCanvasRefs.current).forEach((canvasRef: any) => {
       if (canvasRef?.clearCanvas) {
+        console.log('Clearing via collection ref');
         canvasRef.clearCanvas();
       }
     });
@@ -350,7 +379,13 @@ export default function RedesiLiveClassroom({
 
   // Whiteboard save function
   const handleSaveWhiteboard = async () => {
-    // Get first available canvas reference
+    // Try the main ref first
+    if (whiteboardCanvasRef.current?.saveCanvas) {
+      await whiteboardCanvasRef.current.saveCanvas();
+      return;
+    }
+    
+    // Fallback to the collection of refs
     const firstCanvasRef = Object.values(whiteboardCanvasRefs.current).find((ref: any) => ref?.saveCanvas);
     if (firstCanvasRef?.saveCanvas) {
       await firstCanvasRef.saveCanvas();
@@ -359,7 +394,13 @@ export default function RedesiLiveClassroom({
 
   // Whiteboard download function
   const handleDownloadWhiteboard = () => {
-    // Get first available canvas reference
+    // Try the main ref first
+    if (whiteboardCanvasRef.current?.downloadCanvas) {
+      whiteboardCanvasRef.current.downloadCanvas();
+      return;
+    }
+    
+    // Fallback to the collection of refs
     const firstCanvasRef = Object.values(whiteboardCanvasRefs.current).find((ref: any) => ref?.downloadCanvas);
     if (firstCanvasRef?.downloadCanvas) {
       firstCanvasRef.downloadCanvas();
@@ -672,6 +713,7 @@ export default function RedesiLiveClassroom({
           handleSaveWhiteboard={handleSaveWhiteboard}
           handleDownloadWhiteboard={handleDownloadWhiteboard}
           whiteboardCanvasRefs={whiteboardCanvasRefs}
+          registerCanvasRef={registerCanvasRef}
         />
       </LiveKitRoom>
     </div>
@@ -729,6 +771,7 @@ interface LiveClassroomContentProps {
   handleSaveWhiteboard: () => Promise<void>;
   handleDownloadWhiteboard: () => void;
   whiteboardCanvasRefs: React.MutableRefObject<{ [key: string]: any }>;
+  registerCanvasRef: (key: string, ref: any) => void;
 }
 
 function LiveClassroomContent({
@@ -779,7 +822,8 @@ function LiveClassroomContent({
   handleClearWhiteboard,
   handleSaveWhiteboard,
   handleDownloadWhiteboard,
-  whiteboardCanvasRefs
+  whiteboardCanvasRefs,
+  registerCanvasRef
 }: LiveClassroomContentProps) {
   const room = useRoomContext();
   const livekitParticipants = useParticipants();
@@ -1115,6 +1159,7 @@ function LiveClassroomContent({
               whiteboardTool={whiteboardTool}
               whiteboardColor={whiteboardColor}
               whiteboardBrushSize={whiteboardBrushSize}
+              registerCanvasRef={registerCanvasRef}
             />
           </div>
 
@@ -1621,55 +1666,63 @@ function ParticipantCard({ participant, userRole }: any) {
 }
 
 // Video Area Component
-function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
+function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, whiteboardCanvasRef, registerCanvasRef }: any) {
   return (
     <motion.div 
-      className="video-area-container h-full bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative flex-shrink-0"
+      className="video-area-container h-700px bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative flex-shrink-0"
+  style={{
+    zIndex: 10,
+    position: 'relative',
+    flexShrink: 0,
+    overflow: 'hidden',
+  }}
+  initial={{ opacity: 0, scale: 0.95 }}
+  animate={{ opacity: 1, scale: 1 }}
+  transition={{ duration: 0.5, delay: 0.2 }}
+>
+  {/* 🎯 Whiteboard overlay */}
+  {isWhiteboardOpen && (
+    <div 
+      className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 backdrop-blur-sm" 
       style={{
-        zIndex: 10,
-        position: 'relative',
-        flexShrink: 0,
-        overflow: 'hidden'
+        pointerEvents: 'auto',
       }}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
     >
-      {/* 🎯 Key fix: WhiteboardCanvas is external, never gets unmounted */}
-      {isWhiteboardOpen && (
-        <div 
-          className="absolute inset-0 z-30 p-4"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pointerEvents: 'auto',
-          }}
-        >
-          <div className="w-full h-full bg-white rounded-xl overflow-hidden border border-slate-300/60 relative">
-            <WhiteboardCanvas 
-              classroomSlug={classroomSlug}
-              sessionId={sessionId}
-              userRole={userRole}
-              participantName={"Whiteboard"}
-              currentTool={whiteboardTool}
-              currentColor={whiteboardColor}
-              currentBrushSize={whiteboardBrushSize}
-            />
-            <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium z-10">
-              Whiteboard
-            </div>
-          </div>
+      <div 
+        className="w-full h-full bg-white rounded-xl overflow-hidden border border-slate-300/60 relative"
+        style={{
+          height: '600px',   
+        }}
+      >
+        {/* Label */}
+        <div className="absolute top-3 left-3 z-50">
+          <span className="bg-purple-600 text-white text-xs font-medium px-2 py-1 rounded-md shadow-md">
+            Whiteboard
+          </span>
         </div>
-      )}
+        <WhiteboardCanvas 
+          classroomSlug={useMemo(() => classroomSlug, [])}
+          sessionId={useMemo(() => sessionId, [])}
+          userRole={userRole}
+          participantName={"Whiteboard"}
+          currentTool={whiteboardTool}
+          currentColor={whiteboardColor}
+          currentBrushSize={whiteboardBrushSize}
+          currentFontSize={whiteboardFontSize}
+          ref={whiteboardCanvasRef}
+        />
 
+
+      </div>
+    </div>
+  )}
       <AnimatePresence mode="wait">
         {layout === 'grid' && (
           <GridVideoLayout 
             key="grid" 
             participants={participants} 
             setFocusedParticipant={setFocusedParticipant}
-            isWhiteboardOpen={false}
+            isWhiteboardOpen={isWhiteboardOpen}
             classroomSlug={classroomSlug}
             sessionId={sessionId}
             userRole={userRole}
@@ -1677,13 +1730,15 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             whiteboardTool={whiteboardTool}
             whiteboardColor={whiteboardColor}
             whiteboardBrushSize={whiteboardBrushSize}
+            whiteboardFontSize={whiteboardFontSize}
+            registerCanvasRef={registerCanvasRef}
           />
         )}
         {layout === 'presentation' && (
           <PresentationVideoLayout 
             key="presentation" 
             participants={participants}
-            isWhiteboardOpen={false}
+            isWhiteboardOpen={isWhiteboardOpen}
             classroomSlug={classroomSlug}
             sessionId={sessionId}
             userRole={userRole}
@@ -1691,6 +1746,8 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             whiteboardTool={whiteboardTool}
             whiteboardColor={whiteboardColor}
             whiteboardBrushSize={whiteboardBrushSize}
+            whiteboardFontSize={whiteboardFontSize}
+            registerCanvasRef={registerCanvasRef}
           />
         )}
         {layout === 'focus' && (
@@ -1699,7 +1756,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             participants={participants}
             focusedParticipant={focusedParticipant}
             setFocusedParticipant={setFocusedParticipant}
-            isWhiteboardOpen={false}
+            isWhiteboardOpen={isWhiteboardOpen}
             classroomSlug={classroomSlug}
             sessionId={sessionId}
             userRole={userRole}
@@ -1707,6 +1764,8 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             whiteboardTool={whiteboardTool}
             whiteboardColor={whiteboardColor}
             whiteboardBrushSize={whiteboardBrushSize}
+            whiteboardFontSize={whiteboardFontSize}
+            registerCanvasRef={registerCanvasRef}
           />
         )}
       </AnimatePresence>
@@ -1715,7 +1774,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
 }
 
 // Grid Video Layout - intelligent grid algorithm (Google Meet style)
-function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
+function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, registerCanvasRef }: any) {
   // Calculate total item count (participants + whiteboard)
   const totalItems = participants.length + (isWhiteboardOpen ? 1 : 0);
   
@@ -1767,20 +1826,22 @@ function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen
       <div className={`grid gap-2 md:gap-4 h-full w-full ${getGridClasses(totalItems)} ${getGridRows(totalItems)} auto-rows-fr`}>
         {/* Whiteboard item (if opened) */}
         {isWhiteboardOpen && (
-          <div className="relative w-full aspect-video flex-shrink-0">
+          <div className="w-full h-full flex-shrink-0">
             <motion.div 
               className="w-full h-full relative rounded-xl overflow-hidden bg-white border border-slate-300/60"
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.005 }}
               transition={{ duration: 0.2 }}
             >
               <WhiteboardCanvas 
-                classroomSlug={classroomSlug}
-                sessionId={sessionId}
+  classroomSlug={useMemo(() => classroomSlug, [])} // ✅ 固定引用
+  sessionId={useMemo(() => sessionId, [])}
                 userRole={userRole}
                 participantName={"Whiteboard"}
                 currentTool={whiteboardTool}
                 currentColor={whiteboardColor}
                 currentBrushSize={whiteboardBrushSize}
+                currentFontSize={whiteboardFontSize}
+                ref={(ref) => registerCanvasRef('focus', ref)}
               />
               <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
                 Whiteboard
@@ -1793,7 +1854,7 @@ function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen
         {participants.map((participant: any, index: number) => (
           <div 
             key={participant.sid || participant.identity || `participant-${index}`}
-            className="relative w-full min-h-0"
+            className="relative w-full aspect-video min-h-0" // Consistent height with VideoTile
           >
             <VideoTile 
               participant={participant}
@@ -1814,7 +1875,7 @@ function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen
 }
 
 // Presentation Video Layout - large container on left, right side shrunk to one-third
-function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
+function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, registerCanvasRef }: any) {
   const presenter = participants.find((p: any) => p.metadata?.includes('tutor')) || participants[0];
   const others = participants.filter((p: any) => p.sid !== presenter?.sid);
 
@@ -1838,29 +1899,32 @@ function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug
               transition={{ duration: 0.2 }}
             >
               <WhiteboardCanvas 
-                classroomSlug={classroomSlug}
-                sessionId={sessionId}
-                userRole={userRole}
-                participantName={"Whiteboard"}
-                currentTool={whiteboardTool}
-                currentColor={whiteboardColor}
-                currentBrushSize={whiteboardBrushSize}
-              />
+              classroomSlug={useMemo(() => classroomSlug, [])} // ✅ 固定引用
+              sessionId={useMemo(() => sessionId, [])}
+              userRole={userRole}
+              participantName={"Whiteboard"}
+              currentTool={whiteboardTool}
+              currentColor={whiteboardColor}
+              currentBrushSize={whiteboardBrushSize}
+              currentFontSize={whiteboardFontSize}
+              className="h-full w-full"
+              registerCanvasRef={registerCanvasRef}
+            />
               <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
                 Whiteboard
               </div>
             </motion.div>
           </div>
         ) : (
-          <VideoTile 
-            participant={presenter} 
-            size="large"
-            isWhiteboardOpen={false}
-            classroomSlug={classroomSlug}
-            sessionId={sessionId}
-            userRole={userRole}
-            panelsOpen={panelsOpen}
-          />
+            <VideoTile 
+              participant={presenter} 
+              size="large"
+              isWhiteboardOpen={false}
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              panelsOpen={panelsOpen}
+            />
         )}
       </div>
       
@@ -1871,29 +1935,30 @@ function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug
         <div className="flex flex-col space-y-2 h-full overflow-y-auto">
           {/* If Whiteboard is open, move presenter to right side */}
           {isWhiteboardOpen && presenter && (
-            <VideoTile 
-              participant={presenter}
-              size="normal"
-              isWhiteboardOpen={false}
-              classroomSlug={classroomSlug}
-              sessionId={sessionId}
-              userRole={userRole}
-              panelsOpen={panelsOpen}
-            />
+              <VideoTile 
+                participant={presenter}
+                size="grid"
+                isWhiteboardOpen={false}
+                classroomSlug={classroomSlug}
+                sessionId={sessionId}
+                userRole={userRole}
+                panelsOpen={panelsOpen}
+              />
           )}
           
           {/* Other participants */}
           {others.map((participant: any, index: number) => (
-            <VideoTile 
-              key={participant.sid || participant.identity || `other-${index}`}
-              participant={participant}
-              size="normal"
-              isWhiteboardOpen={false}
-              classroomSlug={classroomSlug}
-              sessionId={sessionId}
-              userRole={userRole}
-              panelsOpen={panelsOpen}
-            />
+            <div  key={participant.sid || participant.identity || `other-${index}`}> {/* Consistent height with VideoTile */}
+              <VideoTile 
+                participant={participant}
+                size="grid"
+                isWhiteboardOpen={false}
+                classroomSlug={classroomSlug}
+                sessionId={sessionId}
+                userRole={userRole}
+                panelsOpen={panelsOpen}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -1902,7 +1967,7 @@ function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug
 }
 
 // Focus Video Layout - show only one container
-function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize }: any) {
+function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, registerCanvasRef }: any) {
   const focused = focusedParticipant || participants[0];
 
   return (
@@ -1923,13 +1988,15 @@ function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticip
               transition={{ duration: 0.2 }}
             >
               <WhiteboardCanvas 
-                classroomSlug={classroomSlug}
-                sessionId={sessionId}
+                classroomSlug={useMemo(() => classroomSlug, [])} // ✅ 固定引用
+                sessionId={useMemo(() => sessionId, [])}
                 userRole={userRole}
                 participantName={"Whiteboard"}
                 currentTool={whiteboardTool}
                 currentColor={whiteboardColor}
                 currentBrushSize={whiteboardBrushSize}
+                currentFontSize={whiteboardFontSize}
+                registerCanvasRef={registerCanvasRef}
               />
               <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
                 Whiteboard
@@ -1937,15 +2004,15 @@ function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticip
             </motion.div>
           </div>
         ) : (
-          <VideoTile 
-            participant={focused} 
-            size="large" 
-            isWhiteboardOpen={false}
-            classroomSlug={classroomSlug}
-            sessionId={sessionId}
-            userRole={userRole}
-            panelsOpen={panelsOpen}
-          />
+            <VideoTile 
+              participant={focused} 
+              size="large" 
+              isWhiteboardOpen={false}
+              classroomSlug={classroomSlug}
+              sessionId={sessionId}
+              userRole={userRole}
+              panelsOpen={panelsOpen}
+            />
         )}
         
         <motion.button
@@ -1962,14 +2029,15 @@ function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticip
 }
 
 function VideoTile({ participant, size = 'normal', onFocus, showFocusButton = false, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen }: any) {
+  // Define consistent height classes for different sizes
   const sizeClasses: Record<string, string> = {
     thumbnail: 'w-full max-w-32 h-20 flex-shrink-0',
     small: 'w-full max-w-48 h-32 md:max-w-56 md:h-36 flex-shrink-0',
     normal: panelsOpen 
-      ? 'w-full h-32 md:h-36 lg:h-40 flex-shrink-0' // More compact when panel open, fixed height
-      : 'w-full h-40 md:h-48 lg:h-56 flex-shrink-0', // More spacious when panel closed, fixed height
-    large: 'w-full h-full flex-shrink-0', // Fixed height, no stretch
-    grid: 'w-full aspect-video flex-shrink-0' // Use fixed aspect ratio, no stretch
+      ? 'w-full aspect-video flex-shrink-0' // Consistent height regardless of panelsOpen state
+      : 'w-full aspect-video flex-shrink-0', // Same height for consistency
+    large: 'w-full aspect-video flex-shrink-0',
+    grid: 'w-full aspect-video flex-shrink-0' // Consistent height for grid layout instead of aspect-video
   };
 
   // Use the original LiveKit participant object for track operations
@@ -2140,23 +2208,37 @@ function FloatingReactions({ reactions, reactionEmojis }: any) {
 
 interface VideoAreaRefactoredProps {
   participants: any[];
+  layout: string;
+  isWhiteboardOpen: boolean;
+  classroomSlug: string;
+  sessionId: string;
+  userRole: 'student' | 'tutor';
+  participantName: string;
+  whiteboardTool: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
+  whiteboardColor: string;
+  whiteboardBrushSize: number;
+  whiteboardFontSize: number;
+  whiteboardCanvasRef: React.RefObject<any>;
+  registerCanvasRef: (key: string, ref: any) => void;
+  setFocusedParticipant: (participant: any) => void;
 }
 
-export function VideoAreaRefactored({ participants }: VideoAreaRefactoredProps) {
-  const {
-    layout,
-    isWhiteboardOpen,
-    classroomSlug,
-    sessionId,
-    userRole,
-    participantName,
-    whiteboardTool,
-    whiteboardColor,
-    whiteboardBrushSize,
-    whiteboardCanvasRef,
-    setFocusedParticipant,
-  } = useClassroom();
-
+export function VideoAreaRefactored({ 
+  participants,
+  layout,
+  isWhiteboardOpen,
+  classroomSlug,
+  sessionId,
+  userRole,
+  participantName,
+  whiteboardTool,
+  whiteboardColor,
+  whiteboardBrushSize,
+  whiteboardFontSize,
+  whiteboardCanvasRef,
+  registerCanvasRef,
+  setFocusedParticipant,
+}: VideoAreaRefactoredProps) {
   // 🎯 Calculate CSS Grid layout classes
   const gridClasses = getLayoutGridClasses(layout, participants.length, isWhiteboardOpen);
 
@@ -2179,15 +2261,18 @@ export function VideoAreaRefactored({ participants }: VideoAreaRefactoredProps) 
             className="whiteboard-grid-item rounded-xl overflow-hidden bg-white border border-slate-300/60"
             style={getWhiteboardGridStyle(layout)}
           >
-            <WhiteboardCanvas
-              ref={whiteboardCanvasRef}
-              classroomSlug={classroomSlug}
-              sessionId={sessionId}
+            <WhiteboardCanvas 
+              classroomSlug={useMemo(() => classroomSlug, [])}
+              sessionId={useMemo(() => sessionId, [])}
               userRole={userRole}
-              participantName={participantName}
+              participantName={"Whiteboard"}
               currentTool={whiteboardTool}
               currentColor={whiteboardColor}
               currentBrushSize={whiteboardBrushSize}
+              currentFontSize={whiteboardFontSize}
+              className="h-full w-full"
+              ref={whiteboardCanvasRef}
+              registerCanvasRef={registerCanvasRef}
             />
             <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
               Whiteboard

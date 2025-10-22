@@ -391,7 +391,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       console.error('❌ Error updating classroom:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update classroom",
+        description: error.message || "Failed to update classroom. You may not have permission to perform this action.",
         variant: "destructive",
       });
     }
@@ -434,7 +434,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       console.error('❌ Error deleting classroom:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete classroom",
+        description: error.message || "Failed to delete classroom. You may not have permission to perform this action.",
         variant: "destructive",
       });
     }

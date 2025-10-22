@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof NextResponse) {
       return authResult;
     }
+    const { user } = authResult; // Extract user from authResult
 
-    const userId = authResult.sub;
     const { name, description, visibility = 'public' } = await request.json();
 
     // 验证必填字段
@@ -40,18 +40,22 @@ export async function POST(request: NextRequest) {
     const classCode = generateClassCode();
 
     // 从 name 生成 slug
-    const slug = generateSlug(name);
+    const slug = await generateSlug(name, supabase);
 
     // 获取用户的 profile ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_id', user.id) // Use user.id instead of userId
       .single();
 
     if (profileError || !profile) {
+      console.error('User profile not found:', {
+        error: profileError,
+        userId: user.id
+      });
       return NextResponse.json(
-        { error: 'User profile not found' },
+        { error: 'User profile not found. Please make sure your profile is set up correctly.' },
         { status: 404 }
       );
     }
@@ -82,9 +86,35 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (classroomError) {
-      console.error('Error creating classroom:', classroomError);
+      console.error('Error creating classroom:', {
+        error: classroomError,
+        name,
+        description,
+        visibility,
+        classCode,
+        slug,
+        ownerId: profile.id
+      });
+      
+      // Provide more specific error messages
+      if (classroomError.code === '23505') {
+        // Unique violation
+        if (classroomError.message.includes('classroom_slug_key')) {
+          return NextResponse.json(
+            { error: 'A classroom with a similar name already exists. Please choose a different name.' },
+            { status: 409 }
+          );
+        } else if (classroomError.message.includes('classroom_class_code_key')) {
+          // This should be very rare since we generate random codes
+          return NextResponse.json(
+            { error: 'A classroom with this class code already exists. Please try again.' },
+            { status: 409 }
+          );
+        }
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to create classroom' },
+        { error: 'Failed to create classroom: ' + classroomError.message },
         { status: 500 }
       );
     }
@@ -99,15 +129,29 @@ export async function POST(request: NextRequest) {
       });
 
     if (memberError) {
-      console.error('Error adding owner as member:', memberError);
+      console.error('Error adding owner as member:', {
+        error: memberError,
+        classroomId: classroom.id,
+        userId: profile.id
+      });
+      
       // 如果添加成员失败，删除已创建的课堂
       await supabase
         .from('classroom')
         .delete()
         .eq('id', classroom.id);
 
+      // Provide more specific error messages
+      if (memberError.code === '23505') {
+        // Unique violation
+        return NextResponse.json(
+          { error: 'You are already a member of this classroom.' },
+          { status: 409 }
+        );
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to set up classroom membership' },
+        { error: 'Failed to set up classroom membership: ' + memberError.message },
         { status: 500 }
       );
     }
@@ -154,22 +198,22 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     
-    console.log('✅ GET /api/classroom - Authorization successful, userId:', authResult.sub);
+    const { user } = authResult; // Extract user from authResult
+    console.log('✅ GET /api/classroom - Authorization successful, userId:', user.id);
 
-    const userId = authResult.sub;
     const supabase = await createAdminClient();
 
     // 获取用户的 profile ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_id', user.id) // Use user.id instead of userId
       .single();
 
     if (profileError || !profile) {
       console.log('❌ GET /api/classroom - Profile error:', profileError);
       return NextResponse.json(
-        { error: 'User profile not found' },
+        { error: 'User profile not found. Please make sure your profile is set up correctly.' },
         { status: 404 }
       );
     }
@@ -274,11 +318,40 @@ function generateClassCode(): string {
 /**
  * 从课堂名称生成 slug
  */
-function generateSlug(name: string): string {
-  return name
+async function generateSlug(name: string, supabase: any): Promise<string> {
+  // Generate initial slug
+  let baseSlug = name
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '') // 移除特殊字符
     .replace(/[\s_-]+/g, '-') // 将空格和下划线转换为连字符
     .replace(/^-+|-+$/g, ''); // 移除开头和结尾的连字符
+  
+  // If the base slug is empty, use a default
+  if (!baseSlug) {
+    baseSlug = 'classroom';
+  }
+  
+  let slug = baseSlug;
+  let counter = 1;
+  
+  // Check if slug exists and generate a new one if needed
+  while (true) {
+    const { data, error } = await supabase
+      .from('classroom')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+    
+    if (error || !data) {
+      // Slug doesn't exist, we can use it
+      break;
+    }
+    
+    // Slug exists, generate a new one with a counter
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+  
+  return slug;
 }

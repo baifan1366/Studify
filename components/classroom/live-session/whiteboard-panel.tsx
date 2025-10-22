@@ -82,11 +82,12 @@ export function WhiteboardPanel({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="w-full h-full bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col"
+          className="w-full  bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col"
           style={{
             minWidth: '200px',
             maxWidth: '600px',
-            width: '100%'
+            width: '100%',
+            height: '635px'
           }}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -262,7 +263,8 @@ export function WhiteboardPanel({
 
                 <div className="text-xs text-slate-400">
                   💡 Click anywhere on the whiteboard to create a text box<br/>
-                  Double-click to edit text, single-click to drag position
+                  Single-click to select and drag, double-click to edit text<br/>
+                  Text editing now uses React Portal for better performance
                 </div>
               </div>
             )}

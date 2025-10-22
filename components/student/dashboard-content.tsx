@@ -15,7 +15,10 @@ import {
   MessageSquare,
   Zap,
   Trophy,
-  Route
+  Route,
+  FileText,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
@@ -25,11 +28,14 @@ import { useUserPreferences } from '@/hooks/profile/use-user-preferences';
 import { useDashboardTrends } from '@/hooks/dashboard/use-dashboard-trends';
 import { useLearningPaths } from '@/hooks/dashboard/use-learning-paths';
 import { useContinueWatching, useContinueWatchingActions } from '@/hooks/learning/use-learning-progress';
+import { useAINotes } from '@/hooks/dashboard/use-ai-notes';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import Mermaid from '@/components/ui/mermaid';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import UniversalSearch from '@/components/search/universal-search';
 import DailyCoachCard from '@/components/ai-coach/daily-coach-card';
 import EveningReflectionModal from '@/components/ai-coach/evening-reflection-modal';
@@ -45,9 +51,14 @@ export default function DashboardContent() {
   const { generateContinueWatchingUrl, formatProgress, formatTimeRemaining, formatLastAccessed } = useContinueWatchingActions();
   const { data: userPreferences, isLoading: preferencesLoading } = useUserPreferences();
   const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
+  const { data: aiNotes, isLoading: aiNotesLoading } = useAINotes({ limit: 5 });
   
-  // Evening reflection modal state
+  // Modal states
   const [showReflectionModal, setShowReflectionModal] = React.useState(false);
+  const [selectedLearningPath, setSelectedLearningPath] = React.useState<any>(null);
+  const [showLearningPathModal, setShowLearningPathModal] = React.useState(false);
+  const [selectedAINote, setSelectedAINote] = React.useState<any>(null);
+  const [showAINoteModal, setShowAINoteModal] = React.useState(false);
 
   const user = userData;
   const profile = user?.profile;
@@ -64,17 +75,48 @@ export default function DashboardContent() {
 
   // Combine dashboard data with learning stats
   const learningData = learningStats?.data?.summary;
+  const dashStats = dashboardData?.stats;
+  
+  // Prioritize API data and provide better fallbacks
   const stats = {
-    coursesEnrolled: dashboardData?.stats?.coursesEnrolled || 0,
-    coursesCompleted: learningData?.completedCourses || dashboardData?.stats?.coursesCompleted || 0,
-    totalStudyTime: learningData?.totalStudyHours || dashboardData?.stats?.totalStudyTime || 0,
-    currentStreak: learningData?.studyStreak || dashboardData?.stats?.currentStreak || 0,
-    points: learningData?.currentPoints || profile?.points || 0,
-    lessonsCompleted: learningData?.completedLessons || 0,
-    avgProgress: learningData?.avgProgress || 0,
-    pointsEarned: learningData?.pointsEarned || 0,
-    achievements: learningData?.unlockedAchievements || 0
+    // Courses enrolled - prefer dashboard data as it queries actual enrollments
+    coursesEnrolled: dashStats?.coursesEnrolled ?? 0,
+    
+    // Courses completed - prefer learning stats (more accurate)
+    coursesCompleted: learningData?.completedCourses ?? dashStats?.coursesCompleted ?? 0,
+    
+    // Study time - prefer learning stats (aggregated from study sessions)
+    totalStudyTime: learningData?.totalStudyHours ?? dashStats?.totalStudyTime ?? 0,
+    
+    // Streak - prefer learning stats
+    currentStreak: learningData?.studyStreak ?? dashStats?.currentStreak ?? 0,
+    
+    // Points - prefer profile points (most authoritative source)
+    points: profile?.points ?? learningData?.currentPoints ?? dashStats?.points ?? 0,
+    
+    // Additional stats from learning data
+    lessonsCompleted: learningData?.completedLessons ?? 0,
+    avgProgress: learningData?.avgProgress ?? 0,
+    pointsEarned: learningData?.pointsEarned ?? 0,
+    achievements: learningData?.unlockedAchievements ?? 0
   };
+  
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📊 Dashboard Stats Debug:', {
+      dashStats,
+      learningData,
+      profilePoints: profile?.points,
+      computedStats: stats,
+      dataSources: {
+        coursesEnrolled: 'dashStats (from course_enrollment)',
+        coursesCompleted: 'learningData or dashStats',
+        totalStudyTime: 'learningData (from study_session) or dashStats',
+        currentStreak: 'learningData or dashStats (from study_session)',
+        points: 'profile.points or learningData or dashStats'
+      }
+    });
+  }
   
   const recentAchievements = achievementsData?.data?.stats?.recentUnlocks || [];
   const dailyStats = learningStats?.data?.charts?.dailyStudyTime || [];
@@ -86,6 +128,8 @@ export default function DashboardContent() {
   return (
       <div className="min-h-screen p-6 pb-32">
         <div className="max-w-7xl mx-auto">
+
+
           {/* Header */}
           <motion.div
             className="mb-8"
@@ -174,14 +218,13 @@ export default function DashboardContent() {
             ))}
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Courses */}
-            <motion.div
-              className="lg:col-span-2"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-            >
+          {/* Continue Learning Section - Full Width */}
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
               <div className="relative bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-orange-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
                 <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                   <PlayCircle size={20} />
@@ -277,9 +320,155 @@ export default function DashboardContent() {
                   )}
                 </div>
               </div>
+          </motion.div>
+
+          {/* Cards Grid - 2 columns on large screens */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column */}
+            <motion.div
+              className="space-y-6"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+            >
+              {/* Daily Learning Coach */}
+              <DailyCoachCard 
+                onReflectionClick={() => setShowReflectionModal(true)}
+              />
+              
+              {/* My Learning Paths */}
+              {learningPaths && learningPaths.length > 0 && (
+                <div className="relative bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Route size={18} />
+                    {t('my_learning_paths')}
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {learningPaths.slice(0, 2).map((path) => (
+                      <div 
+                        key={path.id} 
+                        className="p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setSelectedLearningPath(path);
+                          setShowLearningPathModal(true);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <Target size={20} className="text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="font-medium text-white text-sm">{path.title}</h4>
+                              <Maximize2 size={14} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                            </div>
+                            <p className="text-xs text-white/60 mb-2">{path.description}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="text-xs bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
+                                {path.learning_goal}
+                              </Badge>
+                              <Badge className="text-xs bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                {path.current_level}
+                              </Badge>
+                              <Badge className="text-xs bg-pink-500/20 text-pink-300 border-pink-500/30">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {path.time_constraint}
+                              </Badge>
+                            </div>
+                            {path.mermaid_diagram && (
+                              <div className="mt-3 p-3 bg-white/5 rounded-lg">
+                                <div className="text-xs text-white/60 mb-2">{t('learning_path_preview')}</div>
+                                <div className="max-h-32 overflow-hidden relative">
+                                  <Mermaid 
+                                    chart={path.mermaid_diagram}
+                                    className="w-full scale-75 origin-top-left"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent pointer-events-none" />
+                                </div>
+                                <div className="text-xs text-white/50 mt-1 flex items-center gap-1">
+                                  <Maximize2 size={12} />
+                                  {t('click_to_view_full_path')}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {learningPaths.length > 2 && (
+                      <div className="text-center pt-2">
+                        <button className="text-xs text-white/60 hover:text-white/80 transition-colors">
+                          {t('view_all_learning_paths', { count: learningPaths.length })}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Saved AI Notes */}
+              {aiNotes && aiNotes.length > 0 && (
+                <div className="relative bg-gradient-to-br from-violet-600/20 via-fuchsia-600/20 to-purple-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <FileText size={18} />
+                    {t('my_ai_notes')}
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {aiNotes.slice(0, 4).map((note) => (
+                      <div 
+                        key={note.id} 
+                        className="p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setSelectedAINote(note);
+                          setShowAINoteModal(true);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileText size={16} className="text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="font-medium text-white text-sm truncate">{note.title}</h4>
+                              <Maximize2 size={14} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                            </div>
+                            <p className="text-xs text-white/60 line-clamp-2 mb-2">
+                              {note.ai_summary || note.content}
+                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {note.tags && note.tags.slice(0, 3).map((tag, idx) => (
+                                <Badge 
+                                  key={idx} 
+                                  className="text-xs bg-violet-500/20 text-violet-300 border-violet-500/30"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                              <span className="text-xs text-white/40">
+                                {new Date(note.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {aiNotes.length > 4 && (
+                      <div className="text-center pt-2">
+                        <button className="text-xs text-white/60 hover:text-white/80 transition-colors">
+                          {t('view_all_notes', { count: aiNotes.length })}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
 
-            {/* Sidebar */}
+            {/* Right Column */}
             <motion.div
               className="space-y-6"
               initial={{ opacity: 0, x: 20 }}
@@ -290,7 +479,7 @@ export default function DashboardContent() {
               <div className="relative bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-blue-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Calendar size={18} />
-                  Upcoming
+                  {t('upcoming')}
                 </h3>
                 
                 <div className="space-y-3">
@@ -308,10 +497,10 @@ export default function DashboardContent() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Award size={18} />
-                    Recent Achievements
+                    {t('recent_achievements')}
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    {stats.achievements} unlocked
+                    {stats.achievements} {t('unlocked')}
                   </Badge>
                 </div>
                 
@@ -345,7 +534,7 @@ export default function DashboardContent() {
               <div className="relative bg-gradient-to-br from-green-600/20 via-emerald-600/20 to-teal-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <TrendingUp size={18} />
-                  This Week's Progress
+                  {t('this_week_progress')}
                 </h3>
                 
                 <div className="space-y-3">
@@ -374,14 +563,14 @@ export default function DashboardContent() {
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
                   <div className="flex justify-between text-xs text-white/60">
                     <span>Weekly Goal: {userPreferences?.preferences?.weekly_study_goal_hours || 10}h</span>
-                    <span>{dailyStats.reduce((sum, day) => sum + day.hours, 0).toFixed(1)}h completed</span>
+                    <span>{dailyStats.slice(-7).reduce((sum, day) => sum + day.hours, 0).toFixed(1)}h completed</span>
                   </div>
                   <div className="mt-2">
                     <div className="flex-1 bg-white/10 rounded-full h-1.5">
                       <div 
                         className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
                         style={{ 
-                          width: `${Math.min((dailyStats.reduce((sum, day) => sum + day.hours, 0) / (userPreferences?.preferences?.weekly_study_goal_hours || 10)) * 100, 100)}%` 
+                          width: `${Math.min((dailyStats.slice(-7).reduce((sum, day) => sum + day.hours, 0) / (userPreferences?.preferences?.weekly_study_goal_hours || 10)) * 100, 100)}%` 
                         }}
                       />
                     </div>
@@ -389,71 +578,6 @@ export default function DashboardContent() {
                 </div>
               </div>
               
-              {/* Daily Learning Coach */}
-              <DailyCoachCard 
-                className="mb-6"
-                onReflectionClick={() => setShowReflectionModal(true)}
-              />
-              
-              {/* My Learning Paths */}
-              {learningPaths && learningPaths.length > 0 && (
-                <div className="relative bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Route size={18} />
-                    My Learning Paths
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {learningPaths.slice(0, 2).map((path) => (
-                      <div key={path.id} className="p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors cursor-pointer">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                            <Target size={20} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-white text-sm mb-1">{path.title}</h4>
-                            <p className="text-xs text-white/60 mb-2">{path.description}</p>
-                            <div className="flex items-center gap-2">
-                              <Badge className="text-xs bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
-                                {path.learning_goal}
-                              </Badge>
-                              <Badge className="text-xs bg-purple-500/20 text-purple-300 border-purple-500/30">
-                                {path.current_level}
-                              </Badge>
-                              <Badge className="text-xs bg-pink-500/20 text-pink-300 border-pink-500/30">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {path.time_constraint}
-                              </Badge>
-                            </div>
-                            {path.mermaid_diagram && (
-                              <div className="mt-3 p-3 bg-white/5 rounded-lg">
-                                <div className="text-xs text-white/60 mb-2">Learning Path:</div>
-                                <div className="max-h-32 overflow-hidden">
-                                  <Mermaid 
-                                    chart={path.mermaid_diagram}
-                                    className="w-full scale-75 origin-top-left"
-                                  />
-                                </div>
-                                <div className="text-xs text-white/50 mt-1">
-                                  💡 Click to view full path
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {learningPaths.length > 2 && (
-                      <div className="text-center pt-2">
-                        <button className="text-xs text-white/60 hover:text-white/80 transition-colors">
-                          View all {learningPaths.length} learning paths →
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </motion.div>
           </div>
         </div>
@@ -463,6 +587,202 @@ export default function DashboardContent() {
           isOpen={showReflectionModal}
           onClose={() => setShowReflectionModal(false)}
         />
+        
+        {/* Learning Path Full View Modal */}
+        <Dialog open={showLearningPathModal} onOpenChange={setShowLearningPathModal}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900/95 via-purple-900/95 to-indigo-900/95 backdrop-blur-xl border-white/20">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/20 rounded-lg">
+                    <Route className="w-5 h-5 text-indigo-400" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-semibold text-white">
+                      {selectedLearningPath?.title}
+                    </DialogTitle>
+                    <p className="text-sm text-white/60 mt-1">
+                      {selectedLearningPath?.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
+            
+            {selectedLearningPath && (
+              <div className="space-y-6 mt-4">
+                {/* Path Details */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
+                    <Target className="h-3 w-3 mr-1" />
+                    {selectedLearningPath.learning_goal}
+                  </Badge>
+                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {selectedLearningPath.current_level}
+                  </Badge>
+                  <Badge className="bg-pink-500/20 text-pink-300 border-pink-500/30">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {selectedLearningPath.time_constraint}
+                  </Badge>
+                </div>
+                
+                {/* Full Mermaid Diagram */}
+                {selectedLearningPath.mermaid_diagram && (
+                  <div className="p-6 bg-white/5 rounded-lg border border-white/10">
+                    <h4 className="text-sm font-medium text-white/80 mb-4">{t('complete_learning_path')}</h4>
+                    <div className="bg-white/90 rounded-lg p-6 overflow-x-auto">
+                      <Mermaid 
+                        chart={selectedLearningPath.mermaid_diagram}
+                        className="w-full min-h-[400px]"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Additional Information */}
+                {selectedLearningPath.ai_insights && (
+                  <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <h4 className="text-sm font-medium text-blue-300 mb-2">AI Insights</h4>
+                    <p className="text-sm text-white/80">{selectedLearningPath.ai_insights}</p>
+                  </div>
+                )}
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-white/10">
+                  <Button 
+                    className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
+                    onClick={() => {
+                      // TODO: Navigate to learning path page or start the path
+                      setShowLearningPathModal(false);
+                    }}
+                  >
+                    <PlayCircle className="w-4 h-4 mr-2" />
+                    {t('start_learning_path')}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                    onClick={() => setShowLearningPathModal(false)}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    {t('close')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* AI Note Full View Modal */}
+        <Dialog open={showAINoteModal} onOpenChange={setShowAINoteModal}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900/95 via-violet-900/95 to-fuchsia-900/95 backdrop-blur-xl border-white/20">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-violet-500/20 rounded-lg">
+                    <FileText className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-semibold text-white">
+                      {selectedAINote?.title}
+                    </DialogTitle>
+                    <p className="text-sm text-white/60 mt-1">
+                      {t('created_on')} {selectedAINote && new Date(selectedAINote.created_at).toLocaleDateString('en', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
+            
+            {selectedAINote && (
+              <div className="space-y-6 mt-4">
+                {/* Tags */}
+                {selectedAINote.tags && selectedAINote.tags.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-white/60">{t('tags')}</span>
+                    {selectedAINote.tags.map((tag: string, idx: number) => (
+                      <Badge 
+                        key={idx} 
+                        className="bg-violet-500/20 text-violet-300 border-violet-500/30"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                
+                {/* AI Summary */}
+                {selectedAINote.ai_summary && (
+                  <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare className="w-4 h-4 text-blue-400" />
+                      <h4 className="text-sm font-medium text-blue-300">{t('ai_summary')}</h4>
+                    </div>
+                    <p className="text-sm text-white/80 whitespace-pre-wrap">{selectedAINote.ai_summary}</p>
+                  </div>
+                )}
+                
+                {/* Full Content */}
+                <div className="p-6 bg-white/5 rounded-lg border border-white/10">
+                  <h4 className="text-sm font-medium text-white/80 mb-4">{t('full_content')}</h4>
+                  <div className="prose prose-sm prose-invert max-w-none">
+                    <p className="text-white/90 whitespace-pre-wrap leading-relaxed">
+                      {selectedAINote.content}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Course/Lesson Info */}
+                {(selectedAINote.course_id || selectedAINote.lesson_id) && (
+                  <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BookOpen className="w-4 h-4 text-purple-400" />
+                      <h4 className="text-sm font-medium text-purple-300">{t('related_content')}</h4>
+                    </div>
+                    <div className="text-sm text-white/70">
+                      {selectedAINote.course_id && (
+                        <p>{t('course_id')}{selectedAINote.course_id}</p>
+                      )}
+                      {selectedAINote.lesson_id && (
+                        <p>{t('lesson_id')}{selectedAINote.lesson_id}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-white/10">
+                  <Button 
+                    variant="outline"
+                    className="flex-1 bg-violet-500/20 border-violet-500/30 text-violet-300 hover:bg-violet-500/30"
+                    onClick={() => {
+                      // TODO: Add edit functionality
+                      setShowAINoteModal(false);
+                    }}
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    {t('edit_note')}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                    onClick={() => setShowAINoteModal(false)}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    {t('close')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
   );
 }

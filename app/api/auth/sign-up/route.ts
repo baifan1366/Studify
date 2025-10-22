@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     let fullName: string | undefined
     let locale: string | undefined
     let captchaToken: string | undefined
+    let roleFromBody: string | undefined
     try {
       const body = await req.json()
       email = typeof body.email === 'string' ? body.email : undefined
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest) {
       fullName = typeof body.fullName === 'string' ? body.fullName : undefined
       locale = typeof body.locale === 'string' ? body.locale : undefined
       captchaToken = typeof body.captchaToken === 'string' ? body.captchaToken : undefined
+      roleFromBody = typeof body.role === 'string' ? body.role : undefined
     } catch {
       const form = await req.formData().catch(() => null)
       if (form) {
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
         fullName = (form.get('fullName') as string) || undefined
         locale = (form.get('locale') as string) || undefined
         captchaToken = (form.get('captchaToken') as string) || undefined
+        roleFromBody = (form.get('role') as string) || undefined
       }
     }
 
@@ -42,18 +45,16 @@ export async function POST(req: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
     const targetLocale = locale || req.cookies.get('next-intl-locale')?.value || 'en'
     
-    // Determine requested role to set proper redirect after confirmation
+    // Determine requested role from multiple sources (query param takes precedence, then body)
     const roleParam = req.nextUrl.searchParams.get('role') as 'student' | 'tutor' | 'admin' | null
-    const role = roleParam || 'student'
+    const role = (roleParam || roleFromBody || 'student') as 'student' | 'tutor' | 'admin'
     
     // Set redirect path based on role
-    const roleRedirectPath = role === 'tutor' 
-      ? `/${targetLocale}/onboarding/tutor/step1`
-      : role === 'admin'
-      ? `/${targetLocale}/admin/dashboard`
-      : `/${targetLocale}/onboarding/student/step1`
+    // After email confirmation, redirect to home to check onboarding status
+    // This avoids the callback code parameter causing processing loops on sign-in/onboarding pages
+    const roleRedirectPath = `/${targetLocale}/home`;
     
-    const emailRedirectTo = `${siteUrl}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup`
+    const emailRedirectTo = `${siteUrl}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup&role=${role}`;
     
     const { data, error } = await client.auth.signUp({
       email,

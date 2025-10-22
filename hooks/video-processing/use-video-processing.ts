@@ -1,10 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 // Types
 export interface VideoProcessingStep {
   step_name: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'skipped';
+  status: "pending" | "processing" | "completed" | "failed" | "skipped";
   started_at?: string;
   completed_at?: string;
   duration_seconds?: number;
@@ -19,7 +19,13 @@ export interface VideoProcessingQueue {
   attachment_type: string;
   attachment_size: number;
   current_step: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'retrying';
+  status:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "retrying";
   progress_percentage: number;
   retry_count: number;
   max_retries: number;
@@ -36,18 +42,29 @@ export interface VideoProcessingQueue {
 // API functions
 const videoProcessingApi = {
   // Start video processing
-  startProcessing: async (attachmentId: number): Promise<VideoProcessingQueue> => {
-    const response = await fetch('/api/video-processing/upload', {
-      method: 'POST',
+  startProcessing: async (
+    attachmentId: number
+  ): Promise<VideoProcessingQueue> => {
+    const response = await fetch("/api/video-processing/upload", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ attachment_id: attachmentId }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to start video processing');
+      const errorMessage = error.details
+        ? `${error.error}: ${error.details}`
+        : error.error || "Failed to start video processing";
+
+      // Log debug info if available
+      if (error.debug) {
+        console.error("Video processing error debug:", error.debug);
+      }
+
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -59,7 +76,7 @@ const videoProcessingApi = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch queue status');
+      throw new Error(error.error || "Failed to fetch queue status");
     }
 
     return response.json();
@@ -68,12 +85,12 @@ const videoProcessingApi = {
   // Cancel processing
   cancelProcessing: async (queueId: string): Promise<void> => {
     const response = await fetch(`/api/video-processing/status/${queueId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to cancel processing');
+      throw new Error(error.error || "Failed to cancel processing");
     }
   },
 
@@ -92,15 +109,15 @@ const videoProcessingApi = {
     };
   }> => {
     const searchParams = new URLSearchParams();
-    if (params?.status) searchParams.set('status', params.status);
-    if (params?.limit) searchParams.set('limit', params.limit.toString());
-    if (params?.offset) searchParams.set('offset', params.offset.toString());
+    if (params?.status) searchParams.set("status", params.status);
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
 
     const response = await fetch(`/api/video-processing/queue?${searchParams}`);
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch processing queues');
+      throw new Error(error.error || "Failed to fetch processing queues");
     }
 
     return response.json();
@@ -114,11 +131,13 @@ export function useStartVideoProcessing() {
   return useMutation({
     mutationFn: videoProcessingApi.startProcessing,
     onSuccess: (data) => {
-      toast.success('Video processing started successfully!');
+      toast.success("Video processing started successfully!");
       // Invalidate and refetch queues
-      queryClient.invalidateQueries({ queryKey: ['video-processing-queues'] });
+      queryClient.invalidateQueries({ queryKey: ["video-processing-queues"] });
       // Start polling for this specific queue
-      queryClient.invalidateQueries({ queryKey: ['video-processing-status', data.queue_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["video-processing-status", data.queue_id],
+      });
     },
     onError: (error: Error) => {
       toast.error(`Failed to start video processing: ${error.message}`);
@@ -126,17 +145,23 @@ export function useStartVideoProcessing() {
   });
 }
 
-export function useVideoProcessingStatus(queueId: string | null, options?: {
-  enabled?: boolean;
-  refetchInterval?: number;
-}) {
+export function useVideoProcessingStatus(
+  queueId: string | null,
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number;
+  }
+) {
   return useQuery({
-    queryKey: ['video-processing-status', queueId],
+    queryKey: ["video-processing-status", queueId],
     queryFn: () => videoProcessingApi.getQueueStatus(queueId!),
-    enabled: !!queueId && (options?.enabled !== false),
+    enabled: !!queueId && options?.enabled !== false,
     refetchInterval: (data) => {
       // Stop polling if completed, failed, or cancelled
-      if (!data || ['completed', 'failed', 'cancelled'].includes((data as any)?.status)) {
+      if (
+        !data ||
+        ["completed", "failed", "cancelled"].includes((data as any)?.status)
+      ) {
         return false;
       }
       // Poll every 5 seconds for active processing
@@ -152,10 +177,12 @@ export function useCancelVideoProcessing() {
   return useMutation({
     mutationFn: videoProcessingApi.cancelProcessing,
     onSuccess: (_, queueId) => {
-      toast.success('Video processing cancelled successfully');
+      toast.success("Video processing cancelled successfully");
       // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['video-processing-queues'] });
-      queryClient.invalidateQueries({ queryKey: ['video-processing-status', queueId] });
+      queryClient.invalidateQueries({ queryKey: ["video-processing-queues"] });
+      queryClient.invalidateQueries({
+        queryKey: ["video-processing-status", queueId],
+      });
     },
     onError: (error: Error) => {
       toast.error(`Failed to cancel processing: ${error.message}`);
@@ -169,7 +196,7 @@ export function useVideoProcessingQueues(params?: {
   offset?: number;
 }) {
   return useQuery({
-    queryKey: ['video-processing-queues', params],
+    queryKey: ["video-processing-queues", params],
     queryFn: () => videoProcessingApi.getUserQueues(params),
     staleTime: 30000, // 30 seconds
   });
@@ -178,42 +205,43 @@ export function useVideoProcessingQueues(params?: {
 // Utility functions
 export function getStepDisplayName(stepName: string): string {
   const stepNames: Record<string, string> = {
-    transcribe: 'Generating Transcript',
-    embed: 'Creating AI Embeddings',
+    transcribe: "Generating Transcript",
+    embed: "Creating AI Embeddings",
   };
   return stepNames[stepName] || stepName;
 }
 
 export function getStepDescription(stepName: string): string {
   const descriptions: Record<string, string> = {
-    transcribe: 'Converting speech to text using AI transcription directly from video',
-    embed: 'Generating semantic embeddings for AI-powered search',
+    transcribe:
+      "Converting speech to text using AI transcription directly from video",
+    embed: "Generating semantic embeddings for AI-powered search",
   };
-  return descriptions[stepName] || '';
+  return descriptions[stepName] || "";
 }
 
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    pending: 'text-yellow-600',
-    processing: 'text-blue-600',
-    completed: 'text-green-600',
-    failed: 'text-red-600',
-    cancelled: 'text-gray-600',
-    retrying: 'text-orange-600',
-    skipped: 'text-gray-400',
+    pending: "text-yellow-600",
+    processing: "text-blue-600",
+    completed: "text-green-600",
+    failed: "text-red-600",
+    cancelled: "text-gray-600",
+    retrying: "text-orange-600",
+    skipped: "text-gray-400",
   };
-  return colors[status] || 'text-gray-600';
+  return colors[status] || "text-gray-600";
 }
 
 export function getStatusIcon(status: string): string {
   const icons: Record<string, string> = {
-    pending: '⏳',
-    processing: '🔄',
-    completed: '✅',
-    failed: '❌',
-    cancelled: '⏹️',
-    retrying: '🔁',
-    skipped: '⏭️',
+    pending: "⏳",
+    processing: "🔄",
+    completed: "✅",
+    failed: "❌",
+    cancelled: "⏹️",
+    retrying: "🔁",
+    skipped: "⏭️",
   };
-  return icons[status] || '❓';
+  return icons[status] || "❓";
 }

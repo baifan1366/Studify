@@ -1,29 +1,36 @@
 // Tool Calling Integration for Studify AI System
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents";
-import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from "@langchain/core/prompts";
 import { DynamicTool } from "@langchain/core/tools";
 import { BufferMemory } from "langchain/memory";
-import { 
-  AVAILABLE_TOOLS, 
-  TOOL_CATEGORIES, 
-  getToolsByCategory, 
+import {
+  AVAILABLE_TOOLS,
+  TOOL_CATEGORIES,
+  getToolsByCategory,
   getAllTools,
-  getToolByName 
-} from './tools/index';
+  getToolByName,
+} from "./tools/index";
 
 // Re-export TOOL_CATEGORIES for external use
 export { TOOL_CATEGORIES };
-import { getLLM, getReasoningLLM, getVisionLLM } from './client';
-import { aiWorkflowExecutor } from './ai-workflow';
+import { getLLM, getReasoningLLM, getVisionLLM } from "./client";
+import { aiWorkflowExecutor } from "./ai-workflow";
 
 // === TOOL CALLING CONFIGURATION ===
 
 interface ToolCallingConfig {
   model?: string;
   temperature?: number;
-  enabledTools?: string[] | 'all';
+  enabledTools?: string[] | "all";
   toolCategories?: (keyof typeof TOOL_CATEGORIES)[];
   maxIterations?: number;
   enableReasoning?: boolean;
@@ -42,14 +49,16 @@ const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant for Studify, an education
 - Performing calculations and utility functions
 
 Guidelines:
-1. Always use tools when you need information from the knowledge base
+1. Always try to use tools when available, but if tools don't return results, use your general knowledge to help
 2. Be helpful, accurate, and educational in your responses
 3. When answering questions, cite sources when available
-4. For course analysis, provide actionable insights
-5. Respect user privacy and only access authorized data
-6. Use multiple tools when needed to provide comprehensive answers
+4. If no specific course content is found, provide helpful general educational guidance
+5. Never say "I can't find information" - always provide some helpful response
+6. For course analysis, provide actionable insights
+7. Respect user privacy and only access authorized data
+8. Use multiple tools when needed to provide comprehensive answers
 
-Remember: You're helping students and educators learn more effectively!`;
+Remember: You're helping students and educators learn more effectively! Even without specific course content, you can still provide valuable educational assistance using your general knowledge.`;
 
 // === TOOL CALLING AGENT ===
 
@@ -60,31 +69,35 @@ export class StudifyToolCallingAgent {
   protected config: ToolCallingConfig;
 
   constructor(config: ToolCallingConfig = {}) {
-    const selectedModel = process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || process.env.OPEN_ROUTER_MODEL || "openai/gpt-4o-mini";
-    console.log('🔧 Tool Calling Model Config:', {
-      OPEN_ROUTER_TOOL_CALLING_MODEL: process.env.OPEN_ROUTER_TOOL_CALLING_MODEL,
+    const selectedModel =
+      process.env.OPEN_ROUTER_TOOL_CALLING_MODEL ||
+      process.env.OPEN_ROUTER_MODEL ||
+      "openai/gpt-4o-mini";
+    console.log("🔧 Tool Calling Model Config:", {
+      OPEN_ROUTER_TOOL_CALLING_MODEL:
+        process.env.OPEN_ROUTER_TOOL_CALLING_MODEL,
       OPEN_ROUTER_MODEL: process.env.OPEN_ROUTER_MODEL,
-      selectedModel: selectedModel
+      selectedModel: selectedModel,
     });
-    
+
     this.config = {
       // Tool calling requires function calling support - use GPT-4o or compatible model
       model: selectedModel,
       temperature: 0.3,
-      enabledTools: 'all',
+      enabledTools: "all",
       maxIterations: 10,
       enableReasoning: false,
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
       verbose: false,
-      ...config
+      ...config,
     };
-    
+
     // Initialize memory for conversation history
     this.memory = new BufferMemory({
       returnMessages: true,
       memoryKey: "chat_history",
       inputKey: "input",
-      outputKey: "output"
+      outputKey: "output",
     });
   }
 
@@ -94,21 +107,21 @@ export class StudifyToolCallingAgent {
   async initialize(): Promise<void> {
     try {
       // Get LLM instance
-      this.llm = this.config.enableReasoning 
-        ? await getReasoningLLM({ 
+      this.llm = this.config.enableReasoning
+        ? await getReasoningLLM({
             model: this.config.model,
-            temperature: this.config.temperature 
+            temperature: this.config.temperature,
           })
-        : await getLLM({ 
+        : await getLLM({
             model: this.config.model,
-            temperature: this.config.temperature 
+            temperature: this.config.temperature,
           });
 
       // Select tools based on configuration
       const tools = this.getSelectedTools();
 
       if (tools.length === 0) {
-        throw new Error('No tools selected for the agent');
+        throw new Error("No tools selected for the agent");
       }
 
       // Create system prompt with memory support
@@ -135,9 +148,12 @@ export class StudifyToolCallingAgent {
         returnIntermediateSteps: true,
       });
 
-      console.log(`🤖 Tool calling agent initialized with ${tools.length} tools:`, tools.map(t => t.name));
+      console.log(
+        `🤖 Tool calling agent initialized with ${tools.length} tools:`,
+        tools.map((t) => t.name)
+      );
     } catch (error) {
-      console.error('❌ Failed to initialize tool calling agent:', error);
+      console.error("❌ Failed to initialize tool calling agent:", error);
       throw error;
     }
   }
@@ -146,7 +162,7 @@ export class StudifyToolCallingAgent {
    * Execute a query with tool calling
    */
   async execute(
-    input: string, 
+    input: string,
     options: {
       userId?: number;
       includeSteps?: boolean;
@@ -165,8 +181,13 @@ export class StudifyToolCallingAgent {
     const startTime = Date.now();
 
     try {
-      console.log(`🚀 Executing tool calling query: "${input.substring(0, 100)}..."`);
-      console.log('🔧 Available tools:', this.getSelectedTools().map(t => t.name));
+      console.log(
+        `🚀 Executing tool calling query: "${input.substring(0, 100)}..."`
+      );
+      console.log(
+        "🔧 Available tools:",
+        this.getSelectedTools().map((t) => t.name)
+      );
 
       // Add user context if provided
       let enhancedInput = input;
@@ -174,69 +195,89 @@ export class StudifyToolCallingAgent {
         enhancedInput = `[User ID: ${options.userId}] ${input}`;
       }
 
-      console.log('📡 Calling AgentExecutor...');
-      
+      console.log("📡 Calling AgentExecutor...");
+
       // Get chat history from memory
       const chatHistory = await this.memory!.chatHistory.getMessages();
-      
-      const result = await this.agent!.invoke({ 
+
+      const result = await this.agent!.invoke({
         input: enhancedInput,
-        chat_history: chatHistory
+        chat_history: chatHistory,
       });
       const executionTime = Date.now() - startTime;
-      
+
       // Save to memory
       await this.memory!.saveContext(
         { input: enhancedInput },
         { output: result.output }
       );
 
-      console.log('🔍 Raw AgentExecutor result:', {
+      console.log("🔍 Raw AgentExecutor result:", {
         hasOutput: !!result.output,
         outputLength: result.output?.length || 0,
+        outputPreview: result.output?.substring(0, 200) || "No output",
         hasIntermediateSteps: !!result.intermediateSteps,
         intermediateStepsLength: result.intermediateSteps?.length || 0,
-        resultKeys: Object.keys(result)
+        resultKeys: Object.keys(result),
       });
+
+      // Log the actual output for debugging
+      if (result.output) {
+        console.log("📝 Agent Output (first 500 chars):");
+        console.log(result.output.substring(0, 500));
+        console.log("📝 Agent Output (full length):", result.output.length);
+      } else {
+        console.log("⚠️ Agent Output is empty or undefined!");
+      }
 
       // Extract tools used from intermediate steps
       const toolsUsed: string[] = [];
       if (result.intermediateSteps && result.intermediateSteps.length > 0) {
-        console.log('🔧 Analyzing intermediate steps:');
+        console.log("🔧 Analyzing intermediate steps:");
         for (const [index, step] of result.intermediateSteps.entries()) {
           console.log(`  Step ${index}:`, {
             hasAction: !!step.action,
             actionType: step.action?.constructor?.name,
             actionTool: step.action?.tool,
             hasObservation: !!step.observation,
-            observationLength: step.observation?.length || 0
+            observationLength: step.observation?.length || 0,
           });
-          
+
           if (step.action && step.action.tool) {
             toolsUsed.push(step.action.tool);
           }
         }
       } else {
-        console.log('⚠️ No intermediate steps found in result');
+        console.log("⚠️ No intermediate steps found in result");
+        console.log(
+          "⚠️ This means the LLM answered directly without using tools!"
+        );
       }
 
-      console.log(`✅ Tool calling completed in ${executionTime}ms using tools: ${toolsUsed.join(', ')}`);
+      console.log(
+        `✅ Tool calling completed in ${executionTime}ms using tools: ${
+          toolsUsed.join(", ") || "NONE"
+        }`
+      );
 
       return {
         output: result.output,
-        intermediateSteps: options.includeSteps ? result.intermediateSteps : undefined,
+        intermediateSteps: options.includeSteps
+          ? result.intermediateSteps
+          : undefined,
         toolsUsed: [...new Set(toolsUsed)], // Remove duplicates
-        executionTime
+        executionTime,
       };
-
     } catch (error) {
       const executionTime = Date.now() - startTime;
       console.error(`❌ Tool calling failed after ${executionTime}ms:`, error);
-      
+
       return {
-        output: `I encountered an error while processing your request: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        output: `I encountered an error while processing your request: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         toolsUsed: [],
-        executionTime
+        executionTime,
       };
     }
   }
@@ -251,7 +292,7 @@ export class StudifyToolCallingAgent {
       includeSteps?: boolean;
     } = {}
   ): AsyncGenerator<{
-    type: 'token' | 'tool_start' | 'tool_end' | 'error' | 'final';
+    type: "token" | "tool_start" | "tool_end" | "error" | "final";
     content: string;
     toolName?: string;
     metadata?: any;
@@ -263,7 +304,9 @@ export class StudifyToolCallingAgent {
     const startTime = Date.now();
 
     try {
-      console.log(`🎬 Starting streaming execution: "${input.substring(0, 100)}..."`);
+      console.log(
+        `🎬 Starting streaming execution: "${input.substring(0, 100)}..."`
+      );
 
       // Add user context if provided
       let enhancedInput = input;
@@ -272,7 +315,7 @@ export class StudifyToolCallingAgent {
       }
 
       const toolsUsed: string[] = [];
-      let fullOutput = '';
+      let fullOutput = "";
 
       // Stream the agent execution
       const stream = await this.agent!.stream({ input: enhancedInput });
@@ -283,15 +326,15 @@ export class StudifyToolCallingAgent {
           for (const step of chunk.intermediateSteps) {
             if (step.action && step.action.tool) {
               const toolName = step.action.tool;
-              
+
               // Tool start event
               yield {
-                type: 'tool_start',
+                type: "tool_start",
                 content: `Using ${toolName}...`,
                 toolName,
                 metadata: {
-                  toolInput: step.action.toolInput
-                }
+                  toolInput: step.action.toolInput,
+                },
               };
 
               toolsUsed.push(toolName);
@@ -299,12 +342,12 @@ export class StudifyToolCallingAgent {
               // Tool end event (with observation)
               if (step.observation) {
                 yield {
-                  type: 'tool_end',
+                  type: "tool_end",
                   content: `${toolName} completed`,
                   toolName,
                   metadata: {
-                    observation: step.observation
-                  }
+                    observation: step.observation,
+                  },
                 };
               }
             }
@@ -315,11 +358,11 @@ export class StudifyToolCallingAgent {
         if (chunk.output) {
           fullOutput += chunk.output;
           yield {
-            type: 'token',
+            type: "token",
             content: chunk.output,
             metadata: {
-              cumulative: fullOutput
-            }
+              cumulative: fullOutput,
+            },
           };
         }
       }
@@ -328,28 +371,33 @@ export class StudifyToolCallingAgent {
 
       // Final event with summary
       yield {
-        type: 'final',
-        content: fullOutput || 'Execution completed',
+        type: "final",
+        content: fullOutput || "Execution completed",
         metadata: {
           toolsUsed: [...new Set(toolsUsed)],
           executionTime,
-          totalTokens: fullOutput.length
-        }
+          totalTokens: fullOutput.length,
+        },
       };
 
-      console.log(`✅ Streaming completed in ${executionTime}ms using tools: ${[...new Set(toolsUsed)].join(', ')}`);
-
+      console.log(
+        `✅ Streaming completed in ${executionTime}ms using tools: ${[
+          ...new Set(toolsUsed),
+        ].join(", ")}`
+      );
     } catch (error) {
       const executionTime = Date.now() - startTime;
       console.error(`❌ Streaming failed after ${executionTime}ms:`, error);
-      
+
       yield {
-        type: 'error',
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: "error",
+        content: `Error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         metadata: {
           executionTime,
-          error: error instanceof Error ? error.stack : undefined
-        }
+          error: error instanceof Error ? error.stack : undefined,
+        },
       };
     }
   }
@@ -359,7 +407,7 @@ export class StudifyToolCallingAgent {
    */
   async executeWithHistory(
     input: string,
-    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+    conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
     options: {
       userId?: number;
       includeSteps?: boolean;
@@ -379,9 +427,9 @@ export class StudifyToolCallingAgent {
     if (conversationHistory.length > 0) {
       const historyText = conversationHistory
         .slice(-5) // Last 5 messages
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n');
-      
+        .map((msg) => `${msg.role}: ${msg.content}`)
+        .join("\n");
+
       contextualInput = `Previous conversation:\n${historyText}\n\nCurrent query: ${input}`;
     }
 
@@ -392,7 +440,7 @@ export class StudifyToolCallingAgent {
    * Get tools based on configuration
    */
   protected getSelectedTools(): any[] {
-    if (this.config.enabledTools === 'all') {
+    if (this.config.enabledTools === "all") {
       return getAllTools();
     }
 
@@ -424,7 +472,7 @@ export class StudifyToolCallingAgent {
   clearMemory(): void {
     if (this.memory) {
       this.memory.clear();
-      console.log('🧹 Conversation memory cleared');
+      console.log("🧹 Conversation memory cleared");
     }
   }
 
@@ -447,10 +495,10 @@ export class StudifyToolCallingAgent {
     category: string;
   }> {
     const tools = this.getSelectedTools();
-    
-    return tools.map(tool => {
+
+    return tools.map((tool) => {
       // Find category for this tool
-      let category = 'UTILITIES';
+      let category = "UTILITIES";
       for (const [cat, toolNames] of Object.entries(TOOL_CATEGORIES)) {
         if (toolNames.includes(tool.name)) {
           category = cat;
@@ -461,7 +509,7 @@ export class StudifyToolCallingAgent {
       return {
         name: tool.name,
         description: tool.description,
-        category
+        category,
       };
     });
   }
@@ -473,7 +521,6 @@ export class StudifyToolCallingAgent {
  * Enhanced AI Workflow Executor with Tool Calling
  */
 export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
-  
   /**
    * Execute a simple AI call with optional tool usage
    */
@@ -502,7 +549,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         result,
         toolsUsed: [],
         executionTime: Date.now() - startTime,
-        metadata: { model: options.model, toolsEnabled: false }
+        metadata: { model: options.model, toolsEnabled: false },
       };
     }
 
@@ -512,15 +559,15 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       model: options.model,
       temperature: options.temperature,
       toolCategories: options.toolCategories,
-      userId: options.userId
+      userId: options.userId,
     };
 
     // Reinitialize with new config
     await this.initialize();
 
-    const execution = await this.execute(prompt, { 
+    const execution = await this.execute(prompt, {
       userId: options.userId,
-      includeSteps: false 
+      includeSteps: false,
     });
 
     return {
@@ -530,8 +577,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       metadata: {
         model: options.model,
         toolsEnabled: true,
-        toolsUsed: execution.toolsUsed
-      }
+        toolsUsed: execution.toolsUsed,
+      },
     };
   }
 
@@ -544,7 +591,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       userId?: number;
       contentTypes?: string[];
       includeAnalysis?: boolean;
-      conversationContext?: Array<{role: string; content: string}>;
+      conversationContext?: Array<{ role: string; content: string }>;
       conversationId?: string;
     } = {}
   ): Promise<{
@@ -555,42 +602,120 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     confidence: number;
   }> {
     const config: ToolCallingConfig = {
-      toolCategories: ['SEARCH_AND_QA', 'CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
+      toolCategories: ["SEARCH_AND_QA", "CONTENT_ANALYSIS", "RECOMMENDATIONS"],
       userId: options.userId,
+      verbose: true, // Enable verbose logging to debug
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For this educational Q&A session:
-1. Search for relevant information using the search tool
-2. Use the answer_question tool for detailed responses
-3. When users ask for recommendations, course suggestions, or what to learn, use the recommend_content tool
-4. ${options.includeAnalysis ? 'Provide additional analysis if helpful' : ''}
+1. You MUST use the answer_question tool to provide detailed, accurate responses
+2. You MUST use the search tool to find relevant course content before answering
+3. When users ask for recommendations, course suggestions, or what to learn, you MUST use the recommend_content tool
+4. ${options.includeAnalysis ? "Provide additional analysis if helpful" : ""}
 5. Always cite sources and provide confidence levels
-6. Focus on educational value and accuracy`
+6. Focus on educational value and accuracy
+7. DO NOT answer directly without using tools - always use the available tools first`,
     };
 
     const agent = new StudifyToolCallingAgent(config);
     await agent.initialize();
     // Build enhanced question with context if available
     let enhancedQuestion = question;
-    
+
     // Add conversation context if provided
     if (options.conversationContext && options.conversationContext.length > 0) {
       enhancedQuestion = `Here's our conversation history:
-${options.conversationContext.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+${options.conversationContext
+  .map((msg) => `${msg.role}: ${msg.content}`)
+  .join("\n")}
 
 Current question: ${question}
 
 Please provide a contextually appropriate response considering our previous conversation.`;
     }
-    
+
     if (options.contentTypes) {
-      enhancedQuestion += `\n\nFocus on content types: ${options.contentTypes.join(', ')}`;
+      enhancedQuestion += `\n\nFocus on content types: ${options.contentTypes.join(
+        ", "
+      )}`;
     }
+
+    console.log(
+      `🎯 Executing educationalQA with enhanced question (length: ${enhancedQuestion.length})`
+    );
 
     const result = await agent.execute(enhancedQuestion, {
       userId: options.userId,
-      includeSteps: true
+      includeSteps: true,
     });
+
+    console.log(`📊 educationalQA result:`, {
+      outputLength: result.output?.length || 0,
+      outputPreview: result.output?.substring(0, 200),
+      toolsUsed: result.toolsUsed,
+      hasIntermediateSteps: !!result.intermediateSteps,
+      intermediateStepsCount: result.intermediateSteps?.length || 0,
+    });
+
+    console.log("📝 Full educationalQA output:");
+    console.log(result.output || "NO OUTPUT");
+
+    // If no tools were used, the LLM answered directly - log warning and try fallback
+    if (result.toolsUsed.length === 0) {
+      console.warn(
+        "⚠️ educationalQA: No tools were used! LLM answered directly without using tools."
+      );
+      console.warn("⚠️ Direct answer (first 300 chars):");
+      console.warn(result.output?.substring(0, 300) || "NO OUTPUT");
+      console.warn(
+        "⚠️ This may indicate the model does not properly support function calling."
+      );
+
+      // Try to manually call the answer_question tool as fallback
+      try {
+        console.log("🔧 Attempting manual tool call as fallback...");
+        const qaToolInstance = getToolByName("answer_question");
+
+        if (qaToolInstance) {
+          const toolInput = JSON.stringify({
+            question: question, // Use original question, not enhanced
+            contentTypes: options.contentTypes,
+            includeSourceReferences: true,
+          });
+
+          console.log(
+            "🔧 Calling answer_question tool directly with input:",
+            toolInput.substring(0, 200)
+          );
+          // Type assertion to fix TypeScript union type issue
+          const toolResult = await (
+            qaToolInstance.func as (input: string) => Promise<string>
+          )(toolInput);
+          console.log(
+            "✅ Manual tool call successful, result length:",
+            toolResult.length
+          );
+          console.log("✅ Tool result preview:", toolResult.substring(0, 300));
+
+          // Return the tool result instead
+          return {
+            answer: toolResult,
+            sources: [],
+            analysis: options.includeAnalysis ? toolResult : undefined,
+            toolsUsed: ["answer_question"],
+            confidence: 0.85,
+          };
+        } else {
+          console.error("❌ answer_question tool not found!");
+        }
+      } catch (fallbackError) {
+        console.error("❌ Manual tool call fallback failed:", fallbackError);
+        console.error(
+          "❌ Error details:",
+          fallbackError instanceof Error ? fallbackError.stack : fallbackError
+        );
+      }
+    }
 
     // Extract relevant information from the result
     return {
@@ -598,7 +723,7 @@ Please provide a contextually appropriate response considering our previous conv
       sources: [], // Could be extracted from tool calls
       analysis: options.includeAnalysis ? result.output : undefined,
       toolsUsed: result.toolsUsed,
-      confidence: 0.85 // Could be calculated from tool results
+      confidence: 0.85, // Could be calculated from tool results
     };
   }
 
@@ -607,14 +732,20 @@ Please provide a contextually appropriate response considering our previous conv
    */
   async analyzeCourseContent(
     content: string,
-    analysisType: 'summary' | 'topics' | 'questions' | 'notes' | 'problem_solving' | 'learning_path' = 'summary',
+    analysisType:
+      | "summary"
+      | "topics"
+      | "questions"
+      | "notes"
+      | "problem_solving"
+      | "learning_path" = "summary",
     options: {
       userId?: number;
       contentTypes?: string[];
       includeAnalysis?: boolean;
       includeRecommendations?: boolean;
       imageUrl?: string;
-      conversationContext?: Array<{role: string; content: string}>;
+      conversationContext?: Array<{ role: string; content: string }>;
       conversationId?: string;
       learningGoal?: string;
       currentLevel?: string;
@@ -627,30 +758,38 @@ Please provide a contextually appropriate response considering our previous conv
     executionTime: number;
   }> {
     // 判断是否需要使用视觉模型（针对图片分析）
-    const isImageAnalysis = analysisType === 'problem_solving' && content.startsWith('data:image/');
-    
+    const isImageAnalysis =
+      analysisType === "problem_solving" && content.startsWith("data:image/");
+
     const config: ToolCallingConfig = {
-      toolCategories: ['CONTENT_ANALYSIS', 'RECOMMENDATIONS'],
+      toolCategories: ["CONTENT_ANALYSIS", "RECOMMENDATIONS"],
       userId: options.userId,
       verbose: true, // Enable verbose logging
-      model: isImageAnalysis ? (process.env.OPEN_ROUTER_IMAGE_MODEL || "moonshotai/kimi-vl-a3b-thinking:free") : (process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free"), // 图片分析使用Kimi VL，其他使用DeepSeek
+      model: isImageAnalysis
+        ? process.env.OPEN_ROUTER_IMAGE_MODEL ||
+          "moonshotai/kimi-vl-a3b-thinking:free"
+        : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free", // 图片分析使用Kimi VL，其他使用DeepSeek
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For course content analysis:
 1. ALWAYS use the analyze_content tool for detailed content analysis
-2. ${options.includeRecommendations ? 'ALWAYS use the recommend_content tool to generate content recommendations' : ''}
+2. ${
+        options.includeRecommendations
+          ? "ALWAYS use the recommend_content tool to generate content recommendations"
+          : ""
+      }
 3. You MUST use tools to provide structured, actionable insights
 4. Focus on educational value and learning outcomes
-5. Do not provide direct answers without using the available tools first`
+5. Do not provide direct answers without using the available tools first`,
     };
 
     const agent = new StudifyToolCallingAgent(config);
     await agent.initialize();
 
-    let prompt = '';
-    
+    let prompt = "";
+
     switch (analysisType) {
-      case 'notes':
+      case "notes":
         prompt = `Generate smart study notes from the following content. Extract key points, create summaries, and identify important concepts:
 
 ${content}
@@ -660,22 +799,26 @@ Please provide:
 2. Key learning points (bullet format)
 3. Important concepts and definitions
 4. Suggested study focus areas
-${options.includeRecommendations ? '\n5. Related learning resources and next steps' : ''}`;
+${
+  options.includeRecommendations
+    ? "\n5. Related learning resources and next steps"
+    : ""
+}`;
         break;
-        
-      case 'problem_solving':
+
+      case "problem_solving":
         // Check if content is base64 image data
-        const isImageData = content.startsWith('data:image/');
-        
+        const isImageData = content.startsWith("data:image/");
+
         if (isImageData) {
           // ✅ For images, we'll handle this separately using vision LLM
           // Don't embed base64 in prompt - return special marker
-          prompt = '__USE_VISION_API__';
+          prompt = "__USE_VISION_API__";
         } else {
           prompt = `Analyze and solve the following academic problem step by step:
 
 ${content}
-${options.imageUrl ? `\nImage reference: ${options.imageUrl}` : ''}
+${options.imageUrl ? `\nImage reference: ${options.imageUrl}` : ""}
 
 Please provide:
 1. Problem analysis and understanding
@@ -686,14 +829,18 @@ Please provide:
         }
         break;
 
-      case 'learning_path':
+      case "learning_path":
         prompt = `You MUST use the analyze_content tool to create a comprehensive personalized learning path. 
 
 STEP 1: First, use the analyze_content tool with this JSON input:
 {
   "content": "${content.replace(/"/g, '\\"')}",
   "analysisType": "learning_path",
-  "customPrompt": "Create a comprehensive personalized learning roadmap for: ${options.learningGoal || 'the specified learning goal'}. Current level: ${options.currentLevel || 'Beginner'}. Time constraint: ${options.timeConstraint || 'Flexible'}. Include: 1) Learning Summary, 2) Mermaid flowchart diagram, 3) Step-by-step roadmap with duration and difficulty, 4) Recommended courses, 5) Practice quizzes, 6) Study tips. Focus on practical, actionable steps that help the user quickly know what to learn and where to start."
+  "customPrompt": "Create a comprehensive personalized learning roadmap for: ${
+    options.learningGoal || "the specified learning goal"
+  }. Current level: ${options.currentLevel || "Beginner"}. Time constraint: ${
+          options.timeConstraint || "Flexible"
+        }. Include: 1) Learning Summary, 2) Mermaid flowchart diagram, 3) Step-by-step roadmap with duration and difficulty, 4) Recommended courses, 5) Practice quizzes, 6) Study tips. Focus on practical, actionable steps that help the user quickly know what to learn and where to start."
 }
 
 STEP 2: Based on the tool results, format a comprehensive learning path with:
@@ -703,7 +850,7 @@ STEP 2: Based on the tool results, format a comprehensive learning path with:
 2. **Mermaid Flowchart**: Create a Mermaid diagram showing the learning progression:
 \`\`\`mermaid
 graph TD
-    A[Start: ${options.learningGoal || 'Learning Goal'}] --> B[Foundation]
+    A[Start: ${options.learningGoal || "Learning Goal"}] --> B[Foundation]
     B --> C[Intermediate Concepts]
     C --> D[Advanced Topics]
     D --> E[Practical Application]
@@ -717,28 +864,32 @@ graph TD
 
 Remember: You MUST use the analyze_content tool first before providing your response!`;
         break;
-        
+
       default:
         prompt = `Analyze the following course content for ${analysisType}:
 
 ${content}
 
-${options.includeRecommendations ? '\nAlso provide content recommendations based on this analysis.' : ''}`;
+${
+  options.includeRecommendations
+    ? "\nAlso provide content recommendations based on this analysis."
+    : ""
+}`;
     }
 
     console.log(`🔧 Executing ${analysisType} analysis with tools:`, {
       toolCategories: config.toolCategories,
       promptLength: prompt.length,
       userId: options.userId,
-      isImageAnalysis
+      isImageAnalysis,
     });
 
     let result;
-    
+
     // ✅ Handle image analysis using vision LLM with multimodal format
-    if (isImageAnalysis && prompt === '__USE_VISION_API__') {
-      console.log('📸 Using vision LLM with multimodal message format');
-      
+    if (isImageAnalysis && prompt === "__USE_VISION_API__") {
+      console.log("📸 Using vision LLM with multimodal message format");
+
       const visionLLM = await getVisionLLM();
       const visionPrompt = `I've received an image that contains an academic problem or question. Please analyze the image and solve the problem step by step:
 
@@ -754,35 +905,37 @@ Please provide:
 Format your response in clear markdown with proper headings and formatting.`;
 
       const startTime = Date.now();
-      
+
       // Use multimodal message format
       const visionMessage = new HumanMessage({
         content: [
-          { type: 'text', text: visionPrompt },
-          { 
-            type: 'image_url', 
-            image_url: { 
-              url: content  // The base64 image data
-            } 
-          }
-        ]
+          { type: "text", text: visionPrompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: content, // The base64 image data
+            },
+          },
+        ],
       });
-      
+
       const visionResponse = await visionLLM.invoke([visionMessage]);
       const executionTime = Date.now() - startTime;
-      
+
       result = {
         output: visionResponse.content as string,
-        toolsUsed: ['vision_analysis'],
-        executionTime
+        toolsUsed: ["vision_analysis"],
+        executionTime,
       };
-      
-      console.log(`📸 Vision analysis completed in ${executionTime}ms, output length: ${result.output.length}`);
+
+      console.log(
+        `📸 Vision analysis completed in ${executionTime}ms, output length: ${result.output.length}`
+      );
     } else {
       // Normal text-based analysis with agent
       result = await agent.execute(prompt, {
         userId: options.userId,
-        includeSteps: true // Enable steps to see what tools were called
+        includeSteps: true, // Enable steps to see what tools were called
       });
     }
 
@@ -790,46 +943,87 @@ Format your response in clear markdown with proper headings and formatting.`;
       outputLength: result.output?.length || 0,
       toolsUsed: result.toolsUsed,
       executionTime: result.executionTime,
-      hasIntermediateSteps: !!result.intermediateSteps
+      hasIntermediateSteps: !!result.intermediateSteps,
     });
 
-    // If no tools were used and output is empty, try direct tool calling as fallback
-    if (result.toolsUsed.length === 0 && (!result.output || result.output.trim().length === 0)) {
-      console.warn('⚠️  No tools used and empty output, trying direct tool execution');
-      
+    // If no tools were used or output is insufficient, try direct tool calling as fallback
+    // This handles cases where the LLM suggests tool use but AgentExecutor doesn't execute it
+    const shouldUseFallback =
+      result.toolsUsed.length === 0 ||
+      !result.output ||
+      result.output.trim().length < 200 ||
+      result.output.includes("I'll help you") ||
+      result.output.includes("Let me analyze");
+
+    if (shouldUseFallback) {
+      console.warn(
+        "⚠️  No tools used or insufficient output, trying direct tool execution"
+      );
+      console.log("Current output:", result.output?.substring(0, 200));
+      console.log("Reason:", {
+        noTools: result.toolsUsed.length === 0,
+        shortOutput: !result.output || result.output.trim().length < 200,
+        containsPromise:
+          result.output?.includes("I'll help you") ||
+          result.output?.includes("Let me analyze"),
+      });
+
       try {
         // Try to directly call the analyze_content tool
         const tools = this.getSelectedTools();
-        const analyzeContentTool = tools.find(t => t.name === 'analyze_content');
-        
+        const analyzeContentTool = tools.find(
+          (t) => t.name === "analyze_content"
+        );
+
         if (analyzeContentTool) {
-          console.log('🔧 Attempting direct tool call as fallback');
+          console.log("🔧 Attempting direct tool call as fallback");
+
+          let customPrompt = "";
+          if (analysisType === "learning_path") {
+            customPrompt = `Create a comprehensive personalized learning roadmap for: ${
+              options.learningGoal || "the specified learning goal"
+            }. Current level: ${
+              options.currentLevel || "Beginner"
+            }. Time constraint: ${
+              options.timeConstraint || "Flexible"
+            }. Include detailed roadmap, courses, and study tips.`;
+          }
+
           const directInput = JSON.stringify({
             content: content,
             analysisType: analysisType,
-            customPrompt: `Create a comprehensive personalized learning roadmap for: ${options.learningGoal || 'the specified learning goal'}. Current level: ${options.currentLevel || 'Beginner'}. Time constraint: ${options.timeConstraint || 'Flexible'}. Include detailed roadmap, courses, and study tips.`
+            ...(customPrompt && { customPrompt }),
           });
-          
+
+          console.log("🔧 Direct tool input:", {
+            content: content.substring(0, 100),
+            analysisType,
+            hasCustomPrompt: !!customPrompt,
+          });
+
           const directResult = await analyzeContentTool.func(directInput);
-          console.log('✅ Direct tool call successful, result length:', directResult.length);
-          
+          console.log(
+            "✅ Direct tool call successful, result length:",
+            directResult.length
+          );
+
           return {
             analysis: directResult,
             recommendations: options.includeRecommendations ? [] : undefined,
-            toolsUsed: ['analyze_content'],
-            executionTime: result.executionTime
+            toolsUsed: ["analyze_content"],
+            executionTime: result.executionTime,
           };
         }
       } catch (directError) {
-        console.error('❌ Direct tool call failed:', directError);
+        console.error("❌ Direct tool call failed:", directError);
       }
-      
-      console.warn('⚠️  Providing fallback response');
+
+      console.warn("⚠️  Providing fallback response");
       return {
         analysis: `I apologize, but I was unable to generate a ${analysisType} analysis at this time. This might be due to a temporary issue with the AI service. Please try again in a moment.`,
         recommendations: options.includeRecommendations ? [] : undefined,
         toolsUsed: result.toolsUsed,
-        executionTime: result.executionTime
+        executionTime: result.executionTime,
       };
     }
 
@@ -837,7 +1031,7 @@ Format your response in clear markdown with proper headings and formatting.`;
       analysis: result.output,
       recommendations: options.includeRecommendations ? [] : undefined,
       toolsUsed: result.toolsUsed,
-      executionTime: result.executionTime
+      executionTime: result.executionTime,
     };
   }
 }
@@ -855,7 +1049,7 @@ export async function createToolCallingAgent(config?: ToolCallingConfig) {
 }
 
 export async function executeWithTools(
-  input: string, 
+  input: string,
   config?: ToolCallingConfig,
   options?: { userId?: number }
 ) {

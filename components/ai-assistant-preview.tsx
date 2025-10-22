@@ -203,7 +203,10 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
                         ? 'border-l-4 border-l-emerald-500 bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-600/30 shadow-md' 
                         : 'border-slate-200 dark:border-slate-700/30 bg-white/80 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600/50 hover:bg-white dark:hover:bg-slate-800/60'
                     } ${isSidebarCollapsed ? 'aspect-square' : ''}`}
-                    onClick={() => setActiveFeature(feature.id)}
+                    onClick={() => {
+                      setAIResult(null); // Clear any existing AI results
+                      setActiveFeature(feature.id);
+                    }}
                     title={isSidebarCollapsed ? t(`features.${feature.id}.title`) : undefined}
                   >
                     {/* 左侧绿色边框高亮 */}
@@ -833,15 +836,20 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
                 </div>
                 <div className="flex-1">
                   <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
-                    <div className="ai-message-content">
-                      <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
-                        <MarkdownContent 
-                          content={message.content} 
-                          isStreaming={message.isStreaming} 
-                        />
+                    {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
+                    {message.isStreaming && !message.content ? (
+                      <TypingIndicator />
+                    ) : (
+                      <div className="ai-message-content">
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
+                          <MarkdownContent 
+                            content={message.content} 
+                            isStreaming={message.isStreaming} 
+                          />
+                        </div>
+                        {message.isStreaming && <span className="animate-pulse ml-1 text-slate-400">▋</span>}
                       </div>
-                      {message.isStreaming && <span className="animate-pulse ml-1 text-slate-400">▋</span>}
-                    </div>
+                    )}
                   </div>
                   {/* 显示推荐内容 - 只在AI回复完成且内容足够长时显示 */}
                   {!message.isStreaming && message.content.length > 50 && (
@@ -858,8 +866,8 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
           </div>
         ))}
         
-        {/* Typing Indicator */}
-        {isTyping && (
+        {/* Typing Indicator - 只在没有AI消息正在流式传输时显示 */}
+        {isTyping && !messages.some(m => m.type === 'ai' && m.isStreaming) && (
           <div className="flex justify-start">
             <div className="flex items-start space-x-2 max-w-[85%]">
               <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-slate-200 dark:bg-slate-700">
@@ -1357,11 +1365,19 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
   const [goal, setGoal] = useState('');
   const [level, setLevel] = useState('');
   const [timeConstraint, setTimeConstraint] = useState('');
+  const [submittedParams, setSubmittedParams] = useState<{goal: string; level: string; timeConstraint: string} | null>(null);
   const learningPathMutation = useAILearningPath();
   const t = useTranslations('AIAssistant');
 
   const handleSubmit = async () => {
     if (!goal.trim()) return;
+    
+    // Save the submitted parameters
+    setSubmittedParams({
+      goal,
+      level,
+      timeConstraint
+    });
     
     try {
       console.log('🔄 Starting learning path generation for goal:', goal);
@@ -1381,7 +1397,13 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
                           (response.analysis && response.analysis.trim());
         
         if (hasContent) {
-          onResult(response);
+          // Pass the submitted parameters along with the response
+          onResult({
+            ...response,
+            learningGoal: goal,
+            currentLevel: level,
+            timeConstraint
+          });
         } else {
           console.error('❌ Learning Path Response structure:', {
             success: response.success,
@@ -1597,9 +1619,41 @@ function AIResultCard({ type, result, onClose, onTryAgain, onExpand }: AIResultC
 }
 
 // 学习路径可视化组件
-function LearningPathVisualization({ learningPath }: { learningPath: any }) {
+function LearningPathVisualization({ learningPath, learningGoal, currentLevel }: { learningPath: any; learningGoal?: string; currentLevel?: string }) {
   const [activeStep, setActiveStep] = useState<number | null>(null);
+  const [realRecommendations, setRealRecommendations] = useState<any>(null);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const t = useTranslations('AIAssistant');
+
+  // Fetch real recommendations when component mounts
+  React.useEffect(() => {
+    if (learningGoal && !realRecommendations && !isLoadingRecommendations) {
+      setIsLoadingRecommendations(true);
+      
+      fetch('/api/ai/content-recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          learningGoal,
+          currentLevel: currentLevel || 'beginner',
+          recommendationType: 'learning_path',
+          maxRecommendations: 8
+        })
+      })
+      .then((res: Response) => res.json())
+      .then((data: any) => {
+        if (data.success) {
+          setRealRecommendations(data.recommendations);
+        }
+      })
+      .catch((error: Error) => {
+        console.error('Failed to fetch recommendations:', error);
+      })
+      .finally(() => {
+        setIsLoadingRecommendations(false);
+      });
+    }
+  }, [learningGoal, currentLevel]);
 
   if (!learningPath) return null;
 
@@ -1610,6 +1664,10 @@ function LearningPathVisualization({ learningPath }: { learningPath: any }) {
     quizSuggestions = [], 
     milestones = [] 
   } = learningPath;
+
+  // Use real recommendations if available, otherwise use AI-generated ones
+  const coursesToDisplay = realRecommendations?.courses || recommendedCourses;
+  const quizzesToDisplay = realRecommendations?.quizzes || quizSuggestions;
 
   return (
     <div className="space-y-6">
@@ -1692,14 +1750,15 @@ function LearningPathVisualization({ learningPath }: { learningPath: any }) {
       )}
 
       {/* 推荐课程 */}
-      {recommendedCourses && recommendedCourses.length > 0 && (
+      {coursesToDisplay && coursesToDisplay.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-green-500" />
             {t('learning_path.recommended_courses')}
+            {isLoadingRecommendations && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
           </h3>
           <div className="grid gap-3">
-            {recommendedCourses.map((course: any, index: number) => (
+            {coursesToDisplay.map((course: any, index: number) => (
               <div key={index} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -1714,9 +1773,19 @@ function LearningPathVisualization({ learningPath }: { learningPath: any }) {
                       {course.duration && (
                         <span className="text-xs text-slate-500">{course.duration}</span>
                       )}
+                      {course.stats && (
+                        <span className="text-xs text-slate-500">
+                          {course.stats.students} {t('learning_path.students')}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <Button size="sm" variant="outline" className="ml-3">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="ml-3"
+                    onClick={() => window.open(`/courses/${course.slug}`, '_blank')}
+                  >
                     <ArrowRight className="h-3 w-3" />
                   </Button>
                 </div>
@@ -1727,14 +1796,15 @@ function LearningPathVisualization({ learningPath }: { learningPath: any }) {
       )}
 
       {/* 题库推荐 */}
-      {quizSuggestions && quizSuggestions.length > 0 && (
+      {quizzesToDisplay && quizzesToDisplay.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <Calculator className="h-5 w-5 text-purple-500" />
             {t('learning_path.practice_quizzes')}
+            {isLoadingRecommendations && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
           </h3>
           <div className="grid gap-3">
-            {quizSuggestions.map((quiz: any, index: number) => (
+            {quizzesToDisplay.map((quiz: any, index: number) => (
               <div key={index} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1745,11 +1815,20 @@ function LearningPathVisualization({ learningPath }: { learningPath: any }) {
                         {quiz.questions || 10} {t('learning_path.questions')}
                       </Badge>
                       <span className="text-xs text-slate-500">
-                        {quiz.estimatedTime || '15'} {t('learning_path.min')}
+                        {quiz.estimatedTime || 15} {t('learning_path.min')}
                       </span>
+                      {quiz.subject && (
+                        <Badge variant="outline" className="text-xs">
+                          {quiz.subject}
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                  <Button size="sm" className="bg-purple-500 hover:bg-purple-600 text-white">
+                  <Button 
+                    size="sm" 
+                    className="bg-purple-500 hover:bg-purple-600 text-white"
+                    onClick={() => window.open(`/tutor/quiz/${quiz.id}`, '_blank')}
+                  >
                     {t('learning_path.start_quiz')}
                   </Button>
                 </div>
@@ -1824,7 +1903,7 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
           <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">🧠 AI正在生成个性化学习路径...</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('learning_path.generating_path')}</span>
             </div>
             
             {/* 流式显示AI响应文本 */}
@@ -1861,7 +1940,11 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
       <div className="space-y-4">        
         {/* 学习路径可视化 - 使用和AI结果显示相同的组件 */}
         {learningData.learningGoal ? (
-          <LearningPathVisualization learningPath={learningData} />
+          <LearningPathVisualization 
+            learningPath={learningData} 
+            learningGoal={result.learningGoal}
+            currentLevel={result.currentLevel}
+          />
         ) : (
           // 如果解析失败，显示原始文本
           <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
@@ -1886,8 +1969,8 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
                   <CheckCircle className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-emerald-800 dark:text-emerald-200">个性化学习路径生成完成</h4>
-                  <p className="text-sm text-emerald-600 dark:text-emerald-300">保存到仪表盘以便随时查看和跟踪进度</p>
+                  <h4 className="font-medium text-emerald-800 dark:text-emerald-200">{t('actions.learning_path_complete_title')}</h4>
+                  <p className="text-sm text-emerald-600 dark:text-emerald-300">{t('actions.learning_path_complete_description')}</p>
                 </div>
               </div>
               <SaveLearningPathButton learningPath={learningData} />

@@ -44,6 +44,7 @@ import { useToggleReaction } from "@/hooks/community/use-reactions";
 import { useFormat } from "@/hooks/use-format";
 import { useTranslations } from "next-intl";
 import { useUpdatePost, useDeletePost } from "@/hooks/community/use-community";
+import { useUser } from "@/hooks/profile/use-user";
 import { validateFiles } from "@/utils/file-validation";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
 import SharePostDialog from "./share-post-dialog";
@@ -214,11 +215,13 @@ const CommentItem = ({
   groupSlug,
   postSlug,
   depth = 0,
+  currentUserId,
 }: {
   comment: Comment;
   groupSlug: string;
   postSlug: string;
   depth?: number;
+  currentUserId?: number;
 }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -292,38 +295,42 @@ const CommentItem = ({
               </p>
             </div>
             <div className="flex items-center gap-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setShowEditForm(!showEditForm);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t("comment_actions.edit")}
-                  </DropdownMenuItem>
-                  {depth < commentMaxDepth && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {currentUserId === comment.author_id && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setShowEditForm(!showEditForm);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        {t("comment_actions.edit")}
+                      </DropdownMenuItem>
+                    )}
+                    {depth < commentMaxDepth && (
+                      <DropdownMenuItem
+                        onClick={() => setShowReplyForm(!showReplyForm)}
+                      >
+                        <Reply className="h-4 w-4 mr-2" />
+                        {t("comment_actions.reply")}
+                      </DropdownMenuItem>
+                    )}
+                    {currentUserId === comment.author_id && (
                     <DropdownMenuItem
-                      onClick={() => setShowReplyForm(!showReplyForm)}
+                      onClick={handleDelete}
+                      className="text-red-400"
                     >
-                      <Reply className="h-4 w-4 mr-2" />
-                      {t("comment_actions.reply")}
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t("comment_actions.delete")}
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t("comment_actions.delete")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               <ReportButton 
                 targetId={comment.author_id} 
                 targetType="comment" 
@@ -434,6 +441,7 @@ const CommentItem = ({
                   groupSlug={groupSlug}
                   postSlug={postSlug}
                   depth={depth + 1}
+                  currentUserId={currentUserId}
                 />
               ))}
             </div>
@@ -742,6 +750,19 @@ const PostDetailContent = ({
   );
   const updatePostMutation = useUpdatePost(groupSlug, postSlug);
   const deletePostMutation = useDeletePost(groupSlug, postSlug);
+  const { data: userData } = useUser();
+  const currentUserId = userData?.profile?.id ? Number(userData.profile.id) : undefined;
+  const isTutor = userData?.profile?.role === 'tutor';
+  const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
+
+  // Check permissions - ensure user is logged in
+  const isPostAuthor = currentUserId !== undefined && post.author_id === currentUserId;
+  const userGroupRole = post.group?.user_membership?.[0]?.role; // 'owner', 'admin', 'member'
+  const isGroupOwner = currentUserId !== undefined && userGroupRole === 'owner';
+  
+  // Permissions: only author can edit, only author or group owner can delete
+  const canEdit = isPostAuthor;
+  const canDelete = isPostAuthor || isGroupOwner;
 
   const handleSave = async (updates: any) => {
     try {
@@ -756,7 +777,8 @@ const PostDetailContent = ({
     try {
       await deletePostMutation.mutateAsync();
       // delete 后跳转到社区主页
-      window.location.href = `/community/${groupSlug}`; // TODO: use a better redirect method
+      const redirectPath = isTutor ? `/tutor/community/${groupSlug}` : `/community/${groupSlug}`;
+      window.location.href = redirectPath; // TODO: use a better redirect method
     } catch (err) {
       console.error("Failed to delete post:", err);
     }
@@ -793,7 +815,7 @@ const PostDetailContent = ({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               {post.group && (
-                <Link href={`/community/${post.group.slug}`}>
+                <Link href={groupPath}>
                   <Badge
                     variant="outline"
                     className="border-blue-400 text-blue-400 hover:bg-blue-400/10 cursor-pointer"
@@ -828,28 +850,34 @@ const PostDetailContent = ({
               </p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                {t("edit_post")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (confirm(t("confirm_delete_post"))) {
-                    handleDeletePost();
-                  }
-                }}
-                className="text-red-500"
-              >
-                {t("delete_post")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {(canEdit || canDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-8 w-8">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    {t("edit_post")}
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (confirm(t("confirm_delete_post"))) {
+                        handleDeletePost();
+                      }
+                    }}
+                    className="text-red-500"
+                  >
+                    {t("delete_post")}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -996,6 +1024,7 @@ const PostDetailContent = ({
                     comment={comment}
                     groupSlug={groupSlug}
                     postSlug={postSlug}
+                    currentUserId={currentUserId}
                   />
                 ))
               : comments.map((comment) => (
@@ -1005,6 +1034,7 @@ const PostDetailContent = ({
                     groupSlug={groupSlug}
                     postSlug={postSlug}
                     depth={0}
+                    currentUserId={currentUserId}
                   />
                 ))}
           </div>

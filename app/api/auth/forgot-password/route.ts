@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Construct the redirect URL - direct to reset password page, not callback
-    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/reset-password`;
+    // Construct the redirect URL - go through auth callback for session handling
+    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?type=recovery&next=/${locale}/reset-password`;
     
     console.log('[FORGOT PASSWORD] Sending reset email:', {
       email: email.replace(/(.{2}).*(@.*)/, '$1***$2'), // Mask email for privacy

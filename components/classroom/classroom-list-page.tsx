@@ -91,7 +91,10 @@ export function ClassroomListPage() {
     );
   }
 
-  const classrooms: Classroom[] = classroomsData?.classrooms || [];
+  const classrooms: Classroom[] = (classroomsData?.classrooms || []).map(classroom => ({
+    ...classroom,
+    color: classroom.color ?? undefined
+  }));
 
   return (
     <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">

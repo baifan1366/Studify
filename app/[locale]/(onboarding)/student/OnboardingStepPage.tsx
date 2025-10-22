@@ -14,7 +14,7 @@ export default function OnboardingStepPage() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
-  const t = useTranslations('OnboardingStudentPage');
+  const t = useTranslations("OnboardingStudentPage");
 
   const { updateCurrentStep, setTotalSteps } = useOnboardingStep(); // Use the context
 
@@ -98,8 +98,8 @@ export default function OnboardingStepPage() {
 
   return (
     <OnboardingStep
-      title={t('profile_title')}
-      description={t('profile_description')}
+      title={t("profile_title")}
+      description={t("profile_description")}
       action={handleNext}
       prevAction={handlePrevious}
       isLoading={isPending}

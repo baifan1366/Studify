@@ -43,3 +43,54 @@ export function useStudentsSearch(searchQuery: string) {
     gcTime: 5 * 60 * 1000,
   });
 }
+
+export interface StudentEnrollment {
+  id: number;
+  user_id: number;
+  course_id: number;
+  status: string;
+  created_at: string;
+  student_profile: {
+    id: number;
+    display_name: string;
+    full_name: string;
+    email: string;
+    avatar_url: string;
+  };
+  course: {
+    id: number;
+    title: string;
+    slug: string;
+    price_cents: number;
+  };
+  progress?: {
+    progress_pct: number;
+    completed_lessons: number;
+    last_accessed_at: string | null;
+  };
+}
+
+export interface StudentsByTutorResponse {
+  tutor_id: number;
+  total_courses: number;
+  total_students: number;
+  courses: Array<{ id: number; title: string }>;
+  enrollments: StudentEnrollment[];
+}
+
+/**
+ * Hook for fetching students by tutor ID
+ * @param tutorId - The ID of the tutor
+ */
+export function useStudentsByTutor(tutorId: number | string) {
+  return useQuery<StudentsByTutorResponse>({
+    queryKey: ['students', 'by-tutor', tutorId],
+    queryFn: async () => {
+      const response = await apiGet<{ data: StudentsByTutorResponse }>(`/api/students/by-tutor/${tutorId}`);
+      return response.data;
+    },
+    enabled: !!tutorId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}

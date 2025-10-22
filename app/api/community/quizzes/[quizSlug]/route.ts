@@ -77,7 +77,7 @@ export async function GET(
       .eq("user_id", quiz.author_id)
       .maybeSingle();
 
-    // 题目数、尝试数、点赞数（保留）
+    // 题目数、尝试数（保留）
     const { count: questionCount } = await supabase
       .from("community_quiz_question")
       .select("*", { count: "exact", head: true })
@@ -88,11 +88,6 @@ export async function GET(
       .select("*", { count: "exact", head: true })
       .eq("quiz_id", quiz.id)
       .in("status", ["submitted", "graded"]);
-
-    const { count: likeCount } = await supabase
-      .from("community_quiz_like")
-      .select("*", { count: "exact", head: true })
-      .eq("quiz_id", quiz.id);
 
     // ========== Leaderboard 逻辑 ==========
     // 1) 先拿到最近一批已提交/已评分的 attempts（按 score desc, created_at asc 排序）
@@ -252,7 +247,6 @@ export async function GET(
       } : null,
       question_count: questionCount || 0,
       attempt_count: attemptCount || 0,
-      like_count: likeCount || 0,
       leaderboard: leaderboard.slice(0, 50), // 返回前 50（可按需调整）
     };
 

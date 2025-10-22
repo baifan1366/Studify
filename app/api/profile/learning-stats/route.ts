@@ -156,24 +156,39 @@ export async function GET(request: NextRequest) {
 
     let studyStreak = 0;
     if (recentSessions && recentSessions.length > 0) {
-      const today = new Date().toDateString();
-      const sessionDates = recentSessions.map((s: any) => new Date(s.session_start).toDateString());
+      // Get unique dates and sort them (most recent first)
+      const sessionDates = recentSessions.map((s: any) => new Date(s.session_start).toISOString().split('T')[0]);
       const uniqueDates = [...new Set(sessionDates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
       
-      // 计算连续学习天数
-      let currentDate = new Date();
-      for (const dateStr of uniqueDates) {
-        const sessionDate = new Date(dateStr as string);
-        const daysDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      // Check if user studied today or yesterday (streak is still active)
+      if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
+        let expectedDate = new Date(today);
         
-        if (daysDiff === studyStreak) {
-          studyStreak++;
-        } else if (daysDiff === studyStreak + 1 && studyStreak === 0) {
-          studyStreak = 1; // 昨天学习了但今天还没学习
-        } else {
-          break;
+        // Count consecutive days
+        for (const dateStr of uniqueDates) {
+          const sessionDate = new Date(dateStr + 'T00:00:00');
+          sessionDate.setHours(0, 0, 0, 0);
+          expectedDate.setHours(0, 0, 0, 0);
+          
+          const diffDays = Math.floor((expectedDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (diffDays === 0) {
+            // This day matches our expected date
+            studyStreak++;
+            expectedDate.setDate(expectedDate.getDate() - 1); // Move to previous day
+          } else if (diffDays > 0) {
+            // Gap found, streak ends
+            break;
+          }
         }
-        currentDate = sessionDate;
       }
     }
 

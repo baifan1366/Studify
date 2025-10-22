@@ -150,11 +150,7 @@ export function AdminUsersList() {
                   value={promoteEmail}
                   onChange={(e) => setPromoteEmail(e.target.value)}
                   placeholder={t('email_placeholder')}
-                  style={{ 
-                    color: '#000000',
-                    backgroundColor: '#ffffff'
-                  }}
-                  className="dark:text-white dark:bg-gray-800"
+                  className="text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 />
               </div>
               

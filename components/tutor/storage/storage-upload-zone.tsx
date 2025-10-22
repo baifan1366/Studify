@@ -183,9 +183,15 @@ export function StorageUploadZone({ ownerId, onUploadSuccess, onClose }: Storage
           setTimeout(() => {
             startEmbeddingTask(result.id, result.title || item.title.trim())
           }, 5000)
-        } catch (processError) {
+        } catch (processError: any) {
           console.error('Video processing error:', processError)
-          toast.error(t('video_processing_failed'))
+          
+          // Show more specific error message
+          const errorMessage = processError?.message || t('video_processing_failed')
+          toast.error(errorMessage, {
+            description: 'You can retry processing from the storage page later',
+            duration: 5000
+          })
         }
       }
 

@@ -4,8 +4,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AttemptItemSkeleton, StatsCardSkeleton } from "@/components/community/skeletons";
-import { useToast } from '@/hooks/use-toast';
+import { AttemptItemSkeleton } from "@/components/community/skeletons";
 import { toast } from 'sonner';
 import { 
   FileText, 
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { useTranslations } from "next-intl";
 import {
   useUserQuizAttempts,
   useSharedPrivateQuizzes,
@@ -33,17 +33,22 @@ import {
 } from "@/hooks/community/use-quiz-sidebar";
 import AllAttemptsModal from "./all-attempts-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@/hooks/profile/use-user";
 
 const AttemptCard = ({
   attempt,
+  isTutor,
 }: {
   attempt: any;
+  isTutor: boolean;
 }) => {
+  const t = useTranslations('QuizzesSidebar');
+  const quizPath = isTutor ? `/tutor/community/quizzes/${attempt.quiz.slug}` : `/community/quizzes/${attempt.quiz.slug}`;
   const statusConfig = {
-    not_started: { label: "Not Started", color: "text-gray-400" },
-    in_progress: { label: "In Progress", color: "text-blue-400" },
-    submitted: { label: "Completed", color: "text-green-400" },
-    graded: { label: "Graded", color: "text-purple-400" },
+    not_started: { label: t('attempt_status.not_started'), color: "text-gray-400" },
+    in_progress: { label: t('attempt_status.in_progress'), color: "text-blue-400" },
+    submitted: { label: t('attempt_status.submitted'), color: "text-green-400" },
+    graded: { label: t('attempt_status.graded'), color: "text-purple-400" },
   };
 
   const status = statusConfig[attempt.status as keyof typeof statusConfig] || statusConfig.not_started;
@@ -61,7 +66,7 @@ const AttemptCard = ({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link href={`/community/quizzes/${attempt.quiz.slug}`}>
+          <Link href={quizPath}>
             <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
               {attempt.quiz.title}
             </h4>
@@ -71,7 +76,7 @@ const AttemptCard = ({
             {(attempt.status === 'submitted' || attempt.status === 'graded') && attempt.score > 0 && (
               <>
                 <span className="text-gray-500">•</span>
-                <span className="text-yellow-400">{attempt.score} pts</span>
+                <span className="text-yellow-400">{t('points_abbrev', { points: attempt.score })}</span>
               </>
             )}
           </div>
@@ -83,13 +88,17 @@ const AttemptCard = ({
 
 const SharedPrivateQuizCard = ({
   quiz,
+  isTutor,
 }: {
   quiz: SharedPrivateQuiz;
+  isTutor: boolean;
 }) => {
+  const t = useTranslations('QuizzesSidebar');
+  const quizPath = isTutor ? `/tutor/community/quizzes/${quiz.quiz_slug}` : `/community/quizzes/${quiz.quiz_slug}`;
   const permissionConfig = {
-    view: { icon: Eye, label: "View Only", color: "text-blue-400" },
-    attempt: { icon: Target, label: "Can Attempt", color: "text-green-400" },
-    edit: { icon: Edit, label: "Can Edit", color: "text-purple-400" },
+    view: { icon: Eye, label: t('shared.permission.view'), color: "text-blue-400" },
+    attempt: { icon: Target, label: t('shared.permission.attempt'), color: "text-green-400" },
+    edit: { icon: Edit, label: t('shared.permission.edit'), color: "text-purple-400" },
   };
 
   const permission = permissionConfig[quiz.permission_type as keyof typeof permissionConfig];
@@ -97,16 +106,16 @@ const SharedPrivateQuizCard = ({
 
   // Format expiry date
   const getExpiryText = () => {
-    if (!quiz.expires_at) return "No expiry";
+    if (!quiz.expires_at) return t('shared.expiry.none');
     const expiryDate = new Date(quiz.expires_at);
     const now = new Date();
     const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (daysLeft < 0) return "Expired";
-    if (daysLeft === 0) return "Expires today";
-    if (daysLeft === 1) return "Expires tomorrow";
-    if (daysLeft <= 7) return `Expires in ${daysLeft} days`;
-    return format(expiryDate, "MMM d, yyyy");
+    if (daysLeft < 0) return t('shared.expiry.expired');
+    if (daysLeft === 0) return t('shared.expiry.today');
+    if (daysLeft === 1) return t('shared.expiry.tomorrow');
+    if (daysLeft <= 7) return t('shared.expiry.in_days', { count: daysLeft });
+    return format(expiryDate, t('shared.expiry.full_format'));
   };
 
   const expiryText = getExpiryText();
@@ -117,7 +126,7 @@ const SharedPrivateQuizCard = ({
     <div className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
       {/* Header with title and permission badge */}
       <div className="flex items-start justify-between mb-2">
-        <Link href={`/community/quizzes/${quiz.quiz_slug}`} className="flex-1 min-w-0">
+        <Link href={quizPath} className="flex-1 min-w-0">
           <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
             {quiz.title}
           </h4>
@@ -137,7 +146,7 @@ const SharedPrivateQuizCard = ({
           </AvatarFallback>
         </Avatar>
         <span className="text-xs text-gray-400">
-          Shared by <span className="text-gray-300">{quiz.granted_by_name}</span>
+          {t('shared.shared_by_prefix')} <span className="text-gray-300">{quiz.granted_by_name}</span>
         </span>
       </div>
 
@@ -145,7 +154,7 @@ const SharedPrivateQuizCard = ({
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
           <Lock className="w-3 h-3 text-yellow-400" />
-          <span className="text-gray-400">Private Quiz</span>
+          <span className="text-gray-400">{t('shared.private_quiz')}</span>
         </div>
         <span className={`${isExpiringSoon ? 'text-orange-400' : 'text-gray-400'}`}>
           {expiryText}
@@ -160,6 +169,10 @@ export default function QuizzesSidebar() {
   const { data: sharedData, isLoading: loadingShared } = useSharedPrivateQuizzes();
   const { data: stats, isLoading: loadingStats } = useQuizAttemptStats();
   const [showAllAttemptsModal, setShowAllAttemptsModal] = useState(false);
+  const t = useTranslations('QuizzesSidebar');
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
+  const quizzesPath = isTutor ? '/tutor/community/quizzes' : '/community/quizzes';
   
   const sharedQuizzes = sharedData?.quizzes || [];
 
@@ -170,7 +183,7 @@ export default function QuizzesSidebar() {
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-lg">My Attempts</CardTitle>
+              <CardTitle className="text-white text-lg">{t('my_attempts.title')}</CardTitle>
               <Badge variant="outline" className="border-blue-400 text-blue-400">
                 {stats?.total_attempts || 0}
               </Badge>
@@ -184,7 +197,7 @@ export default function QuizzesSidebar() {
             ) : attempts && attempts.length > 0 ? (
               <>
                 {attempts.slice(0, 5).map((attempt) => (
-                  <AttemptCard key={attempt.id} attempt={attempt} />
+                  <AttemptCard key={attempt.id} attempt={attempt} isTutor={isTutor} />
                 ))}
                 {(stats?.total_attempts ?? 0) > 5 && (
                   <Button
@@ -193,19 +206,19 @@ export default function QuizzesSidebar() {
                     className="w-full text-blue-400 hover:bg-blue-400/10"
                     onClick={() => setShowAllAttemptsModal(true)}
                   >
-                    Show More
+                    {t('my_attempts.show_more')}
                   </Button>
                 )}
               </>
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-400 text-sm mb-3">
-                  No quiz attempts yet
+                  {t('my_attempts.empty_message')}
                 </p>
-                <Link href="/community/quizzes">
+                <Link href={quizzesPath}>
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                     <FileText className="w-4 h-4 mr-1" />
-                    Browse Quizzes
+                    {t('my_attempts.browse_button')}
                   </Button>
                 </Link>
               </div>
@@ -217,10 +230,10 @@ export default function QuizzesSidebar() {
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-lg">Shared with Me</CardTitle>
+              <CardTitle className="text-white text-lg">{t('shared.title')}</CardTitle>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-yellow-400" />
-                <span className="text-xs text-gray-400">Private</span>
+                <span className="text-xs text-gray-400">{t('shared.private_label')}</span>
               </div>
             </div>
           </CardHeader>
@@ -233,16 +246,16 @@ export default function QuizzesSidebar() {
               ))
             ) : sharedQuizzes && sharedQuizzes.length > 0 ? (
               sharedQuizzes.slice(0, 5).map((quiz) => (
-                <SharedPrivateQuizCard key={quiz.quiz_id} quiz={quiz} />
+                <SharedPrivateQuizCard key={quiz.quiz_id} quiz={quiz} isTutor={isTutor} />
               ))
             ) : (
               <div className="text-center py-6">
                 <Lock className="w-8 h-8 text-gray-500 mx-auto mb-2" />
                 <p className="text-gray-400 text-sm">
-                  No private quizzes shared with you
+                  {t('shared.empty_message')}
                 </p>
                 <p className="text-gray-500 text-xs mt-1">
-                  Private quizzes require explicit permission
+                  {t('shared.empty_subtitle')}
                 </p>
               </div>
             )}
@@ -250,17 +263,30 @@ export default function QuizzesSidebar() {
         </Card>
 
         {/* Quiz Stats */}
-        {stats && (
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-lg">My Stats</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white text-lg">{t('stats.title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingStats ? (
+              <div className="space-y-3">
+                <>
+                    <div className="flex justify-between items-center">
+                      <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+                      <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+                      <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                    </div>
+                </>
+              </div>
+            ) : stats ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300 text-sm flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
-                    Total Attempts
+                    {t('stats.total_attempts')}
                   </span>
                   <Badge variant="outline" className="border-blue-400 text-blue-400">
                     {stats.total_attempts}
@@ -269,7 +295,7 @@ export default function QuizzesSidebar() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300 text-sm flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
-                    Completed
+                    {t('stats.completed')}
                   </span>
                   <Badge variant="outline" className="border-green-400 text-green-400">
                     {stats.completed_attempts}
@@ -278,7 +304,7 @@ export default function QuizzesSidebar() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300 text-sm flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    In Progress
+                    {t('stats.in_progress')}
                   </span>
                   <Badge variant="outline" className="border-yellow-400 text-yellow-400">
                     {stats.in_progress_attempts}
@@ -289,7 +315,7 @@ export default function QuizzesSidebar() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-300 text-sm flex items-center gap-2">
                         <Target className="w-4 h-4" />
-                        Average Score
+                        {t('stats.average_score')}
                       </span>
                       <Badge variant="outline" className="border-purple-400 text-purple-400">
                         {stats.average_score}
@@ -298,7 +324,7 @@ export default function QuizzesSidebar() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-300 text-sm flex items-center gap-2">
                         <Trophy className="w-4 h-4" />
-                        Best Score
+                        {t('stats.best_score')}
                       </span>
                       <Badge variant="outline" className="border-yellow-400 text-yellow-400">
                         {stats.best_score}
@@ -307,9 +333,9 @@ export default function QuizzesSidebar() {
                   </>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
 
       {/* All Attempts Modal */}

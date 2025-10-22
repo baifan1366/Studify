@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiSend } from '@/lib/api-config';
 
 export interface VideoComment {
   id: string;
@@ -14,166 +15,120 @@ export interface VideoComment {
 }
 
 interface UseVideoCommentsOptions {
-  videoId: string;
+  videoId: string; // lesson public_id
   userId?: string;
 }
 
+/**
+ * Hook to manage video comments with real API integration
+ */
 export function useVideoComments({ videoId, userId }: UseVideoCommentsOptions) {
-  const [comments, setComments] = useState<VideoComment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'likes'>('newest');
+  const queryClient = useQueryClient();
 
-  const addComment = useCallback((content: string, parentId?: string) => {
-    const newComment: VideoComment = {
-      id: `comment-${Date.now()}-${Math.random()}`,
-      userId: userId || 'anonymous',
-      username: '当前用户',
-      avatar: '/default-avatar.png',
-      content: content.trim(),
-      timestamp: Date.now(),
-      likes: 0,
-      replies: [],
-      isLiked: false,
-      parentId
-    };
+  // Fetch comments from API
+  const { data: commentsData, isLoading: loading } = useQuery({
+    queryKey: ['video-comments', videoId],
+    queryFn: async () => {
+      const response = await apiSend<any>({
+        url: `/api/video/comments?lessonId=${videoId}&sortBy=newest`,
+        method: 'GET'
+      });
+      return response;
+    },
+    enabled: !!videoId
+  });
 
-    setComments(prev => {
-      if (parentId) {
-        // Add as reply to existing comment
-        return prev.map(comment => {
-          if (comment.id === parentId) {
-            return {
-              ...comment,
-              replies: [...comment.replies, newComment]
-            };
-          }
-          return comment;
-        });
-      } else {
-        // Add as top-level comment
-        return [newComment, ...prev];
-      }
-    });
-
-    return newComment.id;
-  }, [userId]);
-
-  const toggleLike = useCallback((commentId: string) => {
-    setComments(prev => prev.map(comment => {
-      if (comment.id === commentId) {
-        return {
-          ...comment,
-          isLiked: !comment.isLiked,
-          likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1
-        };
-      }
-      
-      // Check replies
-      if (comment.replies.some(reply => reply.id === commentId)) {
-        return {
-          ...comment,
-          replies: comment.replies.map(reply => {
-            if (reply.id === commentId) {
-              return {
-                ...reply,
-                isLiked: !reply.isLiked,
-                likes: reply.isLiked ? reply.likes - 1 : reply.likes + 1
-              };
-            }
-            return reply;
-          })
-        };
-      }
-      
-      return comment;
-    }));
-  }, []);
-
-  const deleteComment = useCallback((commentId: string) => {
-    setComments(prev => {
-      // Remove top-level comment
-      const filtered = prev.filter(comment => comment.id !== commentId);
-      
-      // Remove from replies
-      return filtered.map(comment => ({
-        ...comment,
-        replies: comment.replies.filter(reply => reply.id !== commentId)
-      }));
-    });
-  }, []);
-
-  const getSortedComments = useCallback(() => {
-    const sorted = [...comments];
-    
-    switch (sortBy) {
-      case 'newest':
-        return sorted.sort((a, b) => b.timestamp - a.timestamp);
-      case 'oldest':
-        return sorted.sort((a, b) => a.timestamp - b.timestamp);
-      case 'likes':
-        return sorted.sort((a, b) => b.likes - a.likes);
-      default:
-        return sorted;
-    }
-  }, [comments, sortBy]);
-
-  const loadComments = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Simulate API call - replace with actual API
-      const mockComments: VideoComment[] = [
-        {
-          id: 'comment-1',
-          userId: 'user-1',
-          username: '小明同学',
-          avatar: '/avatars/user1.jpg',
-          content: '这个视频讲得真好！学到了很多东西',
-          timestamp: Date.now() - 3600000,
-          likes: 12,
-          isLiked: false,
-          replies: [
-            {
-              id: 'reply-1',
-              userId: 'user-2',
-              username: '学习达人',
-              avatar: '/avatars/user2.jpg',
-              content: '同感！老师讲得很清楚',
-              timestamp: Date.now() - 3000000,
-              likes: 3,
-              isLiked: true,
-              replies: []
-            }
-          ]
-        },
-        {
-          id: 'comment-2',
-          userId: 'user-3',
-          username: '编程小白',
-          avatar: '/avatars/user3.jpg',
-          content: '有没有相关的练习题？想巩固一下',
-          timestamp: Date.now() - 7200000,
-          likes: 8,
-          isLiked: false,
-          replies: []
+  // Add comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ content, parentId }: { content: string; parentId?: string }) => {
+      return await apiSend<any>({
+        url: '/api/video/comments',
+        method: 'POST',
+        body: {
+          lessonId: videoId,
+          content: content.trim(),
+          parentId
         }
-      ];
-      
-      setComments(mockComments);
-    } catch (error) {
-      console.error('Failed to load comments:', error);
-    } finally {
-      setLoading(false);
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['video-comments', videoId] });
     }
-  }, [videoId]);
+  });
+
+  // Toggle like mutation
+  const toggleLikeMutation = useMutation({
+    mutationFn: async ({ commentId, isLiked }: { commentId: string; isLiked: boolean }) => {
+      return await apiSend<any>({
+        url: `/api/video/comments/${commentId}/likes`,
+        method: 'POST',
+        body: { isLiked }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['video-comments', videoId] });
+    }
+  });
+
+  // Delete comment mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      return await apiSend<any>({
+        url: `/api/video/comments/${commentId}`,
+        method: 'DELETE'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['video-comments', videoId] });
+    }
+  });
+
+  // Transform API data to component format
+  const comments: VideoComment[] = commentsData?.comments?.map((comment: any) => ({
+    id: comment.public_id,
+    userId: comment.author?.id || '',
+    username: comment.author?.full_name || comment.author?.display_name || 'Anonymous',
+    avatar: comment.author?.avatar_url || '/default-avatar.png',
+    content: comment.content,
+    timestamp: new Date(comment.created_at).getTime(),
+    likes: comment.likes_count || 0,
+    isLiked: comment.user_has_liked || false,
+    replies: comment.replies?.map((reply: any) => ({
+      id: reply.public_id,
+      userId: reply.author?.id || '',
+      username: reply.author?.full_name || reply.author?.display_name || 'Anonymous',
+      avatar: reply.author?.avatar_url || '/default-avatar.png',
+      content: reply.content,
+      timestamp: new Date(reply.created_at).getTime(),
+      likes: reply.likes_count || 0,
+      isLiked: reply.user_has_liked || false,
+      replies: [],
+      parentId: comment.public_id
+    })) || [],
+    parentId: comment.parent_id
+  })) || [];
 
   return {
-    comments: getSortedComments(),
+    comments,
     loading,
-    sortBy,
-    setSortBy,
-    addComment,
-    toggleLike,
-    deleteComment,
-    loadComments
+    sortBy: 'newest' as const,
+    setSortBy: () => {}, // Sorting handled by API
+    addComment: (content: string, parentId?: string) => {
+      addCommentMutation.mutate({ content, parentId });
+      return Promise.resolve('pending');
+    },
+    toggleLike: (commentId: string) => {
+      const comment = comments.find(c => c.id === commentId);
+      toggleLikeMutation.mutate({ 
+        commentId, 
+        isLiked: !comment?.isLiked 
+      });
+    },
+    deleteComment: (commentId: string) => {
+      deleteCommentMutation.mutate(commentId);
+    },
+    loadComments: () => {
+      queryClient.invalidateQueries({ queryKey: ['video-comments', videoId] });
+    }
   };
 }

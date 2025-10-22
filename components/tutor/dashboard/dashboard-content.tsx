@@ -130,15 +130,15 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
     return (
       <div className="p-6 space-y-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded"></div>
+              <div key={i} className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
             ))}
           </div>
         </div>
@@ -312,7 +312,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
               </div>
             ) : (
               <div className="text-center py-6">
-                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <BookOpen className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                 <p className="text-gray-500 dark:text-gray-400">{t('no_courses_yet')}</p>
                 <Link href="/tutor/teaching/course-content">
                   <Button className="mt-2">
@@ -360,7 +360,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
               <p className="text-2xl font-bold text-center">
                 {totalStudents > 0 ? Math.round(totalStudents / (totalCourses || 1)) : 0}
               </p>
-              <p className="text-xs text-gray-500 text-center">{t('avg_students_per_course')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center">{t('avg_students_per_course')}</p>
             </div>
           </CardContent>
         </Card>

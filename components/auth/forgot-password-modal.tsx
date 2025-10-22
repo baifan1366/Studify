@@ -114,7 +114,7 @@ export default function ForgotPasswordModal({
             
             <div className="flex justify-end pt-4">
               <Button onClick={handleClose} variant="outline">
-                Close
+                {t('close')}
               </Button>
             </div>
           </motion.div>
@@ -191,7 +191,7 @@ export default function ForgotPasswordModal({
               onClick={handleClose}
               className="flex-1"
             >
-              Cancel
+              {t('cancel')}
             </Button>
             <Button
               type="submit"

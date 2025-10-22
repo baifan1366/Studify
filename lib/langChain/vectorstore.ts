@@ -540,8 +540,8 @@ export class VectorStore {
         similarityThreshold = 0.7,
         maxResults = 10,
         userId,
-        searchType = 'hybrid',
-        embeddingWeights = { e5: 0.4, bge: 0.6 }
+        searchType = 'hybrid', // Using hybrid but will only generate BGE embeddings due to E5 server issues
+        embeddingWeights = { e5: 0.0, bge: 1.0 } // 100% weight on BGE since E5 is broken
       } = options;
 
       // Check search result cache first
@@ -557,17 +557,25 @@ export class VectorStore {
       let queryEmbeddingBGE: number[] | null = null;
 
       // Generate embeddings based on search type
-      if (searchType === 'e5_only' || searchType === 'hybrid') {
-        const e5Result = await generateEmbedding(processedQuery, 'e5');
-        if (validateEmbedding(e5Result.embedding, 384, 'e5')) {
-          queryEmbeddingE5 = e5Result.embedding;
+      if ((searchType === 'e5_only' || searchType === 'hybrid') && embeddingWeights.e5 > 0) {
+        try {
+          const e5Result = await generateEmbedding(processedQuery, 'e5');
+          if (validateEmbedding(e5Result.embedding, 384, 'e5')) {
+            queryEmbeddingE5 = e5Result.embedding;
+          }
+        } catch (e5Error) {
+          console.warn('⚠️ E5 embedding generation failed, continuing with BGE only:', e5Error instanceof Error ? e5Error.message : e5Error);
         }
       }
 
-      if (searchType === 'bge_only' || searchType === 'hybrid') {
-        const bgeResult = await generateEmbedding(processedQuery, 'bge');
-        if (validateEmbedding(bgeResult.embedding, 1024, 'bge')) {
-          queryEmbeddingBGE = bgeResult.embedding;
+      if ((searchType === 'bge_only' || searchType === 'hybrid') && embeddingWeights.bge > 0) {
+        try {
+          const bgeResult = await generateEmbedding(processedQuery, 'bge');
+          if (validateEmbedding(bgeResult.embedding, 1024, 'bge')) {
+            queryEmbeddingBGE = bgeResult.embedding;
+          }
+        } catch (bgeError) {
+          console.warn('⚠️ BGE embedding generation failed, continuing with E5 only:', bgeError instanceof Error ? bgeError.message : bgeError);
         }
       }
 
@@ -581,19 +589,19 @@ export class VectorStore {
       let searchParams: any;
 
       if (searchType === 'hybrid') {
-        searchFunction = 'search_embeddings_hybrid';
+        searchFunction = 'search_embeddings_hybrid'; // General-purpose hybrid search
         searchParams = {
           query_embedding_e5: queryEmbeddingE5 ? `[${queryEmbeddingE5.join(',')}]` : null,
-          query_embedding_bge: queryEmbeddingBGE ? `[${queryEmbeddingBGE.join(',')}]` : null,
+          query_embedding_bge: null, // Disabled: BGE produces 1024 dims but DB expects 384
           content_types: contentTypes || null,
           match_threshold: similarityThreshold,
           match_count: maxResults,
-          weight_e5: embeddingWeights.e5,
-          weight_bge: embeddingWeights.bge,
+          weight_e5: 1.0, // E5 only until BGE dimension mismatch is resolved
+          weight_bge: 0.0,
           user_id: userId || null
         };
       } else if (searchType === 'e5_only') {
-        searchFunction = 'search_embeddings_e5';
+        searchFunction = 'search_embeddings_e5'; // General-purpose E5 search
         searchParams = {
           query_embedding: `[${queryEmbeddingE5!.join(',')}]`,
           content_types: contentTypes || null,
@@ -602,7 +610,7 @@ export class VectorStore {
           user_id: userId || null
         };
       } else { // bge_only
-        searchFunction = 'search_embeddings_bge';
+        searchFunction = 'search_embeddings_bge'; // General-purpose BGE search
         searchParams = {
           query_embedding: `[${queryEmbeddingBGE!.join(',')}]`,
           content_types: contentTypes || null,
@@ -617,6 +625,29 @@ export class VectorStore {
 
       if (error) {
         console.error(`Error performing ${searchType} search:`, error);
+        
+        // Fallback: If hybrid search fails, try enhanced search with E5
+        if (searchFunction === 'search_embeddings_hybrid' && queryEmbeddingE5) {
+          console.log('⚠️ Hybrid search failed, falling back to search_embeddings_enhanced');
+          try {
+            const { data: fallbackData, error: fallbackError } = await this.supabase.rpc('search_embeddings_enhanced', {
+              query_embedding: `[${queryEmbeddingE5.join(',')}]`,
+              content_types: contentTypes || null,
+              similarity_threshold: similarityThreshold,
+              max_results: maxResults
+            } as any);
+            
+            if (!fallbackError && fallbackData) {
+              console.log(`✅ Enhanced search fallback returned ${(fallbackData as any[]).length} results`);
+              const fallbackResults = (fallbackData as SearchResult[]) || [];
+              setCachedSearchResults(cacheKey, {}, fallbackResults);
+              return fallbackResults;
+            }
+          } catch (fallbackErr) {
+            console.error('Enhanced search fallback also failed:', fallbackErr);
+          }
+        }
+        
         return [];
       }
 

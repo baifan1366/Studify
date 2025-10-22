@@ -207,9 +207,9 @@ export default function MegaImage({
 
   if (error) {
     return (
-      <div className={`flex flex-col items-center justify-center p-4 border border-red-200 rounded-lg bg-red-50 ${className}`}>
+      <div className={`flex flex-col items-center justify-center p-4 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 ${className}`}>
         <svg 
-          className="w-12 h-12 text-red-400 mb-2" 
+          className="w-12 h-12 text-red-400 dark:text-red-500 mb-2" 
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -221,10 +221,10 @@ export default function MegaImage({
             d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
           />
         </svg>
-        <p className="text-red-600 text-sm text-center">
+        <p className="text-red-600 dark:text-red-400 text-sm text-center">
           {t('failed_to_load')}
         </p>
-        <p className="text-red-500 text-xs text-center mt-1">
+        <p className="text-red-500 dark:text-red-400 text-xs text-center mt-1">
           {error.message}
         </p>
       </div>
@@ -233,21 +233,21 @@ export default function MegaImage({
 
   if (loading) {
     return (
-      <div className={`flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg bg-gray-50 ${className}`}>
+      <div className={`flex flex-col items-center justify-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 ${className}`}>
         <div className="relative w-12 h-12 mb-3">
-          <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+          <div className="absolute inset-0 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-blue-500 dark:border-blue-400 rounded-full border-t-transparent animate-spin"></div>
         </div>
-        <p className="text-gray-600 text-sm text-center mb-2">
+        <p className="text-gray-600 dark:text-gray-300 text-sm text-center mb-2">
           {t('loading')}
         </p>
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
           <div 
-            className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+            className="bg-blue-500 dark:bg-blue-400 h-2 rounded-full transition-all duration-300" 
             style={{ width: `${progress}%` }}
           ></div>
         </div>
-        <p className="text-gray-500 text-xs text-center">
+        <p className="text-gray-500 dark:text-gray-400 text-xs text-center">
           {progress}%
         </p>
       </div>
@@ -256,9 +256,9 @@ export default function MegaImage({
 
   if (!blobUrl) {
     return (
-      <div className={`flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg bg-gray-50 ${className}`}>
+      <div className={`flex flex-col items-center justify-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 ${className}`}>
         <svg 
-          className="w-12 h-12 text-gray-400 mb-2" 
+          className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-2" 
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -270,8 +270,8 @@ export default function MegaImage({
             d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
           />
         </svg>
-        <p className="text-gray-500 text-sm text-center">
-          No image to display
+        <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
+          {t('no_image')}
         </p>
       </div>
     );

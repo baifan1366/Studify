@@ -29,7 +29,7 @@ interface CoachSettingsProps {
 }
 
 export default function CoachSettings({ className }: CoachSettingsProps) {
-  const t = useTranslations('AICoach');
+  const t = useTranslations('CoachSettings');
   
   // 设置状态
   const [settings, setSettings] = useState({
@@ -86,79 +86,79 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
     <div className={cn("space-y-6", className)}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-purple-500/20 rounded-lg">
-          <Brain className="w-6 h-6 text-purple-400" />
+        <div className="p-2 bg-purple-500/20 dark:bg-purple-500/30 rounded-lg">
+          <Brain className="w-6 h-6 text-purple-600 dark:text-purple-400" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-white">AI Learning Coach Settings</h2>
-          <p className="text-sm text-white/60">Customize your personalized learning experience</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t('title')}</h2>
+          <p className="text-sm text-slate-600 dark:text-white/60">{t('subtitle')}</p>
         </div>
       </div>
 
       {/* Notification Times */}
-      <Card className="bg-white/5 border-white/10 p-6">
+      <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Clock className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Notification Times</h3>
+          <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('notification_times')}</h3>
         </div>
         
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium flex items-center gap-2">
               <Sun className="w-4 h-4" />
-              Daily Plan Reminder
+              {t('daily_plan_reminder')}
             </Label>
             <input
               type="time"
               value={settings.dailyPlanTime}
               onChange={(e) => updateSetting('dailyPlanTime', e.target.value)}
-              className="mt-2 w-full p-2 bg-white/5 border border-white/20 rounded-lg text-white"
+              className="mt-2 w-full p-2 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/20 rounded-lg text-slate-900 dark:text-white"
             />
           </div>
           
           <div>
-            <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium flex items-center gap-2">
               <Moon className="w-4 h-4" />
-              Evening Reflection Reminder
+              {t('evening_reflection_reminder')}
             </Label>
             <input
               type="time"
               value={settings.eveningRetroTime}
               onChange={(e) => updateSetting('eveningRetroTime', e.target.value)}
-              className="mt-2 w-full p-2 bg-white/5 border border-white/20 rounded-lg text-white"
+              className="mt-2 w-full p-2 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/20 rounded-lg text-slate-900 dark:text-white"
             />
           </div>
         </div>
       </Card>
 
       {/* Learning Preferences */}
-      <Card className="bg-white/5 border-white/10 p-6">
+      <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Target className="w-5 h-5 text-green-400" />
-          <h3 className="text-lg font-semibold text-white">Learning Preferences</h3>
+          <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('learning_preferences')}</h3>
         </div>
         
         <div className="space-y-4">
           <div>
-            <Label className="text-white/80 text-sm font-medium">
-              Preferred Difficulty Level
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
+              {t('preferred_difficulty')}
             </Label>
             <Select value={settings.preferredDifficulty} onValueChange={(value) => updateSetting('preferredDifficulty', value)}>
-              <SelectTrigger className="mt-2 bg-white/5 border-white/20 text-white">
+              <SelectTrigger className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="easy">Easy - Gentle learning pace</SelectItem>
-                <SelectItem value="medium">Medium - Balanced challenge</SelectItem>
-                <SelectItem value="hard">Hard - Push my limits</SelectItem>
-                <SelectItem value="adaptive">Adaptive - AI decides based on progress</SelectItem>
+                <SelectItem value="easy">{t('difficulty_easy')}</SelectItem>
+                <SelectItem value="medium">{t('difficulty_medium')}</SelectItem>
+                <SelectItem value="hard">{t('difficulty_hard')}</SelectItem>
+                <SelectItem value="adaptive">{t('difficulty_adaptive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           <div>
-            <Label className="text-white/80 text-sm font-medium">
-              Daily Learning Target: {settings.targetDailyMinutes} minutes
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
+              {t('daily_target', { minutes: settings.targetDailyMinutes })}
             </Label>
             <Slider
               value={[settings.targetDailyMinutes]}
@@ -171,8 +171,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
           </div>
           
           <div>
-            <Label className="text-white/80 text-sm font-medium">
-              Max Daily Tasks: {settings.maxDailyTasks}
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
+              {t('max_tasks', { count: settings.maxDailyTasks })}
             </Label>
             <Slider
               value={[settings.maxDailyTasks]}
@@ -185,8 +185,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
           </div>
           
           <div>
-            <Label className="text-white/80 text-sm font-medium">
-              Preferred Session Length: {settings.preferredSessionLength} minutes
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
+              {t('session_length', { minutes: settings.preferredSessionLength })}
             </Label>
             <Slider
               value={[settings.preferredSessionLength]}
@@ -201,44 +201,44 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
       </Card>
 
       {/* Coaching Style */}
-      <Card className="bg-white/5 border-white/10 p-6">
+      <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Heart className="w-5 h-5 text-pink-400" />
-          <h3 className="text-lg font-semibold text-white">Coaching Style</h3>
+          <Heart className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('coaching_style')}</h3>
         </div>
         
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <Label className="text-white/80 text-sm font-medium">
-              Coaching Approach
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
+              {t('coaching_approach')}
             </Label>
             <Select value={settings.coachingStyle} onValueChange={(value) => updateSetting('coachingStyle', value)}>
-              <SelectTrigger className="mt-2 bg-white/5 border-white/20 text-white">
+              <SelectTrigger className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gentle">Gentle - Supportive and encouraging</SelectItem>
-                <SelectItem value="balanced">Balanced - Mix of support and challenge</SelectItem>
-                <SelectItem value="intensive">Intensive - High energy and demanding</SelectItem>
-                <SelectItem value="adaptive">Adaptive - Adjusts to your mood</SelectItem>
+                <SelectItem value="gentle">{t('style_gentle')}</SelectItem>
+                <SelectItem value="balanced">{t('style_balanced')}</SelectItem>
+                <SelectItem value="intensive">{t('style_intensive')}</SelectItem>
+                <SelectItem value="adaptive">{t('style_adaptive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           <div>
-            <Label className="text-white/80 text-sm font-medium">
-              Motivation Type
+            <Label className="text-slate-700 dark:text-white/80 text-sm font-medium">
+              {t('motivation_type')}
             </Label>
             <Select value={settings.motivationType} onValueChange={(value) => updateSetting('motivationType', value)}>
-              <SelectTrigger className="mt-2 bg-white/5 border-white/20 text-white">
+              <SelectTrigger className="mt-2 bg-white dark:bg-white/5 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="achievement">Achievement - Focus on accomplishments</SelectItem>
-                <SelectItem value="progress">Progress - Celebrate small wins</SelectItem>
-                <SelectItem value="social">Social - Community and sharing</SelectItem>
-                <SelectItem value="learning">Learning - Knowledge and growth</SelectItem>
-                <SelectItem value="mixed">Mixed - Variety of motivation styles</SelectItem>
+                <SelectItem value="achievement">{t('motivation_achievement')}</SelectItem>
+                <SelectItem value="progress">{t('motivation_progress')}</SelectItem>
+                <SelectItem value="social">{t('motivation_social')}</SelectItem>
+                <SelectItem value="learning">{t('motivation_learning')}</SelectItem>
+                <SelectItem value="mixed">{t('motivation_mixed')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -246,18 +246,18 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
       </Card>
 
       {/* Notification Preferences */}
-      <Card className="bg-white/5 border-white/10 p-6">
+      <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Bell className="w-5 h-5 text-yellow-400" />
-          <h3 className="text-lg font-semibold text-white">Notification Preferences</h3>
+          <Bell className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('notification_preferences')}</h3>
         </div>
         
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/80 font-medium">Daily Plan Reminders</Label>
-                <p className="text-xs text-white/50">Get notified about your daily learning plan</p>
+                <Label className="text-slate-700 dark:text-white/80 font-medium">{t('enable_daily_plan')}</Label>
+                <p className="text-xs text-slate-500 dark:text-white/50">{t('enable_daily_plan_desc')}</p>
               </div>
               <Switch
                 checked={settings.enableDailyPlan}
@@ -267,8 +267,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
             
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/80 font-medium">Task Reminders</Label>
-                <p className="text-xs text-white/50">Reminders for incomplete tasks</p>
+                <Label className="text-slate-700 dark:text-white/80 font-medium">{t('enable_task_reminders')}</Label>
+                <p className="text-xs text-slate-500 dark:text-white/50">{t('enable_task_reminders_desc')}</p>
               </div>
               <Switch
                 checked={settings.enableTaskReminders}
@@ -278,8 +278,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
             
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/80 font-medium">Evening Reflection</Label>
-                <p className="text-xs text-white/50">Daily learning reflection prompts</p>
+                <Label className="text-slate-700 dark:text-white/80 font-medium">{t('enable_evening_retro')}</Label>
+                <p className="text-xs text-slate-500 dark:text-white/50">{t('enable_evening_retro_desc')}</p>
               </div>
               <Switch
                 checked={settings.enableEveningRetro}
@@ -291,8 +291,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/80 font-medium">Motivation Messages</Label>
-                <p className="text-xs text-white/50">Encouraging messages throughout the day</p>
+                <Label className="text-slate-700 dark:text-white/80 font-medium">{t('enable_motivation')}</Label>
+                <p className="text-xs text-slate-500 dark:text-white/50">{t('enable_motivation_desc')}</p>
               </div>
               <Switch
                 checked={settings.enableMotivationMessages}
@@ -302,8 +302,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
             
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/80 font-medium">Achievement Celebrations</Label>
-                <p className="text-xs text-white/50">Celebrate your learning milestones</p>
+                <Label className="text-slate-700 dark:text-white/80 font-medium">{t('enable_achievements')}</Label>
+                <p className="text-xs text-slate-500 dark:text-white/50">{t('enable_achievements_desc')}</p>
               </div>
               <Switch
                 checked={settings.enableAchievementCelebrations}
@@ -313,8 +313,8 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
             
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/80 font-medium">Streak Reminders</Label>
-                <p className="text-xs text-white/50">Keep your learning streak alive</p>
+                <Label className="text-slate-700 dark:text-white/80 font-medium">{t('enable_streaks')}</Label>
+                <p className="text-xs text-slate-500 dark:text-white/50">{t('enable_streaks_desc')}</p>
               </div>
               <Switch
                 checked={settings.enableStreakReminders}
@@ -335,12 +335,12 @@ export default function CoachSettings({ className }: CoachSettingsProps) {
           {isSaving ? (
             <>
               <Settings className="w-4 h-4 mr-2 animate-spin" />
-              Saving...
+              {t('saving')}
             </>
           ) : (
             <>
               <Save className="w-4 h-4 mr-2" />
-              Save Settings
+              {t('save_settings')}
             </>
           )}
         </Button>

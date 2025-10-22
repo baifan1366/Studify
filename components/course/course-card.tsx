@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { 
   Star, 
   Users, 
@@ -50,6 +51,7 @@ export default function CourseCard({
   onContinue,
   showProgress = false 
 }: CourseCardProps) {
+  const t = useTranslations('CourseCard');
   const [isHovered, setIsHovered] = useState(false);
 
   const getCategoryIcon = (category: string) => {
@@ -104,7 +106,7 @@ export default function CourseCard({
         {/* Price Badge */}
         <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
           <span className="text-white text-sm font-bold">
-            {course.isFree ? 'FREE' : `$${course.price}`}
+            {course.isFree ? t('free') : `$${course.price}`}
           </span>
         </div>
 
@@ -179,7 +181,7 @@ export default function CourseCard({
         {showProgress && course.progress !== undefined && (
           <div className="mb-3">
             <div className="flex justify-between text-sm text-white/70 mb-1">
-              <span>Progress</span>
+              <span>{t('progress')}</span>
               <span>{course.progress}%</span>
             </div>
             <div className="w-full bg-white/20 rounded-full h-2">
@@ -210,17 +212,17 @@ export default function CourseCard({
             {course.isEnrolled ? (
               <>
                 <CheckCircle size={16} />
-                {course.progress !== undefined && course.progress > 0 ? 'Continue Learning' : 'Start Learning'}
+                {course.progress !== undefined && course.progress > 0 ? t('continue_learning') : t('start_learning')}
               </>
             ) : course.isFree ? (
               <>
                 <BookOpen size={16} />
-                Enroll Free
+                {t('enroll_free')}
               </>
             ) : (
               <>
                 <ShoppingCart size={16} />
-                Add to Cart
+                {t('add_to_cart')}
               </>
             )}
           </div>
@@ -235,7 +237,7 @@ export default function CourseCard({
         >
           <div className="flex items-center justify-center gap-2">
             <Eye size={16} />
-            Preview Course
+            {t('preview_course')}
           </div>
         </motion.button>
       </div>
@@ -252,7 +254,7 @@ export default function CourseCard({
           >
             <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
               <BookOpen size={16} />
-              Course Syllabus
+              {t('course_syllabus')}
             </h4>
             <div className="flex-1 overflow-y-auto">
               {course.syllabus.slice(0, 6).map((item, index) => (
@@ -263,7 +265,7 @@ export default function CourseCard({
               ))}
               {course.syllabus.length > 6 && (
                 <div className="text-white/60 text-sm">
-                  +{course.syllabus.length - 6} more topics...
+                  {t('more_topics', { count: course.syllabus.length - 6 })}
                 </div>
               )}
             </div>

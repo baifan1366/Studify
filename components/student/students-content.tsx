@@ -3,44 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { User } from '@supabase/supabase-js';
-import { useStudents } from '@/hooks/profile/use-students';
+import { useStudentsByTutor } from '@/hooks/profile/use-students';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/profile/use-user';
 
 export default function StudentsContent() {
   const t = useTranslations('StudentsContent');
-  const [user, setUser] = useState<User | null>(null);
+  const { data: user } = useUser();
+  const tutorId = user?.profile?.id;
   
-  const { isLoading } = useStudents();
+  const { data: studentsData, isLoading } = useStudentsByTutor(tutorId || 0);
   const { toast } = useToast();
-  const [sidebarWidth, setSidebarWidth] = useState(80);
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        // This should be replaced with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setUser({
-          id: '1',
-          email: 'student@example.com',
-          created_at: new Date().toISOString(),
-          app_metadata: {},
-          user_metadata: {},
-          aud: 'authenticated',
-          confirmation_sent_at: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        toast({
-          title: t('error') || "Error",
-          description: t('failed_load_user') || "Failed to load user data",
-          variant: "destructive",
-        });
-      }
-    };
-
-    fetchUser();
-  }, [toast]);
 
   const handleViewProfile = (studentId: number) => {
     toast({
@@ -56,15 +30,20 @@ export default function StudentsContent() {
     });
   };
 
-  // Mock student data - should come from API
-  const mockStudents = [
-    { id: 1, name: "Alice Johnson", grade: "Grade 10", progress: 85 },
-    { id: 2, name: "Bob Smith", grade: "Grade 11", progress: 72 },
-    { id: 3, name: "Carol Davis", grade: "Grade 10", progress: 91 },
-    { id: 4, name: "David Wilson", grade: "Grade 12", progress: 68 },
-    { id: 5, name: "Emma Brown", grade: "Grade 11", progress: 79 },
-    { id: 6, name: "Frank Miller", grade: "Grade 10", progress: 94 },
-  ];
+  // Transform enrollment data to student display format
+  const students = studentsData?.enrollments.map((enrollment) => ({
+    id: enrollment.student_profile.id,
+    name: enrollment.student_profile.display_name || enrollment.student_profile.full_name,
+    email: enrollment.student_profile.email,
+    avatar_url: enrollment.student_profile.avatar_url,
+    course: enrollment.course.title,
+    enrolledAt: new Date(enrollment.created_at).toLocaleDateString(),
+    progress: enrollment.progress?.progress_pct || 0,
+    completedLessons: enrollment.progress?.completed_lessons || 0,
+    lastAccessed: enrollment.progress?.last_accessed_at 
+      ? new Date(enrollment.progress.last_accessed_at).toLocaleDateString()
+      : null,
+  })) || [];
 
   return (
     <>
@@ -100,8 +79,14 @@ export default function StudentsContent() {
                   </div>
                 </div>
               ))
+            ) : students.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-white/70 dark:text-white/70">
+                  {t('no_students') || 'No students enrolled yet'}
+                </p>
+              </div>
             ) : (
-              mockStudents.map((student, index) => (
+              students.map((student, index) => (
                 <motion.div
                   key={student.id}
                   className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
@@ -111,14 +96,22 @@ export default function StudentsContent() {
                   whileHover={{ scale: 1.02, y: -5 }}
                 >
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">
-                        {student.name.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
+                    {student.avatar_url ? (
+                      <img 
+                        src={student.avatar_url} 
+                        alt={student.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">
+                          {student.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-white font-semibold dark:text-white">{student.name}</h3>
-                      <p className="text-white/60 text-sm dark:text-white/60">{student.grade}</p>
+                      <p className="text-white/60 text-sm dark:text-white/60">{student.course}</p>
                     </div>
                   </div>
                   
@@ -135,6 +128,17 @@ export default function StudentsContent() {
                         transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
                       />
                     </div>
+                    <div className="flex justify-between text-xs text-white/60 dark:text-white/60">
+                      <span>{t('enrolled') || 'Enrolled'}: {student.enrolledAt}</span>
+                      {student.lastAccessed && (
+                        <span>{t('last_active') || 'Last active'}: {student.lastAccessed}</span>
+                      )}
+                    </div>
+                    {student.completedLessons > 0 && (
+                      <p className="text-white/60 text-xs dark:text-white/60">
+                        {student.completedLessons} {t('lessons_completed') || 'lessons completed'}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="mt-4 flex gap-2">

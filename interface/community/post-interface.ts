@@ -39,6 +39,10 @@ export interface Post {
     name: string;
     slug: string;
     visibility: "public" | "private";
+    user_membership?: Array<{
+      role: 'owner' | 'admin' | 'member';
+      joined_at?: string;
+    }>;
   };
 
   // 评论（详情页会用到）

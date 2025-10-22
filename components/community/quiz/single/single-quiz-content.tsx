@@ -9,7 +9,6 @@ interface SingleQuizContentProps {
   quiz: CommunityQuiz & {
     question_count?: number;
     attempt_count?: number;
-    like_count?: number;
     leaderboard?: Array<{
       rank: number;
       user_id: string;

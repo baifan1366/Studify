@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Comment } from "@/interface/community/comment-interface";
+import { toast } from "sonner";
 
 // Fetch comments for a post
 const fetchComments = async (
@@ -112,6 +113,9 @@ export const useCreateComment = (groupSlug: string, postSlug: string) => {
   return useMutation({
     mutationFn: createComment,
     onSuccess: () => {
+      toast.success("Comment posted successfully!", {
+        description: "Your comment has been added.",
+      });
       // Invalidate and refetch comments
       queryClient.invalidateQueries({
         queryKey: ["comments", groupSlug, postSlug],
@@ -120,6 +124,9 @@ export const useCreateComment = (groupSlug: string, postSlug: string) => {
       queryClient.invalidateQueries({
         queryKey: ["post", groupSlug, postSlug],
       });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to post comment");
     },
   });
 };

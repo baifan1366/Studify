@@ -148,23 +148,43 @@ export class QStashQueueManager {
       // For QStash v2/enqueue, the URL should not be encoded
       // QStash expects the URL as part of the path directly
       
-      const response = await fetch(
-        `${this.baseUrl}/v2/enqueue/${queueName}/${targetUrl}`,
-        {
-          method: 'POST',
-          headers: requestHeaders,
-          body: JSON.stringify(payload),
-        }
-      );
+      const enqueueUrl = `${this.baseUrl}/v2/enqueue/${queueName}/${targetUrl}`;
+      
+      console.log('🚀 [QStash] Enqueue request:', {
+        url: enqueueUrl,
+        method: 'POST',
+        headers: { ...requestHeaders, Authorization: 'Bearer [REDACTED]' },
+        payloadKeys: Object.keys(payload)
+      });
+
+      const response = await fetch(enqueueUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify(payload),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ [QStash] Enqueue failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          url: enqueueUrl
+        });
+        
         throw new Error(`QStash enqueue failed: ${response.status} - ${errorText}`);
       }
 
-      return await response.json();
-    } catch (error) {
-      console.error('Enqueue error:', error);
+      const result = await response.json();
+      console.log('✅ [QStash] Enqueue successful:', result);
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ [QStash] Enqueue error:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
       throw error;
     }
   }

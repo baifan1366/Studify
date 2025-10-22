@@ -9,12 +9,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const access_token = body?.access_token;
     const requestedRole = body?.role as 'student' | 'tutor' | undefined;
+    const mode = body?.mode as 'login' | 'add' | undefined;
     
     if (!access_token) {
       return NextResponse.json({ error: "missing token" }, { status: 400 });
     }
     
-    console.log('🎯 Sync API called with role:', requestedRole);
+    console.log('🎯 Sync API called with role:', requestedRole, 'mode:', mode);
 
     // 用 server client (service role key) 根据 token 获取 user
     const supabase = await createServerClient();
@@ -64,8 +65,10 @@ export async function POST(req: Request) {
       
       const displayName = googleName || user.email?.split('@')[0];
       
-      // Determine role: use requested role or default to 'student'
+      // Determine role: ONLY use requested role for NEW users, default to 'student'
       const profileRole = requestedRole || 'student';
+      
+      console.log('📝 Creating NEW profile with role:', profileRole);
       
       console.log('📝 Creating profile with enhanced data:', {
         name: displayName,
@@ -107,6 +110,9 @@ export async function POST(req: Request) {
       }
       
       profile = newProfile;
+    } else {
+      // Profile exists - ALWAYS use existing role, ignore requested role
+      console.log('✅ Existing profile found, using existing role:', profile.role, '(ignoring requested role:', requestedRole, ')');
     }
 
     // Enhanced name resolution for Google OAuth users with more comprehensive fallbacks

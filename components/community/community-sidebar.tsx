@@ -16,18 +16,23 @@ import {
   useGroupMembers,
 } from "@/hooks/community/use-community";
 import { Group } from "@/interface/community/group-interface";
-import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 import AllMyGroupsModal from "./all-my-groups-modal";
+import { useTranslations } from "next-intl";
+import { useUser } from "@/hooks/profile/use-user";
 
 function GroupCard({
   group,
   showJoinButton = false,
+  isTutor,
 }: {
   group: Group;
   showJoinButton?: boolean;
+  isTutor: boolean;
 }) {
   const { joinGroup, isJoining } = useGroupMembers(group.slug);
+  const t = useTranslations();
+  const groupPath = isTutor ? `/tutor/community/${group.slug}` : `/community/${group.slug}`;
 
   const handleJoinGroup = () => {
     joinGroup(undefined, {
@@ -55,14 +60,14 @@ function GroupCard({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link href={`/community/${group.slug}`}>
+          <Link href={groupPath}>
             <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
               {group.name}
             </h4>
           </Link>
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Users className="w-3 h-3" />
-            <span>{group.member_count || 0} members</span>
+            <span>{group.member_count || 0} {t("CommunitySidebar.members")}</span>
           </div>
         </div>
       </div>
@@ -70,11 +75,11 @@ function GroupCard({
         <Button
           size="sm"
           variant="outline"
-          className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2"
+          className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2 cursor-pointer"
           onClick={handleJoinGroup}
           disabled={isJoining}
         >
-          {isJoining ? "Joining..." : "Join"}
+          {isJoining ? t("CommunitySidebar.joining") : t("CommunitySidebar.join")}
         </Button>
       )}
     </div>
@@ -86,6 +91,10 @@ export default function CommunitySidebar() {
   const { groups: userGroups, isLoading: loadingUserGroups } = useUserGroups();
   const { groups: suggestedGroups, isLoading: loadingSuggested } =
     useSuggestedGroups();
+  const t = useTranslations();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
+  const createGroupPath = isTutor ? '/tutor/community/create' : '/community/create';
 
   return (
     <>
@@ -94,8 +103,8 @@ export default function CommunitySidebar() {
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-lg">My Groups</CardTitle>
-              <Link href="/community/create">
+              <CardTitle className="text-white text-lg">{t("CommunitySidebar.my_groups")}</CardTitle>
+              <Link href={createGroupPath}>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -113,14 +122,14 @@ export default function CommunitySidebar() {
               ))
             ) : userGroups && userGroups.length > 0 ? (
               userGroups.map((group) => (
-                <GroupCard key={group.id} group={group} />
+                <GroupCard key={group.id} group={group} isTutor={isTutor} />
               ))
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-400 text-sm mb-3">
                   You haven't joined any groups yet
                 </p>
-                <Link href="/community/create">
+                <Link href={createGroupPath}>
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-1" />
                     Create Group
@@ -145,7 +154,7 @@ export default function CommunitySidebar() {
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">
             <CardTitle className="text-white text-lg">
-              Suggested Groups
+              {t("CommunitySidebar.suggested_groups")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -155,7 +164,7 @@ export default function CommunitySidebar() {
               ))
             ) : suggestedGroups && suggestedGroups.length > 0 ? (
               suggestedGroups.map((group) => (
-                <GroupCard key={group.id} group={group} showJoinButton />
+                <GroupCard key={group.id} group={group} showJoinButton isTutor={isTutor} />
               ))
             ) : (
               <div className="text-center py-6">
@@ -164,6 +173,10 @@ export default function CommunitySidebar() {
                 </p>
               </div>
             )}
+
+          
+
+
           </CardContent>
         </Card>
 
@@ -171,39 +184,54 @@ export default function CommunitySidebar() {
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">
             <CardTitle className="text-white text-lg">
-              Community Stats
+              {t("CommunitySidebar.community_stats")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Total Groups</span>
-                <Badge
-                  variant="outline"
-                  className="border-blue-400 text-blue-400"
-                >
-                  {(userGroups?.length || 0) + (suggestedGroups?.length || 0)}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Your Groups</span>
-                <Badge
-                  variant="outline"
-                  className="border-green-400 text-green-400"
-                >
-                  {userGroups?.length || 0}
-                </Badge>
-              </div>
+              {loadingUserGroups || loadingSuggested ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+                    <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+                    <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">{t("CommunitySidebar.total_groups")}</span>
+                    <Badge
+                      variant="outline"
+                      className="border-blue-400 text-blue-400"
+                    >
+                      {(userGroups?.length || 0) + (suggestedGroups?.length || 0)}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">{t("CommunitySidebar.your_groups")}</span>
+                    <Badge
+                      variant="outline"
+                      className="border-green-400 text-green-400"
+                    >
+                      {userGroups?.length || 0}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* All My Groups Modal */}
-      <AllMyGroupsModal
-        isOpen={showAllGroupsModal}
-        onClose={() => setShowAllGroupsModal(false)}
-      />
+        {/* All My Groups Modal */}
+        <AllMyGroupsModal
+          isOpen={showAllGroupsModal}
+          onClose={() => setShowAllGroupsModal(false)}
+        />
+      </div>
     </>
   );
 }

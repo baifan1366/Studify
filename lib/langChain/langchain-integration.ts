@@ -218,7 +218,7 @@ export class StudifyLangChain {
    */
   async analyzeDocument(
     source: string | Document,
-    analysisType: 'summary' | 'topics' | 'questions' | 'custom' | 'problem_solving',
+    analysisType: 'summary' | 'topics' | 'questions' | 'custom' | 'problem_solving' | 'notes',
     customPrompt?: string
   ): Promise<any> {
     // Process document
@@ -272,6 +272,22 @@ Content:
 ${fullText}
 
 Solution:`;
+        break;
+
+      case 'notes':
+        prompt = `Generate comprehensive smart study notes from the following content. Extract key points, create summaries, and identify important concepts.
+
+Content:
+${fullText}
+
+Please provide:
+1. **Concise Summary**: A brief overview of the main topic
+2. **Key Learning Points**: Important concepts in bullet format
+3. **Important Concepts and Definitions**: Core terminology and their meanings
+4. **Suggested Study Focus Areas**: What to prioritize when studying
+5. **Related Learning Resources**: Recommended next steps and resources
+
+Format your response in clear markdown with proper headings and formatting.`;
         break;
 
       case 'custom':
@@ -441,12 +457,48 @@ Please format your response as JSON:
       scoreThreshold: confidenceThreshold
     });
 
+    // If no context found from embeddings, use general AI knowledge to answer
     if (contextDocs.length === 0) {
-      return {
-        answer: "I couldn't find relevant information to answer your question.",
-        confidence: 0,
-        sources: []
-      };
+      console.log('⚠️ No embeddings found, falling back to general AI knowledge');
+      
+      const fallbackPrompt = `You are an educational AI assistant. Answer the following question to the best of your ability using your general knowledge.
+
+Question: ${question}
+
+Provide a helpful, educational response. If you're not completely certain, be honest about it.
+
+Please format your response as JSON:
+{
+  "answer": "Your detailed answer here...",
+  "confidence": 0.7,
+  "reasoning": "I'm answering based on general knowledge since no specific course content was found."
+}`;
+
+      try {
+        const llm = await getAnalyticalLLM({
+          temperature: 0.3,
+          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+        });
+        
+        const response = await llm.invoke([new HumanMessage(fallbackPrompt)]);
+        const responseText = response.content as string;
+        const parsed = parseJson(responseText);
+        
+        return {
+          answer: parsed.answer || "I'd be happy to help! Could you provide more details about what you'd like to know?",
+          confidence: parsed.confidence || 0.6,
+          sources: [],
+          reasoning: parsed.reasoning || "Answered using general AI knowledge (no course-specific content available)"
+        };
+      } catch (error) {
+        console.error('Failed to generate fallback answer:', error);
+        return {
+          answer: "I'd be happy to help you learn! Could you tell me more about what you're interested in? I can explain concepts, answer questions, or help you understand topics better.",
+          confidence: 0.5,
+          sources: [],
+          reasoning: "Fallback response - general assistance offered"
+        };
+      }
     }
 
     // Prepare context

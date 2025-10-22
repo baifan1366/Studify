@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 import { createNotificationForAllUsers } from "@/lib/notifications/notification-service";
+import { authorize } from "@/utils/auth/server-guard";
 
 // GET /api/announcements
 export async function GET() {
@@ -19,19 +20,35 @@ export async function GET() {
 
     return NextResponse.json({ data });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Internal error" },
+      { status: 500 }
+    );
   }
 }
 
-// POST /api/announcements - create a new announcement
+// POST /api/announcements - create a new announcement (admin only)
 export async function POST(req: Request) {
   try {
+    // Only admins can create announcements
+    const authResult = await authorize("admin");
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const body = await req.json();
     const client = await createServerClient();
 
-    // Require owner_id explicitly until auth->profiles mapping is clarified
-    if (!body.created_by) {
-      return NextResponse.json({ error: "created_by is required" }, { status: 422 });
+    // Get the internal profile ID from the auth UUID
+    const { data: profile, error: profileError } = await client
+      .from("profiles")
+      .select("id")
+      .eq("user_id", authResult.sub) // authResult.sub is the auth UUID
+      .eq("is_deleted", false)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     const payload = {
@@ -44,7 +61,7 @@ export async function POST(req: Request) {
       sent_at: body.sent_at as string | null,
       onesignal_id: body.onesignal_id as string | null,
       onesignal_response: body.onesignal_response as string | null,
-      created_by: body.created_by as number,
+      created_by: profile.id, // Use the internal profile ID
     };
 
     if (!payload.title) {
@@ -62,26 +79,32 @@ export async function POST(req: Request) {
     }
 
     // If announcement is sent immediately (not draft or scheduled), create notifications
-    if (data && payload.status === 'sent') {
+    if (data && payload.status === "sent") {
       try {
         await createNotificationForAllUsers({
-          kind: 'system',
+          kind: "system",
           payload: {
-            title: 'New Announcement',
+            title: "New Announcement",
             message: `${data.title}: ${data.message}`,
             announcement_id: data.id,
             deep_link: data.deep_link || undefined,
-            image_url: data.image_url || undefined
-          }
+            image_url: data.image_url || undefined,
+          },
         });
       } catch (notificationError) {
-        console.error('Failed to create notifications for announcement:', notificationError);
+        console.error(
+          "Failed to create notifications for announcement:",
+          notificationError
+        );
         // Don't fail the announcement creation if notification fails
       }
     }
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Internal error" },
+      { status: 500 }
+    );
   }
 }

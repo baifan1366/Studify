@@ -289,6 +289,8 @@ export async function generateEmbeddingWithWakeup(
 
       // Validate embedding dimensions
       if (data.embedding.length !== modelConfig.dimensions) {
+        console.warn(`⚠️ ${model.toUpperCase()} embedding dimension mismatch: expected ${modelConfig.dimensions}, got ${data.embedding.length}`);
+        console.warn(`⚠️ This suggests the ${model.toUpperCase()} server may be misconfigured or pointing to the wrong model`);
         throw new Error(`${model} embedding dimension mismatch: expected ${modelConfig.dimensions}, got ${data.embedding.length}`);
       }
 

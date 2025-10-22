@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useTranslations } from "next-intl";
 import { CheckCircle, Clock, Award } from "lucide-react";
 
 interface LeaderItem {
@@ -17,6 +18,7 @@ export default function QuizLeaderboard({
 }: {
   leaderboard: LeaderItem[];
 }) {
+  const t = useTranslations("QuizLeaderboard");
   // 把秒格式化为 mm:ss 或 H:mm:ss（若 >= 3600）
   const fmtTime = (s?: number | null) => {
     if (s == null) return "—";
@@ -37,11 +39,11 @@ export default function QuizLeaderboard({
   };
 
   return (
-    <Card className="bg-transparent p-2">
+    <Card className="bg-transparent p-2 border border-white/10 text-white rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Award className="h-5 w-5" />
-          Leaderboard
+          {t("title")}
         </CardTitle>
       </CardHeader>
 
@@ -49,15 +51,15 @@ export default function QuizLeaderboard({
         {(!leaderboard || leaderboard.length === 0) ? (
           <div className="text-center py-8 text-gray-500">
             <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>No completions yet</p>
-            <p className="text-sm">Be the first to complete this quiz!</p>
+            <p>{t("empty_title")}</p>
+            <p className="text-sm">{t("empty_subtitle")}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {leaderboard.map((entry) => (
               <div
                 key={`${entry.user_id}-${entry.rank}`}
-                className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-50"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition"
               >
                 <div className="w-10 flex-shrink-0">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center ${medalFor(entry.rank)}`}>
@@ -85,7 +87,7 @@ export default function QuizLeaderboard({
                 </div>
 
                 <div className="flex flex-col items-end">
-                  <div className="text-sm font-semibold">{entry.score} pts</div>
+                  <div className="text-sm font-semibold">{entry.score} {t("points_abbr")}</div>
                   <div className="text-xs text-gray-500">{fmtTime(entry.time_spent_seconds)}</div>
                 </div>
               </div>

@@ -21,6 +21,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    // Get course enrollment data (more accurate than progress)
+    const { data: enrollments } = await supabase
+      .from('course_enrollment')
+      .select(`
+        id,
+        status,
+        completed_at,
+        course:course_id (
+          id,
+          public_id,
+          slug,
+          title,
+          thumbnail_url
+        )
+      `)
+      .eq('user_id', profile.id)
+      .in('status', ['active', 'completed']);
+
     // Get course enrollment and progress data with lessons
     const { data: courseProgress } = await supabase
       .from('course_progress')
@@ -66,10 +84,25 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Calculate stats
-    const coursesEnrolled = uniqueCourses.size;
-    const coursesCompleted = courseProgress?.filter(p => p.progress_pct >= 100).length || 0;
-    const totalStudyTime = courseProgress?.reduce((total, p) => total + (p.time_spent_sec || 0), 0) || 0;
+    // Get study sessions for accurate study time calculation
+    const { data: studySessions } = await supabase
+      .from('study_session')
+      .select('duration_minutes, session_start')
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false)
+      .gte('session_start', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('session_start', { ascending: false });
+
+    // Calculate stats from enrollments and study sessions
+    // Count only active enrollments (not including completed ones)
+    const coursesEnrolled = enrollments?.filter(e => e.status === 'active').length || 0;
+    
+    // Count completed courses from enrollments
+    const coursesCompleted = enrollments?.filter(e => e.status === 'completed' && e.completed_at).length || 0;
+    
+    // Calculate total study time from study sessions (more accurate than course_progress)
+    const totalStudyMinutes = studySessions?.reduce((total, s) => total + (s.duration_minutes || 0), 0) || 0;
+    const totalStudyTime = Math.round((totalStudyMinutes / 60) * 10) / 10; // Convert to hours with 1 decimal
 
     // Get recent courses (last 3 accessed) - for continue watching
     const recentCourses = courseProgress?.slice(0, 3).map(p => ({
@@ -133,22 +166,16 @@ export async function GET(request: NextRequest) {
     ].sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())
      .slice(0, 5);
 
-    // Get recent notes count for streak calculation (simplified)
-    const { data: recentNotes } = await supabase
-      .from('course_notes')
-      .select('created_at')
-      .eq('user_id', profile.id)
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order('created_at', { ascending: false });
-
-    // Calculate current streak (simplified - days with activity)
-    const currentStreak = calculateStreak(recentNotes?.map(n => n.created_at) || []);
+    // Calculate current streak from study sessions
+    const currentStreak = studySessions && studySessions.length > 0 
+      ? calculateStreak(studySessions.map(s => s.session_start))
+      : 0;
 
     const dashboardData = {
       stats: {
         coursesEnrolled,
         coursesCompleted,
-        totalStudyTime: Math.round(totalStudyTime / 3600), // Convert to hours
+        totalStudyTime, // Already in hours with 1 decimal
         currentStreak,
         points: profile.points || 0
       },
@@ -160,6 +187,18 @@ export async function GET(request: NextRequest) {
         points: profile.points
       }
     };
+
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Dashboard API Response:', {
+        userId: user.id,
+        profileId: profile.id,
+        enrollmentsCount: enrollments?.length,
+        progressCount: courseProgress?.length,
+        studySessionsCount: studySessions?.length,
+        stats: dashboardData.stats
+      });
+    }
 
     return NextResponse.json(dashboardData);
 
@@ -188,20 +227,40 @@ function formatTimeAgo(dateString: string): string {
 function calculateStreak(dates: string[]): number {
   if (dates.length === 0) return 0;
 
-  const uniqueDates = [...new Set(dates.map(d => new Date(d).toDateString()))];
+  // Get unique dates and sort them (most recent first)
+  const uniqueDates = [...new Set(dates.map(d => new Date(d).toISOString().split('T')[0]))];
   uniqueDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-  let streak = 0;
-  let currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
 
+  // Check if user studied today or yesterday (streak is still active)
+  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) {
+    return 0; // Streak is broken
+  }
+
+  let streak = 0;
+  let expectedDate = new Date(today);
+  
+  // Count consecutive days
   for (const dateStr of uniqueDates) {
-    const date = new Date(dateStr);
-    const diffDays = Math.floor((currentDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const sessionDate = new Date(dateStr + 'T00:00:00');
+    sessionDate.setHours(0, 0, 0, 0);
+    expectedDate.setHours(0, 0, 0, 0);
     
-    if (diffDays === streak) {
+    const diffDays = Math.floor((expectedDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      // This day matches our expected date
       streak++;
-    } else if (diffDays > streak) {
+      expectedDate.setDate(expectedDate.getDate() - 1); // Move to previous day
+    } else if (diffDays > 0) {
+      // Gap found, streak ends
       break;
     }
   }

@@ -21,6 +21,7 @@ import { useAllUserGroups } from "@/hooks/community/use-community";
 import { Group } from "@/interface/community/group-interface";
 import { AttemptItemSkeleton } from "@/components/community/skeletons";
 import { toast } from "sonner";
+import { useUser } from "@/hooks/profile/use-user";
 
 interface AllMyGroupsModalProps {
   isOpen: boolean;
@@ -41,7 +42,8 @@ const GroupVisibilityBadge = ({ visibility }: { visibility: string }) => {
   );
 };
 
-const GroupCard = ({ group }: { group: Group }) => {
+const GroupCard = ({ group, isTutor }: { group: Group; isTutor: boolean }) => {
+  const groupPath = isTutor ? `/tutor/community/${group.slug}` : `/community/${group.slug}`;
   const handleViewGroup = () => {
     // The Link component will handle navigation
     toast.success(`Opening ${group.name}`);
@@ -51,7 +53,7 @@ const GroupCard = ({ group }: { group: Group }) => {
     <Card className="p-4 bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <Link href={`/community/${group.slug}`}>
+          <Link href={groupPath}>
             <h4 className="font-medium text-white hover:text-blue-300 cursor-pointer line-clamp-1 text-lg">
               {group.name}
             </h4>
@@ -91,7 +93,7 @@ const GroupCard = ({ group }: { group: Group }) => {
       )}
 
       <div className="mt-4 flex justify-end">
-        <Link href={`/community/${group.slug}`}>
+        <Link href={groupPath}>
           <Button
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -109,6 +111,8 @@ const GroupCard = ({ group }: { group: Group }) => {
 export default function AllMyGroupsModal({ isOpen, onClose }: AllMyGroupsModalProps) {
   const t = useTranslations('AllMyGroupsModal');
   const { groups, isLoading } = useAllUserGroups();
+  const { data: currentUser } = useUser();
+  const isTutor = currentUser?.profile?.role === 'tutor';
 
   // Sort groups by most recent activity or member count
   const sortedGroups = React.useMemo(() => {
@@ -163,7 +167,7 @@ export default function AllMyGroupsModal({ isOpen, onClose }: AllMyGroupsModalPr
                   </div>
                   <div className="space-y-3">
                     {groupedByVisibility.private.map((group) => (
-                      <GroupCard key={group.id} group={group} />
+                      <GroupCard key={group.id} group={group} isTutor={isTutor} />
                     ))}
                   </div>
                 </div>
@@ -181,7 +185,7 @@ export default function AllMyGroupsModal({ isOpen, onClose }: AllMyGroupsModalPr
                   </div>
                   <div className="space-y-3">
                     {groupedByVisibility.public.map((group) => (
-                      <GroupCard key={group.id} group={group} />
+                      <GroupCard key={group.id} group={group} isTutor={isTutor} />
                     ))}
                   </div>
                 </div>

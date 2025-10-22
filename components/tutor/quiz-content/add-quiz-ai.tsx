@@ -780,7 +780,7 @@ export function AddQuizAI({
       <CardContent>
         <div className="space-y-3">
           <div>
-            <p className="font-medium text-gray-900 dark:text-gray-100">
+            <p className="font-medium text-foreground">
               {question.question_text}
             </p>
           </div>

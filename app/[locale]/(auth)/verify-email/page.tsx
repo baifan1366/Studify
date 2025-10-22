@@ -62,18 +62,41 @@ export default function VerifyEmailPage({
     }
 
     try {
+      console.log('[VERIFY EMAIL] Attempting to resend verification email:', {
+        email: email.replace(/(.{2}).*(@.*)/, '$1***$2'),
+        locale,
+        hasCaptchaToken: !!captchaToken,
+      });
+
       // Pass locale and captcha token to the hook
-      await resendMutation.mutateAsync({
+      const result = await resendMutation.mutateAsync({
         email,
         locale,
         captchaToken,
       });
+
+      console.log('[VERIFY EMAIL] ✅ Resend successful:', result);
+
+      // Check if email was already verified
+      if (result.error === 'Email already verified') {
+        toast({
+          title: "ℹ️ Already Verified",
+          description: "This email is already verified. You can sign in directly.",
+          duration: 5000,
+        });
+        return;
+      }
 
       toast({
         title: "✅ " + t("resend_success_title"),
         description: t("resend_success_desc"),
         duration: 5000,
       });
+
+      // Log debugging info in development
+      if (process.env.NODE_ENV === 'development' && result.debug) {
+        console.log('[VERIFY EMAIL] Debug info:', result.debug);
+      }
 
       // Reset captcha
       setCaptchaToken(null);
@@ -103,10 +126,28 @@ export default function VerifyEmailPage({
         });
       }, 1000);
     } catch (error: any) {
+      console.error('[VERIFY EMAIL] ❌ Resend failed:', {
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Handle specific error types
+      let errorTitle = t("resend_error_title");
+      let errorDesc = error.message || t("resend_error_desc");
+
+      if (error.message?.includes('Rate limit')) {
+        errorTitle = "⏱️ Rate Limit";
+        errorDesc = "Too many requests. Please wait a few minutes.";
+      } else if (error.message?.includes('Email service')) {
+        errorTitle = "📧 Email Service Error";
+        errorDesc = "Email service may not be configured. Please contact support.";
+      }
+
       toast({
-        title: "❌ " + t("resend_error_title"),
-        description: error.message || t("resend_error_desc"),
+        title: "❌ " + errorTitle,
+        description: errorDesc,
         variant: "destructive",
+        duration: 7000,
       });
       
       // Reset captcha on error

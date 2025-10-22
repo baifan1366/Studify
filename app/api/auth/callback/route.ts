@@ -335,8 +335,29 @@ export async function GET(request: NextRequest) {
             sessionId: data.session.access_token?.substring(0, 20) + "...",
           });
         } else if (flowType === "signup") {
-          // Email verification flow - redirect to onboarding or dashboard
-          redirectPath = next;
+          // Email verification flow - check onboarding status
+          if (!profile.onboarded) {
+            // New user needs onboarding - extract locale from next param
+            const locale = next.split("/")[1] || "en";
+            // Use role to determine onboarding path
+            if (role === 'tutor') {
+              redirectPath = `/${locale}/onboarding/tutor/step1`;
+            } else if (role === 'admin') {
+              redirectPath = `/${locale}/admin/dashboard`;
+            } else {
+              redirectPath = `/${locale}/onboarding/student/step1`;
+            }
+            console.log("[AUTH CALLBACK] New user from email verification, redirecting to onboarding:", {
+              userId,
+              role,
+              onboarded: profile.onboarded,
+              redirectPath,
+            });
+          } else {
+            // Existing user who clicked verification link again - use next param
+            redirectPath = next;
+            console.log("[AUTH CALLBACK] Existing user email verification, using next param:", redirectPath);
+          }
         } else if (!profile.onboarded) {
           // New user needs onboarding
           const locale = next.split("/")[1] || "en";

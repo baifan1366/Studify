@@ -37,11 +37,28 @@ export function useCreateClassroom() {
 
   return useMutation<CreateClassroomResponse, Error, CreateClassroomData>({
     mutationFn: async (data) => {
-      return apiSend<CreateClassroomResponse, CreateClassroomData>({
-        url: '/api/classroom',
-        method: 'POST',
-        body: data,
-      });
+      try {
+        const response = await apiSend<CreateClassroomResponse, CreateClassroomData>({
+          url: '/api/classroom',
+          method: 'POST',
+          body: data,
+        });
+        return response;
+      } catch (error: any) {
+        // Parse error response to provide better error messages
+        if (error.message) {
+          try {
+            const errorData = JSON.parse(error.message);
+            if (errorData.error) {
+              throw new Error(errorData.error);
+            }
+          } catch (parseError) {
+            // If parsing fails, use the original error message
+            throw new Error(error.message);
+          }
+        }
+        throw new Error('Failed to create classroom. Please try again.');
+      }
     },
     onSuccess: () => {
       // Invalidate and refetch classrooms list

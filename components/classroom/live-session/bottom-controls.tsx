@@ -46,80 +46,108 @@ export default function BottomControls({
   
   // Recording hook
   const createRecording = classroomSlug ? useCreateRecording(classroomSlug) : null;
-
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🎯 userRole in BottomControls:', userRole);
+    console.log('BottomControls debug:', {
+      userRole,
+      classroomSlug,
+      hasCreateRecording: !!createRecording,
+      isRecording,
+      sessionId
+    });
+  }, [userRole, classroomSlug, createRecording, isRecording, sessionId]);
+  
   // Start recording function
   const handleStartRecording = async () => {
     try {
+      // 防止重复启动
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        console.warn('Recording is already in progress');
+        return;
+      }
+
+      // 捕获屏幕与音频
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: true
+        audio: true,
       });
 
-      const recorder = new MediaRecorder(stream);
+      // Safari 兼容：有时需单独捕获麦克风
+      if (!stream.getAudioTracks().length) {
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStream.getAudioTracks().forEach(track => stream.addTrack(track));
+        } catch (micError) {
+          console.warn('⚠️ No microphone audio captured:', micError);
+        }
+      }
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9,opus',
+      });
+
       const chunks: Blob[] = [];
+      const startTime = Date.now();
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
         }
       };
 
       recorder.onstop = async () => {
+        const durationSec = Math.floor((Date.now() - startTime) / 1000);
         const blob = new Blob(chunks, { type: 'video/webm' });
-        console.log('Recording stopped:', {
-          size: blob.size,
-          type: blob.type,
+
+        console.log('🎬 Recording complete', {
+          sizeMB: (blob.size / 1024 / 1024).toFixed(2),
+          durationSec,
+          userRole,
           classroomSlug,
           sessionId,
-          hasCreateRecording: !!createRecording,
-          userRole
         });
-        
-        if (createRecording && sessionId && classroomSlug && userRole === 'tutor') {
+
+        // 停止所有 track
+        stream.getTracks().forEach(track => track.stop());
+
+        // 上传逻辑（仅 tutor 可上传）
+        if (userRole === 'tutor' && createRecording && sessionId && classroomSlug) {
           try {
-            const file = new File([blob], `recording_${Date.now()}.webm`, { type: 'video/webm' });
-            console.log('Uploading recording:', {
-              fileName: file.name,
-              fileSize: file.size,
-              sessionId,
-              classroomSlug,
-              userRole
+            const file = new File([blob], `recording_${Date.now()}.webm`, {
+              type: 'video/webm',
             });
-            
+
             await createRecording.mutateAsync({
               file,
               session_id: sessionId,
-              duration_sec: Math.floor(blob.size / 1000) // Rough duration estimate
+              duration_sec: durationSec,
             });
-          } catch (error) {
-            console.error('Failed to upload recording:', error);
-            // Show user-friendly error message
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Recording upload failed: ${errorMessage}`);
+
+            alert('✅ Recording uploaded successfully!');
+          } catch (err) {
+            console.error('❌ Upload failed:', err);
+            const message = err instanceof Error ? err.message : 'Unknown upload error';
+            alert(`Recording upload failed: ${message}`);
           }
         } else {
-          console.warn('Cannot upload recording - missing data or insufficient permissions:', {
-            hasCreateRecording: !!createRecording,
-            sessionId,
-            classroomSlug,
-            userRole,
-            isAuthorized: userRole === 'tutor'
-          });
-          if (userRole !== 'tutor') {
-            alert('Only tutors can upload recording files');
-          }
+          console.warn('Skipped upload: not tutor or missing info');
         }
+
+        setMediaRecorder(null);
         setRecordedChunks([]);
       };
 
-      recorder.start();
+      recorder.start(1000); // 每秒触发一次 dataavailable
       setMediaRecorder(recorder);
       setRecordedChunks(chunks);
-      
-      // Call parent's onStartRecording callback
       onStartRecording();
+
+      console.log('🎥 Recording started');
     } catch (error) {
       console.error('Failed to start recording:', error);
-      // If screen recording fails, make sure to reset state
+      alert('Failed to start recording. Please allow screen sharing permissions.');
       onStopRecording();
     }
   };
@@ -127,11 +155,12 @@ export default function BottomControls({
   // Stop recording function
   const handleStopRecording = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
+      console.log('🛑 Stopping recording...');
       mediaRecorder.stop();
-      setMediaRecorder(null);
+    } else {
+      console.warn('No active recording to stop.');
     }
-    
-    // Call parent's onStopRecording callback
+    setMediaRecorder(null);
     onStopRecording();
   };
 
@@ -309,7 +338,7 @@ export default function BottomControls({
           {/* Right side: tutor operations + volume control */}
           <div className="flex items-center justify-end gap-2 flex-1 max-w-xs shrink-0">
             {/* Recording button - only show for tutors */}
-            {userRole === 'tutor' && (
+            {userRole && userRole.toLowerCase() === 'tutor' && (
               <button
                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                 className="h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-500 border-2 border-white"
@@ -317,13 +346,13 @@ export default function BottomControls({
                 disabled={createRecording?.isPending}
                 style={{ minWidth: '40px', minHeight: '40px' }}
               >
-                <span className="text-xs font-bold">
-                  {createRecording?.isPending ? 'SAVE' : 'REC'}
+                <span className={`text-xs font-bold ${isRecording ? 'animate-pulse' : ''}`}>
+                  {createRecording?.isPending ? 'SAVE' : (isRecording ? '● REC' : 'REC')}
                 </span>
               </button>
             )}
             
-            {userRole === 'tutor' && (
+            {userRole && userRole.toLowerCase() === 'tutor' && (
               <button
                 onClick={onEndSession}
                 className={`${pillBtn} bg-red-600 hover:bg-red-500 text-white`}

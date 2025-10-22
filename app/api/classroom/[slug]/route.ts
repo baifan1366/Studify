@@ -27,7 +27,7 @@ export async function GET(
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found. Please make sure your profile is set up correctly.' }, { status: 404 });
     }
 
     // Get classroom by slug
@@ -99,7 +99,7 @@ export async function PUT(
 ) {
   try {
     const { slug } = await params;
-    const authResult = await authorize('tutor'); // Only tutors can update classrooms
+    const authResult = await authorize(['tutor', 'student']); // Allow both tutors and students (owners)
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -116,13 +116,13 @@ export async function PUT(
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found. Please make sure your profile is set up correctly.' }, { status: 404 });
     }
 
     // Get classroom by slug
     const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
-      .select('id')
+      .select('id, owner_id')
       .eq('slug', slug)
       .single();
 
@@ -130,7 +130,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Classroom not found' }, { status: 404 });
     }
 
-    // Check if user has permission to update (is instructor/admin of this classroom)
+    // Check if user has permission to update (is instructor/admin of this classroom or owner)
     const { data: membership } = await supabase
       .from('classroom_member')
       .select('role')
@@ -138,7 +138,11 @@ export async function PUT(
       .eq('user_id', profile.id)
       .single();
 
-    if (!membership || membership.role !== 'tutor') {
+    // Allow update if user is a tutor or the owner of the classroom
+    const isAuthorized = (membership && membership.role === 'tutor') || 
+                         classroom.owner_id === profile.id;
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -195,7 +199,7 @@ export async function DELETE(
 ) {
   try {
     const { slug } = await params;
-    const authResult = await authorize('tutor');
+    const authResult = await authorize(['tutor', 'student']); // Allow both tutors and students (owners)
     if (authResult instanceof NextResponse) {
       return authResult;
     }

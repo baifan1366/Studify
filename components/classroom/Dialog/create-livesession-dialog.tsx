@@ -44,7 +44,25 @@ export function CreateLiveSessionDialog({
 }: CreateLiveSessionDialogProps) {
   if (!canManageSessions) return null;
 
-  // Check if start time is within 5 minutes (will auto-start)
+  // 自动检查开始与结束时间
+  React.useEffect(() => {
+    if (!formData.starts_at || !formData.ends_at) return;
+
+    const start = new Date(formData.starts_at);
+    const end = new Date(formData.ends_at);
+    const diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+
+    // 如果时间间隔少于10分钟，则自动调整
+    if (diffMinutes < 10) {
+      const adjustedEnd = new Date(start.getTime() + 10 * 60 * 1000);
+      onFormDataChange(prev => ({
+        ...prev,
+        ends_at: adjustedEnd.toISOString().slice(0, 16),
+      }));
+    }
+  }, [formData.starts_at, formData.ends_at]);
+
+  // 检查是否自动开始
   const willAutoStart = React.useMemo(() => {
     if (!formData.starts_at) return false;
     const startTime = new Date(formData.starts_at);

@@ -466,9 +466,6 @@ function OnlineParticipants({ participants }: {
       <div className="flex items-center gap-2 mb-2">
         <Users className="w-4 h-4 text-slate-400" />
         <span className="text-sm font-medium text-white">Online Participants ({participants.length})</span>
-        <Badge variant="default" className="ml-auto text-xs bg-green-500">
-          Real-time Sync
-        </Badge>
       </div>
       <div className="space-y-1 max-h-32 overflow-y-auto">
         {participants.map((participant, index) => (

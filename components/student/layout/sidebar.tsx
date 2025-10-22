@@ -915,59 +915,39 @@ export default function AnimatedSidebar({
       </motion.div>
 
       {/* Mobile Bottom Tab Bar - Only visible on mobile with CSS */}
-      <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[9999] shadow-2xl border-t"
-        style={{
-          backgroundColor: "hsl(var(--sidebar))",
-          color: "hsl(var(--sidebar-foreground))",
-          borderColor: "hsl(var(--border))",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)", // ✅ Apply safe area to outer container
-        }}
-      >
-          <nav className="flex items-center justify-around px-2 py-3" style={{ minHeight: "60px" }}>
-          {mobileNavItems.map((item) => {
-            const IconComponent = item.icon;
-            const isActive = currentActiveItem === item.id;
+{/* Mobile Bottom Tab Bar - Visible only on mobile */}
+<div
+  className="fixed bottom-0 left-0 right-0 z-50 md:hidden shadow-lg border-t border-gray-200 dark:border-neutral-800 backdrop-blur supports-[backdrop-filter]:bg-white/90 dark:supports-[backdrop-filter]:bg-neutral-900/90"
+  style={{
+    backgroundColor: "#0D1F1A",
+    color: "hsl(var(--foreground))",
+    borderColor: "hsl(var(--border))",
+    paddingBottom: "env(safe-area-inset-bottom)",
+  }}
+>
+  <nav className="flex items-center justify-around px-2 py-3" style={{ minHeight: "60px" }}>
+    {mobileNavItems.map((item) => {
+      const IconComponent = item.icon;
+      const isActive = currentActiveItem === item.id;
 
-            return (
-              <motion.button
-                key={item.id}
-                onClick={() => handleItemClick(item.id)}
-                className="flex flex-col items-center justify-center flex-1 gap-1 py-2 px-1 rounded-lg transition-colors relative"
-                whileTap={{ scale: 0.9 }}
-              >
-                <motion.div
-                  animate={{
-                    scale: isActive ? 1.1 : 1,
-                    y: isActive ? -2 : 0,
-                  }}
-                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  className={`relative ${
-                    isActive
-                      ? "text-orange-500 dark:text-green-500"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  <IconComponent size={22} />
-                  {isActive && (
-                    <motion.div
-                      layoutId="mobileActiveIndicator"
-                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-500 dark:bg-green-500 rounded-full"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 30,
-                      }}
-                    />
-                  )}
-                </motion.div>
-              </motion.button>
-            );
-          })}
-        </nav>
-      </div>
+      return (
+        <motion.button
+          key={item.id}
+          onClick={() => handleItemClick(item.id)}
+          className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-xl transition-all duration-200 ${
+            isActive
+              ? "text-orange-500 dark:text-green-600"
+              : "text-foreground hover:text-orange-400 dark:hover:text-green-400"
+          }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <IconComponent size={22} />
+        </motion.button>
+      );
+    })}
+  </nav>
+</div>
     </>
   );
 }

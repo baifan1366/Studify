@@ -25,6 +25,17 @@ export default function CommunityContent() {
   const [user, setUser] = useState<User | null>(null);
   const [query, setQuery] = useState("");
   
+  // Check URL params for initial search query
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const searchParam = params.get('search');
+      if (searchParam) {
+        setQuery(searchParam);
+      }
+    }
+  }, []);
+  
   // Debounce the query to avoid excessive API calls
   const debouncedQuery = useDebouncedValue(query, 500);
   

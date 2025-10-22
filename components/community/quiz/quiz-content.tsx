@@ -82,7 +82,7 @@ export default function QuizContent() {
       </div>
 
       {/* Sidebar section */}
-      <div className="w-96 flex-shrink-0 p-6 border-l border-white/10 overflow-y-auto">
+      <div className="w-96 flex-shrink-0 p-6 border-l border-white/10 overflow-y-auto overflow-x-hidden">
         <QuizzesSidebar />
       </div>
     </div>

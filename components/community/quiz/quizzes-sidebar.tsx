@@ -178,7 +178,7 @@ export default function QuizzesSidebar() {
 
   return (
     <>
-      <div className="w-80 space-y-6">
+      <div className="w-full max-w-full space-y-6">
         {/* My Attempts Section */}
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">

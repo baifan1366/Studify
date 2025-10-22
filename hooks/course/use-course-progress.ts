@@ -19,6 +19,9 @@ interface UpdateProgressData {
   lessonId: string;
   progressPct: number;
   timeSpentSec?: number;
+  state?: string;
+  videoPositionSec?: number;
+  videoDurationSec?: number;
 }
 
 interface UpdateProgressResponse {

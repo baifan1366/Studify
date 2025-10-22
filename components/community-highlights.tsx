@@ -263,7 +263,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                 
                 <div className="flex items-center justify-between">
                   <span className="px-2 py-1 bg-white/10 text-white/70 text-xs rounded-full">
-                    {group.visibility === 'public' ? '公开' : '私有'}
+                    {group.visibility === 'public' ? t('visibility_public') : t('visibility_private')}
                   </span>
                   <span className="text-xs text-white/50">
                     {Math.floor(Math.random() * 5) + 1} {t('new_posts_today_suffix')}

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .select('id')
       .eq('user_id', payload.sub)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) {
       console.error('Profile lookup error:', profileError);
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         .from('course_lesson')
         .select('id')
         .eq('public_id', lessonId)
-        .single();
+        .maybeSingle();
       
       lessonInternalId = lessonData?.id || null;
     }
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         .from('course')
         .select('id')
         .eq('public_id', courseId)
-        .single();
+        .maybeSingle();
       
       courseInternalId = courseData?.id || null;
     }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .select('points')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       const currentPoints = profileData?.points || 0;
       
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
       .from('profiles')
       .select('id')
       .eq('user_id', payload.sub)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });

@@ -129,11 +129,11 @@ export async function PATCH(
       return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
-    // Update course status to inactive with rejection message
+    // Update course status to rejected with rejection message
     const { data: updatedCourse, error: updateError } = await supabase
       .from('course')
       .update({
-        status: 'inactive',
+        status: 'rejected',
         rejected_message: rejectionReason,
         updated_at: new Date().toISOString()
       })

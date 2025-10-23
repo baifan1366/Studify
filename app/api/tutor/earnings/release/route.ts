@@ -4,17 +4,6 @@ import { createAdminClient } from '@/utils/supabase/server';
 // Scheduled task to release earnings that are older than 7 days
 export async function POST(request: NextRequest) {
   try {
-    // Verify this is a legitimate cron job request
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || process.env.VERCEL_CRON_SECRET;
-    
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
     const supabase = await createAdminClient();
     
     // Call the database function to release eligible earnings

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export interface AINote {
   id: string;
@@ -42,6 +43,7 @@ export function useAINotes(options: {
 // 保存AI笔记
 export function useSaveAINote() {
   const queryClient = useQueryClient();
+  const t = useTranslations('AIAssistant.actions');
 
   return useMutation({
     mutationFn: async (params: {
@@ -69,14 +71,14 @@ export function useSaveAINote() {
       // 刷新AI笔记列表
       queryClient.invalidateQueries({ queryKey: ['ai-notes'] });
       
-      toast.success('智能笔记已保存', {
-        description: '您可以在笔记本中查看保存的智能笔记',
+      toast.success(t('note_saved_title'), {
+        description: t('note_saved_description'),
       });
     },
     onError: (error) => {
       console.error('Failed to save AI note:', error);
-      toast.error('保存失败', {
-        description: error instanceof Error ? error.message : '请稍后重试',
+      toast.error(t('note_save_failed_title'), {
+        description: error instanceof Error ? error.message : t('note_save_failed_description'),
       });
     },
   });

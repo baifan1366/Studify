@@ -135,16 +135,109 @@ export async function POST(req: Request) {
     // 6. Initialize processing steps
     await client.rpc('initialize_video_processing_steps', { queue_id_param: newQueue.id });
 
-    // 7. Queue the first step (transcribe) with QStash
+    // 7. Queue the first step (transcribe) with QStash OR process directly in development
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NEXT_PUBLIC_SITE_URL?.startsWith('https://');
+    
+    if (isDevelopment) {
+      console.log('🚧 Development mode: Processing video directly without QStash');
+      
+      // In development, trigger the transcription endpoint directly
+      try {
+        const transcribeUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/video-processing/steps/transcribe`;
+        
+        console.log('🎬 Starting direct transcription...');
+        
+        // Trigger transcription in the background (don't await)
+        fetch(transcribeUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            queue_id: newQueue.id,
+            attachment_id: attachment_id,
+            user_id: authResult.payload.sub,
+            audio_url: attachment.url,
+            timestamp: new Date().toISOString(),
+          }),
+        }).then(async (res) => {
+          if (res.ok) {
+            console.log('✅ Direct transcription started successfully');
+          } else {
+            const error = await res.text();
+            console.error('❌ Direct transcription failed:', error);
+          }
+        }).catch((err) => {
+          console.error('❌ Direct transcription error:', err);
+        });
+
+        // Update queue status
+        await client
+          .from("video_processing_queue")
+          .update({ 
+            status: 'processing',
+            processing_metadata: {
+              ...newQueue.processing_metadata,
+              mode: 'direct',
+              environment: 'development'
+            }
+          })
+          .eq("id", newQueue.id);
+
+        // Send notification that processing has started
+        await sendVideoProcessingNotification(authResult.payload.sub, {
+          attachment_id: attachment_id,
+          queue_id: newQueue.id,
+          attachment_title: attachment.title,
+          status: 'started',
+          current_step: 'transcribe',
+          progress_percentage: 0
+        });
+
+        return NextResponse.json({
+          message: "Video processing started successfully (development mode)",
+          queue_id: newQueue.public_id,
+          status: "processing",
+          current_step: "transcribe",
+          progress: 0,
+          mode: "direct",
+          estimated_completion_time: "3-5 minutes",
+          steps: [
+            { name: "transcribe", status: "processing", description: "Generating transcript from video" },
+            { name: "embed", status: "pending", description: "Creating AI embeddings" }
+          ]
+        }, { status: 202 });
+
+      } catch (directError: any) {
+        console.error('Failed to start direct processing:', directError);
+        
+        // Mark queue as failed
+        await client
+          .from("video_processing_queue")
+          .update({ 
+            status: 'failed',
+            error_message: 'Failed to start direct processing',
+            error_details: { 
+              error: directError.message
+            }
+          })
+          .eq("id", newQueue.id);
+
+        return NextResponse.json({
+          error: "Failed to start video processing",
+          details: directError.message || "Direct processing error",
+        }, { status: 500 });
+      }
+    }
+    // Production mode: Use QStash for reliable background processing
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app').replace(/\/$/, '');
     const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
 
-    console.log('🚀 [req_' + Date.now() + '] Video transcription queue setup');
-    console.log('🔗 [req_' + Date.now() + '] URL construction debug:', {
+    console.log('🚀 [Production] Video transcription queue setup');
+    console.log('🔗 [Production] URL construction:', {
       NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
       baseUrl: baseUrl,
       finalEndpoint: transcribeEndpoint,
-      hasDoubleSlash: transcribeEndpoint.includes('//api/')
     });
 
     // Validate QStash token before attempting to use it

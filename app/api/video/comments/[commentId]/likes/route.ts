@@ -33,9 +33,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .select('id, public_id')
       .eq('public_id', commentId)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
     if (commentError || !comment) {
+      console.error('Comment lookup failed:', { commentId, commentError });
       return NextResponse.json(
         { error: 'Comment not found' },
         { status: 404 }
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .select('*')
       .eq('user_id', userId)
       .eq('comment_id', comment.id)
-      .single();
+      .maybeSingle();
 
     let likeData;
     let action;
@@ -167,7 +168,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .select('id, public_id, likes_count')
       .eq('public_id', commentId)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
     if (commentError || !comment) {
       return NextResponse.json(
@@ -184,7 +185,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .select('*')
       .eq('user_id', userId)
       .eq('comment_id', comment.id)
-      .single();
+      .maybeSingle();
 
     // Get detailed like statistics using separate queries
     const { count: likesCount } = await supabase

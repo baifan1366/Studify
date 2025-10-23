@@ -1294,7 +1294,9 @@
     "new_posts_today_suffix": "今天的新帖子",
     "explore_groups_button": "探索所有小组",
     "no_groups": "暂无可用小组",
-    "no_posts": "暂无帖子"
+    "no_posts": "暂无帖子",
+    "visibility_public": "公开",
+    "visibility_private": "私密"
   },
   "RecommendationPanels": {
     "loading_recommendations": "正在加载推荐...",
@@ -1332,6 +1334,7 @@
     "this_weeks_progress": "本周进度",
     "weekly_leaderboard_title": "周排行榜",
     "points_suffix": "分",
+    "no_leaderboard_data": "暂无排行榜数据",
     "badge_collection_title": "badge收藏",
     "progress_label": "进度",
     "earned_label": "获得!",
@@ -1404,6 +1407,22 @@
     "title": "AI 学习助手",
     "subtitle": "你的个人AI学习助手",
     "history_auto_save": "所有AI交互都会自动保存到历史记录",
+    "toast": {
+      "qa_success_title": "AI回答完成",
+      "qa_success_description": "找到 {count} 个相关资源",
+      "qa_error_title": "AI问答失败",
+      "solve_success_title": "题目分析完成",
+      "solve_success_description": "AI已生成详细解答步骤",
+      "solve_error_title": "解题失败",
+      "notes_success_title": "笔记生成完成",
+      "notes_success_description": "AI已提炼重点并生成学习笔记",
+      "notes_error_title": "笔记生成失败",
+      "path_success_title": "学习路径生成完成",
+      "path_success_description": "AI已为你定制专属学习计划",
+      "path_error_title": "学习路径生成失败",
+      "error_try_again": "请稍后重试",
+      "error_check_format": "请检查文件格式并重试"
+    },
     "features": {
       "use_now": "立即使用",
       "quick_qa": {
@@ -1619,7 +1638,11 @@
       "learning_path_title_suffix": "学习路径",
       "learning_path_description": "基于您的目标\"{goal}\"生成的个性化学习路径",
       "learning_path_complete_title": "个性化学习路径生成完成",
-      "learning_path_complete_description": "保存到仪表盘以便随时查看和跟踪进度"
+      "learning_path_complete_description": "保存到仪表盘以便随时查看和跟踪进度",
+      "note_saved_title": "智能笔记已保存",
+      "note_saved_description": "您可以在笔记本中查看保存的智能笔记",
+      "note_save_failed_title": "保存失败",
+      "note_save_failed_description": "请稍后重试"
     }
   },
   "VideoAIAssistant": {
@@ -1661,6 +1684,7 @@
     },
     "suggested_actions": {
       "title": "建议操作",
+      "title_colon": "建议操作:",
       "view_materials": "查看相关课程资料",
       "take_notes": "记录重点笔记",
       "try_exercises": "尝试相关练习"
@@ -1671,7 +1695,9 @@
     "input": {
       "placeholder": "问任何关于此视频的问题...",
       "context_info": "当前位置：{timestamp}",
-      "selected_text": "| Selected: \"{文本}...\"",
+      "selected_text": " | 已选择: \"{text}...\"",
+      "selected_prefix": "已选择:",
+      "context_prefix": "📍",
       "send_button": "发送"
     },
     "loading_stages": {
@@ -1707,7 +1733,13 @@
     "next_milestone_title": "下a里程碑",
     "next_milestone_desc": "完成 {count} 更多课程以解锁 \"{badge}\" badge",
     "progress_completed_short": "{done}/{总计} 已完成",
-    "cta_generate_study_plan": "生成我的学习计划"
+    "cta_generate_study_plan": "生成我的学习计划",
+    "toast_save_success": "学习路径已保存",
+    "toast_save_success_desc": "您可以在仪表盘中查看保存的学习路径",
+    "toast_save_error": "保存失败",
+    "toast_save_error_desc": "请稍后重试",
+    "toast_delete_success": "学习路径已删除",
+    "toast_delete_error": "删除失败"
   },
   "LearningReport": {
     "title": "智能学习报告",
@@ -6683,7 +6715,21 @@
     "metadata_description": "及时了解重要公告和活动通知",
     "metadata_keywords": "通知,更新,公告,提醒,活动",
     "og_title": "通知 | Studify",
-    "og_description": "不要错过来自你的学习社区的重要更新"
+    "og_description": "不要错过来自你的学习社区的重要更新",
+    "title": "通知",
+    "subtitle": "及时了解你的学习活动",
+    "notifications": "通知",
+    "all_notifications": "全部通知",
+    "unread_notifications": "未读通知",
+    "settings": "设置",
+    "stay_updated_with_your_learning_activities": "及时了解你的学习活动",
+    "mark_all_read": "全部标记为已读",
+    "mark_all_as_read": "全部标记为已读",
+    "filter_notifications": "筛选通知",
+    "export_notifications": "导出通知",
+    "all": "全部",
+    "unread": "未读",
+    "load_more": "加载更多通知"
   },
   "RecommendationsPage": {
     "metadata_title": "课程推荐 | Studify",
@@ -8134,7 +8180,16 @@
     "updated_at": "更新于",
     "loading": "加载中...",
     "save": "保存",
-    "close": "关闭"
+    "close": "关闭",
+    "confirm_delete": "确定要删除这条错题吗？",
+    "delete_success": "错题已删除",
+    "delete_success_desc": "错题已成功删除",
+    "delete_error": "删除失败",
+    "delete_error_desc": "删除错题失败，请重试。",
+    "save_success": "错题已保存",
+    "save_success_desc": "错题已成功保存",
+    "save_error": "保存失败",
+    "save_error_desc": "保存错题失败，请重试。"
   },
   "WhiteboardDebugPanel": {
     "debug_panel": "白板调试面板",

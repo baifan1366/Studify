@@ -753,7 +753,8 @@ const PostDetailContent = ({
   const { data: userData } = useUser();
   const currentUserId = userData?.profile?.id ? Number(userData.profile.id) : undefined;
   const isTutor = userData?.profile?.role === 'tutor';
-  const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
+  const hasGroup = post.group && post.group.slug;
+  const groupPath = hasGroup && post.group ? (isTutor ? `/tutor/community/${post.group.slug}` : `/community/${post.group.slug}`) : null;
 
   // Check permissions - ensure user is logged in
   const isPostAuthor = currentUserId !== undefined && post.author_id === currentUserId;
@@ -814,7 +815,7 @@ const PostDetailContent = ({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              {post.group && (
+              {post.group && groupPath && (
                 <Link href={groupPath}>
                   <Badge
                     variant="outline"
@@ -964,20 +965,23 @@ const PostDetailContent = ({
       {post.hashtags && post.hashtags.length > 0 && (
         <CardContent className="pt-0">
           <div className="flex flex-wrap gap-2">
-            {post.hashtags.map((tag) => (
-              <Link
-                key={tag.name}
-                href={`/community/hashtags/${tag.name}`}
-                className="hover:underline"
-              >
-                <Badge
-                  variant="secondary"
-                  className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+            {post.hashtags.map((tag) => {
+              const searchPath = isTutor ? `/tutor/community?search=${encodeURIComponent('#' + tag.name)}` : `/community?search=${encodeURIComponent('#' + tag.name)}`;
+              return (
+                <Link
+                  key={tag.name}
+                  href={searchPath}
+                  className="hover:underline"
                 >
-                  #{tag.name}
-                </Badge>
-              </Link>
-            ))}
+                  <Badge
+                    variant="secondary"
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                  >
+                    #{tag.name}
+                  </Badge>
+                </Link>
+              );
+            })}
           </div>
         </CardContent>
       )}

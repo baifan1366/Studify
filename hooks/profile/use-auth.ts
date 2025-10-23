@@ -48,32 +48,28 @@ type ResendVerificationArgs = {
   locale?: string;
   captchaToken?: string;
 };
-type ResendVerificationResponse = { success: boolean; message: string };
+type ResendVerificationResponse = { 
+  success: boolean; 
+  message: string;
+  error?: string;
+  debug?: any;
+};
 
 export function useResendVerification() {
   return useMutation<ResendVerificationResponse, Error, ResendVerificationArgs>({
     mutationFn: async (vars) => {
-      const { supabase } = await import("@/utils/supabase/client");
-      
-      // Construct redirect URL with locale
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const locale = vars.locale || 'en';
-      const emailRedirectTo = `${siteUrl}/${locale}/sign-in`;
-      
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: vars.email,
-        options: {
-          emailRedirectTo,
-          ...(vars.captchaToken ? { captchaToken: vars.captchaToken } : {}),
+      // Call the API endpoint instead of Supabase directly
+      const response = await apiSend<ResendVerificationResponse>({
+        url: '/api/auth/resend-verification',
+        method: 'POST',
+        body: {
+          email: vars.email,
+          locale: vars.locale,
+          captchaToken: vars.captchaToken,
         },
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return { success: true, message: 'Verification email sent successfully' };
+      return response;
     },
   });
 }

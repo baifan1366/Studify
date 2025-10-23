@@ -54,7 +54,7 @@ export async function handleCourseApprovalAutoCreation(
 
   const supabase = await createAdminClient();
 
-  // Get the course owner_id from the course table
+  // Get the course owner_id from the course table and the corresponding user_id (UUID)
   const { data: courseData, error: courseError } = await supabase
     .from('course')
     .select('owner_id')
@@ -71,7 +71,25 @@ export async function handleCourseApprovalAutoCreation(
   }
 
   const courseOwnerId = courseData.owner_id;
-  console.log('[AutoCreation] Course owner ID:', courseOwnerId);
+  
+  // Get the user_id (UUID) from the profiles table
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('user_id')
+    .eq('id', courseOwnerId)
+    .single();
+
+  if (profileError || !profileData) {
+    return {
+      success: false,
+      classroomCreated: false,
+      communityCreated: false,
+      errors: [`Failed to get course owner profile: ${profileError?.message || 'Profile not found'}`]
+    };
+  }
+
+  const courseOwnerUserId = profileData.user_id;
+  console.log('[AutoCreation] Course owner ID:', courseOwnerId, 'User UUID:', courseOwnerUserId);
 
   // Auto-create classroom if requested
   if (autoCreateClassroom) {
@@ -80,7 +98,8 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerId
+        courseOwnerId,
+        courseOwnerUserId
       );
       
       if (classroomResult.success) {
@@ -105,7 +124,8 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerId
+        courseOwnerId,
+        courseOwnerUserId
       );
       
       if (communityResult.success) {
@@ -136,7 +156,8 @@ async function createClassroomForCourse(
   supabase: any,
   courseName: string,
   courseSlug: string,
-  courseOwnerId: number
+  courseOwnerId: number,
+  courseOwnerUserId: string
 ) {
   // Ensure courseName is not empty and provide fallback
   const safeCourseTitle = courseName?.trim() || 'Course';
@@ -189,12 +210,12 @@ async function createClassroomForCourse(
     };
   }
 
-  // Add course owner as classroom owner member
+  // Add course owner as classroom owner member (using UUID)
   const { error: memberError } = await supabase
     .from('classroom_member')
     .insert({
       classroom_id: classroom.id,
-      user_id: courseOwnerId,
+      user_id: courseOwnerUserId,
       role: 'owner',
     });
 
@@ -217,7 +238,8 @@ async function createCommunityForCourse(
   supabase: any,
   courseName: string,
   courseSlug: string,
-  courseOwnerId: number
+  courseOwnerId: number,
+  courseOwnerUserId: string
 ) {
   // Ensure courseName is not empty and provide fallback
   const safeCourseTitle = courseName?.trim() || 'Course';
@@ -284,12 +306,12 @@ async function createCommunityForCourse(
     };
   }
 
-  // Add course owner as community owner member
+  // Add course owner as community owner member (using UUID)
   const { error: memberError } = await supabase
     .from('community_group_member')
     .insert({
       group_id: community.id,
-      user_id: courseOwnerId,
+      user_id: courseOwnerUserId,
       role: 'owner'
     });
 

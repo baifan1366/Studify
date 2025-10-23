@@ -50,13 +50,11 @@ export async function POST(req: NextRequest) {
     const role = (roleParam || roleFromBody || 'student') as 'student' | 'tutor' | 'admin'
     
     // Set redirect path based on role
-    const roleRedirectPath = role === 'tutor' 
-      ? `/${targetLocale}/onboarding/tutor/step1`
-      : role === 'admin'
-      ? `/${targetLocale}/admin/dashboard`
-      : `/${targetLocale}/onboarding/student/step1`
+    // After email confirmation, redirect to home to check onboarding status
+    // This avoids the callback code parameter causing processing loops on sign-in/onboarding pages
+    const roleRedirectPath = `/${targetLocale}/home`;
     
-    const emailRedirectTo = `${siteUrl}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup`
+    const emailRedirectTo = `${siteUrl}/api/auth/callback?next=${encodeURIComponent(roleRedirectPath)}&type=signup&role=${role}`;
     
     const { data, error } = await client.auth.signUp({
       email,

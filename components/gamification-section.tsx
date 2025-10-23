@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useLearningStats, useAchievements, Achievement } from '@/hooks/profile/use-learning-stats';
+import { useWeeklyLeaderboard, getRankColorClass } from '@/hooks/profile/use-leaderboard';
 
 interface GamificationSectionProps {
   onDailyCheckin?: () => void;
@@ -36,19 +37,12 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
   // 获取真实数据
   const { data: learningStatsData, isLoading: statsLoading } = useLearningStats('week');
   const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
+  const { data: leaderboardData, isLoading: leaderboardLoading } = useWeeklyLeaderboard(5);
   
   // 解析学习统计数据
   const learningStats = learningStatsData?.data;
   const achievements = achievementsData?.data;
-  
-  // 模拟排行榜数据（可以从API获取真实数据）
-  const leaderboard = [
-    { rank: 1, name: "Alex Chen", points: 2847, avatar: "/api/placeholder/32/32", badge: "👑" },
-    { rank: 2, name: "You", points: learningStats?.summary.currentPoints || 2156, avatar: "/api/placeholder/32/32", badge: "🥈", isUser: true },
-    { rank: 3, name: "Sarah Kim", points: 1923, avatar: "/api/placeholder/32/32", badge: "🥉" },
-    { rank: 4, name: "Mike Johnson", points: 1756, avatar: "/api/placeholder/32/32", badge: "" },
-    { rank: 5, name: "Emma Wilson", points: 1642, avatar: "/api/placeholder/32/32", badge: "" },
-  ];
+  const leaderboard = leaderboardData?.data?.users || [];
 
   // 获取成就图标
   const getAchievementIcon = (category: string) => {
@@ -207,48 +201,70 @@ export default function GamificationSection({ onDailyCheckin }: GamificationSect
           </div>
 
           <div className="space-y-3">
-            {leaderboard.map((user, index) => (
-              <motion.div
-                key={user.rank}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  user.isUser 
-                    ? 'bg-blue-600/20 border border-blue-400/30' 
-                    : 'bg-white/5 hover:bg-white/10'
-                }`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    user.rank === 1 ? 'bg-yellow-500 text-black' :
-                    user.rank === 2 ? 'bg-gray-400 text-black' :
-                    user.rank === 3 ? 'bg-orange-500 text-black' :
-                    'bg-white/20 text-white'
-                  }`}>
-                    {user.rank}
-                  </span>
-                  <img 
-                    src={user.avatar} 
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full"
-                  />
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-medium text-sm ${
-                      user.isUser ? 'text-blue-400' : 'text-white'
-                    }`}>
-                      {user.name}
-                    </span>
-                    {user.badge && <span className="text-sm">{user.badge}</span>}
+            {leaderboardLoading ? (
+              // 加载状态
+              [...Array(5)].map((_, index) => (
+                <div key={`loading-leaderboard-${index}`} className="bg-white/5 rounded-lg p-3 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-white/20 rounded-full"></div>
+                    <div className="w-8 h-8 bg-white/20 rounded-full"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-white/20 rounded w-24 mb-1"></div>
+                      <div className="h-3 bg-white/20 rounded w-16"></div>
+                    </div>
                   </div>
-                  <span className="text-xs text-white/60">{user.points} {t('points_suffix')}</span>
                 </div>
-              </motion.div>
-            ))}
+              ))
+            ) : leaderboard.length === 0 ? (
+              // 无数据状态
+              <div className="bg-white/5 rounded-lg p-6 border border-white/10 text-center">
+                <Trophy className="mx-auto mb-2 text-white/40" size={24} />
+                <p className="text-white/60 text-sm">
+                  {t('no_leaderboard_data') || 'No leaderboard data available yet'}
+                </p>
+              </div>
+            ) : (
+              // 真实数据
+              leaderboard.map((user, index) => (
+                <motion.div
+                  key={user.publicId || user.userId}
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                    user.isCurrentUser 
+                      ? 'bg-blue-600/20 border border-blue-400/30' 
+                      : 'bg-white/5 hover:bg-white/10'
+                  }`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      getRankColorClass(user.rank)
+                    }`}>
+                      {user.rank}
+                    </span>
+                    <img 
+                      src={user.avatarUrl} 
+                      alt={user.displayName}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  </div>
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium text-sm ${
+                        user.isCurrentUser ? 'text-blue-400' : 'text-white'
+                      }`}>
+                        {user.displayName}
+                      </span>
+                      {user.badge && <span className="text-sm">{user.badge}</span>}
+                    </div>
+                    <span className="text-xs text-white/60">{user.points} {t('points_suffix')}</span>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
 

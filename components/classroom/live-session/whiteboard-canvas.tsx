@@ -19,14 +19,17 @@ interface WhiteboardCanvasProps {
   participantName?: string;
   width?: number;
   height?: number;
-  // Whiteboard toolbar settings
   currentTool?: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
   currentColor?: string;
   currentBrushSize?: number;
-  // Additional props for whiteboard-manager compatibility
+  currentFontSize?: number; // Add font size prop
+  currentTextAlign?: 'left' | 'center' | 'right';
   whiteboardId?: string;
   isReadOnly?: boolean;
   className?: string;
+  // Add preserveDrawing prop to control clearing behavior
+  preserveDrawing?: boolean // Default to preserving drawings
+  registerCanvasRef?: (key: string, ref: any) => void;
 }
 
 export interface WhiteboardCanvasRef {
@@ -47,17 +50,30 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   currentTool = 'pen',
   currentColor = '#000000',
   currentBrushSize = 4,
+  currentFontSize = 16, // Add font size prop with default
+  currentTextAlign = 'left',
   whiteboardId,
   isReadOnly = false,
-  className
+  className,
+  preserveDrawing = true, // Default to preserving drawings
+  registerCanvasRef, // ✅ 新增这一行：
 }, ref) => {
+  console.log('WhiteboardCanvas props:', { classroomSlug, sessionId, currentTool, currentColor, currentBrushSize, currentFontSize, currentTextAlign });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [tempCanvas, setTempCanvas] = useState<HTMLCanvasElement | null>(null);
   // Drawing layer cache - used to cache all non-text strokes
   const [drawingCanvas, setDrawingCanvas] = useState<HTMLCanvasElement | null>(null);
-  
+  // Add canvas cache state for persistence
+  const [canvasCache, setCanvasCache] = useState<ImageData | null>(null);
+  useEffect(() => {
+  console.log('🎯 WhiteboardCanvas mounted', { id: Math.random().toString(36).slice(2, 6) });
+  return () => {
+    console.log('🧹 WhiteboardCanvas unmounted');
+  };
+}, []);
+ 
   // Enhanced text box state
   interface TextBox {
     id: string;
@@ -114,130 +130,124 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     window.addEventListener('resize', updateDPR);
     return () => window.removeEventListener('resize', updateDPR);
   }, []);
+   
+  useEffect(() => {
+    if (registerCanvasRef && canvasRef.current) {
+      registerCanvasRef(sessionId || 'default', canvasRef.current);
+    }
+  }, [registerCanvasRef, sessionId]);
   
-  // Clear canvas
+  // 🧠 清空画布
   const clearCanvas = () => {
+    console.log('🎯 clearCanvas function executed');
     const canvas = canvasRef.current;
-    const drawingCtx = drawingCanvas?.getContext('2d');
-    
-    // 1. Clear main canvas
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas?.getContext("2d");
+    if (ctx && canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Update cache with cleared state
+      if (preserveDrawing) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setCanvasCache(imageData);
       }
     }
     
-    // 2. 🎯 Clear drawing cache canvas
+    // Clear drawing cache canvas
+    const drawingCtx = drawingCanvas?.getContext('2d');
     if (drawingCtx && drawingCanvas) {
       drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
       drawingCtx.fillStyle = 'white';
       drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     }
     
-    // 3. 🎯 Clear text box state
+    // Clear text box state
     setTextBoxes([]);
     setActiveTextBox(null);
     
     toast.success('Canvas completely cleared');
     
-    // 4. Trigger auto-save to persist cleared state
+    // Trigger auto-save to persist cleared state
     scheduleAutoSave();
   };
 
-  // Save canvas to bucket storage (automatically clear Redis cache)
+  // ☁️ 保存到云端（可以根据你的 API 改）
   const saveCanvas = async () => {
+    console.log('🎯 saveCanvas function executed');
     const canvas = canvasRef.current;
-    if (canvas) {
-      try {
-        console.log('💾 Starting canvas save process...');
-        
-        // Convert canvas to base64 data
-        const imageData = canvas.toDataURL('image/png');
-        console.log('📸 Canvas converted to base64, size:', imageData.length);
-        
-        // 🎯 Use ref to get latest textBoxes, avoid closure issues
-        const currentTextBoxes = textBoxesRef.current;
-        console.log('🔍 Current textBoxes from ref:', currentTextBoxes.length);
-        
-        // Prepare text box data (exclude temporary UI state)
-        const textBoxData = currentTextBoxes.map(tb => ({
-          id: tb.id,
-          x: tb.x,
-          y: tb.y,
-          width: tb.width,
-          height: tb.height,
-          text: tb.text,
-          color: tb.color,
-          backgroundColor: tb.backgroundColor,
-          fontSize: tb.fontSize,
-          fontFamily: tb.fontFamily,
-          fontWeight: tb.fontWeight,
-          fontStyle: tb.fontStyle,
-          textDecoration: tb.textDecoration,
-          alignment: tb.alignment,
-          zIndex: tb.zIndex
-        }));
-        
-        console.log('📋 Preparing to save', textBoxData.length, 'text boxes');
-        if (textBoxData.length > 0) {
-          console.log('📝 Text box data sample:', textBoxData[0]);
-        }
-        
-        // Call API to save to bucket storage
-        const startTime = performance.now();
-        const response = await fetch(`/api/classroom/${classroomSlug}/whiteboard`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            sessionId: whiteboardId || sessionId,
-            imageData,
-            width: canvas.width,
-            height: canvas.height,
-            textBoxes: textBoxData, // 🎯 Critical fix: send complete text box data
-            metadata: {
-              userRole,
-              participantName,
-              timestamp: new Date().toISOString(),
-              textBoxCount: textBoxes.length
-            }
-          }),
-        });
-        
-        const saveTime = performance.now() - startTime;
+    if (!canvas) return;
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`✅ Canvas saved successfully in ${saveTime.toFixed(2)}ms:`, result);
-          console.log('🗑️ Redis cache should be automatically invalidated');
-          toast.success('Whiteboard saved and cache updated');
-        } else {
-          const errorData = await response.text();
-          console.error('❌ Save API failed:', response.status, response.statusText, errorData);
-          throw new Error(`Save failed: ${response.status} ${response.statusText}`);
-        }
-      } catch (error) {
-        console.error('💥 Failed to save whiteboard:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Please try again';
-        toast.error(`Save failed: ${errorMessage}`);
+    const dataUrl = canvas.toDataURL("image/png");
+    
+    // 🎯 Use ref to get latest textBoxes, avoid closure issues
+    const currentTextBoxes = textBoxesRef.current;
+    
+    // Prepare text box data (exclude temporary UI state)
+    const textBoxData = currentTextBoxes.map(tb => ({
+      id: tb.id,
+      x: tb.x,
+      y: tb.y,
+      width: tb.width,
+      height: tb.height,
+      text: tb.text,
+      color: tb.color,
+      backgroundColor: tb.backgroundColor,
+      fontSize: tb.fontSize,
+      fontFamily: tb.fontFamily,
+      fontWeight: tb.fontWeight,
+      fontStyle: tb.fontStyle,
+      textDecoration: tb.textDecoration,
+      alignment: tb.alignment,
+      zIndex: tb.zIndex
+    }));
+    
+    try {
+      // Call API to save to bucket storage
+      const response = await fetch(`/api/classroom/${classroomSlug}/whiteboard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: whiteboardId || sessionId,
+          imageData: dataUrl,
+          width: canvas.width,
+          height: canvas.height,
+          textBoxes: textBoxData,
+          metadata: {
+            userRole,
+            participantName,
+            timestamp: new Date().toISOString(),
+            textBoxCount: textBoxes.length
+          }
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("✅ Canvas saved to cloud!");
+      } else {
+        const errorData = await response.text();
+        console.error('❌ Save API failed:', response.status, response.statusText, errorData);
+        throw new Error(`Save failed: ${response.status} ${response.statusText}`);
       }
+    } catch (error) {
+      console.error('💥 Failed to save whiteboard:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Please try again';
+      toast.error(`Save failed: ${errorMessage}`);
     }
   };
 
-  // Download canvas
+  // 💾 下载到本地
   const downloadCanvas = () => {
+    console.log('🎯 downloadCanvas function executed');
     const canvas = canvasRef.current;
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = `whiteboard-${classroomSlug}-${sessionId}-${Date.now()}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-      toast.success('Whiteboard downloaded');
-    }
+    if (!canvas) return;
+
+    const link = document.createElement("a");
+    link.download = "whiteboard.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    toast.success('Whiteboard downloaded');
   };
 
   // Expose methods to parent component
@@ -359,6 +369,26 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     };
   }, [autoSaveTimer]);
 
+  // 🎯 Update active or selected text box when font size changes
+  useEffect(() => {
+    console.log("🧩 currentFontSize received:", currentFontSize);
+    if (currentTool === 'text') {
+      setTextBoxes(prev => prev.map(tb => {
+        // Update text box if it's active OR selected (and not currently being edited)
+        if (tb.id === activeTextBox || (tb.isSelected && !tb.isEditing)) {
+          console.log(`✅ Updating fontSize for textBox ${tb.id} to ${currentFontSize}px`);
+          return { ...tb, fontSize: currentFontSize || 16 };
+        }
+        return tb;
+      }));
+      
+      // Trigger redraw to show changes immediately
+      if (activeTextBox || textBoxes.some(tb => tb.isSelected && !tb.isEditing)) {
+        setTimeout(() => redrawCanvas(), 0);
+      }
+    }
+  }, [currentFontSize, currentTool, activeTextBox]);
+
   // 🎯 Save before page exit - use ref to reduce event listener re-registration
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -462,6 +492,11 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       if (ctx) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, width, height);
+        // Save initial state to cache
+        if (preserveDrawing) {
+          const imageData = ctx.getImageData(0, 0, width, height);
+          setCanvasCache(imageData);
+        }
       }
 
       // Initialize temporary canvas
@@ -560,6 +595,11 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       if (ctx) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, width, height);
+        // Save state to cache
+        if (preserveDrawing) {
+          const imageData = ctx.getImageData(0, 0, width, height);
+          setCanvasCache(imageData);
+        }
       }
     }
 
@@ -583,6 +623,16 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     }
   }, [textBoxes, isDragging, isResizing, classroomSlug, sessionId]);
 
+  // Restore canvas from cache when available
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (ctx && canvasCache && preserveDrawing) {
+      console.log('Restoring canvas from cache');
+      ctx.putImageData(canvasCache, 0, 0);
+    }
+  }, [canvasCache, preserveDrawing]);
+  
   // Load whiteboard content (from Redis cache or bucket storage)
   const loadWhiteboardContent = async () => {
     try {
@@ -708,6 +758,12 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       
+      // Save loaded image state to cache
+      if (preserveDrawing) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setCanvasCache(imageData);
+      }
+      
       // 重新绘制文本框
       setTimeout(() => {
         redrawCanvas();
@@ -716,88 +772,148 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     img.src = imageData;
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+// 在组件顶层添加：
+const activeTextBoxRef = useRef(activeTextBox);
+useEffect(() => {
+  activeTextBoxRef.current = activeTextBox;
+}, [activeTextBox]);
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
-    // If text tool, default behavior is to deselect all
-    // This function should only execute fully when click event is not captured by any text box Overlay
-    if (currentTool === 'text') {
-      // Delayed execution, give Overlay's stopPropagation some time
-      setTimeout(() => {
-        // Check if there's still no active text box
-        // If activeTextBox was set after Overlay click, don't execute logic here
-        if (!activeTextBox) {
-          console.log('Canvas clicked in text mode - creating new text box at:', { x, y });
-          setTextBoxes(prev => prev.map(tb => ({ ...tb, isSelected: false, isEditing: false })));
-          createTextBox(x, y); // Only create when clicking on empty space
-        } else {
-          console.log('Text box already active, skipping creation');
-        }
-      }, 0);
-      return;
-    }
+let lastMouseDownTime = 0;
+let mouseDownCount = 0;
+const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
 
-    // Non-text tools: deselect all text boxes
-    setTextBoxes(prev => prev.map(tb => ({ ...tb, isSelected: false, isEditing: false })));
-    setActiveTextBox(null);
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  
 
-    // 普通绘制模式
-    setIsDrawing(true);
-    setStartPoint({ x, y });
-    
-    const ctx = canvas.getContext('2d');
-    const drawingCtx = drawingCanvas?.getContext('2d');
-    
-    if (ctx) {
-      if (currentTool === 'pen') {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        
-        // Also start drawing on cache canvas
-        if (drawingCtx) {
-          drawingCtx.beginPath();
-          drawingCtx.moveTo(x, y);
-        }
-      } else if (currentTool === 'rectangle' || currentTool === 'circle') {
-        // Save canvas state before starting to draw
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        setSavedImageData(imageData);
+
+  // 统一输出事件入口日志（不会被任何 return 提前跳过）
+  console.log("🖱️ handleMouseDown triggered", { tool: currentTool, x, y });
+
+  const now = performance.now();
+  if (now - lastMouseDownTime < 100) {
+    console.warn('⚠️ Ignored duplicate handleMouseDown within 100ms');
+    return;
+  }
+  lastMouseDownTime = now;
+
+  console.log('🖱️ handleMouseDown triggered', { tool: currentTool, x: e.clientX, y: e.clientY });
+
+  // =============== 文本模式 ===============
+  if (currentTool === "text") {
+    // 延迟执行逻辑以避免冲突
+    setTimeout(() => {
+      if (!activeTextBox) {
+        console.log("📄 Creating new text box at:", { x, y });
+        setTextBoxes((prev) =>
+          prev.map((tb) => ({ ...tb, isSelected: false, isEditing: false }))
+        );
+        createTextBox(x, y);
+      } else {
+        console.log("🔸 Text box already active — skip creating new one");
       }
-    }
-  };
+    }, 0);
+    return;
+  }
+
+  // =============== 非文本模式：通用绘制逻辑 ===============
+  setTextBoxes((prev) =>
+    prev.map((tb) => ({ ...tb, isSelected: false, isEditing: false }))
+  );
+  setActiveTextBox(null);
+
+  setIsDrawing(true);
+  setStartPoint({ x, y });
+
+  const ctx = canvas.getContext("2d");
+  const drawingCtx = drawingCanvas?.getContext("2d");
+
+  if (!ctx) return;
+
+  switch (currentTool) {
+    case "pen":
+      console.log("✏️ Pen mode started at", { x, y });
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      if (drawingCtx) {
+        drawingCtx.beginPath();
+        drawingCtx.moveTo(x, y);
+      }
+      break;
+
+    case "rectangle":
+    case "circle":
+      console.log(`🟦 ${currentTool} mode started at`, { x, y });
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setSavedImageData(imageData);
+      break;
+
+    default:
+      console.warn("⚠️ Unknown tool:", currentTool);
+  }
+
+  // 自动保存调度逻辑放在这里以确保绘制事件被捕获后执行
+  scheduleAutoSave();
+
+  if (!(window as any).__mousedown_count) {
+    (window as any).__mousedown_count = 0;
+  }
+  (window as any).__mousedown_count++;
+
+    e.stopPropagation();
+  e.preventDefault();
+
+  if (!(e.target instanceof HTMLCanvasElement)) {
+    console.warn('⚠️ Ignored MouseDown from non-canvas element:', e.target);
+    return;
+  }
+
+  mouseDownCount++;
+  const targetEl = e.target as HTMLElement;
+  const sourceId = targetEl?.id || '(no id)';
+  const sourceClass = targetEl?.className || '(no class)';
+  const timestamp = new Date().toISOString();
+
+  console.groupCollapsed(`🖱️ MouseDown #${mouseDownCount} [${timestamp}]`);
+  console.log('Triggered by:', { id: sourceId, class: sourceClass });
+  console.log('Stack trace:\n', new Error().stack);
+  console.groupEnd();
+
+};
 
   // Create enhanced text box
   const createTextBox = (x: number, y: number) => {
     console.log('🎯 createTextBox called at:', { x, y });
     console.log('📊 Current textBoxes count:', textBoxes.length);
+    console.log('📐 Current font settings:', { currentFontSize, currentColor, currentTextAlign });
     
-    const fontSize = Math.max(12, currentBrushSize * 3);
+    // Directly use currentFontSize - simplified logic
+    const fontSize = currentFontSize || 16;
     const newTextBox: TextBox = {
       id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       x,
       y,
-      width: fontSize, // 🎯 Initial width equals one character, autoResize will adjust immediately
-      height: fontSize * 1.5, // 🎯 Initial height approximately equals one line
+      width: fontSize * 3, // Increased width for more space
+      height: fontSize * 1.5, // 🎯 Initial height
       text: '',
       color: currentColor,
       backgroundColor: undefined,
       fontSize,
-      fontFamily: 'monospace', // 🎯 Use monospace font to ensure consistent character width
+      fontFamily: 'Arial',
       fontWeight: 'normal',
       fontStyle: 'normal',
       textDecoration: 'none',
-      alignment: 'left',
+      alignment: currentTextAlign || 'left',
       isEditing: true,
       isSelected: true,
       zIndex: textBoxes.length + 1
     };
     
     console.log('✅ New textBox created:', newTextBox.id);
+    console.log('✨ Creating textBox with fontSize:', fontSize);
     
     setTextBoxes(prev => {
       const updated = [...prev, newTextBox];
@@ -815,6 +931,13 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    console.log('🖊️ Creating text input for textBox:', { 
+      id: textBox.id, 
+      fontSize: textBox.fontSize, 
+      x: textBox.x, 
+      y: textBox.y 
+    });
+
     // High DPI adaptation
     const rect = canvas.getBoundingClientRect();
     const scaleX = rect.width / canvas.width;
@@ -829,12 +952,21 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     const cssY = textBox.y * scaleY;
     const scaledFontSize = textBox.fontSize * scaleY;
     
+    console.log('📏 Calculated text input dimensions:', { 
+      originalFontSize: textBox.fontSize, 
+      scaledFontSize, 
+      scaleX, 
+      scaleY,
+      cssX,
+      cssY
+    });
+    
     // 🎯 Enhanced style settings - precisely match text size
     Object.assign(textarea.style, {
       position: 'absolute',
       left: `${cssX}px`,
       top: `${cssY}px`,
-      minWidth: `${textBox.fontSize * scaleX}px`, // 🎯 Minimum width is one character
+      minWidth: `${textBox.fontSize * scaleX * 2}px`, // Increased minWidth for better UX
       maxWidth: `${canvas.width * scaleX}px`, // 🎯 Maximum width is canvas width
       width: 'auto', // 🎯 Auto width
       height: 'auto', // 🎯 Auto height
@@ -851,7 +983,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       outline: 'none',
       resize: 'none', // 🎯 Disable manual resize, use auto-resize instead
       zIndex: '1000',
-      padding: '2px', // 🎯 Reduce padding to better fit text
+      padding: '4px', // Increased padding for better UX
       lineHeight: '1.2', // 🎯 Line height slightly greater than 1, more natural
       overflow: 'hidden',
       whiteSpace: 'nowrap', // 🎯 Default no line wrap
@@ -1113,19 +1245,21 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
 
     console.log('redrawCanvas: Using cached drawing layer + rendering', textBoxes.filter(tb => !tb.isEditing).length, 'static text boxes');
 
-    // 1. Clear entire canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Only clear canvas if preserveDrawing is false
+    if (!preserveDrawing) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
     
-    // 2. First draw cached drawing content (all strokes, shapes, etc.)
+    // First draw cached drawing content (all strokes, shapes, etc.)
     if (drawingCanvas) {
       ctx.drawImage(drawingCanvas, 0, 0);
-    } else {
-      // If no cache canvas, set white background
+    } else if (!preserveDrawing) {
+      // If no cache canvas and not preserving, set white background
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     
-    // 3. Then draw all static text boxes (overlay on top of drawing layer)
+    // Then draw all static text boxes (overlay on top of drawing layer)
     textBoxes.forEach(textBox => {
       // Key change: only draw non-editing text boxes
       if (textBox.text.trim() && !textBox.isEditing) {
@@ -1301,6 +1435,12 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
           }
           break;
       }
+      
+      // Update canvas cache during drawing for persistence
+      if (preserveDrawing) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setCanvasCache(imageData);
+      }
     }
   };
 
@@ -1408,6 +1548,12 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
           // Redraw text boxes
           redrawCanvas();
           
+          // Save canvas state to cache after drawing
+          if (preserveDrawing) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            setCanvasCache(imageData);
+          }
+          
           // Trigger auto-save
           scheduleAutoSave();
         }
@@ -1416,6 +1562,14 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     
     // Also trigger auto-save for pen and eraser tools
     if (isDrawing && (currentTool === 'pen' || currentTool === 'eraser')) {
+      // Save canvas state to cache after drawing
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (ctx && canvas && preserveDrawing) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setCanvasCache(imageData);
+      }
+      
       scheduleAutoSave();
     }
     
@@ -1461,16 +1615,16 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
               transition: isDragging || isResizing ? 'none' : 'all 0.2s'
             }}
           
-          // Single click: only select, no drag, no edit
+          // Single click: select AND set as active
           onClick={(e) => {
             e.stopPropagation();
             if (currentTool === 'text') {
               console.log('TextBox clicked - selecting:', textBox.id);
-              setActiveTextBox(textBox.id);
+              setActiveTextBox(textBox.id); // ✅ 设置为活动文本框
               setTextBoxes(prev => prev.map(tb => ({
                 ...tb,
                 isSelected: tb.id === textBox.id,
-                isEditing: false // Ensure single click doesn't enter edit mode
+                isEditing: false
               })));
             }
           }}
@@ -1555,7 +1709,10 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     // Calculate actual pixel size of brush on screen
     const containerRect = container.getBoundingClientRect();
     const scale = containerRect.width / canvas.width;
-    const displaySize = currentBrushSize * scale;
+    
+    // Use font size for text tool, brush size for other tools
+    const effectiveSize = currentTool === 'text' ? currentFontSize : currentBrushSize;
+    const displaySize = effectiveSize * scale;
 
     const baseStyle: React.CSSProperties = {
       position: 'absolute',

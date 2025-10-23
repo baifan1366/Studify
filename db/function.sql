@@ -5083,3 +5083,42 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.search_embeddings_hybrid IS 'Hybrid semantic search with dual embeddings. Supports E5 (384d) and BGE-M3 (1024d) with weighted combination. Returns individual scores for analysis.';
+
+-- Create a function to get weekly leaderboard efficiently
+-- This function aggregates points for each user within a given week
+
+CREATE OR REPLACE FUNCTION get_weekly_leaderboard(
+  week_start TIMESTAMP WITH TIME ZONE,
+  result_limit INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+  user_id UUID,
+  public_id TEXT,
+  display_name TEXT,
+  avatar_url TEXT,
+  total_points BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    p.id AS user_id,
+    p.public_id,
+    p.display_name,
+    p.avatar_url,
+    COALESCE(SUM(ph.points), 0)::BIGINT AS total_points
+  FROM profiles p
+  LEFT JOIN points_history ph ON ph.user_id = p.id 
+    AND ph.created_at >= week_start
+    AND ph.points > 0
+  GROUP BY p.id, p.public_id, p.display_name, p.avatar_url
+  HAVING COALESCE(SUM(ph.points), 0) > 0
+  ORDER BY total_points DESC
+  LIMIT result_limit;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Add comment
+COMMENT ON FUNCTION get_weekly_leaderboard IS 'Returns top users by points earned in a given week';
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_weekly_leaderboard TO authenticated;

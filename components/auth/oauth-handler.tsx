@@ -74,9 +74,20 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
       const code = searchParams.get("code");
       const error = searchParams.get("error");
       const type = searchParams.get("type");
+      const next = searchParams.get("next");
 
       if (error) {
         console.error("OAuth error:", error);
+        return;
+      }
+
+      // Skip processing if we're on sign-in page with email confirmation callback
+      // The API callback route already handled this and set the session cookie
+      if (code && type === "signup" && window.location.pathname.includes("/sign-in")) {
+        console.log("✅ Email confirmation already processed by callback route, redirecting...");
+        // Just redirect to the home page, session is already set
+        const targetPath = next || `/${locale}/home`;
+        router.replace(targetPath);
         return;
       }
 

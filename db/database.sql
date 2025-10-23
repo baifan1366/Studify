@@ -1437,7 +1437,11 @@ CREATE TABLE public.embeddings (
     has_code_block boolean DEFAULT false,
     has_table boolean DEFAULT false,
     has_list boolean DEFAULT false,
-    chunk_language text DEFAULT 'en'::text
+    chunk_language text DEFAULT 'en'::text,
+    embedding_e5_small vector(384),
+    embedding_bge_m3 vector(1024),
+    has_e5_embedding boolean DEFAULT false,
+    has_bge_embedding boolean DEFAULT false
 );
 
 

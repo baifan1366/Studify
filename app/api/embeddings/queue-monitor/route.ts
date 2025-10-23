@@ -3,19 +3,74 @@ import { createClient } from "@supabase/supabase-js";
 import { getQStashQueue } from "@/lib/langChain/qstash-integration";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { getVectorStore } from "@/lib/langChain/vectorstore";
-import {
-  generateEmbedding,
-  validateEmbedding,
-} from "@/lib/langChain/embedding";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Check if dual embedding columns exist in the database
+async function checkDualEmbeddingSupport(): Promise<{
+  supported: boolean;
+  missingColumns: string[];
+}> {
+  try {
+    // Try to query the dual embedding columns
+    const { data, error } = await supabase
+      .from("embeddings")
+      .select("embedding_e5_small, embedding_bge_m3, has_e5_embedding, has_bge_embedding")
+      .limit(1);
+
+    if (error) {
+      // Check if error is about missing columns
+      const errorMessage = error.message.toLowerCase();
+      const missingColumns: string[] = [];
+      
+      if (errorMessage.includes("embedding_e5_small")) missingColumns.push("embedding_e5_small");
+      if (errorMessage.includes("embedding_bge_m3")) missingColumns.push("embedding_bge_m3");
+      if (errorMessage.includes("has_e5_embedding")) missingColumns.push("has_e5_embedding");
+      if (errorMessage.includes("has_bge_embedding")) missingColumns.push("has_bge_embedding");
+
+      if (missingColumns.length > 0) {
+        return { supported: false, missingColumns };
+      }
+    }
+
+    return { supported: true, missingColumns: [] };
+  } catch (error) {
+    console.error("Error checking dual embedding support:", error);
+    return { supported: false, missingColumns: ["unknown"] };
+  }
+}
+
 async function handler(request: NextRequest) {
   try {
     console.log("🔍 Checking embedding queue for pending items...");
+
+    // First, check if dual embedding columns exist
+    const dualEmbeddingCheck = await checkDualEmbeddingSupport();
+    if (!dualEmbeddingCheck.supported) {
+      console.error(
+        "❌ Dual embedding columns not found in database!",
+        "\nMissing columns:", dualEmbeddingCheck.missingColumns,
+        "\nPlease run the migration in db/function.sql to add these columns:",
+        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS embedding_e5_small vector(384);",
+        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS embedding_bge_m3 vector(1024);",
+        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS has_e5_embedding boolean DEFAULT false;",
+        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS has_bge_embedding boolean DEFAULT false;"
+      );
+      return NextResponse.json(
+        {
+          error: "Database schema not ready for dual embeddings",
+          missingColumns: dualEmbeddingCheck.missingColumns,
+          migrationRequired: true,
+          hint: "Run the ALTER TABLE commands from db/function.sql (lines 4966-4969)"
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Dual embedding support confirmed");
 
     // Get all queued items from embedding_queue
     const { data: queueItems, error } = await supabase
@@ -45,8 +100,18 @@ async function handler(request: NextRequest) {
     }
 
     console.log(
-      `📦 Found ${queueItems.length} items in queue, processing directly...`
+      `📦 Found ${queueItems.length} items in queue, processing with dual embeddings...`
     );
+
+    // Log queue items for debugging
+    console.log("Queue items to process:", queueItems.map(item => ({
+      id: item.id,
+      content_type: item.content_type,
+      content_id: item.content_id,
+      priority: item.priority,
+      retry_count: item.retry_count,
+      text_preview: item.content_text?.substring(0, 100) + "..."
+    })));
 
     // Process embeddings directly instead of re-queuing to QStash
     let processedCount = 0;
@@ -67,57 +132,101 @@ async function handler(request: NextRequest) {
           })
           .eq("id", item.id);
 
-        // Generate embedding using the content text
-        const embeddingResult = await generateEmbedding(
-          item.content_text,
-          "e5"
-        );
+        // Generate DUAL embeddings (both E5 and BGE)
+        console.log(`🔄 Generating dual embeddings for ${item.content_type}:${item.content_id}...`);
+        
+        const { generateDualEmbedding, validateDualEmbedding } = await import("@/lib/langChain/embedding");
+        const dualResult = await generateDualEmbedding(item.content_text);
 
-        if (
-          !embeddingResult.embedding ||
-          embeddingResult.embedding.length === 0
-        ) {
-          throw new Error("Failed to generate embedding");
+        // Validate at least one embedding succeeded
+        const validation = validateDualEmbedding(dualResult);
+        if (!validation.hasAnyValid) {
+          throw new Error("Failed to generate any valid embeddings (both E5 and BGE failed)");
         }
 
-        // Validate the embedding
-        if (!validateEmbedding(embeddingResult.embedding, 384, "e5")) {
-          throw new Error("Invalid embedding dimensions");
+        console.log(`✅ Dual embedding validation: E5=${validation.e5Valid}, BGE=${validation.bgeValid}`);
+
+        // Prepare embedding data with all available embeddings
+        const embeddingData: any = {
+          content_type: item.content_type,
+          content_id: item.content_id,
+          content_hash: item.content_hash,
+          content_text: item.content_text,
+          embedding_model: "dual-embedding",
+          token_count: dualResult.token_count,
+          language: "en",
+          status: "completed",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        // Add E5 embedding if available
+        if (dualResult.e5_embedding && validation.e5Valid) {
+          embeddingData.embedding = dualResult.e5_embedding; // Legacy column
+          embeddingData.embedding_e5_small = dualResult.e5_embedding;
+          embeddingData.has_e5_embedding = true;
+        } else {
+          embeddingData.has_e5_embedding = false;
         }
 
-        // Store the embedding in the embeddings table
-        const { error: insertError } = await supabase.from("embeddings").upsert(
-          {
-            content_type: item.content_type,
-            content_id: item.content_id,
-            content_hash: item.content_hash,
-            embedding: embeddingResult.embedding,
-            embedding_e5_small: embeddingResult.embedding,
-            has_e5_embedding: true,
-            has_bge_embedding: false,
-            content_text: item.content_text,
-            embedding_model: "intfloat/e5-small",
-            token_count: embeddingResult.tokenCount,
-            language: "en",
-            status: "completed",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "content_type,content_id",
+        // Add BGE embedding if available
+        if (dualResult.bge_embedding && validation.bgeValid) {
+          embeddingData.embedding_bge_m3 = dualResult.bge_embedding;
+          embeddingData.has_bge_embedding = true;
+          // If E5 failed, use BGE as fallback for legacy column
+          if (!dualResult.e5_embedding) {
+            embeddingData.embedding_model = "BAAI/bge-m3";
           }
-        );
+        } else {
+          embeddingData.has_bge_embedding = false;
+        }
+
+        // Check if embedding already exists for this content
+        const { data: existingEmbedding } = await supabase
+          .from("embeddings")
+          .select("id")
+          .eq("content_type", item.content_type)
+          .eq("content_id", item.content_id)
+          .eq("content_hash", item.content_hash)
+          .single();
+
+        let insertError;
+        if (existingEmbedding) {
+          // Update existing embedding
+          const { error } = await supabase
+            .from("embeddings")
+            .update(embeddingData)
+            .eq("id", existingEmbedding.id);
+          insertError = error;
+        } else {
+          // Insert new embedding
+          const { error } = await supabase
+            .from("embeddings")
+            .insert(embeddingData);
+          insertError = error;
+        }
 
         if (insertError) {
+          console.error(`❌ Failed to store embedding in database:`, insertError);
           throw insertError;
         }
 
+        console.log(`📏 Successfully stored ${validation.e5Valid && validation.bgeValid ? 'dual' : 'single'} embedding for ${item.content_type}:${item.content_id}`);
+
         // Remove from queue
-        await supabase.from("embedding_queue").delete().eq("id", item.id);
+        const { error: deleteError } = await supabase
+          .from("embedding_queue")
+          .delete()
+          .eq("id", item.id);
+
+        if (deleteError) {
+          console.error(`⚠️ Warning: Could not remove item from queue:`, deleteError);
+          // Don't throw here, embedding was successful
+        }
 
         processedCount++;
         console.log(
-          `✅ Successfully processed ${item.content_type}:${item.content_id}`
+          `✅ Successfully processed ${item.content_type}:${item.content_id} (${processedCount}/${queueItems.length})`
         );
       } catch (error) {
         failedCount++;
@@ -156,10 +265,13 @@ async function handler(request: NextRequest) {
     };
     const processingMethod = "direct_processing";
 
-    // Since we processed items directly, no need to update status to 'processing'
-    // The processEmbedding function already handles status updates
     console.log(
-      `✅ Direct processing completed: ${processedCount} successful, ${failedCount} failed`
+      `\n✅ ====== Embedding Queue Processing Complete ======`,
+      `\n📈 Total items: ${queueItems.length}`,
+      `\n✅ Successful: ${processedCount}`,
+      `\n❌ Failed: ${failedCount}`,
+      `\n🔄 Method: ${processingMethod}`,
+      `\n==================================================\n`
     );
 
     return NextResponse.json({

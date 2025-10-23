@@ -58,9 +58,10 @@ export function CreateClassroomPage() {
         : `/classroom/${result.classroom.slug}`;
       router.push(route);
     } catch (error: any) {
+      console.error('Classroom creation error:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create classroom",
+        description: error.message || "Failed to create classroom. Please try again.",
         variant: "destructive",
       });
     }

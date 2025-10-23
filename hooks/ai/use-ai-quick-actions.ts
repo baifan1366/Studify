@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslations } from 'next-intl';
 
 // Helper function to save AI interaction to history
 async function saveToHistory({
@@ -37,6 +38,7 @@ async function saveToHistory({
 // AI即问即答 Hook
 export function useAIQuickQA() {
   const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
 
   return useMutation({
     mutationFn: async (params: string | {
@@ -88,8 +90,8 @@ export function useAIQuickQA() {
     },
     onSuccess: (data) => {
       toast({
-        title: "✅ AI回答完成",
-        description: `找到 ${data.sources?.length || 0} 个相关资源`,
+        title: `✅ ${t('qa_success_title')}`,
+        description: t('qa_success_description', { count: data.sources?.length || 0 }),
       });
     },
     onError: (error) => {
@@ -102,8 +104,8 @@ export function useAIQuickQA() {
       });
       
       toast({
-        title: "❌ AI问答失败",
-        description: error instanceof Error ? error.message : 'Please try again later',
+        title: `❌ ${t('qa_error_title')}`,
+        description: error instanceof Error ? error.message : t('error_try_again'),
         variant: "destructive"
       });
     }
@@ -113,6 +115,7 @@ export function useAIQuickQA() {
 // 上传题目解题 Hook
 export function useAISolveProblem() {
   const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
 
   return useMutation({
     mutationFn: async (file: File) => {
@@ -147,8 +150,8 @@ export function useAISolveProblem() {
     },
     onSuccess: (data) => {
       toast({
-        title: "✅ 题目分析完成",
-        description: "AI已生成详细解答步骤",
+        title: `✅ ${t('solve_success_title')}`,
+        description: t('solve_success_description'),
       });
     },
     onError: (error) => {
@@ -161,8 +164,8 @@ export function useAISolveProblem() {
       });
       
       toast({
-        title: "❌ 解题失败",
-        description: error instanceof Error ? error.message : 'Please check file format and try again',
+        title: `❌ ${t('solve_error_title')}`,
+        description: error instanceof Error ? error.message : t('error_check_format'),
         variant: "destructive"
       });
     }
@@ -172,6 +175,7 @@ export function useAISolveProblem() {
 // 智能笔记总结 Hook
 export function useAISmartNotes() {
   const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
 
   return useMutation({
     mutationFn: async (content: string) => {
@@ -206,8 +210,8 @@ export function useAISmartNotes() {
     },
     onSuccess: (data) => {
       toast({
-        title: "✅ 笔记生成完成",
-        description: "AI已提炼重点并生成学习笔记",
+        title: `✅ ${t('notes_success_title')}`,
+        description: t('notes_success_description'),
       });
     },
     onError: (error) => {
@@ -220,8 +224,8 @@ export function useAISmartNotes() {
       });
       
       toast({
-        title: "❌ 笔记生成失败",
-        description: error instanceof Error ? error.message : 'Please try again later',
+        title: `❌ ${t('notes_error_title')}`,
+        description: error instanceof Error ? error.message : t('error_try_again'),
         variant: "destructive"
       });
     }
@@ -231,6 +235,7 @@ export function useAISmartNotes() {
 // 个性化学习路径 Hook
 export function useAILearningPath() {
   const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
 
   return useMutation({
     meta: {
@@ -283,8 +288,8 @@ Please create a comprehensive personalized learning roadmap.`;
     },
     onSuccess: (data) => {
       toast({
-        title: "✅ 学习路径生成完成", 
-        description: `AI已为你定制专属学习计划`,
+        title: `✅ ${t('path_success_title')}`, 
+        description: t('path_success_description'),
       });
     },
     onError: (error) => {
@@ -297,8 +302,8 @@ Please create a comprehensive personalized learning roadmap.`;
       });
       
       toast({
-        title: "❌ 学习路径生成失败",
-        description: error instanceof Error ? error.message : 'Please try again later',
+        title: `❌ ${t('path_error_title')}`,
+        description: error instanceof Error ? error.message : t('error_try_again'),
         variant: "destructive"
       });
     }

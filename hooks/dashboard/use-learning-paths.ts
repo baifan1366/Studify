@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export interface LearningPath {
   id: string;
@@ -46,6 +47,7 @@ export function useLearningPaths(options: {
 // 保存学习路径
 export function useSaveLearningPath() {
   const queryClient = useQueryClient();
+  const t = useTranslations('LearningPath');
 
   return useMutation({
     mutationFn: async (params: {
@@ -70,14 +72,14 @@ export function useSaveLearningPath() {
       // 刷新学习路径列表
       queryClient.invalidateQueries({ queryKey: ['learning-paths'] });
       
-      toast.success('学习路径已保存', {
-        description: '您可以在仪表盘中查看保存的学习路径',
+      toast.success(t('toast_save_success'), {
+        description: t('toast_save_success_desc'),
       });
     },
     onError: (error) => {
       console.error('Failed to save learning path:', error);
-      toast.error('保存失败', {
-        description: error instanceof Error ? error.message : '请稍后重试',
+      toast.error(t('toast_save_error'), {
+        description: error instanceof Error ? error.message : t('toast_save_error_desc'),
       });
     },
   });
@@ -86,6 +88,7 @@ export function useSaveLearningPath() {
 // 删除学习路径
 export function useDeleteLearningPath() {
   const queryClient = useQueryClient();
+  const t = useTranslations('LearningPath');
 
   return useMutation({
     mutationFn: async (pathId: string) => {
@@ -104,12 +107,12 @@ export function useDeleteLearningPath() {
       // 刷新学习路径列表
       queryClient.invalidateQueries({ queryKey: ['learning-paths'] });
       
-      toast.success('学习路径已删除');
+      toast.success(t('toast_delete_success'));
     },
     onError: (error) => {
       console.error('Failed to delete learning path:', error);
-      toast.error('删除失败', {
-        description: error instanceof Error ? error.message : '请稍后重试',
+      toast.error(t('toast_delete_error'), {
+        description: error instanceof Error ? error.message : t('toast_save_error_desc'),
       });
     },
   });

@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       .select('id, title')
       .eq('public_id', lessonId)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
     if (lessonError || !lesson) {
       console.error('POST comments - Lesson lookup failed:', {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         .select('id, lesson_id')
         .eq('public_id', parentId)
         .eq('is_deleted', false)
-        .single();
+        .maybeSingle();
 
       if (parentError || !parentComment || parentComment.lesson_id !== lesson.id) {
         return NextResponse.json(
@@ -75,11 +75,22 @@ export async function POST(request: NextRequest) {
       parentCommentId = parentComment.id;
     }
 
+    // Get the profile ID (internal bigint ID, not UUID)
+    const userId = authResult.user?.profile?.id;
+    
+    if (!userId) {
+      console.error('User profile ID not found:', authResult.user);
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 400 }
+      );
+    }
+
     // Create comment
     const { data: commentData, error: insertError } = await supabase
       .from('video_comments')
       .insert({
-        user_id: authResult.user.profile?.id || authResult.user.id,
+        user_id: userId,
         lesson_id: lesson.id,
         attachment_id: attachmentId,
         parent_id: parentCommentId,
@@ -155,7 +166,7 @@ export async function GET(request: NextRequest) {
       .select('id, title')
       .eq('public_id', lessonId)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
     if (lessonError || !lesson) {
       console.error('GET comments - Lesson lookup failed:', {
@@ -197,7 +208,7 @@ export async function GET(request: NextRequest) {
         .from('video_comments')
         .select('id')
         .eq('public_id', parentId)
-        .single();
+        .maybeSingle();
       
       if (parentComment) {
         query = query.eq('parent_id', parentComment.id);
@@ -248,7 +259,7 @@ export async function GET(request: NextRequest) {
         .from('video_comments')
         .select('id')
         .eq('public_id', parentId)
-        .single();
+        .maybeSingle();
       if (parentComment) {
         countQuery = countQuery.eq('parent_id', parentComment.id);
       }
@@ -338,7 +349,7 @@ export async function PATCH(request: NextRequest) {
       .eq('public_id', commentId)
       .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !comment) {
       return NextResponse.json(
@@ -415,7 +426,7 @@ export async function DELETE(request: NextRequest) {
       .eq('public_id', commentId)
       .eq('user_id', authResult.user.profile?.id || authResult.user.id)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !comment) {
       return NextResponse.json(

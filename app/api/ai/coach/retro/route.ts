@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      retrospective: savedRetro,
+      data: savedRetro,
       message: existingRetro ? 'Retrospective updated successfully' : 'Retrospective created successfully'
     }, {
       headers: {
@@ -233,8 +233,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      retrospectives: retrospectives || [],
-      count: retrospectives?.length || 0
+      data: {
+        retrospectives: retrospectives || [],
+        count: retrospectives?.length || 0
+      }
     });
 
   } catch (error) {

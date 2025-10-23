@@ -31,6 +31,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useDropzone } from "react-dropzone";
 import { Comment } from "@/interface/community/comment-interface";
 import { usePostDetail } from "@/hooks/community/use-post-detail";
@@ -741,6 +752,7 @@ const PostDetailContent = ({
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<"flat" | "tree">("tree");
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { formatRelativeTime } = useFormat();
   const t = useTranslations("CommunityPostDetail");
   const toggleReactionMutation = useToggleReaction(groupSlug, postSlug);
@@ -866,11 +878,7 @@ const PostDetailContent = ({
                 )}
                 {canDelete && (
                   <DropdownMenuItem
-                    onClick={() => {
-                      if (confirm(t("confirm_delete_post"))) {
-                        handleDeletePost();
-                      }
-                    }}
+                    onClick={() => setShowDeleteDialog(true)}
                     className="text-red-500"
                   >
                     {t("delete_post")}
@@ -1050,6 +1058,26 @@ const PostDetailContent = ({
         onOpenChange={setShowShareDialog}
         post={post}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirm_delete_post")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("delete_post_description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePost}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

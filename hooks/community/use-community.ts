@@ -53,6 +53,8 @@ export const useGroups = () => {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["communityGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["userGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["allUserGroups"] });
     },
   });
 
@@ -161,6 +163,9 @@ export const useGroupMembers = (slug: string) => {
       queryClient.invalidateQueries({ queryKey: ["groupMembers", slug] });
       queryClient.invalidateQueries({ queryKey: ["communityGroup", slug] });
       queryClient.invalidateQueries({ queryKey: ["communityGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["userGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["allUserGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["suggestedGroups"] });
     },
   });
 
@@ -178,6 +183,9 @@ export const useGroupMembers = (slug: string) => {
       queryClient.invalidateQueries({ queryKey: ["groupMembers", slug] });
       queryClient.invalidateQueries({ queryKey: ["communityGroup", slug] });
       queryClient.invalidateQueries({ queryKey: ["communityGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["userGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["allUserGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["suggestedGroups"] });
     },
   });
 
@@ -368,7 +376,9 @@ export const useUserGroups = () => {
   } = useQuery<Group[], Error>({
     queryKey: ["userGroups"],
     queryFn: () => apiGet<Group[]>(`${COMMUNITY_API.groups}?filter=joined`),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 2, // Reduced from 5 to 2 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -389,7 +399,9 @@ export const useAllUserGroups = () => {
   } = useQuery<Group[], Error>({
     queryKey: ["allUserGroups"],
     queryFn: () => apiGet<Group[]>(`${COMMUNITY_API.groups}?filter=joined&limit=100`), // Get all joined groups
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 2, // Reduced from 5 to 2 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -411,7 +423,9 @@ export const useSuggestedGroups = () => {
     queryKey: ["suggestedGroups"],
     queryFn: () =>
       apiGet<Group[]>(`${COMMUNITY_API.groups}?filter=suggested&limit=5`),
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 60 * 3, // Reduced from 10 to 3 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {

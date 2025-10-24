@@ -116,8 +116,8 @@ export default function ProfileContent() {
           }
         } catch (avatarError) {
           toast({
-            title: 'Avatar upload failed',
-            description: 'Profile updated but avatar upload failed. Please try again.',
+            title: t('avatar_upload_failed'),
+            description: t('avatar_upload_failed_desc'),
             variant: 'destructive',
           });
         }
@@ -135,8 +135,8 @@ export default function ProfileContent() {
       setAvatarPreview(null);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to update profile. Please try again.',
+        title: t('update_error'),
+        description: t('update_error_desc'),
         variant: 'destructive',
       });
     }
@@ -169,8 +169,8 @@ export default function ProfileContent() {
         // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
           toast({
-            title: 'File too large',
-            description: 'Please select an image smaller than 5MB',
+            title: t('file_too_large'),
+            description: t('file_too_large_desc'),
             variant: 'destructive',
           });
           return;
@@ -179,8 +179,8 @@ export default function ProfileContent() {
         // Validate file type
         if (!file.type.startsWith('image/')) {
           toast({
-            title: 'Invalid file type',
-            description: 'Please select an image file',
+            title: t('invalid_file_type'),
+            description: t('invalid_file_type_desc'),
             variant: 'destructive',
           });
           return;
@@ -196,8 +196,8 @@ export default function ProfileContent() {
         reader.readAsDataURL(file);
 
         toast({
-          title: 'Avatar selected',
-          description: 'Click "Save" to update your profile with the new avatar',
+          title: t('avatar_selected'),
+          description: t('avatar_selected_desc'),
         });
       }
     };
@@ -227,7 +227,7 @@ export default function ProfileContent() {
     
     // Achievements might not be available for all roles
     if (userRole === 'student') {
-      router.push(`/${locale}/achievements`);
+      router.push(`/${locale}/community/achievements`);
     } else {
       // Redirect to their respective dashboards instead
       router.push(`/${locale}/${userRole}/dashboard`);
@@ -613,7 +613,7 @@ export default function ProfileContent() {
                           whileTap={{ scale: updateProfileMutation.isPending ? 1 : 0.95 }}
                         >
                           <Save size={14} className="sm:w-4 sm:h-4" />
-                          {updateProfileMutation.isPending ? 'Saving...' : t('save')}
+                          {updateProfileMutation.isPending ? t('saving') : t('save')}
                         </motion.button>
                         <motion.button
                           onClick={handleCancel}
@@ -834,22 +834,22 @@ export default function ProfileContent() {
                         <div className="text-center p-4 bg-white/10 rounded-lg">
                           <Clock size={24} className="text-blue-400 mx-auto mb-2" />
                           <div className="text-xl font-bold text-white">{formatStudyTime(learningStats?.data?.summary?.totalStudyMinutes || 0)}</div>
-                          <div className="text-xs text-white/70">Study Time</div>
+                          <div className="text-xs text-white/70">{t('study_time')}</div>
                         </div>
                         <div className="text-center p-4 bg-white/10 rounded-lg">
                           <Target size={24} className="text-green-400 mx-auto mb-2" />
                           <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.completedLessons || 0}</div>
-                          <div className="text-xs text-white/70">Lessons Done</div>
+                          <div className="text-xs text-white/70">{t('lessons_done')}</div>
                         </div>
                         <div className="text-center p-4 bg-white/10 rounded-lg">
                           <Zap size={24} className="text-orange-400 mx-auto mb-2" />
                           <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.studyStreak || 0}</div>
-                          <div className="text-xs text-white/70">Day Streak</div>
+                          <div className="text-xs text-white/70">{t('day_streak')}</div>
                         </div>
                         <div className="text-center p-4 bg-white/10 rounded-lg">
                           <Trophy size={24} className="text-yellow-400 mx-auto mb-2" />
                           <div className="text-xl font-bold text-white">{learningStats?.data?.summary?.avgProgress || 0}%</div>
-                          <div className="text-xs text-white/70">Avg Progress</div>
+                          <div className="text-xs text-white/70">{t('avg_progress')}</div>
                         </div>
                       </>
                     ) : profile?.role === 'tutor' ? (
@@ -926,7 +926,7 @@ export default function ProfileContent() {
                           <DollarSign size={24} className="text-emerald-300" />
                         </div>
                         <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
-                          Total
+                          {t('total')}
                         </Badge>
                       </div>
                       <div className="text-2xl font-bold text-white mb-1">
@@ -946,7 +946,7 @@ export default function ProfileContent() {
                           <BookOpen size={24} className="text-blue-300" />
                         </div>
                         <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30">
-                          Owned
+                          {t('owned')}
                         </Badge>
                       </div>
                       <div className="text-2xl font-bold text-white mb-1">
@@ -966,7 +966,7 @@ export default function ProfileContent() {
                           <CalendarIcon size={24} className="text-purple-300" />
                         </div>
                         <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30">
-                          Recent
+                          {t('recent')}
                         </Badge>
                       </div>
                       <div className="text-lg font-bold text-white mb-1">
@@ -988,14 +988,14 @@ export default function ProfileContent() {
                           <Receipt size={24} className="text-orange-300" />
                         </div>
                         <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/30">
-                          Total
+                          {t('total')}
                         </Badge>
                       </div>
                       <div className="text-2xl font-bold text-white mb-1">
                         {purchaseData?.purchases?.length || 0}
                       </div>
-                      <div className="text-orange-300/70 text-sm">Orders</div>
-                      <div className="text-white/50 text-xs mt-2">All time transactions</div>
+                      <div className="text-orange-300/70 text-sm">{t('orders')}</div>
+                      <div className="text-white/50 text-xs mt-2">{t('all_time_transactions')}</div>
                     </motion.div>
                   </div>
 
@@ -1141,10 +1141,10 @@ export default function ProfileContent() {
                     >
                       <TrendingUp size={18} className="sm:w-5 sm:h-5 text-purple-400 flex-shrink-0" />
                       <div className="text-left min-w-0">
-                        <div className="font-medium text-sm sm:text-base truncate">Dashboard</div>
+                        <div className="font-medium text-sm sm:text-base truncate">{t('dashboard')}</div>
                         <div className="text-xs sm:text-sm text-white/70 truncate">
-                          {profile?.role === 'admin' ? 'Admin Control Panel' : 
-                           profile?.role === 'tutor' ? 'Teaching Dashboard' : 'Learning Dashboard'}
+                          {profile?.role === 'admin' ? t('admin_control_panel') : 
+                           profile?.role === 'tutor' ? t('teaching_dashboard') : t('learning_dashboard')}
                         </div>
                       </div>
                     </motion.button>
@@ -1159,12 +1159,12 @@ export default function ProfileContent() {
                       <BookOpen size={18} className="sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
                       <div className="text-left min-w-0">
                         <div className="font-medium text-sm sm:text-base truncate">
-                          {profile?.role === 'admin' ? 'Manage Courses' : 
-                           profile?.role === 'tutor' ? 'My Courses' : t('my_courses')}
+                          {profile?.role === 'admin' ? t('manage_courses') : 
+                           profile?.role === 'tutor' ? t('my_courses') : t('my_courses')}
                         </div>
                         <div className="text-xs sm:text-sm text-white/70 truncate">
-                          {profile?.role === 'admin' ? 'Course Administration' : 
-                           profile?.role === 'tutor' ? 'Teaching Materials' : t('view_enrolled')}
+                          {profile?.role === 'admin' ? t('course_administration') : 
+                           profile?.role === 'tutor' ? t('teaching_materials') : t('view_enrolled')}
                         </div>
                       </div>
                     </motion.button>
@@ -1189,10 +1189,10 @@ export default function ProfileContent() {
                           <Users size={18} className="sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
                           <div className="text-left min-w-0">
                             <div className="font-medium text-sm sm:text-base truncate">
-                              {profile?.role === 'admin' ? 'Community Management' : t('community')}
+                              {profile?.role === 'admin' ? t('community_management') : t('community')}
                             </div>
                             <div className="text-xs sm:text-sm text-white/70 truncate">
-                              {profile?.role === 'admin' ? 'Moderate Community' : t('join_groups')}
+                              {profile?.role === 'admin' ? t('moderate_community') : t('join_groups')}
                             </div>
                           </div>
                         </>

@@ -227,12 +227,14 @@ const CommentItem = ({
   postSlug,
   depth = 0,
   currentUserId,
+  isGroupOwner,
 }: {
   comment: Comment;
   groupSlug: string;
   postSlug: string;
   depth?: number;
   currentUserId?: number;
+  isGroupOwner: boolean;
 }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -283,6 +285,9 @@ const CommentItem = ({
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const replies = comment.replies || [];
   const marginLeft = depth > 0 ? `${Math.min(depth * 24, 96)}px` : "0px";
+  
+  // Calculate if user can delete this comment
+  const canDeleteComment = (currentUserId === comment.author_id) || isGroupOwner;
 
   return (
     <div style={{ marginLeft }} className="space-y-3">
@@ -329,10 +334,10 @@ const CommentItem = ({
                       {t("comment_actions.reply")}
                     </DropdownMenuItem>
                   )}
-                  {currentUserId === comment.author_id && (
+                  {canDeleteComment && (
                     <DropdownMenuItem
                       className="text-red-400"
-                      onClick={() => setOpenDeleteDialog(true)} // ✅ 控制 state
+                      onClick={() => setOpenDeleteDialog(true)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       {t("comment_actions.delete")}
@@ -471,6 +476,7 @@ const CommentItem = ({
                   postSlug={postSlug}
                   depth={depth + 1}
                   currentUserId={currentUserId}
+                  isGroupOwner={isGroupOwner}
                 />
               ))}
             </div>
@@ -1055,6 +1061,7 @@ const PostDetailContent = ({
                     groupSlug={groupSlug}
                     postSlug={postSlug}
                     currentUserId={currentUserId}
+                    isGroupOwner={isGroupOwner}
                   />
                 ))
               : comments.map((comment) => (
@@ -1065,6 +1072,7 @@ const PostDetailContent = ({
                     postSlug={postSlug}
                     depth={0}
                     currentUserId={currentUserId}
+                    isGroupOwner={isGroupOwner}
                   />
                 ))}
           </div>

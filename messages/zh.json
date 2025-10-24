@@ -366,7 +366,9 @@
     "no_content_specified": "未指定内容类型",
     "lesson_suffix": "课时",
     "error_loading_quiz": "测验加载出错",
-    "quiz_load_error": "无法加载测验题目，请稍后再试。"
+    "quiz_load_error": "无法加载测验题目，请稍后再试。",
+    "image_lesson": "图片课程",
+    "loading_image": "正在加载图片..."
   },
   "ClassroomMistakeBookPage": {
     "metadata_title": "课堂错题本 | Studify",

@@ -63,11 +63,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is enrolled in the course or if it's a free course
+    // Use profile.id (bigint) instead of user.id (uuid) for course_enrollment
+    const profileId = user.profile?.id;
+    if (!profileId) {
+      return NextResponse.json(
+        { error: "User profile not found" },
+        { status: 404 }
+      );
+    }
+
     const { data: enrollment, error: enrollmentError } = await supabase
       .from("course_enrollment")
       .select("id")
       .eq("course_id", course.id)
-      .eq("user_id", user.id)
+      .eq("user_id", profileId)
       .eq("status", "active")
       .maybeSingle(); // Use maybeSingle() instead of single() to avoid error when no enrollment exists
 
@@ -75,6 +84,7 @@ export async function GET(request: NextRequest) {
     console.log("Enrollment check:", {
       courseId: course.id,
       userId: user.id,
+      profileId,
       enrollment,
       enrollmentError,
       isFree: course.is_free,
@@ -94,7 +104,7 @@ export async function GET(request: NextRequest) {
       const { error: insertError } = await supabase
         .from("course_enrollment")
         .insert({
-          user_id: user.id,
+          user_id: profileId,
           course_id: course.id,
           status: "active",
           started_at: new Date().toISOString(),

@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
         id,
         title,
         transcript,
+        content_url,
         course_module:module_id(
           title
         ),
@@ -77,6 +78,85 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const courseTitle = (lesson.course as any)?.title || 'Unknown Course';
+    const moduleTitle = (lesson.course_module as any)?.title || 'Unknown Module';
+    const lessonTitle = lesson.title || 'Unknown Lesson';
+
+    // Check if this is a YouTube/Vimeo video (external video)
+    const isExternalVideo = lesson.content_url && 
+      (lesson.content_url.includes('youtube.com') || 
+       lesson.content_url.includes('youtu.be') ||
+       lesson.content_url.includes('vimeo.com'));
+
+    // For YouTube/Vimeo videos, use direct AI without embeddings
+    if (isExternalVideo) {
+      console.log(`🎬 YouTube/Vimeo video detected - using direct AI without embeddings`);
+      
+      const courseContext = `课程：${courseTitle}
+章节：${moduleTitle}  
+课时：${lessonTitle}
+视频类型：外部视频 (YouTube/Vimeo)
+当前时间：${currentTime}秒`;
+
+      const directQuestion = `${courseContext}
+
+这是一个外部视频课程（YouTube/Vimeo），没有可用的字幕或转写文本。请基于课程标题和上下文，尽力回答学生的问题。
+
+学生问题：${question}
+
+请提供：
+1. 基于课程主题的相关解答
+2. 如果无法确定具体内容，建议学生查看视频的特定时间段
+3. 提供相关的学习建议和资源`;
+
+      const result = await enhancedAIExecutor.educationalQA(directQuestion, {
+        userId,
+        includeAnalysis: true
+      });
+
+      const answer = result.answer;
+      
+      console.log(`✅ Direct AI answer for external video completed`);
+
+      // Save QA history
+      await supabase
+        .from('video_qa_history')
+        .insert({
+          user_id: userId,
+          lesson_id: lesson.id,
+          question,
+          answer,
+          video_time: currentTime,
+          context_segments: null // No segments for external videos
+        });
+
+      return NextResponse.json({
+        success: true,
+        answer: answer.trim(),
+        isExternalVideo: true,
+        segments: [],
+        timeContext: {
+          currentTime,
+          startTime: 0,
+          endTime: 0,
+          windowSize: 0
+        },
+        courseInfo: {
+          courseName: courseTitle,
+          moduleName: moduleTitle,
+          lessonName: lessonTitle
+        },
+        note: "This is an external video (YouTube/Vimeo). The AI assistant provides general guidance based on course context."
+      }, {
+        headers: {
+          'X-RateLimit-Limit': limit.toString(),
+          'X-RateLimit-Remaining': remaining.toString(),
+          'X-RateLimit-Reset': resetTime.toString()
+        }
+      });
+    }
+
+    // For regular videos with embeddings/transcripts
     // 2. 从embedding系统检索相关视频片段
     let relevantSegments = [];
     const startTime = Math.max(0, currentTime - timeWindow);
@@ -116,10 +196,6 @@ export async function POST(request: NextRequest) {
       .map(seg => `[${Math.floor(seg.start_time)}s-${Math.floor(seg.end_time)}s] ${seg.text}`)
       .join('\n');
 
-    const courseTitle = (lesson.course as any)?.title || 'Unknown Course';
-    const moduleTitle = (lesson.course_module as any)?.title || 'Unknown Module';
-    const lessonTitle = lesson.title || 'Unknown Lesson';
-
     const courseContext = `课程：${courseTitle}
 章节：${moduleTitle}  
 课时：${lessonTitle}`;
@@ -153,7 +229,7 @@ Question: ${question}`;
         lesson_id: lesson.id,
         question,
         answer,
-        current_time: currentTime,
+        video_time: currentTime,
         context_segments: relevantSegments.map(s => ({
           start_time: s.start_time,
           end_time: s.end_time,

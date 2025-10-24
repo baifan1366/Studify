@@ -69,10 +69,10 @@ export function useUpdateCourseProgress() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-lesson', variables.lessonId] });
       
-      // Show success message based on progress
-      if (data.progress.progressPct >= 100) {
+      // Show success message based on progress - with null checks
+      if (data?.progress?.progressPct !== undefined && data.progress.progressPct >= 100) {
         toast.success(t('lesson_completed'));
-      } else {
+      } else if (data?.progress) {
         toast.success(t('progress_updated'));
       }
     },
@@ -124,10 +124,10 @@ export function useUpdateCourseProgressByLessonId() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-lesson', variables.lessonId] });
       
-      // Show success message based on progress
-      if (data.progress.progressPct >= 100) {
+      // Show success message based on progress - with null checks
+      if (data?.progress?.progressPct !== undefined && data.progress.progressPct >= 100) {
         toast.success(t('lesson_completed'));
-      } else {
+      } else if (data?.progress) {
         toast.success(t('progress_updated'));
       }
     },
@@ -153,10 +153,10 @@ export function useUpdateCourseProgressByProgressId() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-id', variables.progressId] });
       
-      // Show success message based on progress
-      if (data.progress.progressPct >= 100) {
+      // Show success message based on progress - with null checks
+      if (data?.progress?.progressPct !== undefined && data.progress.progressPct >= 100) {
         toast.success(t('lesson_completed'));
-      } else {
+      } else if (data?.progress) {
         toast.success(t('progress_updated'));
       }
     },

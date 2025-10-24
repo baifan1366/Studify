@@ -353,13 +353,31 @@ export default function CourseLearningContent({
   });
 
   // Get attachment ID from current lesson attachments (for all types with attachments)
+  // Skip loading attachment for external videos (YouTube/Vimeo)
   const attachmentId = React.useMemo(() => {
     if (!currentLesson || !currentLesson.attachments?.length) {
       return null;
     }
+
+    // For video lessons, check if it's an external video (YouTube/Vimeo)
+    if (currentLesson.kind === "video" && currentLesson.content_url) {
+      const url = currentLesson.content_url;
+      const isExternal =
+        url.includes("youtube.com") ||
+        url.includes("youtu.be") ||
+        url.includes("vimeo.com");
+      if (isExternal) {
+        return null; // Don't load attachment for YouTube/Vimeo
+      }
+    }
+
     // Use the first attachment ID
     return currentLesson.attachments[0];
-  }, [currentLesson]);
+  }, [
+    currentLesson?.kind,
+    currentLesson?.content_url,
+    currentLesson?.attachments?.[0],
+  ]);
 
   // Fetch attachment data if we have an attachment ID - only when needed
   const { data: attachment, isLoading: attachmentLoading } =
@@ -529,14 +547,27 @@ export default function CourseLearningContent({
     lessonId: "",
   });
 
+  // Track last save time to prevent duplicate saves
+  const lastSaveTimeRef = useRef(0);
+  const MIN_SAVE_INTERVAL = 5000; // Minimum 5 seconds between saves
+
   // Function to save current progress to database
   const saveCurrentProgress = React.useCallback(() => {
     const { currentTime, duration, lessonId } = currentProgressRef.current;
+    const now = Date.now();
+
+    // Prevent duplicate saves within MIN_SAVE_INTERVAL
+    if (now - lastSaveTimeRef.current < MIN_SAVE_INTERVAL) {
+      console.log(`⏭️ Skipping duplicate save (too soon)`);
+      return;
+    }
+
     if (lessonId && currentTime > 0 && duration > 0) {
       const progressPct = Math.min((currentTime / duration) * 100, 100);
 
       // Force save using trackProgress with force=true via ref
       trackProgressRef.current(currentTime, duration, true);
+      lastSaveTimeRef.current = now;
 
       console.log(
         `💾 Saved progress: ${Math.round(progressPct)}% at ${Math.round(
@@ -548,11 +579,12 @@ export default function CourseLearningContent({
 
   // Save progress when switching lessons
   useEffect(() => {
-    return () => {
-      // Save progress when lesson changes or component unmounts
+    // Save progress when lesson ID changes (but not on initial mount)
+    const prevLessonId = currentProgressRef.current.lessonId;
+    if (prevLessonId && prevLessonId !== currentLessonIdMemo) {
       saveCurrentProgress();
-    };
-  }, [currentLessonId]); // Remove saveCurrentProgress from deps to prevent infinite loop
+    }
+  }, [currentLessonIdMemo, saveCurrentProgress]);
 
   // Save progress on page unload/refresh
   useEffect(() => {
@@ -640,6 +672,15 @@ export default function CourseLearningContent({
   const handleLessonStart = () => {
     if (!currentLesson) return;
 
+    // Skip if already started or completed
+    if (
+      lessonProgress?.state === "in_progress" ||
+      lessonProgress?.state === "completed"
+    ) {
+      console.log(`⏭️ Lesson already ${lessonProgress.state}, skipping start`);
+      return;
+    }
+
     // Use enhanced progress tracking for video lessons
     if (currentLesson.kind === "video") {
       markAsStarted();
@@ -648,11 +689,12 @@ export default function CourseLearningContent({
     // Use PATCH endpoint which handles both create and update (upsert)
     updateProgressByLesson.mutate({
       lessonId: currentLesson.public_id,
-      progressPct: lessonProgress?.progressPct && lessonProgress.progressPct > 0 
-        ? lessonProgress.progressPct 
-        : 1,
+      progressPct:
+        lessonProgress?.progressPct && lessonProgress.progressPct > 0
+          ? lessonProgress.progressPct
+          : 1,
       timeSpentSec: lessonProgress?.timeSpentSec || 0,
-      state: 'in_progress',
+      state: "in_progress",
     });
   };
 
@@ -988,18 +1030,39 @@ export default function CourseLearningContent({
       {/* Content Display */}
       <div className="mb-6">
         {/* 1. Image with MEGA attachment - use MegaImage */}
-        {currentLesson?.kind === "image" && attachment?.url ? (
-          <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex items-center justify-center">
+        {currentLesson?.kind === "image" && attachmentId && attachment?.url ? (
+          <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex items-center justify-center min-h-[400px]">
             <MegaImage
               megaUrl={attachment.url}
               alt={currentLesson.title || t("LessonContent.image_lesson")}
               className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg"
             />
           </div>
-        ) : /* 2. Document/Assignment with MEGA attachment - use MegaDocumentPreview */
-        (currentLesson?.kind === "document" ||
-            currentLesson?.kind === "assignment") &&
-          attachment?.url ? (
+        ) : /* 1b. Image lesson but attachment is loading */
+        currentLesson?.kind === "image" && attachmentId && attachmentLoading ? (
+          <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
+            <div className="text-center text-white/60">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
+              <p className="text-xl">{t("LessonContent.loading_image")}</p>
+              <p className="text-sm mt-2">{currentLesson?.title}</p>
+            </div>
+          </div>
+        ) : /* 1c. Image lesson but no attachment found */
+        currentLesson?.kind === "image" && !attachmentId ? (
+          <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
+            <div className="text-center text-white/60">
+              <FileText size={64} className="mx-auto mb-4" />
+              <p className="text-xl">
+                {t("LessonContent.content_coming_soon")}
+              </p>
+              <p className="text-sm mt-2">{currentLesson?.title}</p>
+              <p className="text-xs mt-1 opacity-80">
+                {t("LessonContent.image_lesson")}
+              </p>
+            </div>
+          </div>
+        ) : /* 2. Document with MEGA attachment - use MegaDocumentPreview */
+        currentLesson?.kind === "document" && attachment?.url ? (
           <MegaDocumentPreview
             attachmentId={attachment.id}
             className="w-full min-h-[400px]"
@@ -1025,6 +1088,7 @@ export default function CourseLearningContent({
             poster={course?.thumbnail_url || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
+            videoDuration={currentLesson.duration_sec || undefined}
           />
         ) : /* Loading states */
         attachmentLoading ? (

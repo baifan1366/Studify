@@ -26,14 +26,28 @@ export function useStudySessionTracker({
   const accumulatedTimeRef = useRef(0); // In minutes
   const lastSaveRef = useRef<Date | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Store latest values in refs to avoid stale closures
+  const lessonIdRef = useRef(lessonId);
+  const courseIdRef = useRef(courseId);
+  const activityTypeRef = useRef(activityType);
+  const minDurationRef = useRef(minDuration);
+  
+  // Update refs when props change
+  useEffect(() => {
+    lessonIdRef.current = lessonId;
+    courseIdRef.current = courseId;
+    activityTypeRef.current = activityType;
+    minDurationRef.current = minDuration;
+  }, [lessonId, courseId, activityType, minDuration]);
 
   // Start tracking session
   const startSession = useCallback(() => {
     if (!sessionStartRef.current) {
       sessionStartRef.current = new Date();
-      console.log("📚 Study session started:", activityType);
+      console.log("📚 Study session started:", activityTypeRef.current);
     }
-  }, [activityType]);
+  }, []);
 
   // Stop and save session
   const stopSession = useCallback(async () => {
@@ -44,22 +58,22 @@ export function useStudySessionTracker({
       (sessionEnd.getTime() - sessionStartRef.current.getTime()) / 1000 / 60;
 
     // Only save if duration meets minimum threshold
-    if (durationMinutes >= minDuration) {
+    if (durationMinutes >= minDurationRef.current) {
       try {
         await createSession.mutateAsync({
-          lessonId: lessonId || undefined,
-          courseId: courseId || undefined,
+          lessonId: lessonIdRef.current || undefined,
+          courseId: courseIdRef.current || undefined,
           sessionStart: sessionStartRef.current.toISOString(),
           sessionEnd: sessionEnd.toISOString(),
           durationMinutes: Math.round(durationMinutes),
-          activityType,
+          activityType: activityTypeRef.current,
         });
 
         console.log(
           `✅ Study session saved: ${Math.round(durationMinutes)} minutes`,
           {
-            lessonId,
-            activityType,
+            lessonId: lessonIdRef.current,
+            activityType: activityTypeRef.current,
           }
         );
 
@@ -71,13 +85,13 @@ export function useStudySessionTracker({
       console.log(
         `⏭️ Session too short to record: ${durationMinutes.toFixed(
           1
-        )} min < ${minDuration} min`
+        )} min < ${minDurationRef.current} min`
       );
     }
 
     // Reset session
     sessionStartRef.current = null;
-  }, [lessonId, courseId, activityType, minDuration, createSession]);
+  }, [createSession]);
 
   // Periodic save (every 5 minutes)
   const saveProgress = useCallback(async () => {
@@ -94,17 +108,17 @@ export function useStudySessionTracker({
         (now.getTime() - lastSaveRef.current.getTime()) / 1000 / 60;
     }
 
-    if (durationToSave >= minDuration) {
+    if (durationToSave >= minDurationRef.current) {
       try {
         await createSession.mutateAsync({
-          lessonId: lessonId || undefined,
-          courseId: courseId || undefined,
+          lessonId: lessonIdRef.current || undefined,
+          courseId: courseIdRef.current || undefined,
           sessionStart:
             lastSaveRef.current?.toISOString() ||
             sessionStartRef.current.toISOString(),
           sessionEnd: now.toISOString(),
           durationMinutes: Math.round(durationToSave),
-          activityType,
+          activityType: activityTypeRef.current,
         });
 
         console.log(`💾 Progress saved: ${Math.round(durationToSave)} minutes`);
@@ -114,7 +128,7 @@ export function useStudySessionTracker({
         console.error("Failed to save progress:", error);
       }
     }
-  }, [lessonId, courseId, activityType, minDuration, createSession]);
+  }, [createSession]);
 
   // Auto-start session when lesson changes
   useEffect(() => {
@@ -134,7 +148,8 @@ export function useStudySessionTracker({
       }
       stopSession();
     };
-  }, [lessonId, autoStart, startSession, stopSession, saveProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, autoStart]); // Only re-run when lessonId or autoStart changes
 
   // Save on visibility change (user switches tabs)
   useEffect(() => {
@@ -148,7 +163,8 @@ export function useStudySessionTracker({
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [saveProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only set up once
 
   // Save on beforeunload (user closes tab/window)
   useEffect(() => {
@@ -158,7 +174,8 @@ export function useStudySessionTracker({
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [saveProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only set up once
 
   return {
     startSession,

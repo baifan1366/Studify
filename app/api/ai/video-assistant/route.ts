@@ -56,11 +56,50 @@ export async function POST(request: NextRequest) {
     console.log(`🎓 Video AI Assistant request from user ${userId}: "${question.substring(0, 50)}..."`);
     console.log(`📍 Context: Course=${videoContext.courseSlug}, Lesson=${videoContext.currentLessonId}, Time=${videoContext.currentTimestamp}s`);
 
+    // Check if this is a YouTube/Vimeo video by fetching lesson info
+    let isExternalVideo = false;
+    if (videoContext.currentLessonId) {
+      const { createAdminClient } = await import('@/utils/supabase/server');
+      const supabase = await createAdminClient();
+      
+      const { data: lesson } = await supabase
+        .from('course_lesson')
+        .select('content_url')
+        .eq('public_id', videoContext.currentLessonId)
+        .single();
+      
+      if (lesson?.content_url) {
+        isExternalVideo = lesson.content_url.includes('youtube.com') || 
+                         lesson.content_url.includes('youtu.be') ||
+                         lesson.content_url.includes('vimeo.com');
+      }
+    }
+
     // ✅ Use unified Tool Calling Agent instead of manual orchestration
     const startTime = Date.now();
     
     // Build context-aware question with video metadata
-    const contextualizedQuestion = `Video Learning Context:
+    let contextualizedQuestion = '';
+    
+    if (isExternalVideo) {
+      console.log(`🎬 External video detected - using direct AI without embeddings`);
+      contextualizedQuestion = `Video Learning Context (External Video - YouTube/Vimeo):
+- Course: ${videoContext.courseSlug}
+- Lesson: ${videoContext.currentLessonId || 'Not specified'}
+- Video timestamp: ${videoContext.currentTimestamp || 0} seconds
+${videoContext.selectedText ? `- Selected text: "${videoContext.selectedText}"` : ''}
+
+Note: This is an external video (YouTube/Vimeo) without available transcripts or embeddings.
+
+Student Question: ${question}
+
+Please provide a clear, educational answer that:
+1. Provides general guidance based on the course and lesson context
+2. Offers relevant learning suggestions and resources
+3. If specific video content is needed, suggest reviewing the video at the mentioned timestamp
+4. Encourages deeper understanding through related concepts`;
+    } else {
+      contextualizedQuestion = `Video Learning Context:
 - Course: ${videoContext.courseSlug}
 - Lesson: ${videoContext.currentLessonId || 'Not specified'}
 - Video timestamp: ${videoContext.currentTimestamp || 0} seconds
@@ -73,6 +112,7 @@ Please provide a clear, educational answer that:
 2. Uses course materials and lesson context
 3. Provides actionable learning suggestions
 4. Encourages deeper understanding`;
+    }
 
     const result = await enhancedAIExecutor.educationalQA(contextualizedQuestion, {
       userId,

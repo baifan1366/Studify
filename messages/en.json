@@ -366,7 +366,9 @@
     "no_content_specified": "No content type specified",
     "lesson_suffix": "lesson",
     "error_loading_quiz": "Error Loading Quiz",
-    "quiz_load_error": "Failed to load quiz questions. Please try again later."
+    "quiz_load_error": "Failed to load quiz questions. Please try again later.",
+    "image_lesson": "Image Lesson",
+    "loading_image": "Loading image..."
   },
   "ClassroomMistakeBookPage": {
     "metadata_title": "Classroom Mistake Book | Studify",

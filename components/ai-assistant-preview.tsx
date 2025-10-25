@@ -630,7 +630,6 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const quickQAMutation = useAIQuickQA();
   const t = useTranslations('AIAssistant');
   const { toast } = useToast();
@@ -638,21 +637,9 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // 获取当前用户ID
-  useEffect(() => {
-    const getUserId = async () => {
-      try {
-        const response = await fetch('/api/auth/me');
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data.user?.id);
-        }
-      } catch (error) {
-        console.error('Failed to get user ID:', error);
-      }
-    };
-    getUserId();
-  }, []);
+  // ✅ Use the centralized useUser hook instead of direct API call
+  const { data: user } = useUser();
+  const currentUserId = user?.profile?.id ? parseInt(user.profile.id) : null;
 
   // 改进的滚动逻辑
   const scrollToBottom = () => {

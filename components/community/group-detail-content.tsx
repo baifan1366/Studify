@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
-import { supabase } from "@/utils/supabase/client";
+import React from "react";
+import { useUser } from "@/hooks/profile/use-user";
 import {
   useGroup,
   useGroupPosts,
@@ -21,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useTranslations } from "next-intl";
 import {
   Users,
@@ -30,13 +28,12 @@ import {
   Settings,
   UserPlus,
   UserMinus,
-  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const GroupMemberList = ({ groupSlug }: { groupSlug: string }) => {
+const GroupMemberList = ({ groupSlug, currentUserId }: { groupSlug: string; currentUserId?: number | null }) => {
   const { members, isLoading } = useGroupMembers(groupSlug);
   const t = useTranslations("CommunityPostDetail");
 
@@ -59,43 +56,46 @@ const GroupMemberList = ({ groupSlug }: { groupSlug: string }) => {
             <Skeleton key={i} className="h-10 w-full bg-white/10 rounded-lg" />
           ))
         ) : members && members.length > 0 ? (
-          members.slice(0, 10).map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-            >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Avatar className="h-8 w-8 flex-shrink-0">
-                  <AvatarImage
-                    src={member.user?.avatar_url}
-                    alt={member.user?.display_name}
-                  />
-                  <AvatarFallback className="bg-blue-500/20 text-blue-300">
-                    {member.user?.display_name?.[0] || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-white text-sm truncate">
-                    {member.user?.display_name || `User #${member.user_id}`}
-                  </h4>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs px-1.5 py-0 ${
-                        member.role === "owner"
+          members.slice(0, 10).map((member) => {
+            const isCurrentUser = currentUserId && member.user_id === currentUserId;
+            return (
+              <div
+                key={member.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    <AvatarImage
+                      src={member.user?.avatar_url}
+                      alt={member.user?.display_name}
+                    />
+                    <AvatarFallback className="bg-blue-500/20 text-blue-300">
+                      {member.user?.display_name?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-white text-sm truncate">
+                      {member.user?.display_name || `User #${member.user_id}`}
+                      {isCurrentUser && <span className="text-green-400 ml-2">({t('you_badge')})</span>}
+                    </h4>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs px-1.5 py-0 ${member.role === "owner"
                           ? "border-yellow-400 text-yellow-400"
                           : member.role === "admin"
-                          ? "border-purple-400 text-purple-400"
-                          : "border-gray-400 text-gray-400"
-                      }`}
-                    >
-                      {member.role}
-                    </Badge>
+                            ? "border-purple-400 text-purple-400"
+                            : "border-gray-400 text-gray-400"
+                          }`}
+                      >
+                        {member.role}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="text-center py-6">
             <p className="text-gray-400 text-sm">No members found</p>
@@ -119,24 +119,10 @@ export default function GroupDetailContent({
   groupSlug: string;
 }) {
   const t = useTranslations("CommunityContent");
-  const th = useTranslations("Header");
-  const [user, setUser] = useState<User | null>(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    fetchUser();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+  // ✅ Use the centralized useUser hook instead of direct Supabase calls
+  const { data: user } = useUser();
+  const profileId = user?.profile?.id ? parseInt(user.profile.id) : null;
 
   const {
     group,
@@ -146,11 +132,8 @@ export default function GroupDetailContent({
   } = useGroup(groupSlug);
   const {
     posts,
-    isLoading: postsLoading,
-    isError: postsError,
     createPost,
     isCreatingPost,
-    createPostError,
   } = useGroupPosts(groupSlug);
   const { joinGroup, isJoining, leaveGroup, isLeaving } =
     useGroupMembers(groupSlug);
@@ -260,7 +243,7 @@ export default function GroupDetailContent({
             {/* Header */}
             <Card className="bg-white/5 border-white/10">
               <CardHeader>
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <CardTitle className="text-white flex items-center gap-2 text-2xl">
                       {group.visibility === "private" ? (
@@ -294,6 +277,30 @@ export default function GroupDetailContent({
                       </Button>
                     )}
                   </div>
+                </div>
+
+                {/* Join/Leave Group Buttons - Bottom Right */}
+                <div className="flex justify-end">
+                  {!group.user_membership ? (
+                    <Button
+                      onClick={handleJoinGroup}
+                      disabled={isJoining}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      {isJoining ? t("joining") : t("join_group")}
+                    </Button>
+                  ) : group.user_membership.role !== "owner" ? (
+                    <Button
+                      variant="outline"
+                      onClick={handleLeaveGroup}
+                      disabled={isLeaving}
+                      className="border-red-400/50 text-red-400 hover:bg-red-500/10"
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" />
+                      {isLeaving ? t("leaving") : t("leave")}
+                    </Button>
+                  ) : null}
                 </div>
               </CardHeader>
             </Card>
@@ -335,7 +342,7 @@ export default function GroupDetailContent({
 
       {/* ✅ 右侧边栏：GroupMemberList */}
       <div className="space-y-6">
-        <GroupMemberList groupSlug={groupSlug} />
+        <GroupMemberList groupSlug={groupSlug} currentUserId={profileId} />
       </div>
     </div>
   );

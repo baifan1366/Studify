@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl';
 import { useMessages, useSendMessage, useMarkAsRead, useEditMessage, useDeleteMessage, Message } from '@/hooks/chat/use-chat';
 import { useChatUpload } from '@/hooks/chat/use-chat-upload';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Send, 
-  Paperclip, 
-  Smile, 
-  Image as ImageIcon, 
+import {
+  Send,
+  Paperclip,
+  Smile,
+  Image as ImageIcon,
   File,
   Download,
   MoreVertical,
@@ -88,7 +88,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   // Profile modal state
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  
+
   // Fetch profile data using the hook
   const { data: selectedProfile, isLoading: isProfileLoading, error: profileError } = useProfile(selectedUserId);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -97,6 +97,12 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Anti-spam protection
+  const [isSending, setIsSending] = useState(false);
+  const lastSendTimeRef = useRef<number>(0);
+  const sendCooldownMs = 500; // 500ms cooldown between sends
+  const lastMessageContentRef = useRef<string>(''); // Track last sent message to prevent duplicates
 
   // Use chat hooks
   const { data: messagesData, isLoading: isLoadingMessages, refetch: refetchMessages } = useMessages(conversationId);
@@ -119,30 +125,65 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
 
   const handleSendMessage = async () => {
     const trimmedMessage = newMessage.trim();
-    
+
     // Handle editing mode
     if (editingMessageId) {
       if (!trimmedMessage) return;
-      
+
+      // Prevent spam during editing
+      if (isSending) {
+        console.log('Edit already in progress, ignoring...');
+        return;
+      }
+
+      setIsSending(true);
+
       try {
         await editMessageMutation.mutateAsync({
           conversationId,
           messageId: editingMessageId,
           content: trimmedMessage,
         });
-        
+
         // Exit editing mode
         setEditingMessageId(null);
         setEditingContent('');
         setNewMessage('');
       } catch (error) {
         console.error('Failed to edit message:', error);
+      } finally {
+        setIsSending(false);
       }
       return;
     }
-    
+
     // Handle normal sending
     if (!trimmedMessage && !selectedFile) return;
+
+    // Anti-spam protection: Check if already sending
+    if (isSending) {
+      console.log('Message send already in progress, ignoring...');
+      return;
+    }
+
+    // Anti-spam protection: Check cooldown period
+    const now = Date.now();
+    const timeSinceLastSend = now - lastSendTimeRef.current;
+    if (timeSinceLastSend < sendCooldownMs) {
+      console.log(`Cooldown active. Please wait ${sendCooldownMs - timeSinceLastSend}ms`);
+      return;
+    }
+
+    // Anti-spam protection: Prevent duplicate messages
+    if (trimmedMessage === lastMessageContentRef.current && timeSinceLastSend < 2000) {
+      console.log('Duplicate message detected within 2 seconds, ignoring...');
+      return;
+    }
+
+    // Mark as sending
+    setIsSending(true);
+    lastSendTimeRef.current = now;
+    lastMessageContentRef.current = trimmedMessage;
 
     try {
       // Handle file upload
@@ -151,7 +192,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
           conversationId,
           customMessage: trimmedMessage || undefined,
         });
-        
+
         setNewMessage('');
         setSelectedFile(null);
         return;
@@ -169,18 +210,30 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
           conversationId,
           data: messageData,
         });
-        
+
         setNewMessage('');
         setReplyingToMessage(null); // Clear reply state
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      // On error, allow retry immediately
+      lastSendTimeRef.current = 0;
+    } finally {
+      // Re-enable sending after completion or error
+      setIsSending(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+
+      // Prevent sending if already in progress
+      if (isSending) {
+        console.log('Message send in progress, Enter key ignored');
+        return;
+      }
+
       handleSendMessage();
     } else if (e.key === 'Escape' && editingMessageId) {
       // Cancel editing on Escape
@@ -246,7 +299,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
     if (message.isDeleted) {
       return;
     }
-    
+
     setEditingMessageId(message.id);
     setEditingContent(message.content);
     setNewMessage(message.content);
@@ -293,7 +346,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
       console.error('Message not found for sender:', senderId);
       return;
     }
-    
+
     // Set the user ID to fetch profile data
     setSelectedUserId(senderId);
     setIsProfileModalOpen(true);
@@ -340,112 +393,112 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
-        <div className="space-y-4">
-          {isLoadingMessages ? (
-            // Show skeleton while loading
-            <>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <MessageSkeleton key={i} isFromMe={i % 3 === 0} />
-              ))}
-            </>
-          ) : messages.length === 0 ? (
-            // Show empty state
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No messages yet</p>
-                <p className="text-xs mt-1">Start the conversation!</p>
-              </div>
-            </div>
-          ) : (
-            messages.map((message, index) => {
-            const timestampGroup = timestampGroups.get(message.id);
-            
-            return (
-              <div key={message.id}>
-                {/* Date Separator */}
-                <MessageTimestamp
-                  timestamp={new Date(message.timestamp)}
-                  showTimestamp={false}
-                  showDateSeparator={timestampGroup?.showDateSeparator}
-                  dateSeparatorText={timestampGroup?.dateSeparatorText}
-                />
-
-                {/* Message */}
-                <div className={cn(
-                  'flex gap-3 mb-4 group',
-                  message.isFromMe ? 'justify-end' : 'justify-start'
-                )}>
-                  <div className="flex items-start gap-2 w-full max-w-xs lg:max-w-md">
-                    {/* Message Bubble */}
-                    <div className={cn(
-                      "flex-1",
-                      editingMessageId === message.id && 'ring-2 ring-yellow-400 rounded-lg'
-                    )}>
-                      <MessageBubble 
-                        message={message} 
-                        className={cn(
-                          timestampGroup?.showTimestamp && "mb-2"
-                        )}
-                        onReply={handleReplyToMessage}
-                        onProfileClick={handleProfileClick}
-                      />
-                      
-                      {/* Timestamp */}
-                      {timestampGroup?.showTimestamp && (
-                        <MessageTimestamp
-                          timestamp={new Date(message.timestamp)}
-                          showTimestamp={true}
-                          showDateSeparator={false}
-                          className={cn(
-                            'mt-1',
-                            message.isFromMe ? 'text-right' : 'text-left'
-                          )}
-                        />
-                      )}
-                    </div>
-
-                    {/* Edit/Delete Menu - Only show for own messages and not deleted */}
-                    {message.isFromMe && !message.isDeleted && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem 
-                            onClick={() => handleEditMessage(message)}
-                            className="cursor-pointer"
-                          >
-                            <span>Edit</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteMessage(message.id)}
-                            className="cursor-pointer text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer">
-                            <span>Forward</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
+          <div className="space-y-4">
+            {isLoadingMessages ? (
+              // Show skeleton while loading
+              <>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <MessageSkeleton key={i} isFromMe={i % 3 === 0} />
+                ))}
+              </>
+            ) : messages.length === 0 ? (
+              // Show empty state
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="text-center">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs mt-1">Start the conversation!</p>
                 </div>
               </div>
-            );
-          })
-          )}
+            ) : (
+              messages.map((message, index) => {
+                const timestampGroup = timestampGroups.get(message.id);
 
-          <div ref={messagesEndRef} />
-        </div>
+                return (
+                  <div key={message.id}>
+                    {/* Date Separator */}
+                    <MessageTimestamp
+                      timestamp={new Date(message.timestamp)}
+                      showTimestamp={false}
+                      showDateSeparator={timestampGroup?.showDateSeparator}
+                      dateSeparatorText={timestampGroup?.dateSeparatorText}
+                    />
+
+                    {/* Message */}
+                    <div className={cn(
+                      'flex gap-3 mb-4 group',
+                      message.isFromMe ? 'justify-end' : 'justify-start'
+                    )}>
+                      <div className="flex items-start gap-2 w-full max-w-xs lg:max-w-md">
+                        {/* Message Bubble */}
+                        <div className={cn(
+                          "flex-1",
+                          editingMessageId === message.id && 'ring-2 ring-yellow-400 rounded-lg'
+                        )}>
+                          <MessageBubble
+                            message={message}
+                            className={cn(
+                              timestampGroup?.showTimestamp && "mb-2"
+                            )}
+                            onReply={handleReplyToMessage}
+                            onProfileClick={handleProfileClick}
+                          />
+
+                          {/* Timestamp */}
+                          {timestampGroup?.showTimestamp && (
+                            <MessageTimestamp
+                              timestamp={new Date(message.timestamp)}
+                              showTimestamp={true}
+                              showDateSeparator={false}
+                              className={cn(
+                                'mt-1',
+                                message.isFromMe ? 'text-right' : 'text-left'
+                              )}
+                            />
+                          )}
+                        </div>
+
+                        {/* Edit/Delete Menu - Only show for own messages and not deleted */}
+                        {message.isFromMe && !message.isDeleted && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem
+                                onClick={() => handleEditMessage(message)}
+                                className="cursor-pointer"
+                              >
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteMessage(message.id)}
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="cursor-pointer">
+                                <span>Forward</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
         </ScrollArea>
       </div>
 
@@ -460,9 +513,9 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
           <div className="px-3 py-2 mb-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
             <div className="flex items-center justify-between">
               <span>✏️ Editing message</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleCancelEdit}
                 className="h-6 px-2 text-xs"
               >
@@ -491,9 +544,9 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                   )}
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleCancelReply}
                 className="h-6 w-6 p-0 flex-shrink-0"
               >
@@ -502,15 +555,13 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
             </div>
           </div>
         )}
-        
+
         <motion.div
-          className={`rounded-2xl border transition-all duration-200 relative ${
-            isFocused 
-              ? 'border-primary shadow-md' 
-              : 'border-border hover:border-primary/50'
-          } ${isDragOver ? 'border-primary bg-primary/5' : ''} ${
-            editingMessageId ? 'border-yellow-400 shadow-lg' : ''
-          }`}
+          className={`rounded-2xl border transition-all duration-200 relative ${isFocused
+            ? 'border-primary shadow-md'
+            : 'border-border hover:border-primary/50'
+            } ${isDragOver ? 'border-primary bg-primary/5' : ''} ${editingMessageId ? 'border-yellow-400 shadow-lg' : ''
+            }`}
         >
           {/* File Preview */}
           {selectedFile && (
@@ -523,7 +574,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                     <File className="w-4 h-4 text-gray-500" />
                   )}
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">
                     {selectedFile.name}
@@ -532,7 +583,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                     {formatFileSize(selectedFile.size)}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-1">
                   {/* Download button */}
                   <button
@@ -551,7 +602,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                   >
                     <Download className="w-3 h-3" />
                   </button>
-                  
+
                   {/* Remove button */}
                   <button
                     onClick={() => setSelectedFile(null)}
@@ -573,45 +624,50 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
               onKeyPress={handleKeyPress}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              disabled={isSending || isUploading}
               placeholder={
-                editingMessageId 
-                  ? "Edit your message..." 
-                  : replyingToMessage
-                    ? `Reply to ${replyingToMessage.senderName}...`
-                    : selectedFile 
-                      ? "Add a message (optional)..." 
-                      : "Type a message..."
+                isSending || isUploading
+                  ? "Sending..."
+                  : editingMessageId
+                    ? "Edit your message..."
+                    : replyingToMessage
+                      ? `Reply to ${replyingToMessage.senderName}...`
+                      : selectedFile
+                        ? "Add a message (optional)..."
+                        : "Type a message..."
               }
-              className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-sm"
+              className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               maxLength={500}
             />
-            
+
             {/* Attachment button */}
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 rounded-full transition-colors mr-1"
+              disabled={isSending || isUploading}
+              className="p-1.5 rounded-full transition-colors mr-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isSending || isUploading ? "Please wait..." : "Attach file"}
             >
               <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
-            
+
             <AnimatePresence>
               {(newMessage.trim().length > 0 || selectedFile) && (
                 <motion.button
                   onClick={handleSendMessage}
-                  disabled={sendMessageMutation.isPending || editMessageMutation.isPending}
+                  disabled={isSending || sendMessageMutation.isPending || editMessageMutation.isPending || isUploading}
                   className={cn(
-                    "ml-1 p-2 text-primary-foreground rounded-full shadow-md disabled:opacity-50",
-                    editingMessageId 
-                      ? "bg-gradient-to-r from-green-500 to-green-600" 
+                    "ml-1 p-2 text-primary-foreground rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed",
+                    editingMessageId
+                      ? "bg-gradient-to-r from-green-500 to-green-600"
                       : "bg-gradient-to-r from-primary to-primary/80"
                   )}
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   exit={{ scale: 0, rotate: 180 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: isSending ? 1 : 1.05 }}
+                  whileTap={{ scale: isSending ? 1 : 0.95 }}
                 >
-                  {(sendMessageMutation.isPending || editMessageMutation.isPending) ? (
+                  {(isSending || sendMessageMutation.isPending || editMessageMutation.isPending || isUploading) ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : editingMessageId ? (
                     <Save className="w-4 h-4" />

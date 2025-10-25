@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
 /**
  * Chat Messages Attachment API
@@ -16,6 +17,26 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = authResult.sub;
+    
+    // Apply rate limiting for attachments
+    const checkLimit = createRateLimitCheck('chatAttachment');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId);
+    
+    if (!allowed) {
+      const response = rateLimitResponse(resetTime, limit);
+      return NextResponse.json(
+        { 
+          error: response.error,
+          message: 'Please wait before uploading another file.',
+          retryAfter: response.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: response.headers
+        }
+      );
+    }
+    
     const supabase = await createAdminClient();
 
     // Get user's profile ID

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       
       // 如果RPC函数不存在，使用备用查询
       const { data: pointsData, error: fallbackError } = await supabase
-        .from('points_history')
+        .from('community_points_ledger')
         .select(`
           user_id,
           points,
@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
           )
         `)
         .gte('created_at', weekStart.toISOString())
-        .gt('points', 0);
+        .gt('points', 0)
+        .eq('is_deleted', false);
 
       if (fallbackError) {
         throw fallbackError;

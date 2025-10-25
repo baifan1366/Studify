@@ -289,7 +289,7 @@ export function useVideoProgressTracker(
 // Hook for continue watching actions
 export function useContinueWatchingActions() {
   const generateContinueWatchingUrl = (item: ContinueWatchingItem): string => {
-    return `/course/${item.course_slug}/learn?lesson=${item.lesson_public_id}&t=${item.video_position_sec}`;
+    return `/courses/${item.course_slug}/learn?lesson=${item.lesson_public_id}&t=${item.video_position_sec}`;
   };
   
   const formatProgress = (progressPct: number): string => {

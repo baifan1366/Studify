@@ -5092,7 +5092,7 @@ CREATE OR REPLACE FUNCTION get_weekly_leaderboard(
   result_limit INTEGER DEFAULT 10
 )
 RETURNS TABLE (
-  user_id UUID,
+  user_id BIGINT,
   public_id TEXT,
   display_name TEXT,
   avatar_url TEXT,
@@ -5102,16 +5102,17 @@ BEGIN
   RETURN QUERY
   SELECT 
     p.id AS user_id,
-    p.public_id,
+    p.public_id::TEXT,
     p.display_name,
     p.avatar_url,
-    COALESCE(SUM(ph.points), 0)::BIGINT AS total_points
+    COALESCE(SUM(cpl.points), 0)::BIGINT AS total_points
   FROM profiles p
-  LEFT JOIN points_history ph ON ph.user_id = p.id 
-    AND ph.created_at >= week_start
-    AND ph.points > 0
+  LEFT JOIN community_points_ledger cpl ON cpl.user_id = p.id 
+    AND cpl.created_at >= week_start
+    AND cpl.points > 0
+    AND cpl.is_deleted = false
   GROUP BY p.id, p.public_id, p.display_name, p.avatar_url
-  HAVING COALESCE(SUM(ph.points), 0) > 0
+  HAVING COALESCE(SUM(cpl.points), 0) > 0
   ORDER BY total_points DESC
   LIMIT result_limit;
 END;

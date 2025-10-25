@@ -349,7 +349,7 @@ export default function CourseLearningContent({
 
   const { comments, addComment } = useVideoComments({
     videoId: currentLessonId, // Pass null when no lesson is selected (hook will handle it)
-    userId: user?.id,
+    userId: user?.profile?.id?.toString(), // Pass profile ID for proper user identification
   });
 
   // Get attachment ID from current lesson attachments (for all types with attachments)
@@ -794,8 +794,8 @@ export default function CourseLearningContent({
       addDanmaku(message, 0.5, {
         color: "#FFFFFF",
         size: "medium",
-        userId: user?.id || "anonymous",
-        username: user?.email?.split("@")[0] || "匿名用户",
+        userId: user?.profile?.id?.toString() || "anonymous",
+        username: user?.profile?.full_name || user?.profile?.display_name || user?.email?.split("@")[0] || "匿名用户",
       });
     }
   };
@@ -1038,7 +1038,20 @@ export default function CourseLearningContent({
               className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg"
             />
           </div>
-        ) : /* 1b. Image lesson but attachment is loading */
+        ) : /* 1b. Image lesson with external URL (not MEGA) */
+        currentLesson?.kind === "image" && !attachmentId && currentLesson?.content_url ? (
+          <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex items-center justify-center min-h-[400px]">
+            <img
+              src={currentLesson.content_url}
+              alt={currentLesson.title || t("LessonContent.image_lesson")}
+              className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg"
+              onError={(e) => {
+                console.error("Failed to load image:", currentLesson.content_url);
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
+        ) : /* 1c. Image lesson but attachment is loading */
         currentLesson?.kind === "image" && attachmentId && attachmentLoading ? (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
@@ -1047,8 +1060,8 @@ export default function CourseLearningContent({
               <p className="text-sm mt-2">{currentLesson?.title}</p>
             </div>
           </div>
-        ) : /* 1c. Image lesson but no attachment found */
-        currentLesson?.kind === "image" && !attachmentId ? (
+        ) : /* 1d. Image lesson but no attachment or URL found */
+        currentLesson?.kind === "image" ? (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">
             <div className="text-center text-white/60">
               <FileText size={64} className="mx-auto mb-4" />

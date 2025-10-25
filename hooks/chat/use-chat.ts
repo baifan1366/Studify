@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiSend } from '@/lib/api-config';
+import { toast } from 'sonner';
 
 // Chat interfaces
 export interface Conversation {
@@ -115,11 +116,11 @@ export function useMessages(
   }
 ) {
   const queryParams = new URLSearchParams();
-  
+
   if (options?.limit) {
     queryParams.set('limit', options.limit.toString());
   }
-  
+
   if (options?.offset) {
     queryParams.set('offset', options.offset.toString());
   }
@@ -140,13 +141,13 @@ export function useMessages(
  */
 export function useSendMessage() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      conversationId, 
-      data 
-    }: { 
-      conversationId: string; 
+    mutationFn: async ({
+      conversationId,
+      data
+    }: {
+      conversationId: string;
       data: SendMessageRequest;
     }) => {
       return await apiSend({
@@ -158,10 +159,10 @@ export function useSendMessage() {
     onMutate: async ({ conversationId, data }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['messages', conversationId] });
-      
+
       // Snapshot the previous value
       const previousMessages = queryClient.getQueryData(['messages', conversationId]);
-      
+
       // Optimistically update to the new value
       const optimisticMessage: Message = {
         id: `temp_${Date.now()}`,
@@ -179,7 +180,7 @@ export function useSendMessage() {
         replyToId: data.reply_to_id,
         replyTo: data.reply_to_id ? undefined : undefined, // Will be populated by frontend if needed
       };
-      
+
       queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
         if (!old) return old;
         return {
@@ -187,7 +188,7 @@ export function useSendMessage() {
           messages: [...old.messages, optimisticMessage],
         };
       });
-      
+
       // Return a context object with the snapshotted value
       return { previousMessages, optimisticMessage };
     },
@@ -203,12 +204,12 @@ export function useSendMessage() {
         if (!old) return old;
         return {
           ...old,
-          messages: old.messages.map(msg => 
+          messages: old.messages.map(msg =>
             msg.id === context?.optimisticMessage.id ? (data as any).message : msg
           ),
         };
       });
-      
+
       // Invalidate conversations to update last message
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
@@ -224,7 +225,7 @@ export function useSendMessage() {
  */
 export function useCreateConversation() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: { participant_id: string; message?: string }) => {
       console.log('Sending conversation creation request:', data);
@@ -239,11 +240,11 @@ export function useCreateConversation() {
     onSuccess: (data) => {
       console.log('Conversation created successfully:', data);
       console.log('Updating cache with new conversation...');
-      
+
       // Add the new conversation to the cache optimistically
       queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
         console.log('Current cache data:', old);
-        
+
         if (!old) {
           // If no existing data, create new structure
           const newData = {
@@ -258,7 +259,7 @@ export function useCreateConversation() {
           console.log('Created new cache data:', newData);
           return newData;
         }
-        
+
         const updatedData = {
           ...old,
           conversations: [(data as any).conversation, ...old.conversations],
@@ -270,7 +271,7 @@ export function useCreateConversation() {
         console.log('Updated existing cache data:', updatedData);
         return updatedData;
       });
-      
+
       // Invalidate and refetch conversations from database
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
@@ -285,11 +286,11 @@ export function useCreateConversation() {
  */
 export function useMarkAsRead() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ conversationId }: { conversationId: string }) => {
       console.log('Marking conversation as read:', conversationId);
-      
+
       const response = await fetch(`/api/chat/conversations/${conversationId}/read`, {
         method: 'POST',
         headers: {
@@ -308,20 +309,20 @@ export function useMarkAsRead() {
       // Update conversation in cache to mark as read
       queryClient.setQueryData(['conversations'], (old: any) => {
         if (!old?.conversations) return old;
-        
+
         return {
           ...old,
-          conversations: old.conversations.map((conv: any) => 
-            conv.id === conversationId 
+          conversations: old.conversations.map((conv: any) =>
+            conv.id === conversationId
               ? { ...conv, unreadCount: 0 }
               : conv
           ),
         };
       });
-      
+
       // Invalidate messages to refresh read status
-      queryClient.invalidateQueries({ 
-        queryKey: ['messages', conversationId] 
+      queryClient.invalidateQueries({
+        queryKey: ['messages', conversationId]
       });
     },
   });
@@ -333,7 +334,7 @@ export function useMarkAsRead() {
  */
 export function useRealtimeMessages(conversationId: string | undefined) {
   const queryClient = useQueryClient();
-  
+
   // TODO: Implement real-time subscriptions
   // useEffect(() => {
   //   if (!conversationId) return;
@@ -368,14 +369,14 @@ export function useRealtimeMessages(conversationId: string | undefined) {
  */
 export function useEditMessage() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      conversationId, 
-      messageId, 
-      content 
-    }: { 
-      conversationId: string; 
+    mutationFn: async ({
+      conversationId,
+      messageId,
+      content
+    }: {
+      conversationId: string;
       messageId: string;
       content: string;
     }) => {
@@ -388,23 +389,23 @@ export function useEditMessage() {
     onMutate: async ({ conversationId, messageId, content }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['messages', conversationId] });
-      
+
       // Snapshot the previous value
       const previousMessages = queryClient.getQueryData(['messages', conversationId]);
-      
+
       // Optimistically update the message
       queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          messages: old.messages.map(msg => 
-            msg.id === messageId 
+          messages: old.messages.map(msg =>
+            msg.id === messageId
               ? { ...msg, content, isEdited: true }
               : msg
           ),
         };
       });
-      
+
       // Return a context object with the snapshotted value
       return { previousMessages };
     },
@@ -413,6 +414,7 @@ export function useEditMessage() {
       if (context?.previousMessages) {
         queryClient.setQueryData(['messages', conversationId], context.previousMessages);
       }
+      toast.error('Failed to edit message');
     },
     onSuccess: (data, { conversationId, messageId }) => {
       // Update with server response
@@ -420,12 +422,12 @@ export function useEditMessage() {
         if (!old) return old;
         return {
           ...old,
-          messages: old.messages.map(msg => 
+          messages: old.messages.map(msg =>
             msg.id === messageId ? (data as any).message : msg
           ),
         };
       });
-      
+
       // Update conversations cache if this was the last message
       queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
         if (!old) return old;
@@ -449,6 +451,8 @@ export function useEditMessage() {
           }),
         };
       });
+
+      toast.success('Message edited successfully');
     },
     onSettled: (data, error, { conversationId }) => {
       // Always refetch after error or success
@@ -462,13 +466,13 @@ export function useEditMessage() {
  */
 export function useDeleteMessage() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      conversationId, 
-      messageId 
-    }: { 
-      conversationId: string; 
+    mutationFn: async ({
+      conversationId,
+      messageId
+    }: {
+      conversationId: string;
       messageId: string;
     }) => {
       return await apiSend({
@@ -479,23 +483,23 @@ export function useDeleteMessage() {
     onMutate: async ({ conversationId, messageId }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['messages', conversationId] });
-      
+
       // Snapshot the previous value
       const previousMessages = queryClient.getQueryData(['messages', conversationId]);
-      
+
       // Optimistically mark the message as deleted (soft delete)
       queryClient.setQueryData(['messages', conversationId], (old: MessagesResponse | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          messages: old.messages.map(msg => 
-            msg.id === messageId 
+          messages: old.messages.map(msg =>
+            msg.id === messageId
               ? { ...msg, isDeleted: true, deletedAt: new Date().toISOString() }
               : msg
           ),
         };
       });
-      
+
       // Return a context object with the snapshotted value
       return { previousMessages };
     },
@@ -504,11 +508,12 @@ export function useDeleteMessage() {
       if (context?.previousMessages) {
         queryClient.setQueryData(['messages', conversationId], context.previousMessages);
       }
+      toast.error('Failed to delete message');
     },
     onSuccess: (data, { conversationId, messageId }) => {
       // Keep the message in cache but mark as deleted (already done optimistically)
       // No need to update cache again since it's already done in onMutate
-      
+
       // Update conversations cache if the deleted message was the last message
       queryClient.setQueryData(['conversations'], (old: ConversationsResponse | undefined) => {
         if (!old) return old;
@@ -524,9 +529,11 @@ export function useDeleteMessage() {
           }),
         };
       });
-      
+
       // Invalidate conversations to update last message
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
+      toast.success('Message deleted successfully');
     },
     onSettled: (data, error, { conversationId }) => {
       // Always refetch after error or success

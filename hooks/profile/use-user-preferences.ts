@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export interface UserPreferences {
   weekly_study_goal_hours: number;
@@ -47,6 +48,7 @@ export function useUserPreferences() {
 // 更新用户偏好设置
 export function useUpdateUserPreferences() {
   const queryClient = useQueryClient();
+  const t = useTranslations('ProfileContent');
 
   return useMutation({
     mutationFn: async (data: UpdatePreferencesArgs) => {
@@ -59,7 +61,7 @@ export function useUpdateUserPreferences() {
       queryClient.invalidateQueries({ queryKey: ['user'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       
-      toast.success('Preferences updated successfully!');
+      toast.success(t('preferences_updated'));
     },
     onError: (error: any) => {
       console.error('Error updating preferences:', error);
@@ -72,6 +74,7 @@ export function useUpdateUserPreferences() {
 // 快捷函数：仅更新学习偏好
 export function useUpdateLearningPreferences() {
   const queryClient = useQueryClient();
+  const t = useTranslations('ProfileContent');
 
   return useMutation({
     mutationFn: async (preferences: Partial<UserPreferences>) => {
@@ -84,7 +87,7 @@ export function useUpdateLearningPreferences() {
       queryClient.invalidateQueries({ queryKey: ['user'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       
-      toast.success('Learning preferences updated successfully!');
+      toast.success(t('learning_preferences_updated'));
     },
     onError: (error: any) => {
       console.error('Error updating learning preferences:', error);
@@ -97,6 +100,7 @@ export function useUpdateLearningPreferences() {
 // 快捷函数：设置每周学习目标
 export function useSetWeeklyStudyGoal() {
   const updateMutation = useUpdateLearningPreferences();
+  const t = useTranslations('ProfileContent');
 
   return useMutation({
     mutationFn: async (hours: number) => {
@@ -106,7 +110,7 @@ export function useSetWeeklyStudyGoal() {
       return updateMutation.mutateAsync({ weekly_study_goal_hours: hours });
     },
     onSuccess: () => {
-      toast.success('Weekly study goal updated!');
+      toast.success(t('weekly_goal_updated'));
     },
     onError: (error: any) => {
       console.error('Error setting weekly goal:', error);
@@ -118,6 +122,7 @@ export function useSetWeeklyStudyGoal() {
 // 快捷函数：设置每日学习目标
 export function useSetDailyStudyGoal() {
   const updateMutation = useUpdateLearningPreferences();
+  const t = useTranslations('ProfileContent');
 
   return useMutation({
     mutationFn: async (minutes: number) => {
@@ -127,7 +132,7 @@ export function useSetDailyStudyGoal() {
       return updateMutation.mutateAsync({ daily_study_goal_minutes: minutes });
     },
     onSuccess: () => {
-      toast.success('Daily study goal updated!');
+      toast.success(t('daily_goal_updated'));
     },
     onError: (error: any) => {
       console.error('Error setting daily goal:', error);

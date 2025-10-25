@@ -76,6 +76,26 @@ export default function CoursesContent() {
   const uiCourses = useMemo(() => {
     return (courses ?? []).map((c, idx) => {
       const isEnrolled = enrolledCourseIds.has(c.id);
+      const courseCurrency = c.currency || 'MYR'; // Get the course's original currency
+      
+      // Format price with proper currency conversion
+      let formattedPrice = 'Free';
+      if (c.price_cents && c.price_cents > 0) {
+        if (currencies && currencies.length > 0) {
+          // Convert from course currency to user's preferred currency
+          formattedPrice = convertAndFormatPrice(
+            c.price_cents, 
+            courseCurrency,  // Source currency (from database)
+            currency,        // Target currency (user preference)
+            currencies, 
+            locale
+          );
+        } else {
+          // Fallback: display in original currency without conversion
+          formattedPrice = formatCurrency(c.price_cents / 100, locale, courseCurrency);
+        }
+      }
+      
       return {
         id: c.public_id,
         title: c.title,
@@ -86,8 +106,9 @@ export default function CoursesContent() {
         durationMinutes: c.total_duration_minutes || 0,
         students: c.total_students ?? 0,
         rating: c.average_rating ?? 0,
-        price: c.price_cents && currencies ? convertAndFormatPrice(c.price_cents, currency, currencies, locale) : (c.price_cents ? formatCurrency(c.price_cents / 100, locale, currency) : 'Free'),
+        price: formattedPrice,
         priceCents: c.price_cents || 0,
+        sourceCurrency: courseCurrency, // Store original currency
         isFree: !c.price_cents || c.price_cents === 0,
         points: Math.max(100, Math.floor((c.price_cents || 0) / 10)), // Calculate points based on price
         pointsAvailable: true, // TODO: Check if course has point price set

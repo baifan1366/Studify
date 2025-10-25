@@ -155,6 +155,7 @@ export const useDeleteComment = (groupSlug: string, postSlug: string) => {
   return useMutation({
     mutationFn: deleteComment,
     onSuccess: () => {
+      toast.success("Comment deleted successfully");
       // Invalidate and refetch comments
       queryClient.invalidateQueries({
         queryKey: ["comments", groupSlug, postSlug],

@@ -64,8 +64,8 @@ export default function HomeContent() {
   };
 
   const handleDailyCheckin = () => {
-    // Navigate to dashboard for daily check-in and activities
-    router.push(`/${locale}/dashboard`);
+    // Check-in is now handled by the GamificationSection component with modal
+    // No navigation needed - modal will show rewards and streak
   };
 
   return (

@@ -415,22 +415,32 @@ export async function PUT(request: NextRequest) {
       finalVideoDurationSec > 0 ? Math.min((videoPositionSec / finalVideoDurationSec) * 100, 100) : 0
     );
     
-    // Update existing progress record (include both timestamp fields)
+    // Use upsert to handle both create and update in one operation
     const now = new Date().toISOString();
+    
+    const updateData = {
+      user_id: userId,
+      lesson_id: lesson.id,
+      video_position_sec: videoPositionSec,
+      video_duration_sec: finalVideoDurationSec,
+      progress_pct: calculatedProgressPct,
+      state: calculatedProgressPct >= 95 ? 'completed' : calculatedProgressPct > 0 ? 'in_progress' : 'not_started',
+      lesson_kind: 'video',
+      last_accessed_at: now,
+      last_seen_at: now,
+      is_deleted: false,
+      updated_at: now
+    };
+    
+    // Use upsert with proper conflict resolution
     const { data: progress, error } = await supabase
       .from('course_progress')
-      .update({
-        video_position_sec: videoPositionSec,
-        video_duration_sec: finalVideoDurationSec,
-        progress_pct: calculatedProgressPct,
-        last_accessed_at: now,
-        last_seen_at: now,
-        updated_at: now
+      .upsert(updateData, {
+        onConflict: 'user_id,lesson_id',
+        ignoreDuplicates: false
       })
-      .eq('user_id', userId)
-      .eq('lesson_id', lesson.id)
       .select()
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle edge cases
       
     if (error) {
       console.error('Error updating video position:', error);

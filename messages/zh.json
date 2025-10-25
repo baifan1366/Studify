@@ -52,7 +52,12 @@
     "course_language": "语言",
     "mobile_course": "课程",
     "mobile_tools": "工具",
-    "learning_tools": "学习工具"
+    "learning_tools": "学习工具",
+    "lesson_completed": "课时已完成！",
+    "progress_updated": "进度更新成功",
+    "progress_update_failed": "更新进度失败，请重试。",
+    "progress_state_updated": "进度状态更新成功",
+    "progress_state_update_failed": "更新进度状态失败，请重试。"
   },
   "AICoach": {
     "daily_coach": "每日学习教练",
@@ -149,7 +154,20 @@
     "next": "下一步",
     "reflection_complete": "反思完成！",
     "ai_analysis_ready": "这是你的个性化 AI 分析",
-    "close_reflection": "关闭反思"
+    "close_reflection": "关闭反思",
+    "quiz_generated": "测验已生成！",
+    "quiz_generated_desc": "从你的笔记创建了 {count} 道题目",
+    "quiz_generation_failed": "测验生成失败",
+    "progress_saved": "进度已保存！",
+    "progress_saved_desc": "下次复习：{date}",
+    "review_failed": "复习失败",
+    "flashcards_created": "闪卡已创建！",
+    "flashcards_created_desc": "从你的笔记生成了 {count} 张复习卡",
+    "card_generation_failed": "闪卡生成失败",
+    "concept_synthesis_complete": "概念综合完成！",
+    "concept_synthesis_complete_desc": "在你的学习路径中发现了 {count} 个联系",
+    "synthesis_failed": "综合失败",
+    "please_try_again": "请重试"
   },
   "AdvancedFeatures": {
     "title": "高级学习功能",
@@ -328,7 +346,19 @@
     "enable_auto_show": "启用自动显示",
     "jump_to_term": "跳转到术语",
     "terms_auto_detected": "术语由视频内容自动识别",
-    "view_key_terms": "查看关键术语"
+    "view_key_terms": "查看关键术语",
+    "video_liked": "已点赞视频！",
+    "video_disliked": "已踩视频！",
+    "changed_to_like": "已改为点赞！",
+    "changed_to_dislike": "已改为踩！",
+    "like_update_failed": "更新点赞失败",
+    "danmaku_sent": "弹幕已发送！",
+    "danmaku_rate_limit": "慢点！每分钟最多发送 10 条弹幕。",
+    "danmaku_send_failed": "发送弹幕失败",
+    "comment_posted": "评论已发布！",
+    "comment_post_failed": "发布评论失败",
+    "comment_update_failed": "更新评论失败",
+    "comment_delete_failed": "删除评论失败"
   },
   "LessonContent": {
     "content_coming_soon": "内容即将上线",
@@ -336,7 +366,9 @@
     "no_content_specified": "未指定内容类型",
     "lesson_suffix": "课时",
     "error_loading_quiz": "测验加载出错",
-    "quiz_load_error": "无法加载测验题目，请稍后再试。"
+    "quiz_load_error": "无法加载测验题目，请稍后再试。",
+    "image_lesson": "图片课程",
+    "loading_image": "正在加载图片..."
   },
   "ClassroomMistakeBookPage": {
     "metadata_title": "课堂错题本 | Studify",
@@ -517,7 +549,43 @@
     "total_users": "总用户数",
     "total_courses": "总课程数",
     "active_sessions": "活跃会话",
-    "reports_pending": "待处理举报"
+    "reports_pending": "待处理举报",
+    "avatar_upload_failed": "头像上传失败",
+    "avatar_upload_failed_desc": "个人资料已更新，但头像上传失败。请重试。",
+    "update_error": "错误",
+    "update_error_desc": "更新个人资料失败。请重试。",
+    "file_too_large": "文件过大",
+    "file_too_large_desc": "请选择小于5MB的图片",
+    "invalid_file_type": "无效的文件类型",
+    "invalid_file_type_desc": "请选择图片文件",
+    "avatar_selected": "头像已选择",
+    "avatar_selected_desc": "点击‘保存’以更新您的头像",
+    "saving": "保存中...",
+    "study_time": "学习时长",
+    "lessons_done": "已完成课程",
+    "day_streak": "连续天数",
+    "avg_progress": "平均进度",
+    "orders": "订单",
+    "all_time_transactions": "所有交易记录",
+    "total": "总计",
+    "owned": "已拥有",
+    "recent": "最近",
+    "dashboard": "仪表板",
+    "learning_dashboard": "学习仪表板",
+    "teaching_dashboard": "教学仪表板",
+    "admin_control_panel": "管理控制面板",
+    "manage_courses": "管理课程",
+    "course_administration": "课程管理",
+    "teaching_materials": "教学材料",
+    "community_management": "社区管理",
+    "moderate_community": "管理社区",
+    "no_recent_transactions": "暂无最近交易",
+    "start_teaching_earn": "开始教学以赚取您的第一笔收入",
+    "preferences_updated": "偏好设置已更新！",
+    "learning_preferences_updated": "学习偏好已更新！",
+    "weekly_goal_updated": "每周学习目标已更新！",
+    "daily_goal_updated": "每日学习目标已更新！",
+    "currency_updated": "货币已更新！"
   },
   "SettingsPage": {
     "metadata_title": "设置 | Studify",
@@ -1294,7 +1362,9 @@
     "new_posts_today_suffix": "今天的新帖子",
     "explore_groups_button": "探索所有小组",
     "no_groups": "暂无可用小组",
-    "no_posts": "暂无帖子"
+    "no_posts": "暂无帖子",
+    "visibility_public": "公开",
+    "visibility_private": "私密"
   },
   "RecommendationPanels": {
     "loading_recommendations": "正在加载推荐...",
@@ -1328,14 +1398,31 @@
     "daily_checkin_desc_prefix": "保持你的连胜！",
     "current_streak": "当前连胜: {count} 天",
     "check_in_today_button": "今天签到",
+    "checking_in": "签到中...",
     "checked_in_with_xp": "签到成功! +{xp} XP",
     "this_weeks_progress": "本周进度",
     "weekly_leaderboard_title": "周排行榜",
     "points_suffix": "分",
+    "no_leaderboard_data": "暂无排行榜数据",
     "badge_collection_title": "badge收藏",
     "progress_label": "进度",
     "earned_label": "获得!",
     "no_achievements": "没有成就",
+    "checkin_success_title": "签到完成！",
+    "already_checked_in_title": "今日已签到！",
+    "checkin_error_title": "签到失败",
+    "checkin_error_desc": "无法完成签到，请重试。",
+    "checkin_new_record": "🎉 新纪录！{count} 天连胜！",
+    "checkin_first_day": "🌟 很好的开始！继续加油！",
+    "checkin_week": "🔥 一周连胜！太棒了！",
+    "checkin_month": "🏆 30天！你势不可挡！",
+    "checkin_legend": "👑 传奇级别！100+天！",
+    "checkin_master": "💎 大师级别！继续前进！",
+    "checkin_milestone": "🎯 {count} 天里程碑！",
+    "checkin_keep_going": "💪 {count} 天！保持势头！",
+    "daily_reward": "每日奖励",
+    "next_milestones": "下一个里程碑",
+    "continue_learning": "继续学习",
     "rarity": {
       "Common": "普通",
       "Rare": "稀有",
@@ -1404,6 +1491,22 @@
     "title": "AI 学习助手",
     "subtitle": "你的个人AI学习助手",
     "history_auto_save": "所有AI交互都会自动保存到历史记录",
+    "toast": {
+      "qa_success_title": "AI回答完成",
+      "qa_success_description": "找到 {count} 个相关资源",
+      "qa_error_title": "AI问答失败",
+      "solve_success_title": "题目分析完成",
+      "solve_success_description": "AI已生成详细解答步骤",
+      "solve_error_title": "解题失败",
+      "notes_success_title": "笔记生成完成",
+      "notes_success_description": "AI已提炼重点并生成学习笔记",
+      "notes_error_title": "笔记生成失败",
+      "path_success_title": "学习路径生成完成",
+      "path_success_description": "AI已为你定制专属学习计划",
+      "path_error_title": "学习路径生成失败",
+      "error_try_again": "请稍后重试",
+      "error_check_format": "请检查文件格式并重试"
+    },
     "features": {
       "use_now": "立即使用",
       "quick_qa": {
@@ -1619,7 +1722,11 @@
       "learning_path_title_suffix": "学习路径",
       "learning_path_description": "基于您的目标\"{goal}\"生成的个性化学习路径",
       "learning_path_complete_title": "个性化学习路径生成完成",
-      "learning_path_complete_description": "保存到仪表盘以便随时查看和跟踪进度"
+      "learning_path_complete_description": "保存到仪表盘以便随时查看和跟踪进度",
+      "note_saved_title": "智能笔记已保存",
+      "note_saved_description": "您可以在笔记本中查看保存的智能笔记",
+      "note_save_failed_title": "保存失败",
+      "note_save_failed_description": "请稍后重试"
     }
   },
   "VideoAIAssistant": {
@@ -1661,6 +1768,7 @@
     },
     "suggested_actions": {
       "title": "建议操作",
+      "title_colon": "建议操作:",
       "view_materials": "查看相关课程资料",
       "take_notes": "记录重点笔记",
       "try_exercises": "尝试相关练习"
@@ -1671,7 +1779,9 @@
     "input": {
       "placeholder": "问任何关于此视频的问题...",
       "context_info": "当前位置：{timestamp}",
-      "selected_text": "| Selected: \"{文本}...\"",
+      "selected_text": " | 已选择: \"{text}...\"",
+      "selected_prefix": "已选择:",
+      "context_prefix": "📍",
       "send_button": "发送"
     },
     "loading_stages": {
@@ -1707,7 +1817,13 @@
     "next_milestone_title": "下a里程碑",
     "next_milestone_desc": "完成 {count} 更多课程以解锁 \"{badge}\" badge",
     "progress_completed_short": "{done}/{总计} 已完成",
-    "cta_generate_study_plan": "生成我的学习计划"
+    "cta_generate_study_plan": "生成我的学习计划",
+    "toast_save_success": "学习路径已保存",
+    "toast_save_success_desc": "您可以在仪表盘中查看保存的学习路径",
+    "toast_save_error": "保存失败",
+    "toast_save_error_desc": "请稍后重试",
+    "toast_delete_success": "学习路径已删除",
+    "toast_delete_error": "删除失败"
   },
   "LearningReport": {
     "title": "智能学习报告",
@@ -4242,6 +4358,9 @@
     "unknown_author": "未知作者",
     "edit_post": "编辑帖子",
     "delete_post": "删除帖子",
+    "confirm_delete_post": "删除此帖子？",
+    "delete_post_description": "此操作无法撤销，将永久删除该帖子及其内容。",
+    "delete": "删除",
     "cancel": "取消",
     "save": "保存",
     "drag_drop_or_click": "拖放或点击上传",
@@ -5193,7 +5312,18 @@
     "reschedule_info": "公告将在计划时间自动发送",
     "schedule_info": "公告将在计划时间自动发送",
     "reschedule_announcement_desc": "修改此公告的计划时间",
-    "schedule_announcement_desc": "设置此公告应何时发送给用户"
+    "schedule_announcement_desc": "设置此公告应何时发送给用户",
+    "announcement_id": "公告 ID",
+    "public_id": "公开 ID",
+    "user_not_found": "未找到用户",
+    "duplicate": "复制",
+    "duplicate_announcement": "复制公告",
+    "duplicate_announcement_description": "创建此公告的副本",
+    "duplicating": "复制中...",
+    "duplicate_preview": "复制预览",
+    "original_announcement": "原始公告",
+    "announcement_duplicated": "公告已复制",
+    "duplicate_failed": "复制失败"
   },
   "MyCoursesContent": {
     "page_title": "我的学习",
@@ -6683,7 +6813,22 @@
     "metadata_description": "及时了解重要公告和活动通知",
     "metadata_keywords": "通知,更新,公告,提醒,活动",
     "og_title": "通知 | Studify",
-    "og_description": "不要错过来自你的学习社区的重要更新"
+    "og_description": "不要错过来自你的学习社区的重要更新",
+    "title": "通知",
+    "subtitle": "及时了解你的学习活动",
+    "notifications": "通知",
+    "all_notifications": "全部通知",
+    "all_notifications_desc": "查看你的所有通知，包括已读和未读",
+    "unread_notifications": "未读通知",
+    "settings": "设置",
+    "stay_updated_with_your_learning_activities": "及时了解你的学习活动",
+    "mark_all_read": "全部标记为已读",
+    "mark_all_as_read": "全部标记为已读",
+    "filter_notifications": "筛选通知",
+    "export_notifications": "导出通知",
+    "all": "全部",
+    "unread": "未读",
+    "load_more": "加载更多通知"
   },
   "RecommendationsPage": {
     "metadata_title": "课程推荐 | Studify",
@@ -8125,6 +8270,13 @@
     "error_analysis_label": "错误分析",
     "from": "来自",
     "question": "问题",
+    "fetch_failed": "获取错题本失败",
+    "save_success": "错题已保存到错题本",
+    "save_success_desc": "您可以在错题本中查看保存的错题",
+    "save_failed": "保存失败",
+    "save_failed_desc": "请稍后重试",
+    "delete_success": "错题已删除",
+    "delete_failed": "删除失败",
     "recommended_exercises": "推荐练习",
     "difficulty": "难度",
     "difficulty_easy": "简单",
@@ -8134,7 +8286,8 @@
     "updated_at": "更新于",
     "loading": "加载中...",
     "save": "保存",
-    "close": "关闭"
+    "close": "关闭",
+    "confirm_delete": "确定要删除这条错题吗？"
   },
   "WhiteboardDebugPanel": {
     "debug_panel": "白板调试面板",

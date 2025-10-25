@@ -113,8 +113,8 @@ export default function ProfileContent() {
           }
         } catch (avatarError) {
           toast({
-            title: 'Avatar upload failed',
-            description: 'Profile updated but avatar upload failed. Please try again.',
+            title: t('avatar_upload_failed'),
+            description: t('avatar_upload_failed_desc'),
             variant: 'destructive',
           });
         }
@@ -132,8 +132,8 @@ export default function ProfileContent() {
       setAvatarPreview(null);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to update profile. Please try again.',
+        title: t('update_error'),
+        description: t('update_error_desc'),
         variant: 'destructive',
       });
     }
@@ -166,8 +166,8 @@ export default function ProfileContent() {
         // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
           toast({
-            title: 'File too large',
-            description: 'Please select an image smaller than 5MB',
+            title: t('file_too_large'),
+            description: t('file_too_large_desc'),
             variant: 'destructive',
           });
           return;
@@ -176,8 +176,8 @@ export default function ProfileContent() {
         // Validate file type
         if (!file.type.startsWith('image/')) {
           toast({
-            title: 'Invalid file type',
-            description: 'Please select an image file',
+            title: t('invalid_file_type'),
+            description: t('invalid_file_type_desc'),
             variant: 'destructive',
           });
           return;
@@ -193,8 +193,8 @@ export default function ProfileContent() {
         reader.readAsDataURL(file);
 
         toast({
-          title: 'Avatar selected',
-          description: 'Click "Save" to update your profile with the new avatar',
+          title: t('avatar_selected'),
+          description: t('avatar_selected_desc'),
         });
       }
     };
@@ -209,7 +209,7 @@ export default function ProfileContent() {
 
   const handleNavigateToCommunity = () => {
     const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/community`);
+    router.push(`/${locale}/tutor/community`);
   };
 
   const handleNavigateToDashboard = () => {
@@ -587,7 +587,7 @@ export default function ProfileContent() {
                           whileTap={{ scale: updateProfileMutation.isPending ? 1 : 0.95 }}
                         >
                           <Save size={14} className="sm:w-4 sm:h-4" />
-                          {updateProfileMutation.isPending ? 'Saving...' : t('save')}
+                          {updateProfileMutation.isPending ? t('saving') : t('save')}
                         </motion.button>
                         <motion.button
                           onClick={handleCancel}
@@ -887,7 +887,7 @@ export default function ProfileContent() {
                         <div className="flex justify-center py-8">
                           <Loader2 size={24} className="animate-spin text-white/60" />
                         </div>
-                      ) : earningsData?.recent_transactions?.length ? (
+                      ) : earningsData?.recent_transactions && earningsData.recent_transactions.length > 0 ? (
                         earningsData.recent_transactions.slice(0, 5).map((transaction) => (
                           <motion.div
                             key={transaction.id}
@@ -956,8 +956,8 @@ export default function ProfileContent() {
                       ) : (
                         <div className="text-center py-12">
                           <DollarSign size={48} className="text-white/20 mx-auto mb-4" />
-                          <p className="text-white/60 text-lg">No recent transactions</p>
-                          <p className="text-white/40 text-sm mt-1">Start teaching to earn your first income</p>
+                          <p className="text-white/60 text-lg">{t('no_recent_transactions')}</p>
+                          <p className="text-white/40 text-sm mt-1">{t('start_teaching_earn')}</p>
                         </div>
                       )}
                     </div>
@@ -1011,8 +1011,8 @@ export default function ProfileContent() {
                     >
                       <TrendingUp size={18} className="sm:w-5 sm:h-5 text-purple-400 flex-shrink-0" />
                       <div className="text-left min-w-0">
-                        <div className="font-medium text-sm sm:text-base truncate">Dashboard</div>
-                        <div className="text-xs sm:text-sm text-white/70 truncate">Teaching Dashboard</div>
+                        <div className="font-medium text-sm sm:text-base truncate">{t('dashboard')}</div>
+                        <div className="text-xs sm:text-sm text-white/70 truncate">{t('teaching_dashboard')}</div>
                       </div>
                     </motion.button>
 

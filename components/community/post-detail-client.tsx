@@ -31,6 +31,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useDropzone } from "react-dropzone";
 import { Comment } from "@/interface/community/comment-interface";
 import { usePostDetail } from "@/hooks/community/use-post-detail";
@@ -216,12 +227,14 @@ const CommentItem = ({
   postSlug,
   depth = 0,
   currentUserId,
+  isGroupOwner,
 }: {
   comment: Comment;
   groupSlug: string;
   postSlug: string;
   depth?: number;
   currentUserId?: number;
+  isGroupOwner: boolean;
 }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -262,17 +275,19 @@ const CommentItem = ({
   };
 
   const handleDelete = () => {
-    if (confirm(t("comment_actions.confirm_delete"))) {
-      deleteCommentMutation.mutate({
-        groupSlug,
-        postSlug,
-        commentId: comment.id.toString(),
-      });
-    }
+    deleteCommentMutation.mutate({
+      groupSlug,
+      postSlug,
+      commentId: comment.id.toString(),
+    });
   };
 
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const replies = comment.replies || [];
   const marginLeft = depth > 0 ? `${Math.min(depth * 24, 96)}px` : "0px";
+  
+  // Calculate if user can delete this comment
+  const canDeleteComment = (currentUserId === comment.author_id) || isGroupOwner;
 
   return (
     <div style={{ marginLeft }} className="space-y-3">
@@ -295,42 +310,61 @@ const CommentItem = ({
               </p>
             </div>
             <div className="flex items-center gap-1">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {currentUserId === comment.author_id && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setShowEditForm(!showEditForm);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4 mr-2" />
-                        {t("comment_actions.edit")}
-                      </DropdownMenuItem>
-                    )}
-                    {depth < commentMaxDepth && (
-                      <DropdownMenuItem
-                        onClick={() => setShowReplyForm(!showReplyForm)}
-                      >
-                        <Reply className="h-4 w-4 mr-2" />
-                        {t("comment_actions.reply")}
-                      </DropdownMenuItem>
-                    )}
-                    {currentUserId === comment.author_id && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent>
+                  {currentUserId === comment.author_id && (
                     <DropdownMenuItem
-                      onClick={handleDelete}
+                      onClick={() => setShowEditForm(!showEditForm)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t("comment_actions.edit")}
+                    </DropdownMenuItem>
+                  )}
+                  {depth < commentMaxDepth && (
+                    <DropdownMenuItem
+                      onClick={() => setShowReplyForm(!showReplyForm)}
+                    >
+                      <Reply className="h-4 w-4 mr-2" />
+                      {t("comment_actions.reply")}
+                    </DropdownMenuItem>
+                  )}
+                  {canDeleteComment && (
+                    <DropdownMenuItem
                       className="text-red-400"
+                      onClick={() => setOpenDeleteDialog(true)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       {t("comment_actions.delete")}
                     </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* 把 AlertDialog 放外面 */}
+              <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("comment_actions.delete")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("comment_actions.confirm_delete")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      {t("comment_actions.cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>
+                      {t("comment_actions.delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <ReportButton 
                 targetId={comment.author_id} 
                 targetType="comment" 
@@ -442,6 +476,7 @@ const CommentItem = ({
                   postSlug={postSlug}
                   depth={depth + 1}
                   currentUserId={currentUserId}
+                  isGroupOwner={isGroupOwner}
                 />
               ))}
             </div>
@@ -741,6 +776,7 @@ const PostDetailContent = ({
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<"flat" | "tree">("tree");
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { formatRelativeTime } = useFormat();
   const t = useTranslations("CommunityPostDetail");
   const toggleReactionMutation = useToggleReaction(groupSlug, postSlug);
@@ -753,7 +789,8 @@ const PostDetailContent = ({
   const { data: userData } = useUser();
   const currentUserId = userData?.profile?.id ? Number(userData.profile.id) : undefined;
   const isTutor = userData?.profile?.role === 'tutor';
-  const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
+  const hasGroup = post.group && post.group.slug;
+  const groupPath = hasGroup && post.group ? (isTutor ? `/tutor/community/${post.group.slug}` : `/community/${post.group.slug}`) : null;
 
   // Check permissions - ensure user is logged in
   const isPostAuthor = currentUserId !== undefined && post.author_id === currentUserId;
@@ -814,7 +851,7 @@ const PostDetailContent = ({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              {post.group && (
+              {post.group && groupPath && (
                 <Link href={groupPath}>
                   <Badge
                     variant="outline"
@@ -865,11 +902,7 @@ const PostDetailContent = ({
                 )}
                 {canDelete && (
                   <DropdownMenuItem
-                    onClick={() => {
-                      if (confirm(t("confirm_delete_post"))) {
-                        handleDeletePost();
-                      }
-                    }}
+                    onClick={() => setShowDeleteDialog(true)}
                     className="text-red-500"
                   >
                     {t("delete_post")}
@@ -964,20 +997,23 @@ const PostDetailContent = ({
       {post.hashtags && post.hashtags.length > 0 && (
         <CardContent className="pt-0">
           <div className="flex flex-wrap gap-2">
-            {post.hashtags.map((tag) => (
-              <Link
-                key={tag.name}
-                href={`/community/hashtags/${tag.name}`}
-                className="hover:underline"
-              >
-                <Badge
-                  variant="secondary"
-                  className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+            {post.hashtags.map((tag) => {
+              const searchPath = isTutor ? `/tutor/community?search=${encodeURIComponent('#' + tag.name)}` : `/community?search=${encodeURIComponent('#' + tag.name)}`;
+              return (
+                <Link
+                  key={tag.name}
+                  href={searchPath}
+                  className="hover:underline"
                 >
-                  #{tag.name}
-                </Badge>
-              </Link>
-            ))}
+                  <Badge
+                    variant="secondary"
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                  >
+                    #{tag.name}
+                  </Badge>
+                </Link>
+              );
+            })}
           </div>
         </CardContent>
       )}
@@ -1025,6 +1061,7 @@ const PostDetailContent = ({
                     groupSlug={groupSlug}
                     postSlug={postSlug}
                     currentUserId={currentUserId}
+                    isGroupOwner={isGroupOwner}
                   />
                 ))
               : comments.map((comment) => (
@@ -1035,6 +1072,7 @@ const PostDetailContent = ({
                     postSlug={postSlug}
                     depth={0}
                     currentUserId={currentUserId}
+                    isGroupOwner={isGroupOwner}
                   />
                 ))}
           </div>
@@ -1046,6 +1084,26 @@ const PostDetailContent = ({
         onOpenChange={setShowShareDialog}
         post={post}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirm_delete_post")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("delete_post_description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePost}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

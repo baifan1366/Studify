@@ -46,9 +46,10 @@ export async function GET(request: NextRequest) {
 
     // 获取积分历史
     const { data: pointsHistory } = await supabase
-      .from('user_points_history')
-      .select('points_earned, created_at, action_type')
+      .from('community_points_ledger')
+      .select('points, created_at, reason')
       .eq('user_id', userId)
+      .eq('is_deleted', false)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -75,12 +76,12 @@ export async function GET(request: NextRequest) {
     // 计算积分趋势
     const thisWeekPoints = pointsHistory?.filter(p => 
       new Date(p.created_at) >= thisWeekStart
-    ).reduce((sum, p) => sum + p.points_earned, 0) || 0;
+    ).reduce((sum, p) => sum + p.points, 0) || 0;
 
     const lastWeekPoints = pointsHistory?.filter(p => {
       const date = new Date(p.created_at);
       return date >= lastWeekStart && date < thisWeekStart;
-    }).reduce((sum, p) => sum + p.points_earned, 0) || 0;
+    }).reduce((sum, p) => sum + p.points, 0) || 0;
 
     const pointsTrend = thisWeekPoints - lastWeekPoints;
 

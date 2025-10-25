@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 // Types
 interface VideoStats {
@@ -151,6 +152,7 @@ export function useVideoLikes(lessonId: string) {
 
 export function useToggleVideoLike() {
   const queryClient = useQueryClient();
+  const t = useTranslations('VideoPlayer');
   
   return useMutation({
     mutationFn: async (data: {
@@ -181,15 +183,15 @@ export function useToggleVideoLike() {
       
       // Show feedback to user
       if (data.action === 'created') {
-        toast.success(data.like?.is_liked ? 'Video liked!' : 'Video disliked!');
+        toast.success(data.like?.is_liked ? t('video_liked') : t('video_disliked'));
       } else if (data.action === 'removed') {
-        toast.success('Like removed');
+        toast.success(t('like_removed'));
       } else if (data.action === 'updated') {
-        toast.success(data.like?.is_liked ? 'Changed to like!' : 'Changed to dislike!');
+        toast.success(data.like?.is_liked ? t('changed_to_like') : t('changed_to_dislike'));
       }
     },
     onError: (error) => {
-      toast.error('Failed to update like');
+      toast.error(t('like_update_failed'));
       console.error('Error toggling video like:', error);
     }
   });
@@ -221,6 +223,7 @@ export function useVideoDanmaku(lessonId: string, startTime?: number, endTime?: 
 
 export function useSendDanmaku() {
   const queryClient = useQueryClient();
+  const t = useTranslations('VideoPlayer');
   
   return useMutation({
     mutationFn: async (data: {
@@ -254,13 +257,13 @@ export function useSendDanmaku() {
         queryKey: ['video-danmaku', variables.lessonId]
       });
       
-      toast.success('Danmaku sent!');
+      toast.success(t('danmaku_sent'));
     },
     onError: (error: any) => {
       if (error.message.includes('Rate limit')) {
-        toast.error('Slow down! Maximum 10 danmaku per minute.');
+        toast.error(t('danmaku_rate_limit'));
       } else {
-        toast.error('Failed to send danmaku');
+        toast.error(t('danmaku_send_failed'));
       }
       console.error('Error sending danmaku:', error);
     }
@@ -303,6 +306,7 @@ export function useVideoComments(
 
 export function useCreateComment() {
   const queryClient = useQueryClient();
+  const t = useTranslations('VideoPlayer');
   
   return useMutation({
     mutationFn: async (data: {
@@ -341,10 +345,10 @@ export function useCreateComment() {
         });
       }
       
-      toast.success('Comment posted!');
+      toast.success(t('comment_posted'));
     },
     onError: (error) => {
-      toast.error('Failed to post comment');
+      toast.error(t('comment_post_failed'));
       console.error('Error creating comment:', error);
     }
   });
@@ -352,6 +356,7 @@ export function useCreateComment() {
 
 export function useUpdateComment() {
   const queryClient = useQueryClient();
+  const t = useTranslations('VideoPlayer');
   
   return useMutation({
     mutationFn: async (data: {
@@ -380,10 +385,10 @@ export function useUpdateComment() {
         queryKey: ['video-comments']
       });
       
-      toast.success('Comment updated!');
+      toast.success(t('comment_updated'));
     },
     onError: (error) => {
-      toast.error('Failed to update comment');
+      toast.error(t('comment_update_failed'));
       console.error('Error updating comment:', error);
     }
   });
@@ -391,6 +396,7 @@ export function useUpdateComment() {
 
 export function useDeleteComment() {
   const queryClient = useQueryClient();
+  const t = useTranslations('VideoPlayer');
   
   return useMutation({
     mutationFn: async (commentId: string) => {
@@ -411,10 +417,10 @@ export function useDeleteComment() {
         queryKey: ['video-comments']
       });
       
-      toast.success('Comment deleted');
+      toast.success(t('comment_deleted'));
     },
     onError: (error) => {
-      toast.error('Failed to delete comment');
+      toast.error(t('comment_delete_failed'));
       console.error('Error deleting comment:', error);
     }
   });
@@ -442,6 +448,7 @@ export function useCommentLikes(commentId: string) {
 
 export function useToggleCommentLike() {
   const queryClient = useQueryClient();
+  const t = useTranslations('VideoPlayer');
   
   return useMutation({
     mutationFn: async (data: {
@@ -475,7 +482,7 @@ export function useToggleCommentLike() {
       });
     },
     onError: (error) => {
-      toast.error('Failed to update like');
+      toast.error(t('like_update_failed'));
       console.error('Error toggling comment like:', error);
     }
   });

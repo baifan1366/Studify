@@ -168,8 +168,8 @@ export function useCreateStudySession() {
     { success: boolean; data: any },
     Error,
     {
-      lessonId?: number;
-      courseId?: number;
+      lessonId?: string; // Changed to string (UUID/public_id)
+      courseId?: string; // Changed to string (UUID/public_id)
       sessionStart: string;
       sessionEnd?: string;
       durationMinutes: number;

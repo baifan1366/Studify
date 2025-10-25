@@ -96,6 +96,49 @@ export function formatPrice(
   return formatCurrency(price, locale, currency);
 }
 
+/**
+ * Format price with currency conversion support
+ * @param priceCents - Price in cents of the source currency
+ * @param sourceCurrency - Source currency code (from database)
+ * @param targetCurrency - Target currency code (user preference)
+ * @param currencies - Currency data for conversion (optional)
+ * @param isFree - Whether the item is free
+ * @param locale - Locale for formatting
+ */
+export function formatPriceWithConversion(
+  priceCents: number,
+  sourceCurrency: string,
+  targetCurrency: string,
+  currencies?: Array<{ code: string; rate_to_usd: number }>,
+  isFree: boolean = false,
+  locale = "en-US"
+) {
+  if (isFree || !priceCents || priceCents === 0) return 'Free';
+  
+  // If no currencies data or same currency, just format without conversion
+  if (!currencies || !currencies.length || sourceCurrency === targetCurrency) {
+    const price = priceCents / 100;
+    return formatCurrency(price, locale, sourceCurrency);
+  }
+  
+  // Import and use convertAndFormatPrice
+  // Note: This creates a circular dependency, so we'll handle it differently
+  const sourceAmount = priceCents / 100;
+  const sourceCurrencyData = currencies.find(c => c.code === sourceCurrency);
+  const targetCurrencyData = currencies.find(c => c.code === targetCurrency);
+  
+  if (!sourceCurrencyData || !targetCurrencyData) {
+    // Fallback to source currency
+    return formatCurrency(sourceAmount, locale, sourceCurrency);
+  }
+  
+  // Convert: source -> USD -> target
+  const usdAmount = sourceAmount / sourceCurrencyData.rate_to_usd;
+  const targetAmount = usdAmount * targetCurrencyData.rate_to_usd;
+  
+  return formatCurrency(targetAmount, locale, targetCurrency);
+}
+
 export function formatCompactDate(
   date: Date | string,
   locale = "en-US"

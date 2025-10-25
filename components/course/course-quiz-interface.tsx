@@ -9,7 +9,6 @@ import {
   Brain, 
   Award,
   ArrowRight,
-  RotateCcw,
   AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -127,14 +126,7 @@ export default function CourseQuizInterface({
     }
   };
 
-  const handleRetakeQuiz = () => {
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setSubmittedAnswers({});
-    setShowResults(false);
-    setShowAnalysis(false);
-    setTimeSpent(0);
-  };
+
 
   const handleViewAnalysis = () => {
     setShowAnalysis(true);
@@ -315,13 +307,6 @@ export default function CourseQuizInterface({
             )}
 
             <div className="flex gap-4 justify-center mt-6">
-              <button
-                onClick={handleRetakeQuiz}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
-              >
-                <RotateCcw size={20} />
-                Retake Quiz
-              </button>
               <button
                 onClick={handleViewAnalysis}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"

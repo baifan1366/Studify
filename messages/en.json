@@ -52,7 +52,12 @@
     "course_language": "Language",
     "mobile_course": "Course",
     "mobile_tools": "Tools",
-    "learning_tools": "Learning Tools"
+    "learning_tools": "Learning Tools",
+    "lesson_completed": "Lesson completed!",
+    "progress_updated": "Progress updated successfully",
+    "progress_update_failed": "Failed to update progress. Please try again.",
+    "progress_state_updated": "Progress state updated successfully",
+    "progress_state_update_failed": "Failed to update progress state. Please try again."
   },
   "AICoach": {
     "daily_coach": "Daily Learning Coach",
@@ -149,7 +154,20 @@
     "next": "Next",
     "reflection_complete": "Reflection Complete!",
     "ai_analysis_ready": "Here's your personalized AI analysis",
-    "close_reflection": "Close Reflection"
+    "close_reflection": "Close Reflection",
+    "quiz_generated": "Quiz generated!",
+    "quiz_generated_desc": "Created {count} questions from your notes",
+    "quiz_generation_failed": "Quiz generation failed",
+    "progress_saved": "Progress saved!",
+    "progress_saved_desc": "Next review: {date}",
+    "review_failed": "Review failed",
+    "flashcards_created": "Flashcards created!",
+    "flashcards_created_desc": "Generated {count} review cards from your notes",
+    "card_generation_failed": "Card generation failed",
+    "concept_synthesis_complete": "Concept synthesis complete!",
+    "concept_synthesis_complete_desc": "Found {count} connections across your learning paths",
+    "synthesis_failed": "Synthesis failed",
+    "please_try_again": "Please try again"
   },
   "AdvancedFeatures": {
     "title": "Advanced Learning Features",
@@ -328,7 +346,19 @@
     "enable_auto_show": "Enable auto-show",
     "jump_to_term": "Jump to term",
     "terms_auto_detected": "Terms automatically detected from video content",
-    "view_key_terms": "View key terms"
+    "view_key_terms": "View key terms",
+    "video_liked": "Video liked!",
+    "video_disliked": "Video disliked!",
+    "changed_to_like": "Changed to like!",
+    "changed_to_dislike": "Changed to dislike!",
+    "like_update_failed": "Failed to update like",
+    "danmaku_sent": "Danmaku sent!",
+    "danmaku_rate_limit": "Slow down! Maximum 10 danmaku per minute.",
+    "danmaku_send_failed": "Failed to send danmaku",
+    "comment_posted": "Comment posted!",
+    "comment_post_failed": "Failed to post comment",
+    "comment_update_failed": "Failed to update comment",
+    "comment_delete_failed": "Failed to delete comment"
   },
   "LessonContent": {
     "content_coming_soon": "Content coming soon",
@@ -336,7 +366,9 @@
     "no_content_specified": "No content type specified",
     "lesson_suffix": "lesson",
     "error_loading_quiz": "Error Loading Quiz",
-    "quiz_load_error": "Failed to load quiz questions. Please try again later."
+    "quiz_load_error": "Failed to load quiz questions. Please try again later.",
+    "image_lesson": "Image Lesson",
+    "loading_image": "Loading image..."
   },
   "ClassroomMistakeBookPage": {
     "metadata_title": "Classroom Mistake Book | Studify",
@@ -517,7 +549,43 @@
     "total_users": "Total Users",
     "total_courses": "Total Courses",
     "active_sessions": "Active Sessions",
-    "reports_pending": "Reports Pending"
+    "reports_pending": "Reports Pending",
+    "avatar_upload_failed": "Avatar upload failed",
+    "avatar_upload_failed_desc": "Profile updated but avatar upload failed. Please try again.",
+    "update_error": "Error",
+    "update_error_desc": "Failed to update profile. Please try again.",
+    "file_too_large": "File too large",
+    "file_too_large_desc": "Please select an image smaller than 5MB",
+    "invalid_file_type": "Invalid file type",
+    "invalid_file_type_desc": "Please select an image file",
+    "avatar_selected": "Avatar selected",
+    "avatar_selected_desc": "Click \"Save\" to update your profile with the new avatar",
+    "saving": "Saving...",
+    "study_time": "Study Time",
+    "lessons_done": "Lessons Done",
+    "day_streak": "Day Streak",
+    "avg_progress": "Avg Progress",
+    "orders": "Orders",
+    "all_time_transactions": "All time transactions",
+    "total": "Total",
+    "owned": "Owned",
+    "recent": "Recent",
+    "dashboard": "Dashboard",
+    "learning_dashboard": "Learning Dashboard",
+    "teaching_dashboard": "Teaching Dashboard",
+    "admin_control_panel": "Admin Control Panel",
+    "manage_courses": "Manage Courses",
+    "course_administration": "Course Administration",
+    "teaching_materials": "Teaching Materials",
+    "community_management": "Community Management",
+    "moderate_community": "Moderate Community",
+    "no_recent_transactions": "No recent transactions",
+    "start_teaching_earn": "Start teaching to earn your first income",
+    "preferences_updated": "Preferences updated successfully!",
+    "learning_preferences_updated": "Learning preferences updated successfully!",
+    "weekly_goal_updated": "Weekly study goal updated!",
+    "daily_goal_updated": "Daily study goal updated!",
+    "currency_updated": "Currency updated successfully!"
   },
   "SettingsPage": {
     "metadata_title": "Settings | Studify",
@@ -1294,7 +1362,9 @@
     "new_posts_today_suffix": "new posts today",
     "explore_groups_button": "Explore All Groups",
     "no_groups": "No groups available",
-    "no_posts": "No posts yet"
+    "no_posts": "No posts yet",
+    "visibility_public": "Public",
+    "visibility_private": "Private"
   },
   "RecommendationPanels": {
     "loading_recommendations": "Loading recommendations...",
@@ -1324,18 +1394,35 @@
   "GamificationSection": {
     "title": "Achievements & Leaderboard",
     "subtitle": "Compete, achieve, and celebrate your progress",
-    "daily_checkin_title": "Daily Check|in",
+    "daily_checkin_title": "Daily check-in",
     "daily_checkin_desc_prefix": "Keep your streak alive!",
     "current_streak": "Current streak: {count} days",
     "check_in_today_button": "Check In Today",
+    "checking_in": "Checking in...",
     "checked_in_with_xp": "Checked In! +{xp} XP",
     "this_weeks_progress": "This week's progress",
     "weekly_leaderboard_title": "Weekly Leaderboard",
     "points_suffix": "points",
+    "no_leaderboard_data": "No leaderboard data available yet",
     "badge_collection_title": "Badge Collection",
     "progress_label": "Progress",
     "earned_label": "Earned!",
     "no_achievements": "No achievements available",
+    "checkin_success_title": "Check-in Complete!",
+    "already_checked_in_title": "Already Checked In!",
+    "checkin_error_title": "Check-in Failed",
+    "checkin_error_desc": "Unable to complete check-in. Please try again.",
+    "checkin_new_record": "🎉 New personal record! {count} days streak!",
+    "checkin_first_day": "🌟 Great start! Keep it up!",
+    "checkin_week": "🔥 One week streak! Amazing!",
+    "checkin_month": "🏆 30 days! You're unstoppable!",
+    "checkin_legend": "👑 Legend status! 100+ days!",
+    "checkin_master": "💎 Master level! Keep going!",
+    "checkin_milestone": "🎯 {count} days milestone!",
+    "checkin_keep_going": "💪 {count} days! Keep the momentum!",
+    "daily_reward": "Daily Reward",
+    "next_milestones": "Next Milestones",
+    "continue_learning": "Continue Learning",
     "rarity": {
       "Common": "Common",
       "Rare": "Rare",
@@ -1395,7 +1482,7 @@
     "join_group_desc": "Joining study group...",
     "progress_report_title": "Progress Report",
     "progress_report_desc": "Opening detailed progress analytics...",
-    "daily_checkin_title": "Daily Check|in",
+    "daily_checkin_title": "Daily check-in",
     "daily_checkin_desc": "Streak updated! Keep up the great work!",
     "header_title": "Home",
     "default_user_name": "Student"
@@ -1404,6 +1491,22 @@
     "title": "AI Learning Assistant",
     "subtitle": "Your personal AI copilot for learning",
     "history_auto_save": "All AI interactions are automatically saved to history",
+    "toast": {
+      "qa_success_title": "AI Answer Complete",
+      "qa_success_description": "Found {count} related resources",
+      "qa_error_title": "AI Q&A Failed",
+      "solve_success_title": "Problem Analysis Complete",
+      "solve_success_description": "AI has generated detailed solution steps",
+      "solve_error_title": "Problem Solving Failed",
+      "notes_success_title": "Notes Generation Complete",
+      "notes_success_description": "AI has extracted key points and generated study notes",
+      "notes_error_title": "Notes Generation Failed",
+      "path_success_title": "Learning Path Generated",
+      "path_success_description": "AI has created a customized study plan for you",
+      "path_error_title": "Learning Path Generation Failed",
+      "error_try_again": "Please try again later",
+      "error_check_format": "Please check file format and try again"
+    },
     "features": {
       "use_now": "Use Now",
       "quick_qa": {
@@ -1619,7 +1722,11 @@
       "learning_path_title_suffix": "Learning Path",
       "learning_path_description": "Personalized learning path generated based on your goal \"{goal}\"",
       "learning_path_complete_title": "Personalized Learning Path Generated",
-      "learning_path_complete_description": "Save to dashboard to view and track progress anytime"
+      "learning_path_complete_description": "Save to dashboard to view and track progress anytime",
+      "note_saved_title": "Smart Note Saved",
+      "note_saved_description": "You can view the saved smart note in your notebook",
+      "note_save_failed_title": "Save Failed",
+      "note_save_failed_description": "Please try again later"
     }
   },
   "VideoAIAssistant": {
@@ -1661,6 +1768,7 @@
     },
     "suggested_actions": {
       "title": "Suggested Actions",
+      "title_colon": "Suggested Actions:",
       "view_materials": "View related course materials",
       "take_notes": "Take notes on key points",
       "try_exercises": "Try related exercises"
@@ -1672,6 +1780,8 @@
       "placeholder": "Ask any questions about this video...",
       "context_info": "Current location: {timestamp}",
       "selected_text": " | Selected: \"{text}...\"",
+      "selected_prefix": "Selected:",
+      "context_prefix": "📍",
       "send_button": "Send"
     },
     "loading_stages": {
@@ -1707,7 +1817,13 @@
     "next_milestone_title": "Next Milestone",
     "next_milestone_desc": "Complete {count} more lessons to unlock \"{badge}\" badge",
     "progress_completed_short": "{done}/{total} completed",
-    "cta_generate_study_plan": "Generate My Study Plan"
+    "cta_generate_study_plan": "Generate My Study Plan",
+    "toast_save_success": "Learning path saved",
+    "toast_save_success_desc": "You can view your saved learning path in the dashboard",
+    "toast_save_error": "Save failed",
+    "toast_save_error_desc": "Please try again later",
+    "toast_delete_success": "Learning path deleted",
+    "toast_delete_error": "Delete failed"
   },
   "LearningReport": {
     "title": "Smart Learning Report",
@@ -2721,7 +2837,7 @@
     "GamificationSection": {
       "title": "Achievements & Leaderboard",
       "subtitle": "Compete, achieve, and celebrate your progress",
-      "daily_checkin_title": "Daily Check|in",
+      "daily_checkin_title": "Daily check-in",
       "daily_checkin_desc_prefix": "Keep your streak alive!",
       "current_streak": "Current streak: {count} days",
       "check_in_today_button": "Check In Today",
@@ -2792,7 +2908,7 @@
       "join_group_desc": "Joining study group...",
       "progress_report_title": "Progress Report",
       "progress_report_desc": "Opening detailed progress analytics...",
-      "daily_checkin_title": "Daily Check|in",
+      "daily_checkin_title": "Daily check-in",
       "daily_checkin_desc": "Streak updated! Keep up the great work!",
       "header_title": "Home",
       "default_user_name": "Student"
@@ -4242,6 +4358,9 @@
     "unknown_author": "Unknown Author",
     "edit_post": "Edit Post",
     "delete_post": "Delete Post",
+    "confirm_delete_post": "Delete this post?",
+    "delete_post_description": "This action cannot be undone. This will permanently delete the post and remove its content.",
+    "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
     "drag_drop_or_click": "Drag and drop or click to upload",
@@ -6694,7 +6813,22 @@
     "metadata_description": "Stay updated with important announcements and activity notifications",
     "metadata_keywords": "notifications,updates,announcements,alerts,activity",
     "og_title": "Notifications | Studify",
-    "og_description": "Never miss important updates from your learning community"
+    "og_description": "Never miss important updates from your learning community",
+    "title": "Notifications",
+    "subtitle": "Stay updated with your learning activities",
+    "notifications": "Notifications",
+    "all_notifications": "All Notifications",
+    "all_notifications_desc": "View all your notifications, both read and unread",
+    "unread_notifications": "Unread Notifications",
+    "settings": "Settings",
+    "stay_updated_with_your_learning_activities": "Stay updated with your learning activities",
+    "mark_all_read": "Mark all as read",
+    "mark_all_as_read": "Mark all as read",
+    "filter_notifications": "Filter notifications",
+    "export_notifications": "Export notifications",
+    "all": "All",
+    "unread": "Unread",
+    "load_more": "Load more notifications"
   },
   "RecommendationsPage": {
     "metadata_title": "Course Recommendations | Studify",
@@ -8135,6 +8269,13 @@
     "error_analysis_label": "Error Analysis",
     "from": "From",
     "question": "Question",
+    "fetch_failed": "Failed to fetch mistake book",
+    "save_success": "Mistake saved to mistake book",
+    "save_success_desc": "You can view saved mistakes in the mistake book",
+    "save_failed": "Save failed",
+    "save_failed_desc": "Please try again later",
+    "delete_success": "Mistake deleted",
+    "delete_failed": "Delete failed",
     "recommended_exercises": "Recommended Exercises",
     "difficulty": "Difficulty",
     "difficulty_easy": "Easy",
@@ -8144,7 +8285,8 @@
     "updated_at": "Updated At",
     "loading": "Loading...",
     "save": "Save",
-    "close": "Close"
+    "close": "Close",
+    "confirm_delete": "Are you sure you want to delete this mistake?"
   },
   "WhiteboardDebugPanel": {
     "debug_panel": "Whiteboard Debug Panel",

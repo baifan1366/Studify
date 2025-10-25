@@ -650,16 +650,18 @@ export default function DashboardContent() {
                 
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t border-white/10">
-                  <Button 
-                    className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
-                    onClick={() => {
-                      // TODO: Navigate to learning path page or start the path
-                      setShowLearningPathModal(false);
-                    }}
+                  <Link 
+                    href={`/student/learning-paths/${selectedLearningPath?.id || selectedLearningPath?.public_id}`}
+                    className="flex-1"
                   >
-                    <PlayCircle className="w-4 h-4 mr-2" />
-                    {t('start_learning_path')}
-                  </Button>
+                    <Button 
+                      className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
+                      onClick={() => setShowLearningPathModal(false)}
+                    >
+                      <PlayCircle className="w-4 h-4 mr-2" />
+                      {t('start_learning_path')}
+                    </Button>
+                  </Link>
                   <Button 
                     variant="outline"
                     className="bg-white/5 border-white/20 text-white hover:bg-white/10"
@@ -759,17 +761,19 @@ export default function DashboardContent() {
                 
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t border-white/10">
-                  <Button 
-                    variant="outline"
-                    className="flex-1 bg-violet-500/20 border-violet-500/30 text-violet-300 hover:bg-violet-500/30"
-                    onClick={() => {
-                      // TODO: Add edit functionality
-                      setShowAINoteModal(false);
-                    }}
+                  <Link 
+                    href={`/student/notes/${selectedAINote?.id || selectedAINote?.public_id}`}
+                    className="flex-1"
                   >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    {t('edit_note')}
-                  </Button>
+                    <Button 
+                      variant="outline"
+                      className="w-full bg-violet-500/20 border-violet-500/30 text-violet-300 hover:bg-violet-500/30"
+                      onClick={() => setShowAINoteModal(false)}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      {t('edit_note')}
+                    </Button>
+                  </Link>
                   <Button 
                     variant="outline"
                     className="bg-white/5 border-white/20 text-white hover:bg-white/10"

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, courseProgressApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface CourseProgress {
   lessonId: string;
@@ -19,6 +20,9 @@ interface UpdateProgressData {
   lessonId: string;
   progressPct: number;
   timeSpentSec?: number;
+  state?: string;
+  videoPositionSec?: number;
+  videoDurationSec?: number;
 }
 
 interface UpdateProgressResponse {
@@ -53,6 +57,7 @@ export function useCourseProgress(courseId?: string) {
 // Hook to update course progress
 export function useUpdateCourseProgress() {
   const queryClient = useQueryClient();
+  const t = useTranslations('CourseLearning');
 
   return useMutation({
     mutationFn: async (data: UpdateProgressData) => {
@@ -64,16 +69,16 @@ export function useUpdateCourseProgress() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-lesson', variables.lessonId] });
       
-      // Show success message based on progress
-      if (data.progress.progressPct >= 100) {
-        toast.success('Lesson completed!');
-      } else {
-        toast.success('Progress updated successfully');
+      // Show success message based on progress - with null checks
+      if (data?.progress?.progressPct !== undefined && data.progress.progressPct >= 100) {
+        toast.success(t('lesson_completed'));
+      } else if (data?.progress) {
+        toast.success(t('progress_updated'));
       }
     },
     onError: (error: any) => {
       console.error('Failed to update course progress:', error);
-      toast.error('Failed to update progress. Please try again.');
+      toast.error(t('progress_update_failed'));
     },
   });
 }
@@ -107,6 +112,7 @@ export function useCourseProgressByLessonId(lessonId: string) {
 // Hook to update course progress by lesson ID (PATCH)
 export function useUpdateCourseProgressByLessonId() {
   const queryClient = useQueryClient();
+  const t = useTranslations('CourseLearning');
 
   return useMutation({
     mutationFn: async ({ lessonId, ...data }: UpdateProgressData) => {
@@ -118,16 +124,16 @@ export function useUpdateCourseProgressByLessonId() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-lesson', variables.lessonId] });
       
-      // Show success message based on progress
-      if (data.progress.progressPct >= 100) {
-        toast.success('Lesson completed!');
-      } else {
-        toast.success('Progress updated successfully');
+      // Show success message based on progress - with null checks
+      if (data?.progress?.progressPct !== undefined && data.progress.progressPct >= 100) {
+        toast.success(t('lesson_completed'));
+      } else if (data?.progress) {
+        toast.success(t('progress_updated'));
       }
     },
     onError: (error: any) => {
       console.error('Failed to update course progress by lesson ID:', error);
-      toast.error('Failed to update progress. Please try again.');
+      toast.error(t('progress_update_failed'));
     },
   });
 }
@@ -135,6 +141,7 @@ export function useUpdateCourseProgressByLessonId() {
 // Hook to update course progress by progress ID (PATCH)
 export function useUpdateCourseProgressByProgressId() {
   const queryClient = useQueryClient();
+  const t = useTranslations('CourseLearning');
 
   return useMutation({
     mutationFn: async ({ progressId, ...data }: { progressId: string; progressPct: number; timeSpentSec?: number }) => {
@@ -146,16 +153,16 @@ export function useUpdateCourseProgressByProgressId() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-id', variables.progressId] });
       
-      // Show success message based on progress
-      if (data.progress.progressPct >= 100) {
-        toast.success('Lesson completed!');
-      } else {
-        toast.success('Progress updated successfully');
+      // Show success message based on progress - with null checks
+      if (data?.progress?.progressPct !== undefined && data.progress.progressPct >= 100) {
+        toast.success(t('lesson_completed'));
+      } else if (data?.progress) {
+        toast.success(t('progress_updated'));
       }
     },
     onError: (error: any) => {
       console.error('Failed to update course progress by progress ID:', error);
-      toast.error('Failed to update progress. Please try again.');
+      toast.error(t('progress_update_failed'));
     },
   });
 }
@@ -163,6 +170,7 @@ export function useUpdateCourseProgressByProgressId() {
 // Hook to update course progress state
 export function useUpdateCourseProgressstate() {
   const queryClient = useQueryClient();
+  const t = useTranslations('CourseLearning');
 
   return useMutation({
     mutationFn: async ({ progressId, state }: { progressId: string; state: 'not_started' | 'in_progress' | 'completed' }) => {
@@ -174,11 +182,11 @@ export function useUpdateCourseProgressstate() {
       queryClient.invalidateQueries({ queryKey: ['course-progress'] });
       queryClient.invalidateQueries({ queryKey: ['course-progress-id', variables.progressId] });
       
-      toast.success('Progress state updated successfully');
+      toast.success(t('progress_state_updated'));
     },
     onError: (error: any) => {
       console.error('Failed to update course progress state:', error);
-      toast.error('Failed to update progress state. Please try again.');
+      toast.error(t('progress_state_update_failed'));
     },
   });
 }

@@ -102,7 +102,7 @@ export default function QuizHeader({
         <div className="flex flex-wrap items-center gap-3">
           {/* Subject Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t("filters.subject.label")}</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("filters.subject.label")}</span>
             <Select
               value={filters.subjectId?.toString() || "none"}
               onValueChange={(value) => updateFilter('subjectId', value === "none" ? undefined : Number(value))}
@@ -110,10 +110,10 @@ export default function QuizHeader({
               <SelectTrigger className="w-[140px] h-8">
                 <SelectValue placeholder={t("filters.subject.placeholder")} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 <SelectItem value="none">{t("filters.subject.all")}</SelectItem>
                 {subjects?.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.id.toString()}>
+                  <SelectItem key={subject.id} value={subject.id.toString()} className="truncate">
                     {getSubjectName(subject, locale)}
                   </SelectItem>
                 ))}
@@ -123,7 +123,7 @@ export default function QuizHeader({
 
           {/* Grade Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t("filters.grade.label")}</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("filters.grade.label")}</span>
             <Select
               value={filters.gradeId?.toString() || "none"}
               onValueChange={(value) => updateFilter('gradeId', value === "none" ? undefined : Number(value))}
@@ -131,10 +131,10 @@ export default function QuizHeader({
               <SelectTrigger className="w-[120px] h-8">
                 <SelectValue placeholder={t("filters.grade.placeholder")} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 <SelectItem value="none">{t("filters.grade.all")}</SelectItem>
                 {grades?.map((grade) => (
-                  <SelectItem key={grade.id} value={grade.id.toString()}>
+                  <SelectItem key={grade.id} value={grade.id.toString()} className="truncate">
                     {getGradeName(grade, locale)}
                   </SelectItem>
                 ))}
@@ -144,7 +144,7 @@ export default function QuizHeader({
 
           {/* Difficulty Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t("filters.difficulty.label")}</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("filters.difficulty.label")}</span>
             <Select
               value={filters.difficulty?.toString() || "none"}
               onValueChange={(value) => updateFilter('difficulty', value === "none" ? undefined : Number(value))}
@@ -152,7 +152,7 @@ export default function QuizHeader({
               <SelectTrigger className="w-[100px] h-8">
                 <SelectValue placeholder={t("filters.difficulty.placeholder")} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 <SelectItem value="none">{t("filters.difficulty.options.all")}</SelectItem>
                 <SelectItem value="1">{t("filters.difficulty.options.easy")}</SelectItem>
                 <SelectItem value="2">{t("filters.difficulty.options.fair")}</SelectItem>

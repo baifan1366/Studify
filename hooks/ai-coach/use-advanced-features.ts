@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export interface SpacedRepetitionCard {
   id: string;
@@ -62,6 +63,7 @@ export interface ConceptConnection {
 
 export function useGenerateQuizFromNotes() {
   const queryClient = useQueryClient();
+  const t = useTranslations('AICoach');
 
   return useMutation({
     mutationFn: async (params: {
@@ -85,14 +87,14 @@ export function useGenerateQuizFromNotes() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['note-quizzes'] });
       
-      toast.success('Quiz generated!', {
-        description: `Created ${data.quiz.questions.length} questions from your notes`,
+      toast.success(t('quiz_generated'), {
+        description: t('quiz_generated_desc', { count: data.quiz.questions.length }),
       });
     },
     onError: (error) => {
       console.error('Failed to generate quiz:', error);
-      toast.error('Quiz generation failed', {
-        description: error instanceof Error ? error.message : 'Please try again',
+      toast.error(t('quiz_generation_failed'), {
+        description: error instanceof Error ? error.message : t('please_try_again'),
       });
     },
   });
@@ -144,6 +146,7 @@ export function useSpacedRepetitionCards(options?: {
 
 export function useReviewCard() {
   const queryClient = useQueryClient();
+  const t = useTranslations('AICoach');
 
   return useMutation({
     mutationFn: async (params: {
@@ -167,14 +170,14 @@ export function useReviewCard() {
       queryClient.invalidateQueries({ queryKey: ['spaced-repetition-cards'] });
       
       const nextReview = new Date(data.card.nextReviewDate);
-      toast.success('Progress saved!', {
-        description: `Next review: ${nextReview.toLocaleDateString()}`,
+      toast.success(t('progress_saved'), {
+        description: t('progress_saved_desc', { date: nextReview.toLocaleDateString() }),
       });
     },
     onError: (error) => {
       console.error('Failed to review card:', error);
-      toast.error('Review failed', {
-        description: error instanceof Error ? error.message : 'Please try again',
+      toast.error(t('review_failed'), {
+        description: error instanceof Error ? error.message : t('please_try_again'),
       });
     },
   });
@@ -182,6 +185,7 @@ export function useReviewCard() {
 
 export function useGenerateCardsFromNotes() {
   const queryClient = useQueryClient();
+  const t = useTranslations('AICoach');
 
   return useMutation({
     mutationFn: async (params: {
@@ -204,14 +208,14 @@ export function useGenerateCardsFromNotes() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['spaced-repetition-cards'] });
       
-      toast.success('Flashcards created!', {
-        description: `Generated ${data.cards.length} review cards from your notes`,
+      toast.success(t('flashcards_created'), {
+        description: t('flashcards_created_desc', { count: data.cards.length }),
       });
     },
     onError: (error) => {
       console.error('Failed to generate cards:', error);
-      toast.error('Card generation failed', {
-        description: error instanceof Error ? error.message : 'Please try again',
+      toast.error(t('card_generation_failed'), {
+        description: error instanceof Error ? error.message : t('please_try_again'),
       });
     },
   });
@@ -221,6 +225,7 @@ export function useGenerateCardsFromNotes() {
 
 export function useGenerateConceptSynthesis() {
   const queryClient = useQueryClient();
+  const t = useTranslations('AICoach');
 
   return useMutation({
     mutationFn: async (params: {
@@ -243,14 +248,14 @@ export function useGenerateConceptSynthesis() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['concept-syntheses'] });
       
-      toast.success('Concept synthesis complete!', {
-        description: `Found ${data.synthesis.connections.length} connections across your learning paths`,
+      toast.success(t('concept_synthesis_complete'), {
+        description: t('concept_synthesis_complete_desc', { count: data.synthesis.connections.length }),
       });
     },
     onError: (error) => {
       console.error('Failed to generate synthesis:', error);
-      toast.error('Synthesis failed', {
-        description: error instanceof Error ? error.message : 'Please try again',
+      toast.error(t('synthesis_failed'), {
+        description: error instanceof Error ? error.message : t('please_try_again'),
       });
     },
   });

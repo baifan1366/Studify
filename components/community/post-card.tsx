@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   Card,
@@ -34,8 +36,11 @@ export default function PostCard({ post }: { post: Post }) {
   const { toast: toastHook } = useToast();
   const { data: currentUser } = useUser();
   const isTutor = currentUser?.profile?.role === 'tutor';
-  const groupPath = isTutor ? `/tutor/community/${post.group?.slug}` : `/community/${post.group?.slug}`;
-  const postPath = isTutor ? `/tutor/community/${post.group?.slug}/posts/${post.slug}` : `/community/${post.group?.slug}/posts/${post.slug}`;
+  
+  // Handle posts without a group - they should not have a "Read More" link or should use a different route
+  const hasGroup = post.group && post.group.slug;
+  const groupPath = hasGroup && post.group ? (isTutor ? `/tutor/community/${post.group.slug}` : `/community/${post.group.slug}`) : null;
+  const postPath = hasGroup && post.group ? (isTutor ? `/tutor/community/${post.group.slug}/posts/${post.slug}` : `/community/${post.group.slug}/posts/${post.slug}`) : null;
 
   const handleReaction = (emoji: string) => {
     if (!post.group?.slug || !post.slug) {
@@ -79,7 +84,7 @@ export default function PostCard({ post }: { post: Post }) {
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              {post.group && (
+              {post.group && groupPath && (
                 <Link href={groupPath}>
                   <Badge
                     variant="outline"
@@ -96,9 +101,13 @@ export default function PostCard({ post }: { post: Post }) {
               </div>
             </div>
             <CardTitle className="text-lg leading-tight hover:text-blue-300 cursor-pointer">
-              <Link href={postPath}>
-                {post.title}
-              </Link>
+              {postPath ? (
+                <Link href={postPath}>
+                  {post.title}
+                </Link>
+              ) : (
+                <span>{post.title}</span>
+              )}
             </CardTitle>
             <p className="text-sm text-gray-300 mt-1">
               {t('by_prefix')}{post.author?.display_name || t('unknown_user')}
@@ -189,33 +198,38 @@ export default function PostCard({ post }: { post: Post }) {
               <Send className="mr-1 h-4 w-4" />
             </Button>
           </div>
-          <Link href={postPath}>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
-            >
-              {t('read_more')}
-            </Button>
-          </Link>
+          {postPath && (
+            <Link href={postPath}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                {t('read_more')}
+              </Button>
+            </Link>
+          )}
         </div>
 
         {post.hashtags && post.hashtags.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-start w-full">
-            {post.hashtags.map((tag) => (
-              <Link
-                key={tag.id || tag.name}
-                href={`/community/hashtags/${tag.name}`}
-                className="hover:underline"
-              >
-                <Badge
-                  variant="outline"
-                  className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+            {post.hashtags.map((tag) => {
+              const searchPath = isTutor ? `/tutor/community?search=${encodeURIComponent('#' + tag.name)}` : `/community?search=${encodeURIComponent('#' + tag.name)}`;
+              return (
+                <Link
+                  key={tag.id || tag.name}
+                  href={searchPath}
+                  className="hover:underline"
                 >
-                  #{tag.name}
-                </Badge>
-              </Link>
-            ))}
+                  <Badge
+                    variant="outline"
+                    className="border-green-400 text-green-400 hover:bg-green-400/10 cursor-pointer"
+                  >
+                    #{tag.name}
+                  </Badge>
+                </Link>
+              );
+            })}
           </div>
         )}
       </CardFooter>

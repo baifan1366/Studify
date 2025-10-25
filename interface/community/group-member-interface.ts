@@ -9,4 +9,8 @@ export interface GroupMember {
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date | null;
+  user?: {
+    display_name: string;
+    avatar_url?: string;
+  };
 }

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       .eq('course_id', course.id)
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid error when no enrollment exists
 
     // If not enrolled and course is paid, check enrollment
     if (!enrollment && !course.is_free && course.price_cents > 0) {
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           course_id: course.id,
           status: 'active',
-          enrolled_at: new Date().toISOString()
+          started_at: new Date().toISOString()
         });
     }
 
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
         .from('course_lesson')
         .select('id')
         .eq('public_id', lessonId)
-        .single();
+        .maybeSingle();
 
       if (!lesson) {
         return NextResponse.json(
@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
         .from('course')
         .select('id')
         .eq('slug', courseId)
-        .single();
+        .maybeSingle();
       
       if (courseBySlug) {
         course = courseBySlug;
@@ -223,7 +223,7 @@ export async function GET(request: NextRequest) {
             .from('course')
             .select('id')
             .eq('public_id', courseId)
-            .single();
+            .maybeSingle();
           
           course = courseByPublicId;
         }

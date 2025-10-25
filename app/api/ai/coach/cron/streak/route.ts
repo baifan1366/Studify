@@ -5,12 +5,6 @@ import { sendStreakReminderNotification } from '@/lib/ai-coach/notification-sche
 // 连续学习提醒定时任务
 export async function POST(req: NextRequest) {
   try {
-    // 验证请求来源
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     console.log('🔥 Processing streak reminders...');
     const supabase = await createAdminClient();
     

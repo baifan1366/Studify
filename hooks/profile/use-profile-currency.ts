@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface ProfileCurrencyResponse {
   currency: string;
@@ -57,11 +58,12 @@ export function useProfileCurrency() {
 // Hook for updating profile currency
 export function useUpdateProfileCurrency() {
   const queryClient = useQueryClient();
+  const t = useTranslations('ProfileContent');
 
   return useMutation({
     mutationFn: updateProfileCurrency,
     onSuccess: (data) => {
-      toast.success('Currency updated successfully!');
+      toast.success(t('currency_updated'));
       // Update the cache
       queryClient.setQueryData(['profile-currency'], data);
       // Also invalidate user profile cache in case it's used elsewhere

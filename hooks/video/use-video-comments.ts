@@ -15,7 +15,7 @@ export interface VideoComment {
 }
 
 interface UseVideoCommentsOptions {
-  videoId: string; // lesson public_id
+  videoId: string | null; // lesson public_id, null when no lesson is selected
   userId?: string;
 }
 

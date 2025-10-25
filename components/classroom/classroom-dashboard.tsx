@@ -884,20 +884,6 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             >
               {t('assignments')}
             </AnimatedTabsTrigger>
-            <AnimatedTabsTrigger 
-              value="quizzes" 
-              isActive={activeTab === 'quizzes'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
-            >
-              {t('quizzes')}
-            </AnimatedTabsTrigger>
-            {/* <AnimatedTabsTrigger 
-              value="chat" 
-              isActive={activeTab === 'chat'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary"
-            >
-              Chat
-            </AnimatedTabsTrigger> */}
           </TabsList>
           </div>
         </div>

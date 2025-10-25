@@ -61,16 +61,25 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建课堂
+    // IMPORTANT: owner_id FK references auth.users.id (UUID), not profiles.id (bigint)
+    const insertData = {
+      name: name.trim(),
+      description: description?.trim() || null,
+      visibility,
+      class_code: classCode,
+      slug,
+      owner_id: user.id, // Use user.id (UUID) - FK references auth.users.id
+    };
+
+    console.log('🔍 Inserting classroom with data:', {
+      ...insertData,
+      profileIdType: typeof profile.id,
+      profileId: profile.id
+    });
+
     const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
-      .insert({
-        name: name.trim(),
-        description: description?.trim() || null,
-        visibility,
-        class_code: classCode,
-        slug,
-        owner_id: profile.id,
-      })
+      .insert(insertData)
       .select(`
         id,
         public_id,
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
         slug,
         ownerId: profile.id
       });
-      
+
       // Provide more specific error messages
       if (classroomError.code === '23505') {
         // Unique violation
@@ -112,7 +121,7 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-      
+
       return NextResponse.json(
         { error: 'Failed to create classroom: ' + classroomError.message },
         { status: 500 }
@@ -120,21 +129,26 @@ export async function POST(request: NextRequest) {
     }
 
     // 自动将创建者添加为课堂成员（owner 角色）
+    // IMPORTANT: classroom_member.user_id references profiles.id (bigint), not auth.users.id
     const { error: memberError } = await supabase
       .from('classroom_member')
       .insert({
         classroom_id: classroom.id,
-        user_id: profile.id,
+        user_id: profile.id, // Use profile.id (bigint) - FK references profiles.id
         role: 'owner',
       });
 
     if (memberError) {
       console.error('Error adding owner as member:', {
         error: memberError,
+        message: memberError.message,
+        code: memberError.code,
+        details: memberError.details,
         classroomId: classroom.id,
-        userId: profile.id
+        profileId: profile.id,
+        userId: user.id
       });
-      
+
       // 如果添加成员失败，删除已创建的课堂
       await supabase
         .from('classroom')
@@ -149,7 +163,7 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      
+
       return NextResponse.json(
         { error: 'Failed to set up classroom membership: ' + memberError.message },
         { status: 500 }
@@ -180,24 +194,24 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   console.log('🔍 GET /api/classroom - Route handler called');
-  
+
   try {
     // 验证用户身份
     console.log('🔍 About to call authorize function...');
     const authResult = await authorize(['student', 'tutor']);
-    
+
     console.log('🔍 Authorization result:', {
       isNextResponse: authResult instanceof NextResponse,
       type: typeof authResult,
       keys: authResult instanceof NextResponse ? 'NextResponse' : Object.keys(authResult),
       authResult: authResult instanceof NextResponse ? 'error response' : authResult
     });
-    
+
     if (authResult instanceof NextResponse) {
       console.log('❌ GET /api/classroom - Authorization failed');
       return authResult;
     }
-    
+
     const { user } = authResult; // Extract user from authResult
     console.log('✅ GET /api/classroom - Authorization successful, userId:', user.id);
 
@@ -217,10 +231,16 @@ export async function GET(request: NextRequest) {
         { status: 404 }
       );
     }
-    
+
     console.log('✅ GET /api/classroom - Profile found, ID:', profile.id);
 
     // 获取用户参与的所有课堂
+    // Use user.id (UUID) to match the insert operation
+    console.log('🔍 Fetching classrooms for user:', {
+      user_id: user.id,
+      profile_id: profile.id
+    });
+
     const { data: classrooms, error: classroomsError } = await supabase
       .from('classroom_member')
       .select(`
@@ -240,13 +260,13 @@ export async function GET(request: NextRequest) {
           updated_at
         )
       `)
-      .eq('user_id', profile.id)
+      .eq('user_id', profile.id) // Use profile.id (bigint) - FK references profiles.id
       .order('joined_at', { ascending: false });
 
     console.log('📚 [GET] Classrooms fetched:', {
       count: classrooms?.length || 0,
-      firstClassroom: classrooms?.[0]?.classroom ? 
-        (Array.isArray(classrooms[0].classroom) ? classrooms[0].classroom[0] : classrooms[0].classroom) : 
+      firstClassroom: classrooms?.[0]?.classroom ?
+        (Array.isArray(classrooms[0].classroom) ? classrooms[0].classroom[0] : classrooms[0].classroom) :
         null
     });
 
@@ -326,15 +346,15 @@ async function generateSlug(name: string, supabase: any): Promise<string> {
     .replace(/[^\w\s-]/g, '') // 移除特殊字符
     .replace(/[\s_-]+/g, '-') // 将空格和下划线转换为连字符
     .replace(/^-+|-+$/g, ''); // 移除开头和结尾的连字符
-  
+
   // If the base slug is empty, use a default
   if (!baseSlug) {
     baseSlug = 'classroom';
   }
-  
+
   let slug = baseSlug;
   let counter = 1;
-  
+
   // Check if slug exists and generate a new one if needed
   while (true) {
     const { data, error } = await supabase
@@ -342,16 +362,16 @@ async function generateSlug(name: string, supabase: any): Promise<string> {
       .select('id')
       .eq('slug', slug)
       .single();
-    
+
     if (error || !data) {
       // Slug doesn't exist, we can use it
       break;
     }
-    
+
     // Slug exists, generate a new one with a counter
     slug = `${baseSlug}-${counter}`;
     counter++;
   }
-  
+
   return slug;
 }

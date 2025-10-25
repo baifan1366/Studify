@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         display_name,
         avatar_url,
         user_id,
+        role,
         created_at
       `)
       .neq('id', currentProfile.id) // Exclude current user
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       id: user.id.toString(),
       name: user.display_name || 'Unknown User',
       avatar: user.avatar_url,
-      role: 'Student', // Default role, could be enhanced with role table join
+      role: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Student', // Capitalize role from database
       userId: user.user_id,
       joinDate: user.created_at
     })) || [];

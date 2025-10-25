@@ -98,7 +98,7 @@ interface Conversation {
 }
 
 export function ChatDashboard() {
-  const t = useTranslations('MessageBubble');
+  const t = useTranslations('ChatContent');
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -615,9 +615,9 @@ export function ChatDashboard() {
       <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Start New Chat</DialogTitle>
+            <DialogTitle>{t('start_new_chat')}</DialogTitle>
             <DialogDescription>
-              Search for users to start a conversation with
+              {t('search_users_to_chat')}
             </DialogDescription>
           </DialogHeader>
           

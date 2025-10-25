@@ -411,6 +411,8 @@
     "no_conversations_desc": "通过搜索或加入课堂群聊开始对话",
     "search_placeholder": "搜索对话...",
     "new_conversation": "新对话",
+    "start_new_chat": "开始新聊天",
+    "search_users_to_chat": "搜索用户以开始对话",
     "online": "在线",
     "offline": "离线",
     "typing": "正在输入...",

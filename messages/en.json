@@ -411,6 +411,8 @@
     "no_conversations_desc": "Start a conversation by searching for someone or joining a classroom chat",
     "search_placeholder": "Search conversations...",
     "new_conversation": "New Conversation",
+    "start_new_chat": "Start New Chat",
+    "search_users_to_chat": "Search for users to start a conversation with",
     "online": "Online",
     "offline": "Offline",
     "typing": "Typing...",

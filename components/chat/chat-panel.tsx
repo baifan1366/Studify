@@ -18,7 +18,10 @@ import {
   Save,
   Trash2,
   Reply,
-  MessageCircle
+  MessageCircle,
+  Forward,
+  Edit,
+  Edit2
 } from 'lucide-react';
 import { MessageStatus } from './message-status';
 import { ChatAttachmentViewer } from './chat-attachment-viewer';
@@ -80,6 +83,8 @@ interface ChatPanelProps {
   className?: string;
 }
 export function ChatPanel({ conversationId, className }: ChatPanelProps) {
+  const t = useTranslations('ChatPanel');
+  const tBubble = useTranslations('MessageBubble');
   const [newMessage, setNewMessage] = useState('');
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -406,8 +411,8 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 <div className="text-center">
                   <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No messages yet</p>
-                  <p className="text-xs mt-1">Start the conversation!</p>
+                  <p className="text-sm">{t('no_messages')}</p>
+                  <p className="text-xs mt-1">{t('start_conversation')}</p>
                 </div>
               </div>
             ) : (
@@ -475,17 +480,19 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                                 onClick={() => handleEditMessage(message)}
                                 className="cursor-pointer"
                               >
-                                <span>Edit</span>
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                <span>{tBubble('edit')}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDeleteMessage(message.id)}
                                 className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                <span>Delete</span>
+                                <span>{tBubble('delete')}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem className="cursor-pointer">
-                                <span>Forward</span>
+                                <Forward className="w-4 h-4 mr-2" />
+                                <span>{tBubble('forward')}</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -512,14 +519,14 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
         {editingMessageId && (
           <div className="px-3 py-2 mb-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
             <div className="flex items-center justify-between">
-              <span>✏️ Editing message</span>
+              <span>{t('editing_message')}</span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleCancelEdit}
                 className="h-6 px-2 text-xs"
               >
-                Cancel
+                {t('cancel')}
               </Button>
             </div>
           </div>
@@ -533,12 +540,12 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                 <div className="flex items-center gap-2 mb-1">
                   <Reply className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                   <span className="text-blue-600 dark:text-blue-400 font-medium text-xs">
-                    Replying to {replyingToMessage.senderName}
+                    {t('replying_to')} {replyingToMessage.senderName}
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground line-clamp-2 pl-5">
                   {replyingToMessage.isDeleted ? (
-                    <span className="italic">This message was deleted</span>
+                    <span className="italic">{t('message_deleted')}</span>
                   ) : (
                     replyingToMessage.content
                   )}
@@ -598,7 +605,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                       URL.revokeObjectURL(url);
                     }}
                     className="p-1 hover:bg-gray-200/20 rounded-full"
-                    title="Download file"
+                    title={t('download_file')}
                   >
                     <Download className="w-3 h-3" />
                   </button>
@@ -607,7 +614,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                   <button
                     onClick={() => setSelectedFile(null)}
                     className="p-1 hover:bg-gray-200/20 rounded-full"
-                    title="Remove file"
+                    title={t('remove_file')}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -627,14 +634,14 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
               disabled={isSending || isUploading}
               placeholder={
                 isSending || isUploading
-                  ? "Sending..."
+                  ? t('sending')
                   : editingMessageId
-                    ? "Edit your message..."
+                    ? t('edit_message')
                     : replyingToMessage
-                      ? `Reply to ${replyingToMessage.senderName}...`
+                      ? t('reply_to', { name: replyingToMessage.senderName })
                       : selectedFile
-                        ? "Add a message (optional)..."
-                        : "Type a message..."
+                        ? t('add_message_optional')
+                        : t('type_message')
               }
               className="flex-1 bg-transparent outline-none text-foreground placeholder-muted-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               maxLength={500}
@@ -645,7 +652,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
               onClick={() => fileInputRef.current?.click()}
               disabled={isSending || isUploading}
               className="p-1.5 rounded-full transition-colors mr-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={isSending || isUploading ? "Please wait..." : "Attach file"}
+              title={isSending || isUploading ? t('please_wait') : t('attach_file_title')}
             >
               <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
@@ -684,7 +691,7 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
             <div className="absolute inset-0 bg-primary/10 rounded-2xl flex items-center justify-center">
               <div className="text-center">
                 <Upload className="w-8 h-8 text-primary mx-auto mb-2" />
-                <div className="text-sm font-medium text-primary">Drop file to attach</div>
+                <div className="text-sm font-medium text-primary">{t('drop_file_to_attach')}</div>
               </div>
             </div>
           )}

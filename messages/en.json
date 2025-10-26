@@ -7654,8 +7654,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "copy": "Copy",
-    "message_deleted": "This message was deleted",
-    "forward": "Forward"
+    "message_deleted": "This message was deleted"
   },
   "SharedPostMessage": {
     "shared_post": "Shared Post",

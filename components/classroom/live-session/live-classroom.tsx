@@ -1159,6 +1159,8 @@ function LiveClassroomContent({
               whiteboardTool={whiteboardTool}
               whiteboardColor={whiteboardColor}
               whiteboardBrushSize={whiteboardBrushSize}
+              whiteboardFontSize={whiteboardFontSize}
+              whiteboardTextAlign={whiteboardTextAlign}
               registerCanvasRef={registerCanvasRef}
             />
           </div>
@@ -1666,7 +1668,7 @@ function ParticipantCard({ participant, userRole }: any) {
 }
 
 // Video Area Component
-function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, whiteboardCanvasRef, registerCanvasRef }: any) {
+function VideoArea({ layout, participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, whiteboardTextAlign, whiteboardCanvasRef, registerCanvasRef }: any) {
   return (
     <motion.div 
       className="video-area-container h-700px bg-slate-800/20 backdrop-blur-sm rounded-2xl border border-slate-700/30 overflow-hidden relative flex-shrink-0"
@@ -1709,6 +1711,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
           currentColor={whiteboardColor}
           currentBrushSize={whiteboardBrushSize}
           currentFontSize={whiteboardFontSize}
+          currentTextAlign={whiteboardTextAlign}
           ref={whiteboardCanvasRef}
         />
 
@@ -1731,6 +1734,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             whiteboardColor={whiteboardColor}
             whiteboardBrushSize={whiteboardBrushSize}
             whiteboardFontSize={whiteboardFontSize}
+            whiteboardTextAlign={whiteboardTextAlign}
             registerCanvasRef={registerCanvasRef}
           />
         )}
@@ -1747,6 +1751,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             whiteboardColor={whiteboardColor}
             whiteboardBrushSize={whiteboardBrushSize}
             whiteboardFontSize={whiteboardFontSize}
+            whiteboardTextAlign={whiteboardTextAlign}
             registerCanvasRef={registerCanvasRef}
           />
         )}
@@ -1765,6 +1770,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
             whiteboardColor={whiteboardColor}
             whiteboardBrushSize={whiteboardBrushSize}
             whiteboardFontSize={whiteboardFontSize}
+            whiteboardTextAlign={whiteboardTextAlign}
             registerCanvasRef={registerCanvasRef}
           />
         )}
@@ -1774,7 +1780,7 @@ function VideoArea({ layout, participants, focusedParticipant, setFocusedPartici
 }
 
 // Grid Video Layout - intelligent grid algorithm (Google Meet style)
-function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, registerCanvasRef }: any) {
+function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, whiteboardTextAlign, registerCanvasRef }: any) {
   // Calculate total item count (participants + whiteboard)
   const totalItems = participants.length + (isWhiteboardOpen ? 1 : 0);
   
@@ -1841,6 +1847,7 @@ function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen
                 currentColor={whiteboardColor}
                 currentBrushSize={whiteboardBrushSize}
                 currentFontSize={whiteboardFontSize}
+                currentTextAlign={whiteboardTextAlign}
                 ref={(ref) => registerCanvasRef('focus', ref)}
               />
               <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">
@@ -1875,7 +1882,7 @@ function GridVideoLayout({ participants, setFocusedParticipant, isWhiteboardOpen
 }
 
 // Presentation Video Layout - large container on left, right side shrunk to one-third
-function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, registerCanvasRef }: any) {
+function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, whiteboardTextAlign, registerCanvasRef }: any) {
   const presenter = participants.find((p: any) => p.metadata?.includes('tutor')) || participants[0];
   const others = participants.filter((p: any) => p.sid !== presenter?.sid);
 
@@ -1907,6 +1914,7 @@ function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug
               currentColor={whiteboardColor}
               currentBrushSize={whiteboardBrushSize}
               currentFontSize={whiteboardFontSize}
+              currentTextAlign={whiteboardTextAlign}
               className="h-full w-full"
               registerCanvasRef={registerCanvasRef}
             />
@@ -1967,7 +1975,7 @@ function PresentationVideoLayout({ participants, isWhiteboardOpen, classroomSlug
 }
 
 // Focus Video Layout - show only one container
-function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, registerCanvasRef }: any) {
+function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticipant, isWhiteboardOpen, classroomSlug, sessionId, userRole, panelsOpen, whiteboardTool, whiteboardColor, whiteboardBrushSize, whiteboardFontSize, whiteboardTextAlign, registerCanvasRef }: any) {
   const focused = focusedParticipant || participants[0];
 
   return (
@@ -1996,6 +2004,7 @@ function FocusVideoLayout({ participants, focusedParticipant, setFocusedParticip
                 currentColor={whiteboardColor}
                 currentBrushSize={whiteboardBrushSize}
                 currentFontSize={whiteboardFontSize}
+                currentTextAlign={whiteboardTextAlign}
                 registerCanvasRef={registerCanvasRef}
               />
               <div className="absolute top-2 left-2 bg-purple-500/80 text-white px-2 py-1 rounded text-xs font-medium">

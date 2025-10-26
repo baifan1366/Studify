@@ -263,8 +263,7 @@ export function WhiteboardPanel({
 
                 <div className="text-xs text-slate-400">
                   💡 Click anywhere on the whiteboard to create a text box<br/>
-                  Single-click to select and drag, double-click to edit text<br/>
-                  Text editing now uses React Portal for better performance
+                  Double-click to edit text, single-click to drag position
                 </div>
               </div>
             )}

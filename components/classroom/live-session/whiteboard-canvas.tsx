@@ -62,17 +62,54 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
-  const [tempCanvas, setTempCanvas] = useState<HTMLCanvasElement | null>(null);
-  // Drawing layer cache - used to cache all non-text strokes
-  const [drawingCanvas, setDrawingCanvas] = useState<HTMLCanvasElement | null>(null);
+  // Use refs instead of state for canvas layers - more reliable and immediate access
+  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   // Add canvas cache state for persistence
   const [canvasCache, setCanvasCache] = useState<ImageData | null>(null);
+  // 🔧 Initialize drawing and temp canvases on mount
   useEffect(() => {
-  console.log('🎯 WhiteboardCanvas mounted', { id: Math.random().toString(36).slice(2, 6) });
-  return () => {
-    console.log('🧹 WhiteboardCanvas unmounted');
-  };
-}, []);
+    console.log('🎯 WhiteboardCanvas mounted', { id: Math.random().toString(36).slice(2, 6) });
+    
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      console.warn('⚠️ Canvas ref not available on mount');
+      return;
+    }
+
+    // Initialize drawingCanvas if it doesn't exist
+    if (!drawingCanvasRef.current) {
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = canvas.width || width;
+      newDrawingCanvas.height = canvas.height || height;
+      const ctx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, newDrawingCanvas.width, newDrawingCanvas.height);
+      }
+      drawingCanvasRef.current = newDrawingCanvas;
+      console.log('✅ Initialized drawingCanvas on mount', {
+        width: newDrawingCanvas.width,
+        height: newDrawingCanvas.height
+      });
+    }
+
+    // Initialize tempCanvas if it doesn't exist
+    if (!tempCanvasRef.current) {
+      const newTempCanvas = document.createElement('canvas');
+      newTempCanvas.width = canvas.width || width;
+      newTempCanvas.height = canvas.height || height;
+      tempCanvasRef.current = newTempCanvas;
+      console.log('✅ Initialized tempCanvas on mount', {
+        width: newTempCanvas.width,
+        height: newTempCanvas.height
+      });
+    }
+
+    return () => {
+      console.log('🧹 WhiteboardCanvas unmounted');
+    };
+  }, []);
  
   // Enhanced text box state
   interface TextBox {
@@ -137,11 +174,13 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     }
   }, [registerCanvasRef, sessionId]);
   
-  // 🧠 清空画布
+  // 🧠 Clear canvas - clears all layers
   const clearCanvas = () => {
     console.log('🎯 clearCanvas function executed');
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
+    
+    // Clear main canvas
     if (ctx && canvas) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = 'white';
@@ -153,12 +192,18 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       }
     }
     
-    // Clear drawing cache canvas
-    const drawingCtx = drawingCanvas?.getContext('2d');
-    if (drawingCtx && drawingCanvas) {
-      drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    // Clear drawing cache canvas (permanent layer)
+    const drawingCtx = drawingCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+    if (drawingCtx && drawingCanvasRef.current) {
+      drawingCtx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
       drawingCtx.fillStyle = 'white';
-      drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+      drawingCtx.fillRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
+    }
+    
+    // Clear temporary canvas
+    const tempCtx = tempCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+    if (tempCtx && tempCanvasRef.current) {
+      tempCtx.clearRect(0, 0, tempCanvasRef.current.width, tempCanvasRef.current.height);
     }
     
     // Clear text box state
@@ -171,16 +216,128 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     scheduleAutoSave();
   };
 
-  // ☁️ 保存到云端（可以根据你的 API 改）
+  // ☁️ Save to cloud - simplified layer composition
   const saveCanvas = async () => {
     console.log('🎯 saveCanvas function executed');
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const dataUrl = canvas.toDataURL("image/png");
     
-    // 🎯 Use ref to get latest textBoxes, avoid closure issues
-    const currentTextBoxes = textBoxesRef.current;
+    const canvas = canvasRef.current;
+    const drawingCanvas = drawingCanvasRef.current;
+    const tempCanvas = tempCanvasRef.current;
+    
+    if (!canvas) {
+      toast.error('❌ Main canvas not found');
+      return;
+    }
+
+    // Determine final export dimensions
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    console.log('📐 Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+
+    // Create final composite canvas for export
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvasWidth;
+    exportCanvas.height = canvasHeight;
+    const ctx = exportCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!ctx) {
+      toast.error('❌ Failed to create export canvas');
+      return;
+    }
+
+    // Step 1️⃣: Fill white background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    console.log('✅ Step 1: White background drawn');
+
+    // Step 2️⃣: Check which layers have content
+    
+    const checkHasContent = (canvasToCheck: HTMLCanvasElement | null) => {
+      if (!canvasToCheck) return false;
+      const testCtx = canvasToCheck.getContext('2d', { willReadFrequently: true });
+      if (!testCtx) return false;
+      const pixels = testCtx.getImageData(0, 0, Math.min(50, canvasToCheck.width), Math.min(50, canvasToCheck.height)).data;
+      
+      // Check both RGB values AND alpha channel
+      // A pixel has content if: (RGB is not white) AND (alpha > 0)
+      const hasContent = Array.from(pixels).some((v, i) => {
+        const channel = i % 4;
+        const pixelIndex = Math.floor(i / 4);
+        const alpha = pixels[pixelIndex * 4 + 3];
+        
+        // Only consider pixels with non-zero alpha
+        if (channel !== 3 && alpha > 0 && v < 250) {
+          return true;
+        }
+        return false;
+      });
+      
+      return hasContent;
+    };
+
+    const hasMain = checkHasContent(canvas);
+    const hasDrawing = checkHasContent(drawingCanvas);
+    const hasTemp = checkHasContent(tempCanvas);
+
+    console.log('📊 Layer content detected:', { hasMain, hasDrawing, hasTemp });
+
+    // Step 3️⃣: Composite all layers (order: main → drawing)
+    // Note: tempCanvas is not included as it's only for temporary preview
+    if (hasMain && canvas) {
+      ctx.drawImage(canvas, 0, 0);
+      console.log('✓ Main canvas composited');
+    }
+    if (hasDrawing && drawingCanvas) {
+      ctx.drawImage(drawingCanvas, 0, 0);
+      console.log('✓ Drawing canvas composited');
+    }
+    console.log('✅ All layers composited');
+
+    // Step 4️⃣: Draw text boxes
+    const currentTextBoxes = textBoxesRef.current || [];
+    currentTextBoxes.forEach((textBox) => {
+      if (textBox.text.trim()) {
+        ctx.save();
+        
+        // Draw background color (if any)
+        if (textBox.backgroundColor) {
+          ctx.fillStyle = textBox.backgroundColor;
+          ctx.fillRect(textBox.x, textBox.y, textBox.width, textBox.height);
+        }
+        
+        // Text styling
+        ctx.fillStyle = textBox.color || '#000';
+        ctx.font = `${textBox.fontWeight || 'normal'} ${textBox.fontStyle || 'normal'} ${textBox.fontSize || 16}px ${textBox.fontFamily || 'Arial'}`;
+        ctx.textAlign = textBox.alignment || 'left';
+        ctx.textBaseline = 'top';
+        
+        // Compute base X position for alignment
+        let drawX = textBox.x;
+        if (textBox.alignment === 'center') {
+          drawX = textBox.x + textBox.width / 2;
+        } else if (textBox.alignment === 'right') {
+          drawX = textBox.x + textBox.width;
+        }
+        
+        // Draw text lines
+        const lines = textBox.text.split('\n');
+        const lineHeight = textBox.fontSize * 1.2;
+        lines.forEach((line, lineIndex) => {
+          if (line.trim()) {
+            ctx.fillText(line, drawX, textBox.y + (lineIndex * lineHeight));
+          }
+        });
+        
+        ctx.restore();
+      }
+    });
+    if (currentTextBoxes.length > 0) {
+      console.log(`✓ ${currentTextBoxes.length} text boxes composited`);
+    }
+
+    // Step 5️⃣: Export to data URL
+    const dataUrl = exportCanvas.toDataURL('image/png');
+    console.log('✅ Canvas exported:', dataUrl.length, 'bytes');
     
     // Prepare text box data (exclude temporary UI state)
     const textBoxData = currentTextBoxes.map(tb => ({
@@ -211,14 +368,14 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
         body: JSON.stringify({
           sessionId: whiteboardId || sessionId,
           imageData: dataUrl,
-          width: canvas.width,
-          height: canvas.height,
+          width: canvasWidth,
+          height: canvasHeight,
           textBoxes: textBoxData,
           metadata: {
             userRole,
             participantName,
             timestamp: new Date().toISOString(),
-            textBoxCount: textBoxes.length
+            textBoxCount: currentTextBoxes.length
           }
         }),
       });
@@ -237,16 +394,132 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     }
   };
 
-  // 💾 下载到本地
+  // 💾 Download to local - captures complete canvas with all layers
   const downloadCanvas = () => {
     console.log('🎯 downloadCanvas function executed');
+    
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('❌ No canvas ref available');
+      toast.error('Canvas not available');
+      return;
+    }
 
+    // Initialize drawingCanvas if it doesn't exist
+    if (!drawingCanvasRef.current) {
+      console.warn('⚠️ drawingCanvas not initialized, creating now...');
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = canvas.width || width;
+      newDrawingCanvas.height = canvas.height || height;
+      const newDrawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
+      if (newDrawingCtx) {
+        newDrawingCtx.fillStyle = 'white';
+        newDrawingCtx.fillRect(0, 0, newDrawingCanvas.width, newDrawingCanvas.height);
+        // Copy current canvas content
+        newDrawingCtx.drawImage(canvas, 0, 0);
+      }
+      drawingCanvasRef.current = newDrawingCanvas;
+    }
+    
+    // Use drawingCanvas as the source of truth
+    const drawingCanvas = drawingCanvasRef.current;
+    if (!drawingCanvas) {
+      console.error('❌ Failed to initialize drawing canvas');
+      toast.error('Canvas initialization failed');
+      return;
+    }
+
+    const canvasWidth = drawingCanvas.width || canvas.width || width;
+    const canvasHeight = drawingCanvas.height || canvas.height || height;
+    
+    if (canvasWidth === 0 || canvasHeight === 0) {
+      console.error('❌ Invalid canvas dimensions:', { canvasWidth, canvasHeight });
+      toast.error('Invalid canvas size');
+      return;
+    }
+
+    // Create final composite canvas for download
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvasWidth;
+    exportCanvas.height = canvasHeight;
+    const exportCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!exportCtx) {
+      console.error('❌ Failed to get export context');
+      return;
+    }
+
+    // 🔧 CRITICAL FIX: Merge ALL canvases before download
+    const mainCtx = canvas.getContext('2d', { willReadFrequently: true });
+    const drawingCtx = drawingCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (mainCtx && drawingCtx) {
+      console.log('🔄 Merging main canvas into drawingCanvas before download');
+      drawingCtx.drawImage(canvas, 0, 0);
+    }
+    
+    if (tempCanvasRef.current) {
+      const tempCtx = tempCanvasRef.current.getContext('2d', { willReadFrequently: true });
+      if (tempCtx && drawingCtx) {
+        drawingCtx.drawImage(tempCanvasRef.current, 0, 0);
+        tempCtx.clearRect(0, 0, tempCanvasRef.current.width, tempCanvasRef.current.height);
+        console.log('🔄 Also merged tempCanvas into drawingCanvas before download');
+      }
+    }
+    
+    // 1️⃣ Draw white background
+    exportCtx.fillStyle = 'white';
+    exportCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+    
+    // 2️⃣ Draw all completed drawings from base layer
+    exportCtx.drawImage(drawingCanvas, 0, 0);
+    
+    // 3️⃣ Draw all text boxes
+    const currentTextBoxes = textBoxesRef.current || [];
+    currentTextBoxes.forEach(textBox => {
+      if (textBox.text.trim()) {
+        exportCtx.save();
+        
+        // Draw background color (if any)
+        if (textBox.backgroundColor) {
+          exportCtx.fillStyle = textBox.backgroundColor;
+          exportCtx.fillRect(textBox.x, textBox.y, textBox.width, textBox.height);
+        }
+        
+        // Text styling
+        exportCtx.fillStyle = textBox.color;
+        exportCtx.font = `${textBox.fontWeight || 'normal'} ${textBox.fontStyle || 'normal'} ${textBox.fontSize || 16}px ${textBox.fontFamily || 'Arial'}`;
+        exportCtx.textBaseline = 'top';
+        exportCtx.textAlign = textBox.alignment || 'left';
+        
+        // Compute base X position for alignment
+        let drawX = textBox.x;
+        if (textBox.alignment === 'center') {
+          drawX = textBox.x + textBox.width / 2;
+        } else if (textBox.alignment === 'right') {
+          drawX = textBox.x + textBox.width;
+        }
+        
+        // Draw text lines
+        const lines = textBox.text.split('\n');
+        const lineHeight = textBox.fontSize * 1.2;
+        lines.forEach((line, lineIndex) => {
+          if (line.trim()) {
+            exportCtx.fillText(line, drawX, textBox.y + (lineIndex * lineHeight));
+          }
+        });
+        
+        exportCtx.restore();
+      }
+    });
+
+    // 4️⃣ Download the complete image
     const link = document.createElement("a");
-    link.download = "whiteboard.png";
-    link.href = canvas.toDataURL("image/png");
+    link.download = `whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = exportCanvas.toDataURL("image/png");
     link.click();
+    
+    console.log('✅ Whiteboard downloaded successfully');
     toast.success('Whiteboard downloaded');
   };
 
@@ -488,7 +761,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       canvas.height = height;
       
       // Initialize main canvas background
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (ctx) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, width, height);
@@ -503,18 +776,23 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       const temp = document.createElement('canvas');
       temp.width = width;
       temp.height = height;
-      setTempCanvas(temp);
+      tempCanvasRef.current = temp;
       
       // Initialize drawing cache canvas
       const newDrawingCanvas = document.createElement('canvas');
       newDrawingCanvas.width = width;
       newDrawingCanvas.height = height;
-      const drawingCtx = newDrawingCanvas.getContext('2d');
+      const drawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
       if (drawingCtx) {
         drawingCtx.fillStyle = 'white';
         drawingCtx.fillRect(0, 0, width, height);
       }
-      setDrawingCanvas(newDrawingCanvas);
+      drawingCanvasRef.current = newDrawingCanvas;
+      console.log('✅ drawingCanvas initialized in useEffect (first load)', {
+        width: newDrawingCanvas.width,
+        height: newDrawingCanvas.height,
+        refExists: !!drawingCanvasRef.current
+      });
 
       // Load server content on first load
       loadWhiteboardContent();
@@ -524,11 +802,11 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     // --- If not first load, execute content scaling logic ---
     console.log(`🔄 Resizing canvas from ${oldWidth}x${oldHeight} to ${width}x${height}`);
 
-    // 2. Store current drawing cache (drawingCanvas) in a temporary image
+    // 2. Store current drawing cache (drawingCanvasRef) in a temporary image
     // This step is async, so we put all subsequent logic in the onload callback
     const tempDrawingImage = new Image();
-    if (drawingCanvas) {
-      tempDrawingImage.src = drawingCanvas.toDataURL();
+    if (drawingCanvasRef.current) {
+      tempDrawingImage.src = drawingCanvasRef.current.toDataURL();
     }
 
     tempDrawingImage.onload = () => {
@@ -560,14 +838,14 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       const newTempCanvas = document.createElement('canvas');
       newTempCanvas.width = width;
       newTempCanvas.height = height;
-      setTempCanvas(newTempCanvas);
+      tempCanvasRef.current = newTempCanvas;
       
       const newDrawingCanvas = document.createElement('canvas');
       newDrawingCanvas.width = width;
       newDrawingCanvas.height = height;
       
       // 6. (Raster part) Draw temporary image back to new cache canvas at scale
-      const drawingCtx = newDrawingCanvas.getContext('2d');
+      const drawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
       if (drawingCtx) {
         drawingCtx.fillStyle = 'white';
         drawingCtx.fillRect(0, 0, width, height); // Fill background first
@@ -575,8 +853,13 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
         
         console.log('✅ Drawing content scaled and restored');
         
-        // Update drawingCanvas state
-        setDrawingCanvas(newDrawingCanvas);
+        // Update drawingCanvasRef.current ref
+        drawingCanvasRef.current = newDrawingCanvas;
+        console.log('✅ drawingCanvas updated in useEffect (resize)', {
+          width: newDrawingCanvas.width,
+          height: newDrawingCanvas.height,
+          refExists: !!drawingCanvasRef.current
+        });
         
         // 7. Trigger final redraw
         // Use setTimeout to ensure execution after all React state updates complete
@@ -587,11 +870,11 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
       }
     };
 
-    // If drawingCanvas is empty (e.g., user hasn't drawn anything), also need to adjust size
-    if (!drawingCanvas || !drawingCanvas.toDataURL()) {
+    // If drawingCanvasRef is empty (e.g., user hasn't drawn anything), also need to adjust size
+    if (!drawingCanvasRef.current || !drawingCanvasRef.current.toDataURL()) {
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (ctx) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, width, height);
@@ -626,7 +909,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
   // Restore canvas from cache when available
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (ctx && canvasCache && preserveDrawing) {
       console.log('Restoring canvas from cache');
       ctx.putImageData(canvasCache, 0, 0);
@@ -743,20 +1026,50 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
     }
   };
 
-  // Load canvas image
+  // Load canvas image into drawing layer
   const loadCanvasImage = (imageData: string) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.warn('⚠️ No canvas ref available for loading');
+      return;
+    }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    // Initialize drawingCanvas if it doesn't exist
+    if (!drawingCanvasRef.current) {
+      console.log('🔧 Initializing drawingCanvas for loading');
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = canvas.width;
+      newDrawingCanvas.height = canvas.height;
+      drawingCanvasRef.current = newDrawingCanvas;
+    }
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const drawingCtx = drawingCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+    
+    if (!ctx || !drawingCtx) {
+      console.error('❌ Failed to get contexts for loading');
+      return;
+    }
 
     const img = new Image();
     img.onload = () => {
+      console.log('🎨 Loading image into canvas layers');
+      
+      // Load into drawing cache canvas (permanent layer) - this is the source of truth
+      if (drawingCtx && drawingCanvasRef.current) {
+        drawingCtx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
+        drawingCtx.fillStyle = 'white';
+        drawingCtx.fillRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
+        drawingCtx.drawImage(img, 0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
+        console.log('✅ Image loaded into drawingCanvas');
+      }
+      
+      // Also update main canvas for immediate display
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      console.log('✅ Image loaded into main canvas');
       
       // Save loaded image state to cache
       if (preserveDrawing) {
@@ -764,11 +1077,18 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvas
         setCanvasCache(imageData);
       }
       
-      // 重新绘制文本框
+      // Redraw text boxes on top
       setTimeout(() => {
+        console.log('🔄 Redrawing canvas after image load');
         redrawCanvas();
       }, 50);
     };
+    
+    img.onerror = (error) => {
+      console.error('❌ Failed to load image:', error);
+      toast.error('Failed to load whiteboard image');
+    };
+    
     img.src = imageData;
   };
 
@@ -829,9 +1149,39 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
   setStartPoint({ x, y });
 
   const ctx = canvas.getContext("2d");
-  const drawingCtx = drawingCanvas?.getContext("2d");
-
+  
   if (!ctx) return;
+
+  // 🔧 Initialize drawingCanvas if it doesn't exist
+  if (!drawingCanvasRef.current) {
+    console.warn('⚠️ drawingCanvas not initialized in handleMouseDown, creating now...');
+    const newDrawingCanvas = document.createElement('canvas');
+    newDrawingCanvas.width = canvas.width;
+    newDrawingCanvas.height = canvas.height;
+    const newDrawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
+    if (newDrawingCtx) {
+      newDrawingCtx.fillStyle = 'white';
+      newDrawingCtx.fillRect(0, 0, canvas.width, canvas.height);
+      // Copy current canvas content if any
+      newDrawingCtx.drawImage(canvas, 0, 0);
+      console.log('✅ drawingCanvas initialized in handleMouseDown', {
+        width: newDrawingCanvas.width,
+        height: newDrawingCanvas.height
+      });
+    }
+    drawingCanvasRef.current = newDrawingCanvas;
+  } else {
+    console.log('✅ drawingCanvas already exists', {
+      width: drawingCanvasRef.current.width,
+      height: drawingCanvasRef.current.height
+    });
+  }
+
+  const drawingCtx = drawingCanvasRef.current?.getContext("2d");
+  
+  if (!drawingCtx) {
+    console.error('❌ Failed to get drawingCtx in handleMouseDown!');
+  }
 
   switch (currentTool) {
     case "pen":
@@ -841,14 +1191,21 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (drawingCtx) {
         drawingCtx.beginPath();
         drawingCtx.moveTo(x, y);
+        console.log('✅ Pen path initialized on both canvases');
+      } else {
+        console.error('❌ Failed to initialize drawingCtx for pen');
       }
+      break;
+
+    case "eraser":
+      console.log("🧹 Eraser mode started at", { x, y });
+      // Eraser doesn't need path initialization
       break;
 
     case "rectangle":
     case "circle":
       console.log(`🟦 ${currentTool} mode started at`, { x, y });
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      setSavedImageData(imageData);
+      // No need to save imageData - using dual-canvas buffering instead
       break;
 
     default:
@@ -1237,7 +1594,7 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
       return;
     }
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) {
       console.warn('redrawCanvas: context not available');
       return;
@@ -1251,8 +1608,8 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     }
     
     // First draw cached drawing content (all strokes, shapes, etc.)
-    if (drawingCanvas) {
-      ctx.drawImage(drawingCanvas, 0, 0);
+    if (drawingCanvasRef.current) {
+      ctx.drawImage(drawingCanvasRef.current, 0, 0);
     } else if (!preserveDrawing) {
       // If no cache canvas and not preserving, set white background
       ctx.fillStyle = 'white';
@@ -1364,24 +1721,64 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     // 普通绘制模式
     if (!isDrawing || !startPoint) return;
     
-    const ctx = canvas.getContext('2d');
-    const drawingCtx = drawingCanvas?.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // Initialize drawingCanvas if it doesn't exist
+    if (!drawingCanvasRef.current) {
+      console.warn('⚠️ drawingCanvas not initialized in handleMouseMove, creating now...');
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = canvas.width;
+      newDrawingCanvas.height = canvas.height;
+      const newDrawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
+      if (newDrawingCtx) {
+        newDrawingCtx.fillStyle = 'white';
+        newDrawingCtx.fillRect(0, 0, canvas.width, canvas.height);
+        // Copy current canvas content
+        newDrawingCtx.drawImage(canvas, 0, 0);
+        console.log('✅ drawingCanvas initialized in handleMouseMove');
+      }
+      drawingCanvasRef.current = newDrawingCanvas;
+    }
+    
+    const drawingCtx = drawingCanvasRef.current?.getContext('2d', { willReadFrequently: true });
     
     if (ctx) {
       switch (currentTool) {
         case 'pen':
+          // Draw on main canvas (for immediate visual feedback)
           ctx.lineTo(x, y);
           ctx.strokeStyle = currentColor;
           ctx.lineWidth = currentBrushSize;
           ctx.lineCap = 'round';
           ctx.stroke();
-          // Also draw on cache canvas
+          
+          // CRITICAL: Also draw on permanent storage canvas
           if (drawingCtx) {
             drawingCtx.lineTo(x, y);
             drawingCtx.strokeStyle = currentColor;
             drawingCtx.lineWidth = currentBrushSize;
             drawingCtx.lineCap = 'round';
             drawingCtx.stroke();
+            
+            // Log first stroke to verify it's working
+            if (!(window as any).__penStrokeLogged) {
+              console.log('✅ First pen stroke drawn to drawingCanvas', { x, y, color: currentColor, size: currentBrushSize });
+              
+              // Verify the stroke actually appeared
+              const verifyPixels = drawingCtx.getImageData(Math.floor(x) - 5, Math.floor(y) - 5, 10, 10).data;
+              let hasNonWhite = false;
+              for (let i = 0; i < verifyPixels.length; i += 4) {
+                if (verifyPixels[i] < 250 || verifyPixels[i+1] < 250 || verifyPixels[i+2] < 250) {
+                  hasNonWhite = true;
+                  break;
+                }
+              }
+              console.log('🔍 Stroke verification on drawingCanvas:', hasNonWhite ? 'VISIBLE' : 'NOT VISIBLE');
+              
+              (window as any).__penStrokeLogged = true;
+            }
+          } else {
+            console.error('❌ drawingCtx not available during pen drawing!');
           }
           break;
           
@@ -1415,6 +1812,7 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
         case 'rectangle':
         case 'circle':
           // For shape tools, we need real-time preview
+          console.log('🔄 Shape tool mouse move, calling drawShapePreview');
           drawShapePreview(startPoint.x, startPoint.y, x, y);
           break;
           
@@ -1444,43 +1842,126 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     }
   };
 
-  // Store canvas state before drawing
-  const [savedImageData, setSavedImageData] = useState<ImageData | null>(null);
-
-  // Draw shape preview
+  // Draw shape preview using temporary canvas (dual-canvas buffering)
   const drawShapePreview = (startX: number, startY: number, currentX: number, currentY: number) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // If original state not saved yet, save it
-    if (!savedImageData) {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      setSavedImageData(imageData);
-    }
-
-    // Restore to state before starting to draw
-    if (savedImageData) {
-      ctx.putImageData(savedImageData, 0, 0);
-    }
     
-    // Draw preview shape
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = currentBrushSize;
-    ctx.lineCap = 'round';
+    if (!canvas) {
+      console.warn('⚠️ drawShapePreview: No canvas');
+      return;
+    }
+
+    // Initialize tempCanvas if it doesn't exist
+    if (!tempCanvasRef.current) {
+      console.warn('⚠️ tempCanvas not initialized, creating now...');
+      const temp = document.createElement('canvas');
+      temp.width = canvas.width;
+      temp.height = canvas.height;
+      tempCanvasRef.current = temp;
+    }
+
+    // Initialize drawingCanvas if it doesn't exist
+    if (!drawingCanvasRef.current) {
+      console.warn('⚠️ drawingCanvas not initialized, creating now...');
+      const newDrawingCanvas = document.createElement('canvas');
+      newDrawingCanvas.width = canvas.width;
+      newDrawingCanvas.height = canvas.height;
+      const newDrawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
+      if (newDrawingCtx) {
+        newDrawingCtx.fillStyle = 'white';
+        newDrawingCtx.fillRect(0, 0, canvas.width, canvas.height);
+        // Copy current canvas content to drawing canvas
+        newDrawingCtx.drawImage(canvas, 0, 0);
+      }
+      drawingCanvasRef.current = newDrawingCanvas;
+    }
+
+    const tempCtx = tempCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!ctx || !tempCtx) {
+      console.warn('⚠️ drawShapePreview: No context available');
+      return;
+    }
+
+    console.log('🎨 Drawing shape preview:', { 
+      tool: currentTool, 
+      startX, 
+      startY, 
+      currentX, 
+      currentY,
+      color: currentColor,
+      brushSize: currentBrushSize
+    });
+
+    // Clear temporary canvas for fresh preview
+    tempCtx.clearRect(0, 0, tempCanvasRef.current.width, tempCanvasRef.current.height);
+    
+    // Draw preview shape on temporary canvas
+    tempCtx.strokeStyle = currentColor;
+    tempCtx.lineWidth = currentBrushSize;
+    tempCtx.lineCap = 'round';
     
     if (currentTool === 'rectangle') {
       const width = currentX - startX;
       const height = currentY - startY;
-      ctx.strokeRect(startX, startY, width, height);
+      console.log('📐 Drawing rectangle preview:', { width, height });
+      tempCtx.strokeRect(startX, startY, width, height);
     } else if (currentTool === 'circle') {
       const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
-      ctx.beginPath();
-      ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
-      ctx.stroke();
+      console.log('⭕ Drawing circle preview:', { radius });
+      tempCtx.beginPath();
+      tempCtx.arc(startX, startY, radius, 0, 2 * Math.PI);
+      tempCtx.stroke();
     }
+
+    // Composite: draw base layer (drawingCanvasRef.current) + temp preview to main canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // First draw the base layer with all completed drawings
+    if (drawingCanvasRef.current) {
+      ctx.drawImage(drawingCanvasRef.current, 0, 0);
+    } else {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Then overlay the temporary preview
+    ctx.drawImage(tempCanvasRef.current, 0, 0);
+    
+    // Finally redraw text boxes on top
+    textBoxes.forEach(textBox => {
+      if (textBox.text.trim() && !textBox.isEditing) {
+        ctx.fillStyle = textBox.color;
+        ctx.font = `${textBox.fontWeight} ${textBox.fontStyle} ${textBox.fontSize}px ${textBox.fontFamily}`;
+        ctx.textBaseline = 'top';
+        ctx.textAlign = textBox.alignment;
+        
+        let drawX = textBox.x;
+        if (textBox.alignment === 'center') {
+          drawX = textBox.x + textBox.width / 2;
+        } else if (textBox.alignment === 'right') {
+          drawX = textBox.x + textBox.width;
+        }
+        
+        if (textBox.backgroundColor) {
+          ctx.save();
+          ctx.fillStyle = textBox.backgroundColor;
+          ctx.fillRect(textBox.x, textBox.y, textBox.width, textBox.height);
+          ctx.restore();
+          ctx.fillStyle = textBox.color;
+        }
+        
+        const lines = textBox.text.split('\n');
+        const lineHeight = textBox.fontSize * 1.2;
+        
+        lines.forEach((line, lineIndex) => {
+          if (line.trim()) {
+            ctx.fillText(line, drawX, textBox.y + (lineIndex * lineHeight));
+          }
+        });
+      }
+    });
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1504,67 +1985,109 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     }
 
     if (isDrawing && startPoint && (currentTool === 'rectangle' || currentTool === 'circle')) {
+      console.log('✅ Finalizing shape:', currentTool);
       const canvas = canvasRef.current;
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-        
-        const ctx = canvas.getContext('2d');
-        const drawingCtx = drawingCanvas?.getContext('2d');
-        
-        if (ctx) {
-          // Restore to state before starting to draw, then draw final shape
-          if (savedImageData) {
-            ctx.putImageData(savedImageData, 0, 0);
-          }
-          
-          // Draw final shape to main canvas and cache canvas
-          const drawShape = (context: CanvasRenderingContext2D) => {
-            context.strokeStyle = currentColor;
-            context.lineWidth = currentBrushSize;
-            context.lineCap = 'round';
-            
-            if (currentTool === 'rectangle') {
-              const width = x - startPoint.x;
-              const height = y - startPoint.y;
-              context.strokeRect(startPoint.x, startPoint.y, width, height);
-            } else if (currentTool === 'circle') {
-              const radius = Math.sqrt(Math.pow(x - startPoint.x, 2) + Math.pow(y - startPoint.y, 2));
-              context.beginPath();
-              context.arc(startPoint.x, startPoint.y, radius, 0, 2 * Math.PI);
-              context.stroke();
-            }
-          };
-          
-          // Draw on main canvas
-          drawShape(ctx);
-          
-          // Draw on cache canvas
-          if (drawingCtx) {
-            drawShape(drawingCtx);
-          }
-          
-          // Redraw text boxes
-          redrawCanvas();
-          
-          // Save canvas state to cache after drawing
-          if (preserveDrawing) {
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            setCanvasCache(imageData);
-          }
-          
-          // Trigger auto-save
-          scheduleAutoSave();
-        }
+      if (!canvas) {
+        console.error('❌ No canvas available');
+        return;
       }
+
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        console.error('❌ No main context available');
+        return;
+      }
+
+      // Initialize drawingCanvas if it doesn't exist
+      if (!drawingCanvasRef.current) {
+        console.warn('⚠️ drawingCanvas not initialized, creating now...');
+        const newDrawingCanvas = document.createElement('canvas');
+        newDrawingCanvas.width = canvas.width;
+        newDrawingCanvas.height = canvas.height;
+        const newDrawingCtx = newDrawingCanvas.getContext('2d', { willReadFrequently: true });
+        if (newDrawingCtx) {
+          newDrawingCtx.fillStyle = 'white';
+          newDrawingCtx.fillRect(0, 0, canvas.width, canvas.height);
+          // Copy current canvas content to drawing canvas
+          newDrawingCtx.drawImage(canvas, 0, 0);
+        }
+        drawingCanvasRef.current = newDrawingCanvas;
+      }
+
+      const drawingCtx = drawingCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+      const tempCtx = tempCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+      
+      if (!drawingCtx) {
+        console.error('❌ No drawingCtx available for finalizing shape!');
+        return;
+      }
+      
+      console.log('🎨 Drawing final shape to permanent layer');
+      console.log('🎨 drawingCanvas before drawing:', {
+        width: drawingCanvasRef.current.width,
+        height: drawingCanvasRef.current.height,
+        hasContext: !!drawingCtx
+      });
+      
+      // Draw final shape to drawing cache canvas (permanent layer)
+      drawingCtx.strokeStyle = currentColor;
+      drawingCtx.lineWidth = currentBrushSize;
+      drawingCtx.lineCap = 'round';
+      
+      console.log('🎨 Drawing settings:', {
+        strokeStyle: drawingCtx.strokeStyle,
+        lineWidth: drawingCtx.lineWidth,
+        lineCap: drawingCtx.lineCap
+      });
+      
+      if (currentTool === 'rectangle') {
+        const width = x - startPoint.x;
+        const height = y - startPoint.y;
+        console.log('📐 Final rectangle:', { startX: startPoint.x, startY: startPoint.y, width, height });
+        drawingCtx.strokeRect(startPoint.x, startPoint.y, width, height);
+        console.log('✅ strokeRect called on drawingCanvas');
+        
+        // Verify the drawing actually happened
+        const testPixel = drawingCtx.getImageData(startPoint.x, startPoint.y, 1, 1).data;
+        console.log('🧪 Test pixel at start point:', Array.from(testPixel));
+      } else if (currentTool === 'circle') {
+        const radius = Math.sqrt(Math.pow(x - startPoint.x, 2) + Math.pow(y - startPoint.y, 2));
+        console.log('⭕ Final circle:', { centerX: startPoint.x, centerY: startPoint.y, radius });
+        drawingCtx.beginPath();
+        drawingCtx.arc(startPoint.x, startPoint.y, radius, 0, 2 * Math.PI);
+        drawingCtx.stroke();
+        console.log('✅ arc and stroke called on drawingCanvas');
+      }
+      
+      // Clear temporary canvas
+      if (tempCtx && tempCanvasRef.current) {
+        console.log('🧹 Clearing temp canvas');
+        tempCtx.clearRect(0, 0, tempCanvasRef.current.width, tempCanvasRef.current.height);
+      }
+      
+      // Redraw main canvas with finalized shape
+      console.log('🔄 Redrawing main canvas');
+      redrawCanvas();
+      
+      // Save canvas state to cache after drawing
+      if (preserveDrawing) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setCanvasCache(imageData);
+      }
+      
+      // Trigger auto-save
+      scheduleAutoSave();
     }
     
     // Also trigger auto-save for pen and eraser tools
     if (isDrawing && (currentTool === 'pen' || currentTool === 'eraser')) {
       // Save canvas state to cache after drawing
       const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
       if (ctx && canvas && preserveDrawing) {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         setCanvasCache(imageData);
@@ -1576,7 +2099,6 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     // Clean up state
     setIsDrawing(false);
     setStartPoint(null);
-    setSavedImageData(null);
   };
 
   // Text box interaction layer component (React layer) - clear single responsibility interaction
@@ -1825,3 +2347,4 @@ const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
 });
 
 WhiteboardCanvas.displayName = 'WhiteboardCanvas';
+

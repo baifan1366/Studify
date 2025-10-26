@@ -837,7 +837,7 @@ CREATE TABLE public.community_user_achievement (
     achievement_id bigint NOT NULL,
     current_value integer DEFAULT 0 NOT NULL,
     unlocked boolean DEFAULT false NOT NULL,
-    unlocked_at timestamp with time zone DEFAULT now() NOT NULL,
+    unlocked_at timestamp with time zone,
     is_deleted boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,

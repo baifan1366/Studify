@@ -4,7 +4,7 @@ import { createAdminClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authorize user
@@ -14,7 +14,7 @@ export async function GET(
     }
     
     const userId = authResult.sub;
-    const attachmentId = params.id;
+    const { id: attachmentId } = await params;
     const supabase = await createAdminClient();
 
     // Get user's profile ID

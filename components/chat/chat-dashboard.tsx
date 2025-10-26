@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useConversations, useMarkAsRead, useCreateConversation, useDeleteConversation } from '@/hooks/chat/use-chat';
+import { useConversations, useMarkAsRead, useCreateConversation } from '@/hooks/chat/use-chat';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Search,
   MessageCircle,
@@ -41,6 +42,7 @@ import { useChatNotifications, useRealtimeChatNotifications } from '@/hooks/chat
 import { ProfileModal } from '@/components/chat/profile-modal';
 import { ProfileData } from '@/interface/profile-interface';
 import { useProfile } from '@/hooks/profiles/use-profile';
+import { toast } from 'sonner';
 
 // Skeleton Components
 function ConversationItemSkeleton() {
@@ -126,7 +128,7 @@ export function ChatDashboard() {
   const { data: conversationsData, isLoading, error } = useConversations();
   const markAsReadMutation = useMarkAsRead();
   const createConversationMutation = useCreateConversation();
-  const deleteConversationMutation = useDeleteConversation();
+  const queryClient = useQueryClient();
 
   // Use notification hooks
   const { notifyNewMessage, requestNotificationPermission } = useChatNotifications();
@@ -227,22 +229,7 @@ export function ChatDashboard() {
     }
   };
 
-  const handleDeleteConversation = (conversationId: string, type: 'direct' | 'group') => {
-    if (!confirm(t('confirm_delete_chat'))) return;
 
-    deleteConversationMutation.mutate(
-      { conversationId, type },
-      {
-        onSuccess: () => {
-          setSelectedConversation(null);
-        },
-        onError: (err) => {
-          console.error("Delete failed:", err);
-          alert(t('delete_failed'));
-        },
-      }
-    );
-  };
 
 
   const handleCreateGroup = async () => {
@@ -284,6 +271,14 @@ export function ChatDashboard() {
 
       const result = await response.json();
       console.log('Group created:', result);
+
+      // Show success toast
+      toast.success('Group chat created successfully!', {
+        description: `"${groupName}" is ready for conversations`
+      });
+
+      // Invalidate conversations cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
       // Reset form
       setGroupName('');
@@ -570,24 +565,6 @@ export function ChatDashboard() {
                       onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
                     >
                       {t('view_profile')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={async () => {
-                        if (!selectedConv) return;
-                        const ok = window.confirm(t('confirm_delete_chat'));
-                        if (!ok) return;
-                        try {
-                          await deleteConversationMutation.mutateAsync({
-                            conversationId: selectedConv.id,
-                            type: selectedConv.type,
-                          } as any);
-                          setSelectedConversation(null);
-                        } catch (e) {
-                          console.error('Failed to delete conversation:', e);
-                        }
-                      }}
-                    >
-                      {t('delete_chat')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

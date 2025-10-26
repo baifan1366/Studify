@@ -119,6 +119,14 @@ export async function GET(request: NextRequest) {
               display_name,
               avatar_url
             )
+          ),
+          last_message:group_messages (
+            id,
+            content,
+            sender_id,
+            created_at,
+            message_type,
+            is_deleted
           )
         `)
         .eq('is_deleted', false);
@@ -224,6 +232,11 @@ export async function GET(request: NextRequest) {
         ? group.group_members.filter((member: any) => !member.left_at).length 
         : 0;
 
+      // Get the latest message
+      const lastMessage = Array.isArray(group.last_message) && group.last_message.length > 0 
+        ? group.last_message.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+        : null;
+
       return {
         id: `group_${group.id}`,
         type: 'group' as const,
@@ -234,7 +247,12 @@ export async function GET(request: NextRequest) {
           isOnline: true, // Groups are always "online"
           lastSeen: undefined,
         },
-        lastMessage: null, // TODO: Implement group last message
+        lastMessage: lastMessage ? {
+          content: lastMessage.content,
+          timestamp: lastMessage.created_at,
+          isFromMe: lastMessage.sender_id === profile.id,
+          isDeleted: lastMessage.is_deleted || false,
+        } : null,
         unreadCount: 0, // TODO: Implement unread count logic
         memberCount: memberCount,
         description: group.description,

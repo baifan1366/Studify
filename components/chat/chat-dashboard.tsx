@@ -500,10 +500,8 @@ export function ChatDashboard() {
                                 conversation.lastMessage.content
                               )}
                             </>
-                          ) : conversation.type === 'group' && conversation.description ? (
-                            conversation.description
                           ) : (
-                            conversation.type === 'group' ? t('no_messages_yet') : t('start_conversation_prompt')
+                            t('start_conversation_prompt')
                           )}
                         </p>
 

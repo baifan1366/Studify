@@ -31,13 +31,15 @@ export async function GET(
     .select(`
       *,
       owner:profiles!community_group_owner_id_fkey ( display_name, avatar_url ),
-      members:community_group_member ( count ),
+      members:community_group_member!inner ( count ),
       posts:community_post ( count ),
       user_membership:community_group_member ( role, joined_at )
     `)
     .eq('slug', slug)
     .eq('is_deleted', false)
+    .eq('members.is_deleted', false)
     .eq('user_membership.user_id', profile.id)
+    .eq('user_membership.is_deleted', false)
     .single();
 
   if (error) {

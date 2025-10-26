@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { User } from "@supabase/supabase-js";
-import { supabase } from "@/utils/supabase/client";
 import {
   usePopularPosts,
   useSearchPosts,
@@ -21,8 +19,6 @@ import { useUser } from "@/hooks/profile/use-user";
 
 export default function CommunityContent() {
   const t = useTranslations("CommunityContent");
-  const th = useTranslations("Header");
-  const [user, setUser] = useState<User | null>(null);
   const [query, setQuery] = useState("");
   
   // Check URL params for initial search query
@@ -39,27 +35,9 @@ export default function CommunityContent() {
   // Debounce the query to avoid excessive API calls
   const debouncedQuery = useDebouncedValue(query, 500);
   
-  // Determine user role for routing
   const { data: currentUser } = useUser();
   const isTutor = currentUser?.profile?.role === 'tutor';
   const createGroupPath = isTutor ? '/tutor/community/create' : '/community/create';
-
-  // Fetch user for header
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    fetchUser();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   // 数据来源：热门 or 搜索
   const {

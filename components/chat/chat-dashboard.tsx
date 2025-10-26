@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useConversations, useMarkAsRead, useCreateConversation, useDeleteConversation } from '@/hooks/chat/use-chat';
-import { 
-  Search, 
-  MessageCircle, 
-  Users, 
+import {
+  Search,
+  MessageCircle,
+  Users,
   Plus,
   MoreVertical,
   UserPlus,
@@ -98,7 +98,8 @@ interface Conversation {
 }
 
 export function ChatDashboard() {
-  const t = useTranslations('MessageBubble');
+  const t = useTranslations('ChatDashboard');
+  const tPanel = useTranslations('ChatPanel');
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -107,33 +108,33 @@ export function ChatDashboard() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  
+
   // Group creation state
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  
+
   // Profile modal state
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  
+
   // Fetch profile data using the hook
   const { data: selectedProfile, isLoading: isProfileLoading, error: profileError } = useProfile(selectedUserId);
-  
+
   // Use chat hooks
   const { data: conversationsData, isLoading, error } = useConversations();
   const markAsReadMutation = useMarkAsRead();
   const createConversationMutation = useCreateConversation();
   const deleteConversationMutation = useDeleteConversation();
-  
+
   // Use notification hooks
   const { notifyNewMessage, requestNotificationPermission } = useChatNotifications();
   useRealtimeChatNotifications();
-  
+
   // Use database data instead of mock data
   const conversations = conversationsData?.conversations || [];
-  
+
   // Debug: Log conversations to see if new ones are added (remove in production)
   useEffect(() => {
     if (conversations.length > 0) {
@@ -157,7 +158,7 @@ export function ChatDashboard() {
     };
 
     window.addEventListener('navigate-to-conversation', handleNavigateToConversation as EventListener);
-    
+
     return () => {
       window.removeEventListener('navigate-to-conversation', handleNavigateToConversation as EventListener);
     };
@@ -186,11 +187,11 @@ export function ChatDashboard() {
     try {
       // Real API call to search users
       const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`);
-      
+
       if (!response.ok) {
         throw new Error(`Search failed: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setSearchResults(data.users || []);
     } catch (error) {
@@ -204,17 +205,17 @@ export function ChatDashboard() {
   const handleCreateChat = async (userId: string) => {
     try {
       console.log('Creating chat with user ID:', userId);
-      
+
       const result = await createConversationMutation.mutateAsync({
         participant_id: userId,
       }) as { conversation?: { id: string } };
-      
+
       console.log('Conversation created:', result);
-      
+
       setShowNewChatDialog(false);
       setUserSearchQuery('');
       setSearchResults([]);
-      
+
       // Wait a moment for cache to update, then navigate
       setTimeout(() => {
         if (result.conversation?.id) {
@@ -227,7 +228,7 @@ export function ChatDashboard() {
   };
 
   const handleDeleteConversation = (conversationId: string, type: 'direct' | 'group') => {
-    if (!confirm("Are you sure you want to delete this chat?")) return;
+    if (!confirm(t('confirm_delete_chat'))) return;
 
     deleteConversationMutation.mutate(
       { conversationId, type },
@@ -237,7 +238,7 @@ export function ChatDashboard() {
         },
         onError: (err) => {
           console.error("Delete failed:", err);
-          alert("Failed to delete chat");
+          alert(t('delete_failed'));
         },
       }
     );
@@ -357,7 +358,7 @@ export function ChatDashboard() {
   };
 
   const selectedConv = conversations.find(c => c.id === selectedConversation);
-  
+
   // Debug: Log selectedConv to see if it's found (remove in production)
   useEffect(() => {
     if (selectedConversation && !selectedConv) {
@@ -376,7 +377,7 @@ export function ChatDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <MessageCircle className="h-6 w-6" />
-              Messages
+              {t('title')}
             </h1>
             <div className="flex items-center gap-2">
               <NotificationBell />
@@ -389,11 +390,11 @@ export function ChatDashboard() {
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={() => setShowNewChatDialog(true)}>
                     <UserPlus className="h-4 w-4 mr-2" />
-                    New Chat
+                    {t('new_chat')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowCreateGroupDialog(true)}>
                     <Users className="h-4 w-4 mr-2" />
-                    Create Group
+                    {t('create_group')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -404,7 +405,7 @@ export function ChatDashboard() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search conversations..."
+              placeholder={t('search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12"
@@ -425,97 +426,96 @@ export function ChatDashboard() {
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <MessageCircle className="h-12 w-12 mb-2 opacity-50" />
-                <p className="text-sm">Failed to load conversations</p>
+                <p className="text-sm">{t('failed_to_load_conversations')}</p>
                 <Button variant="ghost" size="sm" className="mt-2">
-                  Try again
+                  {t('try_again')}
                 </Button>
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <MessageCircle className="h-12 w-12 mb-2 opacity-50" />
-                <p className="text-sm">No conversations yet</p>
-                <p className="text-xs mt-1">Start a conversation to begin chatting</p>
+                <p className="text-sm">{t('no_conversations')}</p>
+                <p className="text-xs mt-1">{t('no_conversations_desc')}</p>
               </div>
             ) : (
               filteredConversations.map((conversation) => (
-              <Card
-                key={conversation.id}
-                className={`mb-2 cursor-pointer transition-colors bg-gray-100/5 hover:bg-muted/50 ${
-                  selectedConversation === conversation.id ? 'bg-muted' : ''
-                }`}
-                onClick={() => handleConversationSelect(conversation.id)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="relative">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={conversation.participant.avatar} />
-                        <AvatarFallback>
-                          {conversation.type === 'group' ? (
-                            <Users className="h-6 w-6" />
-                          ) : (
-                            conversation.participant.name.split(' ').map((n: string) => n[0]).join('')
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
-                      {conversation.participant.isOnline && conversation.type === 'direct' && (
-                        <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <h3 className="font-medium truncate">
-                            {conversation.participant.name}
-                          </h3>
-                          {conversation.type === 'group' && conversation.memberCount && (
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {conversation.memberCount} members
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {conversation.type === 'group' && (
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                          )}
-                          {conversation.unreadCount > 0 && (
-                            <Badge variant="default" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
-                              {conversation.unreadCount}
-                            </Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {conversation.lastMessage ? formatTimestamp(conversation.lastMessage.timestamp) : 'No messages'}
-                          </span>
-                        </div>
+                <Card
+                  key={conversation.id}
+                  className={`mb-2 cursor-pointer transition-colors bg-gray-100/5 hover:bg-muted/50 ${selectedConversation === conversation.id ? 'bg-muted' : ''
+                    }`}
+                  onClick={() => handleConversationSelect(conversation.id)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="relative">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={conversation.participant.avatar} />
+                          <AvatarFallback>
+                            {conversation.type === 'group' ? (
+                              <Users className="h-6 w-6" />
+                            ) : (
+                              conversation.participant.name.split(' ').map((n: string) => n[0]).join('')
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        {conversation.participant.isOnline && conversation.type === 'direct' && (
+                          <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                        )}
                       </div>
 
-                      <p className="text-sm text-muted-foreground truncate mt-1">
-                        {conversation.lastMessage ? (
-                          <>
-                            {conversation.lastMessage.isFromMe && 'You: '}
-                            {conversation.lastMessage.isDeleted ? (
-                              <span className="italic">{t('message_deleted')}</span>
-                            ) : (
-                              conversation.lastMessage.content
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <h3 className="font-medium truncate">
+                              {conversation.participant.name}
+                            </h3>
+                            {conversation.type === 'group' && conversation.memberCount && (
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {conversation.memberCount} members
+                              </span>
                             )}
-                          </>
-                        ) : conversation.type === 'group' && conversation.description ? (
-                          conversation.description
-                        ) : (
-                          conversation.type === 'group' ? 'No messages yet...' : 'Start a conversation...'
-                        )}
-                      </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {conversation.type === 'group' && (
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            {conversation.unreadCount > 0 && (
+                              <Badge variant="default" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                                {conversation.unreadCount}
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {conversation.lastMessage ? formatTimestamp(conversation.lastMessage.timestamp) : t('no_messages')}
+                            </span>
+                          </div>
+                        </div>
 
-                      {!conversation.participant.isOnline && conversation.type === 'direct' && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Last seen {formatTimestamp(conversation.participant.lastSeen || '')}
+                        <p className="text-sm text-muted-foreground truncate mt-1">
+                          {conversation.lastMessage ? (
+                            <>
+                              {conversation.lastMessage.isFromMe && t('you')}
+                              {conversation.lastMessage.isDeleted ? (
+                                <span className="italic">{tPanel('message_deleted')}</span>
+                              ) : (
+                                conversation.lastMessage.content
+                              )}
+                            </>
+                          ) : conversation.type === 'group' && conversation.description ? (
+                            conversation.description
+                          ) : (
+                            conversation.type === 'group' ? t('no_messages_yet') : t('start_conversation_prompt')
+                          )}
                         </p>
-                      )}
+
+                        {!conversation.participant.isOnline && conversation.type === 'direct' && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {t('last_seen')}{formatTimestamp(conversation.participant.lastSeen || '')}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
               ))
             )}
           </div>
@@ -529,7 +529,7 @@ export function ChatDashboard() {
             {/* Chat Header */}
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Avatar 
+                <Avatar
                   className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                   onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
                 >
@@ -543,19 +543,18 @@ export function ChatDashboard() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 
-                    className={`font-semibold ${
-                      selectedConv.type === 'direct' 
-                        ? 'cursor-pointer hover:text-primary transition-colors' 
-                        : ''
-                    }`}
+                  <h2
+                    className={`font-semibold ${selectedConv.type === 'direct'
+                      ? 'cursor-pointer hover:text-primary transition-colors'
+                      : ''
+                      }`}
                     onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
                   >
                     {selectedConv.participant.name}
                   </h2>
                   {selectedConv.type === 'direct' && (
                     <p className="text-sm text-muted-foreground">
-                      {selectedConv.participant.isOnline ? 'Online' : 'Offline'}
+                      {selectedConv.participant.isOnline ? t('online') : t('offline')}
                     </p>
                   )}
                 </div>
@@ -569,15 +568,15 @@ export function ChatDashboard() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => selectedConv.type === 'direct' && handleProfileClick(selectedConv.participant.id)}
                     >
-                      View Profile
+                      {t('view_profile')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={async () => {
                         if (!selectedConv) return;
-                        const ok = window.confirm('Delete this chat? This will hide it from your list.');
+                        const ok = window.confirm(t('confirm_delete_chat'));
                         if (!ok) return;
                         try {
                           await deleteConversationMutation.mutateAsync({
@@ -590,7 +589,7 @@ export function ChatDashboard() {
                         }
                       }}
                     >
-                      Delete Chat
+                      {t('delete_chat')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -604,8 +603,8 @@ export function ChatDashboard() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-              <p>Choose a conversation from the sidebar to start messaging</p>
+              <h3 className="text-lg font-medium mb-2">{t('select_conversation')}</h3>
+              <p>{t('choose_conversation_desc')}</p>
             </div>
           </div>
         )}
@@ -615,18 +614,18 @@ export function ChatDashboard() {
       <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Start New Chat</DialogTitle>
+            <DialogTitle>{t('new_chat')}</DialogTitle>
             <DialogDescription>
-              Search for users to start a conversation with
+              {t('start_typing_to_search')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search users..."
+                placeholder={t('search_users')}
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 className="pl-10"
@@ -668,19 +667,19 @@ export function ChatDashboard() {
               ) : userSearchQuery && userSearchQuery.length < 2 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>Type at least 2 characters to search</p>
+                  <p>{t('type_at_least_2_chars')}</p>
                 </div>
               ) : userSearchQuery ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No users found for "{userSearchQuery}"</p>
-                  <p className="text-xs mt-1">Try searching by name or email</p>
+                  <p>{t('no_users_found')}</p>
+                  <p className="text-xs mt-1">{t('try_searching_by_name_or_email')}</p>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>Start typing to search for users</p>
-                  <p className="text-xs mt-1">Search by name or email</p>
+                  <p>{t('start_typing_to_search')}</p>
+                  <p className="text-xs mt-1">{t('search_by_name_or_email')}</p>
                 </div>
               )}
             </div>
@@ -692,17 +691,17 @@ export function ChatDashboard() {
       <Dialog open={showCreateGroupDialog} onOpenChange={setShowCreateGroupDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Group</DialogTitle>
+            <DialogTitle>{t('create_group')}</DialogTitle>
             <DialogDescription>
-              Create a new group conversation with multiple members.
+              {t('create_group_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {/* Group Name */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Group Name</label>
+              <label className="text-sm font-medium">{t('group_name')}</label>
               <Input
-                placeholder="Enter group name..."
+                placeholder={t('enter_group_name')}
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 maxLength={50}
@@ -711,9 +710,9 @@ export function ChatDashboard() {
 
             {/* Group Description */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description (Optional)</label>
+              <label className="text-sm font-medium">{t('group_description')}</label>
               <Input
-                placeholder="Enter group description..."
+                placeholder={t('enter_group_description')}
                 value={groupDescription}
                 onChange={(e) => setGroupDescription(e.target.value)}
                 maxLength={200}
@@ -723,13 +722,13 @@ export function ChatDashboard() {
             {/* Selected Members */}
             {selectedMembers.length > 0 && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Selected Members ({selectedMembers.length})</label>
+                <label className="text-sm font-medium">{t('selected_members', { count: selectedMembers.length })}</label>
                 <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
                   {selectedMembers.map((member) => (
                     <Badge key={member.id} variant="secondary" className="flex items-center gap-1">
                       {member.name}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
+                      <X
+                        className="h-3 w-3 cursor-pointer"
                         onClick={() => handleRemoveMember(member.id)}
                       />
                     </Badge>
@@ -740,11 +739,11 @@ export function ChatDashboard() {
 
             {/* Add Members */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Add Members</label>
+              <label className="text-sm font-medium">{t('add_members')}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Search users to add..."
+                  placeholder={t('search_users_to_add')}
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
                   className="pl-10"
@@ -765,9 +764,8 @@ export function ChatDashboard() {
                   {searchResults.map((user) => (
                     <div
                       key={user.id}
-                      className={`p-2 rounded cursor-pointer hover:bg-muted ${
-                        selectedMembers.find(m => m.id === user.id) ? 'bg-muted opacity-50' : ''
-                      }`}
+                      className={`p-2 rounded cursor-pointer hover:bg-muted ${selectedMembers.find(m => m.id === user.id) ? 'bg-muted opacity-50' : ''
+                        }`}
                       onClick={() => handleAddMember(user)}
                     >
                       <div className="flex items-center space-x-3">
@@ -782,7 +780,7 @@ export function ChatDashboard() {
                           <p className="text-sm text-muted-foreground">{user.role}</p>
                         </div>
                         {selectedMembers.find(m => m.id === user.id) && (
-                          <Badge variant="secondary" className="ml-auto">Added</Badge>
+                          <Badge variant="secondary" className="ml-auto">{t('added')}</Badge>
                         )}
                       </div>
                     </div>
@@ -791,26 +789,26 @@ export function ChatDashboard() {
               ) : userSearchQuery && userSearchQuery.length >= 2 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No users found</p>
+                  <p className="text-sm">{t('no_users_found')}</p>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Search to add members</p>
+                  <p className="text-sm">{t('search_to_add_members')}</p>
                 </div>
               )}
             </div>
 
             {/* Create Button */}
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowCreateGroupDialog(false)}
                 className="flex-1"
               >
-                Cancel
+                {t('cancel')}
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreateGroup}
                 disabled={!groupName.trim() || selectedMembers.length === 0 || isCreatingGroup}
                 className="flex-1"
@@ -818,10 +816,10 @@ export function ChatDashboard() {
                 {isCreatingGroup ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                    Creating...
+                    {t('creating')}
                   </div>
                 ) : (
-                  'Create Group'
+                  t('create_group')
                 )}
               </Button>
             </div>

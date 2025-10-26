@@ -8,6 +8,7 @@ export const STORAGE_BUCKETS = {
   CLASSROOM_ATTACHMENT: 'whiteboard', // 使用 whiteboard 桶
   USER_AVATARS: 'user-avatars', 
   ASSIGNMENT_FILES: 'assignment-files',
+  CHAT_ATTACHMENTS: 'chat-attachments', // 聊天附件桶
 } as const;
 
 // 存储路径生成器
@@ -56,6 +57,16 @@ export const STORAGE_PATHS = {
    */
   tempFile: (fileName: string) =>
     `temp/${Date.now()}_${fileName}`,
+
+  /**
+   * 聊天附件路径
+   * @param userId 用户ID
+   * @param conversationId 会话ID
+   * @param fileName 文件名
+   * @returns chat/{userId}/{conversationId}/{timestamp}_{fileName}
+   */
+  chatAttachment: (userId: string, conversationId: string, fileName: string) =>
+    `chat/${userId}/${conversationId}/${Date.now()}_${fileName}`,
 } as const;
 
 // 文件类型配置
@@ -79,6 +90,11 @@ export const FILE_CONFIGS = {
     maxSize: 25 * 1024 * 1024, // 25MB
     allowedTypes: ['image/*', 'application/pdf', 'text/*'],
     bucket: STORAGE_BUCKETS.CLASSROOM_ATTACHMENT,
+  },
+  CHAT_ATTACHMENT: {
+    maxSize: 50 * 1024 * 1024, // 50MB
+    allowedTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf', 'text/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.*', 'application/zip', 'application/x-rar-compressed'],
+    bucket: STORAGE_BUCKETS.CHAT_ATTACHMENTS,
   },
 } as const;
 

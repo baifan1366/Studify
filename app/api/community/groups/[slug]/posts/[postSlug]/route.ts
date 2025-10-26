@@ -88,6 +88,8 @@ export async function GET(
     .eq("group_id", group.id)
     .eq("slug", postSlug)
     .eq("is_deleted", false)
+    .eq("group.user_membership.user_id", profile.id)
+    .eq("group.user_membership.is_deleted", false)
     .single();
 
   if (postError || !post) {

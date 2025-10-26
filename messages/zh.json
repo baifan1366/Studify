@@ -1400,6 +1400,7 @@
     "daily_checkin_desc_prefix": "保持你的连胜！",
     "current_streak": "当前连胜: {count} 天",
     "check_in_today_button": "今天签到",
+    "already_checked_in": "今日已签到！",
     "checking_in": "签到中...",
     "checked_in_with_xp": "签到成功! +{xp} XP",
     "this_weeks_progress": "本周进度",

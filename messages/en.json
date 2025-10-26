@@ -1400,6 +1400,7 @@
     "daily_checkin_desc_prefix": "Keep your streak alive!",
     "current_streak": "Current streak: {count} days",
     "check_in_today_button": "Check In Today",
+    "already_checked_in": "Checked In Today!",
     "checking_in": "Checking in...",
     "checked_in_with_xp": "Checked In! +{xp} XP",
     "this_weeks_progress": "This week's progress",

@@ -55,6 +55,7 @@ interface CheckinResponse {
     isNewRecord: boolean;
     message: string;
     alreadyCheckedIn?: boolean;
+    weeklyCheckins?: boolean[];
   };
 }
 
@@ -72,8 +73,7 @@ export default function GamificationSection({
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // 获取真实数据
-  const { data: learningStatsData, isLoading: statsLoading } =
-    useLearningStats("week");
+  const { data: learningStatsData } = useLearningStats("week");
   const { data: achievementsData, isLoading: achievementsLoading } =
     useAchievements();
   const { data: leaderboardData, isLoading: leaderboardLoading } =
@@ -111,6 +111,11 @@ export default function GamificationSection({
   const learningStats = learningStatsData?.data;
   const achievements = achievementsData?.data;
   const leaderboard = leaderboardData?.data?.users || [];
+  
+  // 签到状态从checkinResult获取
+  const hasCheckedInToday = checkinResult?.alreadyCheckedIn || false;
+  const currentStreak = checkinResult?.currentStreak || learningStats?.summary.studyStreak || 0;
+  const weeklyCheckins = checkinResult?.weeklyCheckins || Array(7).fill(false);
 
   // 获取成就图标
   const getAchievementIcon = (category: string) => {
@@ -178,7 +183,10 @@ export default function GamificationSection({
 
   const getMotivationalMessage = (streak: number, isNewRecord: boolean) => {
     if (isNewRecord) {
-      return t("checkin_new_record") || `🎉 New record! ${streak} days streak!`;
+      return (
+        t("checkin_new_record", { count: streak }) ||
+        `🎉 New record! ${streak} days streak!`
+      );
     }
     if (streak === 1) {
       return t("checkin_first_day") || "🌟 Great start! Keep it up!";
@@ -233,14 +241,14 @@ export default function GamificationSection({
             <p className="text-sm text-white/70 mb-4">
               {t("daily_checkin_desc_prefix")}{" "}
               {t("current_streak", {
-                count: learningStats?.summary.studyStreak || 0,
+                count: currentStreak,
               })}
             </p>
 
             <Button
               onClick={handleCheckin}
-              disabled={checkinMutation.isPending}
-              className="group bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 w-full"
+              disabled={checkinMutation.isPending || hasCheckedInToday}
+              className="group bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center gap-2">
                 {checkinMutation.isPending ? (
@@ -257,6 +265,11 @@ export default function GamificationSection({
                     </motion.div>
                     {t("checking_in") || "Checking in..."}
                   </>
+                ) : hasCheckedInToday ? (
+                  <>
+                    <CheckCircle size={20} />
+                    {t("already_checked_in") || "Checked In Today!"}
+                  </>
                 ) : (
                   <>
                     <CheckCircle size={20} />
@@ -268,21 +281,17 @@ export default function GamificationSection({
 
             {/* Streak Visualization */}
             <div className="flex justify-center gap-1 mt-4">
-              {[...Array(7)].map((_, i) => {
-                const currentStreak = learningStats?.summary.studyStreak || 0;
-                const isActive = i < Math.min(currentStreak, 7);
-                return (
-                  <motion.div
-                    key={i}
-                    className={`w-3 h-3 rounded-full ${
-                      isActive ? "bg-orange-500" : "bg-white/20"
-                    }`}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: i * 0.1 }}
-                  />
-                );
-              })}
+              {weeklyCheckins.map((isChecked, i) => (
+                <motion.div
+                  key={i}
+                  className={`w-3 h-3 rounded-full ${
+                    isChecked ? "bg-orange-500" : "bg-white/20"
+                  }`}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: i * 0.1 }}
+                />
+              ))}
             </div>
             <p className="text-xs text-white/50 mt-2">
               {t("this_weeks_progress")}

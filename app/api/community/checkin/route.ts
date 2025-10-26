@@ -34,14 +34,15 @@ export async function POST(req: Request) {
     // Check if already checked in today
     const { data: existingCheckin } = await supabase
       .from("community_checkin")
-      .select("id, checkin_at")
+      .select("id, checkin_date")
       .eq("user_id", userId)
-      .gte("checkin_at", todayStr)
+      .eq("checkin_date", todayStr)
       .single();
 
     if (existingCheckin) {
       // Already checked in today
       const currentStreak = await calculateStreak(supabase, userId);
+      const weeklyCheckins = await getWeeklyCheckins(supabase, userId);
       return NextResponse.json({
         success: true,
         data: {
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
           pointsEarned: 0,
           isNewRecord: false,
           message: "You've already checked in today!",
+          weeklyCheckins,
         },
       });
     }
@@ -59,7 +61,7 @@ export async function POST(req: Request) {
       .from("community_checkin")
       .insert({
         user_id: userId,
-        checkin_at: new Date().toISOString(),
+        checkin_date: todayStr,
       });
 
     if (insertError) {
@@ -109,6 +111,9 @@ export async function POST(req: Request) {
     // Get motivational message
     const message = getMotivationalMessage(currentStreak, isNewRecord);
 
+    // Get weekly checkins
+    const weeklyCheckins = await getWeeklyCheckins(supabase, userId);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -117,6 +122,7 @@ export async function POST(req: Request) {
         isNewRecord,
         message,
         alreadyCheckedIn: false,
+        weeklyCheckins,
       },
     });
   } catch (error: any) {
@@ -128,14 +134,52 @@ export async function POST(req: Request) {
   }
 }
 
+// Get weekly checkins for visualization
+async function getWeeklyCheckins(
+  supabase: any,
+  userId: number
+): Promise<boolean[]> {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekStart = new Date(today);
+    weekStart.setDate(weekStart.getDate() - 6); // 6 days ago + today = 7 days
+
+    const todayStr = today.toISOString().split("T")[0];
+    const weekStartStr = weekStart.toISOString().split("T")[0];
+
+    const { data: weekCheckins } = await supabase
+      .from("community_checkin")
+      .select("checkin_date")
+      .eq("user_id", userId)
+      .gte("checkin_date", weekStartStr)
+      .lte("checkin_date", todayStr);
+
+    // Create array of 7 booleans for the week
+    return Array(7)
+      .fill(false)
+      .map((_, index) => {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + index);
+        const dateStr = date.toISOString().split("T")[0];
+        return (
+          weekCheckins?.some((c: any) => c.checkin_date === dateStr) || false
+        );
+      });
+  } catch (error) {
+    console.error("Error getting weekly checkins:", error);
+    return Array(7).fill(false);
+  }
+}
+
 // Calculate user's current streak
 async function calculateStreak(supabase: any, userId: number): Promise<number> {
   try {
     const { data: checkins } = await supabase
       .from("community_checkin")
-      .select("checkin_at")
+      .select("checkin_date")
       .eq("user_id", userId)
-      .order("checkin_at", { ascending: false })
+      .order("checkin_date", { ascending: false })
       .limit(365); // Check last year
 
     if (!checkins || checkins.length === 0) {
@@ -147,9 +191,7 @@ async function calculateStreak(supabase: any, userId: number): Promise<number> {
     currentDate.setHours(0, 0, 0, 0);
 
     const checkinDates = new Set(
-      checkins.map(
-        (c: any) => new Date(c.checkin_at).toISOString().split("T")[0]
-      )
+      checkins.map((c: any) => c.checkin_date)
     );
 
     // Check today

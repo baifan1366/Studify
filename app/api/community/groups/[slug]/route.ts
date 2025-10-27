@@ -2,6 +2,52 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
+// Helper function to slugify text
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") // Remove special characters
+    .replace(/[\s_-]+/g, "-") // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
+}
+
+// Helper function to generate unique slug
+async function generateUniqueSlug(
+  supabaseClient: any,
+  baseSlug: string,
+  excludeGroupId?: number
+): Promise<string> {
+  let slug = baseSlug;
+  let counter = 0;
+  const maxAttempts = 10;
+
+  while (counter < maxAttempts) {
+    let query = supabaseClient
+      .from("community_group")
+      .select("id")
+      .eq("slug", slug)
+      .eq("is_deleted", false);
+
+    // Exclude current group when updating
+    if (excludeGroupId) {
+      query = query.neq("id", excludeGroupId);
+    }
+
+    const { data: existingGroup } = await query.maybeSingle();
+
+    if (!existingGroup) {
+      return slug;
+    }
+
+    counter++;
+    slug = `${baseSlug}-${counter}`;
+  }
+
+  // If we couldn't find a unique slug after max attempts, add timestamp
+  return `${baseSlug}-${Date.now()}`;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -48,9 +94,9 @@ export async function GET(
 
   // Check access permissions
   const userMembership = group.user_membership[0] || null;
-  
+
   if (group.visibility === 'private' && !userMembership) {
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Access denied. This is a private group.',
       group: {
         id: group.id,
@@ -100,15 +146,23 @@ export async function PUT(
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
 
+  // Get current group
+  const { data: currentGroup } = await supabaseClient
+    .from('community_group')
+    .select('id, name, owner_id')
+    .eq('slug', slug)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!currentGroup) {
+    return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+  }
+
   // Check if user is owner or admin
   const { data: membership } = await supabaseClient
     .from('community_group_member')
     .select('role')
-    .eq('group_id', (await supabaseClient
-      .from('community_group')
-      .select('id')
-      .eq('slug', slug)
-      .single()).data?.id)
+    .eq('group_id', currentGroup.id)
     .eq('user_id', profile.id)
     .eq('is_deleted', false)
     .single();
@@ -117,10 +171,25 @@ export async function PUT(
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
   }
 
+  // Generate new slug if name changed
+  let newSlug = slug;
+  if (name && name !== currentGroup.name) {
+    const baseSlug = slugify(name);
+    if (!baseSlug) {
+      return NextResponse.json({ error: 'Invalid group name' }, { status: 400 });
+    }
+    newSlug = await generateUniqueSlug(supabaseClient, baseSlug, currentGroup.id);
+  }
+
   // Update group
   const { data: updatedGroup, error } = await supabaseClient
     .from('community_group')
-    .update({ name, description, visibility })
+    .update({
+      name,
+      description,
+      visibility,
+      slug: newSlug
+    })
     .eq('slug', slug)
     .eq('is_deleted', false)
     .select()

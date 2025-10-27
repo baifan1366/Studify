@@ -4,14 +4,14 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { 
-  Users, 
-  Calendar, 
-  BookOpen, 
-  FileText, 
-  Brain, 
-  Video, 
-  Settings, 
+import {
+  Users,
+  Calendar,
+  BookOpen,
+  FileText,
+  Brain,
+  Video,
+  Settings,
   Copy,
   ExternalLink,
   Plus,
@@ -21,7 +21,9 @@ import {
   Clock,
   MessageSquare,
   Edit,
-  Trash
+  Trash,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useClassrooms, useLiveSessions, useUpdateLiveSession } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
@@ -105,10 +107,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const [activeSession, setActiveSession] = useState<any>(null);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  
+
   // Get current user data to check role
   const { data: currentUser } = useUser();
-  
+
   // useRef for scroll behavior and DOM manipulation
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const lastActiveTabRef = useRef<string>("overview");
@@ -116,7 +118,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   // Fetch classroom data
   const { data: classroomsData, isLoading: isClassroomLoading } = useClassrooms();
   const { data: membersData, isLoading: isMembersLoading } = useClassroomMembers(classroomSlug);
-  
+
   // Debug members data
   useEffect(() => {
     console.log('🔍 ClassroomDashboard - Members data:', {
@@ -130,19 +132,19 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const { data: liveSessionsData, isLoading: isLiveSessionsLoading } = useLiveSessions(classroomSlug);
   const { data: assignmentsResponse, isLoading: isAssignmentsLoading } = useClassroomAssignments(classroomSlug, 'upcoming');
   const updateSessionMutation = useUpdateLiveSession();
-  
+
   // Track processed sessions to avoid duplicate updates
   const processedSessionsRef = useRef<Set<string>>(new Set());
 
   // Type the assignments data properly using hook's Assignment type
   const typedAssignments: ClassroomAssignment[] = assignmentsResponse?.assignments || [];
   const sampleQuizzes: Quiz[] = []; // Placeholder for future quiz data
-  
+
   // Example usage of AssignmentInterface for type checking
   const validateAssignmentInterface = (assignment: AssignmentInterface) => {
     return assignment.id && assignment.title;
   };
-  
+
   // useEffect for tab change tracking and scroll behavior
   useEffect(() => {
     if (activeTab !== lastActiveTabRef.current) {
@@ -150,16 +152,20 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       if (tabsContainerRef.current) {
         tabsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      
+
       // Track tab analytics or perform cleanup
       console.log(`Tab changed from ${lastActiveTabRef.current} to ${activeTab}`);
       lastActiveTabRef.current = activeTab;
     }
   }, [activeTab]);
-  
+
   // Find the specific classroom from the list
   const classroom = classroomsData?.classrooms?.find(c => c.slug === classroomSlug);
   
+  // 🎯 Debug: Log classroom object to check user_role
+  console.log('🔍 [ClassroomDashboard] classroom object:', classroom);
+  console.log('🔍 [ClassroomDashboard] classroom.user_role:', classroom?.user_role);
+
   // Debug: Log classroom data to verify color
   useEffect(() => {
     if (classroom) {
@@ -172,13 +178,16 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       });
     }
   }, [classroom]);
-  
+
   // Manage classroom form state
   const [manageFormData, setManageFormData] = useState({
     name: classroom?.name || '',
     description: classroom?.description || '',
     color: (classroom as any)?.color || CLASSROOM_COLORS[0],
+    visibility: classroom?.visibility || 'public',
+    password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   // Update form data when classroom data loads
   useEffect(() => {
@@ -187,10 +196,12 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         name: classroom.name || '',
         description: classroom.description || '',
         color: (classroom as any)?.color || CLASSROOM_COLORS[0],
+        visibility: classroom.visibility || 'public',
+        password: '',
       });
     }
   }, [classroom]);
-  
+
   // useEffect for classroom data validation
   useEffect(() => {
     if (classroom && typedAssignments.length > 0) {
@@ -209,7 +220,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         };
         return validateAssignmentInterface(interfaceAssignment);
       });
-      
+
       if (validAssignments.length !== typedAssignments.length) {
         console.warn(`${typedAssignments.length - validAssignments.length} invalid assignments found`);
       }
@@ -224,22 +235,22 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       const now = new Date();
       const expiredSessions = liveSessionsData.sessions.filter((session: any) => {
         const sessionKey = `expired-${session.id}`;
-        
+
         // Skip if already processed
         if (processedSessionsRef.current.has(sessionKey)) {
           return false;
         }
-        
+
         // Check if session is live or scheduled but has ended
         if (session.status === 'live' || session.status === 'scheduled') {
           const endsAt = session.ends_at ? new Date(session.ends_at) : null;
           const startsAt = new Date(session.starts_at);
-          
+
           // If session has an end time and it's past
           if (endsAt && endsAt < now) {
             return true;
           }
-          
+
           // If session is live but has no end time, check if it started more than 24 hours ago
           if (session.status === 'live' && !endsAt) {
             const hoursSinceStart = (now.getTime() - startsAt.getTime()) / (1000 * 60 * 60);
@@ -257,7 +268,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         try {
           console.log(`🕐 Updating expired session: ${session.id} (${session.title})`);
           processedSessionsRef.current.add(sessionKey);
-          
+
           await updateSessionMutation.mutateAsync({
             classroomSlug,
             session_id: session.id,
@@ -288,12 +299,12 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       const now = new Date();
       const sessionsToStart = liveSessionsData.sessions.filter((session: any) => {
         const sessionKey = `started-${session.id}`;
-        
+
         // Skip if already processed
         if (processedSessionsRef.current.has(sessionKey)) {
           return false;
         }
-        
+
         // Check if session is scheduled and start time has arrived
         if (session.status === 'scheduled') {
           const startsAt = new Date(session.starts_at);
@@ -309,7 +320,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         try {
           console.log(`🎬 Auto-starting session: ${session.id} (${session.title})`);
           processedSessionsRef.current.add(sessionKey);
-          
+
           await updateSessionMutation.mutateAsync({
             classroomSlug,
             session_id: session.id,
@@ -357,16 +368,25 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         data: manageFormData
       });
 
+      // Prepare update data
+      const updateData: any = {
+        name: manageFormData.name,
+        description: manageFormData.description,
+        color: manageFormData.color,
+        visibility: manageFormData.visibility,
+      };
+
+      // Only include password if it's provided and user is owner
+      if (classroom.user_role === 'owner' && manageFormData.password.trim()) {
+        updateData.password = manageFormData.password;
+      }
+
       const response = await fetch(`/api/classroom/${classroomSlug}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: manageFormData.name,
-          description: manageFormData.description,
-          color: manageFormData.color,
-        }),
+        body: JSON.stringify(updateData),
       });
 
       const data = await response.json();
@@ -376,14 +396,14 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       }
 
       console.log('✅ Classroom updated:', data);
-      
+
       toast({
         title: "Success",
         description: "Classroom updated successfully",
       });
-      
+
       setIsManageDialogOpen(false);
-      
+
       // Invalidate queries to refresh data without full page reload
       // Note: We need to import QueryClient for this
       window.location.reload(); // For now, use full reload until we add QueryClient
@@ -418,14 +438,14 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       }
 
       console.log('✅ Classroom deleted:', data);
-      
+
       toast({
         title: "Success",
         description: "Classroom deleted successfully",
       });
-      
+
       setIsDeleteConfirmOpen(false);
-      
+
       // Redirect to classroom list
       const isTutor = currentUser?.profile?.role === 'tutor';
       const route = isTutor ? '/tutor/classroom' : '/classroom';
@@ -479,9 +499,9 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           id: `session-${session.id}`,
           type: 'session',
           icon: Video,
-          title: session.status === 'live' ? 'Live session started' : 
-                 session.status === 'scheduled' ? 'Live session scheduled' : 
-                 'Live session ended',
+          title: session.status === 'live' ? 'Live session started' :
+            session.status === 'scheduled' ? 'Live session scheduled' :
+              'Live session ended',
           description: session.title,
           timestamp: new Date(session.starts_at || session.created_at),
           status: session.status
@@ -541,7 +561,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const navigateToSection = (section: string) => {
     // Check if current user is a tutor and add /tutor/ prefix
     const isTutor = currentUser?.profile?.role === 'tutor';
-    const route = isTutor 
+    const route = isTutor
       ? `/tutor/classroom/${classroomSlug}/${section}`
       : `/classroom/${classroomSlug}/${section}`;
     router.push(route);
@@ -549,13 +569,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   const handleJoinSession = async (session: any) => {
     console.log('🚀 [Dashboard] handleJoinSession called with session:', session);
-    
+
     try {
       // Construct session identifier with proper validation
-      const sessionIdentifier = session?.public_id 
-        ?? session?.slug 
+      const sessionIdentifier = session?.public_id
+        ?? session?.slug
         ?? (session?.id?.toString() ?? 'unknown');
-      
+
       console.log('🆔 [Dashboard] Session identifier:', sessionIdentifier);
 
       if (sessionIdentifier === 'unknown') {
@@ -584,13 +604,18 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       });
 
       // Redirect to live session room URL with role-based routing
-      const isTutor = currentUser?.profile?.role === 'tutor';
-      const roomUrl = isTutor 
+      // 🎯 Fix: Use classroom.user_role for accurate role determination
+      const isTutor = classroom?.user_role === 'owner' || classroom?.user_role === 'tutor';
+      const roomUrl = isTutor
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
-      console.log('🔗 [Dashboard] Redirecting to room URL:', roomUrl);
+      console.log('🔗 [Dashboard] Redirecting to room URL:', {
+        roomUrl,
+        classroomUserRole: classroom?.user_role,
+        isTutor
+      });
       router.push(roomUrl);
-      
+
     } catch (error) {
       console.error('❌ [Dashboard] Error in handleJoinSession:', error);
       toast({
@@ -623,7 +648,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   const upcomingSessions = liveSessionsData?.sessions?.filter(s => s.status === 'scheduled') || [];
   const liveSessions = liveSessionsData?.sessions?.filter(s => s.status === 'live') || [];
-  
+
   // Get classroom color styling
   const classroomColor = getClassroomColor(classroom);
   const cardStyling = getCardStyling(classroomColor, 'light');
@@ -673,225 +698,225 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
 
 
-{/* Live Sessions Alert */}
-{liveSessions.length > 0 && (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ 
-      opacity: 1, 
-      scale: [0.98, 1.02, 0.98],
-    }}
-    transition={{ 
-      duration: 0.3,
-      scale: {
-        duration: 3,
-        repeat: Infinity,
-        ease: "easeInOut",
-      }
-    }}
-    className="mb-4 md:mb-6 relative"
-  >
-    {/* Intensified Ripple Animation Container */}
-    <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
-      <motion.div
-        className="absolute inset-0 bg-green-500/30 rounded-lg"
-        animate={{
-          scale: [1, 1.15, 1],
-          opacity: [0.4, 0.05, 0.4],
-        }}
-        transition={{
-          duration: 1.5,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      <motion.div
-        className="absolute inset-0 bg-green-500/20 rounded-lg"
-        animate={{
-          scale: [1, 1.25, 1],
-          opacity: [0.3, 0.02, 0.3],
-        }}
-        transition={{
-          duration: 1.8,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 0.3,
-        }}
-      />
-      <motion.div
-        className="absolute inset-0 bg-green-500/15 rounded-lg"
-        animate={{
-          scale: [1, 1.35, 1],
-          opacity: [0.2, 0.01, 0.2],
-        }}
-        transition={{
-          duration: 2.2,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 0.6,
-        }}
-      />
-    </div>
-    
-    {/* Main Card Content with Border Ripples */}
-    <Card
-      className="relative z-10 border-green-200 shadow-lg overflow-hidden"
-      style={{
-        backgroundColor: cardStyling.backgroundColor,
-        borderColor: cardStyling.borderColor
-      }}
-    >
-      {/* Card Border Ripple Effects */}
-      <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
+      {/* Live Sessions Alert */}
+      {liveSessions.length > 0 && (
         <motion.div
-          className="absolute inset-0 border-2 border-green-400/40 rounded-lg"
+          initial={{ opacity: 0, scale: 0.9 }}
           animate={{
-            scale: [1, 1.02, 1],
-            opacity: [0.6, 0.2, 0.6],
+            opacity: 1,
+            scale: [0.98, 1.02, 0.98],
           }}
           transition={{
-            duration: 1.2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute inset-0 border-2 border-green-300/30 rounded-lg"
-          animate={{
-            scale: [1, 1.04, 1],
-            opacity: [0.4, 0.1, 0.4],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.2,
-          }}
-        />
-        <motion.div
-          className="absolute inset-0 border border-green-200/20 rounded-lg"
-          animate={{
-            scale: [1, 1.06, 1],
-            opacity: [0.3, 0.05, 0.3],
-          }}
-          transition={{
-            duration: 1.8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.4,
-          }}
-        />
-      </div>
-      <CardHeader>
-        <CardTitle
-          className="flex items-center gap-2"
-          style={{ fontWeight: 'bold', color: 'green' }}
-        >
-          <motion.div
-            animate={{ 
-              scale: [1, 1.1, 1],
-            }}
-            transition={{ 
-              duration: 1.5, 
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            <Video className="h-5 w-5" />
-          </motion.div>
-          {t('live_session_active')}
-          
-          {/* Pulsing dot indicator */}
-          <motion.div
-            className="w-2 h-2 bg-green-500 rounded-full ml-2"
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [1, 0.6, 1],
-            }}
-            transition={{
-              duration: 1,
+            duration: 0.3,
+            scale: {
+              duration: 3,
               repeat: Infinity,
               ease: "easeInOut",
-            }}
-          />
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="relative z-20">
-        {liveSessions.map((session, index) => (
-          <div
-            key={session.id}
-            className="flex justify-between items-center relative z-30"
-          >
-            <div>
-              <p className="font-medium">{session.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {t('started_at')} {new Date(session.starts_at).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
-            <Button 
-              onClick={() => handleJoinSession(session)}
-              variant="default"
-              disabled={false}
-              className="relative z-40 pointer-events-auto"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              {t('join_session')}
-            </Button>
+            }
+          }}
+          className="mb-4 md:mb-6 relative"
+        >
+          {/* Intensified Ripple Animation Container */}
+          <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
+            <motion.div
+              className="absolute inset-0 bg-green-500/30 rounded-lg"
+              animate={{
+                scale: [1, 1.15, 1],
+                opacity: [0.4, 0.05, 0.4],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+            <motion.div
+              className="absolute inset-0 bg-green-500/20 rounded-lg"
+              animate={{
+                scale: [1, 1.25, 1],
+                opacity: [0.3, 0.02, 0.3],
+              }}
+              transition={{
+                duration: 1.8,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.3,
+              }}
+            />
+            <motion.div
+              className="absolute inset-0 bg-green-500/15 rounded-lg"
+              animate={{
+                scale: [1, 1.35, 1],
+                opacity: [0.2, 0.01, 0.2],
+              }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.6,
+              }}
+            />
           </div>
-        ))}
-      </CardContent>
-      </Card>
-    </motion.div>
-)}
+
+          {/* Main Card Content with Border Ripples */}
+          <Card
+            className="relative z-10 border-green-200 shadow-lg overflow-hidden"
+            style={{
+              backgroundColor: cardStyling.backgroundColor,
+              borderColor: cardStyling.borderColor
+            }}
+          >
+            {/* Card Border Ripple Effects */}
+            <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
+              <motion.div
+                className="absolute inset-0 border-2 border-green-400/40 rounded-lg"
+                animate={{
+                  scale: [1, 1.02, 1],
+                  opacity: [0.6, 0.2, 0.6],
+                }}
+                transition={{
+                  duration: 1.2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+              <motion.div
+                className="absolute inset-0 border-2 border-green-300/30 rounded-lg"
+                animate={{
+                  scale: [1, 1.04, 1],
+                  opacity: [0.4, 0.1, 0.4],
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.2,
+                }}
+              />
+              <motion.div
+                className="absolute inset-0 border border-green-200/20 rounded-lg"
+                animate={{
+                  scale: [1, 1.06, 1],
+                  opacity: [0.3, 0.05, 0.3],
+                }}
+                transition={{
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.4,
+                }}
+              />
+            </div>
+            <CardHeader>
+              <CardTitle
+                className="flex items-center gap-2"
+                style={{ fontWeight: 'bold', color: 'green' }}
+              >
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <Video className="h-5 w-5" />
+                </motion.div>
+                {t('live_session_active')}
+
+                {/* Pulsing dot indicator */}
+                <motion.div
+                  className="w-2 h-2 bg-green-500 rounded-full ml-2"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [1, 0.6, 1],
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="relative z-20">
+              {liveSessions.map((session, index) => (
+                <div
+                  key={session.id}
+                  className="flex justify-between items-center relative z-30"
+                >
+                  <div>
+                    <p className="font-medium">{session.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('started_at')} {new Date(session.starts_at).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => handleJoinSession(session)}
+                    variant="default"
+                    disabled={false}
+                    className="relative z-40 pointer-events-auto"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    {t('join_session')}
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
         <div ref={tabsContainerRef}>
           <div className="relative -mx-4 md:mx-0">
-          <TabsList className="relative border-b border-gray-100/10 bg-transparent p-0 h-auto w-full justify-start overflow-x-auto overflow-y-hidden scrollbar-hide px-4 md:px-0">
-            <AnimatedTabsTrigger 
-              value="overview" 
-              isActive={activeTab === 'overview'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
-            >
-              {t('overview')}
-            </AnimatedTabsTrigger>
-            <AnimatedTabsTrigger 
-              value="recent" 
-              isActive={activeTab === 'recent'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
-            >
-              {t('recent_activity')}
-            </AnimatedTabsTrigger>
-            <AnimatedTabsTrigger 
-              value="members" 
-              isActive={activeTab === 'members'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
-            >
-              {t('members')}
-            </AnimatedTabsTrigger>
-            <AnimatedTabsTrigger 
-              value="live-sessions" 
-              isActive={activeTab === 'live-sessions'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
-            >
-              {t('schedule')}
-            </AnimatedTabsTrigger>
-            <AnimatedTabsTrigger 
-              value="assignments" 
-              isActive={activeTab === 'assignments'}
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
-            >
-              {t('assignments')}
-            </AnimatedTabsTrigger>
-          </TabsList>
+            <TabsList className="relative border-b border-gray-100/10 bg-transparent p-0 h-auto w-full justify-start overflow-x-auto overflow-y-hidden scrollbar-hide px-4 md:px-0">
+              <AnimatedTabsTrigger
+                value="overview"
+                isActive={activeTab === 'overview'}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
+              >
+                {t('overview')}
+              </AnimatedTabsTrigger>
+              <AnimatedTabsTrigger
+                value="recent"
+                isActive={activeTab === 'recent'}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
+              >
+                {t('recent_activity')}
+              </AnimatedTabsTrigger>
+              <AnimatedTabsTrigger
+                value="members"
+                isActive={activeTab === 'members'}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
+              >
+                {t('members')}
+              </AnimatedTabsTrigger>
+              <AnimatedTabsTrigger
+                value="live-sessions"
+                isActive={activeTab === 'live-sessions'}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
+              >
+                {t('schedule')}
+              </AnimatedTabsTrigger>
+              <AnimatedTabsTrigger
+                value="assignments"
+                isActive={activeTab === 'assignments'}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
+              >
+                {t('assignments')}
+              </AnimatedTabsTrigger>
+            </TabsList>
           </div>
         </div>
 
         <AnimatedTabsContent value="overview" className="space-y-4 md:space-y-6">
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card 
+            <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('members')}
               style={{
@@ -914,7 +939,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               </CardContent>
             </Card>
 
-            <Card 
+            <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('live')}
               style={{
@@ -934,7 +959,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               </CardContent>
             </Card>
 
-            <Card 
+            <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('assignment')}
               style={{
@@ -954,7 +979,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               </CardContent>
             </Card>
 
-            <Card 
+            <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => navigateToSection('quiz')}
               style={{
@@ -978,7 +1003,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           {/* Main Content Grid */}
           <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
             {/* Upcoming Sessions */}
-            <Card 
+            <Card
               style={{
                 backgroundColor: cardStyling.backgroundColor,
                 borderColor: cardStyling.borderColor
@@ -1021,7 +1046,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             </Card>
 
             {/* Recent Assignments */}
-            <Card 
+            <Card
               style={{
                 backgroundColor: cardStyling.backgroundColor,
               }}
@@ -1064,7 +1089,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         </AnimatedTabsContent>
 
         <AnimatedTabsContent value="members" className="space-y-6">
-          <MembersTab 
+          <MembersTab
             membersData={membersData}
             isOwnerOrTutor={isOwnerOrTutor}
             classroomSlug={classroomSlug}
@@ -1074,7 +1099,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         </AnimatedTabsContent>
 
         <AnimatedTabsContent value="live-sessions" className="space-y-6">
-          <LiveSessionTab 
+          <LiveSessionTab
             liveSessionsData={liveSessionsData}
             isOwnerOrTutor={isOwnerOrTutor}
             classroomSlug={classroomSlug}
@@ -1085,7 +1110,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         </AnimatedTabsContent>
 
         <AnimatedTabsContent value="assignments" className="space-y-6">
-          <AssignmentsTab 
+          <AssignmentsTab
             assignmentsData={assignmentsResponse}
             isOwnerOrTutor={isOwnerOrTutor}
             classroomSlug={classroomSlug}
@@ -1101,7 +1126,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         </AnimatedTabsContent>
 
         <AnimatedTabsContent value="quizzes" className="space-y-6">
-          <QuizTab 
+          <QuizTab
             isOwnerOrTutor={isOwnerOrTutor}
             classroomSlug={classroomSlug}
             navigateToSection={navigateToSection}
@@ -1130,7 +1155,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
         </AnimatedTabsContent> */}
 
         <AnimatedTabsContent value="recent" className="space-y-4 md:space-y-6">
-          <Card 
+          <Card
             style={{
               backgroundColor: cardStyling.backgroundColor,
               borderColor: cardStyling.borderColor
@@ -1149,17 +1174,17 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <div className="space-y-4">
                   {recentActivities.map((activity, index) => {
                     const Icon = activity.icon;
-                    const iconColorClass = 
+                    const iconColorClass =
                       activity.type === 'member' ? 'bg-blue-500/10' :
-                      activity.type === 'session' ? 'bg-red-500/10' :
-                      activity.type === 'assignment' ? 'bg-green-500/10' :
-                      'bg-purple-500/10';
-                    const textColorClass = 
+                        activity.type === 'session' ? 'bg-red-500/10' :
+                          activity.type === 'assignment' ? 'bg-green-500/10' :
+                            'bg-purple-500/10';
+                    const textColorClass =
                       activity.type === 'member' ? 'text-blue-500' :
-                      activity.type === 'session' ? 'text-red-500' :
-                      activity.type === 'assignment' ? 'text-green-500' :
-                      'text-purple-500';
-                    
+                        activity.type === 'session' ? 'text-red-500' :
+                          activity.type === 'assignment' ? 'text-green-500' :
+                            'text-purple-500';
+
                     return (
                       <motion.div
                         key={activity.id}
@@ -1191,11 +1216,11 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                                 {getRelativeTime(activity.timestamp)}
                               </span>
                               {activity.status && (
-                                <Badge 
+                                <Badge
                                   variant={
-                                    activity.status === 'live' ? 'destructive' : 
-                                    activity.status === 'scheduled' ? 'default' : 
-                                    'secondary'
+                                    activity.status === 'live' ? 'destructive' :
+                                      activity.status === 'scheduled' ? 'default' :
+                                        'secondary'
                                   }
                                   className="text-xs"
                                 >
@@ -1274,6 +1299,81 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Visibility */}
+            <div className="grid gap-2">
+              <Label htmlFor="visibility">Visibility</Label>
+              <Select
+                value={manageFormData.visibility}
+                onValueChange={(value) => setManageFormData(prev => ({ ...prev, visibility: value }))}
+                disabled={classroom.user_role !== 'owner'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <div className="flex flex-col">
+                      <span>Public</span>
+                      <span className="text-xs text-muted-foreground">
+                        Anyone can see and join this classroom
+                      </span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="private">
+                    <div className="flex flex-col">
+                      <span>Private</span>
+                      <span className="text-xs text-muted-foreground">
+                        Only members can see this classroom
+                      </span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {classroom.user_role !== 'owner' && (
+                <p className="text-xs text-muted-foreground">
+                  Only the owner can change visibility
+                </p>
+              )}
+            </div>
+
+            {/* Password (only for owner and private classrooms) */}
+            {classroom.user_role === 'owner' && manageFormData.visibility === 'private' && (
+              <div className="grid gap-2">
+                <Label htmlFor="password">
+                  Classroom Password
+                  {classroom.visibility === 'private' && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (Leave empty to keep current password)
+                    </span>
+                  )}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={classroom.visibility === 'private' ? "Enter new password to change" : "Enter a password for this classroom"}
+                    value={manageFormData.password}
+                    onChange={(e) => setManageFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className="pl-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Students will need this password to join the classroom
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">

@@ -527,3 +527,57 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
   }
 }
+
+
+/**
+ * Sync live session statuses based on current time
+ * PUT /api/classroom/[slug]/live-sessions (with action=sync)
+ * This endpoint triggers immediate status synchronization
+ */
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const { searchParams } = new URL(request.url);
+  const action = searchParams.get('action');
+
+  if (action !== 'sync') {
+    return NextResponse.json(
+      { error: 'Invalid action. Use action=sync' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const supabase = await createAdminClient();
+    
+    // Call the database function for precise timing
+    const { data, error } = await supabase.rpc('auto_update_live_session_status');
+
+    if (error) {
+      console.error('Error syncing live session statuses:', error);
+      return NextResponse.json(
+        { error: 'Failed to sync session statuses' },
+        { status: 500 }
+      );
+    }
+
+    const result = data?.[0] || { activated_count: 0, ended_count: 0 };
+
+    if (result.activated_count > 0 || result.ended_count > 0) {
+      console.log(`✅ Synced sessions - Activated: ${result.activated_count}, Ended: ${result.ended_count}`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      activated: result.activated_count,
+      ended: result.ended_count,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error syncing live session statuses:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

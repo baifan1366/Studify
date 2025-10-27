@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   PenTool,
   Eraser,
   Square,
@@ -22,7 +22,7 @@ interface WhiteboardPanelProps {
   isOpen: boolean;
   classroomSlug: string;
   sessionId?: string;
-  userRole?: 'student' | 'tutor';
+  userRole?: 'student' | 'tutor' | 'owner';
   // Toolbar state
   currentTool: Tool;
   setCurrentTool: (tool: Tool) => void;
@@ -58,10 +58,10 @@ const FONT_SIZES = [12, 16, 20, 24, 32];
 
 type Tool = 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
 
-export function WhiteboardPanel({ 
-  isOpen, 
-  classroomSlug, 
-  sessionId, 
+export function WhiteboardPanel({
+  isOpen,
+  classroomSlug,
+  sessionId,
   userRole,
   currentTool,
   setCurrentTool,
@@ -156,9 +156,8 @@ export function WhiteboardPanel({
                   <button
                     key={color}
                     onClick={() => setCurrentColor(color)}
-                    className={`w-8 h-8 rounded border-2 ${
-                      currentColor === color ? 'border-white' : 'border-slate-600'
-                    }`}
+                    className={`w-8 h-8 rounded border-2 ${currentColor === color ? 'border-white' : 'border-slate-600'
+                      }`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
@@ -177,9 +176,8 @@ export function WhiteboardPanel({
                     <button
                       key={size}
                       onClick={() => setCurrentBrushSize(size)}
-                      className={`w-8 h-8 rounded border ${
-                        currentBrushSize === size ? 'border-white bg-slate-600' : 'border-slate-600'
-                      } flex items-center justify-center`}
+                      className={`w-8 h-8 rounded border ${currentBrushSize === size ? 'border-white bg-slate-600' : 'border-slate-600'
+                        } flex items-center justify-center`}
                     >
                       <div
                         className="rounded-full bg-white"
@@ -195,7 +193,7 @@ export function WhiteboardPanel({
             {currentTool === 'text' && (
               <div className="mb-4 p-3 bg-slate-700/30 rounded-lg">
                 <h4 className="text-sm font-medium text-white mb-2">Text Options</h4>
-                
+
                 {/* Font Size */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -207,11 +205,10 @@ export function WhiteboardPanel({
                       <button
                         key={size}
                         onClick={() => setCurrentFontSize(size)}
-                        className={`px-2 py-1 rounded text-xs ${
-                          currentFontSize === size 
-                            ? 'bg-indigo-500 text-white' 
+                        className={`px-2 py-1 rounded text-xs ${currentFontSize === size
+                            ? 'bg-indigo-500 text-white'
                             : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                        }`}
+                          }`}
                       >
                         {size}px
                       </button>
@@ -227,33 +224,30 @@ export function WhiteboardPanel({
                   <div className="flex gap-1">
                     <button
                       onClick={() => setCurrentTextAlign('left')}
-                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${
-                        currentTextAlign === 'left'
-                          ? 'bg-indigo-500 text-white' 
+                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${currentTextAlign === 'left'
+                          ? 'bg-indigo-500 text-white'
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                      }`}
+                        }`}
                       title="Left Align"
                     >
                       <AlignLeft className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setCurrentTextAlign('center')}
-                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${
-                        currentTextAlign === 'center'
-                          ? 'bg-indigo-500 text-white' 
+                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${currentTextAlign === 'center'
+                          ? 'bg-indigo-500 text-white'
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                      }`}
+                        }`}
                       title="Center Align"
                     >
                       <AlignCenter className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setCurrentTextAlign('right')}
-                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${
-                        currentTextAlign === 'right'
-                          ? 'bg-indigo-500 text-white' 
+                      className={`px-3 py-1.5 rounded flex items-center gap-1 ${currentTextAlign === 'right'
+                          ? 'bg-indigo-500 text-white'
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                      }`}
+                        }`}
                       title="Right Align"
                     >
                       <AlignRight className="w-4 h-4" />
@@ -262,7 +256,7 @@ export function WhiteboardPanel({
                 </div>
 
                 <div className="text-xs text-slate-400">
-                  💡 Click anywhere on the whiteboard to create a text box<br/>
+                  💡 Click anywhere on the whiteboard to create a text box<br />
                   Double-click to edit text, single-click to drag position
                 </div>
               </div>
@@ -280,28 +274,15 @@ export function WhiteboardPanel({
                   Download Image
                 </Button>
               </div>
-              <Button 
-                variant="destructive" 
-                size="sm" 
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={onClearCanvas}
                 className="w-full"
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 Clear Canvas
               </Button>
-            </div>
-          </div>
-
-
-          {/* Bottom Info */}
-          <div className="p-2 sm:p-4 border-t border-slate-700/50">
-            <div className="text-xs text-slate-400 space-y-1">
-              <div>Classroom: {classroomSlug}</div>
-              <div>Session: {sessionId || 'Default'}</div>
-              <div>Role: {userRole === 'tutor' ? 'Tutor' : 'Student'}</div>
-              <div className="text-slate-500 mt-2">
-                💡 Tip: Use mouse to draw, select different tools and colors for creation
-              </div>
             </div>
           </div>
         </motion.div>

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
 import { useCreateClassroom } from '@/hooks/classroom/use-create-classroom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +23,9 @@ export function CreateClassroomPage() {
     name: '',
     description: '',
     visibility: 'public' as 'public' | 'private',
+    password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const createClassroomMutation = useCreateClassroom();
 
@@ -41,6 +43,15 @@ export function CreateClassroomPage() {
       toast({
         title: "Error",
         description: "Classroom name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.visibility === 'private' && !formData.password.trim()) {
+      toast({
+        title: "Error",
+        description: "Password is required for private classrooms",
         variant: "destructive",
       });
       return;
@@ -129,7 +140,7 @@ export function CreateClassroomPage() {
                     <div className="flex flex-col">
                       <span>Public</span>
                       <span className="text-xs text-muted-foreground">
-                        Anyone can see this classroom
+                        Anyone can see and join this classroom
                       </span>
                     </div>
                   </SelectItem>
@@ -144,6 +155,39 @@ export function CreateClassroomPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {formData.visibility === 'private' && (
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Classroom Password *
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter a password for this classroom"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    className="pl-10 pr-10"
+                    required={formData.visibility === 'private'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Students will need this password to join the classroom
+                </p>
+              </div>
+            )}
 
             <div className="flex justify-end space-x-4 pt-6">
               <Button type="button" variant="outline" onClick={handleBack}>

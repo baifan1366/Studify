@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { hashPassword } from '@/utils/classroom/password';
 
 /**
  * 创建课堂
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult; // Extract user from authResult
 
-    const { name, description, visibility = 'public' } = await request.json();
+    const { name, description, visibility = 'public', password } = await request.json();
 
     // 验证必填字段
     if (!name || name.trim() === '') {
@@ -30,6 +31,14 @@ export async function POST(request: NextRequest) {
     if (!['public', 'private'].includes(visibility)) {
       return NextResponse.json(
         { error: 'Visibility must be either "public" or "private"' },
+        { status: 400 }
+      );
+    }
+
+    // 验证私有课堂必须有密码
+    if (visibility === 'private' && (!password || password.trim() === '')) {
+      return NextResponse.json(
+        { error: 'Password is required for private classrooms' },
         { status: 400 }
       );
     }
@@ -60,6 +69,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Hash password if provided for private classroom
+    let hashedPassword = null;
+    if (visibility === 'private' && password) {
+      hashedPassword = hashPassword(password);
+    }
+
     // 创建课堂
     // IMPORTANT: owner_id FK references auth.users.id (UUID), not profiles.id (bigint)
     const insertData = {
@@ -69,6 +84,7 @@ export async function POST(request: NextRequest) {
       class_code: classCode,
       slug,
       owner_id: user.id, // Use user.id (UUID) - FK references auth.users.id
+      password: hashedPassword, // Store hashed password
     };
 
     console.log('🔍 Inserting classroom with data:', {

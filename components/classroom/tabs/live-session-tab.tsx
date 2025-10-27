@@ -134,11 +134,16 @@ export function LiveSessionTab({
       });
 
       // Redirect to live session room URL with role-based routing
-      const isTutor = currentUser?.profile?.role === 'tutor';
+      // 🎯 Fix: Use classroom.user_role for accurate role determination
+      const isTutor = classroom?.user_role === 'owner' || classroom?.user_role === 'tutor';
       const roomUrl = isTutor 
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
-      console.log('🔗 [LiveSessionTab] Redirecting to room URL:', roomUrl);
+      console.log('🔗 [LiveSessionTab] Redirecting to room URL:', {
+        roomUrl,
+        classroomUserRole: classroom?.user_role,
+        isTutor
+      });
       router.push(roomUrl);
       
     } catch (error) {
@@ -162,20 +167,35 @@ export function LiveSessionTab({
   // If user is in an active session, show LiveKit room
   if (activeSession) {
     const sessionId = activeSession.sessionIdentifier || activeSession.id?.toString() || 'fallback';
+    
+    // 🎯 Fix: Use classroom.user_role directly for accurate role determination
+    // Keep owner as owner, tutor as tutor, others as student
+    console.log('🔍 [LiveSessionTab] classroom object:', classroom);
+    console.log('🔍 [LiveSessionTab] classroom.user_role:', classroom?.user_role);
+    console.log('🔍 [LiveSessionTab] isOwnerOrTutor:', isOwnerOrTutor);
+    
+    const userRole: 'student' | 'tutor' | 'owner' = 
+      classroom?.user_role === 'owner' ? 'owner' :
+      classroom?.user_role === 'tutor' ? 'tutor' :
+      'student';
+    
     console.log('🎬 [LiveSessionTab] Rendering LiveClassroom with:', {
       classroomSlug,
       sessionId,
       participantName: classroom?.user_name || 'User',
-      userRole: isOwnerOrTutor ? 'tutor' : 'student',
+      userRole,
+      classroomUserRole: classroom?.user_role,
+      isOwnerOrTutor,
       activeSession
     });
+    
     return (
       <Suspense fallback={<div className="flex items-center justify-center p-8">Loading video classroom...</div>}>
         <LiveClassroom
           classroomSlug={classroomSlug}
           sessionId={sessionId}
           participantName={classroom?.user_name || 'User'}
-          userRole={isOwnerOrTutor ? 'tutor' : 'student'}
+          userRole={userRole}
           onSessionEnd={handleLeaveSession}
         />
       </Suspense>

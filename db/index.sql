@@ -867,3 +867,17 @@ CREATE INDEX IF NOT EXISTS idx_reaction_target ON public.community_reaction USIN
 -- classroom_live_session 表优化 (23次使用)
 CREATE INDEX IF NOT EXISTS idx_classroom_live_status ON public.classroom_live_session USING btree (classroom_id, status, starts_at DESC) WHERE is_deleted = false;
 
+-- Optimize status-based queries with time filtering
+CREATE INDEX IF NOT EXISTS idx_live_session_status_time_precise 
+ON classroom_live_session(status, starts_at, ends_at) 
+WHERE is_deleted = FALSE;
+
+-- Optimize queries for sessions about to start (within next hour)
+CREATE INDEX IF NOT EXISTS idx_live_session_upcoming 
+ON classroom_live_session(starts_at) 
+WHERE status = 'scheduled' AND is_deleted = FALSE;
+
+-- Optimize queries for active sessions that might end soon
+CREATE INDEX IF NOT EXISTS idx_live_session_active_ending 
+ON classroom_live_session(ends_at) 
+WHERE status = 'active' AND ends_at IS NOT NULL AND is_deleted = FALSE;

@@ -38,7 +38,7 @@ interface BatchPermissionUpdate {
 
 interface PermissionManagerProps {
   sessionId: string;
-  userRole: 'student' | 'tutor';
+  userRole: 'student' | 'tutor' | 'owner';
   participants: any[];
   onPermissionUpdate: (participantId: string, permissions: Partial<ParticipantPermission>) => void;
   onBatchPermissionUpdate?: (update: BatchPermissionUpdate) => void;  // ✅ New: batch update
@@ -89,8 +89,8 @@ export default function PermissionManager({
 
   // ✅ Permission update - only call prop callback, don't modify local state
   const updatePermission = (participantId: string, updates: Partial<ParticipantPermission>) => {
-    if (userRole !== 'tutor') {
-      toast.error('Only tutors can modify permissions');
+    if (userRole !== 'tutor' && userRole !== 'owner') {
+      toast.error('Only tutors and owners can modify permissions');
       return;
     }
 
@@ -103,8 +103,8 @@ export default function PermissionManager({
 
   // ✅ Batch update - use dedicated batch update function
   const batchUpdatePermissions = (participantIds: string[], updates: Partial<ParticipantPermission>) => {
-    if (userRole !== 'tutor') {
-      toast.error('Only tutors can modify permissions');
+    if (userRole !== 'tutor' && userRole !== 'owner') {
+      toast.error('Only tutors and owners can modify permissions');
       return;
     }
 
@@ -204,8 +204,8 @@ export default function PermissionManager({
     batchUpdatePermissions(studentIds, { canPublishVideo: false });
   };
 
-  if (userRole !== 'tutor') {
-    return null; // Students don't see permission management interface
+  if (userRole !== 'tutor' && userRole !== 'owner') {
+    return null; // Only tutors and owners see permission management interface
   }
 
   return (

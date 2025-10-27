@@ -17,7 +17,7 @@ export interface ParticipantInfo {
   full_name?: string;
   email: string;
   avatar_url?: string;
-  role: 'student' | 'tutor';
+  role: 'student' | 'tutor' | 'owner';
   joined_at: string;
 }
 

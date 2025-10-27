@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getQStashQueue } from "@/lib/langChain/qstash-integration";
+import { createAdminClient } from "@/utils/supabase/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { getVectorStore } from "@/lib/langChain/vectorstore";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 // Check if dual embedding columns exist in the database
 async function checkDualEmbeddingSupport(): Promise<{
@@ -15,8 +8,9 @@ async function checkDualEmbeddingSupport(): Promise<{
   missingColumns: string[];
 }> {
   try {
+    const supabase = await createAdminClient();
     // Try to query the dual embedding columns
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("embeddings")
       .select("embedding_e5_small, embedding_bge_m3, has_e5_embedding, has_bge_embedding")
       .limit(1);
@@ -43,80 +37,59 @@ async function checkDualEmbeddingSupport(): Promise<{
   }
 }
 
-async function handler(request: NextRequest) {
+async function handler(_request: NextRequest) {
   try {
-    console.log("🔍 Checking embedding queue for pending items...");
+    console.log("🔍 Queue Monitor: Checking embedding queue...");
 
-    // First, check if dual embedding columns exist
+    const supabase = await createAdminClient();
+
+    // Check dual embedding support
     const dualEmbeddingCheck = await checkDualEmbeddingSupport();
     if (!dualEmbeddingCheck.supported) {
-      console.error(
-        "❌ Dual embedding columns not found in database!",
-        "\nMissing columns:", dualEmbeddingCheck.missingColumns,
-        "\nPlease run the migration in db/function.sql to add these columns:",
-        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS embedding_e5_small vector(384);",
-        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS embedding_bge_m3 vector(1024);",
-        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS has_e5_embedding boolean DEFAULT false;",
-        "\n- ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS has_bge_embedding boolean DEFAULT false;"
-      );
+      console.error("❌ Dual embedding columns not found in database!");
       return NextResponse.json(
         {
           error: "Database schema not ready for dual embeddings",
           missingColumns: dualEmbeddingCheck.missingColumns,
-          migrationRequired: true,
-          hint: "Run the ALTER TABLE commands from db/function.sql (lines 4966-4969)"
         },
         { status: 500 }
       );
     }
 
-    console.log("✅ Dual embedding support confirmed");
-
-    // Get all queued items from embedding_queue
+    // Get queued items (limit to 50 per run to avoid timeout)
     const { data: queueItems, error } = await supabase
       .from("embedding_queue")
       .select("*")
       .eq("status", "queued")
+      .lte("scheduled_at", new Date().toISOString())
+      .lt("retry_count", 3) // Only process items that haven't exceeded max retries
       .order("priority", { ascending: true })
       .order("created_at", { ascending: true })
-      .limit(100); // Process up to 100 items at once
+      .limit(50);
 
     if (error) {
       console.error("❌ Error fetching queue items:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch queue items" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to fetch queue items" }, { status: 500 });
     }
 
     if (!queueItems || queueItems.length === 0) {
       console.log("✅ No items in queue to process");
+      
+      // Perform maintenance tasks when queue is empty
+      await performMaintenance();
+      
       return NextResponse.json({
         message: "No items in queue",
         processed: 0,
         failed: 0,
-        embeddingServerStatus: "idle",
       });
     }
 
-    console.log(
-      `📦 Found ${queueItems.length} items in queue, processing with dual embeddings...`
-    );
+    console.log(`📦 Processing ${queueItems.length} items directly...`);
 
-    // Log queue items for debugging
-    console.log("Queue items to process:", queueItems.map(item => ({
-      id: item.id,
-      content_type: item.content_type,
-      content_id: item.content_id,
-      priority: item.priority,
-      retry_count: item.retry_count,
-      text_preview: item.content_text?.substring(0, 100) + "..."
-    })));
-
-    // Process embeddings directly instead of re-queuing to QStash
+    // Process items directly (no QStash queue needed)
     let processedCount = 0;
     let failedCount = 0;
-    const vectorStore = getVectorStore();
 
     for (const item of queueItems) {
       try {
@@ -132,21 +105,19 @@ async function handler(request: NextRequest) {
           })
           .eq("id", item.id);
 
-        // Generate DUAL embeddings (both E5 and BGE)
-        console.log(`🔄 Generating dual embeddings for ${item.content_type}:${item.content_id}...`);
-        
+        // Generate dual embeddings
         const { generateDualEmbedding, validateDualEmbedding } = await import("@/lib/langChain/embedding");
         const dualResult = await generateDualEmbedding(item.content_text);
 
-        // Validate at least one embedding succeeded
+        // Validate embeddings
         const validation = validateDualEmbedding(dualResult);
         if (!validation.hasAnyValid) {
-          throw new Error("Failed to generate any valid embeddings (both E5 and BGE failed)");
+          throw new Error("Failed to generate any valid embeddings");
         }
 
-        console.log(`✅ Dual embedding validation: E5=${validation.e5Valid}, BGE=${validation.bgeValid}`);
+        console.log(`✅ Generated embeddings: E5=${validation.e5Valid}, BGE=${validation.bgeValid}`);
 
-        // Prepare embedding data with all available embeddings
+        // Prepare embedding data
         const embeddingData: any = {
           content_type: item.content_type,
           content_id: item.content_id,
@@ -156,86 +127,47 @@ async function handler(request: NextRequest) {
           token_count: dualResult.token_count,
           language: "en",
           status: "completed",
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
 
-        // Add E5 embedding if available
+        // Add E5 embedding
         if (dualResult.e5_embedding && validation.e5Valid) {
-          embeddingData.embedding = dualResult.e5_embedding; // Legacy column
+          embeddingData.embedding = dualResult.e5_embedding;
           embeddingData.embedding_e5_small = dualResult.e5_embedding;
           embeddingData.has_e5_embedding = true;
         } else {
           embeddingData.has_e5_embedding = false;
         }
 
-        // Add BGE embedding if available
+        // Add BGE embedding
         if (dualResult.bge_embedding && validation.bgeValid) {
           embeddingData.embedding_bge_m3 = dualResult.bge_embedding;
           embeddingData.has_bge_embedding = true;
-          // If E5 failed, use BGE as fallback for legacy column
-          if (!dualResult.e5_embedding) {
-            embeddingData.embedding_model = "BAAI/bge-m3";
-          }
         } else {
           embeddingData.has_bge_embedding = false;
         }
 
-        // Check if embedding already exists for this content
-        const { data: existingEmbedding } = await supabase
+        // Upsert embedding
+        const { error: upsertError } = await supabase
           .from("embeddings")
-          .select("id")
-          .eq("content_type", item.content_type)
-          .eq("content_id", item.content_id)
-          .eq("content_hash", item.content_hash)
-          .single();
+          .upsert(embeddingData, {
+            onConflict: "content_type,content_id",
+          });
 
-        let insertError;
-        if (existingEmbedding) {
-          // Update existing embedding
-          const { error } = await supabase
-            .from("embeddings")
-            .update(embeddingData)
-            .eq("id", existingEmbedding.id);
-          insertError = error;
-        } else {
-          // Insert new embedding
-          const { error } = await supabase
-            .from("embeddings")
-            .insert(embeddingData);
-          insertError = error;
+        if (upsertError) {
+          throw upsertError;
         }
-
-        if (insertError) {
-          console.error(`❌ Failed to store embedding in database:`, insertError);
-          throw insertError;
-        }
-
-        console.log(`📏 Successfully stored ${validation.e5Valid && validation.bgeValid ? 'dual' : 'single'} embedding for ${item.content_type}:${item.content_id}`);
 
         // Remove from queue
-        const { error: deleteError } = await supabase
-          .from("embedding_queue")
-          .delete()
-          .eq("id", item.id);
-
-        if (deleteError) {
-          console.error(`⚠️ Warning: Could not remove item from queue:`, deleteError);
-          // Don't throw here, embedding was successful
-        }
+        await supabase.from("embedding_queue").delete().eq("id", item.id);
 
         processedCount++;
-        console.log(
-          `✅ Successfully processed ${item.content_type}:${item.content_id} (${processedCount}/${queueItems.length})`
-        );
+        console.log(`✅ Processed ${item.content_type}:${item.content_id} (${processedCount}/${queueItems.length})`);
       } catch (error) {
         failedCount++;
-        console.error(
-          `❌ Error processing ${item.content_type}:${item.content_id}:`,
-          error
-        );
+        console.error(`❌ Error processing ${item.content_type}:${item.content_id}:`, error);
 
-        // Update retry count and status
+        // Update retry count
         const newRetryCount = item.retry_count + 1;
         const maxRetries = item.max_retries || 3;
 
@@ -244,50 +176,23 @@ async function handler(request: NextRequest) {
           .update({
             retry_count: newRetryCount,
             status: newRetryCount >= maxRetries ? "failed" : "queued",
-            error_message:
-              error instanceof Error ? error.message : "Unknown error",
+            error_message: error instanceof Error ? error.message : "Unknown error",
             updated_at: new Date().toISOString(),
-            scheduled_at:
-              newRetryCount >= maxRetries
-                ? item.scheduled_at
-                : new Date(
-                    Date.now() + newRetryCount * 5 * 60 * 1000
-                  ).toISOString(), // Retry after 5 minutes per retry
+            scheduled_at: newRetryCount >= maxRetries 
+              ? item.scheduled_at 
+              : new Date(Date.now() + newRetryCount * 5 * 60 * 1000).toISOString(),
           })
           .eq("id", item.id);
       }
     }
 
-    const results = {
-      successful: processedCount,
-      failed: failedCount,
-      results: [],
-    };
-    const processingMethod = "direct_processing";
-
-    console.log(
-      `\n✅ ====== Embedding Queue Processing Complete ======`,
-      `\n📈 Total items: ${queueItems.length}`,
-      `\n✅ Successful: ${processedCount}`,
-      `\n❌ Failed: ${failedCount}`,
-      `\n🔄 Method: ${processingMethod}`,
-      `\n==================================================\n`
-    );
+    console.log(`✅ Processing complete: ${processedCount} processed, ${failedCount} failed`);
 
     return NextResponse.json({
-      message: `Processed ${results.successful} items via ${processingMethod}, ${results.failed} failed`,
-      processed: results.successful,
-      failed: results.failed,
+      message: "Processing complete",
+      processed: processedCount,
+      failed: failedCount,
       total: queueItems.length,
-      processingMethod,
-      embeddingServerStatus: "processing",
-      queueItems: queueItems.map((item) => ({
-        id: item.id,
-        contentType: item.content_type,
-        contentId: item.content_id,
-        priority: item.priority,
-        createdAt: item.created_at,
-      })),
     });
   } catch (error) {
     console.error("❌ Error in queue monitor:", error);
@@ -295,15 +200,63 @@ async function handler(request: NextRequest) {
       {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
-        embeddingServerStatus: "error",
       },
       { status: 500 }
     );
   }
 }
 
+// Maintenance tasks (cleanup old items, retry failed items)
+async function performMaintenance() {
+  try {
+    const supabase = await createAdminClient();
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Delete old completed items (shouldn't be any, but just in case)
+    await supabase
+      .from("embedding_queue")
+      .delete()
+      .eq("status", "completed")
+      .lt("updated_at", sevenDaysAgo.toISOString());
+
+    // Delete very old failed items
+    await supabase
+      .from("embedding_queue")
+      .delete()
+      .eq("status", "failed")
+      .lt("updated_at", thirtyDaysAgo.toISOString());
+
+    // Reset failed items that haven't exceeded max retries (weekly retry)
+    const dayOfWeek = now.getDay();
+    const hour = now.getHours();
+    
+    // Only retry on Sundays at 3 AM (approximately)
+    if (dayOfWeek === 0 && hour === 3) {
+      await supabase
+        .from("embedding_queue")
+        .update({
+          status: "queued",
+          scheduled_at: now.toISOString(),
+          error_message: null,
+          updated_at: now.toISOString(),
+        })
+        .eq("status", "failed")
+        .lt("retry_count", 3);
+      
+      console.log("🔄 Weekly retry: Reset failed items");
+    }
+
+    console.log("🧹 Maintenance tasks completed");
+  } catch (error) {
+    console.error("⚠️ Maintenance error:", error);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createAdminClient();
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 

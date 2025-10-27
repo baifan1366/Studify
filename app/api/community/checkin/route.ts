@@ -190,9 +190,7 @@ async function calculateStreak(supabase: any, userId: number): Promise<number> {
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
 
-    const checkinDates = new Set(
-      checkins.map((c: any) => c.checkin_date)
-    );
+    const checkinDates = new Set(checkins.map((c: any) => c.checkin_date));
 
     // Check today
     const todayStr = currentDate.toISOString().split("T")[0];

@@ -111,10 +111,11 @@ export default function GamificationSection({
   const learningStats = learningStatsData?.data;
   const achievements = achievementsData?.data;
   const leaderboard = leaderboardData?.data?.users || [];
-  
+
   // 签到状态从checkinResult获取
   const hasCheckedInToday = checkinResult?.alreadyCheckedIn || false;
-  const currentStreak = checkinResult?.currentStreak || learningStats?.summary.studyStreak || 0;
+  const currentStreak =
+    checkinResult?.currentStreak || learningStats?.summary.studyStreak || 0;
   const weeklyCheckins = checkinResult?.weeklyCheckins || Array(7).fill(false);
 
   // 获取成就图标
@@ -204,9 +205,15 @@ export default function GamificationSection({
       return t("checkin_master") || "💎 Master level! Keep going!";
     }
     if (streak % 10 === 0) {
-      return t("checkin_milestone") || `🎯 ${streak} days milestone!`;
+      return (
+        t("checkin_milestone", { count: streak }) ||
+        `🎯 ${streak} days milestone!`
+      );
     }
-    return t("checkin_keep_going") || `💪 ${streak} days! Keep the momentum!`;
+    return (
+      t("checkin_keep_going", { count: streak }) ||
+      `💪 ${streak} days! Keep the momentum!`
+    );
   };
 
   return (

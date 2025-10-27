@@ -540,8 +540,8 @@ export class VectorStore {
         similarityThreshold = 0.7,
         maxResults = 10,
         userId,
-        searchType = 'hybrid', // Using hybrid but will only generate BGE embeddings due to E5 server issues
-        embeddingWeights = { e5: 0.0, bge: 1.0 } // 100% weight on BGE since E5 is broken
+        searchType = 'hybrid', // Using hybrid with both E5 and BGE
+        embeddingWeights = { e5: 0.5, bge: 0.5 } // Equal weight for both embeddings
       } = options;
 
       // Check search result cache first
@@ -592,12 +592,12 @@ export class VectorStore {
         searchFunction = 'search_embeddings_hybrid'; // General-purpose hybrid search
         searchParams = {
           query_embedding_e5: queryEmbeddingE5 ? `[${queryEmbeddingE5.join(',')}]` : null,
-          query_embedding_bge: null, // Disabled: BGE produces 1024 dims but DB expects 384
+          query_embedding_bge: queryEmbeddingBGE ? `[${queryEmbeddingBGE.join(',')}]` : null, // ✅ Enabled BGE
           content_types: contentTypes || null,
           match_threshold: similarityThreshold,
           match_count: maxResults,
-          weight_e5: 1.0, // E5 only until BGE dimension mismatch is resolved
-          weight_bge: 0.0,
+          weight_e5: embeddingWeights.e5, // Use configured weights
+          weight_bge: embeddingWeights.bge, // Use configured weights
           user_id: userId || null
         };
       } else if (searchType === 'e5_only') {

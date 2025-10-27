@@ -312,7 +312,7 @@ export default function AchievementsContent() {
                   )}
                   
                   {/* Unlock Date */}
-                  {achievement.unlocked_at && (
+                  {achievement.unlocked && achievement.unlocked_at && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Unlocked:</span>
                       <span className="font-medium flex items-center gap-1">

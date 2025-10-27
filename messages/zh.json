@@ -7668,8 +7668,7 @@
     "edit": "编辑",
     "delete": "删除",
     "copy": "复制",
-    "message_deleted": "这条消息已被删除",
-    "forward": "转发"
+    "message_deleted": "这条消息已被删除"
   },
   "SharedPostMessage": {
     "shared_post": "分享的帖子",

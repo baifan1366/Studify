@@ -490,10 +490,6 @@ export function ChatPanel({ conversationId, className }: ChatPanelProps) {
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 <span>{tBubble('delete')}</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="cursor-pointer">
-                                <Forward className="w-4 h-4 mr-2" />
-                                <span>{tBubble('forward')}</span>
-                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}

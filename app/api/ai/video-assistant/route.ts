@@ -114,10 +114,18 @@ Please provide a clear, educational answer that:
 4. Encourages deeper understanding`;
     }
 
+    // Specify content types to search - prioritize video_segment for video lessons
+    const contentTypes = isExternalVideo 
+      ? ['course_content', 'lesson', 'note'] // External videos don't have segments
+      : videoContext.currentLessonId 
+        ? ['video_segment', 'lesson', 'note'] // Prioritize video segments for video lessons
+        : ['course_content', 'lesson', 'note']; // General content for non-video
+
     const result = await enhancedAIExecutor.educationalQA(contextualizedQuestion, {
       userId,
       includeAnalysis: true,
-      conversationContext: conversationHistory
+      conversationContext: conversationHistory,
+      contentTypes // Pass content types to prioritize video segments
     });
 
     const totalProcessingTime = Date.now() - startTime;

@@ -254,9 +254,18 @@ export async function POST(
       .eq("is_deleted", false)
       .single();
 
+    // For private groups, membership is required
     if (group.visibility === "private" && !membership) {
       return NextResponse.json(
         { error: "You must be a member to post in this private group" },
+        { status: 403 }
+      );
+    }
+
+    // For public groups, user must still be a member to post
+    if (!membership) {
+      return NextResponse.json(
+        { error: "You must be a member to post in this group" },
         { status: 403 }
       );
     }

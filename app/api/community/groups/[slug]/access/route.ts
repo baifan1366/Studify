@@ -49,27 +49,24 @@ export async function GET(
       return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     }
 
-    let canPost = true;
+    let canPost = false;
     let userMembership = null;
 
-    // Check if user can post (must be member for private groups)
-    if (groupData.visibility === 'private') {
-      const { data: membership, error: membershipError } = await supabaseClient
-        .from('community_group_member')
-        .select('id, role, joined_at')
-        .eq('group_id', groupData.id)
-        .eq('user_id', profile.id)
-        .eq('is_deleted', false)
-        .single();
+    // Check if user is a member (required for all groups to post)
+    const { data: membership, error: membershipError } = await supabaseClient
+      .from('community_group_member')
+      .select('id, role, joined_at')
+      .eq('group_id', groupData.id)
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false)
+      .single();
 
-      if (membershipError || !membership) {
-        canPost = false;
-      } else {
-        userMembership = {
-          role: membership.role,
-          joined_at: membership.joined_at
-        };
-      }
+    if (membership) {
+      canPost = true;
+      userMembership = {
+        role: membership.role,
+        joined_at: membership.joined_at
+      };
     }
 
     // Get member count

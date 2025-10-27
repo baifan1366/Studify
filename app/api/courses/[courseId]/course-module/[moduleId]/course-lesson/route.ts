@@ -96,6 +96,7 @@ export async function POST(
         content_url: validatedData.content_url || null,
         duration_sec: validatedData.duration_sec || null,
         attachments: validatedData.attachments || null,
+        transcript: body.transcript || null, // ✅ Save transcript to database
         course_id: courseIdNum,
         module_id: moduleIdNum,
       };
@@ -117,6 +118,44 @@ export async function POST(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Auto-process transcript or extract from video
+    if (body.transcript && body.transcript.trim()) {
+      // If transcript is provided, process it directly
+      try {
+        console.log(`📹 Auto-processing transcript for lesson: ${data.title}`);
+        
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/video/process-transcript`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lessonId: data.public_id,
+            transcript: body.transcript
+          })
+        }).catch(err => {
+          console.error('Failed to trigger transcript processing:', err);
+        });
+      } catch (err) {
+        console.error('Error queuing transcript:', err);
+      }
+    } else if (data.kind === 'video' && (data.attachments?.length > 0 || data.content_url)) {
+      // If no transcript but has video, try to extract using Whisper
+      try {
+        console.log(`🎙️ Auto-extracting transcript for lesson: ${data.title}`);
+        
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/video/process-transcript`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lessonId: data.public_id
+          })
+        }).catch(err => {
+          console.error('Failed to extract transcript:', err);
+        });
+      } catch (err) {
+        console.error('Error extracting transcript:', err);
+      }
     }
 
     return NextResponse.json({ data }, { status: 201 });

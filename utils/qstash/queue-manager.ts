@@ -55,7 +55,7 @@ export class QStashQueueManager {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: queueName,
+          queueName: queueName,
           parallelism,
         }),
       });

@@ -130,19 +130,25 @@ const rateLimiters = {
   
   // General API - 30 requests per minute per user
   general: new RateLimiter(60000, 30),
+  
+  // Chat messages - 10 messages per 10 seconds per user
+  chatMessage: new RateLimiter(10000, 10),
+  
+  // Chat attachments - 5 uploads per 30 seconds per user
+  chatAttachment: new RateLimiter(30000, 5),
 };
 
 /**
  * Get rate limiter for a specific endpoint type
  */
-export function getRateLimiter(type: 'ai' | 'videoQA' | 'stream' | 'general' = 'general'): RateLimiter {
+export function getRateLimiter(type: 'ai' | 'videoQA' | 'stream' | 'general' | 'chatMessage' | 'chatAttachment' = 'general'): RateLimiter {
   return rateLimiters[type];
 }
 
 /**
  * Middleware helper for Next.js API routes
  */
-export function createRateLimitCheck(type: 'ai' | 'videoQA' | 'stream' | 'general' = 'general') {
+export function createRateLimitCheck(type: 'ai' | 'videoQA' | 'stream' | 'general' | 'chatMessage' | 'chatAttachment' = 'general') {
   return (identifier: string) => {
     const limiter = getRateLimiter(type);
     return limiter.check(identifier);

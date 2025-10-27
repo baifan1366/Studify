@@ -68,6 +68,10 @@ CREATE INDEX idx_chat_attachments_created_at ON public.chat_attachments USING bt
 
 CREATE INDEX idx_chat_attachments_mime_type ON public.chat_attachments USING btree (mime_type);
 
+CREATE INDEX idx_direct_messages_attachment_id ON public.direct_messages(attachment_id);
+
+CREATE INDEX idx_group_messages_attachment_id ON public.group_messages(attachment_id);
+
 CREATE UNIQUE INDEX course_lesson_pkey ON public.course_lesson USING btree (id);
 
 CREATE INDEX idx_course_lesson_position ON public.course_lesson USING btree (course_id, "position") WHERE (is_deleted = false);

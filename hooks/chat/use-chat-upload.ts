@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadToMegaClient, ClientUploadResult } from '@/lib/mega-client';
 
 interface UploadProgress {
   loaded: number;
@@ -28,39 +27,20 @@ export function useChatUpload() {
   const uploadMutation = useMutation({
     mutationFn: async ({ file, options }: { file: File; options: ChatUploadOptions }): Promise<ChatUploadResult> => {
       try {
-        // Step 1: Upload file to MEGA using client-side upload
-        console.log(`Starting MEGA upload for: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+        console.log(`Starting Supabase upload for: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
         
-        const megaUploadResult: ClientUploadResult = await uploadToMegaClient(file, {
-          onProgress: (progress: number) => {
-            // Convert MEGA progress (0-100) to our UploadProgress format
-            setUploadProgress({
-              loaded: Math.round((progress / 100) * file.size),
-              total: file.size,
-              percentage: progress
-            });
-          }
-        });
-
-        console.log('MEGA upload completed:', megaUploadResult);
-
-        // Step 2: Create message with attachment metadata via API
-        const messagePayload = {
-          conversationId: options.conversationId,
-          attachmentUrl: megaUploadResult.url,
-          fileName: file.name,
-          fileSize: megaUploadResult.size,
-          fileType: megaUploadResult.type,
-          customMessage: options.customMessage
-        };
+        // Step 1: Upload file to Supabase Storage via API
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('conversationId', options.conversationId);
+        if (options.customMessage) {
+          formData.append('customMessage', options.customMessage);
+        }
 
         const response = await fetch('/api/chat/messages/attachment', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           credentials: 'include',
-          body: JSON.stringify(messagePayload),
+          body: formData,
         });
 
         if (!response.ok) {
@@ -72,12 +52,7 @@ export function useChatUpload() {
         console.log('Message with attachment created:', result);
 
         return {
-          attachment: {
-            url: megaUploadResult.url,
-            fileName: file.name,
-            fileSize: megaUploadResult.size,
-            fileType: megaUploadResult.type
-          },
+          attachment: result.attachment,
           message: result.message
         };
 
@@ -87,7 +62,7 @@ export function useChatUpload() {
         // Provide user-friendly error messages
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
-        if (errorMessage.includes('MEGA')) {
+        if (errorMessage.includes('storage')) {
           throw new Error(`File upload failed: ${errorMessage}`);
         } else if (errorMessage.includes('credentials')) {
           throw new Error('File upload failed: Storage configuration error. Please try again later.');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
 /**
  * Chat Messages API
@@ -444,6 +445,26 @@ export async function POST(
     }
     
     const userId = authResult.sub;
+    
+    // Apply rate limiting for chat messages
+    const checkLimit = createRateLimitCheck('chatMessage');
+    const { allowed, remaining, resetTime, limit } = checkLimit(userId);
+    
+    if (!allowed) {
+      const response = rateLimitResponse(resetTime, limit);
+      return NextResponse.json(
+        { 
+          error: response.error,
+          message: 'Please slow down. Too many messages sent.',
+          retryAfter: response.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: response.headers
+        }
+      );
+    }
+    
     const supabase = await createAdminClient();
 
     // Get user's profile ID

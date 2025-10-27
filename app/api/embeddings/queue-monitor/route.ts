@@ -12,18 +12,24 @@ async function checkDualEmbeddingSupport(): Promise<{
     // Try to query the dual embedding columns
     const { error } = await supabase
       .from("embeddings")
-      .select("embedding_e5_small, embedding_bge_m3, has_e5_embedding, has_bge_embedding")
+      .select(
+        "embedding_e5_small, embedding_bge_m3, has_e5_embedding, has_bge_embedding"
+      )
       .limit(1);
 
     if (error) {
       // Check if error is about missing columns
       const errorMessage = error.message.toLowerCase();
       const missingColumns: string[] = [];
-      
-      if (errorMessage.includes("embedding_e5_small")) missingColumns.push("embedding_e5_small");
-      if (errorMessage.includes("embedding_bge_m3")) missingColumns.push("embedding_bge_m3");
-      if (errorMessage.includes("has_e5_embedding")) missingColumns.push("has_e5_embedding");
-      if (errorMessage.includes("has_bge_embedding")) missingColumns.push("has_bge_embedding");
+
+      if (errorMessage.includes("embedding_e5_small"))
+        missingColumns.push("embedding_e5_small");
+      if (errorMessage.includes("embedding_bge_m3"))
+        missingColumns.push("embedding_bge_m3");
+      if (errorMessage.includes("has_e5_embedding"))
+        missingColumns.push("has_e5_embedding");
+      if (errorMessage.includes("has_bge_embedding"))
+        missingColumns.push("has_bge_embedding");
 
       if (missingColumns.length > 0) {
         return { supported: false, missingColumns };
@@ -69,15 +75,18 @@ async function handler(_request: NextRequest) {
 
     if (error) {
       console.error("❌ Error fetching queue items:", error);
-      return NextResponse.json({ error: "Failed to fetch queue items" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to fetch queue items" },
+        { status: 500 }
+      );
     }
 
     if (!queueItems || queueItems.length === 0) {
       console.log("✅ No items in queue to process");
-      
+
       // Perform maintenance tasks when queue is empty
       await performMaintenance();
-      
+
       return NextResponse.json({
         message: "No items in queue",
         processed: 0,
@@ -106,7 +115,9 @@ async function handler(_request: NextRequest) {
           .eq("id", item.id);
 
         // Generate dual embeddings
-        const { generateDualEmbedding, validateDualEmbedding } = await import("@/lib/langChain/embedding");
+        const { generateDualEmbedding, validateDualEmbedding } = await import(
+          "@/lib/langChain/embedding"
+        );
         const dualResult = await generateDualEmbedding(item.content_text);
 
         // Validate embeddings
@@ -115,7 +126,9 @@ async function handler(_request: NextRequest) {
           throw new Error("Failed to generate any valid embeddings");
         }
 
-        console.log(`✅ Generated embeddings: E5=${validation.e5Valid}, BGE=${validation.bgeValid}`);
+        console.log(
+          `✅ Generated embeddings: E5=${validation.e5Valid}, BGE=${validation.bgeValid}`
+        );
 
         // Prepare embedding data
         const embeddingData: any = {
@@ -162,10 +175,15 @@ async function handler(_request: NextRequest) {
         await supabase.from("embedding_queue").delete().eq("id", item.id);
 
         processedCount++;
-        console.log(`✅ Processed ${item.content_type}:${item.content_id} (${processedCount}/${queueItems.length})`);
+        console.log(
+          `✅ Processed ${item.content_type}:${item.content_id} (${processedCount}/${queueItems.length})`
+        );
       } catch (error) {
         failedCount++;
-        console.error(`❌ Error processing ${item.content_type}:${item.content_id}:`, error);
+        console.error(
+          `❌ Error processing ${item.content_type}:${item.content_id}:`,
+          error
+        );
 
         // Update retry count
         const newRetryCount = item.retry_count + 1;
@@ -176,17 +194,23 @@ async function handler(_request: NextRequest) {
           .update({
             retry_count: newRetryCount,
             status: newRetryCount >= maxRetries ? "failed" : "queued",
-            error_message: error instanceof Error ? error.message : "Unknown error",
+            error_message:
+              error instanceof Error ? error.message : "Unknown error",
             updated_at: new Date().toISOString(),
-            scheduled_at: newRetryCount >= maxRetries 
-              ? item.scheduled_at 
-              : new Date(Date.now() + newRetryCount * 5 * 60 * 1000).toISOString(),
+            scheduled_at:
+              newRetryCount >= maxRetries
+                ? item.scheduled_at
+                : new Date(
+                    Date.now() + newRetryCount * 5 * 60 * 1000
+                  ).toISOString(),
           })
           .eq("id", item.id);
       }
     }
 
-    console.log(`✅ Processing complete: ${processedCount} processed, ${failedCount} failed`);
+    console.log(
+      `✅ Processing complete: ${processedCount} processed, ${failedCount} failed`
+    );
 
     return NextResponse.json({
       message: "Processing complete",
@@ -231,7 +255,7 @@ async function performMaintenance() {
     // Reset failed items that haven't exceeded max retries (weekly retry)
     const dayOfWeek = now.getDay();
     const hour = now.getHours();
-    
+
     // Only retry on Sundays at 3 AM (approximately)
     if (dayOfWeek === 0 && hour === 3) {
       await supabase
@@ -244,7 +268,7 @@ async function performMaintenance() {
         })
         .eq("status", "failed")
         .lt("retry_count", 3);
-      
+
       console.log("🔄 Weekly retry: Reset failed items");
     }
 

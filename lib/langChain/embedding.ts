@@ -150,46 +150,48 @@ export async function checkServerHealth(serverUrl: string): Promise<ServerHealth
 
 // Wake up server by making requests
 async function wakeUpServer(serverUrl: string, model: EmbeddingModel): Promise<boolean> {
-  console.log(`Attempting to wake up ${model.toUpperCase()} server: ${serverUrl}`);
+  console.log(`🔄 Waking up ${model.toUpperCase()} server: ${serverUrl}`);
   
-  // Try to wake up with simple requests
+  // Try to wake up with simple requests - fire them in parallel to speed up
   const wakeUpRequests = [
     // 1. Hit the root endpoint
-    () => fetchWithTimeout(serverUrl, { method: 'GET' }, 15000),
+    fetchWithTimeout(serverUrl, { method: 'GET' }, 10000).catch(e => {
+      console.log(`  ↳ Root endpoint: ${e.message}`);
+      return null;
+    }),
     // 2. Hit the health endpoint 
-    () => fetchWithTimeout(`${serverUrl}/healthz`, { method: 'GET' }, 15000),
+    fetchWithTimeout(`${serverUrl}/healthz`, { method: 'GET' }, 10000).catch(e => {
+      console.log(`  ↳ Health endpoint: ${e.message}`);
+      return null;
+    }),
     // 3. Send a simple embedding request to trigger model loading
-    () => fetchWithTimeout(
+    fetchWithTimeout(
       `${serverUrl}/embed`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: 'test' })
       },
-      30000
-    )
+      15000
+    ).catch(e => {
+      console.log(`  ↳ Embed endpoint: ${e.message}`);
+      return null;
+    })
   ];
 
-  for (let i = 0; i < wakeUpRequests.length; i++) {
-    try {
-      console.log(`Wake up attempt ${i + 1}/3 for ${model.toUpperCase()}`);
-      await wakeUpRequests[i]();
-      
-      // Wait a bit between attempts
-      if (i < wakeUpRequests.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 10000)); // 10s between attempts
-      }
-    } catch (error) {
-      console.log(`Wake up attempt ${i + 1} failed:`, error instanceof Error ? error.message : 'Unknown error');
-      // Continue to next attempt
-    }
-  }
+  // Fire all requests in parallel
+  console.log(`  ↳ Sending wake-up requests to ${model.toUpperCase()}...`);
+  await Promise.all(wakeUpRequests);
+  
+  // Wait a bit for server to initialize
+  console.log(`  ↳ Waiting 5s for ${model.toUpperCase()} to initialize...`);
+  await new Promise(resolve => setTimeout(resolve, 5000));
 
   // Final health check
   const finalHealthCheck = await checkServerHealth(serverUrl);
   const isAwake = finalHealthCheck.isHealthy || !finalHealthCheck.isSleeping;
   
-  console.log(`Wake up result for ${model.toUpperCase()}: ${isAwake ? 'SUCCESS' : 'FAILED'}`);
+  console.log(`${isAwake ? '✅' : '❌'} ${model.toUpperCase()} wake-up ${isAwake ? 'SUCCESS' : 'FAILED'}`);
   return isAwake;
 }
 
@@ -234,7 +236,7 @@ export async function generateEmbeddingWithWakeup(
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`${model.toUpperCase()} embedding attempt ${attempt}/${maxRetries}`);
+      console.log(`  ↳ ${model.toUpperCase()} attempt ${attempt}/${maxRetries}`);
       
       const requestBody: EmbeddingRequest = {
         input: processedText
@@ -261,19 +263,19 @@ export async function generateEmbeddingWithWakeup(
         if (isServerSleeping(errorMessage) && attempt < maxRetries) {
           wasServerSleeping = true;
           wakeupAttempts++;
-          console.log(`${model.toUpperCase()} server appears to be sleeping, attempting wake-up...`);
+          console.log(`  ⚠️ ${model.toUpperCase()} server sleeping, waking up...`);
           
           // Try to wake up the server
           const wakeUpSuccess = await wakeUpServer(modelConfig.url, model);
           
           if (wakeUpSuccess) {
-            console.log(`${model.toUpperCase()} server wake-up successful, retrying...`);
-            // Wait for server to fully load
-            await new Promise(resolve => setTimeout(resolve, WARMUP_RETRY_DELAYS[attempt - 1] || 30000));
+            console.log(`  ↳ Retrying ${model.toUpperCase()} after wake-up...`);
+            // Shorter wait after successful wake-up
+            await new Promise(resolve => setTimeout(resolve, 10000));
             continue; // Retry the request
           } else {
-            console.log(`${model.toUpperCase()} server wake-up failed, waiting before retry...`);
-            await new Promise(resolve => setTimeout(resolve, WARMUP_RETRY_DELAYS[attempt - 1] || 30000));
+            console.log(`  ↳ Wake-up uncertain, retrying ${model.toUpperCase()} anyway...`);
+            await new Promise(resolve => setTimeout(resolve, 15000));
             continue; // Still retry even if wake-up failed
           }
         }
@@ -306,19 +308,19 @@ export async function generateEmbeddingWithWakeup(
       // Cache the successful result
       setCachedEmbedding(cacheKey, embeddingResult.embedding);
       
-      console.log(`✅ ${model.toUpperCase()} embedding generated successfully (${data.embedding.length} dimensions)${wasServerSleeping ? ` after ${wakeupAttempts} wake-up attempts` : ''}`);
+      console.log(`  ✅ ${model.toUpperCase()} success (${data.embedding.length}D)${wasServerSleeping ? ` after ${wakeupAttempts} wake-ups` : ''}`);
       return embeddingResult;
       
     } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.log(`${model.toUpperCase()} embedding attempt ${attempt} failed: ${errorMessage}`);
+      console.log(`  ❌ ${model.toUpperCase()} attempt ${attempt} failed: ${errorMessage.substring(0, 100)}`);
       
       // Check if we should retry due to server sleeping
       if (isServerSleeping(errorMessage) && attempt < maxRetries) {
         wasServerSleeping = true;
         wakeupAttempts++;
-        console.log(`${model.toUpperCase()} server sleeping detected, waiting before retry...`);
-        await new Promise(resolve => setTimeout(resolve, WARMUP_RETRY_DELAYS[attempt - 1] || 30000));
+        console.log(`  ⚠️ ${model.toUpperCase()} sleeping detected, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 15000)); // Shorter wait
         continue;
       }
       
@@ -354,7 +356,7 @@ export async function generateEmbedding(
   };
 }
 
-// Smart dual embedding function with sequential fallback to avoid server overload
+// Smart dual embedding function with parallel processing to speed up
 export async function generateDualEmbeddingWithWakeup(text: string): Promise<DualEmbeddingResponse & {
   e5_success: boolean;
   bge_success: boolean;
@@ -367,44 +369,47 @@ export async function generateDualEmbeddingWithWakeup(text: string): Promise<Dua
     throw new Error('Text preprocessing resulted in empty content');
   }
 
-  console.log('Generating dual embeddings with smart wake-up...');
+  console.log('🚀 Generating dual embeddings in parallel...');
   
-  // Try E5 first (usually more stable)
-  let e5Result: any = null;
+  // Try both embeddings in parallel for speed
+  const [e5Result, bgeResult] = await Promise.allSettled([
+    (async () => {
+      console.log('  ↳ Starting E5 embedding...');
+      const result = await generateEmbeddingWithWakeup(text, 'e5');
+      console.log('  ✅ E5 completed');
+      return result;
+    })(),
+    (async () => {
+      console.log('  ↳ Starting BGE embedding...');
+      const result = await generateEmbeddingWithWakeup(text, 'bge');
+      console.log('  ✅ BGE completed');
+      return result;
+    })()
+  ]);
+
+  // Process results
   let e5Success = false;
   let e5WasSleeping = false;
+  let e5Data: any = null;
   
-  try {
-    console.log('Attempting E5 embedding generation...');
-    const e5Response = await generateEmbeddingWithWakeup(text, 'e5');
-    e5Result = e5Response;
+  if (e5Result.status === 'fulfilled') {
     e5Success = true;
-    e5WasSleeping = e5Response.wasServerSleeping || false;
-    console.log('✅ E5 embedding generated successfully');
-  } catch (error: any) {
-    console.log('❌ E5 embedding failed:', error.message);
+    e5Data = e5Result.value;
+    e5WasSleeping = e5Result.value.wasServerSleeping || false;
+  } else {
+    console.log('  ❌ E5 failed:', e5Result.reason?.message || 'Unknown error');
   }
   
-  // Try BGE (give it a bit of time if E5 just woke up)
-  let bgeResult: any = null;
   let bgeSuccess = false;
   let bgeWasSleeping = false;
+  let bgeData: any = null;
   
-  try {
-    // If E5 was sleeping, wait a bit before trying BGE to avoid overwhelming HF
-    if (e5WasSleeping) {
-      console.log('E5 was sleeping, waiting 15s before BGE attempt...');
-      await new Promise(resolve => setTimeout(resolve, 15000));
-    }
-    
-    console.log('Attempting BGE embedding generation...');
-    const bgeResponse = await generateEmbeddingWithWakeup(text, 'bge');
-    bgeResult = bgeResponse;
+  if (bgeResult.status === 'fulfilled') {
     bgeSuccess = true;
-    bgeWasSleeping = bgeResponse.wasServerSleeping || false;
-    console.log('✅ BGE embedding generated successfully');
-  } catch (error: any) {
-    console.log('❌ BGE embedding failed:', error.message);
+    bgeData = bgeResult.value;
+    bgeWasSleeping = bgeResult.value.wasServerSleeping || false;
+  } else {
+    console.log('  ❌ BGE failed:', bgeResult.reason?.message || 'Unknown error');
   }
 
   // Prepare response
@@ -418,19 +423,19 @@ export async function generateDualEmbeddingWithWakeup(text: string): Promise<Dua
     bge_success: bgeSuccess
   };
 
-  if (e5Success && e5Result) {
-    response.e5_embedding = e5Result.embedding;
-    response.e5_dim = e5Result.dimensions;
-    response.token_count = e5Result.tokenCount;
+  if (e5Success && e5Data) {
+    response.e5_embedding = e5Data.embedding;
+    response.e5_dim = e5Data.dimensions;
+    response.token_count = e5Data.tokenCount;
     response.e5_was_sleeping = e5WasSleeping;
   }
 
-  if (bgeSuccess && bgeResult) {
-    response.bge_embedding = bgeResult.embedding;
-    response.bge_dim = bgeResult.dimensions;
+  if (bgeSuccess && bgeData) {
+    response.bge_embedding = bgeData.embedding;
+    response.bge_dim = bgeData.dimensions;
     // Use BGE token count if E5 didn't provide one
     if (!response.token_count) {
-      response.token_count = bgeResult.tokenCount;
+      response.token_count = bgeData.tokenCount;
     }
     response.bge_was_sleeping = bgeWasSleeping;
   }
@@ -441,7 +446,7 @@ export async function generateDualEmbeddingWithWakeup(text: string): Promise<Dua
   }
 
   const successCount = (e5Success ? 1 : 0) + (bgeSuccess ? 1 : 0);
-  console.log(`Dual embedding generation completed: ${successCount}/2 successful (E5: ${e5Success}, BGE: ${bgeSuccess})`);
+  console.log(`✅ Dual embedding completed: ${successCount}/2 successful (E5: ${e5Success}, BGE: ${bgeSuccess})`);
   
   return response;
 }

@@ -37,7 +37,6 @@ export default function CreateAnnouncement({
 
   // Form state
   const [formData, setFormData] = useState({
-    created_by: userData?.profile?.id,
     title: "",
     message: "",
     image_url: "",
@@ -95,7 +94,6 @@ export default function CreateAnnouncement({
       };
 
       await createAnnouncementMutation.mutateAsync({
-        created_by: Number(formData?.created_by || ""),
         body: submitData,
       });
       
@@ -106,7 +104,6 @@ export default function CreateAnnouncement({
       
       // Reset form
       setFormData({
-        created_by: userData?.profile?.id,
         title: "",
         message: "",
         image_url: "",
@@ -130,7 +127,6 @@ export default function CreateAnnouncement({
 
   const handleCancel = () => {
     setFormData({
-      created_by: userData?.profile?.id,
       title: "",
       message: "",
       image_url: "",

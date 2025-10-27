@@ -49,7 +49,6 @@ export default function DuplicateAnnouncement({
     try {
       // Prepare duplicate data based on original announcement
       const duplicateData = {
-        created_by: userData.profile.id,
         title: generateDuplicateTitle(announcement.title),
         message: announcement.message,
         image_url: announcement.image_url || "",
@@ -64,7 +63,6 @@ export default function DuplicateAnnouncement({
 
       // Create the duplicate announcement
       await createAnnouncementMutation.mutateAsync({
-        created_by: Number(userData.profile.id),
         body: validatedData,
       });
 

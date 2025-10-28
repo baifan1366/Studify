@@ -7232,6 +7232,38 @@
     "minutes": "minutes",
     "points": "points"
   },
+  "QuizList": {
+    "available_quizzes": "Available Quizzes"
+  },
+  "QuizCard": {
+    "difficulty_levels": {
+      "1": "Level 1",
+      "2": "Level 2",
+      "3": "Level 3",
+      "4": "Level 4",
+      "5": "Level 5",
+      "custom_number": "Level {value}",
+      "custom_text": "{value}",
+      "unknown": "Unknown"
+    },
+    "badges": {
+      "private": "Private"
+    },
+    "actions": {
+      "edit_quiz": "Edit Quiz",
+      "delete_quiz": "Delete Quiz",
+      "continue": "Continue",
+      "preview": "Preview",
+      "start": "Start Quiz"
+    },
+    "author_by": "by {name}",
+    "unknown_author": "Unknown",
+    "you_suffix": "(You)",
+    "author_preview": "Author Preview Mode",
+    "attempts_used": "Attempts: {used}/{max}",
+    "attempts_used_unlimited": "Attempts: {used}",
+    "loading": "Loading..."
+  },
   "ClassroomList": {
     "my_classrooms": "My Classrooms",
     "manage_classrooms_description": "Manage your classrooms and join new ones",

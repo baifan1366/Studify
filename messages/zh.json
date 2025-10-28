@@ -7244,7 +7244,38 @@
     "minutes": "分钟",
     "points": "分数"
   },
-  "QuizCard": {},
+  "QuizList": {
+    "available_quizzes": "可用测验"
+  },
+  "QuizCard": {
+    "difficulty_levels": {
+      "1": "难度 1",
+      "2": "难度 2",
+      "3": "难度 3",
+      "4": "难度 4",
+      "5": "难度 5",
+      "custom_number": "难度 {value}",
+      "custom_text": "{value}",
+      "unknown": "未知"
+    },
+    "badges": {
+      "private": "私密"
+    },
+    "actions": {
+      "edit_quiz": "编辑测验",
+      "delete_quiz": "删除测验",
+      "continue": "继续",
+      "preview": "预览",
+      "start": "开始测验"
+    },
+    "author_by": "作者：{name}",
+    "unknown_author": "未知",
+    "you_suffix": "（你）",
+    "author_preview": "作者预览模式",
+    "attempts_used": "尝试次数：{used}/{max}",
+    "attempts_used_unlimited": "尝试次数：{used}",
+    "loading": "加载中..."
+  },
   "ClassroomList": {
     "my_classrooms": "我的课堂",
     "manage_classrooms_description": "管理你的课堂并加入新课堂",

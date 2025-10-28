@@ -499,7 +499,17 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                 <div className="text-center py-6">
                   <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
                   <p className="text-gray-400 text-sm mb-3">No questions added yet</p>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const locale = (params as any)?.locale ?? "en";
+                      const route = isTutor
+                        ? `/${locale}/tutor/community/quizzes/${quizSlug}/create-question`
+                        : `/${locale}/community/quizzes/${quizSlug}/create-question`;
+                      router.push(route);
+                    }}
+                  >
                     Add Question
                   </Button>
                 </div>

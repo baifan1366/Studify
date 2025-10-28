@@ -80,8 +80,9 @@ export async function POST(
       return NextResponse.json({ error: tokenErr.message }, { status: 500 });
     }
 
-    // 生成邀请链接
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // 生成邀请链接 - 使用请求的 origin 或环境变量
+    const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/');
+    const baseUrl = origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/community/quizzes/invite/${token}`;
 
     return NextResponse.json({
@@ -145,7 +146,9 @@ export async function GET(
       return NextResponse.json({ error: tokensErr.message }, { status: 500 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // 使用请求的 origin 或环境变量
+    const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/');
+    const baseUrl = origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteLinks = tokens?.map(token => ({
       ...token,
       invite_link: `${baseUrl}/community/quizzes/invite/${token.token}`

@@ -7237,11 +7237,12 @@
   },
   "QuizCard": {
     "difficulty_levels": {
-      "1": "Level 1",
-      "2": "Level 2",
-      "3": "Level 3",
-      "4": "Level 4",
-      "5": "Level 5",
+      "all": "All",
+      "easy": "Easy",
+      "fair": "Fair",
+      "good": "Good",
+      "hard": "Hard",
+      "expert": "Expert",
       "custom_number": "Level {value}",
       "custom_text": "{value}",
       "unknown": "Unknown"
@@ -8056,7 +8057,6 @@
     "stat_max_score": "Max Score",
     "stat_avg_time": "Avg Time",
     "no_attempts": "No attempts found",
-    "no_attempts_message": "暂无尝试记录",
     "view_more_attempts": "View More Attempts",
     "status_submitted": "Submitted",
     "status_graded": "Graded",

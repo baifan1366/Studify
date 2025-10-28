@@ -7249,11 +7249,12 @@
   },
   "QuizCard": {
     "difficulty_levels": {
-      "1": "难度 1",
-      "2": "难度 2",
-      "3": "难度 3",
-      "4": "难度 4",
-      "5": "难度 5",
+      "all": "全部",
+      "easy": "⭐ 简单",
+      "fair": "⭐⭐ 尚可",
+      "good": "⭐⭐⭐ 良好",
+      "hard": "⭐⭐⭐⭐ 困难",
+      "expert": "⭐⭐⭐⭐⭐ 专家",
       "custom_number": "难度 {value}",
       "custom_text": "{value}",
       "unknown": "未知"
@@ -8056,7 +8057,6 @@
     "stat_max_score": "最高分",
     "stat_avg_time": "平均用时",
     "no_attempts": "未找到尝试记录",
-    "no_attempts_message": "暂无尝试记录",
     "view_more_attempts": "查看更多尝试记录",
     "status_submitted": "已提交",
     "status_graded": "已评分",

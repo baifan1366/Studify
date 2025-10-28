@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,16 @@ const AttemptStatusBadge = ({ status }: { status: string }) => {
 };
 
 const DifficultyBadge = ({ difficulty }: { difficulty: number }) => {
-  const levels = ["Beginner", "Easy", "Medium", "Hard", "Expert"];
+  const t = useTranslations("QuizCard");
+  
+  const difficultyMap: { [key: number]: string } = {
+    1: "easy",
+    2: "fair",
+    3: "good",
+    4: "hard",
+    5: "expert"
+  };
+  
   const colors = [
     "bg-green-500",
     "bg-blue-500",
@@ -56,9 +66,12 @@ const DifficultyBadge = ({ difficulty }: { difficulty: number }) => {
     "bg-red-500",
   ];
 
+  const key = difficultyMap[difficulty] || "unknown";
+  const label = t(`difficulty_levels.${key}` as const);
+
   return (
-    <Badge className={`${colors[difficulty - 1]} text-white`}>
-      {levels[difficulty - 1]}
+    <Badge className={`${colors[difficulty - 1] || colors[0]} text-white`}>
+      {label}
     </Badge>
   );
 };

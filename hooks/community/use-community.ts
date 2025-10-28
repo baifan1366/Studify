@@ -232,6 +232,7 @@ export const useGroupPosts = (slug: string) => {
       const formData = new FormData();
       formData.append("title", newPost.title);
       formData.append("body", newPost.body);
+      formData.append("sendNotification", "true"); // Notify group members about new post
       newPost.hashtags.forEach((tag) => formData.append("hashtags", tag));
       newPost.files.forEach((file) => formData.append("files", file));
 

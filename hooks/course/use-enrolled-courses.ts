@@ -32,7 +32,11 @@ const joinCourse = (courseId: string, inviteCode?: string) =>
   apiSend<{ message: string }>({
     url: classroomApi.join,
     method: "POST",
-    body: { courseId, inviteCode },
+    body: { 
+      courseId, 
+      inviteCode,
+      sendNotification: true, // Notify course owner about new enrollment
+    },
   });
 
 // =====================
@@ -110,7 +114,10 @@ export function useCreateEnrollment() {
       apiSend<Enrollment>({
         url: classroomApi.createEnrollment,
         method: 'POST',
-        body: payload,
+        body: {
+          ...payload,
+          sendNotification: true, // Notify course owner about new enrollment
+        },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['enrolledCourses'] });

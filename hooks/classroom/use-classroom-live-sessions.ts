@@ -53,7 +53,10 @@ export function useClassroomLiveSessions(classroomSlug: string) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(sessionData),
+        body: JSON.stringify({
+          ...sessionData,
+          sendNotification: true, // Notify all classroom members about new live session
+        }),
       });
 
       if (!response.ok) {
@@ -87,7 +90,10 @@ export function useClassroomLiveSessions(classroomSlug: string) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify({
+          ...updateData,
+          sendNotification: updateData.status === 'active', // Notify when session goes live
+        }),
       });
 
       if (!response.ok) {

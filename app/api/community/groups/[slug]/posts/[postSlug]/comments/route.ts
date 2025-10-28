@@ -175,6 +175,7 @@ export async function POST(
     const body = formData.get("body") as string;
     const parent_id = formData.get("parent_id") as string | null;
     const files = formData.getAll("files") as File[];
+    const sendNotification = formData.get("sendNotification") === "true";
 
     if (!body || body.trim().length === 0) {
       return NextResponse.json(
@@ -324,6 +325,71 @@ export async function POST(
         if (filesError) {
           console.error("Error inserting file records:", filesError);
         }
+      }
+    }
+
+    // Send notification if requested
+    if (sendNotification) {
+      try {
+        // Get post author
+        const { data: postData } = await supabaseClient
+          .from("community_post")
+          .select("author_id, title")
+          .eq("id", post.id)
+          .single();
+
+        if (postData && postData.author_id !== profile.id) {
+          const { notificationService } = await import('@/lib/notifications/notification-service');
+          
+          await notificationService.createNotification({
+            user_id: postData.author_id,
+            kind: 'community_notification',
+            payload: {
+              type: 'new_comment',
+              post_id: post.id,
+              post_title: postData.title,
+              comment_content: body.substring(0, 100),
+              commenter_id: profile.id,
+              commenter_name: newComment.author?.display_name || 'Someone',
+            },
+            title: '新评论',
+            message: `${newComment.author?.display_name || 'Someone'} 评论了您的帖子`,
+            deep_link: `/community/groups/${slug}/posts/${postSlug}`,
+            send_push: true,
+          });
+        }
+
+        // If replying to a comment, notify parent comment author
+        if (parentIdNum) {
+          const { data: parentComment } = await supabaseClient
+            .from("community_comment")
+            .select("author_id")
+            .eq("id", parentIdNum)
+            .single();
+
+          if (parentComment && parentComment.author_id !== profile.id) {
+            const { notificationService } = await import('@/lib/notifications/notification-service');
+            
+            await notificationService.createNotification({
+              user_id: parentComment.author_id,
+              kind: 'community_notification',
+              payload: {
+                type: 'comment_reply',
+                post_id: post.id,
+                reply_content: body.substring(0, 100),
+                replier_id: profile.id,
+                replier_name: newComment.author?.display_name || 'Someone',
+              },
+              title: '评论回复',
+              message: `${newComment.author?.display_name || 'Someone'} 回复了您的评论`,
+              deep_link: `/community/groups/${slug}/posts/${postSlug}`,
+              send_push: true,
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error('Failed to send comment notification:', notifError);
+        // Don't fail the request if notification fails
       }
     }
 

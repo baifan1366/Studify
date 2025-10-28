@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { notificationService } from '@/lib/notifications/notification-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createAdminClient();
     
-    const { questionId, userAnswer, timeTakenSec } = await request.json();
+    const { questionId, userAnswer, timeTakenSec, sendNotification = false } = await request.json();
 
     if (!questionId || userAnswer === undefined) {
       return NextResponse.json(
@@ -151,6 +152,49 @@ export async function POST(request: NextRequest) {
           time_taken_sec: timeTakenSec,
         }
       });
+
+    // Send notification if requested
+    if (sendNotification) {
+      try {
+        // Get course owner (tutor)
+        const courseOwnerId = question.course_lesson.course.owner_id;
+        
+        if (courseOwnerId && courseOwnerId !== userId) {
+          // Get student name
+          const { data: studentProfile } = await supabase
+            .from('profiles')
+            .select('display_name, full_name')
+            .eq('id', userId)
+            .single();
+
+          const studentName = studentProfile?.display_name || studentProfile?.full_name || 'A student';
+
+          await notificationService.createNotification({
+            user_id: courseOwnerId,
+            kind: 'course_notification',
+            payload: {
+              type: 'quiz_submission',
+              question_id: questionId,
+              lesson_id: question.course_lesson.public_id,
+              lesson_title: question.course_lesson.title,
+              course_id: question.course_lesson.course.public_id,
+              course_title: question.course_lesson.course.title,
+              student_id: userId,
+              student_name: studentName,
+              is_correct: isCorrect,
+              points_earned: pointsEarned,
+            },
+            title: '新测验提交',
+            message: `${studentName} 提交了测验答案 - ${isCorrect ? '✓ 正确' : '✗ 错误'}`,
+            deep_link: `/course/${question.course_lesson.course.public_id}`,
+            send_push: true,
+          });
+        }
+      } catch (notifError) {
+        console.error('Failed to send quiz submission notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
 
     // If answer is incorrect, the trigger will automatically add to mistake_book
     // But we can also return additional context for immediate feedback

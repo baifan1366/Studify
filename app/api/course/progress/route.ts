@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { notificationService } from '@/lib/notifications/notification-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createAdminClient();
     const userId = authResult.user?.profile?.id;
     
-    const { lessonId, progressPct, timeSpentSec } = await request.json();
+    const { lessonId, progressPct, timeSpentSec, sendNotification = false } = await request.json();
 
     if (!lessonId || progressPct === undefined) {
       return NextResponse.json(
@@ -131,6 +132,51 @@ export async function POST(request: NextRequest) {
           previous_state: state
         }
       });
+
+    // Send notification if lesson completed and requested
+    if (sendNotification && progressPct >= 100) {
+      try {
+        // Get course owner info
+        const { data: courseOwner } = await supabase
+          .from('course')
+          .select('owner_id, title')
+          .eq('id', course.id)
+          .single();
+
+        if (courseOwner && courseOwner.owner_id !== userId) {
+          // Get student name
+          const { data: studentProfile } = await supabase
+            .from('profiles')
+            .select('display_name, full_name')
+            .eq('id', userId)
+            .single();
+
+          const studentName = studentProfile?.display_name || studentProfile?.full_name || 'A student';
+
+          await notificationService.createNotification({
+            user_id: courseOwner.owner_id,
+            kind: 'course_notification',
+            payload: {
+              type: 'lesson_completed',
+              lesson_id: lessonId,
+              lesson_title: lesson.title,
+              course_id: course.public_id,
+              course_title: course.title,
+              student_id: userId,
+              student_name: studentName,
+              progress_pct: progressPct,
+            },
+            title: '学生完成课程',
+            message: `${studentName} 完成了课程 "${lesson.title}"`,
+            deep_link: `/course/${course.public_id}`,
+            send_push: true,
+          });
+        }
+      } catch (notifError) {
+        console.error('Failed to send completion notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

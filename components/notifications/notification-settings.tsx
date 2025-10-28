@@ -22,6 +22,8 @@ interface NotificationSettings {
   assignment_reminders?: boolean;
   live_session_alerts?: boolean;
   marketing_emails?: boolean;
+  daily_digest?: boolean;
+  weekly_digest?: boolean;
 }
 
 export default function NotificationSettings() {
@@ -39,6 +41,8 @@ export default function NotificationSettings() {
     assignment_reminders: true,
     live_session_alerts: true,
     marketing_emails: false,
+    daily_digest: true,
+    weekly_digest: true,
   });
 
   useEffect(() => {
@@ -282,6 +286,48 @@ export default function NotificationSettings() {
             <Switch
               checked={settings.live_session_alerts || false}
               onCheckedChange={(checked) => handleSettingChange('live_session_alerts', checked)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Learning Reports */}
+      <Card className="bg-transparent p-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Learning Reports
+          </CardTitle>
+          <CardDescription>
+            Receive periodic summaries of your learning progress
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Daily Digest</Label>
+              <p className="text-sm text-muted-foreground">
+                Daily summary of your learning activities (sent at 8 PM)
+              </p>
+            </div>
+            <Switch
+              checked={settings.daily_digest || false}
+              onCheckedChange={(checked) => handleSettingChange('daily_digest', checked)}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Weekly Report</Label>
+              <p className="text-sm text-muted-foreground">
+                Weekly summary of your progress and achievements (sent on Sunday at 8 PM)
+              </p>
+            </div>
+            <Switch
+              checked={settings.weekly_digest || false}
+              onCheckedChange={(checked) => handleSettingChange('weekly_digest', checked)}
             />
           </div>
         </CardContent>

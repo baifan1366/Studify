@@ -9,6 +9,8 @@ export interface NotificationSettings {
   classroom_updates?: boolean;
   assignment_reminders?: boolean;
   live_session_alerts?: boolean;
+  daily_digest?: boolean;
+  weekly_digest?: boolean;
 }
 
 export function useNotificationSettings() {

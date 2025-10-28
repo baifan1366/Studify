@@ -35,6 +35,7 @@ export function useQuiz({ lessonId }: UseQuizProps) {
           questionId: data.questionId,
           userAnswer: typeof data.answer === 'boolean' ? data.answer.toString() : data.answer,
           timeTakenSec: 0, // Could be enhanced to track actual time
+          sendNotification: true, // Enable notification for quiz submissions
         }),
       });
       if (!response.ok) {
@@ -331,7 +332,10 @@ export function useSubmissionGrading({ lessonId, quizId, submissionId }: UseSubm
       feedback?: string;
       grading_status: string;
     }) => {
-      return await api.put(quizApi.updateSubmissionGrade(lessonId, quizId, submissionId), gradeData);
+      return await api.put(quizApi.updateSubmissionGrade(lessonId, quizId, submissionId), {
+        ...gradeData,
+        sendNotification: true, // Notify student when grading is complete
+      });
     },
     onSuccess: () => {
       // Invalidate related queries

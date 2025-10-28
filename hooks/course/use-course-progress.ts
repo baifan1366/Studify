@@ -61,7 +61,10 @@ export function useUpdateCourseProgress() {
 
   return useMutation({
     mutationFn: async (data: UpdateProgressData) => {
-      const response = await api.post(courseProgressApi.create, data);
+      const response = await api.post(courseProgressApi.create, {
+        ...data,
+        sendNotification: data.progressPct >= 100, // Send notification on lesson completion
+      });
       return response.data as UpdateProgressResponse;
     },
     onSuccess: (data, variables) => {

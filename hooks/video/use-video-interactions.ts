@@ -324,7 +324,10 @@ export function useCreateComment() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          sendNotification: true, // Enable notification for video comments
+        }),
       });
       
       if (!response.ok) {

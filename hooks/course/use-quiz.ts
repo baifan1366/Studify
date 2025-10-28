@@ -158,7 +158,7 @@ export function useQuizSubmissions({ lessonId }: UseQuizProps) {
   });
 
   return {
-    submissions: (submissionData as any)?.data || [],
+    submissions: Array.isArray(submissionData) ? submissionData : [],
     isLoading,
     error,
   };

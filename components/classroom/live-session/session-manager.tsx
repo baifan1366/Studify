@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,7 @@ import LiveClassroom from './live-classroom';
 
 interface SessionManagerProps {
   classroomSlug: string;
-  userRole: 'student' | 'tutor';
+  userRole: 'student' | 'tutor' | 'owner';
   userId: string;
   userName: string;
 }
@@ -38,9 +38,10 @@ export default function SessionManager({
     starts_at: '',
     ends_at: '',
   });
-  
+
   // 🎯 Use ref to ensure auto-join only executes on first load
   const hasAutoJoinedRef = useRef(false);
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     sessions,
@@ -52,6 +53,84 @@ export default function SessionManager({
     invalidateQueries
   } = useClassroomLiveSessions(classroomSlug);
 
+  // 🎯 Precise time-based session sync
+  useEffect(() => {
+    if (!sessions || sessions.length === 0) return;
+
+    const syncSessionStatus = async () => {
+      try {
+        const response = await fetch(`/api/classroom/${classroomSlug}/live-sessions?action=sync`, {
+          method: 'PUT'
+        });
+        const data = await response.json();
+        
+        if (data.success && (data.activated > 0 || data.ended > 0)) {
+          console.log('🔄 Session status synced:', data);
+          invalidateQueries();
+        }
+      } catch (error) {
+        console.error('Failed to sync session status:', error);
+      }
+    };
+
+    // Calculate optimal sync interval based on nearest session start/end time
+    const getNextSyncInterval = () => {
+      const now = Date.now();
+      let minTimeToEvent = Infinity;
+
+      for (const session of sessions) {
+        // Check scheduled sessions for start time
+        if (session.status === 'scheduled') {
+          const startTime = new Date(session.starts_at).getTime();
+          const timeToStart = startTime - now;
+          
+          if (timeToStart > 0 && timeToStart < minTimeToEvent) {
+            minTimeToEvent = timeToStart;
+          }
+        }
+        
+        // Check active sessions for end time
+        if (session.status === 'active' && session.ends_at) {
+          const endTime = new Date(session.ends_at).getTime();
+          const timeToEnd = endTime - now;
+          
+          if (timeToEnd > 0 && timeToEnd < minTimeToEvent) {
+            minTimeToEvent = timeToEnd;
+          }
+        }
+      }
+
+      // Adaptive interval: more frequent as start/end time approaches
+      if (minTimeToEvent < 30000) return 5000;      // < 30s: check every 5s
+      if (minTimeToEvent < 60000) return 10000;     // < 1m: check every 10s
+      if (minTimeToEvent < 300000) return 15000;    // < 5m: check every 15s
+      return 30000;                                  // default: check every 30s
+    };
+
+    // Initial sync
+    syncSessionStatus();
+
+    // Set up adaptive interval
+    const setupInterval = () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+      
+      const interval = getNextSyncInterval();
+      syncIntervalRef.current = setInterval(syncSessionStatus, interval);
+    };
+
+    setupInterval();
+
+    // Recalculate interval every minute
+    const recalcInterval = setInterval(setupInterval, 60000);
+
+    return () => {
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      clearInterval(recalcInterval);
+    };
+  }, [sessions, classroomSlug, invalidateQueries]);
+
   // 🎯 Calculate current active session (from user-selected session ID)
   const activeSession = useMemo(() => {
     if (!joinedSessionId) return null;
@@ -62,7 +141,7 @@ export default function SessionManager({
   useEffect(() => {
     if (hasAutoJoinedRef.current) return;
     if (!sessions || sessions.length === 0) return;
-    
+
     // Only students auto-join
     if (userRole === 'student') {
       const activeSessions = sessions.filter(session => session.status === 'active');
@@ -112,7 +191,7 @@ export default function SessionManager({
     if (!activeSession) return;
 
     try {
-      await updateSession(activeSession.id, { 
+      await updateSession(activeSession.id, {
         status: 'ended',
         ends_at: new Date().toISOString()
       });
@@ -152,6 +231,7 @@ export default function SessionManager({
         participantName={userName}
         userRole={userRole}
         onSessionEnd={userRole === 'tutor' ? handleEndSession : handleLeaveSession}
+        sessionEndsAt={activeSession.ends_at}
       />
     );
   }
@@ -191,8 +271,8 @@ export default function SessionManager({
           <h2 className="text-2xl font-bold">Live Classroom</h2>
           <p className="text-muted-foreground">Manage and participate in real-time video classrooms</p>
         </div>
-        
-        {userRole === 'tutor' && (
+
+        {(userRole === 'tutor' || userRole === 'owner') && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button>
@@ -276,8 +356,8 @@ export default function SessionManager({
               <Video className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Live Classrooms</h3>
               <p className="text-muted-foreground mb-4">
-                {userRole === 'tutor' 
-                  ? 'Create your first live classroom to start interacting with students' 
+                {(userRole === 'tutor' || userRole === 'owner')
+                  ? 'Create your first live classroom to start interacting with students'
                   : 'Wait for tutor to start live classroom'}
               </p>
             </CardContent>
@@ -290,19 +370,56 @@ export default function SessionManager({
 
 interface SessionCardProps {
   session: LiveSession;
-  userRole: 'student' | 'tutor';
+  userRole: 'student' | 'tutor' | 'owner';
   onStart: () => void;
   onJoin: () => void;
   onDelete: () => void;
 }
 
 function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCardProps) {
+  // Calculate time until end for active sessions
+  const timeUntilEnd = React.useMemo(() => {
+    if (session.status !== 'active' || !session.ends_at) return null;
+    
+    const now = Date.now();
+    const endTime = new Date(session.ends_at).getTime();
+    const diffMs = endTime - now;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMinutes < 0) return 'Ending now';
+    if (diffMinutes < 5) return `Ends in ${diffMinutes}m`;
+    if (diffMinutes < 60) return `${diffMinutes}m remaining`;
+    
+    const hours = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    return `${hours}h ${mins}m remaining`;
+  }, [session.status, session.ends_at]);
+
+  const isEndingSoon = React.useMemo(() => {
+    if (session.status !== 'active' || !session.ends_at) return false;
+    
+    const now = Date.now();
+    const endTime = new Date(session.ends_at).getTime();
+    const diffMinutes = (endTime - now) / (1000 * 60);
+    
+    return diffMinutes > 0 && diffMinutes <= 10; // Warning if less than 10 minutes
+  }, [session.status, session.ends_at]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'scheduled':
         return <Badge variant="secondary">Scheduled</Badge>;
       case 'active':
-        return <Badge variant="default" className="animate-pulse">In Progress</Badge>;
+        return (
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="animate-pulse">In Progress</Badge>
+            {isEndingSoon && timeUntilEnd && (
+              <Badge variant="destructive" className="animate-pulse">
+                ⏰ {timeUntilEnd}
+              </Badge>
+            )}
+          </div>
+        );
       case 'ended':
         return <Badge variant="outline">Ended</Badge>;
       default:
@@ -320,9 +437,9 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
     });
   };
 
-  const canStart = userRole === 'tutor' && session.status === 'scheduled';
+  const canStart = (userRole === 'tutor' || userRole === 'owner') && session.status === 'scheduled';
   const canJoin = session.status === 'active';
-  const canDelete = userRole === 'tutor' && session.status !== 'active';
+  const canDelete = (userRole === 'tutor' || userRole === 'owner') && session.status !== 'active';
 
   return (
     <Card className="bg-transparent p-2">

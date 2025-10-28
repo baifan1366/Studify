@@ -6,13 +6,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  MessageCircle, 
-  Send, 
-  Users, 
-  Smile, 
-  Heart, 
-  ThumbsUp 
+import {
+  MessageCircle,
+  Send,
+  Users,
+  Smile,
+  Heart,
+  ThumbsUp
 } from 'lucide-react';
 import { useDataChannel } from '@livekit/components-react';
 
@@ -40,7 +40,7 @@ interface SessionChatPanelProps {
     id: string;
     name: string;
     avatar: string;
-    role: 'student' | 'tutor';
+    role: 'student' | 'tutor' | 'owner';
   };
   // Real participants list from LiveKit
   participants?: Array<{
@@ -65,14 +65,14 @@ const REACTIONS = [
  * localStorage only serves as auxiliary, used to restore local history when offline
  */
 function useSessionChat(
-  classroomSlug: string, 
-  sessionId: string, 
+  classroomSlug: string,
+  sessionId: string,
   userInfo?: any
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 🎯 Use LiveKit DataChannel for real-time communication
   const { message: dataChannelMessage, send: sendData } = useDataChannel('chat');
 
@@ -80,20 +80,20 @@ function useSessionChat(
   const loadLocalHistory = useCallback(() => {
     try {
       setIsLoading(true);
-      
+
       if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
         console.warn('⚠️ Invalid chat parameters:', { classroomSlug, sessionId });
         setError('Invalid chat parameters');
         setIsLoading(false);
         return;
       }
-      
+
       setError(null);
-      
-      
+
+
       const cacheKey = `chat:${classroomSlug}:${sessionId}`;
       const cachedData = localStorage.getItem(cacheKey);
-      
+
       if (cachedData) {
         try {
           const parsedMessages = JSON.parse(cachedData);
@@ -106,7 +106,7 @@ function useSessionChat(
             timestamp: msg.timestamp,
             type: msg.type || 'text'
           }));
-          
+
           setMessages(formattedMessages);
         } catch (parseError) {
           console.error('❌ Failed to parse cached messages:', parseError);
@@ -129,11 +129,11 @@ function useSessionChat(
       if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
         return;
       }
-      
+
       const cacheKey = `chat:${classroomSlug}:${sessionId}`;
       const existingData = localStorage.getItem(cacheKey);
       let existingMessages = [];
-      
+
       if (existingData) {
         try {
           existingMessages = JSON.parse(existingData);
@@ -141,7 +141,7 @@ function useSessionChat(
           existingMessages = [];
         }
       }
-      
+
       existingMessages.push({
         id: message.id,
         text: message.text,
@@ -151,12 +151,12 @@ function useSessionChat(
         type: message.type,
         timestamp: message.timestamp
       });
-      
+
       // Limit to save last 100 messages
       if (existingMessages.length > 100) {
         existingMessages = existingMessages.slice(-100);
       }
-      
+
       localStorage.setItem(cacheKey, JSON.stringify(existingMessages));
     } catch (error) {
       console.error('💥 Error saving to local history:', error);
@@ -169,7 +169,7 @@ function useSessionChat(
       if (!classroomSlug || !sessionId || sessionId === 'undefined' || sessionId === 'null') {
         return;
       }
-      
+
       const cacheKey = `chat:${classroomSlug}:${sessionId}`;
       localStorage.removeItem(cacheKey);
       setMessages([]);
@@ -192,7 +192,7 @@ function useSessionChat(
         const decoder = new TextDecoder();
         const messageStr = decoder.decode(dataChannelMessage.payload);
         const data = JSON.parse(messageStr);
-        
+
         // Only handle chat message types
         if (data.type === 'chat') {
           const newMessage: ChatMessage = {
@@ -204,8 +204,8 @@ function useSessionChat(
             timestamp: data.timestamp,
             type: data.messageType || 'text'
           };
-          
-          
+
+
           // Add to message list
           setMessages(prev => {
             // Prevent duplicate messages
@@ -214,7 +214,7 @@ function useSessionChat(
             }
             return [...prev, newMessage];
           });
-          
+
           // Backup to local
           saveToLocalHistory(newMessage);
         }
@@ -230,7 +230,7 @@ function useSessionChat(
       console.warn('⚠️ Cannot send message:', { hasUserInfo: !!userInfo, hasText: !!text.trim(), hasSendData: !!sendData });
       return;
     }
-    
+
     const newMessage: ChatMessage = {
       id: `${Date.now()}-${Math.random()}`,
       text: text.trim(),
@@ -240,13 +240,13 @@ function useSessionChat(
       timestamp: Date.now(),
       type: messageType,
     };
-    
+
     // Immediately add to local display (optimistic update)
     setMessages(prev => [...prev, newMessage]);
-    
+
     // Backup to local
     saveToLocalHistory(newMessage);
-    
+
     // 🎯 Send to other participants via LiveKit DataChannel
     try {
       const payload = {
@@ -259,10 +259,10 @@ function useSessionChat(
         timestamp: newMessage.timestamp,
         messageType: newMessage.type
       };
-      
+
       const encoder = new TextEncoder();
       const data = encoder.encode(JSON.stringify(payload));
-      
+
       sendData(data, { reliable: true }); // Use reliable transmission to ensure message delivery
     } catch (error) {
       console.error('❌ Error sending message via DataChannel:', error);
@@ -384,14 +384,14 @@ function ChatInput({ onSendMessage, onSendReaction }: {
   };
 
   return (
-    <div className="p-2 sm:p-4 border-t border-slate-700/50">
+    <div className="w-full p-2 sm:p-4 border-t border-slate-700/50">
       {/* Quick reactions */}
       {showReactions && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mb-3 p-2 bg-slate-700/30 rounded-lg"
+          className="mb-3 p-2 bg-slate-700/30 rounded-lg w-full"
         >
           <div className="flex gap-2 flex-wrap">
             {REACTIONS.map((reaction, index) => (
@@ -413,36 +413,44 @@ function ChatInput({ onSendMessage, onSendReaction }: {
         </motion.div>
       )}
 
-      {/* 输入框 */}
-      <div className="flex gap-1 sm:gap-2">
+      {/* 输入框 - 确保宽度与 panel 一致 */}
+      <div className="w-full space-y-2">
+        {/* 输入框占满整行 */}
+        <div className="relative w-full">
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Enter message..."
+            onKeyPress={handleKeyPress}
+            className="w-full pr-20 bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:ring-indigo-500"
+            maxLength={500}
+          />
+          {/* 发送按钮放在输入框内部右侧 */}
+          <Button
+            onClick={handleSend}
+            disabled={!message.trim()}
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 bg-indigo-500 hover:bg-indigo-600 text-white disabled:opacity-50"
+            size="sm"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* 表情按钮单独一行 */}
         <Button
           variant="ghost"
-          size="icon"
+          size="sm"
           onClick={() => setShowReactions(!showReactions)}
-          className="shrink-0 text-slate-400 hover:text-white hover:bg-slate-600/50"
+          className="w-full text-slate-400 hover:text-white hover:bg-slate-600/50"
         >
-          <Smile className="w-4 h-4" />
-        </Button>
-        <Input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter message..."
-          onKeyPress={handleKeyPress}
-          className="flex-1 min-w-0 bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:ring-indigo-500"
-          maxLength={500}
-        />
-        <Button
-          onClick={handleSend}
-          disabled={!message.trim()}
-          className="shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white disabled:opacity-50"
-        >
-          <Send className="w-4 h-4" />
+          <Smile className="w-4 h-4 mr-2" />
+          <span className="text-xs">Add Reaction</span>
         </Button>
       </div>
 
       {/* Character count */}
       {message.length > 0 && (
-        <div className="text-xs text-slate-400 mt-1 text-right">
+        <div className="text-xs text-slate-400 mt-1 text-right w-full">
           {message.length}/500
         </div>
       )}
@@ -482,10 +490,10 @@ function OnlineParticipants({ participants }: {
               </div>
             </div>
             <Badge
-              variant={participant.role === 'tutor' ? 'default' : 'secondary'}
+              variant={participant.role === 'tutor' || participant.role === 'owner' ? 'default' : 'secondary'}
               className="text-xs flex-shrink-0"
             >
-              {participant.role === 'tutor' ? 'Tutor' : 'Student'}
+              {participant.role === 'tutor' || participant.role === 'owner' ? 'Tutor' : 'Student'}
             </Badge>
             <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="Online"></div>
           </div>
@@ -502,10 +510,10 @@ function OnlineParticipants({ participants }: {
  * ✅ Uses real participants list
  * ✅ localStorage only serves as auxiliary (offline history)
  */
-export function SessionChatPanel({ 
-  isOpen, 
-  classroomSlug, 
-  sessionId, 
+export function SessionChatPanel({
+  isOpen,
+  classroomSlug,
+  sessionId,
   userInfo,
   participants = []
 }: SessionChatPanelProps) {
@@ -539,14 +547,14 @@ export function SessionChatPanel({
               <MessageCircle className="w-5 h-5" />
               Real-time Chat
             </h3>
-            
+
           </div>
 
           {/* Online participants list - uses real LiveKit data */}
           {participants.length > 0 && (
             <OnlineParticipants participants={participants} />
           )}
-          
+
 
           {/* Chat messages */}
           <ChatMessages messages={messages} isLoading={isLoading} />

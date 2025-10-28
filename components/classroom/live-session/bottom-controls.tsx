@@ -14,7 +14,7 @@ import { useCreateRecording } from '@/hooks/classroom/use-recordings';
 
 interface BottomControlsProps {
   colors: { primary: string; light: string; dark: string };
-  userRole: 'student' | 'tutor';
+  userRole: 'student' | 'tutor' | 'owner';
   isRecording: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
@@ -24,6 +24,7 @@ interface BottomControlsProps {
   onOpenDevices?: () => void;
   classroomSlug?: string;
   sessionId?: string;
+  onLeaveSession?: () => void;
 }
 
 export default function BottomControls({
@@ -38,11 +39,13 @@ export default function BottomControls({
   onOpenDevices,
   classroomSlug,
   sessionId,
+  onLeaveSession,
 }: BottomControlsProps) {
   const [showReactionPanel, setShowReactionPanel] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [currentTab, setCurrentTab] = useState<string | null>(null); // 记录录制时的标签页
   
   // Recording hook
   const createRecording = classroomSlug ? useCreateRecording(classroomSlug) : null;
@@ -59,6 +62,24 @@ export default function BottomControls({
     });
   }, [userRole, classroomSlug, createRecording, isRecording, sessionId]);
   
+  // 🎯 锁定标签页功能：录制时禁止切换标签
+  useEffect(() => {
+    if (isRecording && currentTab) {
+      // 添加事件监听，阻止标签切换
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = '录制正在进行中，确定要离开吗？';
+        return e.returnValue;
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [isRecording, currentTab]);
+
   // Start recording function
   const handleStartRecording = async () => {
     try {
@@ -68,11 +89,22 @@ export default function BottomControls({
         return;
       }
 
-      // 捕获屏幕与音频
+      // 🎯 自动选择当前标签页进行录制
+      setCurrentTab('current-tab');
+
+      // 捕获当前标签页的屏幕与音频
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
+        video: {
+          displaySurface: 'browser', // 优先选择浏览器标签页
+        },
+        audio: {
+          suppressLocalAudioPlayback: false, // 允许录制标签页音频
+        },
+        preferCurrentTab: true, // Chrome 94+ 自动选择当前标签页
+        selfBrowserSurface: 'include', // 包含当前浏览器
+        surfaceSwitching: 'exclude', // 禁止切换到其他窗口/标签
+        systemAudio: 'include', // 包含系统音频
+      } as any); // 使用 any 因为 TypeScript 类型定义可能不完整
 
       // Safari 兼容：有时需单独捕获麦克风
       if (!stream.getAudioTracks().length) {
@@ -112,8 +144,19 @@ export default function BottomControls({
         // 停止所有 track
         stream.getTracks().forEach(track => track.stop());
 
-        // 上传逻辑（仅 tutor 可上传）
-        if (userRole === 'tutor' && createRecording && sessionId && classroomSlug) {
+        // 🎯 自动下载录制文件
+        const downloadUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.download = `recording_${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(downloadUrl);
+        console.log('📥 Recording downloaded automatically');
+
+        // 上传逻辑（tutor 和 owner 可上传）
+        if ((userRole === 'tutor' || userRole === 'owner') && createRecording && sessionId && classroomSlug) {
           try {
             const file = new File([blob], `recording_${Date.now()}.webm`, {
               type: 'video/webm',
@@ -135,8 +178,10 @@ export default function BottomControls({
           console.warn('Skipped upload: not tutor or missing info');
         }
 
+        // 🎯 清理状态，解锁标签页
         setMediaRecorder(null);
         setRecordedChunks([]);
+        setCurrentTab(null);
       };
 
       recorder.start(1000); // 每秒触发一次 dataavailable
@@ -144,7 +189,7 @@ export default function BottomControls({
       setRecordedChunks(chunks);
       onStartRecording();
 
-      console.log('🎥 Recording started');
+      console.log('🎥 Recording started, current tab locked');
     } catch (error) {
       console.error('Failed to start recording:', error);
       alert('Failed to start recording. Please allow screen sharing permissions.');
@@ -328,17 +373,27 @@ export default function BottomControls({
               />
 
               {/* Leave room */}
-              <DisconnectButton className={`${pillBtn} bg-red-600 text-white hover:bg-red-500 text-sm md:text-base flex items-center gap-2`}>
+              <DisconnectButton 
+                className={`${pillBtn} bg-red-600 text-white hover:bg-red-500 text-sm md:text-base flex items-center gap-2`}
+                onClick={() => {
+                  // Redirect to classroom dashboard after leaving
+                  if (onLeaveSession) {
+                    onLeaveSession();
+                  } else if (classroomSlug) {
+                    window.location.href = `/classroom/${classroomSlug}`;
+                  }
+                }}
+              >
                 <LogOut className="w-4 h-4" />
                 <span>Leave</span>
               </DisconnectButton>
             </div>
           </div>
 
-          {/* Right side: tutor operations + volume control */}
+          {/* Right side: tutor/owner operations + volume control */}
           <div className="flex items-center justify-end gap-2 flex-1 max-w-xs shrink-0">
-            {/* Recording button - only show for tutors */}
-            {userRole && userRole.toLowerCase() === 'tutor' && (
+            {/* Recording button - show for tutors and owners */}
+            {userRole && (userRole.toLowerCase() === 'tutor' || userRole.toLowerCase() === 'owner') && (
               <button
                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                 className="h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-500 border-2 border-white"
@@ -352,7 +407,7 @@ export default function BottomControls({
               </button>
             )}
             
-            {userRole && userRole.toLowerCase() === 'tutor' && (
+            {userRole && (userRole.toLowerCase() === 'tutor' || userRole.toLowerCase() === 'owner') && (
               <button
                 onClick={onEndSession}
                 className={`${pillBtn} bg-red-600 hover:bg-red-500 text-white`}

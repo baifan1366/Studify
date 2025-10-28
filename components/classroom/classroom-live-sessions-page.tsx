@@ -415,7 +415,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
           classroomSlug={classroomSlug}
           sessionId={sessionId}
           participantName={classroom?.name || 'User'}
-          userRole={canManageSessions ? 'tutor' : 'student'}
+          userRole={classroom?.user_role === 'owner' ? 'owner' : classroom?.user_role === 'tutor' ? 'tutor' : 'student'}
           onSessionEnd={handleLeaveSession}
         />
       </Suspense>

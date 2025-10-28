@@ -5123,3 +5123,102 @@ COMMENT ON FUNCTION get_weekly_leaderboard IS 'Returns top users by points earne
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_weekly_leaderboard TO authenticated;
+
+
+-- ============================================
+-- Live Session Auto-Start Functions
+-- ============================================
+
+-- Function to automatically update session status based on precise time
+CREATE OR REPLACE FUNCTION auto_update_live_session_status()
+RETURNS TABLE(activated_count INTEGER, ended_count INTEGER)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_activated_count INTEGER := 0;
+  v_ended_count INTEGER := 0;
+  v_current_time TIMESTAMP WITH TIME ZONE;
+BEGIN
+  -- Get current time once for consistency
+  v_current_time := NOW();
+  
+  -- Update scheduled sessions to 'active' when start time has arrived
+  -- Using precise timestamp comparison (no grace period)
+  WITH updated_active AS (
+    UPDATE classroom_live_session
+    SET 
+      status = 'active',
+      updated_at = v_current_time
+    WHERE 
+      status = 'scheduled'
+      AND starts_at <= v_current_time
+      AND is_deleted = FALSE
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_activated_count FROM updated_active;
+
+  -- Update active sessions to 'ended' when end time has passed
+  WITH updated_ended AS (
+    UPDATE classroom_live_session
+    SET 
+      status = 'ended',
+      updated_at = v_current_time
+    WHERE 
+      status = 'active'
+      AND ends_at IS NOT NULL
+      AND ends_at <= v_current_time
+      AND is_deleted = FALSE
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_ended_count FROM updated_ended;
+  
+  -- Return counts for monitoring
+  RETURN QUERY SELECT v_activated_count, v_ended_count;
+END;
+$$;
+
+-- Trigger function that checks status on every read/write with precise timing
+CREATE OR REPLACE FUNCTION check_live_session_status()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_current_time TIMESTAMP WITH TIME ZONE;
+BEGIN
+  -- Get current time for precise comparison
+  v_current_time := NOW();
+  
+  -- If session is scheduled and start time has passed, update to active
+  IF NEW.status = 'scheduled' AND NEW.starts_at <= v_current_time THEN
+    NEW.status := 'active';
+    NEW.updated_at := v_current_time;
+    
+    RAISE NOTICE 'Auto-activated session: % at %', NEW.title, v_current_time;
+  END IF;
+
+  -- If session is active and end time has passed, update to ended
+  IF NEW.status = 'active' AND NEW.ends_at IS NOT NULL AND NEW.ends_at <= v_current_time THEN
+    NEW.status := 'ended';
+    NEW.updated_at := v_current_time;
+    
+    RAISE NOTICE 'Auto-ended session: % at %', NEW.title, v_current_time;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Create trigger on INSERT and UPDATE
+DROP TRIGGER IF EXISTS trigger_check_live_session_status ON classroom_live_session;
+CREATE TRIGGER trigger_check_live_session_status
+  BEFORE INSERT OR UPDATE ON classroom_live_session
+  FOR EACH ROW
+  EXECUTE FUNCTION check_live_session_status();
+
+-- Add comments
+COMMENT ON FUNCTION auto_update_live_session_status() IS 
+'Automatically updates live session status based on scheduled times with precise timestamp comparison. Returns counts of activated and ended sessions.';
+
+COMMENT ON FUNCTION check_live_session_status() IS 
+'Trigger function that ensures live session status is accurate on every insert/update based on current time with millisecond precision.';

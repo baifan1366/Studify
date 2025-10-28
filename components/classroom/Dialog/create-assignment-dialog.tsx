@@ -4,24 +4,24 @@ import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiSend } from '@/lib/api-config';
@@ -76,15 +76,15 @@ export function CreateAssignmentDialog({
     onSuccess: () => {
       // Invalidate and refetch assignments
       queryClient.invalidateQueries({ queryKey: ['classroom-assignments', classroomSlug] });
-      
+
       toast({
         title: t('success'),
         description: t('assignment_created'),
       });
-      
+
       setDialogOpen(false);
       resetForm();
-      
+
       // Notify parent component
       if (onAssignmentCreated) {
         onAssignmentCreated();
@@ -112,6 +112,20 @@ export function CreateAssignmentDialog({
       toast({
         title: t('validation_error'),
         description: t('fill_required_fields'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate due date is at least 30 minutes in the future
+    const dueDate = new Date(formData.due_date);
+    const now = new Date();
+    const minDueDate = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
+
+    if (dueDate < minDueDate) {
+      toast({
+        title: t('validation_error'),
+        description: 'Due date must be at least 30 minutes from now',
         variant: "destructive",
       });
       return;
@@ -177,20 +191,27 @@ export function CreateAssignmentDialog({
             type="datetime-local"
             value={formData.due_date}
             onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-            min={new Date().toISOString().slice(0, 16)}
+            min={(() => {
+              // Set minimum to 30 minutes from now
+              const minDate = new Date(Date.now() + 30 * 60 * 1000);
+              return minDate.toISOString().slice(0, 16);
+            })()}
             disabled={createAssignmentMutation.isPending}
           />
+          <p className="text-xs text-muted-foreground">
+            Due date must be at least 30 minutes from now
+          </p>
         </div>
       </div>
       <DialogFooter>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => handleOpenChange(false)}
           disabled={createAssignmentMutation.isPending}
         >
           Cancel
         </Button>
-        <Button 
+        <Button
           onClick={handleCreateAssignment}
           disabled={!formData.title || !formData.description || !formData.due_date || createAssignmentMutation.isPending}
         >

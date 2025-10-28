@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { hashPassword } from '@/utils/classroom/password';
 
 export const runtime = 'nodejs';
 
@@ -139,8 +140,8 @@ export async function PUT(
       .single();
 
     // Allow update if user is a tutor or the owner of the classroom
-    const isAuthorized = (membership && membership.role === 'tutor') || 
-                         classroom.owner_id === profile.id;
+    const isOwner = classroom.owner_id === user.id;
+    const isAuthorized = (membership && membership.role === 'tutor') || isOwner;
 
     if (!isAuthorized) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
@@ -155,6 +156,33 @@ export async function PUT(
     if (body.name !== undefined) updateData.name = body.name;
     if (body.description !== undefined) updateData.description = body.description;
     if (body.color !== undefined) updateData.color = body.color;
+    
+    // Only owner can update visibility and password
+    if (isOwner) {
+      if (body.visibility !== undefined) {
+        updateData.visibility = body.visibility;
+        
+        // Validate visibility
+        if (!['public', 'private'].includes(body.visibility)) {
+          return NextResponse.json({ 
+            error: 'Visibility must be either "public" or "private"' 
+          }, { status: 400 });
+        }
+        
+        // If changing to private and password is provided, hash it
+        if (body.visibility === 'private' && body.password && body.password.trim()) {
+          updateData.password = hashPassword(body.password);
+        }
+        
+        // If changing to public, clear the password
+        if (body.visibility === 'public') {
+          updateData.password = null;
+        }
+      } else if (body.password && body.password.trim()) {
+        // If just updating password (without changing visibility)
+        updateData.password = hashPassword(body.password);
+      }
+    }
 
     console.log('📝 [PUT] Updating classroom:', {
       slug,
@@ -229,8 +257,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Classroom not found' }, { status: 404 });
     }
 
-    // Check if user is the owner
-    if (classroom.owner_id !== profile.id) {
+    // Check if user is the owner (use user.id which is UUID)
+    if (classroom.owner_id !== user.id) {
       return NextResponse.json({ error: 'Only the owner can delete the classroom' }, { status: 403 });
     }
 
@@ -261,9 +289,9 @@ export async function DELETE(
       slug: deletedClassroom.slug
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Classroom deleted successfully',
-      classroom: deletedClassroom 
+      classroom: deletedClassroom
     });
 
   } catch (error) {

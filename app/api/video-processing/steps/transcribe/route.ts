@@ -26,93 +26,146 @@ const RETRY_CONFIG = {
 };
 
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {
-  console.log('Downloading audio file from:', audioUrl);
-  
+  console.log("Downloading audio file from:", audioUrl);
+
   // Supported formats: .wav, .mp3, .m4a, .mp4, .mov, .ogg, .flac, .aac, .webm, .avi
   // The Whisper API uses ffmpeg internally to convert formats as needed
-  
+
   const response = await fetch(audioUrl, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'User-Agent': 'Studify-Transcription-Service/1.0',
-      'Accept': 'audio/*, video/*, application/octet-stream, audio/wav, audio/mp3, audio/m4a, video/mp4, video/mov, audio/mpeg, audio/ogg, audio/flac, audio/aac, video/webm, video/avi',
+      "User-Agent": "Studify-Transcription-Service/1.0",
+      Accept:
+        "audio/*, video/*, application/octet-stream, audio/wav, audio/mp3, audio/m4a, video/mp4, video/mov, audio/mpeg, audio/ogg, audio/flac, audio/aac, video/webm, video/avi",
     },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to download audio file: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to download audio file: ${response.status} ${response.statusText}`
+    );
   }
 
-  const contentType = response.headers.get('content-type') || 'audio/mpeg';
+  const contentType = response.headers.get("content-type") || "audio/mpeg";
   const arrayBuffer = await response.arrayBuffer();
 
   // Log detailed response information for debugging
-  console.log('📥 Download response details:', {
+  console.log("📥 Download response details:", {
     url: audioUrl,
     status: response.status,
     contentType: contentType,
     size: arrayBuffer.byteLength,
-    headers: Object.fromEntries(response.headers.entries())
+    headers: Object.fromEntries(response.headers.entries()),
   });
 
   // Check for HTML/JSON error responses (common when URLs are wrong)
   const uint8Array = new Uint8Array(arrayBuffer);
   const firstBytes = uint8Array.slice(0, 100);
-  const textPreview = new TextDecoder('utf-8', { fatal: false }).decode(firstBytes);
-  
+  const textPreview = new TextDecoder("utf-8", { fatal: false }).decode(
+    firstBytes
+  );
+
   // Detect common non-audio content
-  if (textPreview.includes('<!DOCTYPE') || 
-      textPreview.includes('<html') || 
-      textPreview.includes('{"error') ||
-      textPreview.includes('<?xml')) {
-    console.error('❌ Downloaded content appears to be HTML/JSON/XML, not audio:', textPreview.substring(0, 200));
-    throw new Error(`Downloaded file is not audio data. Content starts with: ${textPreview.substring(0, 100)}`);
+  if (
+    textPreview.includes("<!DOCTYPE") ||
+    textPreview.includes("<html") ||
+    textPreview.includes('{"error') ||
+    textPreview.includes("<?xml")
+  ) {
+    console.error(
+      "❌ Downloaded content appears to be HTML/JSON/XML, not audio:",
+      textPreview.substring(0, 200)
+    );
+    throw new Error(
+      `Downloaded file is not audio data. Content starts with: ${textPreview.substring(
+        0,
+        100
+      )}`
+    );
   }
 
   // Validate audio/video file signatures (magic numbers)
-  const isValidAudioFile = 
+  const isValidAudioFile =
     // MP3: FF FB or FF F3 or FF F2 or ID3
-    (uint8Array[0] === 0xFF && (uint8Array[1] & 0xE0) === 0xE0) ||
-    (uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33) || // ID3
+    (uint8Array[0] === 0xff && (uint8Array[1] & 0xe0) === 0xe0) ||
+    (uint8Array[0] === 0x49 &&
+      uint8Array[1] === 0x44 &&
+      uint8Array[2] === 0x33) || // ID3
     // WAV: RIFF....WAVE
-    (uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && uint8Array[2] === 0x46 && uint8Array[3] === 0x46) ||
+    (uint8Array[0] === 0x52 &&
+      uint8Array[1] === 0x49 &&
+      uint8Array[2] === 0x46 &&
+      uint8Array[3] === 0x46) ||
     // MP4/M4A: ftyp
-    (uint8Array[4] === 0x66 && uint8Array[5] === 0x74 && uint8Array[6] === 0x79 && uint8Array[7] === 0x70) ||
+    (uint8Array[4] === 0x66 &&
+      uint8Array[5] === 0x74 &&
+      uint8Array[6] === 0x79 &&
+      uint8Array[7] === 0x70) ||
     // OGG: OggS
-    (uint8Array[0] === 0x4F && uint8Array[1] === 0x67 && uint8Array[2] === 0x67 && uint8Array[3] === 0x53) ||
+    (uint8Array[0] === 0x4f &&
+      uint8Array[1] === 0x67 &&
+      uint8Array[2] === 0x67 &&
+      uint8Array[3] === 0x53) ||
     // FLAC: fLaC
-    (uint8Array[0] === 0x66 && uint8Array[1] === 0x4C && uint8Array[2] === 0x61 && uint8Array[3] === 0x43) ||
+    (uint8Array[0] === 0x66 &&
+      uint8Array[1] === 0x4c &&
+      uint8Array[2] === 0x61 &&
+      uint8Array[3] === 0x43) ||
     // WebM: 0x1A 0x45 0xDF 0xA3
-    (uint8Array[0] === 0x1A && uint8Array[1] === 0x45 && uint8Array[2] === 0xDF && uint8Array[3] === 0xA3);
+    (uint8Array[0] === 0x1a &&
+      uint8Array[1] === 0x45 &&
+      uint8Array[2] === 0xdf &&
+      uint8Array[3] === 0xa3);
 
   if (!isValidAudioFile) {
     const hexPreview = Array.from(uint8Array.slice(0, 16))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join(' ');
-    console.error('❌ File signature does not match any known audio format. First 16 bytes (hex):', hexPreview);
-    throw new Error(`Invalid audio file format. File signature: ${hexPreview}. This is not a valid audio/video file.`);
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join(" ");
+    console.error(
+      "❌ File signature does not match any known audio format. First 16 bytes (hex):",
+      hexPreview
+    );
+    throw new Error(
+      `Invalid audio file format. File signature: ${hexPreview}. This is not a valid audio/video file.`
+    );
   }
 
   // Validate supported media content types
-  const isValidMediaType = contentType.includes('audio/') || 
-                          contentType.includes('video/') || 
-                          contentType.includes('application/octet-stream') ||
-                          ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/m4a', 'audio/ogg', 'audio/flac', 'audio/aac',
-                           'video/mp4', 'video/mov', 'video/webm', 'video/avi'].some(type => contentType.includes(type));
-  
+  const isValidMediaType =
+    contentType.includes("audio/") ||
+    contentType.includes("video/") ||
+    contentType.includes("application/octet-stream") ||
+    [
+      "audio/wav",
+      "audio/mp3",
+      "audio/mpeg",
+      "audio/m4a",
+      "audio/ogg",
+      "audio/flac",
+      "audio/aac",
+      "video/mp4",
+      "video/mov",
+      "video/webm",
+      "video/avi",
+    ].some((type) => contentType.includes(type));
+
   if (!isValidMediaType) {
-    console.warn(`⚠️ Unusual content type detected: ${contentType}, but file signature is valid, continuing...`);
+    console.warn(
+      `⚠️ Unusual content type detected: ${contentType}, but file signature is valid, continuing...`
+    );
   }
-  
+
   // Check for minimum file size (audio files are typically larger than 10KB for real content)
   if (arrayBuffer.byteLength < 10240) {
-    console.warn(`⚠️ File is very small (${arrayBuffer.byteLength} bytes). This might be a stub or test file.`);
+    console.warn(
+      `⚠️ File is very small (${arrayBuffer.byteLength} bytes). This might be a stub or test file.`
+    );
   }
-  
-  console.log('✅ Audio file downloaded and validated:', {
+
+  console.log("✅ Audio file downloaded and validated:", {
     size: arrayBuffer.byteLength,
     contentType,
-    isValidSignature: isValidAudioFile
+    isValidSignature: isValidAudioFile,
   });
 
   return new Blob([arrayBuffer], { type: contentType });
@@ -124,35 +177,45 @@ async function downloadAudioFile(audioUrl: string): Promise<Blob> {
  */
 async function warmupWhisperServer(): Promise<boolean> {
   const whisperUrl = process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL;
-  
+
   if (!whisperUrl) {
-    throw new Error('WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set');
+    throw new Error(
+      "WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set"
+    );
   }
 
-  console.log('🔥 Warming up Whisper server...');
-  
+  console.log("🔥 Warming up Whisper server...");
+
   try {
     // Create a tiny audio blob for warmup (1 second of silence)
-    const silentAudioBase64 = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-    const silentAudioBytes = Uint8Array.from(atob(silentAudioBase64), c => c.charCodeAt(0));
-    const warmupBlob = new Blob([silentAudioBytes], { type: 'audio/wav' });
-    
+    const silentAudioBase64 =
+      "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+    const silentAudioBytes = Uint8Array.from(atob(silentAudioBase64), (c) =>
+      c.charCodeAt(0)
+    );
+    const warmupBlob = new Blob([silentAudioBytes], { type: "audio/wav" });
+
     const formData = new FormData();
-    formData.append('file', warmupBlob, 'warmup.wav');
-    
-    const response = await fetch(`${whisperUrl}/transcribe?task=transcribe&beam_size=1`, {
-      method: 'POST',
-      body: formData,
-      signal: AbortSignal.timeout(RETRY_CONFIG.WARMUP_TIMEOUT),
-    });
-    
+    formData.append("file", warmupBlob, "warmup.wav");
+
+    const response = await fetch(
+      `${whisperUrl}/transcribe?task=transcribe&beam_size=1`,
+      {
+        method: "POST",
+        body: formData,
+        signal: AbortSignal.timeout(RETRY_CONFIG.WARMUP_TIMEOUT),
+      }
+    );
+
     console.log(`✅ Warmup response status: ${response.status}`);
-    
+
     // Even if the response is not OK, the server is now warming up
     return response.ok;
-    
   } catch (error: any) {
-    console.log('⚠️ Warmup failed (expected for sleeping server):', error.message);
+    console.log(
+      "⚠️ Warmup failed (expected for sleeping server):",
+      error.message
+    );
     // Return false but don't throw - the server is now waking up
     return false;
   }
@@ -168,176 +231,205 @@ async function transcribeWithWhisper(
   isWarmupRetry: boolean = false
 ): Promise<{ text: string; language?: string }> {
   const whisperUrl = process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL;
-  
+
   if (!whisperUrl) {
-    throw new Error('WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set');
+    throw new Error(
+      "WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set"
+    );
   }
 
-  const isUrl = typeof audioSource === 'string';
-  
+  const isUrl = typeof audioSource === "string";
+
   // Build the transcribe endpoint with query parameters
   let transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
-  
+
   // If audioSource is a URL, add it as a query parameter
   if (isUrl) {
     transcribeEndpoint += `&url=${encodeURIComponent(audioSource)}`;
-    
-    console.log(`🎯 Sending URL-based request to Whisper API (attempt ${retryCount + 1}, warmup: ${isWarmupRetry}):`, transcribeEndpoint);
-    console.log('📊 Audio URL:', audioSource);
+
+    console.log(
+      `🎯 Sending URL-based request to Whisper API (attempt ${
+        retryCount + 1
+      }, warmup: ${isWarmupRetry}):`,
+      transcribeEndpoint
+    );
+    console.log("📊 Audio URL:", audioSource);
   } else {
     // Map MIME types to file extensions for proper type detection
     const mimeToExtension: Record<string, string> = {
-      'audio/wav': '.wav',
-      'audio/wave': '.wav',
-      'audio/x-wav': '.wav',
-      'audio/mpeg': '.mp3',
-      'audio/mp3': '.mp3',
-      'audio/mp4': '.m4a',
-      'audio/m4a': '.m4a',
-      'audio/x-m4a': '.m4a',
-      'audio/ogg': '.ogg',
-      'audio/flac': '.flac',
-      'audio/aac': '.aac',
-      'audio/webm': '.webm',
-      'video/mp4': '.mp4',
-      'video/quicktime': '.mov',
-      'video/x-msvideo': '.avi',
-      'video/webm': '.webm',
-      'application/octet-stream': '.mp3', // Default fallback
+      "audio/wav": ".wav",
+      "audio/wave": ".wav",
+      "audio/x-wav": ".wav",
+      "audio/mpeg": ".mp3",
+      "audio/mp3": ".mp3",
+      "audio/mp4": ".m4a",
+      "audio/m4a": ".m4a",
+      "audio/x-m4a": ".m4a",
+      "audio/ogg": ".ogg",
+      "audio/flac": ".flac",
+      "audio/aac": ".aac",
+      "audio/webm": ".webm",
+      "video/mp4": ".mp4",
+      "video/quicktime": ".mov",
+      "video/x-msvideo": ".avi",
+      "video/webm": ".webm",
+      "application/octet-stream": ".mp3", // Default fallback
     };
 
     // Determine file extension based on MIME type
-    const blobType = audioSource.type || 'audio/mpeg';
-    const extension = mimeToExtension[blobType] || '.mp3'; // Default to .mp3 if unknown
+    const blobType = audioSource.type || "audio/mpeg";
+    const extension = mimeToExtension[blobType] || ".mp3"; // Default to .mp3 if unknown
     const filename = `media_file${extension}`;
-    
-    console.log(`🎯 Sending file-based request to Whisper API (attempt ${retryCount + 1}, warmup: ${isWarmupRetry}):`, transcribeEndpoint);
-    console.log('📊 Audio blob details:', {
+
+    console.log(
+      `🎯 Sending file-based request to Whisper API (attempt ${
+        retryCount + 1
+      }, warmup: ${isWarmupRetry}):`,
+      transcribeEndpoint
+    );
+    console.log("📊 Audio blob details:", {
       size: audioSource.size,
       type: blobType,
-      filename: filename
+      filename: filename,
     });
   }
 
   try {
     // Use shorter timeout for warmup retries, longer for regular processing
-    const timeout = isWarmupRetry ? 
-      RETRY_CONFIG.WARMUP_TIMEOUT : 
-      RETRY_CONFIG.PROCESSING_TIMEOUT;
-    
+    const timeout = isWarmupRetry
+      ? RETRY_CONFIG.WARMUP_TIMEOUT
+      : RETRY_CONFIG.PROCESSING_TIMEOUT;
+
     let requestBody;
-    
+
     if (isUrl) {
       // For URL-based requests, send empty body (URL is in query params)
       requestBody = undefined;
     } else {
       // For file-based requests, use FormData
       const formData = new FormData();
-      const blobType = (audioSource as Blob).type || 'audio/mpeg';
+      const blobType = (audioSource as Blob).type || "audio/mpeg";
       const mimeToExtension: Record<string, string> = {
-        'audio/wav': '.wav',
-        'audio/wave': '.wav',
-        'audio/x-wav': '.wav',
-        'audio/mpeg': '.mp3',
-        'audio/mp3': '.mp3',
-        'audio/mp4': '.m4a',
-        'audio/m4a': '.m4a',
-        'audio/x-m4a': '.m4a',
-        'audio/ogg': '.ogg',
-        'audio/flac': '.flac',
-        'audio/aac': '.aac',
-        'audio/webm': '.webm',
-        'video/mp4': '.mp4',
-        'video/quicktime': '.mov',
-        'video/x-msvideo': '.avi',
-        'video/webm': '.webm',
-        'application/octet-stream': '.mp3',
+        "audio/wav": ".wav",
+        "audio/wave": ".wav",
+        "audio/x-wav": ".wav",
+        "audio/mpeg": ".mp3",
+        "audio/mp3": ".mp3",
+        "audio/mp4": ".m4a",
+        "audio/m4a": ".m4a",
+        "audio/x-m4a": ".m4a",
+        "audio/ogg": ".ogg",
+        "audio/flac": ".flac",
+        "audio/aac": ".aac",
+        "audio/webm": ".webm",
+        "video/mp4": ".mp4",
+        "video/quicktime": ".mov",
+        "video/x-msvideo": ".avi",
+        "video/webm": ".webm",
+        "application/octet-stream": ".mp3",
       };
-      const extension = mimeToExtension[blobType] || '.mp3';
+      const extension = mimeToExtension[blobType] || ".mp3";
       const filename = `media_file${extension}`;
-      formData.append('file', audioSource as Blob, filename);
+      formData.append("file", audioSource as Blob, filename);
       requestBody = formData;
     }
-    
+
     const response = await fetch(transcribeEndpoint, {
-      method: 'POST',
+      method: "POST",
       body: requestBody,
       signal: AbortSignal.timeout(timeout),
     });
 
-    console.log('📨 Whisper API response status:', response.status);
+    console.log("📨 Whisper API response status:", response.status);
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      
+      const errorText = await response.text().catch(() => "Unknown error");
+
       // Check if it's a server wake-up issue (503, 502, 504 or connection errors)
-      if (response.status === 503 || response.status === 502 || response.status === 504) {
-        throw new Error(`SERVER_SLEEPING:Whisper server is sleeping (${response.status}): ${errorText}`);
+      if (
+        response.status === 503 ||
+        response.status === 502 ||
+        response.status === 504
+      ) {
+        throw new Error(
+          `SERVER_SLEEPING:Whisper server is sleeping (${response.status}): ${errorText}`
+        );
       }
-      
+
       // 429 means rate limit, should retry with delay
       if (response.status === 429) {
-        throw new Error(`RATE_LIMIT:Whisper API rate limit (${response.status}): ${errorText}`);
+        throw new Error(
+          `RATE_LIMIT:Whisper API rate limit (${response.status}): ${errorText}`
+        );
       }
-      
-      throw new Error(`Whisper API error: ${response.status} ${response.statusText} - ${errorText}`);
+
+      throw new Error(
+        `Whisper API error: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
     const result = await response.json();
-    console.log('✅ Whisper API response received:', {
+    console.log("✅ Whisper API response received:", {
       hasText: !!result.text,
       textLength: result.text?.length || 0,
-      language: result.language
+      language: result.language,
     });
 
     if (!result.text) {
-      throw new Error('No transcription text received from Whisper API');
+      throw new Error("No transcription text received from Whisper API");
     }
 
     return {
       text: result.text,
-      language: result.language
+      language: result.language,
     };
-
   } catch (error: any) {
-    console.error('❌ Whisper API error:', error.message);
-    
+    console.error("❌ Whisper API error:", error.message);
+
     // Check for timeout or connection errors (server sleeping)
-    if (error.name === 'TimeoutError' || 
-        error.name === 'AbortError' ||
-        error.message.includes('timeout') || 
-        error.message.includes('ECONNREFUSED') ||
-        error.message.includes('ECONNRESET') ||
-        error.message.includes('UND_ERR_HEADERS_TIMEOUT') ||
-        error.message.includes('fetch failed') ||
-        error.message.includes('SERVER_SLEEPING')) {
+    if (
+      error.name === "TimeoutError" ||
+      error.name === "AbortError" ||
+      error.message.includes("timeout") ||
+      error.message.includes("ECONNREFUSED") ||
+      error.message.includes("ECONNRESET") ||
+      error.message.includes("UND_ERR_HEADERS_TIMEOUT") ||
+      error.message.includes("fetch failed") ||
+      error.message.includes("SERVER_SLEEPING")
+    ) {
       throw new Error(`SERVER_SLEEPING:${error.message}`);
     }
-    
+
     // Check for rate limit
-    if (error.message.includes('RATE_LIMIT')) {
+    if (error.message.includes("RATE_LIMIT")) {
       throw new Error(`RATE_LIMIT:${error.message}`);
     }
-    
+
     throw error;
   }
 }
 
-async function queueNextStep(queueId: number, attachmentId: number, userId: string, transcriptionText: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
+async function queueNextStep(
+  queueId: number,
+  attachmentId: number,
+  userId: string,
+  transcriptionText: string
+) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://studify-platform.vercel.app";
   const embedEndpoint = `${baseUrl}/api/video-processing/steps/embed`;
-  
-  console.log('Queueing embedding step for queue:', queueId);
-  
+
+  console.log("Queueing embedding step for queue:", queueId);
+
   try {
     const queueManager = getQueueManager();
     // Use consistent queue naming
-    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const userIdHash = userId.replace(/-/g, "").substring(0, 12);
     const queueName = `video_${userIdHash}`;
-    
+
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
-    
+
     // Enqueue the next step
     const qstashResponse = await queueManager.enqueue(
       queueName,
@@ -350,45 +442,50 @@ async function queueNextStep(queueId: number, attachmentId: number, userId: stri
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 3 // Queue timing managed by QStash internally
+        retries: 3, // Queue timing managed by QStash internally
       }
     );
 
-    console.log('Embedding job queued:', qstashResponse.messageId);
+    console.log("Embedding job queued:", qstashResponse.messageId);
     return qstashResponse.messageId;
   } catch (error: any) {
-    console.error('Failed to queue embedding:', error);
+    console.error("Failed to queue embedding:", error);
     throw error;
   }
 }
 
 async function scheduleRetry(
-  queueId: number, 
-  attachmentId: number, 
-  userId: string, 
-  audioUrl: string, 
+  queueId: number,
+  attachmentId: number,
+  userId: string,
+  audioUrl: string,
   retryCount: number,
   isWarmupRetry: boolean = false
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://studify-platform.vercel.app'
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://studify-platform.vercel.app";
   const transcribeEndpoint = `${baseUrl}/api/video-processing/steps/transcribe`;
-  
+
   // Use configured delays or exponential backoff
-  const delaySeconds = isWarmupRetry ? 
-    10 : // 10秒后重试（服务器预热后）
-    (RETRY_CONFIG.RETRY_DELAYS[retryCount - 1] || RETRY_CONFIG.RETRY_DELAYS[RETRY_CONFIG.RETRY_DELAYS.length - 1]);
-  
-  console.log(`⏰ Scheduling transcription retry ${retryCount} in ${delaySeconds} seconds for queue:`, queueId);
-  
+  const delaySeconds = isWarmupRetry
+    ? 10 // 10秒后重试（服务器预热后）
+    : RETRY_CONFIG.RETRY_DELAYS[retryCount - 1] ||
+      RETRY_CONFIG.RETRY_DELAYS[RETRY_CONFIG.RETRY_DELAYS.length - 1];
+
+  console.log(
+    `⏰ Scheduling transcription retry ${retryCount} in ${delaySeconds} seconds for queue:`,
+    queueId
+  );
+
   try {
     const queueManager = getQueueManager();
     // Use consistent queue naming
-    const userIdHash = userId.replace(/-/g, '').substring(0, 12);
+    const userIdHash = userId.replace(/-/g, "").substring(0, 12);
     const queueName = `video_${userIdHash}`;
-    
+
     // Ensure the queue exists
     await queueManager.ensureQueue(queueName, 1);
-    
+
     // Enqueue the retry
     const qstashResponse = await queueManager.enqueue(
       queueName,
@@ -403,41 +500,52 @@ async function scheduleRetry(
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 0 // Manual retry scheduling, no additional retries
+        retries: 0, // Manual retry scheduling, no additional retries
       }
     );
 
-    console.log(`🔄 Transcription retry ${retryCount} scheduled:`, qstashResponse.messageId);
+    console.log(
+      `🔄 Transcription retry ${retryCount} scheduled:`,
+      qstashResponse.messageId
+    );
     return qstashResponse.messageId;
   } catch (error: any) {
-    console.error('Failed to schedule transcription retry:', error);
+    console.error("Failed to schedule transcription retry:", error);
     throw error;
   }
 }
 
 async function handler(req: Request) {
   try {
-    console.log('Processing transcription job...');
+    console.log("Processing transcription job...");
 
     // Parse and validate the QStash job payload
     const body = await req.json();
     const validation = TranscribeJobSchema.safeParse(body);
-    
+
     if (!validation.success) {
-      console.error('Invalid job payload:', validation.error.errors);
+      console.error("Invalid job payload:", validation.error.errors);
       return NextResponse.json(
-        { 
-          error: "Invalid job payload", 
-          details: validation.error.errors 
-        }, 
+        {
+          error: "Invalid job payload",
+          details: validation.error.errors,
+        },
         { status: 400 }
       );
     }
 
-    const { queue_id, attachment_id, user_id, audio_url, timestamp, retry_count, is_warmup_retry } = validation.data;
+    const {
+      queue_id,
+      attachment_id,
+      user_id,
+      audio_url,
+      timestamp,
+      retry_count,
+      is_warmup_retry,
+    } = validation.data;
     const client = await createServerClient();
-    
-    console.log('🎬 Processing transcription for:', {
+
+    console.log("🎬 Processing transcription for:", {
       queue_id,
       attachment_id,
       user_id,
@@ -456,77 +564,104 @@ async function handler(req: Request) {
     if (queueError) {
       throw new Error(`Database error fetching queue: ${queueError.message}`);
     }
-    
+
     if (!queueData || queueData.length === 0) {
-      console.warn(`⚠️ Queue not found with ID: ${queue_id}. This may be an orphaned QStash message. Skipping processing.`);
-      
+      console.warn(
+        `⚠️ Queue not found with ID: ${queue_id}. This may be an orphaned QStash message. Skipping processing.`
+      );
+
       // Return success to prevent QStash from retrying this orphaned message
-      return NextResponse.json({
-        message: "Queue record not found - orphaned QStash message",
-        queue_id,
-        action: "skipped",
-        reason: "Queue record may have been deleted or never existed"
-      }, { status: 200 });
+      return NextResponse.json(
+        {
+          message: "Queue record not found - orphaned QStash message",
+          queue_id,
+          action: "skipped",
+          reason: "Queue record may have been deleted or never existed",
+        },
+        { status: 200 }
+      );
     }
-    
+
     if (queueData.length > 1) {
-      console.warn(`Multiple queue entries found for ID: ${queue_id}, using first one`);
+      console.warn(
+        `Multiple queue entries found for ID: ${queue_id}, using first one`
+      );
     }
-    
+
     const queueRecord = Array.isArray(queueData) ? queueData[0] : queueData;
 
     // 2. Update step status to processing
     await client
       .from("video_processing_steps")
       .update({
-        status: 'processing',
+        status: "processing",
         started_at: new Date().toISOString(),
-        retry_count: retry_count
+        retry_count: retry_count,
       })
       .eq("queue_id", queue_id)
       .eq("step_name", "transcribe");
 
-      // Update queue status
+    // Update queue status
     await client
       .from("video_processing_queue")
       .update({
-        status: 'processing',
-        current_step: 'transcribe',
+        status: "processing",
+        current_step: "transcribe",
         progress_percentage: 65,
-        retry_count: retry_count
+        retry_count: retry_count,
       })
       .eq("id", queue_id);
 
     // 4. Determine if we should use URL-based or file-based transcription
-    // MEGA.nz links are supported directly by the Whisper server
-    const isMegaUrl = audio_url.includes('mega.nz');
-    const shouldUseUrlMode = isMegaUrl;
-    
+    // The Whisper server supports direct URL processing for MEGA.nz and other HTTP(S) URLs
+    // This is more efficient as it avoids downloading to Vercel and re-uploading
+    const isHttpUrl =
+      audio_url.startsWith("http://") || audio_url.startsWith("https://");
+    const shouldUseUrlMode = isHttpUrl; // Use URL mode for all HTTP(S) URLs (MEGA.nz, Cloudinary, etc.)
+
+    console.log("🔍 Transcription mode detection:", {
+      audio_url,
+      isHttpUrl,
+      shouldUseUrlMode,
+      mode: shouldUseUrlMode
+        ? "URL-based (direct to Whisper)"
+        : "File-based (download first)",
+    });
+
     let audioSource: Blob | string;
-    
+
     if (shouldUseUrlMode) {
-      console.log('🔗 Using URL-based transcription for MEGA.nz link');
+      console.log(
+        "🔗 Using URL-based transcription - Whisper will download directly from:",
+        audio_url
+      );
       audioSource = audio_url;
     } else {
-      // Download audio file for non-MEGA URLs
+      // Download audio file for non-HTTP URLs (edge case, probably won't happen)
       try {
-        console.log('📥 Downloading audio file for file-based transcription');
+        console.log("📥 Downloading audio file for file-based transcription");
         audioSource = await downloadAudioFile(audio_url);
       } catch (downloadError: any) {
-        console.error('Audio download failed:', downloadError.message);
-        
-        await client.rpc('handle_step_failure', {
+        console.error("Audio download failed:", downloadError.message);
+
+        await client.rpc("handle_step_failure", {
           queue_id_param: queue_id,
-          step_name_param: 'transcribe',
+          step_name_param: "transcribe",
           error_message_param: `Audio download failed: ${downloadError.message}`,
-          error_details_param: { step: 'download', error: downloadError.message }
+          error_details_param: {
+            step: "download",
+            error: downloadError.message,
+          },
         });
 
-        return NextResponse.json({
-          error: "Failed to download audio file",
-          details: downloadError.message,
-          retryable: true,
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "Failed to download audio file",
+            details: downloadError.message,
+            retryable: true,
+          },
+          { status: 500 }
+        );
       }
     }
 
@@ -535,141 +670,156 @@ async function handler(req: Request) {
     try {
       // If this is the first attempt and not a warmup retry, try to warmup the server first
       if (retry_count === 0 && !is_warmup_retry) {
-        console.log('🔥 Starting server warmup in parallel with audio processing...');
-        
+        console.log(
+          "🔥 Starting server warmup in parallel with audio processing..."
+        );
+
         // 并行执行预热，不等待结果
         const warmupPromise = warmupWhisperServer().catch(() => false);
-        
+
         // 给服务器一些时间启动，但不要等太久
-        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.COLD_START_WAIT));
-        
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_CONFIG.COLD_START_WAIT)
+        );
+
         const warmupSuccess = await warmupPromise;
-        
+
         if (!warmupSuccess) {
-          console.log('🔥 Server appears to be sleeping, scheduling quick retry...');
-          
+          console.log(
+            "🔥 Server appears to be sleeping, scheduling quick retry..."
+          );
+
           // Schedule a quick retry after warmup
           const retryMessageId = await scheduleRetry(
-            queue_id, 
-            attachment_id, 
-            user_id, 
-            audio_url, 
+            queue_id,
+            attachment_id,
+            user_id,
+            audio_url,
             1,
             true // This is a warmup retry
           );
-          
+
           await client
             .from("video_processing_queue")
-            .update({ 
+            .update({
               qstash_message_id: retryMessageId,
-              status: 'retrying',
-              error_message: 'Warming up Whisper server...',
-              retry_count: 1
+              status: "retrying",
+              error_message: "Warming up Whisper server...",
+              retry_count: 1,
             })
             .eq("id", queue_id);
 
           return NextResponse.json({
             message: "Warming up Whisper server, will retry in 15 seconds",
             retry_count: 1,
-            is_warmup_retry: true
+            is_warmup_retry: true,
           });
         }
-        
-        console.log('✅ Server warmup successful, proceeding with transcription');
+
+        console.log(
+          "✅ Server warmup successful, proceeding with transcription"
+        );
       }
-      
+
       // Try transcription (supports both URL and Blob)
-      transcriptionResult = await transcribeWithWhisper(audioSource, retry_count, is_warmup_retry);
-      
+      transcriptionResult = await transcribeWithWhisper(
+        audioSource,
+        retry_count,
+        is_warmup_retry
+      );
     } catch (whisperError: any) {
-      console.error('❌ Whisper API failed:', whisperError.message);
-      
+      console.error("❌ Whisper API failed:", whisperError.message);
+
       // Check error type and determine if we should retry
-      const isServerSleeping = whisperError.message.includes('SERVER_SLEEPING');
-      const isRateLimit = whisperError.message.includes('RATE_LIMIT');
+      const isServerSleeping = whisperError.message.includes("SERVER_SLEEPING");
+      const isRateLimit = whisperError.message.includes("RATE_LIMIT");
       const canRetry = retry_count < RETRY_CONFIG.MAX_RETRIES;
-      
+
       if ((isServerSleeping || isRateLimit) && canRetry) {
         const nextRetryCount = retry_count + 1;
-        const retryReason = isServerSleeping ? 
-          'Whisper server is sleeping, retrying...' : 
-          'Rate limited by Whisper API, retrying with delay...';
-        
-        console.log(`🔄 ${retryReason} (${nextRetryCount}/${RETRY_CONFIG.MAX_RETRIES})`);
-        
+        const retryReason = isServerSleeping
+          ? "Whisper server is sleeping, retrying..."
+          : "Rate limited by Whisper API, retrying with delay...";
+
+        console.log(
+          `🔄 ${retryReason} (${nextRetryCount}/${RETRY_CONFIG.MAX_RETRIES})`
+        );
+
         // Update queue retry count
         await client
           .from("video_processing_queue")
           .update({
-            status: 'retrying',
+            status: "retrying",
             retry_count: nextRetryCount,
             error_message: retryReason,
-            last_error_at: new Date().toISOString()
+            last_error_at: new Date().toISOString(),
           })
           .eq("id", queue_id);
 
         // Schedule retry with appropriate delay
         try {
           const retryMessageId = await scheduleRetry(
-            queue_id, 
-            attachment_id, 
-            user_id, 
-            audio_url, 
+            queue_id,
+            attachment_id,
+            user_id,
+            audio_url,
             nextRetryCount,
             false
           );
-          
+
           await client
             .from("video_processing_queue")
             .update({ qstash_message_id: retryMessageId })
             .eq("id", queue_id);
 
-          const delaySeconds = RETRY_CONFIG.RETRY_DELAYS[nextRetryCount - 1] || RETRY_CONFIG.RETRY_DELAYS[RETRY_CONFIG.RETRY_DELAYS.length - 1];
-          
+          const delaySeconds =
+            RETRY_CONFIG.RETRY_DELAYS[nextRetryCount - 1] ||
+            RETRY_CONFIG.RETRY_DELAYS[RETRY_CONFIG.RETRY_DELAYS.length - 1];
+
           return NextResponse.json({
             message: retryReason,
             retry_count: nextRetryCount,
             max_retries: RETRY_CONFIG.MAX_RETRIES,
-            next_retry_in_seconds: delaySeconds
+            next_retry_in_seconds: delaySeconds,
           });
         } catch (retryError: any) {
-          console.error('❌ Failed to schedule retry:', retryError);
-          
+          console.error("❌ Failed to schedule retry:", retryError);
+
           // Mark step as failed if we can't schedule retry
-          await client.rpc('update_video_processing_step', {
+          await client.rpc("update_video_processing_step", {
             queue_id_param: queue_id,
-            step_name_param: 'transcribe',
-            status_param: 'failed',
+            step_name_param: "transcribe",
+            status_param: "failed",
             error_message_param: `Failed to schedule retry after error`,
-            error_details_param: { 
-              last_error: whisperError.message, 
+            error_details_param: {
+              last_error: whisperError.message,
               retry_error: retryError.message,
-              retry_count 
-            }
+              retry_count,
+            },
           });
 
           throw retryError;
         }
       } else {
         // Max retries reached or non-retryable error
-        console.error(`❌ Max retries reached or non-retryable error:`, { 
-          queue_id, 
-          attachment_id, 
+        console.error(`❌ Max retries reached or non-retryable error:`, {
+          queue_id,
+          attachment_id,
           retry_count,
-          max_retries: RETRY_CONFIG.MAX_RETRIES 
+          max_retries: RETRY_CONFIG.MAX_RETRIES,
         });
-        
+
         // Mark step as failed
-        await client.rpc('update_video_processing_step', {
+        await client.rpc("update_video_processing_step", {
           queue_id_param: queue_id,
-          step_name_param: 'transcribe',
-          status_param: 'failed',
+          step_name_param: "transcribe",
+          status_param: "failed",
           error_message_param: `Transcription failed after ${retry_count} attempts`,
-          error_details_param: { 
-            last_error: whisperError.message, 
+          error_details_param: {
+            last_error: whisperError.message,
             retry_count,
-            max_retries: RETRY_CONFIG.MAX_RETRIES
-          }
+            max_retries: RETRY_CONFIG.MAX_RETRIES,
+          },
         });
 
         // Send failure notification
@@ -677,104 +827,119 @@ async function handler(req: Request) {
           attachment_id,
           queue_id,
           attachment_title: `Video ${attachment_id}`,
-          status: 'failed',
-          current_step: 'transcribe',
-          error_message: `Transcription failed after ${retry_count} attempts`
+          status: "failed",
+          current_step: "transcribe",
+          error_message: `Transcription failed after ${retry_count} attempts`,
         });
 
-        return NextResponse.json({
-          error: "Max retries reached for transcription",
-          queue_id,
-          attachment_id,
-          retry_count,
-          max_retries: RETRY_CONFIG.MAX_RETRIES,
-          last_error: whisperError.message
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "Max retries reached for transcription",
+            queue_id,
+            attachment_id,
+            retry_count,
+            max_retries: RETRY_CONFIG.MAX_RETRIES,
+            last_error: whisperError.message,
+          },
+          { status: 500 }
+        );
       }
     }
 
     // 6. Complete the transcription step
-    await client.rpc('complete_processing_step', {
+    await client.rpc("complete_processing_step", {
       queue_id_param: queue_id,
-      step_name_param: 'transcribe',
+      step_name_param: "transcribe",
       output_data_param: {
         transcription_text: transcriptionResult!.text,
         language: transcriptionResult!.language,
         text_length: transcriptionResult!.text.length,
         audio_url: audio_url,
         retry_count,
-        was_warmup_retry: is_warmup_retry
-      }
+        was_warmup_retry: is_warmup_retry,
+      },
     });
 
     // 7. Queue the next step (embedding generation)
     try {
-      const nextQstashMessageId = await queueNextStep(queue_id, attachment_id, user_id, transcriptionResult!.text);
-      
+      const nextQstashMessageId = await queueNextStep(
+        queue_id,
+        attachment_id,
+        user_id,
+        transcriptionResult!.text
+      );
+
       // Update queue with next step's QStash message ID
       await client
         .from("video_processing_queue")
-        .update({ 
+        .update({
           qstash_message_id: nextQstashMessageId,
-          current_step: 'embed',
+          current_step: "embed",
           progress_percentage: 80,
-          retry_count: 0 // Reset retry count for next step
+          retry_count: 0, // Reset retry count for next step
         })
         .eq("id", queue_id);
-
     } catch (queueError: any) {
-      console.error('Failed to queue next step:', queueError);
-      
+      console.error("Failed to queue next step:", queueError);
+
       // Mark as failed but keep transcription result
-      await client.rpc('handle_step_failure', {
+      await client.rpc("handle_step_failure", {
         queue_id_param: queue_id,
-        step_name_param: 'embed',
-        error_message_param: 'Failed to queue embedding step',
-        error_details_param: { step: 'queue_next', error: queueError.message }
+        step_name_param: "embed",
+        error_message_param: "Failed to queue embedding step",
+        error_details_param: { step: "queue_next", error: queueError.message },
       });
 
-      return NextResponse.json({
-        error: "Failed to queue next processing step",
-        details: queueError.message,
-        transcription_text: transcriptionResult.text, // Include the text so it's not lost
-        retryable: true,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Failed to queue next processing step",
+          details: queueError.message,
+          transcription_text: transcriptionResult.text, // Include the text so it's not lost
+          retryable: true,
+        },
+        { status: 500 }
+      );
     }
 
-    console.log('Transcription completed successfully:', {
+    console.log("Transcription completed successfully:", {
       queue_id,
       attachment_id,
       text_length: transcriptionResult.text.length,
       language: transcriptionResult.language,
-      retry_count
+      retry_count,
     });
 
-    return NextResponse.json({
-      message: "Transcription completed successfully",
-      data: {
-        queue_id,
-        attachment_id,
-        step: 'transcribe',
-        status: 'completed',
-        output: {
-          text: transcriptionResult.text,
-          language: transcriptionResult.language,
-          text_length: transcriptionResult.text.length
+    return NextResponse.json(
+      {
+        message: "Transcription completed successfully",
+        data: {
+          queue_id,
+          attachment_id,
+          step: "transcribe",
+          status: "completed",
+          output: {
+            text: transcriptionResult.text,
+            language: transcriptionResult.language,
+            text_length: transcriptionResult.text.length,
+          },
+          next_step: "embed",
+          retry_count,
+          completedAt: new Date().toISOString(),
         },
-        next_step: 'embed',
-        retry_count,
-        completedAt: new Date().toISOString(),
       },
-    }, { status: 200 });
-
+      { status: 200 }
+    );
   } catch (error: any) {
-    console.error('Unexpected error in transcription processing:', error);
-    
-    return NextResponse.json({
-      error: "Internal server error",
-      details: error.message,
-      retryable: true,
-    }, { status: 500 });
+    console.error("Unexpected error in transcription processing:", error);
+
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: error.message,
+        retryable: true,
+      },
+      { status: 500 }
+    );
   }
 }
 

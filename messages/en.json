@@ -599,6 +599,14 @@
     "comment_helpful": "Helpful Comment",
     "unknown_reason": "Other"
   },
+  "TimeFormat": {
+    "minutes": "{minutes}m",
+    "hours": "{hours}h",
+    "hours_minutes": "{hours}h {minutes}m",
+    "minutes_long": "{minutes} minutes",
+    "hours_long": "{hours} hours",
+    "hours_minutes_long": "{hours} hours {minutes} minutes"
+  },
   "Hooks": {
     "success": "Success",
     "error": "Error",

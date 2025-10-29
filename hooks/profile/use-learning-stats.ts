@@ -194,7 +194,7 @@ export function useCreateStudySession() {
   });
 }
 
-// 辅助函数：格式化学习时间
+// Helper function: Format study time
 // Note: This function returns time in a locale-agnostic format (e.g., "2h 30m")
 // For full i18n support, use the translation keys in your component
 export function formatStudyTime(minutes: number): string {
@@ -208,6 +208,19 @@ export function formatStudyTime(minutes: number): string {
     return `${hours}h`;
   }
   return `${hours}h ${remainingMinutes}m`;
+}
+
+// Helper function: Get study time parts for i18n
+// Returns an object with hours and minutes for use with translation keys
+export function getStudyTimeParts(minutes: number): { hours: number; minutes: number; totalMinutes: number } {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  return {
+    hours,
+    minutes: remainingMinutes,
+    totalMinutes: minutes,
+  };
 }
 
 // 辅助函数：计算成就完成度

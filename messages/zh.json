@@ -599,6 +599,14 @@
     "comment_helpful": "有用回复",
     "unknown_reason": "其他"
   },
+  "TimeFormat": {
+    "minutes": "{minutes}分钟",
+    "hours": "{hours}小时",
+    "hours_minutes": "{hours}小时{minutes}分钟",
+    "minutes_long": "{minutes} 分钟",
+    "hours_long": "{hours} 小时",
+    "hours_minutes_long": "{hours} 小时 {minutes} 分钟"
+  },
   "Hooks": {
     "success": "成功",
     "error": "错误",

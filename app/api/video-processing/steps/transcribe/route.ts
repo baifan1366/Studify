@@ -126,14 +126,44 @@ async function transcribeWithWhisper(
     throw new Error('WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set');
   }
 
+  // Map MIME types to file extensions for proper type detection
+  const mimeToExtension: Record<string, string> = {
+    'audio/wav': '.wav',
+    'audio/wave': '.wav',
+    'audio/x-wav': '.wav',
+    'audio/mpeg': '.mp3',
+    'audio/mp3': '.mp3',
+    'audio/mp4': '.m4a',
+    'audio/m4a': '.m4a',
+    'audio/x-m4a': '.m4a',
+    'audio/ogg': '.ogg',
+    'audio/flac': '.flac',
+    'audio/aac': '.aac',
+    'audio/webm': '.webm',
+    'video/mp4': '.mp4',
+    'video/quicktime': '.mov',
+    'video/x-msvideo': '.avi',
+    'video/webm': '.webm',
+    'application/octet-stream': '.mp3', // Default fallback
+  };
+
+  // Determine file extension based on MIME type
+  const blobType = audioBlob.type || 'audio/mpeg';
+  const extension = mimeToExtension[blobType] || '.mp3'; // Default to .mp3 if unknown
+  const filename = `media_file${extension}`;
+
   const formData = new FormData();
-  // Use generic filename - Whisper API auto-detects format via ffmpeg
-  formData.append('file', audioBlob, 'media_file');
+  // Include proper file extension so mimetypes.guess_type() can detect the format
+  formData.append('file', audioBlob, filename);
 
   const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
   
   console.log(`🎯 Sending request to Whisper API (attempt ${retryCount + 1}, warmup: ${isWarmupRetry}):`, transcribeEndpoint);
-  console.log('📊 Audio blob size:', audioBlob.size, 'bytes');
+  console.log('📊 Audio blob details:', {
+    size: audioBlob.size,
+    type: blobType,
+    filename: filename
+  });
 
   try {
     // Use shorter timeout for warmup retries, longer for regular processing

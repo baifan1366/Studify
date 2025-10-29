@@ -457,21 +457,21 @@ Please format your response as JSON:
       scoreThreshold: confidenceThreshold
     });
 
-    // If no context found from embeddings, use general AI knowledge to answer
-    if (contextDocs.length === 0) {
-      console.log('⚠️ No embeddings found, falling back to general AI knowledge');
+    // Helper function to use general AI knowledge
+    const useGeneralKnowledge = async (reason: string) => {
+      console.log(`⚠️ ${reason}, falling back to general AI knowledge`);
       
       const fallbackPrompt = `You are an educational AI assistant. Answer the following question to the best of your ability using your general knowledge.
 
 Question: ${question}
 
-Provide a helpful, educational response. If you're not completely certain, be honest about it.
+Provide a helpful, educational response. Be thorough and informative.
 
 Please format your response as JSON:
 {
   "answer": "Your detailed answer here...",
-  "confidence": 0.7,
-  "reasoning": "I'm answering based on general knowledge since no specific course content was found."
+  "confidence": 0.8,
+  "reasoning": "Answered using general AI knowledge."
 }`;
 
       try {
@@ -486,9 +486,9 @@ Please format your response as JSON:
         
         return {
           answer: parsed.answer || "I'd be happy to help! Could you provide more details about what you'd like to know?",
-          confidence: parsed.confidence || 0.6,
+          confidence: parsed.confidence || 0.7,
           sources: [],
-          reasoning: parsed.reasoning || "Answered using general AI knowledge (no course-specific content available)"
+          reasoning: parsed.reasoning || reason
         };
       } catch (error) {
         console.error('Failed to generate fallback answer:', error);
@@ -499,6 +499,11 @@ Please format your response as JSON:
           reasoning: "Fallback response - general assistance offered"
         };
       }
+    };
+
+    // If no context found from embeddings, use general AI knowledge to answer
+    if (contextDocs.length === 0) {
+      return useGeneralKnowledge('No relevant course content found in knowledge base');
     }
 
     // Prepare context
@@ -506,8 +511,38 @@ Please format your response as JSON:
       `[${index + 1}] ${doc.pageContent}`
     ).join('\n\n');
 
-    // Generate answer with reasoning
-    const answerPrompt = `Based on the following context, answer the question. If you're uncertain, indicate your level of confidence.
+    // First, check if the context is relevant to the question
+    const relevanceCheckPrompt = `Evaluate if the following context contains information relevant to answering the question.
+
+Question: ${question}
+
+Context:
+${context}
+
+Please respond with JSON:
+{
+  "isRelevant": true/false,
+  "reason": "Brief explanation"
+}`;
+
+    try {
+      const llm = await getAnalyticalLLM({
+        temperature: 0.2,
+        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+      });
+      
+      const relevanceResponse = await llm.invoke([new HumanMessage(relevanceCheckPrompt)]);
+      const relevanceText = relevanceResponse.content as string;
+      const relevanceCheck = parseJson(relevanceText);
+      
+      // If context is not relevant, use general knowledge
+      if (!relevanceCheck.isRelevant) {
+        console.log('📚 Retrieved context not relevant to question:', relevanceCheck.reason);
+        return useGeneralKnowledge('Retrieved course content not relevant to the question');
+      }
+
+      // Generate answer with reasoning using relevant context
+      const answerPrompt = `Based on the following context, answer the question. If you're uncertain, indicate your level of confidence.
 
 Question: ${question}
 
@@ -523,12 +558,6 @@ Please format your response as JSON:
 
 ${includeSourceReferences ? 'Include references to context sources using [1], [2], etc. in your answer.' : ''}`;
 
-    try {
-      const llm = await getAnalyticalLLM({
-        temperature: 0.2,
-        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
-      });
-      
       const response = await llm.invoke([new HumanMessage(answerPrompt)]);
       const responseText = response.content as string;
 
@@ -542,11 +571,8 @@ ${includeSourceReferences ? 'Include references to context sources using [1], [2
       };
     } catch (error) {
       console.error('Failed to generate answer:', error);
-      return {
-        answer: "I encountered an error while processing your question.",
-        confidence: 0,
-        sources: contextDocs
-      };
+      // On error, fall back to general knowledge rather than failing
+      return useGeneralKnowledge('Error processing course content');
     }
   }
 

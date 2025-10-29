@@ -16,7 +16,10 @@ const toggleReaction = async (params: {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      sendNotification: true, // Notify post/comment author about reactions
+    }),
   });
   
   if (!response.ok) {

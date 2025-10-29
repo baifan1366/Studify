@@ -128,9 +128,9 @@ export async function GET(request: NextRequest) {
       points: {
         thisWeek: thisWeekPoints,
         change: pointsTrend,
-        trend: pointsTrend > 0 ? `+${pointsTrend} earned` : 
+        trend: pointsTrend > 0 ? `+${pointsTrend} this week` : 
                pointsTrend < 0 ? `${pointsTrend} this week` :
-               'No points earned'
+               'No change this week'
       },
       streak: {
         current: currentStreak,

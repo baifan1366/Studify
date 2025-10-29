@@ -197,6 +197,7 @@ export async function POST(
     const body = formData.get("body") as string;
     const files = formData.getAll("files") as File[];
     const hashtags = formData.getAll("hashtags") as string[];
+    const sendNotification = formData.get("sendNotification") === "true";
 
     // ===== 基本字段验证 =====
     if (!title || title.length < 5 || title.length > 200) {
@@ -403,6 +404,36 @@ export async function POST(
         action: "create_post",
       }),
     });
+
+    // ===== 发送通知给群组成员 =====
+    if (sendNotification) {
+      try {
+        // Get all group members except the author
+        const { data: members } = await supabaseClient
+          .from("community_group_member")
+          .select("user_id")
+          .eq("group_id", group.id)
+          .eq("is_deleted", false)
+          .neq("user_id", profile.id);
+
+        if (members && members.length > 0) {
+          const { notificationService } = await import('@/lib/notifications/notification-service');
+          const userIds = members.map(m => m.user_id);
+          const authorName = newPost.author?.display_name || 'Someone';
+
+          await notificationService.sendCommunityNotification(
+            userIds,
+            group.name,
+            `${authorName} 发布了新帖子：${title}`,
+            groupSlug,
+            'new_post'
+          );
+        }
+      } catch (notifError) {
+        console.error('Failed to send post notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
 
     return NextResponse.json(newPost, { status: 201 });
   } catch (error) {

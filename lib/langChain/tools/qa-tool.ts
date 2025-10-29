@@ -28,14 +28,16 @@ export const qaTool = new DynamicTool({
       }
       
       if (result.reasoning) {
-        response += `\n\nReasoning: ${result.reasoning}`;
+        response += `\n\nNote: ${result.reasoning}`;
       }
       
       if (result.sources.length > 0 && includeSourceReferences) {
         const sourceInfo = result.sources.map((source, index) => 
           `[${index + 1}] ${source.metadata.contentType}: ${source.pageContent.substring(0, 100)}...`
         ).join('\n');
-        response += `\n\nSources:\n${sourceInfo}`;
+        response += `\n\nCourse Sources:\n${sourceInfo}`;
+      } else if (includeSourceReferences) {
+        response += `\n\n💡 This answer is based on general AI knowledge since no relevant course content was found in the knowledge base.`;
       }
       
       return response;

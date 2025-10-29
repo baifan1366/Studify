@@ -170,20 +170,22 @@ export async function GET(request: NextRequest) {
 
       // Check if user studied today or yesterday (streak is still active)
       if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
-        let expectedDate = new Date(today);
+        // Start from the most recent study date
+        let currentCheckDate = new Date(uniqueDates[0] + 'T00:00:00');
+        currentCheckDate.setHours(0, 0, 0, 0);
         
         // Count consecutive days
         for (const dateStr of uniqueDates) {
           const sessionDate = new Date(dateStr + 'T00:00:00');
           sessionDate.setHours(0, 0, 0, 0);
-          expectedDate.setHours(0, 0, 0, 0);
           
-          const diffDays = Math.floor((expectedDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+          const diffDays = Math.floor((currentCheckDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
           
           if (diffDays === 0) {
             // This day matches our expected date
             studyStreak++;
-            expectedDate.setDate(expectedDate.getDate() - 1); // Move to previous day
+            // Move to previous day for next iteration
+            currentCheckDate.setDate(currentCheckDate.getDate() - 1);
           } else if (diffDays > 0) {
             // Gap found, streak ends
             break;

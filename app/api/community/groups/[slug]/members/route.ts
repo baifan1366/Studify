@@ -80,6 +80,10 @@ export async function POST(
   const supabaseClient = await createServerClient();
   const { slug } = await params;
 
+  // Parse request body to check if adding another user (owner action) or self-joining
+  const body = await request.json().catch(() => ({}));
+  const targetProfileId = body.profileId; // If provided, owner is adding someone
+
   // Get user profile
   const { data: profile, error: profileError } = await supabaseClient
     .from('profiles')
@@ -94,7 +98,7 @@ export async function POST(
   // Get group
   const { data: group } = await supabaseClient
     .from('community_group')
-    .select('id, visibility')
+    .select('id, visibility, owner_id')
     .eq('slug', slug)
     .eq('is_deleted', false)
     .single();
@@ -103,12 +107,32 @@ export async function POST(
     return NextResponse.json({ error: 'Group not found' }, { status: 404 });
   }
 
+  // Determine which user to add
+  let userIdToAdd = profile.id;
+  
+  if (targetProfileId) {
+    // Owner/admin is adding another user
+    const { data: userMembership } = await supabaseClient
+      .from('community_group_member')
+      .select('role')
+      .eq('group_id', group.id)
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false)
+      .single();
+
+    if (!userMembership || !['owner', 'admin'].includes(userMembership.role)) {
+      return NextResponse.json({ error: 'Only owner/admin can add members' }, { status: 403 });
+    }
+
+    userIdToAdd = parseInt(targetProfileId);
+  }
+
   // Check if user is already a member
   const { data: existingMembership } = await supabaseClient
     .from('community_group_member')
     .select('id, is_deleted')
     .eq('group_id', group.id)
-    .eq('user_id', profile.id)
+    .eq('user_id', userIdToAdd)
     .maybeSingle();
 
   if (existingMembership && !existingMembership.is_deleted) {
@@ -124,7 +148,10 @@ export async function POST(
         joined_at: new Date().toISOString()
       })
       .eq('id', existingMembership.id)
-      .select()
+      .select(`
+        *,
+        user:profiles ( display_name, avatar_url )
+      `)
       .single();
 
     if (error) {
@@ -138,10 +165,13 @@ export async function POST(
     .from('community_group_member')
     .insert({
       group_id: group.id,
-      user_id: profile.id,
+      user_id: userIdToAdd,
       role: 'member'
     })
-    .select()
+    .select(`
+      *,
+      user:profiles ( display_name, avatar_url )
+    `)
     .single();
 
   if (error) {

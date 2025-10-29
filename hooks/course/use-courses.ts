@@ -80,7 +80,10 @@ export function useCreateCourse() {
       apiSend<Course>({
         url: coursesApi.create,
         method: 'POST',
-        body: payload,
+        body: {
+          ...payload,
+          sendNotification: true, // Notify followers when new course is created
+        },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['courses'] });
@@ -95,11 +98,14 @@ export function useUpdateCourse() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...updates }: { id: number } & Partial<Omit<Course, 'id'>>) =>
+    mutationFn: ({ id, sendNotification, ...updates }: { id: number; sendNotification?: boolean } & Partial<Omit<Course, 'id'>>) =>
       apiSend<Course>({
         url: coursesApi.update(id),
         method: 'PATCH',
-        body: updates,
+        body: {
+          ...updates,
+          sendNotification: sendNotification ?? false, // Optionally notify enrolled students about course updates
+        },
       }),
     onSuccess: (data: Course) => {
       qc.invalidateQueries({ queryKey: ['courses'] });

@@ -19,7 +19,12 @@ export async function GET(request: NextRequest) {
         push_notifications: true,
         course_updates: true,
         community_updates: false,
-        marketing_emails: false
+        marketing_emails: false,
+        classroom_updates: true,
+        assignment_reminders: true,
+        live_session_alerts: true,
+        daily_digest: true,
+        weekly_digest: true
       }
     });
   } catch (error) {

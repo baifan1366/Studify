@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Announcement } from '@/interface';
 import { apiGet, apiSend } from '@/lib/api-config';
 import { announcementsApi } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
 
 interface UpdateStatusParams {
   announcementId: number;
@@ -69,9 +68,9 @@ export function useUpdateAnnouncement() {
   });
 }
 
+// Note: Toast messages should be handled in the component using translations
 export function useUpdateAnnouncementStatus() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ announcementId, status, scheduled_at }: UpdateStatusParams) => 
@@ -83,19 +82,8 @@ export function useUpdateAnnouncementStatus() {
     onSuccess: (data, variables) => {
       // Invalidate and refetch courses
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      toast({
-        title: 'Success',
-        description: `Announcement status updated to ${variables.status}`,
-      });
     },
-    onError: (error: Error) => {
-      console.error(error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to update announcement status',
-        variant: 'destructive',
-      });
-    },
+    // onError callback removed - handle in component with translations
   });
 }
 
@@ -114,9 +102,9 @@ export function useDeleteAnnouncement() {
   });
 }
 
+// Note: Toast messages should be handled in the component using translations
 export function useSendAnnouncement() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (announcementId: number) => 
@@ -127,18 +115,7 @@ export function useSendAnnouncement() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
       queryClient.invalidateQueries({ queryKey: ['announcement', data.id] });
-      toast({
-        title: 'Success',
-        description: 'Announcement sent successfully! Notifications have been created for all users.',
-      });
     },
-    onError: (error: Error) => {
-      console.error(error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send announcement',
-        variant: 'destructive',
-      });
-    },
+    // onError callback removed - handle in component with translations
   });
 }

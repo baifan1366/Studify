@@ -15,7 +15,7 @@ export async function POST(
 
   const supabaseClient = await createServerClient();
   const { slug, postSlug } = await params;
-  const { emoji, target_type, target_id } = await request.json();
+  const { emoji, target_type, target_id, sendNotification = false } = await request.json();
 
   if (!emoji || !target_type || !target_id) {
     return NextResponse.json(
@@ -151,6 +151,58 @@ export async function POST(
       targetId,
       emoji
     );
+
+    // Send notification if requested
+    if (sendNotification) {
+      try {
+        let authorId = null;
+        
+        if (target_type === 'post') {
+          const { data: postData } = await supabaseClient
+            .from("community_post")
+            .select("author_id")
+            .eq("id", targetId)
+            .single();
+          authorId = postData?.author_id;
+        } else if (target_type === 'comment') {
+          const { data: commentData } = await supabaseClient
+            .from("community_comment")
+            .select("author_id")
+            .eq("id", targetId)
+            .single();
+          authorId = commentData?.author_id;
+        }
+
+        if (authorId && authorId !== profileId) {
+          const { notificationService } = await import('@/lib/notifications/notification-service');
+          const { data: reactorProfile } = await supabaseClient
+            .from("profiles")
+            .select("display_name")
+            .eq("id", profileId)
+            .single();
+
+          await notificationService.createNotification({
+            user_id: authorId,
+            kind: 'community_notification',
+            payload: {
+              type: 'reaction',
+              target_type,
+              target_id: targetId,
+              emoji,
+              reactor_id: profileId,
+              reactor_name: reactorProfile?.display_name || 'Someone',
+            },
+            title: '新反应',
+            message: `${reactorProfile?.display_name || 'Someone'} 对您的${target_type === 'post' ? '帖子' : '评论'}做出了反应 ${emoji}`,
+            deep_link: `/community/groups/${slug}/posts/${postSlug}`,
+            send_push: true,
+          });
+        }
+      } catch (notifError) {
+        console.error('Failed to send reaction notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
 
     return NextResponse.json({
       message: "Reaction added (cached)",

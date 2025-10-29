@@ -1,29 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { authorize } from '@/utils/auth/server-guard';
-import { createAdminClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/utils/auth/server-guard";
+import { createAdminClient } from "@/utils/supabase/server";
+import { notificationService } from "@/lib/notifications/notification-service";
 
 // Create video comment
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize("student");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
     const supabase = await createAdminClient();
-    
-    const { 
-      lessonId, 
-      attachmentId, 
-      content, 
-      parentId, 
+
+    const {
+      lessonId,
+      attachmentId,
+      content,
+      parentId,
       replyToUserId,
       videoTimeSec,
-      contentType = 'text'
+      contentType = "text",
+      sendNotification = false,
     } = await request.json();
 
     if (!lessonId || !content) {
       return NextResponse.json(
-        { error: 'lessonId and content are required' },
+        { error: "lessonId and content are required" },
         { status: 400 }
       );
     }
@@ -31,27 +33,27 @@ export async function POST(request: NextRequest) {
     // Validate content length
     if (content.length > 2000) {
       return NextResponse.json(
-        { error: 'Comment content must be 2000 characters or less' },
+        { error: "Comment content must be 2000 characters or less" },
         { status: 400 }
       );
     }
 
     // Get lesson to validate it exists
     const { data: lesson, error: lessonError } = await supabase
-      .from('course_lesson')
-      .select('id, title')
-      .eq('public_id', lessonId)
-      .eq('is_deleted', false)
+      .from("course_lesson")
+      .select("id, title")
+      .eq("public_id", lessonId)
+      .eq("is_deleted", false)
       .maybeSingle();
 
     if (lessonError || !lesson) {
-      console.error('POST comments - Lesson lookup failed:', {
+      console.error("POST comments - Lesson lookup failed:", {
         lessonId,
         lessonError,
-        lesson
+        lesson,
       });
       return NextResponse.json(
-        { error: 'Lesson not found', details: lessonError?.message },
+        { error: "Lesson not found", details: lessonError?.message },
         { status: 404 }
       );
     }
@@ -60,15 +62,19 @@ export async function POST(request: NextRequest) {
     let parentCommentId = null;
     if (parentId) {
       const { data: parentComment, error: parentError } = await supabase
-        .from('video_comments')
-        .select('id, lesson_id')
-        .eq('public_id', parentId)
-        .eq('is_deleted', false)
+        .from("video_comments")
+        .select("id, lesson_id")
+        .eq("public_id", parentId)
+        .eq("is_deleted", false)
         .maybeSingle();
 
-      if (parentError || !parentComment || parentComment.lesson_id !== lesson.id) {
+      if (
+        parentError ||
+        !parentComment ||
+        parentComment.lesson_id !== lesson.id
+      ) {
         return NextResponse.json(
-          { error: 'Parent comment not found or invalid' },
+          { error: "Parent comment not found or invalid" },
           { status: 400 }
         );
       }
@@ -77,18 +83,18 @@ export async function POST(request: NextRequest) {
 
     // Get the profile ID (internal bigint ID, not UUID)
     const userId = authResult.user?.profile?.id;
-    
+
     if (!userId) {
-      console.error('User profile ID not found:', authResult.user);
+      console.error("User profile ID not found:", authResult.user);
       return NextResponse.json(
-        { error: 'User profile not found' },
+        { error: "User profile not found" },
         { status: 400 }
       );
     }
 
     // Create comment
     const { data: commentData, error: insertError } = await supabase
-      .from('video_comments')
+      .from("video_comments")
       .insert({
         user_id: userId,
         lesson_id: lesson.id,
@@ -97,9 +103,10 @@ export async function POST(request: NextRequest) {
         reply_to_user_id: replyToUserId,
         content: content.trim(),
         content_type: contentType,
-        video_time_sec: videoTimeSec
+        video_time_sec: videoTimeSec,
       })
-      .select(`
+      .select(
+        `
         *,
         author:profiles!video_comments_user_id_fkey(
           id,
@@ -112,26 +119,106 @@ export async function POST(request: NextRequest) {
           full_name,
           display_name
         )
-      `)
+      `
+      )
       .single();
 
     if (insertError) {
-      console.error('Error creating comment:', insertError);
+      console.error("Error creating comment:", insertError);
       return NextResponse.json(
-        { error: 'Failed to create comment' },
+        { error: "Failed to create comment" },
         { status: 500 }
       );
     }
 
+    // Send notification if requested
+    if (sendNotification) {
+      try {
+        // Get course and owner info
+        const { data: courseInfo } = await supabase
+          .from("course_lesson")
+          .select(
+            `
+            course:course_id(
+              id,
+              owner_id,
+              title
+            )
+          `
+          )
+          .eq("id", lesson.id)
+          .single();
+
+        const course = courseInfo?.course as any;
+
+        if (course?.owner_id && course.owner_id !== userId) {
+          // Notify course owner about new comment
+          await notificationService.createNotification({
+            user_id: course.owner_id,
+            kind: "course_notification",
+            payload: {
+              type: "new_video_comment",
+              lesson_id: lessonId,
+              lesson_title: lesson.title,
+              comment_content: content.substring(0, 100),
+              commenter_id: userId,
+              commenter_name:
+                authResult.user?.profile?.display_name || "Someone",
+              video_time_sec: videoTimeSec,
+            },
+            title: "新视频评论",
+            message: `${
+              authResult.user?.profile?.display_name || "Someone"
+            } 在视频 "${lesson.title}" 下发表了评论`,
+            deep_link: `/course/lesson/${lessonId}`,
+            send_push: true,
+          });
+        }
+
+        // If replying to a comment, notify the parent comment author
+        if (parentCommentId) {
+          const { data: parentComment } = await supabase
+            .from("video_comments")
+            .select("user_id")
+            .eq("id", parentCommentId)
+            .single();
+
+          if (parentComment && parentComment.user_id !== userId) {
+            await notificationService.createNotification({
+              user_id: parentComment.user_id,
+              kind: "course_notification",
+              payload: {
+                type: "comment_reply",
+                lesson_id: lessonId,
+                lesson_title: lesson.title,
+                reply_content: content.substring(0, 100),
+                replier_id: userId,
+                replier_name:
+                  authResult.user?.profile?.display_name || "Someone",
+              },
+              title: "评论回复",
+              message: `${
+                authResult.user?.profile?.display_name || "Someone"
+              } 回复了您的评论`,
+              deep_link: `/course/lesson/${lessonId}`,
+              send_push: true,
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError);
+        // Don't fail the request if notification fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      comment: commentData
+      comment: commentData,
     });
-
   } catch (error) {
-    console.error('Error in comments POST:', error);
+    console.error("Error in comments POST:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -140,50 +227,51 @@ export async function POST(request: NextRequest) {
 // Get video comments with pagination and threading
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await authorize('student'); // Ensure user is authenticated
+    const authResult = await authorize("student"); // Ensure user is authenticated
     if (authResult instanceof NextResponse) {
       return authResult;
     }
     const supabase = await createAdminClient();
-    
+
     const { searchParams } = new URL(request.url);
-    const lessonId = searchParams.get('lessonId');
-    const parentId = searchParams.get('parentId'); // For getting replies
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const sortBy = searchParams.get('sortBy') || 'newest'; // newest, oldest, popular
-    
+    const lessonId = searchParams.get("lessonId");
+    const parentId = searchParams.get("parentId"); // For getting replies
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const sortBy = searchParams.get("sortBy") || "newest"; // newest, oldest, popular
+
     if (!lessonId) {
       return NextResponse.json(
-        { error: 'lessonId is required' },
+        { error: "lessonId is required" },
         { status: 400 }
       );
     }
 
     // Get lesson to validate it exists
     const { data: lesson, error: lessonError } = await supabase
-      .from('course_lesson')
-      .select('id, title')
-      .eq('public_id', lessonId)
-      .eq('is_deleted', false)
+      .from("course_lesson")
+      .select("id, title")
+      .eq("public_id", lessonId)
+      .eq("is_deleted", false)
       .maybeSingle();
 
     if (lessonError || !lesson) {
-      console.error('GET comments - Lesson lookup failed:', {
+      console.error("GET comments - Lesson lookup failed:", {
         lessonId,
         lessonError,
-        lesson
+        lesson,
       });
       return NextResponse.json(
-        { error: 'Lesson not found', details: lessonError?.message },
+        { error: "Lesson not found", details: lessonError?.message },
         { status: 404 }
       );
     }
 
     // Build base query
     let query = supabase
-      .from('video_comments')
-      .select(`
+      .from("video_comments")
+      .select(
+        `
         *,
         author:profiles!video_comments_user_id_fkey(
           id,
@@ -196,40 +284,45 @@ export async function GET(request: NextRequest) {
           full_name,
           display_name
         )
-      `)
-      .eq('lesson_id', lesson.id)
-      .eq('is_deleted', false)
-      .eq('is_approved', true);
+      `
+      )
+      .eq("lesson_id", lesson.id)
+      .eq("is_deleted", false)
+      .eq("is_approved", true);
 
     // Filter by parent (for threading)
     if (parentId) {
       // Get replies to a specific comment
       const { data: parentComment } = await supabase
-        .from('video_comments')
-        .select('id')
-        .eq('public_id', parentId)
+        .from("video_comments")
+        .select("id")
+        .eq("public_id", parentId)
         .maybeSingle();
-      
+
       if (parentComment) {
-        query = query.eq('parent_id', parentComment.id);
+        query = query.eq("parent_id", parentComment.id);
       } else {
-        return NextResponse.json({ success: true, comments: [], pagination: {} });
+        return NextResponse.json({
+          success: true,
+          comments: [],
+          pagination: {},
+        });
       }
     } else {
       // Get top-level comments only
-      query = query.is('parent_id', null);
+      query = query.is("parent_id", null);
     }
 
     // Apply sorting
     switch (sortBy) {
-      case 'oldest':
-        query = query.order('created_at', { ascending: true });
+      case "oldest":
+        query = query.order("created_at", { ascending: true });
         break;
-      case 'popular':
-        query = query.order('likes_count', { ascending: false });
+      case "popular":
+        query = query.order("likes_count", { ascending: false });
         break;
       default: // newest
-        query = query.order('created_at', { ascending: false });
+        query = query.order("created_at", { ascending: false });
     }
 
     // Apply pagination
@@ -239,32 +332,32 @@ export async function GET(request: NextRequest) {
     const { data: comments, error: commentsError } = await query;
 
     if (commentsError) {
-      console.error('Error fetching comments:', commentsError);
+      console.error("Error fetching comments:", commentsError);
       return NextResponse.json(
-        { error: 'Failed to fetch comments' },
+        { error: "Failed to fetch comments" },
         { status: 500 }
       );
     }
 
     // Get total count for pagination
     let countQuery = supabase
-      .from('video_comments')
-      .select('id', { count: 'exact' })
-      .eq('lesson_id', lesson.id)
-      .eq('is_deleted', false)
-      .eq('is_approved', true);
+      .from("video_comments")
+      .select("id", { count: "exact" })
+      .eq("lesson_id", lesson.id)
+      .eq("is_deleted", false)
+      .eq("is_approved", true);
 
     if (parentId) {
       const { data: parentComment } = await supabase
-        .from('video_comments')
-        .select('id')
-        .eq('public_id', parentId)
+        .from("video_comments")
+        .select("id")
+        .eq("public_id", parentId)
         .maybeSingle();
       if (parentComment) {
-        countQuery = countQuery.eq('parent_id', parentComment.id);
+        countQuery = countQuery.eq("parent_id", parentComment.id);
       }
     } else {
-      countQuery = countQuery.is('parent_id', null);
+      countQuery = countQuery.is("parent_id", null);
     }
 
     const { count: totalCount } = await countQuery;
@@ -276,20 +369,23 @@ export async function GET(request: NextRequest) {
       const commentIds = comments.map((c: any) => c.id);
       if (commentIds.length > 0) {
         const { data: replyCounts } = await supabase
-          .from('video_comments')
-          .select('parent_id')
-          .in('parent_id', commentIds)
-          .eq('is_deleted', false)
-          .eq('is_approved', true);
+          .from("video_comments")
+          .select("parent_id")
+          .in("parent_id", commentIds)
+          .eq("is_deleted", false)
+          .eq("is_approved", true);
 
         const replyCountMap = new Map();
         replyCounts?.forEach((reply: any) => {
-          replyCountMap.set(reply.parent_id, (replyCountMap.get(reply.parent_id) || 0) + 1);
+          replyCountMap.set(
+            reply.parent_id,
+            (replyCountMap.get(reply.parent_id) || 0) + 1
+          );
         });
 
         commentsWithReplies = comments.map((comment: any) => ({
           ...comment,
-          replies_count: replyCountMap.get(comment.id) || 0
+          replies_count: replyCountMap.get(comment.id) || 0,
         }));
       }
     }
@@ -302,15 +398,14 @@ export async function GET(request: NextRequest) {
         limit,
         total: totalCount || 0,
         totalPages: Math.ceil((totalCount || 0) / limit),
-        hasMore: ((totalCount || 0) > offset + limit)
+        hasMore: (totalCount || 0) > offset + limit,
       },
-      sortBy
+      sortBy,
     });
-
   } catch (error) {
-    console.error('Error in comments GET:', error);
+    console.error("Error in comments GET:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -319,17 +414,17 @@ export async function GET(request: NextRequest) {
 // Update comment (edit content)
 export async function PATCH(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize("student");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
     const supabase = await createAdminClient();
-    
-    const { commentId, content, contentType = 'text' } = await request.json();
+
+    const { commentId, content, contentType = "text" } = await request.json();
 
     if (!commentId || !content) {
       return NextResponse.json(
-        { error: 'commentId and content are required' },
+        { error: "commentId and content are required" },
         { status: 400 }
       );
     }
@@ -337,37 +432,38 @@ export async function PATCH(request: NextRequest) {
     // Validate content length
     if (content.length > 2000) {
       return NextResponse.json(
-        { error: 'Comment content must be 2000 characters or less' },
+        { error: "Comment content must be 2000 characters or less" },
         { status: 400 }
       );
     }
 
     // Check if comment exists and belongs to user
     const { data: comment, error: fetchError } = await supabase
-      .from('video_comments')
-      .select('*')
-      .eq('public_id', commentId)
-      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
-      .eq('is_deleted', false)
+      .from("video_comments")
+      .select("*")
+      .eq("public_id", commentId)
+      .eq("user_id", authResult.user.profile?.id || authResult.user.id)
+      .eq("is_deleted", false)
       .maybeSingle();
 
     if (fetchError || !comment) {
       return NextResponse.json(
-        { error: 'Comment not found or access denied' },
+        { error: "Comment not found or access denied" },
         { status: 404 }
       );
     }
 
     // Update comment
     const { data: updatedComment, error: updateError } = await supabase
-      .from('video_comments')
+      .from("video_comments")
       .update({
         content: content.trim(),
         content_type: contentType,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', comment.id)
-      .select(`
+      .eq("id", comment.id)
+      .select(
+        `
         *,
         author:profiles!video_comments_user_id_fkey(
           id,
@@ -375,26 +471,26 @@ export async function PATCH(request: NextRequest) {
           display_name,
           avatar_url
         )
-      `)
+      `
+      )
       .single();
 
     if (updateError) {
-      console.error('Error updating comment:', updateError);
+      console.error("Error updating comment:", updateError);
       return NextResponse.json(
-        { error: 'Failed to update comment' },
+        { error: "Failed to update comment" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      comment: updatedComment
+      comment: updatedComment,
     });
-
   } catch (error) {
-    console.error('Error in comments PATCH:', error);
+    console.error("Error in comments PATCH:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -403,64 +499,63 @@ export async function PATCH(request: NextRequest) {
 // Delete comment
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
+    const authResult = await authorize("student");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
     const supabase = await createAdminClient();
-    
+
     const { searchParams } = new URL(request.url);
-    const commentId = searchParams.get('commentId');
-    
+    const commentId = searchParams.get("commentId");
+
     if (!commentId) {
       return NextResponse.json(
-        { error: 'commentId is required' },
+        { error: "commentId is required" },
         { status: 400 }
       );
     }
 
     // Check if comment exists and belongs to user
     const { data: comment, error: fetchError } = await supabase
-      .from('video_comments')
-      .select('*')
-      .eq('public_id', commentId)
-      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
-      .eq('is_deleted', false)
+      .from("video_comments")
+      .select("*")
+      .eq("public_id", commentId)
+      .eq("user_id", authResult.user.profile?.id || authResult.user.id)
+      .eq("is_deleted", false)
       .maybeSingle();
 
     if (fetchError || !comment) {
       return NextResponse.json(
-        { error: 'Comment not found or access denied' },
+        { error: "Comment not found or access denied" },
         { status: 404 }
       );
     }
 
     // Soft delete the comment
     const { error: deleteError } = await supabase
-      .from('video_comments')
-      .update({ 
+      .from("video_comments")
+      .update({
         is_deleted: true,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', comment.id);
+      .eq("id", comment.id);
 
     if (deleteError) {
-      console.error('Error deleting comment:', deleteError);
+      console.error("Error deleting comment:", deleteError);
       return NextResponse.json(
-        { error: 'Failed to delete comment' },
+        { error: "Failed to delete comment" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Comment deleted successfully'
+      message: "Comment deleted successfully",
     });
-
   } catch (error) {
-    console.error('Error in comments DELETE:', error);
+    console.error("Error in comments DELETE:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

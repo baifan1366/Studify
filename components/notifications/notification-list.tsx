@@ -29,6 +29,9 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
         return <Users className="h-4 w-4" />;
       case 'community_notification':
         return <MessageSquare className="h-4 w-4" />;
+      case 'daily_digest':
+      case 'weekly_digest':
+        return <Bell className="h-4 w-4 text-blue-500" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -56,6 +59,10 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
         };
         const communityIcon = communityIcons[payload.type as keyof typeof communityIcons] || '💬';
         return `${communityIcon} ${payload.group_name || 'Community Update'}`;
+      case 'daily_digest':
+        return payload.title || '📊 今日学习日报';
+      case 'weekly_digest':
+        return payload.title || '📈 本周学习周报';
       case 'system':
         return payload.title || '📢 System Announcement';
       default:
@@ -107,6 +114,10 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
         return `/classroom/${payload.classroom_slug}`;
       case 'community_notification':
         return `/community/groups/${payload.group_slug}`;
+      case 'daily_digest':
+        return '/dashboard';
+      case 'weekly_digest':
+        return '/learning-progress';
       case 'system':
         return payload.deep_link || '#';
       default:

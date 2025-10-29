@@ -1,5 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
+import { useMutation } from '@tanstack/react-query';
 import { useUser } from '@/hooks/profile/use-user';
 
 interface MFASetupData {
@@ -19,9 +18,8 @@ interface MFADisableData {
 }
 
 // Setup MFA (generate secret and QR code)
+// Note: Toast messages should be handled in the component using translations
 export function useMFASetup() {
-  const { toast } = useToast();
-
   return useMutation({
     mutationFn: async (): Promise<MFASetupData> => {
       const response = await fetch('/api/auth/mfa/setup', {
@@ -36,26 +34,13 @@ export function useMFASetup() {
 
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: 'MFA 设置准备就绪',
-        description: '请使用验证器应用扫描二维码并输入验证码。',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'MFA 设置失败',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
+    // onSuccess and onError callbacks removed - handle in component with translations
   });
 }
 
 // Verify and enable MFA
+// Note: Toast messages should be handled in the component using translations
 export function useMFAVerify() {
-  const { toast } = useToast();
-
   return useMutation({
     mutationFn: async (data: MFAVerifyData) => {
       const response = await fetch('/api/auth/mfa/setup', {
@@ -74,26 +59,13 @@ export function useMFAVerify() {
 
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: '双重验证已启用',
-        description: '您的账户现在受到双重验证保护。请妥善保存备用代码。',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: '验证失败',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
+    // onSuccess and onError callbacks removed - handle in component with translations
   });
 }
 
 // Disable MFA
+// Note: Toast messages should be handled in the component using translations
 export function useMFADisable() {
-  const { toast } = useToast();
-
   return useMutation({
     mutationFn: async (data: MFADisableData) => {
       const response = await fetch('/api/auth/mfa/disable', {
@@ -112,19 +84,7 @@ export function useMFADisable() {
 
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: '双重验证已关闭',
-        description: '您的账户双重验证功能已被禁用。',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: '禁用失败',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
+    // onSuccess and onError callbacks removed - handle in component with translations
   });
 }
 

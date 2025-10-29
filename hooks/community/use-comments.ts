@@ -30,6 +30,7 @@ const createComment = async (params: {
 
   const formData = new FormData();
   formData.append("body", body);
+  formData.append("sendNotification", "true"); // Enable notification for community comments
   if (parent_id) {
     formData.append("parent_id", parent_id);
   }

@@ -28,7 +28,7 @@ export function generateJti() {
     bytes[8] = (bytes[8] & 0x3f) | 0x80
     const toHex = (n: number) => n.toString(16).padStart(2, '0')
     const hex = Array.from(bytes, toHex).join('')
-    return `${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20)}`
+    return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}`
   }
   // Last resort: timestamp + random
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`

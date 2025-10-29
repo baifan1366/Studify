@@ -3,6 +3,19 @@ import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 /**
+ * Generate a URL-friendly slug from a title
+ */
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .substring(0, 100); // Limit length
+}
+
+/**
  * Individual Assignment API
  * GET /api/classroom/[slug]/assignments/[id] - Get assignment details
  * PUT /api/classroom/[slug]/assignments/[id] - Update assignment (tutor/owner only)
@@ -53,15 +66,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       .from('classroom_assignment')
       .select(`
         id,
+        public_id,
         classroom_id,
         author_id,
         title,
         description,
         due_date,
-        created_at
+        slug,
+        created_at,
+        updated_at
       `)
       .eq('id', id)
       .eq('classroom_id', classroom.id)
+      .eq('is_deleted', false)
       .single();
 
     if (error || !assignment) {
@@ -119,7 +136,38 @@ export async function PUT(request: Request, { params }: { params: Promise<{ slug
 
     // Update assignment with schema-matched fields
     const updateData: any = {};
-    if (title) updateData.title = title;
+    
+    if (title) {
+      updateData.title = title;
+      
+      // Generate new slug if title is being updated
+      let baseSlug = generateSlug(title);
+      let assignmentSlug = baseSlug;
+      let counter = 1;
+
+      // Check for slug uniqueness within the classroom (excluding current assignment)
+      while (true) {
+        const { data: existingAssignment } = await supabase
+          .from('classroom_assignment')
+          .select('id')
+          .eq('classroom_id', classroom.id)
+          .eq('slug', assignmentSlug)
+          .neq('id', id) // Exclude current assignment
+          .eq('is_deleted', false)
+          .single();
+
+        if (!existingAssignment) {
+          break; // Slug is unique
+        }
+
+        // Append counter to make it unique
+        assignmentSlug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+
+      updateData.slug = assignmentSlug;
+    }
+    
     if (description) updateData.description = description;
     if (due_date) updateData.due_date = due_date;
 
@@ -179,10 +227,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    // Delete assignment (cascade will handle submissions)
+    // Soft delete assignment (set is_deleted flag instead of hard delete)
     const { error } = await supabase
       .from('classroom_assignment')
-      .delete()
+      .update({
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id)
       .eq('classroom_id', classroom.id);
 

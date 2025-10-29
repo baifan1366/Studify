@@ -3,6 +3,19 @@ import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
 /**
+ * Generate a URL-friendly slug from a title
+ */
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .substring(0, 100); // Limit length
+}
+
+/**
  * Classroom Assignments API
  * GET /api/classroom/[slug]/assignments - Get all assignments for classroom
  * POST /api/classroom/[slug]/assignments - Create new assignment (tutor/owner only)
@@ -64,14 +77,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       .from('classroom_assignment')
       .select(`
         id,
+        public_id,
         classroom_id,
         author_id,
         title,
         description,
         due_date,
-        created_at
+        slug,
+        created_at,
+        updated_at
       `)
-      .eq('classroom_id', classroom.id);
+      .eq('classroom_id', classroom.id)
+      .eq('is_deleted', false);
 
     // Apply status filter based on due_date
     const now = new Date().toISOString();
@@ -178,6 +195,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    // Generate unique slug for this assignment within the classroom
+    let baseSlug = generateSlug(title);
+    let assignmentSlug = baseSlug;
+    let counter = 1;
+
+    // Check for slug uniqueness within the classroom
+    while (true) {
+      const { data: existingAssignment } = await supabase
+        .from('classroom_assignment')
+        .select('id')
+        .eq('classroom_id', classroom.id)
+        .eq('slug', assignmentSlug)
+        .eq('is_deleted', false)
+        .single();
+
+      if (!existingAssignment) {
+        break; // Slug is unique
+      }
+
+      // Append counter to make it unique
+      assignmentSlug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    console.log('🔗 Generated assignment slug:', assignmentSlug);
+
     // Create assignment with only the required schema fields
     // Use user_id (UUID) for author_id, not profile.id (integer)
     const assignmentData = {
@@ -186,6 +229,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       title,
       description,
       due_date,
+      slug: assignmentSlug, // Unique slug for this assignment
+      is_deleted: false,
       created_at: new Date().toISOString()
     };
     

@@ -7232,6 +7232,39 @@
     "minutes": "minutes",
     "points": "points"
   },
+  "QuizList": {
+    "available_quizzes": "Available Quizzes"
+  },
+  "QuizCard": {
+    "difficulty_levels": {
+      "all": "All",
+      "easy": "Easy",
+      "fair": "Fair",
+      "good": "Good",
+      "hard": "Hard",
+      "expert": "Expert",
+      "custom_number": "Level {value}",
+      "custom_text": "{value}",
+      "unknown": "Unknown"
+    },
+    "badges": {
+      "private": "Private"
+    },
+    "actions": {
+      "edit_quiz": "Edit Quiz",
+      "delete_quiz": "Delete Quiz",
+      "continue": "Continue",
+      "preview": "Preview",
+      "start": "Start Quiz"
+    },
+    "author_by": "by {name}",
+    "unknown_author": "Unknown",
+    "you_suffix": "(You)",
+    "author_preview": "Author Preview Mode",
+    "attempts_used": "Attempts: {used}/{max}",
+    "attempts_used_unlimited": "Attempts: {used}",
+    "loading": "Loading..."
+  },
   "ClassroomList": {
     "my_classrooms": "My Classrooms",
     "manage_classrooms_description": "Manage your classrooms and join new ones",
@@ -8024,7 +8057,6 @@
     "stat_max_score": "Max Score",
     "stat_avg_time": "Avg Time",
     "no_attempts": "No attempts found",
-    "no_attempts_message": "暂无尝试记录",
     "view_more_attempts": "View More Attempts",
     "status_submitted": "Submitted",
     "status_graded": "Graded",

@@ -54,9 +54,16 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   // difficulty label: convert number -> text if needed
   const difficultyLabel = (() => {
     if (typeof quiz.difficulty === "number") {
-      const knownLevels = [1, 2, 3, 4, 5];
-      if (knownLevels.includes(quiz.difficulty)) {
-        return t(`difficulty_levels.${quiz.difficulty}` as const);
+      const difficultyMap: { [key: number]: string } = {
+        1: "easy",
+        2: "fair",
+        3: "good",
+        4: "hard",
+        5: "expert"
+      };
+      const key = difficultyMap[quiz.difficulty];
+      if (key) {
+        return t(`difficulty_levels.${key}` as const);
       }
       return t("difficulty_levels.custom_number", { value: quiz.difficulty });
     }

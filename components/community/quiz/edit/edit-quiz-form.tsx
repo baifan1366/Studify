@@ -27,7 +27,7 @@ interface EditQuizFormProps {
 
 export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const t = useTranslations('EditQuizForm');
-  
+
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -37,10 +37,10 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>();
   const [selectedGradeId, setSelectedGradeId] = useState<number | undefined>();
-  
+
   // Questions state
   const [editingQuestion, setEditingQuestion] = useState<CommunityQuizQuestion | null>(null);
-  
+
   // Question form state
   const [questionText, setQuestionText] = useState("");
   const [questionType, setQuestionType] = useState<"single_choice" | "multiple_choice" | "fill_in_blank">("single_choice");
@@ -48,13 +48,13 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const [correctAnswers, setCorrectAnswers] = useState<number[]>([]);
   const [fillInAnswers, setFillInAnswers] = useState<string[]>([""]);
   const [explanation, setExplanation] = useState("");
-  
+
   const router = useRouter();
   const params = useParams();
   const locale = useLocale();
   const { data: currentUser } = useUser();
   const isTutor = currentUser?.profile?.role === 'tutor';
-  
+
   // Hooks
   const { data: quiz, isLoading, error } = useQuiz(quizSlug);
   const { data: questions, isLoading: questionsLoading } = useQuizQuestions(quizSlug);
@@ -84,7 +84,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       setQuestionText(editingQuestion.question_text || "");
       setQuestionType(editingQuestion.question_type || "single_choice");
       setExplanation(editingQuestion.explanation || "");
-      
+
       if (editingQuestion.question_type === "fill_in_blank") {
         setFillInAnswers(editingQuestion.correct_answers || [""]);
         setOptions(["", ""]);
@@ -336,137 +336,137 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter quiz title"
-                required
-              />
-            </div>
+              {/* Title */}
+              <div className="space-y-2">
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter quiz title"
+                  required
+                />
+              </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter quiz description"
-                rows={3}
-              />
-            </div>
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter quiz description"
+                  rows={3}
+                />
+              </div>
 
-            {/* Difficulty */}
-            <div className="space-y-2">
-              <Label htmlFor="difficulty">Difficulty (1-5)</Label>
-              <Input
-                id="difficulty"
-                type="number"
-                min="1"
-                max="5"
-                value={difficulty}
-                onChange={(e) => setDifficulty(parseInt(e.target.value) || 1)}
-              />
-            </div>
+              {/* Difficulty */}
+              <div className="space-y-2">
+                <Label htmlFor="difficulty">Difficulty (1-5)</Label>
+                <Input
+                  id="difficulty"
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(parseInt(e.target.value) || 1)}
+                />
+              </div>
 
-            {/* Subject Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Select 
-                value={selectedSubjectId?.toString() || "none"} 
-                onValueChange={(value) => setSelectedSubjectId(value === "none" ? undefined : Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select a subject"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No subject</SelectItem>
-                  {subjects?.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.id.toString()}>
-                      {getSubjectName(subject, locale)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Subject Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Select
+                  value={selectedSubjectId?.toString() || "none"}
+                  onValueChange={(value) => setSelectedSubjectId(value === "none" ? undefined : Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select a subject"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No subject</SelectItem>
+                    {subjects?.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {getSubjectName(subject, locale)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Grade Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="grade">Grade Level</Label>
-              <Select 
-                value={selectedGradeId?.toString() || "none"} 
-                onValueChange={(value) => setSelectedGradeId(value === "none" ? undefined : Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={gradesLoading ? "Loading grades..." : "Select a grade level"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No grade level</SelectItem>
-                  {grades?.map((grade) => (
-                    <SelectItem key={grade.id} value={grade.id.toString()}>
-                      {getGradeName(grade, locale)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Grade Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="grade">Grade Level</Label>
+                <Select
+                  value={selectedGradeId?.toString() || "none"}
+                  onValueChange={(value) => setSelectedGradeId(value === "none" ? undefined : Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={gradesLoading ? "Loading grades..." : "Select a grade level"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No grade level</SelectItem>
+                    {grades?.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {getGradeName(grade, locale)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Visibility */}
-            <div className="space-y-3">
-              <Label>Visibility</Label>
-              <RadioGroup value={visibility} onValueChange={(value: 'public' | 'private') => setVisibility(value)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="public" id="public" />
-                  <Label htmlFor="public">Public - Anyone can access</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="private" id="private" />
-                  <Label htmlFor="private">Private - Invite only</Label>
-                </div>
-              </RadioGroup>
-            </div>
+              {/* Visibility */}
+              <div className="space-y-3">
+                <Label>Visibility</Label>
+                <RadioGroup value={visibility} onValueChange={(value: 'public' | 'private') => setVisibility(value)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="public" id="public" />
+                    <Label htmlFor="public">Public - Anyone can access</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="private" id="private" />
+                    <Label htmlFor="private">Private - Invite only</Label>
+                  </div>
+                </RadioGroup>
+              </div>
 
-            {/* Max Attempts */}
-            <div className="space-y-2">
-              <Label htmlFor="maxAttempts">Max Attempts</Label>
-              <Select value={maxAttempts.toString()} onValueChange={(value) => setMaxAttempts(parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 attempt</SelectItem>
-                  <SelectItem value="2">2 attempts</SelectItem>
-                  <SelectItem value="3">3 attempts</SelectItem>
-                  <SelectItem value="5">5 attempts</SelectItem>
-                  <SelectItem value="10">10 attempts</SelectItem>
-                  <SelectItem value="999">Unlimited</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Max Attempts */}
+              <div className="space-y-2">
+                <Label htmlFor="maxAttempts">Max Attempts</Label>
+                <Select value={maxAttempts.toString()} onValueChange={(value) => setMaxAttempts(parseInt(value))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 attempt</SelectItem>
+                    <SelectItem value="2">2 attempts</SelectItem>
+                    <SelectItem value="3">3 attempts</SelectItem>
+                    <SelectItem value="5">5 attempts</SelectItem>
+                    <SelectItem value="10">10 attempts</SelectItem>
+                    <SelectItem value="999">Unlimited</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Time Limit */}
-            <div className="space-y-2">
-              <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
-              <Input
-                id="timeLimit"
-                type="number"
-                min="1"
-                value={timeLimitMinutes || ""}
-                onChange={(e) => setTimeLimitMinutes(e.target.value ? parseInt(e.target.value) : null)}
-                placeholder="Leave empty for no time limit"
-              />
-            </div>
+              {/* Time Limit */}
+              <div className="space-y-2">
+                <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
+                <Input
+                  id="timeLimit"
+                  type="number"
+                  min="1"
+                  value={timeLimitMinutes || ""}
+                  onChange={(e) => setTimeLimitMinutes(e.target.value ? parseInt(e.target.value) : null)}
+                  placeholder="Leave empty for no time limit"
+                />
+              </div>
 
               {/* Save Button */}
               <div className="flex justify-end pt-4">
-                <Button 
-                  onClick={handleSubmit} 
+                <Button
+                  onClick={handleSubmit}
                   disabled={updateQuiz.isPending}
- 
+
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {updateQuiz.isPending ? "Saving..." : "Save Changes"}
@@ -499,7 +499,17 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                 <div className="text-center py-6">
                   <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
                   <p className="text-gray-400 text-sm mb-3">No questions added yet</p>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const locale = (params as any)?.locale ?? "en";
+                      const route = isTutor
+                        ? `/${locale}/tutor/community/quizzes/${quizSlug}/create-question`
+                        : `/${locale}/community/quizzes/${quizSlug}/create-question`;
+                      router.push(route);
+                    }}
+                  >
                     Add Question
                   </Button>
                 </div>
@@ -507,11 +517,10 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                 questionsList.map((question, index) => (
                   <div
                     key={question.id}
-                    className={`p-4 rounded-lg transition-colors cursor-pointer min-h-[80px] ${
-                      editingQuestion?.id === question.id 
-                        ? 'bg-white/20 hover:bg-white/25' 
-                        : 'bg-white/5 hover:bg-white/10'
-                    }`}
+                    className={`p-4 rounded-lg transition-colors cursor-pointer min-h-[80px] ${editingQuestion?.id === question.id
+                      ? 'bg-white/20 hover:bg-white/25'
+                      : 'bg-white/5 hover:bg-white/10'
+                      }`}
                     onClick={() => setEditingQuestion(question)}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -548,8 +557,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
 
       {/* Question Editor Modal/Overlay */}
       {editingQuestion && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto bg-background">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -557,8 +566,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                   Edit Question {questionsList.findIndex((q: CommunityQuizQuestion) => q.id === editingQuestion.id) + 1}
                 </span>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={handleQuestionDelete}
                     disabled={deleteQuestion.isPending}
@@ -567,8 +576,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                     <Trash2 className="h-4 w-4" />
                     {deleteQuestion.isPending ? "Deleting..." : "Delete"}
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setEditingQuestion(null)}
                   >
@@ -723,8 +732,8 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               />
 
               {/* Submit */}
-              <Button 
-                onClick={handleQuestionSubmit} 
+              <Button
+                onClick={handleQuestionSubmit}
                 className="w-full"
                 disabled={updateQuestion.isPending}
               >

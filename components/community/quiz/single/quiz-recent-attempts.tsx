@@ -319,9 +319,6 @@ function QuizRecentAttemptsModal({ quizSlug, trigger }: QuizRecentAttemptsModalP
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <Clock className="h-12 w-12 mb-3 opacity-50" />
               <p>{t("no_attempts")}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t("no_attempts_message")}
-              </p>
             </div>
           )}
         </CardContent>

@@ -160,9 +160,10 @@ async function warmupWhisperServer(): Promise<boolean> {
 
 /**
  * Transcribe audio using Whisper API with intelligent retry logic
+ * Supports both direct file upload and URL-based transcription (including MEGA.nz)
  */
 async function transcribeWithWhisper(
-  audioBlob: Blob, 
+  audioSource: Blob | string, // Can be a Blob (file) or string (URL)
   retryCount: number = 0,
   isWarmupRetry: boolean = false
 ): Promise<{ text: string; language?: string }> {
@@ -172,44 +173,51 @@ async function transcribeWithWhisper(
     throw new Error('WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set');
   }
 
-  // Map MIME types to file extensions for proper type detection
-  const mimeToExtension: Record<string, string> = {
-    'audio/wav': '.wav',
-    'audio/wave': '.wav',
-    'audio/x-wav': '.wav',
-    'audio/mpeg': '.mp3',
-    'audio/mp3': '.mp3',
-    'audio/mp4': '.m4a',
-    'audio/m4a': '.m4a',
-    'audio/x-m4a': '.m4a',
-    'audio/ogg': '.ogg',
-    'audio/flac': '.flac',
-    'audio/aac': '.aac',
-    'audio/webm': '.webm',
-    'video/mp4': '.mp4',
-    'video/quicktime': '.mov',
-    'video/x-msvideo': '.avi',
-    'video/webm': '.webm',
-    'application/octet-stream': '.mp3', // Default fallback
-  };
-
-  // Determine file extension based on MIME type
-  const blobType = audioBlob.type || 'audio/mpeg';
-  const extension = mimeToExtension[blobType] || '.mp3'; // Default to .mp3 if unknown
-  const filename = `media_file${extension}`;
-
-  const formData = new FormData();
-  // Include proper file extension so mimetypes.guess_type() can detect the format
-  formData.append('file', audioBlob, filename);
-
-  const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
+  const isUrl = typeof audioSource === 'string';
   
-  console.log(`🎯 Sending request to Whisper API (attempt ${retryCount + 1}, warmup: ${isWarmupRetry}):`, transcribeEndpoint);
-  console.log('📊 Audio blob details:', {
-    size: audioBlob.size,
-    type: blobType,
-    filename: filename
-  });
+  // Build the transcribe endpoint with query parameters
+  let transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
+  
+  // If audioSource is a URL, add it as a query parameter
+  if (isUrl) {
+    transcribeEndpoint += `&url=${encodeURIComponent(audioSource)}`;
+    
+    console.log(`🎯 Sending URL-based request to Whisper API (attempt ${retryCount + 1}, warmup: ${isWarmupRetry}):`, transcribeEndpoint);
+    console.log('📊 Audio URL:', audioSource);
+  } else {
+    // Map MIME types to file extensions for proper type detection
+    const mimeToExtension: Record<string, string> = {
+      'audio/wav': '.wav',
+      'audio/wave': '.wav',
+      'audio/x-wav': '.wav',
+      'audio/mpeg': '.mp3',
+      'audio/mp3': '.mp3',
+      'audio/mp4': '.m4a',
+      'audio/m4a': '.m4a',
+      'audio/x-m4a': '.m4a',
+      'audio/ogg': '.ogg',
+      'audio/flac': '.flac',
+      'audio/aac': '.aac',
+      'audio/webm': '.webm',
+      'video/mp4': '.mp4',
+      'video/quicktime': '.mov',
+      'video/x-msvideo': '.avi',
+      'video/webm': '.webm',
+      'application/octet-stream': '.mp3', // Default fallback
+    };
+
+    // Determine file extension based on MIME type
+    const blobType = audioSource.type || 'audio/mpeg';
+    const extension = mimeToExtension[blobType] || '.mp3'; // Default to .mp3 if unknown
+    const filename = `media_file${extension}`;
+    
+    console.log(`🎯 Sending file-based request to Whisper API (attempt ${retryCount + 1}, warmup: ${isWarmupRetry}):`, transcribeEndpoint);
+    console.log('📊 Audio blob details:', {
+      size: audioSource.size,
+      type: blobType,
+      filename: filename
+    });
+  }
 
   try {
     // Use shorter timeout for warmup retries, longer for regular processing
@@ -217,9 +225,43 @@ async function transcribeWithWhisper(
       RETRY_CONFIG.WARMUP_TIMEOUT : 
       RETRY_CONFIG.PROCESSING_TIMEOUT;
     
+    let requestBody;
+    
+    if (isUrl) {
+      // For URL-based requests, send empty body (URL is in query params)
+      requestBody = undefined;
+    } else {
+      // For file-based requests, use FormData
+      const formData = new FormData();
+      const blobType = (audioSource as Blob).type || 'audio/mpeg';
+      const mimeToExtension: Record<string, string> = {
+        'audio/wav': '.wav',
+        'audio/wave': '.wav',
+        'audio/x-wav': '.wav',
+        'audio/mpeg': '.mp3',
+        'audio/mp3': '.mp3',
+        'audio/mp4': '.m4a',
+        'audio/m4a': '.m4a',
+        'audio/x-m4a': '.m4a',
+        'audio/ogg': '.ogg',
+        'audio/flac': '.flac',
+        'audio/aac': '.aac',
+        'audio/webm': '.webm',
+        'video/mp4': '.mp4',
+        'video/quicktime': '.mov',
+        'video/x-msvideo': '.avi',
+        'video/webm': '.webm',
+        'application/octet-stream': '.mp3',
+      };
+      const extension = mimeToExtension[blobType] || '.mp3';
+      const filename = `media_file${extension}`;
+      formData.append('file', audioSource as Blob, filename);
+      requestBody = formData;
+    }
+    
     const response = await fetch(transcribeEndpoint, {
       method: 'POST',
-      body: formData,
+      body: requestBody,
       signal: AbortSignal.timeout(timeout),
     });
 
@@ -455,25 +497,37 @@ async function handler(req: Request) {
       })
       .eq("id", queue_id);
 
-    // 4. Download audio file
-    let audioBlob: Blob;
-    try {
-      audioBlob = await downloadAudioFile(audio_url);
-    } catch (downloadError: any) {
-      console.error('Audio download failed:', downloadError.message);
-      
-      await client.rpc('handle_step_failure', {
-        queue_id_param: queue_id,
-        step_name_param: 'transcribe',
-        error_message_param: `Audio download failed: ${downloadError.message}`,
-        error_details_param: { step: 'download', error: downloadError.message }
-      });
+    // 4. Determine if we should use URL-based or file-based transcription
+    // MEGA.nz links are supported directly by the Whisper server
+    const isMegaUrl = audio_url.includes('mega.nz');
+    const shouldUseUrlMode = isMegaUrl;
+    
+    let audioSource: Blob | string;
+    
+    if (shouldUseUrlMode) {
+      console.log('🔗 Using URL-based transcription for MEGA.nz link');
+      audioSource = audio_url;
+    } else {
+      // Download audio file for non-MEGA URLs
+      try {
+        console.log('📥 Downloading audio file for file-based transcription');
+        audioSource = await downloadAudioFile(audio_url);
+      } catch (downloadError: any) {
+        console.error('Audio download failed:', downloadError.message);
+        
+        await client.rpc('handle_step_failure', {
+          queue_id_param: queue_id,
+          step_name_param: 'transcribe',
+          error_message_param: `Audio download failed: ${downloadError.message}`,
+          error_details_param: { step: 'download', error: downloadError.message }
+        });
 
-      return NextResponse.json({
-        error: "Failed to download audio file",
-        details: downloadError.message,
-        retryable: true,
-      }, { status: 500 });
+        return NextResponse.json({
+          error: "Failed to download audio file",
+          details: downloadError.message,
+          retryable: true,
+        }, { status: 500 });
+      }
     }
 
     // 5. Transcribe with Whisper API (with intelligent retry logic)
@@ -524,8 +578,8 @@ async function handler(req: Request) {
         console.log('✅ Server warmup successful, proceeding with transcription');
       }
       
-      // Try transcription
-      transcriptionResult = await transcribeWithWhisper(audioBlob, retry_count, is_warmup_retry);
+      // Try transcription (supports both URL and Blob)
+      transcriptionResult = await transcribeWithWhisper(audioSource, retry_count, is_warmup_retry);
       
     } catch (whisperError: any) {
       console.error('❌ Whisper API failed:', whisperError.message);

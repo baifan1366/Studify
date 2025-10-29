@@ -28,7 +28,6 @@ const RETRY_CONFIG = {
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {
   console.log('Downloading audio file from:', audioUrl);
   
-  
   // Supported formats: .wav, .mp3, .m4a, .mp4, .mov, .ogg, .flac, .aac, .webm, .avi
   // The Whisper API uses ffmpeg internally to convert formats as needed
   
@@ -47,6 +46,53 @@ async function downloadAudioFile(audioUrl: string): Promise<Blob> {
   const contentType = response.headers.get('content-type') || 'audio/mpeg';
   const arrayBuffer = await response.arrayBuffer();
 
+  // Log detailed response information for debugging
+  console.log('📥 Download response details:', {
+    url: audioUrl,
+    status: response.status,
+    contentType: contentType,
+    size: arrayBuffer.byteLength,
+    headers: Object.fromEntries(response.headers.entries())
+  });
+
+  // Check for HTML/JSON error responses (common when URLs are wrong)
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const firstBytes = uint8Array.slice(0, 100);
+  const textPreview = new TextDecoder('utf-8', { fatal: false }).decode(firstBytes);
+  
+  // Detect common non-audio content
+  if (textPreview.includes('<!DOCTYPE') || 
+      textPreview.includes('<html') || 
+      textPreview.includes('{"error') ||
+      textPreview.includes('<?xml')) {
+    console.error('❌ Downloaded content appears to be HTML/JSON/XML, not audio:', textPreview.substring(0, 200));
+    throw new Error(`Downloaded file is not audio data. Content starts with: ${textPreview.substring(0, 100)}`);
+  }
+
+  // Validate audio/video file signatures (magic numbers)
+  const isValidAudioFile = 
+    // MP3: FF FB or FF F3 or FF F2 or ID3
+    (uint8Array[0] === 0xFF && (uint8Array[1] & 0xE0) === 0xE0) ||
+    (uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33) || // ID3
+    // WAV: RIFF....WAVE
+    (uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && uint8Array[2] === 0x46 && uint8Array[3] === 0x46) ||
+    // MP4/M4A: ftyp
+    (uint8Array[4] === 0x66 && uint8Array[5] === 0x74 && uint8Array[6] === 0x79 && uint8Array[7] === 0x70) ||
+    // OGG: OggS
+    (uint8Array[0] === 0x4F && uint8Array[1] === 0x67 && uint8Array[2] === 0x67 && uint8Array[3] === 0x53) ||
+    // FLAC: fLaC
+    (uint8Array[0] === 0x66 && uint8Array[1] === 0x4C && uint8Array[2] === 0x61 && uint8Array[3] === 0x43) ||
+    // WebM: 0x1A 0x45 0xDF 0xA3
+    (uint8Array[0] === 0x1A && uint8Array[1] === 0x45 && uint8Array[2] === 0xDF && uint8Array[3] === 0xA3);
+
+  if (!isValidAudioFile) {
+    const hexPreview = Array.from(uint8Array.slice(0, 16))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join(' ');
+    console.error('❌ File signature does not match any known audio format. First 16 bytes (hex):', hexPreview);
+    throw new Error(`Invalid audio file format. File signature: ${hexPreview}. This is not a valid audio/video file.`);
+  }
+
   // Validate supported media content types
   const isValidMediaType = contentType.includes('audio/') || 
                           contentType.includes('video/') || 
@@ -55,18 +101,18 @@ async function downloadAudioFile(audioUrl: string): Promise<Blob> {
                            'video/mp4', 'video/mov', 'video/webm', 'video/avi'].some(type => contentType.includes(type));
   
   if (!isValidMediaType) {
-    console.warn(`⚠️ Unusual content type detected: ${contentType}, but continuing with processing`);
+    console.warn(`⚠️ Unusual content type detected: ${contentType}, but file signature is valid, continuing...`);
   }
   
-  // Check for minimum file size (audio files are typically larger than 1KB)
-  if (arrayBuffer.byteLength < 1024) {
-    throw new Error(`Downloaded file is too small (${arrayBuffer.byteLength} bytes) to be a valid audio file. This might be an error page or redirect.`);
+  // Check for minimum file size (audio files are typically larger than 10KB for real content)
+  if (arrayBuffer.byteLength < 10240) {
+    console.warn(`⚠️ File is very small (${arrayBuffer.byteLength} bytes). This might be a stub or test file.`);
   }
   
-  console.log('Audio file downloaded successfully:', {
+  console.log('✅ Audio file downloaded and validated:', {
     size: arrayBuffer.byteLength,
     contentType,
-    isValidSize: arrayBuffer.byteLength >= 1024
+    isValidSignature: isValidAudioFile
   });
 
   return new Blob([arrayBuffer], { type: contentType });

@@ -48,7 +48,7 @@ export function useDanmaku(options: UseDanmakuOptions = {}) {
       position,
       timestamp: Date.now(),
       userId: options?.userId || 'anonymous',
-      username: options?.username || '匿名用户',
+      username: options?.username || 'Anonymous',
       speed: options?.speed || defaultSpeed
     };
 

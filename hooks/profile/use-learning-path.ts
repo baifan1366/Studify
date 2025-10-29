@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { learningPathApi } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
 import { apiGet, apiSend } from "@/lib/api-config";
 
 // =====================
@@ -102,33 +101,27 @@ export const useLearningPath = (userId: string) => {
 };
 
 // 生成学习路径 Hook
+// Note: Toast messages should be handled in the component using translations
 export const useGenerateLearningPath = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  return useMutation<{ message: string }, Error, { goal: string; duration: number }>({
+  return useMutation<
+    { message: string },
+    Error,
+    { goal: string; duration: number }
+  >({
     mutationFn: ({ goal, duration }) => generateLearningPath(goal, duration),
     onSuccess: () => {
-      toast({
-        title: "成功",
-        description: "学习路径已生成",
-      });
       queryClient.invalidateQueries({ queryKey: ["learningPath"] });
     },
-    onError: (error) => {
-      toast({
-        title: "错误",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    // onError callback removed - handle in component with translations
   });
 };
 
 // 更新里程碑进度 Hook
+// Note: Toast messages should be handled in the component using translations
 export const useUpdateMilestoneProgress = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation<
     { message: string },
@@ -138,26 +131,16 @@ export const useUpdateMilestoneProgress = () => {
     mutationFn: ({ pathId, milestoneId, status }) =>
       updateMilestoneProgress(pathId, milestoneId, status),
     onSuccess: () => {
-      toast({
-        title: "成功",
-        description: "进度已更新",
-      });
       queryClient.invalidateQueries({ queryKey: ["learningPath"] });
     },
-    onError: (error) => {
-      toast({
-        title: "错误",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    // onError callback removed - handle in component with translations
   });
 };
 
 // 解锁下一个里程碑 Hook
+// Note: Toast messages should be handled in the component using translations
 export const useUnlockNextMilestone = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation<
     { unlocked: boolean; nextMilestone?: Milestone },
@@ -168,43 +151,27 @@ export const useUnlockNextMilestone = () => {
       unlockNextMilestone(pathId, milestoneId),
     onSuccess: (data) => {
       if (data.unlocked) {
-        toast({
-          title: "成功",
-          description: `已解锁：${data.nextMilestone?.title || "下一个里程碑"}`,
-        });
         queryClient.invalidateQueries({ queryKey: ["learningPath"] });
       }
     },
-    onError: (error) => {
-      toast({
-        title: "错误",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    // onError callback removed - handle in component with translations
   });
 };
 
 // 获取奖励 Hook
+// Note: Toast messages should be handled in the component using translations
 export const useClaimReward = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  return useMutation<{ message: string }, Error, { pathId: string; milestoneId: string }>({
+  return useMutation<
+    { message: string },
+    Error,
+    { pathId: string; milestoneId: string }
+  >({
     mutationFn: ({ pathId, milestoneId }) => claimReward(pathId, milestoneId),
-    onSuccess: (data) => {
-      toast({
-        title: "恭喜！",
-        description: data.message || "你获得了奖励",
-      });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["learningPath"] });
     },
-    onError: (error) => {
-      toast({
-        title: "错误",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    // onError callback removed - handle in component with translations
   });
 };

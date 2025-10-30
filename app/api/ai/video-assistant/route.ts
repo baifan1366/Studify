@@ -137,51 +137,10 @@ export async function POST(request: NextRequest) {
       `🤖 Using model: ${modelToUse} (Document model: ${useDocumentModel})`
     );
 
-    // Build context-aware question with video metadata
-    let contextualizedQuestion = "";
-
     if (isExternalVideo) {
       console.log(
         `🎬 External video detected - using direct AI without embeddings`
       );
-      contextualizedQuestion = `Video Learning Context (External Video - YouTube/Vimeo):
-- Course: ${videoContext.courseSlug}
-- Lesson: ${videoContext.currentLessonId || "Not specified"}
-- Video timestamp: ${videoContext.currentTimestamp || 0} seconds
-${
-  videoContext.selectedText
-    ? `- Selected text: "${videoContext.selectedText}"`
-    : ""
-}
-
-Note: This is an external video (YouTube/Vimeo) without available transcripts or embeddings.
-
-Student Question: ${question}
-
-Please provide a clear, educational answer that:
-1. Provides general guidance based on the course and lesson context
-2. Offers relevant learning suggestions and resources
-3. If specific video content is needed, suggest reviewing the video at the mentioned timestamp
-4. Encourages deeper understanding through related concepts`;
-    } else {
-      // For internal videos with embeddings, provide context for the AI to use the search tool
-      contextualizedQuestion = `Video Learning Context:
-- Course: ${videoContext.courseSlug}
-- Lesson: ${videoContext.currentLessonId || "Not specified"}
-- Video timestamp: ${videoContext.currentTimestamp || 0} seconds
-${
-  videoContext.selectedText
-    ? `- Selected text: "${videoContext.selectedText}"`
-    : ""
-}
-
-Student Question: ${question}
-
-Please search for relevant video content at the current timestamp and provide a clear, educational answer that:
-1. Connects to the specific video content and timestamp
-2. Uses course materials and lesson context
-3. Provides actionable learning suggestions
-4. Encourages deeper understanding`;
     }
 
     // Specify content types to search - prioritize video_segment for video lessons
@@ -191,24 +150,22 @@ Please search for relevant video content at the current timestamp and provide a 
       ? ["video_segment", "lesson", "note"] // Prioritize video segments for video lessons
       : ["course_content", "lesson", "note"]; // General content for non-video
 
-    const result = await enhancedAIExecutor.educationalQA(
-      contextualizedQuestion,
-      {
-        userId,
-        includeAnalysis: true,
-        conversationContext: conversationHistory,
-        contentTypes,
-        model: modelToUse,
-        // Pass video context separately so the tool can use it properly
-        videoContext: videoContext.currentLessonId
-          ? {
-              lessonId: videoContext.currentLessonId,
-              attachmentId: attachmentId,
-              currentTime: videoContext.currentTimestamp || 0,
-            }
-          : undefined,
-      }
-    );
+    // Pass just the user's question - educationalQA will handle the search internally
+    const result = await enhancedAIExecutor.educationalQA(question, {
+      userId,
+      includeAnalysis: true,
+      conversationContext: conversationHistory,
+      contentTypes,
+      model: modelToUse,
+      // Pass video context separately so the tool can use it properly
+      videoContext: videoContext.currentLessonId
+        ? {
+            lessonId: videoContext.currentLessonId,
+            attachmentId: attachmentId,
+            currentTime: videoContext.currentTimestamp || 0,
+          }
+        : undefined,
+    });
 
     const totalProcessingTime = Date.now() - startTime;
 

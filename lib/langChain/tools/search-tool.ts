@@ -35,17 +35,39 @@ async function searchVideoEmbeddings(
     // 如果有 lessonId，先获取 attachmentId
     let targetAttachmentId = attachmentId;
     if (!targetAttachmentId && lessonId) {
-      const { data: lesson } = await supabase
+      console.log(`🔍 Looking up attachment for lesson: ${lessonId}`);
+      
+      // First get the lesson
+      const { data: lesson, error: lessonError } = await supabase
         .from('course_lesson')
-        .select(`
-          id,
-          course_attachments!inner(id, file_type)
-        `)
+        .select('id, attachments')
         .eq('public_id', lessonId)
-        .eq('course_attachments.file_type', 'video')
         .single();
       
-      targetAttachmentId = lesson?.course_attachments?.[0]?.id;
+      if (lessonError) {
+        console.error('❌ Error fetching lesson:', lessonError);
+      } else if (lesson) {
+        console.log(`📝 Lesson found, attachments:`, lesson.attachments);
+        
+        // Check if attachments is an array with IDs
+        if (Array.isArray(lesson.attachments) && lesson.attachments.length > 0) {
+          // Attachments is an array of IDs
+          const attachmentIds = lesson.attachments;
+          
+          // Get the first video attachment
+          const { data: attachments } = await supabase
+            .from('course_attachments')
+            .select('id, type')
+            .in('id', attachmentIds)
+            .eq('type', 'video')
+            .limit(1);
+          
+          if (attachments && attachments.length > 0) {
+            targetAttachmentId = attachments[0].id;
+            console.log(`✅ Found video attachment: ${targetAttachmentId}`);
+          }
+        }
+      }
     }
     
     if (!targetAttachmentId) {

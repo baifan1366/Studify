@@ -603,141 +603,88 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     toolsUsed: string[];
     confidence: number;
   }> {
-    const config: ToolCallingConfig = {
-      toolCategories: ["SEARCH_AND_QA", "CONTENT_ANALYSIS", "RECOMMENDATIONS"],
-      userId: options.userId,
-      verbose: true, // Enable verbose logging to debug
-      model: options.model, // Pass custom model if provided
-      systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
+    console.log(`🎯 Direct tool calling: "${question.substring(0, 100)}..."`);
+    const toolsUsed: string[] = [];
 
-For this educational Q&A session:
-1. You MUST use the answer_question tool to provide detailed, accurate responses
-2. You MUST use the search tool to find relevant course content before answering
-3. When users ask for recommendations, course suggestions, or what to learn, you MUST use the recommend_content tool
-4. ${options.includeAnalysis ? "Provide additional analysis if helpful" : ""}
-5. Always cite sources and provide confidence levels
-6. Focus on educational value and accuracy
-7. DO NOT answer directly without using tools - always use the available tools first`,
-    };
-
-    const agent = new StudifyToolCallingAgent(config);
-    await agent.initialize();
-    // Build enhanced question with context if available
-    let enhancedQuestion = question;
-
-    // Add conversation context if provided
-    if (options.conversationContext && options.conversationContext.length > 0) {
-      enhancedQuestion = `Here's our conversation history:
-${options.conversationContext
-  .map((msg) => `${msg.role}: ${msg.content}`)
-  .join("\n")}
-
-Current question: ${question}
-
-Please provide a contextually appropriate response considering our previous conversation.`;
-    }
-
-    if (options.contentTypes) {
-      enhancedQuestion += `\n\nFocus on content types: ${options.contentTypes.join(
-        ", "
-      )}`;
-    }
-
-    console.log(
-      `🎯 Executing educationalQA with enhanced question (length: ${enhancedQuestion.length})`
-    );
-
-    const result = await agent.execute(enhancedQuestion, {
-      userId: options.userId,
-      includeSteps: true,
-    });
-
-    console.log(`📊 educationalQA result:`, {
-      outputLength: result.output?.length || 0,
-      outputPreview: result.output?.substring(0, 200),
-      toolsUsed: result.toolsUsed,
-      hasIntermediateSteps: !!result.intermediateSteps,
-      intermediateStepsCount: result.intermediateSteps?.length || 0,
-    });
-
-    console.log("📝 Full educationalQA output:");
-    console.log(result.output || "NO OUTPUT");
-
-    // If no tools were used, the LLM answered directly - log warning and try fallback
-    if (result.toolsUsed.length === 0) {
-      console.warn(
-        "⚠️ educationalQA: No tools were used! LLM answered directly without using tools."
-      );
-      console.warn("⚠️ Direct answer (first 300 chars):");
-      console.warn(result.output?.substring(0, 300) || "NO OUTPUT");
-      console.warn(
-        "⚠️ This may indicate the model does not properly support function calling."
-      );
-
-      // Try to manually call the answer_question tool as fallback
-      try {
-        console.log("🔧 Attempting manual tool call as fallback...");
-        const qaToolInstance = getToolByName("answer_question");
-
-        if (qaToolInstance) {
-          // Use object input for DynamicStructuredTool
-          const toolInput = {
-            question: question, // Use original question, not enhanced
-            contentTypes: options.contentTypes,
-            includeSourceReferences: true,
-          };
-
-          console.log("🔧 Tool input object:", {
-            hasQuestion: !!toolInput.question,
-            questionLength: toolInput.question?.length || 0,
-            questionPreview: toolInput.question?.substring(0, 100),
-            contentTypes: toolInput.contentTypes,
-          });
-
-          console.log(
-            "🔧 Calling answer_question tool directly with input:",
-            JSON.stringify(toolInput).substring(0, 200)
-          );
-          // Call with object input for DynamicStructuredTool
-          const toolResult = await (qaToolInstance as any).call(toolInput);
-          const resultStr =
-            typeof toolResult === "string"
-              ? toolResult
-              : JSON.stringify(toolResult);
-          console.log(
-            "✅ Manual tool call successful, result length:",
-            resultStr.length
-          );
-          console.log("✅ Tool result preview:", resultStr.substring(0, 300));
-
-          // Return the tool result instead
-          return {
-            answer: resultStr,
-            sources: [],
-            analysis: options.includeAnalysis ? resultStr : undefined,
-            toolsUsed: ["answer_question"],
-            confidence: 0.85,
-          };
-        } else {
-          console.error("❌ answer_question tool not found!");
+    try {
+      // Extract video context
+      let videoContext: any = null;
+      const videoContextMatch = question.match(/\{[^}]*"lessonId"[^}]*\}/);
+      if (videoContextMatch) {
+        try {
+          videoContext = JSON.parse(videoContextMatch[0]);
+          console.log("📹 Video context:", videoContext);
+        } catch (e) {
+          console.warn("⚠️ Failed to parse video context");
         }
-      } catch (fallbackError) {
-        console.error("❌ Manual tool call fallback failed:", fallbackError);
-        console.error(
-          "❌ Error details:",
-          fallbackError instanceof Error ? fallbackError.stack : fallbackError
-        );
       }
-    }
 
-    // Extract relevant information from the result
-    return {
-      answer: result.output,
-      sources: [], // Could be extracted from tool calls
-      analysis: options.includeAnalysis ? result.output : undefined,
-      toolsUsed: result.toolsUsed,
-      confidence: 0.85, // Could be calculated from tool results
-    };
+      // Step 1: Search
+      let searchResults = "";
+      const searchTool = getToolByName("search");
+
+      if (searchTool && (videoContext || options.contentTypes)) {
+        console.log("🔍 Step 1: Searching...");
+        const searchInput = {
+          query: question,
+          contentTypes: options.contentTypes || [
+            "video_segment",
+            "lesson",
+            "note",
+          ],
+          videoContext,
+        };
+
+        try {
+          searchResults = await (searchTool as any).call(searchInput);
+          toolsUsed.push("search");
+          console.log(`✅ Search: ${searchResults?.length || 0} chars`);
+        } catch (e) {
+          console.error("❌ Search failed:", e);
+        }
+      }
+
+      // Step 2: Answer
+      const qaTool = getToolByName("answer_question");
+      if (!qaTool) throw new Error("answer_question tool not found");
+
+      console.log("💬 Step 2: Answering...");
+      let finalQ = question;
+      if (
+        searchResults &&
+        !searchResults.includes("No relevant content found")
+      ) {
+        finalQ = `Based on these search results, answer: "${question}"\n\nResults:\n${searchResults}`;
+      }
+
+      const qaResult = await (qaTool as any).call({
+        question: finalQ,
+        contentTypes: options.contentTypes,
+        includeSourceReferences: true,
+      });
+      toolsUsed.push("answer_question");
+
+      const answer =
+        typeof qaResult === "string" ? qaResult : JSON.stringify(qaResult);
+      console.log(`✅ Answer: ${answer.length} chars`);
+
+      return {
+        answer,
+        sources: [],
+        analysis: options.includeAnalysis ? answer : undefined,
+        toolsUsed,
+        confidence: searchResults ? 0.9 : 0.75,
+      };
+    } catch (error) {
+      console.error("❌ Direct tool calling failed:", error);
+      return {
+        answer: "I apologize, but I encountered an error. Please try again.",
+        sources: [],
+        analysis: undefined,
+        toolsUsed,
+        confidence: 0.3,
+      };
+    }
   }
 
   /**

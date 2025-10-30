@@ -594,7 +594,12 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       includeAnalysis?: boolean;
       conversationContext?: Array<{ role: string; content: string }>;
       conversationId?: string;
-      model?: string; // Add model parameter
+      model?: string;
+      videoContext?: {
+        lessonId?: string;
+        attachmentId?: number | null;
+        currentTime?: number;
+      };
     } = {}
   ): Promise<{
     answer: string;
@@ -607,16 +612,10 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     const toolsUsed: string[] = [];
 
     try {
-      // Extract video context
-      let videoContext: any = null;
-      const videoContextMatch = question.match(/\{[^}]*"lessonId"[^}]*\}/);
-      if (videoContextMatch) {
-        try {
-          videoContext = JSON.parse(videoContextMatch[0]);
-          console.log("📹 Video context:", videoContext);
-        } catch (e) {
-          console.warn("⚠️ Failed to parse video context");
-        }
+      const videoContext = options.videoContext;
+      
+      if (videoContext) {
+        console.log("📹 Video context:", videoContext);
       }
 
       // Step 1: Search
@@ -632,7 +631,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
             "lesson",
             "note",
           ],
-          videoContext,
+          videoContext: videoContext || undefined,
         };
 
         try {

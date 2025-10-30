@@ -109,26 +109,24 @@ export async function POST(
           updated_at: new Date().toISOString()
         })
         .eq('id', existingGrade.id)
-        .select(`
-          id,
-          public_id,
-          assignment_id,
-          user_id,
-          grader_id,
-          score,
-          feedback,
-          created_at,
-          updated_at,
-          profiles!classroom_grade_user_id_fkey(
-            id,
-            display_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .single();
 
       if (updateError) throw updateError;
-      return NextResponse.json({ grade });
+
+      // Fetch user profiles
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', [grade.user_id, grade.grader_id].filter(Boolean));
+
+      const gradeWithProfiles = {
+        ...grade,
+        student: profiles?.find(p => p.id === grade.user_id),
+        grader: profiles?.find(p => p.id === grade.grader_id)
+      };
+
+      return NextResponse.json({ grade: gradeWithProfiles });
     } else {
       // Create new grade
       const { data: grade, error: createError } = await supabase
@@ -143,26 +141,24 @@ export async function POST(
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .select(`
-          id,
-          public_id,
-          assignment_id,
-          user_id,
-          grader_id,
-          score,
-          feedback,
-          created_at,
-          updated_at,
-          profiles!classroom_grade_user_id_fkey(
-            id,
-            display_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .single();
 
       if (createError) throw createError;
-      return NextResponse.json({ grade }, { status: 201 });
+
+      // Fetch user profiles
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', [grade.user_id, grade.grader_id].filter(Boolean));
+
+      const gradeWithProfiles = {
+        ...grade,
+        student: profiles?.find(p => p.id === grade.user_id),
+        grader: profiles?.find(p => p.id === grade.grader_id)
+      };
+
+      return NextResponse.json({ grade: gradeWithProfiles }, { status: 201 });
     }
   } catch (error) {
     console.error('Error creating/updating grade:', error);
@@ -245,26 +241,7 @@ export async function GET(
     // Build query based on user role
     let query = supabase
       .from('classroom_grade')
-      .select(`
-        id,
-        public_id,
-        assignment_id,
-        user_id,
-        grader_id,
-        score,
-        feedback,
-        created_at,
-        updated_at,
-        profiles!classroom_grade_user_id_fkey(
-          id,
-          display_name,
-          avatar_url
-        ),
-        grader:profiles!classroom_grade_grader_id_fkey(
-          id,
-          display_name
-        )
-      `)
+      .select('*')
       .eq('assignment_id', assignmentId)
       .eq('is_deleted', false);
 
@@ -277,7 +254,29 @@ export async function GET(
 
     if (error) throw error;
 
-    return NextResponse.json({ grades });
+    // Fetch user profiles separately to avoid foreign key issues
+    if (grades && grades.length > 0) {
+      const userIds = [...new Set([
+        ...grades.map(g => g.user_id),
+        ...grades.map(g => g.grader_id).filter(Boolean)
+      ])];
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', userIds);
+
+      // Attach profile data to grades
+      const gradesWithProfiles = grades.map(grade => ({
+        ...grade,
+        student: profiles?.find(p => p.id === grade.user_id),
+        grader: profiles?.find(p => p.id === grade.grader_id)
+      }));
+
+      return NextResponse.json({ grades: gradesWithProfiles });
+    }
+
+    return NextResponse.json({ grades: [] });
   } catch (error) {
     console.error('Error fetching grades:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

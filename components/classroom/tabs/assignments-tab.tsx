@@ -281,14 +281,18 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                   <div
                     key={assignment.id}
                     className={`flex items-center justify-between p-4 rounded-lg transition-all ${showOverdue
-                        ? 'bg-red-50 hover:bg-red-100 border border-red-200'
-                        : 'bg-gray-100/5 hover:bg-gray-200/8'
+                      ? 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 border border-red-200 dark:border-red-800'
+                      : 'bg-gray-100/5 hover:bg-gray-200/8 dark:bg-gray-800/5 dark:hover:bg-gray-700/10'
                       }`}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${showOverdue ? 'bg-red-100' : 'bg-blue-100'
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${showOverdue
+                        ? 'bg-red-100 dark:bg-red-900/50'
+                        : 'bg-blue-100 dark:bg-blue-900/50'
                         }`}>
-                        <FileText className={`h-5 w-5 ${showOverdue ? 'text-red-600' : 'text-blue-600'
+                        <FileText className={`h-5 w-5 ${showOverdue
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-blue-600 dark:text-blue-400'
                           }`} />
                       </div>
                       <div>
@@ -297,7 +301,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
 
                           {/* Priority 1: Show OVERDUE status (highest priority) */}
                           {showOverdue && (
-                            <Badge variant="destructive" className="bg-red-600 text-white">
+                            <Badge variant="destructive" className="bg-red-600 dark:bg-red-700 text-white">
                               <AlertTriangle className="h-3 w-3 mr-1" />
                               OVERDUE
                             </Badge>
@@ -305,7 +309,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
 
                           {/* Priority 2: Show graded status (only if not overdue) */}
                           {!showOverdue && userRole === 'student' && isGraded && (
-                            <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                            <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700">
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Graded
                             </Badge>
@@ -315,12 +319,12 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                           {!showOverdue && userRole === 'student' && !isGraded && (
                             <>
                               {isSubmitted ? (
-                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                                <Badge variant="outline" className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700">
                                   <CheckCircle className="h-3 w-3 mr-1" />
                                   Submitted
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                                <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700">
                                   <Clock className="h-3 w-3 mr-1" />
                                   Pending
                                 </Badge>
@@ -332,19 +336,19 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                           {showOverdue && userRole === 'student' && (
                             <>
                               {isGraded && (
-                                <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                                <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700">
                                   <CheckCircle className="h-3 w-3 mr-1" />
                                   Graded
                                 </Badge>
                               )}
                               {!isGraded && isSubmitted && (
-                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                                <Badge variant="outline" className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700">
                                   <CheckCircle className="h-3 w-3 mr-1" />
                                   Submitted Late
                                 </Badge>
                               )}
                               {!isGraded && !isSubmitted && (
-                                <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
+                                <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600">
                                   <Clock className="h-3 w-3 mr-1" />
                                   Not Submitted
                                 </Badge>
@@ -352,11 +356,13 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                             </>
                           )}
                         </div>
-                        <p className={`text-sm ${showOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground'
+                        <p className={`text-sm ${showOverdue
+                          ? 'text-red-600 dark:text-red-400 font-medium'
+                          : 'text-muted-foreground'
                           }`}>
                           Due: {(assignment.due_date || assignment.due_on) ? new Date(assignment.due_date || assignment.due_on).toLocaleDateString() : 'No due date'}
                           {showOverdue && (
-                            <span className="ml-2 text-red-700">
+                            <span className="ml-2 text-red-700 dark:text-red-300">
                               (Overdue by {Math.ceil((new Date().getTime() - new Date(assignment.due_date || assignment.due_on).getTime()) / (1000 * 60 * 60 * 24))} days)
                             </span>
                           )}

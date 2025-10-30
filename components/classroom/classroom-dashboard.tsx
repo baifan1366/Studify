@@ -23,7 +23,8 @@ import {
   Edit,
   Trash,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowLeft
 } from 'lucide-react';
 import { useClassrooms, useLiveSessions, useUpdateLiveSession } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
@@ -161,7 +162,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   // Find the specific classroom from the list
   const classroom = classroomsData?.classrooms?.find(c => c.slug === classroomSlug);
-  
+
   // 🎯 Debug: Log classroom object to check user_role
   console.log('🔍 [ClassroomDashboard] classroom object:', classroom);
   console.log('🔍 [ClassroomDashboard] classroom.user_role:', classroom?.user_role);
@@ -464,7 +465,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
   const generateRecentActivities = () => {
     const activities: Array<{
       id: string;
-      type: 'member' | 'session' | 'assignment' | 'quiz';
+      type: 'member' | 'session' | 'assignment' | 'quiz' | 'submission' | 'member_removed';
       icon: any;
       title: string;
       description: string;
@@ -473,7 +474,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       status?: string;
     }> = [];
 
-    // Add member activities
+    // Add member activities (joined)
     if (membersData) {
       const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
       members.slice(0, 5).forEach((member: any) => {
@@ -509,17 +510,48 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       });
     }
 
-    // Add assignment activities
+    // Add assignment activities (created + due soon)
     if (typedAssignments && typedAssignments.length > 0) {
-      typedAssignments.slice(0, 5).forEach((assignment: ClassroomAssignment) => {
+      typedAssignments.forEach((assignment: ClassroomAssignment) => {
+        // Assignment created activity
         activities.push({
-          id: `assignment-${assignment.id}`,
+          id: `assignment-created-${assignment.id}`,
           type: 'assignment',
           icon: FileText,
           title: 'New assignment posted',
           description: assignment.title,
-          timestamp: new Date(assignment.created_at || Date.now())
+          timestamp: new Date(assignment.created_at || Date.now()),
+          status: 'posted'
         });
+
+        // Assignment due soon activity (within 3 days)
+        if (assignment.due_date) {
+          const dueDate = new Date(assignment.due_date);
+          const now = new Date();
+          const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysUntilDue > 0 && daysUntilDue <= 3) {
+            activities.push({
+              id: `assignment-due-${assignment.id}`,
+              type: 'assignment',
+              icon: Clock,
+              title: 'Assignment due soon',
+              description: `${assignment.title} - Due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`,
+              timestamp: dueDate,
+              status: 'due-soon'
+            });
+          } else if (daysUntilDue === 0) {
+            activities.push({
+              id: `assignment-due-today-${assignment.id}`,
+              type: 'assignment',
+              icon: Clock,
+              title: 'Assignment due today',
+              description: assignment.title,
+              timestamp: dueDate,
+              status: 'due-today'
+            });
+          }
+        }
       });
     }
 
@@ -538,7 +570,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     }
 
     // Sort by timestamp (most recent first)
-    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 15);
+    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20);
   };
 
   // Get relative time string
@@ -655,6 +687,23 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   return (
     <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
+      {/* Back Button */}
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const isTutor = currentUser?.profile?.role === 'tutor';
+            const route = isTutor ? '/tutor/classroom' : '/classroom';
+            router.push(route);
+          }}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Classrooms</span>
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="mb-6 md:mb-8">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
@@ -1174,16 +1223,65 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <div className="space-y-4">
                   {recentActivities.map((activity, index) => {
                     const Icon = activity.icon;
-                    const iconColorClass =
-                      activity.type === 'member' ? 'bg-blue-500/10' :
-                        activity.type === 'session' ? 'bg-red-500/10' :
-                          activity.type === 'assignment' ? 'bg-green-500/10' :
-                            'bg-purple-500/10';
-                    const textColorClass =
-                      activity.type === 'member' ? 'text-blue-500' :
-                        activity.type === 'session' ? 'text-red-500' :
-                          activity.type === 'assignment' ? 'text-green-500' :
-                            'text-purple-500';
+
+                    // Enhanced color coding based on activity type and status
+                    const getActivityColors = () => {
+                      switch (activity.type) {
+                        case 'member':
+                          return {
+                            bg: 'bg-blue-500/10',
+                            text: 'text-blue-500'
+                          };
+                        case 'member_removed':
+                          return {
+                            bg: 'bg-gray-500/10',
+                            text: 'text-gray-500'
+                          };
+                        case 'session':
+                          return {
+                            bg: 'bg-red-500/10',
+                            text: 'text-red-500'
+                          };
+                        case 'assignment':
+                          if (activity.status === 'due-today') {
+                            return {
+                              bg: 'bg-orange-500/10',
+                              text: 'text-orange-500'
+                            };
+                          } else if (activity.status === 'due-soon') {
+                            return {
+                              bg: 'bg-yellow-500/10',
+                              text: 'text-yellow-500'
+                            };
+                          } else if (activity.status === 'submitted') {
+                            return {
+                              bg: 'bg-emerald-500/10',
+                              text: 'text-emerald-500'
+                            };
+                          }
+                          return {
+                            bg: 'bg-green-500/10',
+                            text: 'text-green-500'
+                          };
+                        case 'submission':
+                          return {
+                            bg: 'bg-emerald-500/10',
+                            text: 'text-emerald-500'
+                          };
+                        case 'quiz':
+                          return {
+                            bg: 'bg-purple-500/10',
+                            text: 'text-purple-500'
+                          };
+                        default:
+                          return {
+                            bg: 'bg-gray-500/10',
+                            text: 'text-gray-500'
+                          };
+                      }
+                    };
+
+                    const { bg: iconColorClass, text: textColorClass } = getActivityColors();
 
                     return (
                       <motion.div
@@ -1219,12 +1317,22 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                                 <Badge
                                   variant={
                                     activity.status === 'live' ? 'destructive' :
-                                      activity.status === 'scheduled' ? 'default' :
-                                        'secondary'
+                                      activity.status === 'due-today' ? 'destructive' :
+                                        activity.status === 'due-soon' ? 'default' :
+                                          activity.status === 'scheduled' ? 'default' :
+                                            activity.status === 'submitted' ? 'default' :
+                                              'secondary'
                                   }
-                                  className="text-xs"
+                                  className={`text-xs ${activity.status === 'due-today' ? 'bg-orange-500 hover:bg-orange-600' :
+                                      activity.status === 'due-soon' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' :
+                                        activity.status === 'submitted' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                                          ''
+                                    }`}
                                 >
-                                  {activity.status}
+                                  {activity.status === 'due-today' ? 'Due Today' :
+                                    activity.status === 'due-soon' ? 'Due Soon' :
+                                      activity.status === 'submitted' ? 'Submitted' :
+                                        activity.status}
                                 </Badge>
                               )}
                             </div>

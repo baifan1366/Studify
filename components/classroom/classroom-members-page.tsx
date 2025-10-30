@@ -4,39 +4,39 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
-import { 
-  ArrowLeft, 
-  UserPlus, 
-  Crown, 
-  Shield, 
-  User, 
+import {
+  ArrowLeft,
+  UserPlus,
+  Crown,
+  Shield,
+  User,
   MoreHorizontal,
   Copy,
   Trash2
 } from 'lucide-react';
 import { useClassrooms } from '@/hooks/classroom/use-create-live-session';
-import { 
-  useClassroomMembers, 
-  useUpdateClassroomMember, 
-  useRemoveClassroomMember 
+import {
+  useClassroomMembers,
+  useUpdateClassroomMember,
+  useRemoveClassroomMember
 } from '@/hooks/classroom/use-update-classroom-member';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
@@ -66,7 +66,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
 
   const handleBack = () => {
     const isTutor = currentUser?.profile?.role === 'tutor';
-    const route = isTutor 
+    const route = isTutor
       ? `/tutor/classroom/${classroomSlug}`
       : `/classroom/${classroomSlug}`;
     router.push(route);
@@ -154,7 +154,7 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
       </div>
     );
   }
-  
+
   const isOwner = classroom.user_role === 'owner';
   const members = membersData?.members || [];
   const currentUserRole = membersData?.current_user_role;
@@ -256,8 +256,8 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
                   >
                     <div className="flex items-center space-x-4">
                       {member.avatar_url ? (
-                        <img 
-                          src={member.avatar_url} 
+                        <img
+                          src={member.avatar_url}
                           alt={member.name || 'Unknown User'}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -292,20 +292,6 @@ export function ClassroomMembersPage({ classroomSlug }: ClassroomMembersPageProp
 
                       {isOwner && !member.is_current_user && (
                         <div className="flex items-center gap-2">
-                          <Select
-                            value={member.role}
-                            onValueChange={(value) => handleRoleChange(member.user_id, value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="student">Student</SelectItem>
-                              <SelectItem value="tutor">Tutor</SelectItem>
-                              <SelectItem value="owner">Owner</SelectItem>
-                            </SelectContent>
-                          </Select>
-
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm">

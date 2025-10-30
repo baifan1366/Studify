@@ -88,7 +88,7 @@ export interface GrokConfig {
 const DEFAULT_GROK_CONFIG: GrokConfig = {
   model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
   temperature: 0.3,
-  maxTokens: 15000, // DeepSeek支持最大64K tokens，但实际使用建议4K-8K
+  maxTokens: 8000, // Reduced to fit within 16K context limit (leaving room for input tokens)
   topP: 1.0,
   frequencyPenalty: 0,
   presencePenalty: 0,

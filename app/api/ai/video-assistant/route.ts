@@ -56,22 +56,49 @@ export async function POST(request: NextRequest) {
     console.log(`🎓 Video AI Assistant request from user ${userId}: "${question.substring(0, 50)}..."`);
     console.log(`📍 Context: Course=${videoContext.courseSlug}, Lesson=${videoContext.currentLessonId}, Time=${videoContext.currentTimestamp}s`);
 
-    // Check if this is a YouTube/Vimeo video by fetching lesson info
+    // Check lesson type and determine appropriate model
     let isExternalVideo = false;
+    let lessonKind: string | null = null;
+    let useDocumentModel = false;
+    let attachmentId: number | null = null;
+    
     if (videoContext.currentLessonId) {
       const { createAdminClient } = await import('@/utils/supabase/server');
       const supabase = await createAdminClient();
       
       const { data: lesson } = await supabase
         .from('course_lesson')
-        .select('content_url')
+        .select(`
+          content_url, 
+          kind,
+          course_attachments!inner(id, file_type)
+        `)
         .eq('public_id', videoContext.currentLessonId)
         .single();
       
-      if (lesson?.content_url) {
-        isExternalVideo = lesson.content_url.includes('youtube.com') || 
-                         lesson.content_url.includes('youtu.be') ||
-                         lesson.content_url.includes('vimeo.com');
+      if (lesson) {
+        lessonKind = lesson.kind;
+        
+        // Get attachment ID for video lessons
+        if (lesson.course_attachments && Array.isArray(lesson.course_attachments)) {
+          const videoAttachment = lesson.course_attachments.find((a: any) => a.file_type === 'video');
+          attachmentId = videoAttachment?.id || null;
+        }
+        
+        // Check if it's an external video
+        if (lesson.content_url) {
+          isExternalVideo = lesson.content_url.includes('youtube.com') || 
+                           lesson.content_url.includes('youtu.be') ||
+                           lesson.content_url.includes('vimeo.com');
+        }
+        
+        // Use document model for PDF and image types
+        if (lesson.kind === 'document' || lesson.kind === 'image') {
+          useDocumentModel = true;
+          console.log(`📄 Document/Image lesson detected - using DOCUMENT model`);
+        }
+        
+        console.log(`📎 Lesson info: kind=${lessonKind}, attachmentId=${attachmentId}, isExternal=${isExternalVideo}`);
       }
     }
 
@@ -99,6 +126,17 @@ Please provide a clear, educational answer that:
 3. If specific video content is needed, suggest reviewing the video at the mentioned timestamp
 4. Encourages deeper understanding through related concepts`;
     } else {
+      // 构建包含视频上下文的问题
+      const searchParams = JSON.stringify({
+        query: question,
+        contentTypes: ['video_segment', 'lesson', 'note'],
+        videoContext: {
+          lessonId: videoContext.currentLessonId,
+          attachmentId: attachmentId,
+          currentTime: videoContext.currentTimestamp || 0
+        }
+      });
+      
       contextualizedQuestion = `Video Learning Context:
 - Course: ${videoContext.courseSlug}
 - Lesson: ${videoContext.currentLessonId || 'Not specified'}
@@ -107,7 +145,10 @@ ${videoContext.selectedText ? `- Selected text: "${videoContext.selectedText}"` 
 
 Student Question: ${question}
 
-Please provide a clear, educational answer that:
+Please use the search tool with these parameters to find relevant video content:
+${searchParams}
+
+Then provide a clear, educational answer that:
 1. Connects to the specific video content and timestamp
 2. Uses course materials and lesson context
 3. Provides actionable learning suggestions
@@ -121,11 +162,19 @@ Please provide a clear, educational answer that:
         ? ['video_segment', 'lesson', 'note'] // Prioritize video segments for video lessons
         : ['course_content', 'lesson', 'note']; // General content for non-video
 
+    // Select appropriate model based on lesson type
+    const modelToUse = useDocumentModel 
+      ? process.env.OPEN_ROUTER_DOCUMENT_MODEL || "nvidia/nemotron-nano-12b-v2-vl:free"
+      : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
+
+    console.log(`🤖 Using model: ${modelToUse} (Document model: ${useDocumentModel})`);
+
     const result = await enhancedAIExecutor.educationalQA(contextualizedQuestion, {
       userId,
       includeAnalysis: true,
       conversationContext: conversationHistory,
-      contentTypes // Pass content types to prioritize video segments
+      contentTypes, // Pass content types to prioritize video segments
+      model: modelToUse // Pass the selected model
     });
 
     const totalProcessingTime = Date.now() - startTime;

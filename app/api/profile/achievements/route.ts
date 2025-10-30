@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 
-// GET /api/profile/achievements - 获取用户成就数据
+/**
+ * GET /api/profile/achievements - 获取用户成就数据
+ * 
+ * Returns achievement data with i18n-ready category keys.
+ * Frontend should translate using:
+ * - Category names: t(`Achievements.category_names.${category.nameKey}`)
+ * - Category icons: t(`Achievements.category_icons.${category.iconKey}`)
+ * 
+ * Available in messages/en.json and messages/zh.json under "Achievements" section.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authResult = await authorize('student');
@@ -157,12 +166,12 @@ function getCategoryFromCode(code: string): string {
 // 辅助函数：按分类分组成就
 function groupAchievementsByCategory(achievements: any[]) {
   const categories = {
-    learning: { name: '学习里程碑', achievements: [], icon: '📚' },
-    consistency: { name: '坚持不懈', achievements: [], icon: '🔥' },
-    social: { name: '社交达人', achievements: [], icon: '👥' },
-    mastery: { name: '技能掌握', achievements: [], icon: '🎯' },
-    rewards: { name: '积分专家', achievements: [], icon: '💎' },
-    general: { name: '综合成就', achievements: [], icon: '⭐' }
+    learning: { nameKey: 'learning', achievements: [], iconKey: 'learning' },
+    consistency: { nameKey: 'consistency', achievements: [], iconKey: 'consistency' },
+    social: { nameKey: 'social', achievements: [], iconKey: 'social' },
+    mastery: { nameKey: 'mastery', achievements: [], iconKey: 'mastery' },
+    rewards: { nameKey: 'rewards', achievements: [], iconKey: 'rewards' },
+    general: { nameKey: 'general', achievements: [], iconKey: 'general' }
   };
 
   achievements.forEach(achievement => {

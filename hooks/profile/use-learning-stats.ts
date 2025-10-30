@@ -89,9 +89,9 @@ export interface AchievementsData {
   categories: Record<
     string,
     {
-      name: string;
+      nameKey: string; // i18n key for category name
       achievements: Achievement[];
-      icon: string;
+      iconKey: string; // i18n key for category icon
     }
   >;
   stats: {

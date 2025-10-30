@@ -22,7 +22,7 @@ import { StorageDialog } from '@/components/tutor/storage/storage-dialog';
 import { useUser } from '@/hooks/profile/use-user';
 import { useStartVideoProcessing } from '@/hooks/video-processing/use-video-processing';
 
-const lessonKinds: Lesson['kind'][] = ['video', 'document', 'assignment'];
+const lessonKinds: Lesson['kind'][] = ['video', 'document', 'image'];
 
 interface CreateCourseLessonProps {
   courseId?: number;

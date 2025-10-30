@@ -2291,6 +2291,29 @@
       "performance": "表现",
       "habits": "习惯"
     },
+    "category_names": {
+      "learning": "学习里程碑",
+      "consistency": "坚持不懈",
+      "social": "社交达人",
+      "mastery": "技能掌握",
+      "rewards": "积分专家",
+      "general": "综合成就"
+    },
+    "category_icons": {
+      "learning": "📚",
+      "consistency": "🔥",
+      "social": "👥",
+      "mastery": "🎯",
+      "rewards": "💎",
+      "general": "⭐"
+    },
+    "stats": {
+      "total": "总计",
+      "unlocked": "已解锁",
+      "in_progress": "进行中",
+      "total_points_earned": "总获得积分",
+      "recent_unlocks": "最近解锁"
+    },
     "achievement_unlocked": "成就解锁！",
     "points_earned": "你获得了 {积分} 积分.",
     "no_achievements": "此类别中未找到成就。",

@@ -157,69 +157,72 @@ export async function POST(request: NextRequest) {
     }
 
     // For regular videos with embeddings/transcripts
-    // 2. 从embedding系统检索相关视频片段
-    let relevantSegments = [];
-    const startTime = Math.max(0, currentTime - timeWindow);
-    const endTime = currentTime + timeWindow;
-
-    // 首先尝试从video segments表获取转写片段
-    const { data: segments } = await supabase
-      .from('video_segments')
-      .select('*')
-      .eq('lesson_id', lesson.id)
-      .gte('start_time', startTime)
-      .lte('end_time', endTime)
-      .order('start_time');
-
-    if (segments && segments.length > 0) {
-      relevantSegments = segments;
-    } else if (lesson.transcript) {
-      // 如果没有segments，使用完整转写
-      relevantSegments = [{
-        text: lesson.transcript,
-        start_time: 0,
-        end_time: currentTime + 60
-      }];
-    }
-
-    if (relevantSegments.length === 0) {
-      return NextResponse.json({
-        success: true,
-        answer: "抱歉，当前时间点没有可用的视频内容来回答您的问题。请尝试调整播放位置或重新提问。",
-        segments: [],
-        timeContext: { currentTime, startTime, endTime }
-      });
-    }
-
-    // 3. 构建上下文信息
-    const contextText = relevantSegments
-      .map(seg => `[${Math.floor(seg.start_time)}s-${Math.floor(seg.end_time)}s] ${seg.text}`)
-      .join('\n');
-
+    // 2. 获取 attachment ID 用于视频搜索
+    const { data: lessonWithAttachment } = await supabase
+      .from('course_lesson')
+      .select(`
+        id,
+        course_attachments!inner(id, file_type)
+      `)
+      .eq('id', lesson.id)
+      .eq('course_attachments.file_type', 'video')
+      .single();
+    
+    const attachmentId = lessonWithAttachment?.course_attachments?.[0]?.id;
+    
+    console.log(`🎓 Video QA with embeddings and tool calling: "${question.substring(0, 50)}..."`);
+    console.log(`📎 Attachment ID: ${attachmentId}, Current time: ${currentTime}s`);
+    
     const courseContext = `课程：${courseTitle}
 章节：${moduleTitle}  
-课时：${lessonTitle}`;
+课时：${lessonTitle}
+当前播放时间：${currentTime}秒`;
 
-    // 4. 使用AI生成答案 (升级版：Tool Calling)
-    console.log(`🎓 Video QA with tool calling: "${question.substring(0, 50)}..."`);
-    
+    // 构建增强的问题，包含 JSON 格式的搜索参数
     const enhancedQuestion = `${courseContext}
 
-Current video time: ${currentTime}s
-Video content:
-${contextText}
+学生在观看视频时提出了以下问题：
+${question}
 
-Question: ${question}`;
+请使用 search tool 查找相关内容。搜索时使用以下参数：
+{
+  "query": "${question.replace(/"/g, '\\"')}",
+  "contentTypes": ["video_segment", "lesson", "note"],
+  "videoContext": {
+    "lessonId": "${lessonId}",
+    "attachmentId": ${attachmentId || 'null'},
+    "currentTime": ${currentTime}
+  }
+}
 
+请基于搜索结果（特别是视频片段）提供详细的回答。如果找到相关的视频片段，请引用它们的时间点。`;
+
+    // 使用 Tool Calling 系统，它会自动：
+    // 1. 使用 search tool 进行语义搜索（包括 video_segment 类型）
+    // 2. 使用 answer_question tool 生成答案
     const result = await enhancedAIExecutor.educationalQA(enhancedQuestion, {
       userId,
-      includeAnalysis: true
+      includeAnalysis: true,
+      contentTypes: ['video_segment', 'lesson', 'note'] // 优先搜索视频片段
     });
 
     const answer = result.answer;
     const toolsUsed = result.toolsUsed || [];
+    const sources = result.sources || [];
     
     console.log(`✅ Video QA completed using tools: ${toolsUsed.join(', ')}`);
+    console.log(`📊 Found ${sources.length} sources from embeddings`);
+
+    // 从 sources 中提取视频片段信息
+    const videoSegments = sources
+      .filter((source: any) => source.type === 'video_segment')
+      .map((source: any) => ({
+        startTime: source.startTime || source.timestamp || 0,
+        endTime: source.endTime || (source.startTime || source.timestamp || 0) + 30,
+        text: source.content || source.contentPreview || '',
+        relevantText: (source.content || source.contentPreview || '').substring(0, 300) + 
+                     ((source.content || source.contentPreview || '').length > 300 ? '...' : '')
+      }));
 
     // 5. 保存问答记录（可选）
     await supabase
@@ -230,9 +233,9 @@ Question: ${question}`;
         question,
         answer,
         video_time: currentTime,
-        context_segments: relevantSegments.map(s => ({
-          start_time: s.start_time,
-          end_time: s.end_time,
+        context_segments: videoSegments.map(s => ({
+          start_time: s.startTime,
+          end_time: s.endTime,
           text: s.text.substring(0, 200)
         }))
       });
@@ -240,22 +243,22 @@ Question: ${question}`;
     return NextResponse.json({
       success: true,
       answer: answer.trim(),
-      segments: relevantSegments.map(seg => ({
-        startTime: seg.start_time,
-        endTime: seg.end_time,
-        text: seg.text,
-        relevantText: seg.text.substring(0, 300) + (seg.text.length > 300 ? '...' : '')
-      })),
+      segments: videoSegments,
       timeContext: {
         currentTime,
-        startTime,
-        endTime,
+        startTime: Math.max(0, currentTime - timeWindow),
+        endTime: currentTime + timeWindow,
         windowSize: timeWindow
       },
       courseInfo: {
         courseName: courseTitle,
         moduleName: moduleTitle,
         lessonName: lessonTitle
+      },
+      metadata: {
+        toolsUsed,
+        sourcesCount: sources.length,
+        videoSegmentsCount: videoSegments.length
       }
     }, {
       headers: {

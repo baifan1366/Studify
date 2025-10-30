@@ -593,6 +593,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       includeAnalysis?: boolean;
       conversationContext?: Array<{ role: string; content: string }>;
       conversationId?: string;
+      model?: string; // Add model parameter
     } = {}
   ): Promise<{
     answer: string;
@@ -605,6 +606,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       toolCategories: ["SEARCH_AND_QA", "CONTENT_ANALYSIS", "RECOMMENDATIONS"],
       userId: options.userId,
       verbose: true, // Enable verbose logging to debug
+      model: options.model, // Pass custom model if provided
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For this educational Q&A session:

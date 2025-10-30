@@ -5222,3 +5222,113 @@ COMMENT ON FUNCTION auto_update_live_session_status() IS
 
 COMMENT ON FUNCTION check_live_session_status() IS 
 'Trigger function that ensures live session status is accurate on every insert/update based on current time with millisecond precision.';
+
+
+-- ============================================================================
+-- MIGRATION: Fix universal search function and add video search
+-- ============================================================================
+
+-- Fix the classroom_assignment search to remove non-existent columns
+DROP FUNCTION IF EXISTS public.universal_search_enhanced(text, text[], integer, real);
+
+CREATE OR REPLACE FUNCTION public.universal_search_enhanced(search_query text, search_tables text[] DEFAULT ARRAY['profiles'::text, 'course'::text, 'course_lesson'::text, 'community_post'::text, 'community_comment'::text, 'classroom'::text, 'community_group'::text, 'ai_agent'::text, 'course_notes'::text, 'tutoring_tutors'::text, 'course_reviews'::text, 'announcements'::text, 'course_quiz_question'::text, 'ai_workflow_templates'::text, 'learning_goal'::text, 'classroom_assignment'::text, 'classroom_posts'::text, 'course_chapter'::text, 'mistake_book'::text, 'tutoring_note'::text, 'community_quiz'::text, 'community_quiz_question'::text], max_results integer DEFAULT 50, min_rank real DEFAULT 0.1)
+ RETURNS TABLE(table_name text, record_id bigint, title text, snippet text, rank real, content_type text, created_at timestamp with time zone, additional_data jsonb)
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  table_name text;
+BEGIN
+  -- Search across specified tables
+  FOREACH table_name IN ARRAY search_tables
+  LOOP
+    -- Classroom assignment search (FIXED - removed non-existent columns)
+    IF table_name = 'classroom_assignment' THEN
+      RETURN QUERY
+      SELECT 
+        'classroom_assignment'::text as table_name,
+        ca.id as record_id,
+        ca.title as title,
+        LEFT(COALESCE(ca.description, ca.title), 200) as snippet,
+        ts_rank(ca.search_vector, plainto_tsquery('english', search_query)) as rank,
+        'assignment'::text as content_type,
+        ca.created_at,
+        jsonb_build_object(
+          'classroom_id', ca.classroom_id,
+          'due_date', ca.due_date,
+          'slug', ca.slug
+        ) as additional_data
+      FROM classroom_assignment ca
+      WHERE ca.search_vector @@ plainto_tsquery('english', search_query)
+        AND ca.is_deleted = false
+        AND ts_rank(ca.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(ca.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+  END LOOP;
+END;
+$function$;
+
+COMMENT ON FUNCTION public.universal_search_enhanced IS 'Enhanced universal search function that searches across multiple content types with proper schema validation';
+
+-- ============================================================================
+-- Video embedding search function
+-- ============================================================================
+
+-- 删除所有可能存在的同名函数
+DROP FUNCTION IF EXISTS search_video_embeddings_e5;
+
+-- 创建视频 embedding 搜索函数（使用 E5 模型）
+CREATE FUNCTION search_video_embeddings_e5(
+  query_embedding vector(384),
+  p_attachment_id integer,
+  time_start numeric DEFAULT NULL,
+  time_end numeric DEFAULT NULL,
+  match_threshold numeric DEFAULT 0.7,
+  match_count integer DEFAULT 10
+)
+RETURNS TABLE (
+  id integer,
+  content_text text,
+  segment_start_time numeric,
+  segment_end_time numeric,
+  section_title text,
+  similarity numeric,
+  attachment_id integer
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    ve.id,
+    ve.content_text,
+    ve.segment_start_time,
+    ve.segment_end_time,
+    ve.section_title,
+    1 - (ve.embedding_e5_small <=> query_embedding) as similarity,
+    ve.attachment_id
+  FROM video_embeddings ve
+  WHERE 
+    ve.status = 'completed'
+    AND ve.has_e5_embedding = true
+    AND ve.attachment_id = p_attachment_id
+    AND (time_start IS NULL OR ve.segment_start_time >= time_start)
+    AND (time_end IS NULL OR ve.segment_end_time <= time_end)
+    AND (1 - (ve.embedding_e5_small <=> query_embedding)) >= match_threshold
+  ORDER BY similarity DESC
+  LIMIT match_count;
+END;
+$$;
+
+-- 添加索引以提高性能
+CREATE INDEX IF NOT EXISTS idx_video_embeddings_attachment_time 
+ON video_embeddings(attachment_id, segment_start_time, segment_end_time)
+WHERE status = 'completed' AND has_e5_embedding = true;
+
+-- 添加 embedding 向量索引以加速相似度搜索
+CREATE INDEX IF NOT EXISTS idx_video_embeddings_e5_vector
+ON video_embeddings USING ivfflat (embedding_e5_small vector_cosine_ops)
+WHERE status = 'completed' AND has_e5_embedding = true;
+
+COMMENT ON FUNCTION search_video_embeddings_e5 IS 'Search video embeddings using E5 model with optional time range filtering';

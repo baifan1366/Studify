@@ -2291,6 +2291,29 @@
       "performance": "Performance",
       "habits": "Habits"
     },
+    "category_names": {
+      "learning": "Learning Milestones",
+      "consistency": "Persistence",
+      "social": "Social Expert",
+      "mastery": "Skill Mastery",
+      "rewards": "Points Expert",
+      "general": "General Achievements"
+    },
+    "category_icons": {
+      "learning": "📚",
+      "consistency": "🔥",
+      "social": "👥",
+      "mastery": "🎯",
+      "rewards": "💎",
+      "general": "⭐"
+    },
+    "stats": {
+      "total": "Total",
+      "unlocked": "Unlocked",
+      "in_progress": "In Progress",
+      "total_points_earned": "Total Points Earned",
+      "recent_unlocks": "Recent Unlocks"
+    },
     "achievement_unlocked": "Achievement Unlocked!",
     "points_earned": "You earned {points} points.",
     "no_achievements": "No achievements found in this category.",

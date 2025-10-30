@@ -1,15 +1,21 @@
 // Q&A Tool - 问答工具
-import { DynamicTool } from "@langchain/core/tools";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from 'zod';
 import { answerQuestion } from '../langchain-integration';
 
-export const qaTool = new DynamicTool({
+const QASchema = z.object({
+  question: z.string().describe("The question to answer"),
+  contentTypes: z.array(z.string()).optional().describe("Types of content to search for context"),
+  includeSourceReferences: z.boolean().optional().default(true).describe("Whether to include source references in the answer")
+});
+
+export const qaTool = new DynamicStructuredTool({
   name: "answer_question",
-  description: `Answer questions using the knowledge base with context retrieval. Use this to provide detailed, accurate answers based on available educational content.
-  Input should be a JSON string: {"question": "your question", "contentTypes"?: ["course", "lesson"], "includeSourceReferences"?: true}`,
-  func: async (input: string) => {
+  description: `Answer questions using the knowledge base with context retrieval. Use this to provide detailed, accurate answers based on available educational content.`,
+  schema: QASchema,
+  func: async (input) => {
     try {
-      const params = JSON.parse(input);
-      const { question, contentTypes, includeSourceReferences = true } = params;
+      const { question, contentTypes, includeSourceReferences = true } = input;
 
       if (!question) {
         return 'Error: question is required';
@@ -42,9 +48,6 @@ export const qaTool = new DynamicTool({
       
       return response;
     } catch (error) {
-      if (error instanceof SyntaxError) {
-        return 'Error: Invalid JSON input. Please provide valid JSON with question parameter.';
-      }
       return `Question answering failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }

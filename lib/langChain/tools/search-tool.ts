@@ -1,5 +1,6 @@
 // Search Tool - 语义搜索工具（支持视频 embeddings）
-import { DynamicTool } from "@langchain/core/tools";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from 'zod';
 import { smartSearch } from '../langchain-integration';
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from '../embedding';
@@ -84,29 +85,26 @@ async function searchVideoEmbeddings(
   }
 }
 
-export const searchTool = new DynamicTool({
+// Define schema for structured input
+const SearchSchema = z.object({
+  query: z.string().describe("The search query"),
+  contentTypes: z.array(z.string()).optional().describe("Types of content to search: video_segment, lesson, note, etc."),
+  videoContext: z.object({
+    lessonId: z.string().optional(),
+    attachmentId: z.number().optional(),
+    currentTime: z.number().optional()
+  }).optional().describe("Video context for searching specific video segments")
+});
+
+export const searchTool = new DynamicStructuredTool({
   name: "search",
   description: `Search for relevant content in the knowledge base, including video transcripts. 
-  Input should be a JSON string with: 
-  {
-    "query": "search query",
-    "contentTypes": ["video_segment", "lesson", "note"],
-    "videoContext": {"lessonId": "xxx", "attachmentId": 123, "currentTime": 150}
-  }
-  Or just a simple search query string.`,
-  func: async (input: string) => {
+  Provide a query and optionally specify content types and video context for more targeted results.`,
+  schema: SearchSchema,
+  func: async (input) => {
     try {
-      // 解析输入
-      let searchParams: any;
-      try {
-        searchParams = JSON.parse(input);
-      } catch {
-        // 如果不是 JSON，当作简单查询
-        searchParams = { query: input };
-      }
-      
-      const { query, contentTypes = [], videoContext } = searchParams;
-      const searchQuery = query || input;
+      const { query, contentTypes = [], videoContext } = input;
+      const searchQuery = query;
       
       // 检查是否需要搜索视频内容
       const needsVideoSearch = contentTypes.includes('video_segment');

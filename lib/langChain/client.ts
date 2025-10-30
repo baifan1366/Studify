@@ -10,13 +10,13 @@ class SimpleCache {
   get(key: string): any | null {
     const item = this.cache.get(key);
     if (!item) return null;
-    
+
     // Check if expired
     if (Date.now() - item.timestamp > this.ttl) {
       this.cache.delete(key);
       return null;
     }
-    
+
     console.log(`💾 Cache HIT: ${key.substring(0, 50)}...`);
     return item.response;
   }
@@ -24,14 +24,14 @@ class SimpleCache {
   set(key: string, response: any): void {
     this.cache.set(key, {
       response,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
     console.log(`💾 Cache SET: ${key.substring(0, 50)}...`);
   }
 
   clear(): void {
     this.cache.clear();
-    console.log('🧹 Cache cleared');
+    console.log("🧹 Cache cleared");
   }
 
   size(): number {
@@ -45,7 +45,7 @@ let globalCache: SimpleCache | null = null;
 function getCache(): SimpleCache {
   if (!globalCache) {
     globalCache = new SimpleCache();
-    console.log('💾 LLM Cache initialized');
+    console.log("💾 LLM Cache initialized");
   }
   return globalCache;
 }
@@ -64,7 +64,7 @@ export function getCacheStats() {
   const cache = getCache();
   return {
     size: cache.size(),
-    enabled: true
+    enabled: true,
   };
 }
 
@@ -79,7 +79,7 @@ export interface GrokConfig {
   enableReasoning?: boolean;
   streaming?: boolean;
   timeout?: number;
-  keySelectionStrategy?: 'round_robin' | 'least_used' | 'best_performance';
+  keySelectionStrategy?: "round_robin" | "least_used" | "best_performance";
   maxRetries?: number;
   enableCache?: boolean; // 是否启用缓存
 }
@@ -95,23 +95,23 @@ const DEFAULT_GROK_CONFIG: GrokConfig = {
   enableReasoning: false, // 默认关闭推理模式以节省成本
   streaming: true, // 启用流式响应提升用户体验
   timeout: 60000, // 60秒超时
-  keySelectionStrategy: 'round_robin', // 默认轮询策略
+  keySelectionStrategy: "round_robin", // 默认轮询策略
   maxRetries: 3, // 默认重试3次
   enableCache: true, // 默认启用缓存
 };
 
 // 获取站点信息用于OpenRouter排名
 const getSiteInfo = () => {
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const defaultUrl = isDevelopment 
-    ? "http://localhost:3000" 
-    : "https://studify-platform.vercel.app";
-    
-  // 在开发环境中，优先使用 localhost
-  const siteUrl = isDevelopment 
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const defaultUrl = isDevelopment
     ? "http://localhost:3000"
-    : (process.env.NEXT_PUBLIC_SITE_URL || defaultUrl);
-    
+    : "https://studify-platform.vercel.app";
+
+  // 在开发环境中，优先使用 localhost
+  const siteUrl = isDevelopment
+    ? "http://localhost:3000"
+    : process.env.NEXT_PUBLIC_SITE_URL || defaultUrl;
+
   return {
     siteUrl,
     siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Studify",
@@ -127,7 +127,6 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
   // Set dummy OPENAI_API_KEY to prevent LangChain internal checks
   // This is safe because we override the baseURL to OpenRouter
 
-
   const finalConfig = { ...DEFAULT_GROK_CONFIG, ...config };
   const { siteUrl, siteName } = getSiteInfo();
 
@@ -136,7 +135,12 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
     finalConfig.keySelectionStrategy
   );
 
-  console.log(`🔑 Using OpenRouter key: ${keyName} (${apiKey.substring(0, 12)}...${apiKey.substring(apiKey.length - 4)})`);
+  console.log(
+    `🔑 Using OpenRouter key: ${keyName} (${apiKey.substring(
+      0,
+      12
+    )}...${apiKey.substring(apiKey.length - 4)})`
+  );
 
   // 构造模型参数
   const modelParams: any = {
@@ -162,19 +166,21 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
     configuration: {
       baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: {
-        "Authorization": `Bearer ${apiKey}`, // OpenRouter 需要这个头
+        Authorization: `Bearer ${apiKey}`, // OpenRouter 需要这个头
         "HTTP-Referer": siteUrl, // 用于OpenRouter排名统计
         "X-Title": siteName, // 用于OpenRouter排名显示
       },
     },
-    callbacks: [{
-      handleLLMEnd: async () => {
-        await apiKeyManager.recordUsage(keyName, true);
+    callbacks: [
+      {
+        handleLLMEnd: async () => {
+          await apiKeyManager.recordUsage(keyName, true);
+        },
+        handleLLMError: async (error) => {
+          await apiKeyManager.recordUsage(keyName, false, error);
+        },
       },
-      handleLLMError: async (error) => {
-        await apiKeyManager.recordUsage(keyName, false, error);
-      }
-    }]
+    ],
   });
 
   // 添加key信息到实例
@@ -190,7 +196,10 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
     ...config,
     enableReasoning: true,
     temperature: 0.1, // 推理模式使用更低的温度
-    model: process.env.OPEN_ROUTER_REASONING_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+    model:
+      process.env.OPEN_ROUTER_REASONING_MODEL ||
+      process.env.OPEN_ROUTER_MODEL ||
+      "z-ai/glm-4.5-air:free",
   });
 }
 
@@ -200,7 +209,10 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
 export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: process.env.OPEN_ROUTER_CREATIVE_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+    model:
+      process.env.OPEN_ROUTER_CREATIVE_MODEL ||
+      process.env.OPEN_ROUTER_MODEL ||
+      "z-ai/glm-4.5-air:free",
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -214,7 +226,10 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
 export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: process.env.OPEN_ROUTER_ANALYTICAL_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+    model:
+      process.env.OPEN_ROUTER_ANALYTICAL_MODEL ||
+      process.env.OPEN_ROUTER_MODEL ||
+      "z-ai/glm-4.5-air:free",
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
     enableReasoning: false, // DeepSeek doesn't support reasoning mode
@@ -227,7 +242,10 @@ export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
 export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: process.env.OPEN_ROUTER_LONG_CONTEXT_MODEL || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+    model:
+      process.env.OPEN_ROUTER_LONG_CONTEXT_MODEL ||
+      process.env.OPEN_ROUTER_MODEL ||
+      "z-ai/glm-4.5-air:free",
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
   });
@@ -239,7 +257,9 @@ export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
 export function getVisionLLM(config: Partial<GrokConfig> = {}) {
   return getLLM({
     ...config,
-    model: process.env.OPEN_ROUTER_IMAGE_MODEL || "moonshotai/kimi-vl-a3b-thinking:free", // Use image model for vision tasks
+    model:
+      process.env.OPEN_ROUTER_IMAGE_MODEL ||
+      "moonshotai/kimi-vl-a3b-thinking:free", // Use image model for vision tasks
     temperature: 0.3,
     maxTokens: 4096,
   });

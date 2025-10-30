@@ -146,6 +146,7 @@ export class StudifyToolCallingAgent {
         maxIterations: this.config.maxIterations,
         verbose: this.config.verbose,
         returnIntermediateSteps: true,
+        handleParsingErrors: true, // Handle parsing errors gracefully
       });
 
       console.log(
@@ -679,31 +680,41 @@ Please provide a contextually appropriate response considering our previous conv
         const qaToolInstance = getToolByName("answer_question");
 
         if (qaToolInstance) {
-          const toolInput = JSON.stringify({
+          // Use object input for DynamicStructuredTool
+          const toolInput = {
             question: question, // Use original question, not enhanced
             contentTypes: options.contentTypes,
             includeSourceReferences: true,
+          };
+
+          console.log("🔧 Tool input object:", {
+            hasQuestion: !!toolInput.question,
+            questionLength: toolInput.question?.length || 0,
+            questionPreview: toolInput.question?.substring(0, 100),
+            contentTypes: toolInput.contentTypes,
           });
 
           console.log(
             "🔧 Calling answer_question tool directly with input:",
-            toolInput.substring(0, 200)
+            JSON.stringify(toolInput).substring(0, 200)
           );
-          // Type assertion to fix TypeScript union type issue
-          const toolResult = await (
-            qaToolInstance.func as (input: string) => Promise<string>
-          )(toolInput);
+          // Call with object input for DynamicStructuredTool
+          const toolResult = await (qaToolInstance as any).call(toolInput);
+          const resultStr =
+            typeof toolResult === "string"
+              ? toolResult
+              : JSON.stringify(toolResult);
           console.log(
             "✅ Manual tool call successful, result length:",
-            toolResult.length
+            resultStr.length
           );
-          console.log("✅ Tool result preview:", toolResult.substring(0, 300));
+          console.log("✅ Tool result preview:", resultStr.substring(0, 300));
 
           // Return the tool result instead
           return {
-            answer: toolResult,
+            answer: resultStr,
             sources: [],
-            analysis: options.includeAnalysis ? toolResult : undefined,
+            analysis: options.includeAnalysis ? resultStr : undefined,
             toolsUsed: ["answer_question"],
             confidence: 0.85,
           };

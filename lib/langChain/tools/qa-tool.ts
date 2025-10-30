@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { answerQuestion } from '../langchain-integration';
 
 const QASchema = z.object({
-  question: z.string().describe("The question to answer"),
+  question: z.string().min(1).describe("The question to answer"),
   contentTypes: z.array(z.string()).optional().describe("Types of content to search for context"),
   includeSourceReferences: z.boolean().optional().default(true).describe("Whether to include source references in the answer")
 });
@@ -15,9 +15,18 @@ export const qaTool = new DynamicStructuredTool({
   schema: QASchema,
   func: async (input) => {
     try {
+      console.log("🔧 QA Tool received input:", {
+        hasInput: !!input,
+        inputType: typeof input,
+        inputKeys: input ? Object.keys(input) : [],
+        questionExists: 'question' in (input || {}),
+        questionValue: (input as any)?.question?.substring(0, 100),
+      });
+      
       const { question, contentTypes, includeSourceReferences = true } = input;
 
       if (!question) {
+        console.error("❌ QA Tool: question is missing or empty!", { question, input });
         return 'Error: question is required';
       }
 

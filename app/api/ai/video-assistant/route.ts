@@ -76,30 +76,54 @@ export async function POST(request: NextRequest) {
       const { createAdminClient } = await import("@/utils/supabase/server");
       const supabase = await createAdminClient();
 
-      const { data: lesson } = await supabase
+      // First get the lesson with its attachments array
+      const { data: lesson, error: lessonError } = await supabase
         .from("course_lesson")
-        .select(
-          `
-          content_url, 
-          kind,
-          course_attachments!inner(id, file_type)
-        `
-        )
+        .select("content_url, kind, attachments")
         .eq("public_id", videoContext.currentLessonId)
         .single();
 
-      if (lesson) {
+      if (lessonError) {
+        console.error("❌ Error fetching lesson:", lessonError);
+      } else if (lesson) {
         lessonKind = lesson.kind;
 
+        console.log(`📝 Lesson found, attachments:`, lesson.attachments);
+
         // Get attachment ID for video lessons
+        // attachments is a JSONB array, need to parse it properly
         if (
-          lesson.course_attachments &&
-          Array.isArray(lesson.course_attachments)
+          lesson.attachments &&
+          Array.isArray(lesson.attachments) &&
+          lesson.attachments.length > 0
         ) {
-          const videoAttachment = lesson.course_attachments.find(
-            (a: any) => a.file_type === "video"
-          );
-          attachmentId = videoAttachment?.id || null;
+          // Extract attachment IDs from JSONB array
+          const attachmentIds = lesson.attachments
+            .map((id: any) => (typeof id === "number" ? id : parseInt(id)))
+            .filter((id: any) => !isNaN(id));
+
+          console.log(`📎 Parsed attachment IDs:`, attachmentIds);
+
+          if (attachmentIds.length > 0) {
+            // Query to find video attachment
+            const { data: attachments } = await supabase
+              .from("course_attachments")
+              .select("id, type")
+              .in("id", attachmentIds)
+              .eq("type", "video")
+              .limit(1);
+
+            if (attachments && attachments.length > 0) {
+              attachmentId = attachments[0].id;
+              console.log(`✅ Found video attachment: ${attachmentId}`);
+            } else {
+              console.log(`⚠️ No video attachment found in attachments array`);
+            }
+          } else {
+            console.log(`⚠️ No valid attachment IDs found`);
+          }
+        } else {
+          console.log(`⚠️ Lesson has no attachments array or it's empty`);
         }
 
         // Check if it's an external video
@@ -161,7 +185,7 @@ export async function POST(request: NextRequest) {
       videoContext: videoContext.currentLessonId
         ? {
             lessonId: videoContext.currentLessonId,
-            attachmentId: attachmentId,
+            ...(attachmentId !== null && { attachmentId }), // Only include if not null
             currentTime: videoContext.currentTimestamp || 0,
           }
         : undefined,

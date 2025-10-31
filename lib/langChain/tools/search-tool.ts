@@ -113,7 +113,7 @@ const SearchSchema = z.object({
   contentTypes: z.array(z.string()).optional().describe("Types of content to search: video_segment, lesson, note, etc."),
   videoContext: z.object({
     lessonId: z.string().optional(),
-    attachmentId: z.number().optional(),
+    attachmentId: z.number().nullable().optional(),
     currentTime: z.number().optional()
   }).optional().describe("Video context for searching specific video segments")
 });
@@ -139,7 +139,7 @@ export const searchTool = new DynamicStructuredTool({
         
         const videoResults = await searchVideoEmbeddings(searchQuery, {
           lessonId: videoContext.lessonId,
-          attachmentId: videoContext.attachmentId,
+          attachmentId: videoContext.attachmentId ?? undefined,
           currentTime: videoContext.currentTime,
           maxResults: 5
         });

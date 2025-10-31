@@ -613,7 +613,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
 
     try {
       const videoContext = options.videoContext;
-      
+
       if (videoContext) {
         console.log("📹 Video context:", videoContext);
       }

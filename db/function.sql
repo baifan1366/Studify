@@ -1242,6 +1242,125 @@ END;
 $function$;
 
 
+-- Two-stage search: E5 for broad recall, BGE-M3 for precise reranking
+CREATE OR REPLACE FUNCTION public.search_video_segments_two_stage(
+  query_embedding_e5 vector(384),
+  query_embedding_bge vector(1024),
+  attachment_ids bigint[] DEFAULT NULL::bigint[],
+  start_time_min double precision DEFAULT NULL::double precision,
+  start_time_max double precision DEFAULT NULL::double precision,
+  e5_threshold double precision DEFAULT 0.6,
+  e5_recall_count integer DEFAULT 30,
+  final_count integer DEFAULT 10,
+  include_context boolean DEFAULT false
+)
+ RETURNS TABLE(
+   segment_id bigint,
+   attachment_id bigint,
+   segment_index integer,
+   start_time double precision,
+   end_time double precision,
+   duration double precision,
+   content_text text,
+   topic_keywords text[],
+   similarity_e5 double precision,
+   similarity_bge double precision,
+   rerank_score double precision,
+   context_before text,
+   context_after text
+ )
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH 
+  -- Stage 1: E5 broad recall (no time window restriction for better coverage)
+  e5_candidates AS (
+    SELECT 
+      ve.id,
+      ve.attachment_id,
+      ve.segment_index,
+      ve.segment_start_time,
+      ve.segment_end_time,
+      ve.segment_duration,
+      ve.content_text,
+      ve.topic_keywords,
+      1 - (ve.embedding_e5_small <=> query_embedding_e5) as sim_e5
+    FROM video_embeddings ve
+    WHERE 
+      ve.chunk_type = 'segment'
+      AND ve.status = 'completed'
+      AND ve.is_deleted = false
+      AND ve.has_e5_embedding = true
+      AND (attachment_ids IS NULL OR ve.attachment_id = ANY(attachment_ids))
+      AND (start_time_min IS NULL OR ve.segment_start_time >= start_time_min)
+      AND (start_time_max IS NULL OR ve.segment_start_time <= start_time_max)
+      AND (1 - (ve.embedding_e5_small <=> query_embedding_e5)) >= e5_threshold
+    ORDER BY ve.embedding_e5_small <=> query_embedding_e5
+    LIMIT e5_recall_count
+  ),
+  -- Stage 2: BGE-M3 precise reranking on top candidates
+  bge_reranked AS (
+    SELECT 
+      ec.*,
+      CASE 
+        WHEN ve.has_bge_embedding 
+        THEN 1 - (ve.embedding_bge_m3 <=> query_embedding_bge)
+        ELSE ec.sim_e5 * 0.8  -- Fallback if BGE not available
+      END as sim_bge,
+      CASE 
+        WHEN ve.has_bge_embedding 
+        THEN (1 - (ve.embedding_bge_m3 <=> query_embedding_bge)) * 0.8 + ec.sim_e5 * 0.2
+        ELSE ec.sim_e5
+      END as rerank_score
+    FROM e5_candidates ec
+    JOIN video_embeddings ve ON ve.id = ec.id
+  )
+  SELECT 
+    br.id,
+    br.attachment_id,
+    br.segment_index,
+    br.segment_start_time,
+    br.segment_end_time,
+    br.segment_duration,
+    br.content_text,
+    br.topic_keywords,
+    br.sim_e5,
+    br.sim_bge,
+    br.rerank_score,
+    CASE 
+      WHEN include_context THEN (
+        SELECT ve_prev.content_text 
+        FROM video_embeddings ve_prev 
+        WHERE ve_prev.attachment_id = br.attachment_id 
+          AND ve_prev.segment_index = br.segment_index - 1 
+          AND ve_prev.chunk_type = 'segment'
+          AND ve_prev.status = 'completed'
+          AND ve_prev.is_deleted = false
+        LIMIT 1
+      )
+      ELSE NULL 
+    END,
+    CASE 
+      WHEN include_context THEN (
+        SELECT ve_next.content_text 
+        FROM video_embeddings ve_next 
+        WHERE ve_next.attachment_id = br.attachment_id 
+          AND ve_next.segment_index = br.segment_index + 1 
+          AND ve_next.chunk_type = 'segment'
+          AND ve_next.status = 'completed'
+          AND ve_next.is_deleted = false
+        LIMIT 1
+      )
+      ELSE NULL 
+    END
+  FROM bge_reranked br
+  ORDER BY br.rerank_score DESC
+  LIMIT final_count;
+END;
+$function$;
+
+-- Keep the original function for backward compatibility
 CREATE OR REPLACE FUNCTION public.search_video_segments_with_time(query_embedding_e5 vector DEFAULT NULL::vector, query_embedding_bge vector DEFAULT NULL::vector, attachment_ids bigint[] DEFAULT NULL::bigint[], start_time_min double precision DEFAULT NULL::double precision, start_time_max double precision DEFAULT NULL::double precision, match_threshold double precision DEFAULT 0.7, match_count integer DEFAULT 10, include_context boolean DEFAULT false)
  RETURNS TABLE(segment_id bigint, attachment_id bigint, segment_index integer, start_time double precision, end_time double precision, duration double precision, content_text text, topic_keywords text[], similarity_e5 double precision, similarity_bge double precision, combined_similarity double precision, context_before text, context_after text)
  LANGUAGE plpgsql

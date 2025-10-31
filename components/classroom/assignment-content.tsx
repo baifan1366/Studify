@@ -12,7 +12,7 @@ import { useTranslations } from 'next-intl';
 export default function AssignmentContent() {
   const { data, isLoading, error } = useUser();
   const user = data;
-  const [selectedTab, setSelectedTab] = useState('pending');  
+  const [selectedTab, setSelectedTab] = useState('pending');
   const { toast } = useToast();
 
   const t = useTranslations('AssignmentContent');
@@ -78,7 +78,7 @@ export default function AssignmentContent() {
     }
   ];
 
-  
+
 
   // Show error toast if user data fetch fails
   React.useEffect(() => {
@@ -216,11 +216,10 @@ export default function AssignmentContent() {
           <button
             key={tab}
             onClick={() => setSelectedTab(tab)}
-            className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              selectedTab === tab
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${selectedTab === tab
                 ? 'bg-white/20 text-white border border-white/30'
                 : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
+              }`}
           >
             {t(`tabs.${tab}` as any)}
           </button>
@@ -317,7 +316,7 @@ export default function AssignmentContent() {
               <div className="flex gap-2">
                 {assignment.status === 'pending' || assignment.status === 'overdue' ? (
                   <>
-                    <button 
+                    <button
                       onClick={() => handleSubmitAssignment(assignment.id.toString())}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                     >

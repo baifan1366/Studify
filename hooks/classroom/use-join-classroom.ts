@@ -7,6 +7,7 @@ import { apiSend } from '@/lib/api-config';
 
 interface JoinClassroomData {
   class_code: string;
+  password?: string;
 }
 
 interface JoinClassroomResponse {

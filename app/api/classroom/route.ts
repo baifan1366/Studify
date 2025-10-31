@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { hashPassword } from '@/utils/classroom/password';
+import { generateRandomClassroomColor } from '@/utils/classroom/color-generator';
 
 /**
  * 创建课堂
@@ -75,6 +76,9 @@ export async function POST(request: NextRequest) {
       hashedPassword = hashPassword(password);
     }
 
+    // Generate a random color for the classroom
+    const classroomColor = generateRandomClassroomColor();
+
     // 创建课堂
     // IMPORTANT: owner_id FK references auth.users.id (UUID), not profiles.id (bigint)
     const insertData = {
@@ -85,6 +89,7 @@ export async function POST(request: NextRequest) {
       slug,
       owner_id: user.id, // Use user.id (UUID) - FK references auth.users.id
       password: hashedPassword, // Store hashed password
+      color: classroomColor, // Assign random color
     };
 
     console.log('🔍 Inserting classroom with data:', {

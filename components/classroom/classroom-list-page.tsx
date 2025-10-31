@@ -23,6 +23,7 @@ export function ClassroomListPage() {
   const t = useTranslations('ClassroomList');
   const { data: currentUser } = useUser();
   const [joinCode, setJoinCode] = useState('');
+  const [password, setPassword] = useState('');
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
 
   const { data: classroomsData, isLoading, error } = useClassrooms();
@@ -39,25 +40,29 @@ export function ClassroomListPage() {
   const handleJoinClassroom = async () => {
     if (!joinCode.trim()) {
       toast({
-        title: "Error",
-        description: "Please enter a class code",
+        title: t('error'),
+        description: t('enter_class_code_error'),
         variant: "destructive",
       });
       return;
     }
 
     try {
-      await joinClassroomMutation.mutateAsync({ class_code: joinCode.trim() });
+      await joinClassroomMutation.mutateAsync({ 
+        class_code: joinCode.trim(),
+        password: password.trim() || undefined
+      });
       toast({
-        title: "Success",
-        description: "Successfully joined classroom!",
+        title: t('success'),
+        description: t('joined_successfully'),
       });
       setIsJoinDialogOpen(false);
       setJoinCode('');
+      setPassword('');
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to join classroom",
+        title: t('error'),
+        description: error.message || t('failed_to_join'),
         variant: "destructive",
       });
     }
@@ -85,7 +90,7 @@ export function ClassroomListPage() {
     return (
       <div className="container mx-auto py-4 md:py-8 px-4 md:px-6">
         <div className="text-center text-red-600">
-          <p>Failed to load classrooms. Please try again later.</p>
+          <p>{t('loading_error')}</p>
         </div>
       </div>
     );
@@ -106,7 +111,13 @@ export function ClassroomListPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 md:gap-4 w-full md:w-auto">
-          <Dialog open={isJoinDialogOpen} onOpenChange={setIsJoinDialogOpen}>
+          <Dialog open={isJoinDialogOpen} onOpenChange={(open) => {
+            setIsJoinDialogOpen(open);
+            if (!open) {
+              setJoinCode('');
+              setPassword('');
+            }
+          }}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
                 <Users className="mr-2 h-4 w-4" />
@@ -122,13 +133,25 @@ export function ClassroomListPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="classCode">{t('class_code')}</Label>
+                  <Label htmlFor="classCode" className="pb-2">{t('class_code')}</Label>
                   <Input
                     id="classCode"
                     placeholder={t('enter_code_placeholder')}
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     maxLength={8}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password" className="pb-2">
+                    {t('password')} <span className="text-xs text-muted-foreground">({t('optional_for_private')})</span>
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder={t('enter_password_placeholder')}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
                 <Button 
@@ -169,10 +192,10 @@ export function ClassroomListPage() {
       ) : (
         <div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {classrooms.map((classroom) => {
-            // Get the classroom color, fallback to palette color based on ID
+            // Use the color from database, with fallback to first color in palette
             const classroomColor = (classroom.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
               ? classroom.color as ClassroomColor 
-              : CLASSROOM_COLORS[classroom.id % CLASSROOM_COLORS.length];
+              : CLASSROOM_COLORS[0];
             
             const cardStyling = getCardStyling(classroomColor, 'light');
             const hoverStyling = getCardStyling(classroomColor, 'medium');

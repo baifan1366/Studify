@@ -25,7 +25,7 @@ export function useLiveKitToken({
   // Query key for caching
   const queryKey = [`livekit-token`, classroomSlug, sessionId];
 
-  const { data, error, isLoading } = useQuery<LiveKitTokenResponse>({
+  const { data, error, isLoading: queryIsLoading } = useQuery<LiveKitTokenResponse>({
     queryKey,
     queryFn: () => Promise.resolve(null as any), // 不自动获取，需要手动触发
     enabled: false, // 禁用自动查询
@@ -35,8 +35,12 @@ export function useLiveKitToken({
   });
 
   const generateToken = async (requestData?: LiveKitTokenRequest): Promise<LiveKitTokenResponse | null> => {
-    if (isGenerating) return null;
+    if (isGenerating) {
+      console.log('⚠️ [useLiveKitToken] Already generating token, skipping...');
+      return null;
+    }
 
+    console.log('🚀 [useLiveKitToken] Starting token generation...');
     setIsGenerating(true);
     
     try {
@@ -67,6 +71,11 @@ export function useLiveKitToken({
 
       const tokenData: LiveKitTokenResponse = await response.json();
       
+      console.log('✅ [useLiveKitToken] Token generated successfully:', {
+        hasToken: !!tokenData.token,
+        hasWsUrl: !!tokenData.wsUrl
+      });
+      
       // 更新 React Query 缓存
       queryClient.setQueryData(queryKey, tokenData);
       
@@ -74,10 +83,11 @@ export function useLiveKitToken({
       return tokenData;
 
     } catch (error) {
-      console.error('Token generation failed:', error);
+      console.error('❌ [useLiveKitToken] Token generation failed:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate token');
       return null;
     } finally {
+      console.log('🏁 [useLiveKitToken] Token generation finished, setting isGenerating to false');
       setIsGenerating(false);
     }
   };
@@ -127,7 +137,7 @@ export function useLiveKitToken({
   return {
     token: data?.token,
     tokenData: data,
-    isLoading: isLoading || isGenerating,
+    isLoading: isGenerating, // Only use isGenerating since query is disabled
     error,
     generateToken,
     refreshToken,

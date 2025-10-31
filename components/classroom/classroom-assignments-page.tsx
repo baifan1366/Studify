@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useClassrooms } from '@/hooks/classroom/use-create-live-session';
 import { useClassroomAssignments } from '@/hooks/classroom/use-classroom-assignments';
+import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
+import { useSubmissions } from '@/hooks/classroom/use-submissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +53,7 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { getCardStyling, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
+import { getCardStyling, getClassroomColor, ClassroomColor, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 import { CreateAssignmentDialog } from './Dialog/create-assignment-dialog';
 import { SubmissionsSummary } from './submissions/submissions-summary';
 import { StudentSubmissionSummary } from './submissions/student-submission-summary';
@@ -97,20 +99,64 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
   console.log('Assignments Loading:', assignmentsLoading);
   console.log('Assignments Error:', assignmentsError);
   
+  // Get classroom members to calculate total students
+  const { data: membersData } = useClassroomMembers(classroomSlug);
+  const totalStudents = React.useMemo(() => {
+    const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
+    return members.filter((m: any) => m.role === 'student').length;
+  }, [membersData]);
+
   // Convert API assignment data to match the local interface
   const assignments = assignmentsResponse?.assignments?.map(assignment => ({
     id: String(assignment.id),
     title: assignment.title,
     description: assignment.description || '',
     due_date: assignment.due_date,
-    total_points: 100, // Default since API doesn't provide this
-    status: 'published' as 'draft' | 'published' | 'closed', // Default status
+    total_points: 100, // TODO: Add total_points field to API
+    status: 'published' as 'draft' | 'published' | 'closed', // TODO: Add status field to API
     created_at: assignment.created_at,
-    submissions_count: 0, // Would need to get from submissions API
-    total_students: 25 // Would need to get from classroom members
+    submissions_count: 0, // Will be updated below
+    total_students: totalStudents
   })) || [];
 
   const { data: classroomsData } = useClassrooms();
+
+  // State to store submissions count for each assignment
+  const [submissionsCounts, setSubmissionsCounts] = React.useState<Record<string, number>>({});
+
+  // Fetch submissions count for each assignment
+  React.useEffect(() => {
+    if (!assignments || assignments.length === 0) return;
+
+    const fetchSubmissionsCounts = async () => {
+      const counts: Record<string, number> = {};
+      
+      for (const assignment of assignments) {
+        try {
+          const response = await fetch(`/api/classroom/${classroomSlug}/submissions?assignment_id=${assignment.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            counts[assignment.id] = data.submissions?.length || 0;
+          }
+        } catch (error) {
+          console.error(`Error fetching submissions for assignment ${assignment.id}:`, error);
+          counts[assignment.id] = 0;
+        }
+      }
+      
+      setSubmissionsCounts(counts);
+    };
+
+    fetchSubmissionsCounts();
+  }, [assignments?.length, classroomSlug]);
+
+  // Update assignments with real submissions count
+  const assignmentsWithCounts = React.useMemo(() => {
+    return assignments.map(assignment => ({
+      ...assignment,
+      submissions_count: submissionsCounts[assignment.id] || 0
+    }));
+  }, [assignments, submissionsCounts]);
 
   useEffect(() => {
     if (classroomsData?.classrooms) {
@@ -118,6 +164,19 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
       setClassroom(foundClassroom);
     }
   }, [classroomsData, classroomSlug]);
+
+  // Debug: Log classroom data to verify color
+  useEffect(() => {
+    if (classroom) {
+      console.log('🎨 [AssignmentsPage] Classroom data:', {
+        slug: classroom.slug,
+        name: classroom.name,
+        color: classroom.color,
+        hasColor: !!classroom.color,
+        rawClassroom: classroom
+      });
+    }
+  }, [classroom]);
 
   const handleBack = () => {
     const isTutor = currentUser?.profile?.role === 'tutor';
@@ -158,16 +217,16 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
       // TODO: Implement actual API call for updating assignment
       // For now, just close the dialog
       toast({
-        title: "Info",
-        description: "Update functionality coming soon",
+        title: t('info'),
+        description: t('update_functionality_coming'),
       });
       
       setIsEditDialogOpen(false);
       resetForm();
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update assignment",
+        title: t('error'),
+        description: error.message || t('failed_to_update'),
         variant: "destructive",
       });
     }
@@ -177,13 +236,13 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
     try {
       // TODO: Implement actual API call for deleting assignment
       toast({
-        title: "Info",
-        description: "Delete functionality coming soon",
+        title: t('info'),
+        description: t('delete_functionality_coming'),
       });
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete assignment",
+        title: t('error'),
+        description: error.message || t('failed_to_delete'),
         variant: "destructive",
       });
     }
@@ -235,11 +294,18 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
   const canManageAssignments = classroom?.user_role === 'owner' || classroom?.user_role === 'tutor';
 
+  // Get classroom color styling early for loading/error states
+  // Use the same approach as classroom-dashboard.tsx
+  const classroomColor = getClassroomColor(classroom);
+  const cardStyling = getCardStyling(classroomColor, 'light');
+
   if (!classroom || assignmentsLoading) {
     return (
-      <div className="container mx-auto py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen">
+        <div className="container mx-auto py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2" style={{ borderColor: classroomColor }}></div>
+          </div>
         </div>
       </div>
     );
@@ -247,31 +313,27 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
 
   if (assignmentsError) {
     return (
-      <div className="container mx-auto py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <p className="text-red-600 mb-4">Error loading assignments: {assignmentsError.message}</p>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
+      <div className="min-h-screen" >
+        <div className="container mx-auto py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{t('error_loading', { message: assignmentsError.message })}</p>
+              <Button onClick={() => window.location.reload()} style={{ backgroundColor: classroomColor }}>{t('retry')}</Button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  const publishedAssignments = assignments.filter(a => a.status === 'published');
-  const draftAssignments = assignments.filter(a => a.status === 'draft');
-  const closedAssignments = assignments.filter(a => a.status === 'closed');
-
-  // Get classroom color styling
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
-    : '#6aa84f';
-  
-  const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
+  const publishedAssignments = assignmentsWithCounts.filter(a => a.status === 'published');
+  const draftAssignments = assignmentsWithCounts.filter(a => a.status === 'draft');
+  const closedAssignments = assignmentsWithCounts.filter(a => a.status === 'closed');
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
+    <div className="min-h-screen">
+      <div className="container mx-auto py-8">
+        <div className="mb-8">
         <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
           {t('back_to_dashboard')}
@@ -290,8 +352,8 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                 // Refresh assignments list after creation
                 // You could trigger a data refetch here
                 toast({
-                  title: "Assignment Created",
-                  description: "The assignment has been created successfully",
+                  title: t('assignment_created'),
+                  description: t('assignment_created_desc'),
                 });
               }}
             />
@@ -308,7 +370,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{assignments.length}</div>
+              <div className="text-2xl font-bold">{assignmentsWithCounts.length}</div>
             </CardContent>
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
@@ -336,10 +398,16 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {publishedAssignments.length > 0 
-                  ? Math.round((publishedAssignments.reduce((acc, a) => acc + a.submissions_count, 0) / (publishedAssignments.length * 25)) * 100)
+                {publishedAssignments.length > 0 && totalStudents > 0
+                  ? Math.round(
+                      (publishedAssignments.reduce((acc, a) => acc + a.submissions_count, 0) / 
+                      (publishedAssignments.length * totalStudents)) * 100
+                    )
                   : 0}%
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {publishedAssignments.reduce((acc, a) => acc + a.submissions_count, 0)} / {publishedAssignments.length * totalStudents} submissions
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -353,26 +421,30 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {assignments.length === 0 ? (
+            {assignmentsWithCounts.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No assignments yet</h3>
+                <h3 className="mt-4 text-lg font-semibold">{t('no_assignments_yet')}</h3>
                 <p className="text-muted-foreground">
-                  {canManageAssignments ? 'Create your first assignment' : 'No assignments have been created'}
+                  {canManageAssignments ? t('create_first_assignment') : t('no_assignments_created')}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {assignments.map((assignment) => (
+                {assignmentsWithCounts.map((assignment) => (
                   <div
                     key={assignment.id}
-                    className={`p-4 border-l-4 rounded-lg hover:shadow-md transition-shadow ${isOverdue(assignment.due_date) && assignment.status === 'published' ? 'border-red-200 bg-red-50' : ''}`}
+                    className={`p-4 rounded-lg hover:shadow-md transition-shadow ${
+                      isOverdue(assignment.due_date) && assignment.status === 'published' 
+                        ? 'bg-red-50 dark:bg-red-950/30 border-l-4 border-l-red-500 dark:border-l-red-600' 
+                        : 'border-l-4'
+                    }`}
                     style={{
                       borderLeftColor: isOverdue(assignment.due_date) && assignment.status === 'published' 
-                        ? '#ef4444' 
+                        ? undefined // Let className handle it
                         : cardStyling.borderColor,
                       backgroundColor: isOverdue(assignment.due_date) && assignment.status === 'published' 
-                        ? '#fef2f2' 
+                        ? undefined // Let className handle it
                         : cardStyling.backgroundColor,
                       borderColor: cardStyling.borderColor
                     }}
@@ -383,33 +455,33 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                           {getStatusIcon(assignment.status)}
                           <h3 className="font-semibold">{assignment.title}</h3>
                           <Badge variant={getStatusBadgeVariant(assignment.status)}>
-                            {assignment.status.toUpperCase()}
+                            {assignment.status === 'draft' ? t('draft') : assignment.status === 'closed' ? t('closed') : t('published').toUpperCase()}
                           </Badge>
                           {isOverdue(assignment.due_date) && assignment.status === 'published' && (
-                            <Badge variant="destructive">OVERDUE</Badge>
+                            <Badge variant="destructive">{t('overdue')}</Badge>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">{assignment.description}</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Due:</span>
+                            <span className="text-muted-foreground">{t('due')}:</span>
                             <p className="font-medium">
                               {new Date(assignment.due_date).toLocaleDateString()} at{' '}
                               {new Date(assignment.due_date).toLocaleTimeString()}
                             </p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Points:</span>
+                            <span className="text-muted-foreground">{t('points')}:</span>
                             <p className="font-medium">{assignment.total_points}</p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Submissions:</span>
+                            <span className="text-muted-foreground">{t('submissions')}:</span>
                             <p className="font-medium">
                               {assignment.submissions_count}/{assignment.total_students}
                             </p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Progress:</span>
+                            <span className="text-muted-foreground">{t('progress')}:</span>
                             <Progress 
                               value={(assignment.submissions_count / assignment.total_students) * 100} 
                               className="mt-1"
@@ -427,16 +499,18 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                               onClick={() => handleViewSubmissions(assignment.id)}
                             >
                               <Eye className="h-4 w-4 mr-2" />
-                              {showSubmissionsSummary === assignment.id ? 'Hide Summary' : 'View Summary'}
+                              {showSubmissionsSummary === assignment.id ? t('hide_summary') : t('view_summary')}
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewFullSubmissions(assignment.id)}
-                            >
-                              <Users className="h-4 w-4 mr-2" />
-                              Submissions
-                            </Button>
+                            {currentUser?.profile?.role !== 'student' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewFullSubmissions(assignment.id)}
+                              >
+                                <Users className="h-4 w-4 mr-2" />
+                                {t('submissions_button')}
+                              </Button>
+                            )}
                           </>
                         )}
                         {canManageAssignments && (
@@ -449,14 +523,14 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleEditAssignment(assignment)}>
                                 <Edit className="h-4 w-4 mr-2" />
-                                Edit Assignment
+                                {t('edit_assignment')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDeleteAssignment(assignment.id)}
                                 className="text-red-600"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Assignment
+                                {t('delete_assignment')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -518,38 +592,39 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
           </CardContent>
         </Card>
       </div>
+      </div>
 
       {/* Edit Assignment Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Edit Assignment</DialogTitle>
+            <DialogTitle>{t('edit_assignment')}</DialogTitle>
             <DialogDescription>
-              Update the assignment details.
+              {t('edit_assignment_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-title">Title</Label>
+              <Label htmlFor="edit-title">{t('title')}</Label>
               <Input
                 id="edit-title"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Assignment title"
+                placeholder={t('title_placeholder')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{t('description')}</Label>
               <Textarea
                 id="edit-description"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Assignment description"
+                placeholder={t('description_placeholder')}
                 rows={3}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-due_date">Due Date</Label>
+              <Label htmlFor="edit-due_date">{t('due_date')}</Label>
               <Input
                 id="edit-due_date"
                 type="datetime-local"
@@ -558,7 +633,7 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-total_points">Total Points</Label>
+              <Label htmlFor="edit-total_points">{t('total_points')}</Label>
               <Input
                 id="edit-total_points"
                 type="number"
@@ -568,28 +643,28 @@ export function ClassroomAssignmentsPage({ classroomSlug }: ClassroomAssignments
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-status">Status</Label>
+              <Label htmlFor="edit-status">{t('status')}</Label>
               <Select value={formData.status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
+                  <SelectItem value="draft">{t('draft')}</SelectItem>
+                  <SelectItem value="published">{t('published')}</SelectItem>
+                  <SelectItem value="closed">{t('closed')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button 
               onClick={handleUpdateAssignment}
               disabled={!formData.title || !formData.due_date}
             >
-              Update Assignment
+              {t('update_assignment')}
             </Button>
           </DialogFooter>
         </DialogContent>

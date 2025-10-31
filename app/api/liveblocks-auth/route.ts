@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // 首先检查环境变量
     if (!process.env.LIVEBLOCKS_SECRET_KEY) {
       console.error('❌ LIVEBLOCKS_SECRET_KEY not configured');
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'LIVEBLOCKS_SECRET_KEY not configured',
         details: 'Please set LIVEBLOCKS_SECRET_KEY in your environment variables',
         hint: 'Get your key from https://liveblocks.io/dashboard/apikeys'
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.LIVEBLOCKS_SECRET_KEY.startsWith('sk_') && process.env.NODE_ENV !== 'development') {
       console.error('❌ Invalid LIVEBLOCKS_SECRET_KEY format:', process.env.LIVEBLOCKS_SECRET_KEY?.substring(0, 10) + '...');
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Invalid LIVEBLOCKS_SECRET_KEY format',
         details: 'LIVEBLOCKS_SECRET_KEY should start with sk_'
       }, { status: 500 });
@@ -40,23 +40,23 @@ export async function POST(request: NextRequest) {
     }
 
     const { user } = authResult;
-    
+
     // 解析请求体
     let requestData;
     try {
       requestData = await request.json();
     } catch (error) {
       console.error('❌ Invalid JSON in request body:', error);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Invalid JSON in request body',
         details: 'Please provide valid JSON with room parameter'
       }, { status: 400 });
     }
 
     const { room } = requestData;
-    
+
     if (!room) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Missing room parameter',
         details: 'Room ID is required for Liveblocks authentication'
       }, { status: 400 });
@@ -71,10 +71,10 @@ export async function POST(request: NextRequest) {
 
     const classroomSlug = roomParts[1];
     const roomType = roomParts[2]; // whiteboard, chat, document
-    
+
     // 验证用户是否是该classroom的成员
     const supabase = await createAdminClient();
-    
+
     // 获取用户profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Liveblocks auth error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Authentication failed',
       details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
@@ -142,7 +142,7 @@ function getRoomPermissions(role: string, roomType: string) {
   if (role === 'tutor') {
     return ['room:read', 'room:presence:write', 'room:write', 'comments:write', 'comments:read'] as const;
   }
-  
+
   // 学生权限
   return ['room:read', 'room:presence:write', 'room:write', 'comments:write', 'comments:read'] as const;
 }

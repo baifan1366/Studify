@@ -1475,7 +1475,7 @@ begin
   where user_id = _user_id and achievement_id = _achievement_id;
 
   -- 如果还没解锁且达成条件 → 解锁
-  if COALESCE(current_val, 0) >= min_count then
+  if current_val >= min_count then
     update community_user_achievement
     set unlocked = true, unlocked_at = now(), updated_at = now()
     where user_id = _user_id and achievement_id = _achievement_id
@@ -5123,11 +5123,6 @@ COMMENT ON FUNCTION get_weekly_leaderboard IS 'Returns top users by points earne
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_weekly_leaderboard TO authenticated;
-
-
--- ============================================
--- Live Session Auto-Start Functions
--- ============================================
 
 -- Function to automatically update session status based on precise time
 CREATE OR REPLACE FUNCTION auto_update_live_session_status()

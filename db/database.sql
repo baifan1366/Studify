@@ -452,6 +452,25 @@ CREATE TABLE public.classroom_question_bank (
     deleted_at timestamp with time zone
 );
 
+CREATE TABLE IF NOT EXISTS classroom_quiz_session (
+    id BIGSERIAL PRIMARY KEY,
+    public_id UUID DEFAULT uuid_generate_v4() NOT NULL,
+    quiz_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    submitted_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    
+    -- Foreign keys
+    CONSTRAINT fk_quiz FOREIGN KEY (quiz_id) REFERENCES classroom_quiz(id) ON DELETE CASCADE,
+    CONSTRAINT fk_student FOREIGN KEY (student_id) REFERENCES profiles(id) ON DELETE CASCADE,
+    
+    -- Only one active session per student per quiz
+    CONSTRAINT unique_active_session UNIQUE (quiz_id, student_id, is_active)
+);
 
 CREATE TABLE public.classroom_quiz (
     id bigint DEFAULT nextval('classroom_quiz_id_seq'::regclass) NOT NULL,

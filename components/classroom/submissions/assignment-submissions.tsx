@@ -429,7 +429,7 @@ export function AssignmentSubmissions({
                         <div className="space-y-6">
                           <div>
                             <Label className="text-sm font-medium">Submission Content</Label>
-                            <ScrollArea className="mt-2 h-40 w-full rounded-md border p-4">
+                            <ScrollArea className="mt-2 h-40 w-full rounded-md bg-gray-100/5 hover:bg-gray-200/8 p-4">
                               <p className="text-sm whitespace-pre-wrap">{submission.content}</p>
                             </ScrollArea>
                           </div>

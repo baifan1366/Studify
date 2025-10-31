@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import { verifyPassword } from '@/utils/classroom/password';
 
 /**
  * 通过邀请码加入课堂
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = authResult.sub;
-    const { class_code } = await request.json();
+    const { class_code, password } = await request.json();
 
     // 验证邀请码
     if (!class_code || class_code.trim() === '') {
@@ -29,10 +30,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createAdminClient();
 
-    // 获取用户的 profile ID
+    // 获取用户的 profile ID 和 role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, role')
       .eq('user_id', userId)
       .single();
 
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         visibility,
+        password,
         owner_id,
         created_at,
         updated_at
@@ -65,6 +67,26 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid class code' },
         { status: 404 }
       );
+    }
+
+    // 验证私有课堂密码
+    if (classroom.visibility === 'private' && classroom.password) {
+      if (!password) {
+        return NextResponse.json(
+          { error: 'Password is required for private classroom' },
+          { status: 401 }
+        );
+      }
+
+      // 验证密码
+      const isPasswordValid = verifyPassword(password, classroom.password);
+      
+      if (!isPasswordValid) {
+        return NextResponse.json(
+          { error: 'Incorrect password' },
+          { status: 401 }
+        );
+      }
     }
 
     // 检查用户是否已经是课堂成员
@@ -96,13 +118,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 根据用户的 profile role 确定课堂角色
+    // tutor 在课堂中也是 tutor，student 在课堂中是 student
+    const classroomRole = profile.role === 'tutor' ? 'tutor' : 'student';
+
     // 添加用户为课堂成员
     const { data: newMember, error: joinError } = await supabase
       .from('classroom_member')
       .insert({
         classroom_id: classroom.id,
         user_id: profile.id,
-        role: 'student', // 默认角色为学生
+        role: classroomRole,
       })
       .select('role, joined_at')
       .single();
@@ -125,11 +151,14 @@ export async function POST(request: NextRequest) {
       console.error('Error getting member count:', countError);
     }
 
+    // Remove password from response
+    const { password: _, ...classroomWithoutPassword } = classroom;
+
     return NextResponse.json({
       success: true,
       message: 'Successfully joined classroom',
       classroom: {
-        ...classroom,
+        ...classroomWithoutPassword,
         user_role: newMember.role,
         joined_at: newMember.joined_at,
         member_count: memberCount?.length || 0,

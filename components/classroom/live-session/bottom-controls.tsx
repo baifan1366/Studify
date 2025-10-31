@@ -9,7 +9,7 @@ import {
   DisconnectButton,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Volume2, VolumeX, Settings, Smile, LogOut } from 'lucide-react';
+import { Volume2, VolumeX, Settings, LogOut } from 'lucide-react';
 import { useCreateRecording } from '@/hooks/classroom/use-recordings';
 
 interface BottomControlsProps {
@@ -19,8 +19,6 @@ interface BottomControlsProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onEndSession: () => void;
-  addReaction: (type: string) => void;
-  reactionEmojis: Record<string, string>;
   onOpenDevices?: () => void;
   classroomSlug?: string;
   sessionId?: string;
@@ -34,22 +32,19 @@ export default function BottomControls({
   onStartRecording,
   onStopRecording,
   onEndSession,
-  addReaction,
-  reactionEmojis,
   onOpenDevices,
   classroomSlug,
   sessionId,
   onLeaveSession,
 }: BottomControlsProps) {
-  const [showReactionPanel, setShowReactionPanel] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [currentTab, setCurrentTab] = useState<string | null>(null); // 记录录制时的标签页
-  
+
   // Recording hook
   const createRecording = classroomSlug ? useCreateRecording(classroomSlug) : null;
-  
+
   // Debug logging
   useEffect(() => {
     console.log('🎯 userRole in BottomControls:', userRole);
@@ -61,7 +56,7 @@ export default function BottomControls({
       sessionId
     });
   }, [userRole, classroomSlug, createRecording, isRecording, sessionId]);
-  
+
   // 🎯 锁定标签页功能：录制时禁止切换标签
   useEffect(() => {
     if (isRecording && currentTab) {
@@ -209,53 +204,7 @@ export default function BottomControls({
     onStopRecording();
   };
 
-  // Shortcut key functionality
-  useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey) {
-        switch (e.key.toLowerCase()) {
-          case 'c':
-            e.preventDefault();
-            addReaction('clap');
-            break;
-          case 't':
-            e.preventDefault();
-            addReaction('thumbs_up');
-            break;
-          case 'l':
-            e.preventDefault();
-            addReaction('laugh');
-            break;
-          case 'h':
-            e.preventDefault();
-            addReaction('heart');
-            break;
-          case 'y':
-            e.preventDefault();
-            addReaction('party');
-            break;
-        }
-      }
-    };
 
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
-  }, [addReaction]);
-
-  // Click outside to close reaction panel
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (showReactionPanel) {
-        const target = e.target as Element;
-        if (!target.closest('.reaction-panel-container')) {
-          setShowReactionPanel(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showReactionPanel]);
 
   // Calculate button contrast based on theme primary color (no need to import additional libraries)
   const hex = colors.primary.startsWith('#') ? colors.primary.slice(1) : colors.primary;
@@ -271,18 +220,6 @@ export default function BottomControls({
     : 'bg-gray-800 text-white hover:bg-gray-700';
   const roundBtn = `${baseBtn} h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center`;
   const pillBtn = `${baseBtn} h-9 md:h-10 px-2 md:px-3 rounded-full`;
-
-  // Get shortcut key hints
-  const getShortcutKey = (reactionKey: string) => {
-    const keyMap: Record<string, string> = {
-      'clap': 'C',
-      'thumbs_up': 'T', 
-      'laugh': 'L',
-      'heart': 'H',
-      'party': 'Y'
-    };
-    return keyMap[reactionKey] || '';
-  };
   return (
     <motion.div
       className="fixed left-1/2 z-50 -translate-x-1/2"
@@ -299,51 +236,14 @@ export default function BottomControls({
         <div
           className="relative flex items-center w-full gap-3 md:gap-4 px-3 md:px-4 rounded-full h-12 md:h-14"
           style={{
-            background: `${colors.primary}15`,
-            border: `1px solid ${colors.primary}25`,
-            backdropFilter: 'blur(6px)',
+            background: `linear-gradient(135deg, ${colors.primary}40, ${colors.primary}20)`,
+            border: `1px solid ${colors.primary}50`,
+            backdropFilter: 'blur(8px)',
+            boxShadow: `0 4px 12px ${colors.primary}20`,
           }}
         >
-          {/* Left side: Reaction buttons */}
-          <div className="flex items-center justify-start gap-2 flex-1 max-w-xs shrink-0 select-none relative reaction-panel-container">
-            <button
-              onClick={() => setShowReactionPanel(!showReactionPanel)}
-              className={`${roundBtn} relative`}
-              title="Emoji reactions (Ctrl+Shift+shortcut key)"
-            >
-              <Smile className="w-4 h-4" />
-            </button>
-            
-            {/* Emoji panel */}
-            <AnimatePresence>
-              {showReactionPanel && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute bottom-full mb-2 left-0 bg-black/80 backdrop-blur-sm rounded-lg p-2 flex gap-1 border border-white/10 z-10"
-                >
-                  {Object.entries(reactionEmojis).map(([k, e]) => (
-                    <button
-                      key={k}
-                      onClick={() => {
-                        addReaction(k);
-                        setShowReactionPanel(false);
-                      }}
-                      className="p-2 rounded hover:bg-white/10 transition-colors w-10 h-10 flex items-center justify-center"
-                      title={`${e} (Ctrl+Shift+${getShortcutKey(k)})`}
-                    >
-                      <span className="text-xl leading-none">{e}</span>
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
           {/* Center: LiveKit controls (custom Control Bar, centered with flex) */}
-          <div className="flex flex-[2] justify-center px-2 pointer-events-auto">
+          <div className="flex flex-1 justify-center px-2 pointer-events-auto">
             <div className="lk-controls no-scrollbar w-full flex items-center justify-center gap-1 sm:gap-2 bg-transparent flex-nowrap overflow-x-auto">
               {/* Due to browser autoplay policy, need StartAudio to enable audio on first use */}
               <StartAudio label="Enable Audio" className={`${pillBtn} text-sm md:text-base`} />
@@ -373,7 +273,7 @@ export default function BottomControls({
               />
 
               {/* Leave room */}
-              <DisconnectButton 
+              <DisconnectButton
                 className={`${pillBtn} bg-red-600 text-white hover:bg-red-500 text-sm md:text-base flex items-center gap-2`}
                 onClick={() => {
                   // Redirect to classroom dashboard after leaving
@@ -391,7 +291,7 @@ export default function BottomControls({
           </div>
 
           {/* Right side: tutor/owner operations + volume control */}
-          <div className="flex items-center justify-end gap-2 flex-1 max-w-xs shrink-0">
+          <div className="flex items-center justify-end gap-2">
             {/* Recording button - show for tutors and owners */}
             {userRole && (userRole.toLowerCase() === 'tutor' || userRole.toLowerCase() === 'owner') && (
               <button
@@ -406,17 +306,17 @@ export default function BottomControls({
                 </span>
               </button>
             )}
-            
+
             {userRole && (userRole.toLowerCase() === 'tutor' || userRole.toLowerCase() === 'owner') && (
               <button
                 onClick={onEndSession}
-                className={`${pillBtn} bg-red-600 hover:bg-red-500 text-white`}
+                className={`${pillBtn} bg-red-600 hover:bg-red-500 text-black`}
                 title="End Session"
               >
                 End
               </button>
             )}
-            
+
             {/* Volume control button */}
             <button
               onClick={() => setIsMuted(!isMuted)}
@@ -425,7 +325,7 @@ export default function BottomControls({
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
-            
+
             {onOpenDevices && (
               <button
                 onClick={onOpenDevices}

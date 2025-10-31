@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +42,8 @@ import {
   Lightbulb,
   Target,
   CheckCircle2,
+  HelpCircle,
+  ArrowRight,
 } from "lucide-react";
 import {
   useMistakeBook,
@@ -52,6 +54,42 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function MistakeBookPageContent() {
   const t = useTranslations("MistakeBookPage");
+
+  const GUIDE_STEPS = [
+    {
+      id: "welcome",
+      title: t("guide_welcome_title"),
+      description: t("guide_welcome_desc"),
+      icon: BookOpen,
+    },
+    {
+      id: "create",
+      title: t("guide_create_title"),
+      description: t("guide_create_desc"),
+      icon: Plus,
+      target: "create-button",
+    },
+    {
+      id: "filter",
+      title: t("guide_filter_title"),
+      description: t("guide_filter_desc"),
+      icon: Filter,
+      target: "filter-section",
+    },
+    {
+      id: "statistics",
+      title: t("guide_statistics_title"),
+      description: t("guide_statistics_desc"),
+      icon: TrendingUp,
+      target: "statistics",
+    },
+    {
+      id: "complete",
+      title: t("guide_complete_title"),
+      description: t("guide_complete_desc"),
+      icon: CheckCircle2,
+    },
+  ];
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSourceType, setSelectedSourceType] = useState<string>("all");
@@ -59,11 +97,39 @@ export default function MistakeBookPageContent() {
     useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [knowledgePointInput, setKnowledgePointInput] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
+  const [currentGuideStep, setCurrentGuideStep] = useState(0);
 
   // Fetch mistakes data
   const { data: mistakes = [], isLoading } = useMistakeBook({ limit: 100 });
   const saveMistake = useSaveMistake();
   const deleteMistake = useDeleteMistake();
+
+  // Check if user is first time visitor
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem("mistakeBookGuideCompleted");
+    if (!hasSeenGuide && mistakes.length === 0) {
+      setShowGuide(true);
+    }
+  }, [mistakes.length]);
+
+  const handleGuideComplete = () => {
+    localStorage.setItem("mistakeBookGuideCompleted", "true");
+    setShowGuide(false);
+    setCurrentGuideStep(0);
+  };
+
+  const handleGuideNext = () => {
+    if (currentGuideStep < GUIDE_STEPS.length - 1) {
+      setCurrentGuideStep(currentGuideStep + 1);
+    } else {
+      handleGuideComplete();
+    }
+  };
+
+  const handleGuideSkip = () => {
+    handleGuideComplete();
+  };
 
   // Create mistake form state
   const [newMistake, setNewMistake] = useState({
@@ -220,7 +286,7 @@ export default function MistakeBookPageContent() {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-6 relative">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <motion.div
@@ -238,17 +304,31 @@ export default function MistakeBookPageContent() {
             <p className="text-white/70 text-lg">{t("track_mistakes")}</p>
           </div>
 
-          <Dialog
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                <Plus className="h-4 w-4 mr-2" />
-                {t("create_mistake")}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-gray-900/95 border-white/10">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowGuide(true)}
+              className="border-white/20 hover:bg-white/10"
+            >
+              <HelpCircle className="h-4 w-4 mr-2" />
+              {t("user_guide")}
+            </Button>
+
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button
+                  id="create-button"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("create_mistake")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl bg-gray-900/95 border-white/10">
               <DialogHeader>
                 <DialogTitle className="text-white text-xl">
                   {t("create_mistake")}
@@ -382,11 +462,13 @@ export default function MistakeBookPageContent() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </motion.div>
 
         {/* Statistics */}
         <motion.div
+          id="statistics"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -466,6 +548,7 @@ export default function MistakeBookPageContent() {
 
         {/* Filters */}
         <motion.div
+          id="filter-section"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -673,6 +756,200 @@ export default function MistakeBookPageContent() {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* User Guide Dialog */}
+      <Dialog open={showGuide} onOpenChange={setShowGuide}>
+        <DialogContent className="max-w-2xl bg-gradient-to-br from-gray-900 via-gray-900 to-purple-900/30 border-white/20">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-white flex items-center gap-3">
+              {React.createElement(GUIDE_STEPS[currentGuideStep].icon, {
+                className: "h-7 w-7 text-purple-400",
+              })}
+              {GUIDE_STEPS[currentGuideStep].title}
+            </DialogTitle>
+            <DialogDescription className="text-white/70 text-base pt-2">
+              {GUIDE_STEPS[currentGuideStep].description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6">
+            {/* Progress Indicator */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              {GUIDE_STEPS.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    index === currentGuideStep
+                      ? "w-8 bg-purple-500"
+                      : index < currentGuideStep
+                        ? "w-2 bg-purple-500/50"
+                        : "w-2 bg-white/20"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Step Content */}
+            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+              {currentGuideStep === 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Target className="h-5 w-5 text-red-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-white mb-1">{t("guide_record_mistakes")}</h4>
+                      <p className="text-white/70 text-sm">
+                        {t("guide_record_mistakes_desc")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Lightbulb className="h-5 w-5 text-yellow-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-white mb-1">{t("guide_analyze_reasons")}</h4>
+                      <p className="text-white/70 text-sm">
+                        {t("guide_analyze_reasons_desc")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <TrendingUp className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-white mb-1">{t("guide_continuous_improvement")}</h4>
+                      <p className="text-white/70 text-sm">
+                        {t("guide_continuous_improvement_desc")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentGuideStep === 1 && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg p-4 border border-blue-500/30">
+                    <h4 className="font-medium text-white mb-2">
+                      {t("guide_create_ways_title")}
+                    </h4>
+                    <ul className="space-y-2 text-white/70 text-sm">
+                      <li className="flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-blue-400" />
+                        <span>{t("guide_create_from_quiz")}</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-green-400" />
+                        <span>{t("guide_create_from_assignment")}</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-purple-400" />
+                        <span>{t("guide_create_manual")}</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <p className="text-white/60 text-sm">
+                    {t("guide_create_tip")}
+                  </p>
+                </div>
+              )}
+
+              {currentGuideStep === 2 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <Search className="h-5 w-5 text-blue-400 mb-2" />
+                      <h4 className="font-medium text-white mb-1">{t("guide_search_feature")}</h4>
+                      <p className="text-white/60 text-sm">
+                        {t("guide_search_feature_desc")}
+                      </p>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <Filter className="h-5 w-5 text-purple-400 mb-2" />
+                      <h4 className="font-medium text-white mb-1">{t("guide_filter_feature")}</h4>
+                      <p className="text-white/60 text-sm">
+                        {t("guide_filter_feature_desc")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentGuideStep === 3 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg p-4 border border-red-500/30">
+                      <AlertCircle className="h-6 w-6 text-red-400 mb-2" />
+                      <p className="text-sm text-white/70">错题总数</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-lg p-4 border border-blue-500/30">
+                      <Brain className="h-6 w-6 text-blue-400 mb-2" />
+                      <p className="text-sm text-white/70">测验错题</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg p-4 border border-green-500/30">
+                      <FileText className="h-6 w-6 text-green-400 mb-2" />
+                      <p className="text-sm text-white/70">作业错题</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 border border-purple-500/30">
+                      <Tag className="h-6 w-6 text-purple-400 mb-2" />
+                      <p className="text-sm text-white/70">知识点数</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentGuideStep === 4 && (
+                <div className="text-center py-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 mb-4">
+                    <CheckCircle2 className="h-8 w-8 text-green-400" />
+                  </div>
+                  <h3 className="text-xl font-medium text-white mb-2">
+                    {t("guide_ready_title")}
+                  </h3>
+                  <p className="text-white/70 mb-4">
+                    {t("guide_ready_desc")}
+                  </p>
+                  <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg p-4 border border-blue-500/30">
+                    <p className="text-white/80 text-sm">
+                      {t("guide_tip")}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              onClick={handleGuideSkip}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+            >
+              {t("guide_skip")}
+            </Button>
+            <div className="flex items-center gap-2">
+              {currentGuideStep > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentGuideStep(currentGuideStep - 1)}
+                  className="border-white/20 hover:bg-white/10"
+                >
+                  {t("guide_previous")}
+                </Button>
+              )}
+              <Button
+                onClick={handleGuideNext}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                {currentGuideStep === GUIDE_STEPS.length - 1 ? (
+                  t("guide_start_using")
+                ) : (
+                  <>
+                    {t("guide_next")}
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

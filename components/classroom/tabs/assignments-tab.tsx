@@ -282,7 +282,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                     key={assignment.id}
                     className={`flex items-center justify-between p-4 rounded-lg transition-all ${showOverdue
                       ? 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 border border-red-200 dark:border-red-800'
-                      : 'bg-gray-100/5 hover:bg-gray-200/8 dark:bg-gray-800/5 dark:hover:bg-gray-700/10'
+                      : 'bg-gray-100/5 hover:bg-gray-200/8 dark:bg-gray-100/5 dark:hover:bg-gray-200/8 '
                       }`}
                   >
                     <div className="flex items-center space-x-4">

@@ -4,12 +4,12 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useUser } from '@/hooks/profile/use-user';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Calendar, 
-  Clock, 
-  Users, 
+import {
+  ArrowLeft,
+  Plus,
+  Calendar,
+  Clock,
+  Users,
   Video,
   MoreHorizontal,
   Play,
@@ -18,27 +18,27 @@ import {
   Trash2
 } from 'lucide-react';
 import { useClassrooms, useLiveSessions } from '@/hooks/classroom/use-create-live-session';
-import { 
-  useCreateLiveSession, 
-  useUpdateLiveSession 
+import {
+  useCreateLiveSession,
+  useUpdateLiveSession
 } from '@/hooks/classroom/use-create-live-session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CreateLiveSessionDialog } from '@/components/classroom/Dialog/create-livesession-dialog';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,7 +73,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   const { data: sessionsData, isLoading } = useLiveSessions(classroomSlug);
   const createSessionMutation = useCreateLiveSession();
   const updateSessionMutation = useUpdateLiveSession();
-  
+
   // Track processed sessions to avoid duplicate updates
   const processedSessionsRef = useRef<Set<string>>(new Set());
 
@@ -92,22 +92,22 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       const now = new Date();
       const expiredSessions = sessionsData.sessions.filter((session: any) => {
         const sessionKey = `expired-${session.id}`;
-        
+
         // Skip if already processed
         if (processedSessionsRef.current.has(sessionKey)) {
           return false;
         }
-        
+
         // Check if session is live or scheduled but has ended
         if (session.status === 'live' || session.status === 'scheduled') {
           const endsAt = session.ends_at ? new Date(session.ends_at) : null;
           const startsAt = new Date(session.starts_at);
-          
+
           // If session has an end time and it's past
           if (endsAt && endsAt < now) {
             return true;
           }
-          
+
           // If session is live but has no end time, check if it started more than 24 hours ago
           if (session.status === 'live' && !endsAt) {
             const hoursSinceStart = (now.getTime() - startsAt.getTime()) / (1000 * 60 * 60);
@@ -125,15 +125,15 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         try {
           console.log(`🕐 [LiveSessions] Auto-updating expired session: ${session.id} (${session.title})`);
           processedSessionsRef.current.add(sessionKey);
-          
+
           await updateSessionMutation.mutateAsync({
             classroomSlug,
             session_id: session.id,
             status: 'ended'
           });
           toast({
-            title: "Session Ended",
-            description: `"${session.title}" has been automatically ended.`,
+            title: t('session_ended'),
+            description: t('session_ended_desc', { title: session.title }),
           });
         } catch (error) {
           console.error(`Failed to update expired session ${session.id}:`, error);
@@ -160,12 +160,12 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       const now = new Date();
       const sessionsToStart = sessionsData.sessions.filter((session: any) => {
         const sessionKey = `started-${session.id}`;
-        
+
         // Skip if already processed
         if (processedSessionsRef.current.has(sessionKey)) {
           return false;
         }
-        
+
         // Check if session is scheduled and start time has arrived
         if (session.status === 'scheduled') {
           const startsAt = new Date(session.starts_at);
@@ -181,15 +181,15 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         try {
           console.log(`🎬 [LiveSessions] Auto-starting session: ${session.id} (${session.title})`);
           processedSessionsRef.current.add(sessionKey);
-          
+
           await updateSessionMutation.mutateAsync({
             classroomSlug,
             session_id: session.id,
             status: 'live'
           });
           toast({
-            title: "Session Started",
-            description: `"${session.title}" is now live!`,
+            title: t('session_started'),
+            description: t('session_started_desc', { title: session.title }),
           });
         } catch (error) {
           console.error(`Failed to auto-start session ${session.id}:`, error);
@@ -212,7 +212,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
   const handleBack = () => {
     const isTutor = currentUser?.profile?.role === 'tutor';
-    const route = isTutor 
+    const route = isTutor
       ? `/tutor/classroom/${classroomSlug}`
       : `/classroom/${classroomSlug}`;
     router.push(route);
@@ -220,7 +220,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
   const handleJoinSession = async (session: any) => {
     console.log('🚀 [LiveSessionsPage] handleJoinSession called with session:', session);
-    
+
     try {
       // Construct session identifier with fallback
       const sessionIdentifier = session.public_id || session.slug || session.id?.toString() || 'unknown';
@@ -229,8 +229,8 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       // Basic status validation
       if (session.status === 'cancelled') {
         toast({
-          title: "Session Cancelled",
-          description: "This session has been cancelled.",
+          title: t('session_cancelled'),
+          description: t('session_cancelled_desc'),
           variant: "destructive"
         });
         return;
@@ -238,23 +238,23 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
 
       // Show joining toast
       toast({
-        title: "Joining Session",
-        description: `Redirecting to "${session.title}"...`,
+        title: t('joining_session'),
+        description: t('redirecting_to', { title: session.title }),
       });
 
       // Redirect to live session room URL with role-based routing
       const isTutor = currentUser?.profile?.role === 'tutor';
-      const roomUrl = isTutor 
+      const roomUrl = isTutor
         ? `/tutor/classroom/${classroomSlug}/live/${sessionIdentifier}`
         : `/classroom/${classroomSlug}/live/${sessionIdentifier}`;
       console.log('🔗 [LiveSessionsPage] Redirecting to room URL:', roomUrl);
       router.push(roomUrl);
-      
+
     } catch (error) {
       console.error('❌ [LiveSessionsPage] Error in handleJoinSession:', error);
       toast({
-        title: "Failed to Join",
-        description: "Unable to join the session. Please try again.",
+        title: t('failed_to_join'),
+        description: t('failed_to_join_desc'),
         variant: "destructive"
       });
     }
@@ -263,8 +263,8 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   const handleLeaveSession = () => {
     setActiveSession(null);
     toast({
-      title: "Left Session",
-      description: "You have left the live session.",
+      title: t('left_session'),
+      description: t('left_session_desc'),
     });
   };
 
@@ -289,18 +289,18 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         starts_at: formData.starts_at,
         ends_at: formData.ends_at
       });
-      
+
       toast({
-        title: "Success",
-        description: "Live session created successfully",
+        title: t('success'),
+        description: t('session_created'),
       });
-      
+
       setIsCreateDialogOpen(false);
       resetForm();
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create live session",
+        title: t('error'),
+        description: error.message || t('failed_to_create'),
         variant: "destructive",
       });
     }
@@ -329,18 +329,18 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         starts_at: formData.starts_at,
         ends_at: formData.ends_at
       });
-      
+
       toast({
-        title: "Success",
-        description: "Live session updated successfully",
+        title: t('success'),
+        description: t('session_updated'),
       });
-      
+
       setIsEditDialogOpen(false);
       resetForm();
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update live session",
+        title: t('error'),
+        description: error.message || t('failed_to_update'),
         variant: "destructive",
       });
     }
@@ -353,15 +353,15 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         session_id: sessionId,
         status: newStatus
       });
-      
+
       toast({
-        title: "Success",
-        description: `Session ${newStatus} successfully`,
+        title: t('success'),
+        description: t('session_status_updated', { status: newStatus }),
       });
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update session status",
+        title: t('error'),
+        description: error.message || t('failed_to_update_status'),
         variant: "destructive",
       });
     }
@@ -410,7 +410,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       activeSession
     });
     return (
-      <Suspense fallback={<div className="flex items-center justify-center p-8">Loading video classroom...</div>}>
+      <Suspense fallback={<div className="flex items-center justify-center p-8">{t('loading_video_classroom')}</div>}>
         <LiveClassroom
           classroomSlug={classroomSlug}
           sessionId={sessionId}
@@ -438,10 +438,10 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
   const pastSessions = sessions.filter(s => s.status === 'ended');
 
   // Get classroom color styling
-  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor)) 
-    ? classroom.color as ClassroomColor 
+  const classroomColor = (classroom?.color && CLASSROOM_COLORS.includes(classroom.color as ClassroomColor))
+    ? classroom.color as ClassroomColor
     : '#6aa84f';
-  
+
   const cardStyling = getCardStyling(classroomColor as ClassroomColor, 'light');
 
   return (
@@ -449,13 +449,13 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       <div className="mb-8">
         <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          {t('back_to_dashboard')}
         </Button>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Live Sessions</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('live_sessions')}</h1>
             <p className="text-muted-foreground">
-              Manage live sessions for {classroom.name}
+              {t('manage_sessions_for', { classroom: classroom.name })}
             </p>
           </div>
           <CreateLiveSessionDialog
@@ -473,32 +473,32 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Live Session</DialogTitle>
+            <DialogTitle>{t('edit_session')}</DialogTitle>
             <DialogDescription>
-              Update the details of your live session.
+              {t('edit_session_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-title">Title</Label>
+              <Label htmlFor="edit-title">{t('title')}</Label>
               <Input
                 id="edit-title"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Session title"
+                placeholder={t('title_placeholder')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{t('description')}</Label>
               <Textarea
                 id="edit-description"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Session description (optional)"
+                placeholder={t('description_placeholder')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-starts_at">Start Time</Label>
+              <Label htmlFor="edit-starts_at">{t('start_time_label')}</Label>
               <Input
                 id="edit-starts_at"
                 type="datetime-local"
@@ -507,7 +507,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-ends_at">End Time (Optional)</Label>
+              <Label htmlFor="edit-ends_at">{t('end_time_optional')}</Label>
               <Input
                 id="edit-ends_at"
                 type="datetime-local"
@@ -517,20 +517,20 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setIsEditDialogOpen(false);
                 resetForm();
               }}
             >
-              Cancel
+              {t('cancel')}
             </Button>
-            <Button 
+            <Button
               onClick={handleUpdateSession}
               disabled={updateSessionMutation.isPending}
             >
-              {updateSessionMutation.isPending ? 'Updating...' : 'Update Session'}
+              {updateSessionMutation.isPending ? t('updating') : t('update_session')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -541,7 +541,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         <div className="grid gap-4 md:grid-cols-4">
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Live Now</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('live_now')}</CardTitle>
               <Video className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
@@ -550,7 +550,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('scheduled')}</CardTitle>
               <Calendar className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
@@ -559,7 +559,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('completed')}</CardTitle>
               <Clock className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
@@ -568,7 +568,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
           </Card>
           <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('total_sessions')}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -583,7 +583,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Video className="h-5 w-5 text-red-500" />
-                Live Now
+                {t('live_now')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -597,7 +597,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="font-semibold">{session.title}</h3>
                         <Badge variant="default" className="bg-red-600">
-                          LIVE
+                          {t('live')}
                         </Badge>
                       </div>
                       {session.description && (
@@ -611,13 +611,13 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        onClick={() => handleJoinSession(session)} 
+                      <Button
+                        onClick={() => handleJoinSession(session)}
                         className="bg-green-600 hover:bg-green-700"
                         disabled={false}
                       >
                         <Play className="h-4 w-4 mr-2" />
-                        Join Live
+                        {t('join_live')}
                       </Button>
                       {canManageSessions && (
                         <DropdownMenu>
@@ -629,7 +629,7 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleStatusChange(session.id, 'ended')}>
                               <Square className="h-4 w-4 mr-2" />
-                              End Session
+                              {t('end_session')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -645,9 +645,9 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
         {/* All Sessions */}
         <Card style={{ backgroundColor: cardStyling.backgroundColor, borderColor: cardStyling.borderColor }}>
           <CardHeader>
-            <CardTitle>All Sessions</CardTitle>
+            <CardTitle>{t('all_sessions')}</CardTitle>
             <CardDescription>
-              View and manage all live sessions
+              {t('view_and_manage_sessions')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -658,9 +658,9 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
             ) : sessions.length === 0 ? (
               <div className="text-center py-8">
                 <Video className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No sessions yet</h3>
+                <h3 className="mt-4 text-lg font-semibold">{t('no_sessions_yet')}</h3>
                 <p className="text-muted-foreground">
-                  {canManageSessions ? 'Schedule your first live session' : 'No live sessions scheduled'}
+                  {canManageSessions ? t('schedule_first_session') : t('no_sessions_scheduled')}
                 </p>
               </div>
             ) : (
@@ -693,18 +693,18 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                     </div>
                     <div className="flex items-center gap-2">
                       {((session.status as string) === 'live' || (session.status as string) === 'active') && (
-                        <Button 
-                          onClick={() => handleJoinSession(session)} 
+                        <Button
+                          onClick={() => handleJoinSession(session)}
                           className="bg-red-600 hover:bg-red-700"
                         >
                           <Play className="mr-2 h-4 w-4" />
-                          Join Live
+                          {t('join_live')}
                         </Button>
                       )}
                       {session.status === 'scheduled' && (
                         <Button onClick={() => handleJoinSession(session)} variant="outline" disabled>
                           <Video className="mr-2 h-4 w-4" />
-                          Not Started
+                          {t('not_started')}
                         </Button>
                       )}
                       {canManageSessions && session.status === 'scheduled' && (
@@ -717,15 +717,15 @@ export function ClassroomLiveSessionsPage({ classroomSlug }: ClassroomLiveSessio
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleEditSession(session)}>
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit Session
+                              {t('edit_session')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusChange(session.id, 'live')}>
                               <Play className="h-4 w-4 mr-2" />
-                              Start Session
+                              {t('start_session')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusChange(session.id, 'cancelled')}>
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Cancel Session
+                              {t('cancel_session')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

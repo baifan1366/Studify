@@ -1,145 +1,168 @@
-import { NextResponse } from 'next/server';
-import { createServerClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 
-/**
- * Classroom Quizzes API
- * GET /api/classroom/[slug]/quizzes - Get all quizzes for classroom
- * POST /api/classroom/[slug]/quizzes - Create new quiz (tutor/owner only)
- */
-
-export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status'); // 'upcoming', 'ongoing', 'completed'
-  const limit = parseInt(searchParams.get('limit') || '10');
-  const offset = parseInt(searchParams.get('offset') || '0');
-
-  const supabase = await createServerClient();
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
-    // Get classroom and verify access
-    const { data: classroom } = await supabase
-      .from('classrooms')
-      .select(`
-        id,
-        classroom_members!inner(role)
-      `)
-      .eq('slug', slug)
-      .eq('classroom_members.user_id', session.user.id)
-      .single();
+    const supabase = await createClient();
+    const { slug } = await params;
 
-    if (!classroom) {
-      return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 404 });
+    console.log('🔍 [GET Quizzes] Looking for classroom with slug:', slug);
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Build query
-    let query = supabase
-      .from('quizzes')
+    // Get classroom
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classroom')
+      .select('id, slug')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    console.log('📚 [GET Quizzes] Classroom query result:', { classroom, error: classroomError });
+
+    if (!classroom) {
+      return NextResponse.json({ 
+        error: 'Classroom not found',
+        debug: { requestedSlug: slug }
+      }, { status: 404 });
+    }
+
+    // Get quizzes for this classroom
+    const { data: quizzes, error: quizzesError } = await supabase
+      .from('classroom_quiz')
       .select(`
         *,
-        quiz_attempts(
+        classroom_quiz_question (
           id,
-          submitted_at,
-          score,
-          status
+          points,
+          position,
+          classroom_question (
+            id,
+            stem,
+            kind,
+            choices,
+            answer
+          )
         )
       `)
       .eq('classroom_id', classroom.id)
-      .eq('quiz_attempts.user_id', session.user.id);
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false });
 
-    // Apply status filter
-    const now = new Date().toISOString();
-    if (status === 'upcoming') {
-      query = query.gt('starts_at', now);
-    } else if (status === 'ongoing') {
-      query = query.lte('starts_at', now).gt('ends_at', now);
-    } else if (status === 'completed') {
-      query = query.lt('ends_at', now);
+    if (quizzesError) {
+      console.error('Error fetching quizzes:', quizzesError);
+      return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 });
     }
 
-    const { data: quizzes, error } = await query
-      .order('starts_at', { ascending: true })
-      .range(offset, offset + limit - 1);
+    // Calculate total questions and points for each quiz, and format questions
+    const quizzesWithStats = quizzes.map(quiz => {
+      // Map database kind to frontend format
+      const kindMap: Record<string, string> = {
+        'mcq': 'multiple_choice',
+        'true_false': 'true_false',
+        'short': 'short_answer',
+        'essay': 'essay',
+        'code': 'code'
+      };
 
-    if (error) throw error;
+      const questions = quiz.classroom_quiz_question?.map((qq: any) => {
+        const dbKind = qq.classroom_question?.kind;
+        const questionType = kindMap[dbKind] || dbKind;
 
-    // Transform data to include attempt status
-    const transformedQuizzes = quizzes?.map(quiz => ({
-      ...quiz,
-      user_attempt: quiz.quiz_attempts?.[0] || null,
-      quiz_attempts: undefined
-    })) || [];
+        return {
+          id: qq.classroom_question?.id,
+          question_text: qq.classroom_question?.stem,
+          question_type: questionType,
+          points: parseFloat(qq.points) || 0,
+          order_index: qq.position || 0,
+          options: qq.classroom_question?.choices || undefined,
+          correct_answer: qq.classroom_question?.answer || undefined
+        };
+      }).sort((a: any, b: any) => a.order_index - b.order_index) || [];
 
-    return NextResponse.json({
-      quizzes: transformedQuizzes,
-      pagination: {
-        limit,
-        offset,
-        has_more: quizzes?.length === limit
-      }
+      return {
+        ...quiz,
+        total_questions: questions.length,
+        total_points: questions.reduce((sum: number, q: any) => sum + q.points, 0),
+        questions
+      };
     });
-  } catch (error) {
-    console.error('Error fetching quizzes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return NextResponse.json({ quizzes: quizzesWithStats });
+  } catch (error: any) {
+    console.error('Error in GET /api/classroom/[slug]/quizzes:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const supabase = await createServerClient();
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
+    const supabase = await createClient();
+    const { slug } = await params;
     const body = await request.json();
-    const { title, description, questions, starts_at, ends_at, time_limit, settings } = body;
 
-    // Verify user is owner or tutor
-    const { data: classroom } = await supabase
-      .from('classrooms')
-      .select(`
-        id,
-        classroom_members!inner(role)
-      `)
-      .eq('slug', slug)
-      .eq('classroom_members.user_id', session.user.id)
-      .single();
+    console.log('🔍 [POST Quiz] Looking for classroom with slug:', slug);
 
-    if (!classroom || !['owner', 'tutor'].includes(classroom.classroom_members[0]?.role)) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create quiz
-    const { data: quiz, error } = await supabase
-      .from('quizzes')
+    // Get classroom
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classroom')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    console.log('📚 [POST Quiz] Classroom query result:', { classroom, error: classroomError });
+
+    if (!classroom) {
+      return NextResponse.json({ error: 'Classroom not found' }, { status: 404 });
+    }
+
+    // Create quiz - don't set slug as it has a foreign key constraint issue
+    const { data: quiz, error: quizError } = await supabase
+      .from('classroom_quiz')
       .insert({
         classroom_id: classroom.id,
-        title,
-        description,
-        questions,
-        starts_at,
-        ends_at,
-        time_limit,
-        settings,
-        created_by: session.user.id,
-        created_at: new Date().toISOString()
+        title: body.title,
+        settings: body.settings || {
+          shuffle: true,
+          time_limit: body.time_limit || null,
+          allow_multiple_attempts: body.allow_multiple_attempts || false,
+          due_date: body.due_date || null
+        }
       })
       .select()
       .single();
 
-    if (error) throw error;
+    console.log('📝 [POST Quiz] Quiz creation result:', { quiz, error: quizError });
+
+    if (quizError) {
+      console.error('Error creating quiz:', quizError);
+      return NextResponse.json({ error: 'Failed to create quiz' }, { status: 500 });
+    }
 
     return NextResponse.json({ quiz }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating quiz:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error in POST /api/classroom/[slug]/quizzes:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

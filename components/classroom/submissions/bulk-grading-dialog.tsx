@@ -13,18 +13,16 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateGrade } from '@/hooks/classroom/use-grades';
-import { 
-  Star, 
-  Users, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  Star,
+  Users,
+  CheckCircle,
   FileText,
   Clock,
   Download
 } from 'lucide-react';
 import { ClassroomColor, getCardStyling, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
 import { SubmissionAttachments } from './submission-attachments';
-import { SubmissionAIChecker } from '@/components/ai/submission-ai-checker';
 
 interface Submission {
   id: number;
@@ -79,7 +77,7 @@ export function BulkGradingDialog({
   const [individualGrades, setIndividualGrades] = useState<Record<number, { grade: string; feedback: string }>>({});
   const [gradingMode, setGradingMode] = useState<'bulk' | 'individual'>('bulk');
   const [processing, setProcessing] = useState(false);
-  
+
   const { toast } = useToast();
   const createGradeMutation = useCreateGrade();
   const cardStyling = getCardStyling(classroomColor, 'light');
@@ -154,11 +152,11 @@ export function BulkGradingDialog({
     }
 
     setProcessing(true);
-    
+
     try {
       const grade = parseFloat(bulkGrade);
       const selectedSubmissionsList = ungradedSubmissions.filter(s => selectedSubmissions.has(s.id));
-      
+
       // Submit grades in parallel
       await Promise.all(
         selectedSubmissionsList.map(submission =>
@@ -193,7 +191,7 @@ export function BulkGradingDialog({
   };
 
   const handleIndividualGrading = async () => {
-    const validGrades = Object.entries(individualGrades).filter(([_, data]) => 
+    const validGrades = Object.entries(individualGrades).filter(([_, data]) =>
       validateGrade(data.grade)
     );
 
@@ -207,7 +205,7 @@ export function BulkGradingDialog({
     }
 
     setProcessing(true);
-    
+
     try {
       // Submit individual grades in parallel
       await Promise.all(
@@ -269,8 +267,8 @@ export function BulkGradingDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" style={{ color: classroomColor }} />
             Bulk Grading - {assignment.title}
@@ -280,232 +278,238 @@ export function BulkGradingDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div 
-            className="p-3 rounded-lg border-l-4"
-            style={{ 
-              borderLeftColor: classroomColor,
-              backgroundColor: cardStyling.backgroundColor 
-            }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="h-4 w-4" style={{ color: classroomColor }} />
-              <span className="font-medium">Total Submissions</span>
-            </div>
-            <div className="text-2xl font-bold">{submissions.length}</div>
-          </div>
-
-          <div 
-            className="p-3 rounded-lg border-l-4"
-            style={{ 
-              borderLeftColor: '#10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)' 
-            }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <span className="font-medium">Graded</span>
-            </div>
-            <div className="text-2xl font-bold">{gradedSubmissions.length}</div>
-          </div>
-
-          <div 
-            className="p-3 rounded-lg border-l-4"
-            style={{ 
-              borderLeftColor: '#f59e0b',
-              backgroundColor: 'rgba(245, 158, 11, 0.1)' 
-            }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-yellow-600" />
-              <span className="font-medium">Pending</span>
-            </div>
-            <div className="text-2xl font-bold">{ungradedSubmissions.length}</div>
-          </div>
-        </div>
-
-        <div className="flex gap-2 mb-4">
-          <Button 
-            variant={gradingMode === 'bulk' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setGradingMode('bulk')}
-            style={{ 
-              backgroundColor: gradingMode === 'bulk' ? classroomColor : undefined,
-              borderColor: classroomColor
-            }}
-          >
-            Bulk Grading
-          </Button>
-          <Button 
-            variant={gradingMode === 'individual' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setGradingMode('individual')}
-            style={{ 
-              backgroundColor: gradingMode === 'individual' ? classroomColor : undefined,
-              borderColor: classroomColor
-            }}
-          >
-            Individual Grading
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={exportGrades}
-            className="ml-auto"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-
-        {gradingMode === 'bulk' && (
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-1">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Grade (0-100)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={bulkGrade}
-                  onChange={(e) => setBulkGrade(e.target.value)}
-                  placeholder="Enter grade"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div
+                className="p-3 rounded-lg border-l-4"
+                style={{
+                  borderLeftColor: classroomColor,
+                  backgroundColor: cardStyling.backgroundColor
+                }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText className="h-4 w-4" style={{ color: classroomColor }} />
+                  <span className="font-medium">Total Submissions</span>
+                </div>
+                <div className="text-2xl font-bold">{submissions.length}</div>
               </div>
-              <div>
-                <Label className="flex items-center gap-2">
-                  Select All
-                  <Checkbox
-                    checked={selectedSubmissions.size === ungradedSubmissions.length && ungradedSubmissions.length > 0}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                  />
-                </Label>
-              </div>
-            </div>
-            
-            <div>
-              <Label>Feedback (Optional)</Label>
-              <Textarea
-                value={bulkFeedback}
-                onChange={(e) => setBulkFeedback(e.target.value)}
-                placeholder="Enter feedback for all selected submissions..."
-                rows={3}
-              />
-            </div>
-          </div>
-        )}
 
-        <ScrollArea className="flex-1 max-h-96">
-          <div className="space-y-2">
-            {ungradedSubmissions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="h-12 w-12 mx-auto mb-2" style={{ color: classroomColor }} />
-                <p>All submissions have been graded!</p>
+              <div
+                className="p-3 rounded-lg border-l-4"
+                style={{
+                  borderLeftColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)'
+                }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="font-medium">Graded</span>
+                </div>
+                <div className="text-2xl font-bold">{gradedSubmissions.length}</div>
               </div>
-            ) : (
-              ungradedSubmissions.map((submission) => (
-                <div 
-                  key={submission.id}
-                  className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    {gradingMode === 'bulk' && (
+
+              <div
+                className="p-3 rounded-lg border-l-4"
+                style={{
+                  borderLeftColor: '#f59e0b',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)'
+                }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="h-4 w-4 text-yellow-600" />
+                  <span className="font-medium">Pending</span>
+                </div>
+                <div className="text-2xl font-bold">{ungradedSubmissions.length}</div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant={gradingMode === 'bulk' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setGradingMode('bulk')}
+                style={{
+                  backgroundColor: gradingMode === 'bulk' ? classroomColor : undefined,
+                  borderColor: classroomColor
+                }}
+              >
+                Bulk Grading
+              </Button>
+              <Button
+                variant={gradingMode === 'individual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setGradingMode('individual')}
+                style={{
+                  backgroundColor: gradingMode === 'individual' ? classroomColor : undefined,
+                  borderColor: classroomColor
+                }}
+              >
+                Individual Grading
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportGrades}
+                className="ml-auto"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+
+            {gradingMode === 'bulk' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Grade (0-100)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={bulkGrade}
+                      onChange={(e) => setBulkGrade(e.target.value)}
+                      placeholder="Enter grade"
+                    />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2">
+                      Select All
                       <Checkbox
-                        checked={selectedSubmissions.has(submission.id)}
-                        onChange={(e) => handleSelectSubmission(submission.id, e.target.checked)}
+                        checked={selectedSubmissions.size === ungradedSubmissions.length && ungradedSubmissions.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
                       />
-                    )}
-                    
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={submission.profiles.avatar_url || undefined} />
-                      <AvatarFallback>
-                        {submission.profiles.display_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 
-                         submission.profiles.email?.substring(0, 2).toUpperCase() || 'NA'}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1">
-                      <div className="font-medium">
-                        {submission.profiles.display_name || submission.profiles.email}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
-                      </div>
-                      
-                      {/* Show attachments if any exist */}
-                      {submission.classroom_attachments && (
-                        <div className="mt-2">
-                          <SubmissionAttachments 
-                            attachments={[submission.classroom_attachments]}
-                            userRole="tutor"
-                            showTitle={false}
-                            className="text-xs"
+                    </Label>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Feedback (Optional)</Label>
+                  <Textarea
+                    value={bulkFeedback}
+                    onChange={(e) => setBulkFeedback(e.target.value)}
+                    placeholder="Enter feedback for all selected submissions..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+
+            <ScrollArea className="flex-1 max-h-96 overflow-y-auto pr-4">
+              <div className="space-y-2 pb-2">
+                {ungradedSubmissions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-2" style={{ color: classroomColor }} />
+                    <p>All submissions have been graded!</p>
+                  </div>
+                ) : (
+                  ungradedSubmissions.map((submission) => (
+                    <div
+                      key={submission.id}
+                      className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        {gradingMode === 'bulk' && (
+                          <Checkbox
+                            checked={selectedSubmissions.has(submission.id)}
+                            onChange={(e) => handleSelectSubmission(submission.id, e.target.checked)}
                           />
+                        )}
+
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={submission.profiles.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {submission.profiles.display_name?.split(' ').map(n => n[0]).join('').toUpperCase() ||
+                              submission.profiles.email?.substring(0, 2).toUpperCase() || 'NA'}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div className="flex-1">
+                          <div className="font-medium">
+                            {submission.profiles.display_name || submission.profiles.email}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
+                          </div>
+
+                          {/* Show attachments if any exist */}
+                          {submission.classroom_attachments && (
+                            <div className="mt-2">
+                              <SubmissionAttachments
+                                attachments={[submission.classroom_attachments]}
+                                userRole="tutor"
+                                showTitle={false}
+                                className="text-xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {gradingMode === 'individual' && (
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              placeholder="Grade"
+                              className="w-20"
+                              value={individualGrades[submission.id]?.grade || ''}
+                              onChange={(e) => handleIndividualGradeChange(submission.id, 'grade', e.target.value)}
+                            />
+                            <Input
+                              placeholder="Feedback"
+                              className="w-32"
+                              value={individualGrades[submission.id]?.feedback || ''}
+                              onChange={(e) => handleIndividualGradeChange(submission.id, 'feedback', e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+
+            {gradedSubmissions.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground mb-2">Already Graded ({gradedSubmissions.length})</h4>
+                  <ScrollArea className="max-h-32 overflow-y-auto">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pr-4">
+                      {gradedSubmissions.slice(0, 6).map(submission => (
+                        <div key={submission.id} className="flex items-center gap-2 text-sm p-2 bg-muted/30 rounded">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs">
+                              {submission.profiles.display_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'NA'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate flex-1">{submission.profiles.display_name || submission.profiles.email}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            <Star className="h-3 w-3 mr-1" />
+                            {submission.grade}%
+                          </Badge>
+                        </div>
+                      ))}
+                      {gradedSubmissions.length > 6 && (
+                        <div className="text-xs text-muted-foreground p-2">
+                          +{gradedSubmissions.length - 6} more...
                         </div>
                       )}
                     </div>
-
-                    {gradingMode === 'individual' && (
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          placeholder="Grade"
-                          className="w-20"
-                          value={individualGrades[submission.id]?.grade || ''}
-                          onChange={(e) => handleIndividualGradeChange(submission.id, 'grade', e.target.value)}
-                        />
-                        <Input
-                          placeholder="Feedback"
-                          className="w-32"
-                          value={individualGrades[submission.id]?.feedback || ''}
-                          onChange={(e) => handleIndividualGradeChange(submission.id, 'feedback', e.target.value)}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  </ScrollArea>
                 </div>
-              ))
+              </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        {gradedSubmissions.length > 0 && (
-          <>
-            <Separator />
-            <div>
-              <h4 className="font-medium text-sm text-muted-foreground mb-2">Already Graded ({gradedSubmissions.length})</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {gradedSubmissions.slice(0, 6).map(submission => (
-                  <div key={submission.id} className="flex items-center gap-2 text-sm p-2 bg-muted/30 rounded">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">
-                        {submission.profiles.display_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'NA'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="truncate flex-1">{submission.profiles.display_name || submission.profiles.email}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      <Star className="h-3 w-3 mr-1" />
-                      {submission.grade}%
-                    </Badge>
-                  </div>
-                ))}
-                {gradedSubmissions.length > 6 && (
-                  <div className="text-xs text-muted-foreground p-2">
-                    +{gradedSubmissions.length - 6} more...
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           <Button variant="outline" onClick={onClose} disabled={processing}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={gradingMode === 'bulk' ? handleBulkGrading : handleIndividualGrading}
             disabled={processing || ungradedSubmissions.length === 0}
             style={{ backgroundColor: classroomColor }}

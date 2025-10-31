@@ -125,7 +125,7 @@ export function CreateAssignmentDialog({
     if (dueDate < minDueDate) {
       toast({
         title: t('validation_error'),
-        description: 'Due date must be at least 30 minutes from now',
+        description: t('due_date_validation'),
         variant: "destructive",
       });
       return;
@@ -159,32 +159,32 @@ export function CreateAssignmentDialog({
       <div className="grid gap-4 py-4">
         <div className="grid gap-2">
           <Label htmlFor="title">
-            Title <span className="text-red-500">*</span>
+            {t('title')} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="title"
             value={formData.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="Assignment title"
+            placeholder={t('title_placeholder')}
             disabled={createAssignmentMutation.isPending}
           />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="description">
-            Description <span className="text-red-500">*</span>
+            {t('description')} <span className="text-red-500">*</span>
           </Label>
           <Textarea
             id="description"
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="Assignment description and instructions"
+            placeholder={t('description_placeholder')}
             rows={4}
             disabled={createAssignmentMutation.isPending}
           />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="due_date">
-            Due Date <span className="text-red-500">*</span>
+            {t('due_date')} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="due_date"
@@ -199,7 +199,7 @@ export function CreateAssignmentDialog({
             disabled={createAssignmentMutation.isPending}
           />
           <p className="text-xs text-muted-foreground">
-            Due date must be at least 30 minutes from now
+            {t('due_date_hint')}
           </p>
         </div>
       </div>
@@ -209,7 +209,7 @@ export function CreateAssignmentDialog({
           onClick={() => handleOpenChange(false)}
           disabled={createAssignmentMutation.isPending}
         >
-          Cancel
+          {t('cancel')}
         </Button>
         <Button
           onClick={handleCreateAssignment}
@@ -218,10 +218,10 @@ export function CreateAssignmentDialog({
           {createAssignmentMutation.isPending ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Creating...
+              {t('creating')}
             </>
           ) : (
-            'Create Assignment'
+            t('create')
           )}
         </Button>
       </DialogFooter>

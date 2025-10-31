@@ -246,15 +246,31 @@ export async function POST(
     const supabase = await createAdminClient();
 
     // Parse request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError);
+      return NextResponse.json({ 
+        error: 'Invalid JSON in request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }, { status: 400 });
+    }
+
     const { sessionId, imageData, width, height, metadata, textBoxes } = body;
 
     if (!sessionId || !imageData) {
       return NextResponse.json({ error: 'Session ID and image data are required' }, { status: 400 });
     }
     
-    // 🎯 Log textBoxes data
-    console.log('📋 Received textBoxes:', textBoxes?.length || 0, 'boxes');
+    // 🎯 Log request details
+    console.log('📋 Received save request:', {
+      sessionId,
+      imageDataLength: imageData?.length || 0,
+      textBoxCount: textBoxes?.length || 0,
+      width,
+      height
+    });
 
     // 1. 定义缓存键 (与 GET 一致)
     const cacheKey = `whiteboard:${slug}:${sessionId}`;
@@ -262,7 +278,26 @@ export async function POST(
     try {
       // Convert base64 image to blob
       const base64Data = imageData.replace(/^data:image\/png;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
+      
+      // Validate base64 data
+      if (!base64Data || base64Data.length === 0) {
+        console.error('❌ Empty base64 data after processing');
+        return NextResponse.json({ 
+          error: 'Invalid image data - empty after processing',
+          receivedLength: imageData?.length || 0
+        }, { status: 400 });
+      }
+      
+      let buffer;
+      try {
+        buffer = Buffer.from(base64Data, 'base64');
+      } catch (bufferError) {
+        console.error('❌ Failed to create buffer from base64:', bufferError);
+        return NextResponse.json({ 
+          error: 'Invalid base64 image data',
+          details: bufferError instanceof Error ? bufferError.message : 'Unknown error'
+        }, { status: 400 });
+      }
       
       console.log('Attempting to save whiteboard:', {
         slug,

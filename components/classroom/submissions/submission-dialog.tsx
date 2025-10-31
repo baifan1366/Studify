@@ -412,7 +412,7 @@ export function SubmissionDialog({
                           {attachments.map((attachment) => (
                             <div 
                               key={attachment.id}
-                              className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border"
+                              className="flex items-center justify-between p-2 bg-gray-100/5 rounded-lg border"
                             >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <span className="text-lg">{getFileIcon(attachment.mime_type)}</span>

@@ -30,7 +30,8 @@ import { useClassrooms, useLiveSessions, useUpdateLiveSession } from '@/hooks/cl
 import { useClassroomMembers } from '@/hooks/classroom/use-update-classroom-member';
 import { useClassroomAssignments, ClassroomAssignment } from '@/hooks/classroom/use-classroom-assignments';
 import { ChatTabs } from './tabs/chat-tabs';
-import { useUser } from '@/hooks/profile/use-user'
+import { useUser } from '@/hooks/profile/use-user';
+import { useClassroomQuizzes } from '@/hooks/classroom/use-classroom-quizzes';
 
 const LiveClassroom = dynamic(() => import('@/components/classroom/live-session/live-classroom'));
 import { Assignment as AssignmentInterface } from '@/interface/classroom/asg-interface';
@@ -139,7 +140,11 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
   // Type the assignments data properly using hook's Assignment type
   const typedAssignments: ClassroomAssignment[] = assignmentsResponse?.assignments || [];
-  const sampleQuizzes: Quiz[] = []; // Placeholder for future quiz data
+
+  // Fetch quizzes data
+  const { data: quizzesData } = useClassroomQuizzes(classroomSlug);
+  const quizzes = quizzesData?.quizzes || [];
+  const publishedQuizzes = quizzes.filter((q: any) => q.total_questions > 0);
 
   // Example usage of AssignmentInterface for type checking
   const validateAssignmentInterface = (assignment: AssignmentInterface) => {
@@ -399,8 +404,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       console.log('✅ Classroom updated:', data);
 
       toast({
-        title: "Success",
-        description: "Classroom updated successfully",
+        title: t('success'),
+        description: t('classroom_updated'),
       });
 
       setIsManageDialogOpen(false);
@@ -411,8 +416,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     } catch (error: any) {
       console.error('❌ Error updating classroom:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update classroom. You may not have permission to perform this action.",
+        title: t('error'),
+        description: error.message || t('update_failed'),
         variant: "destructive",
       });
     }
@@ -441,8 +446,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       console.log('✅ Classroom deleted:', data);
 
       toast({
-        title: "Success",
-        description: "Classroom deleted successfully",
+        title: t('success'),
+        description: t('classroom_deleted'),
       });
 
       setIsDeleteConfirmOpen(false);
@@ -454,8 +459,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     } catch (error: any) {
       console.error('❌ Error deleting classroom:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete classroom. You may not have permission to perform this action.",
+        title: t('error'),
+        description: error.message || t('delete_failed'),
         variant: "destructive",
       });
     }
@@ -556,8 +561,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
     }
 
     // Add quiz activities (if available)
-    if (sampleQuizzes && sampleQuizzes.length > 0) {
-      sampleQuizzes.slice(0, 3).forEach((quiz: Quiz) => {
+    if (publishedQuizzes && publishedQuizzes.length > 0) {
+      publishedQuizzes.slice(0, 3).forEach((quiz: any) => {
         activities.push({
           id: `quiz-${quiz.id}`,
           type: 'quiz',
@@ -700,7 +705,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Back to Classrooms</span>
+          <span>{t('back_to_classrooms')}</span>
         </Button>
       </div>
 
@@ -958,6 +963,13 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               >
                 {t('assignments')}
               </AnimatedTabsTrigger>
+              <AnimatedTabsTrigger
+                value="quizzes"
+                isActive={activeTab === 'quizzes'}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors duration-200 hover:text-foreground data-[state=active]:text-primary whitespace-nowrap flex-shrink-0"
+              >
+                {t('quizzes')}
+              </AnimatedTabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -1041,7 +1053,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 <Brain className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{sampleQuizzes.length}</div>
+                <div className="text-2xl font-bold">{publishedQuizzes.length}</div>
                 <p className="text-xs text-muted-foreground">
                   {t('available_quizzes')}
                 </p>
@@ -1217,7 +1229,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             <CardContent>
               {recentActivities.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No recent activities yet
+                  {t('no_recent_activities')}
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -1289,7 +1301,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                        className="flex items-start gap-4 p-3 rounded-lg bg-gray-100/5 hover:bg-gray-200/8 transition-colors"
                       >
                         <div className={`p-2 rounded-full flex-shrink-0 ${iconColorClass}`}>
                           <Icon className={`h-4 w-4 ${textColorClass}`} />
@@ -1324,9 +1336,9 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                                               'secondary'
                                   }
                                   className={`text-xs ${activity.status === 'due-today' ? 'bg-orange-500 hover:bg-orange-600' :
-                                      activity.status === 'due-soon' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' :
-                                        activity.status === 'submitted' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                                          ''
+                                    activity.status === 'due-soon' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' :
+                                      activity.status === 'submitted' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                                        ''
                                     }`}
                                 >
                                   {activity.status === 'due-today' ? 'Due Today' :
@@ -1352,45 +1364,45 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Manage Classroom</DialogTitle>
+            <DialogTitle>{t('manage_classroom')}</DialogTitle>
             <DialogDescription>
-              Update classroom settings or delete this classroom.
+              {t('manage_classroom_desc')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             {/* Classroom Name */}
             <div className="grid gap-2">
-              <Label htmlFor="name">Classroom Name</Label>
+              <Label htmlFor="name">{t('classroom_name')}</Label>
               <Input
                 id="name"
                 value={manageFormData.name}
                 onChange={(e) => setManageFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter classroom name"
+                placeholder={t('classroom_name_placeholder')}
               />
             </div>
 
             {/* Description */}
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('description')}</Label>
               <Textarea
                 id="description"
                 value={manageFormData.description}
                 onChange={(e) => setManageFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Enter classroom description"
+                placeholder={t('description_placeholder')}
                 rows={3}
               />
             </div>
 
             {/* Color Picker */}
             <div className="grid gap-2">
-              <Label htmlFor="color">Theme Color</Label>
+              <Label htmlFor="color">{t('theme_color')}</Label>
               <Select
                 value={manageFormData.color}
                 onValueChange={(value) => setManageFormData(prev => ({ ...prev, color: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a color" />
+                  <SelectValue placeholder={t('select_color')} />
                 </SelectTrigger>
                 <SelectContent>
                   {CLASSROOM_COLORS.map((color) => (
@@ -1410,29 +1422,29 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
 
             {/* Visibility */}
             <div className="grid gap-2">
-              <Label htmlFor="visibility">Visibility</Label>
+              <Label htmlFor="visibility">{t('visibility')}</Label>
               <Select
                 value={manageFormData.visibility}
                 onValueChange={(value) => setManageFormData(prev => ({ ...prev, visibility: value }))}
                 disabled={classroom.user_role !== 'owner'}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select visibility" />
+                <SelectTrigger className="h-20">
+                  <SelectValue placeholder={t('select_visibility')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="public">
                     <div className="flex flex-col">
-                      <span>Public</span>
+                      <span>{t('public')}</span>
                       <span className="text-xs text-muted-foreground">
-                        Anyone can see and join this classroom
+                        {t('public_desc')}
                       </span>
                     </div>
                   </SelectItem>
                   <SelectItem value="private">
                     <div className="flex flex-col">
-                      <span>Private</span>
+                      <span>{t('private')}</span>
                       <span className="text-xs text-muted-foreground">
-                        Only members can see this classroom
+                        {t('private_desc')}
                       </span>
                     </div>
                   </SelectItem>
@@ -1440,7 +1452,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               </Select>
               {classroom.user_role !== 'owner' && (
                 <p className="text-xs text-muted-foreground">
-                  Only the owner can change visibility
+                  {t('only_owner_can_change_visibility')}
                 </p>
               )}
             </div>
@@ -1449,10 +1461,10 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             {classroom.user_role === 'owner' && manageFormData.visibility === 'private' && (
               <div className="grid gap-2">
                 <Label htmlFor="password">
-                  Classroom Password
+                  {t('classroom_password')}
                   {classroom.visibility === 'private' && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      (Leave empty to keep current password)
+                      {t('leave_empty_keep_password')}
                     </span>
                   )}
                 </Label>
@@ -1460,7 +1472,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder={classroom.visibility === 'private' ? "Enter new password to change" : "Enter a password for this classroom"}
+                    placeholder={classroom.visibility === 'private' ? t('enter_new_password') : t('enter_password_for_classroom')}
                     value={manageFormData.password}
                     onChange={(e) => setManageFormData(prev => ({ ...prev, password: e.target.value }))}
                     className="pl-10 pr-10"
@@ -1478,7 +1490,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Students will need this password to join the classroom
+                  {t('students_need_password')}
                 </p>
               </div>
             )}
@@ -1494,7 +1506,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               className="w-full sm:w-auto"
             >
               <Trash className="h-4 w-4 mr-2" />
-              Delete Classroom
+              {t('delete_classroom')}
             </Button>
             <div className="flex gap-2 w-full sm:w-auto">
               <Button
@@ -1502,14 +1514,14 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
                 onClick={() => setIsManageDialogOpen(false)}
                 className="flex-1 sm:flex-none"
               >
-                Cancel
+                {t('cancel')}
               </Button>
               <Button
                 onClick={handleSaveClassroom}
                 className="flex-1 sm:flex-none"
                 disabled={!manageFormData.name.trim()}
               >
-                Save Changes
+                {t('save_changes')}
               </Button>
             </div>
           </DialogFooter>
@@ -1520,10 +1532,9 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete Classroom?</DialogTitle>
+            <DialogTitle>{t('delete_classroom_confirm')}</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete the classroom
-              and remove all associated data.
+              {t('delete_classroom_confirm_desc')}
             </DialogDescription>
           </DialogHeader>
 
@@ -1531,10 +1542,9 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
             <div className="flex items-start gap-3">
               <Trash className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-medium text-destructive">Warning</p>
+                <p className="font-medium text-destructive">{t('warning')}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  You are about to delete <strong>{classroom?.name}</strong>. All members
-                  will lose access and all content will be removed.
+                  {t('delete_warning', { name: classroom?.name })}
                 </p>
               </div>
             </div>
@@ -1545,14 +1555,14 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               variant="outline"
               onClick={() => setIsDeleteConfirmOpen(false)}
             >
-              Cancel
+              {t('cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteClassroom}
             >
               <Trash className="h-4 w-4 mr-2" />
-              Delete Permanently
+              {t('delete_permanently')}
             </Button>
           </DialogFooter>
         </DialogContent>

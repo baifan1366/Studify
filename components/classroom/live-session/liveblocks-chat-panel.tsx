@@ -49,6 +49,15 @@ interface SessionChatPanelProps {
     avatarUrl?: string;
     role: string;
   }>;
+  // Callback to set focused participant
+  onParticipantClick?: (participant: {
+    identity: string;
+    displayName: string;
+    avatarUrl?: string;
+    role: string;
+  }) => void;
+  // Currently focused participant identity
+  focusedParticipantIdentity?: string;
 }
 
 const REACTIONS = [
@@ -74,7 +83,17 @@ function useSessionChat(
   const [error, setError] = useState<string | null>(null);
 
   // 🎯 Use LiveKit DataChannel for real-time communication
+  // Use a simple, consistent topic name that all participants will use
   const { message: dataChannelMessage, send: sendData } = useDataChannel('chat');
+
+  // Debug: Log DataChannel status
+  useEffect(() => {
+    console.log('🔍 DataChannel status:', {
+      hasMessage: !!dataChannelMessage,
+      hasSendFunction: !!sendData,
+      userInfo: userInfo ? { id: userInfo.id, name: userInfo.name } : null
+    });
+  }, [dataChannelMessage, sendData, userInfo]);
 
   // Load history from localStorage (only for initialization)
   const loadLocalHistory = useCallback(() => {
@@ -132,34 +151,20 @@ function useSessionChat(
 
       const cacheKey = `chat:${classroomSlug}:${sessionId}`;
       const existingData = localStorage.getItem(cacheKey);
-      let existingMessages = [];
-
-      if (existingData) {
-        try {
-          existingMessages = JSON.parse(existingData);
-        } catch (parseError) {
-          existingMessages = [];
-        }
+      const existingMessages: ChatMessage[] = existingData ? JSON.parse(existingData) : [];
+      
+      // Check for duplicates before saving
+      const isDuplicate = existingMessages.some(msg => msg.id === message.id);
+      if (isDuplicate) {
+        console.log('💾 Duplicate message, skipping localStorage save:', message.id);
+        return;
       }
-
-      existingMessages.push({
-        id: message.id,
-        text: message.text,
-        userId: message.userId,
-        userName: message.userName,
-        userAvatar: message.userAvatar,
-        type: message.type,
-        timestamp: message.timestamp
-      });
-
-      // Limit to save last 100 messages
-      if (existingMessages.length > 100) {
-        existingMessages = existingMessages.slice(-100);
-      }
-
-      localStorage.setItem(cacheKey, JSON.stringify(existingMessages));
+      
+      const updatedMessages = [...existingMessages, message];
+      localStorage.setItem(cacheKey, JSON.stringify(updatedMessages));
+      console.log('💾 Message saved to localStorage:', message.id);
     } catch (error) {
-      console.error('💥 Error saving to local history:', error);
+      console.error('💥 Error saving to localStorage:', error);
     }
   }, [classroomSlug, sessionId]);
 
@@ -178,20 +183,33 @@ function useSessionChat(
     }
   }, [classroomSlug, sessionId]);
 
-  // Get local history when component loads
+  // Load localStorage cache on mount
   useEffect(() => {
-    if (classroomSlug && sessionId) {
+    if (classroomSlug && sessionId && sessionId !== 'undefined' && sessionId !== 'null') {
       loadLocalHistory();
     }
   }, [classroomSlug, sessionId, loadLocalHistory]);
 
+
+
+  // Store userInfo.id in a ref to avoid dependency issues
+  const userIdRef = useRef(userInfo?.id);
+  useEffect(() => {
+    userIdRef.current = userInfo?.id;
+  }, [userInfo?.id]);
+
   // 🎯 Listen to LiveKit DataChannel for receiving messages
   useEffect(() => {
     if (dataChannelMessage) {
+      console.log('📥 Received DataChannel message:', dataChannelMessage);
+      
       try {
         const decoder = new TextDecoder();
         const messageStr = decoder.decode(dataChannelMessage.payload);
+        console.log('📥 Decoded message:', messageStr);
+        
         const data = JSON.parse(messageStr);
+        console.log('📥 Parsed data:', data);
 
         // Only handle chat message types
         if (data.type === 'chat') {
@@ -205,17 +223,31 @@ function useSessionChat(
             type: data.messageType || 'text'
           };
 
-
+          console.log('📥 Processing chat message:', newMessage);
+          
           // Add to message list
           setMessages(prev => {
-            // Prevent duplicate messages
-            if (prev.some(msg => msg.id === newMessage.id)) {
+            // Prevent duplicate messages by checking ID
+            const isDuplicate = prev.some(msg => msg.id === newMessage.id);
+            
+            console.log('📥 Duplicate check:', {
+              messageId: newMessage.id,
+              isDuplicate,
+              existingMessageIds: prev.map(m => m.id),
+              currentUserId: userIdRef.current,
+              messageUserId: newMessage.userId
+            });
+            
+            if (isDuplicate) {
+              console.log('⚠️ Duplicate message detected, skipping:', newMessage.id);
               return prev;
             }
+            
+            console.log('✅ Adding new message to list');
             return [...prev, newMessage];
           });
-
-          // Backup to local
+          
+          // Save to localStorage for persistence across refreshes
           saveToLocalHistory(newMessage);
         }
       } catch (error) {
@@ -225,9 +257,16 @@ function useSessionChat(
   }, [dataChannelMessage, saveToLocalHistory]);
 
   // 🎯 Send message via LiveKit DataChannel
-  const sendMessage = useCallback((text: string, messageType: 'text' | 'reaction' = 'text') => {
-    if (!userInfo || !text.trim() || !sendData) {
-      console.warn('⚠️ Cannot send message:', { hasUserInfo: !!userInfo, hasText: !!text.trim(), hasSendData: !!sendData });
+  const sendMessage = useCallback(async (text: string, messageType: 'text' | 'reaction' = 'text') => {
+    if (!userInfo || !text.trim()) {
+      console.warn('⚠️ Cannot send message: missing userInfo or text');
+      return;
+    }
+
+    if (!sendData) {
+      console.error('❌ sendData function not available - DataChannel not ready');
+      setError('Chat not ready, please wait...');
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -241,10 +280,25 @@ function useSessionChat(
       type: messageType,
     };
 
-    // Immediately add to local display (optimistic update)
-    setMessages(prev => [...prev, newMessage]);
+    console.log('📤 Preparing to send message:', newMessage);
 
-    // Backup to local
+    // Immediately add to local display (optimistic update)
+    setMessages(prev => {
+      // Check for duplicates before adding
+      const isDuplicate = prev.some(msg => msg.id === newMessage.id);
+      if (isDuplicate) {
+        console.log('⚠️ Duplicate message in optimistic update, skipping:', newMessage.id);
+        return prev;
+      }
+      
+      console.log('📤 Adding message to local list (optimistic):', {
+        messageId: newMessage.id,
+        existingCount: prev.length
+      });
+      return [...prev, newMessage];
+    });
+    
+    // Save to localStorage immediately for persistence
     saveToLocalHistory(newMessage);
 
     // 🎯 Send to other participants via LiveKit DataChannel
@@ -260,13 +314,19 @@ function useSessionChat(
         messageType: newMessage.type
       };
 
+      const payloadStr = JSON.stringify(payload);
+      console.log('📤 Payload string:', payloadStr);
+      
       const encoder = new TextEncoder();
-      const data = encoder.encode(JSON.stringify(payload));
+      const data = encoder.encode(payloadStr);
+      console.log('📤 Encoded data length:', data.length);
 
-      sendData(data, { reliable: true }); // Use reliable transmission to ensure message delivery
+      // Send with reliable option to ensure delivery
+      await sendData(data, { reliable: true });
+      
+      console.log('✅ Message sent successfully via DataChannel');
     } catch (error) {
       console.error('❌ Error sending message via DataChannel:', error);
-      // Can show error message when sending fails
       setError('Message sending failed, please retry');
       setTimeout(() => setError(null), 3000);
     }
@@ -312,7 +372,7 @@ function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoad
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3">
+    <div className="h-full overflow-y-auto p-2 sm:p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50 hover:scrollbar-thumb-slate-500">
       {messages.length === 0 ? (
         <div className="text-center text-slate-400 py-8">
           <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -376,7 +436,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -421,7 +481,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Enter message..."
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             className="w-full pr-20 bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:ring-indigo-500"
             maxLength={500}
           />
@@ -461,13 +521,24 @@ function ChatInput({ onSendMessage, onSendReaction }: {
 /**
  * Online participants list component - uses real LiveKit participant data
  */
-function OnlineParticipants({ participants }: {
+function OnlineParticipants({ 
+  participants,
+  onParticipantClick,
+  focusedParticipantIdentity
+}: {
   participants: Array<{
     identity: string;
     displayName: string;
     avatarUrl?: string;
     role: string;
   }>;
+  onParticipantClick?: (participant: {
+    identity: string;
+    displayName: string;
+    avatarUrl?: string;
+    role: string;
+  }) => void;
+  focusedParticipantIdentity?: string;
 }) {
   return (
     <div className="p-4 border-b border-slate-700/50">
@@ -475,29 +546,42 @@ function OnlineParticipants({ participants }: {
         <Users className="w-4 h-4 text-slate-400" />
         <span className="text-sm font-medium text-white">Online Participants ({participants.length})</span>
       </div>
-      <div className="space-y-1 max-h-32 overflow-y-auto">
-        {participants.map((participant, index) => (
-          <div key={participant.identity} className="flex items-center gap-2">
-            <Avatar className="w-5 h-5 flex-shrink-0">
-              <AvatarImage src={participant.avatarUrl} />
-              <AvatarFallback className="text-xs bg-slate-600 text-white">
-                {participant.displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs text-slate-300 truncate">
-                {participant.displayName}
-              </div>
-            </div>
-            <Badge
-              variant={participant.role === 'tutor' || participant.role === 'owner' ? 'default' : 'secondary'}
-              className="text-xs flex-shrink-0"
+      <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50 hover:scrollbar-thumb-slate-500 pr-2">
+        {participants.map((participant) => {
+          const isFocused = focusedParticipantIdentity === participant.identity;
+          
+          return (
+            <div 
+              key={participant.identity} 
+              className={`flex items-center gap-2 p-2 rounded-lg transition-all cursor-pointer ${
+                isFocused 
+                  ? 'bg-indigo-500/20 border border-indigo-500/50' 
+                  : 'hover:bg-slate-700/30'
+              }`}
+              onClick={() => onParticipantClick?.(participant)}
+              title="Click to focus this participant"
             >
-              {participant.role === 'tutor' || participant.role === 'owner' ? 'Tutor' : 'Student'}
-            </Badge>
-            <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="Online"></div>
-          </div>
-        ))}
+              <Avatar className="w-5 h-5 flex-shrink-0">
+                <AvatarImage src={participant.avatarUrl} />
+                <AvatarFallback className="text-xs bg-slate-600 text-white">
+                  {participant.displayName.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className={`text-xs truncate ${isFocused ? 'text-indigo-300 font-medium' : 'text-slate-300'}`}>
+                  {participant.displayName}
+                </div>
+              </div>
+              <Badge
+                variant={participant.role === 'owner' ? 'default' : participant.role === 'tutor' ? 'default' : 'secondary'}
+                className="text-xs flex-shrink-0"
+              >
+                {participant.role === 'owner' ? 'Owner' : participant.role === 'tutor' ? 'Tutor' : 'Student'}
+              </Badge>
+              <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="Online"></div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -515,7 +599,9 @@ export function SessionChatPanel({
   classroomSlug,
   sessionId,
   userInfo,
-  participants = []
+  participants = [],
+  onParticipantClick,
+  focusedParticipantIdentity
 }: SessionChatPanelProps) {
   const {
     messages,
@@ -530,37 +616,46 @@ export function SessionChatPanel({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="w-full h-full bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col"
+          className="w-full h-full bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col overflow-hidden"
           style={{
             minWidth: '200px',
             maxWidth: '600px',
-            width: '100%'
+            width: '100%',
+            height: '100%'
           }}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Header */}
-          <div className="p-4 border-b border-slate-700/50">
+          {/* Header - Fixed height */}
+          <div className="p-4 border-b border-slate-700/50 flex-shrink-0">
             <h3 className="text-lg font-medium text-white flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
               Real-time Chat
             </h3>
-
           </div>
 
-          {/* Online participants list - uses real LiveKit data */}
+          {/* Online participants list - Fixed height with scroll */}
           {participants.length > 0 && (
-            <OnlineParticipants participants={participants} />
+            <div className="flex-shrink-0">
+              <OnlineParticipants 
+                participants={participants}
+                onParticipantClick={onParticipantClick}
+                focusedParticipantIdentity={focusedParticipantIdentity}
+              />
+            </div>
           )}
 
+          {/* Chat messages - Flexible height with scroll */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <ChatMessages messages={messages} isLoading={isLoading} />
+          </div>
 
-          {/* Chat messages */}
-          <ChatMessages messages={messages} isLoading={isLoading} />
-
-          {/* Input box */}
-          <ChatInput onSendMessage={sendMessage} onSendReaction={sendReaction} />
+          {/* Input box - Fixed height */}
+          <div className="flex-shrink-0">
+            <ChatInput onSendMessage={sendMessage} onSendReaction={sendReaction} />
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

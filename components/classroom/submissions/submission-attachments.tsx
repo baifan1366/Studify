@@ -4,13 +4,13 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Paperclip, 
-  Download, 
-  FileText, 
-  Image, 
-  Video, 
-  Music, 
+import {
+  Paperclip,
+  Download,
+  FileText,
+  Image,
+  Video,
+  Music,
   Archive,
   File
 } from 'lucide-react';
@@ -38,7 +38,7 @@ export function SubmissionAttachments({
   showTitle = true,
   userRole = 'student'
 }: SubmissionAttachmentsProps) {
-  
+
   if (!attachments || attachments.length === 0) {
     return null; // Don't render anything if no attachments
   }
@@ -49,13 +49,13 @@ export function SubmissionAttachments({
   };
 
   const getFileTypeIcon = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) return <Image className="h-4 w-4 text-blue-500" />;
-    if (mimeType.startsWith('video/')) return <Video className="h-4 w-4 text-purple-500" />;
-    if (mimeType.startsWith('audio/')) return <Music className="h-4 w-4 text-green-500" />;
-    if (mimeType.includes('pdf')) return <FileText className="h-4 w-4 text-red-500" />;
-    if (mimeType.includes('word') || mimeType.includes('doc')) return <FileText className="h-4 w-4 text-blue-600" />;
-    if (mimeType.includes('zip') || mimeType.includes('rar')) return <Archive className="h-4 w-4 text-orange-500" />;
-    return <File className="h-4 w-4 text-gray-500" />;
+    if (mimeType.startsWith('image/')) return <Image className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
+    if (mimeType.startsWith('video/')) return <Video className="h-4 w-4 text-purple-500 dark:text-purple-400" />;
+    if (mimeType.startsWith('audio/')) return <Music className="h-4 w-4 text-green-500 dark:text-green-400" />;
+    if (mimeType.includes('pdf')) return <FileText className="h-4 w-4 text-red-500 dark:text-red-400" />;
+    if (mimeType.includes('word') || mimeType.includes('doc')) return <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
+    if (mimeType.includes('zip') || mimeType.includes('rar')) return <Archive className="h-4 w-4 text-orange-500 dark:text-orange-400" />;
+    return <File className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
   };
 
   return (
@@ -68,19 +68,19 @@ export function SubmissionAttachments({
           </span>
         </div>
       )}
-      
+
       <div className="space-y-2">
         {attachments.map((attachment) => (
-          <Card key={attachment.id} className="border border-gray-200">
+          <Card key={attachment.id} className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50">
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
                     {getFileTypeIcon(attachment.mime_type)}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {attachment.file_name}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -88,7 +88,7 @@ export function SubmissionAttachments({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -105,20 +105,20 @@ export function SubmissionAttachments({
           </Card>
         ))}
       </div>
-      
+
       {userRole === 'student' && (
-        <div className="mt-2 p-2 bg-gray-50 rounded-md">
+        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md border border-gray-200 dark:border-gray-700">
           <p className="text-xs text-muted-foreground">
-            💡 These files were uploaded with your submission. 
+            💡 These files were uploaded with your submission.
             {userRole !== 'student' && ' As an instructor, you can download these files to review the submission.'}
           </p>
         </div>
       )}
-      
+
       {(userRole === 'tutor' || userRole === 'owner') && (
-        <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
-          <p className="text-xs text-blue-700">
-            📎 Student submitted {attachments.length} file{attachments.length !== 1 ? 's' : ''} with this assignment. 
+        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            📎 Student submitted {attachments.length} file{attachments.length !== 1 ? 's' : ''} with this assignment.
             Click "Download" to review the attached materials.
           </p>
         </div>

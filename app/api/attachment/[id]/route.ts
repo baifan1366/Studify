@@ -20,7 +20,8 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid attachment ID' }, { status: 400 });
     }
 
-    const authResult = await authorize('student');
+    // Allow both students and tutors to access attachments
+    const authResult = await authorize(['student', 'tutor']);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -57,9 +58,24 @@ export async function GET(
       .eq('is_deleted', false)
       .single();
 
+    console.log('📎 Attachment lookup:', {
+      attachmentId,
+      attachment,
+      attachmentError,
+      profileId: profile.id
+    });
+
     if (attachmentError || !attachment) {
+      console.error('❌ Attachment not found:', attachmentError);
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 });
     }
+
+    console.log('🔐 Starting permission check:', {
+      contextType: attachment.context_type,
+      ownerId: attachment.owner_id,
+      currentProfileId: profile.id,
+      isOwner: attachment.owner_id === profile.id
+    });
 
     // Check access permissions
     if (attachment.context_type === 'chat') {
@@ -83,29 +99,217 @@ export async function GET(
         }
       }
     } else if (attachment.context_type === 'submission') {
+      console.log('🔍 Checking submission attachment access:', {
+        attachmentId,
+        contextId: attachment.context_id,
+        ownerId: attachment.owner_id,
+        currentProfileId: profile.id,
+        isOwner: attachment.owner_id === profile.id
+      });
+
       // For submissions, only owner and classroom tutors/owners can access
       if (attachment.owner_id !== profile.id) {
-        // Check if user is tutor/owner of the classroom
-        const { data: classroom } = await supabase
-          .from('classroom')
-          .select('id')
+        console.log('👤 User is not the owner, checking classroom permissions...');
+
+        // Get submission to find the classroom
+        const { data: submission, error: submissionError } = await supabase
+          .from('classroom_submission')
+          .select('assignment_id, student_id')
           .eq('id', attachment.context_id)
           .single();
 
-        if (classroom) {
-          const { data: membership } = await supabase
+        console.log('📝 Submission lookup:', { submission, submissionError });
+
+        if (submissionError || !submission) {
+          console.error('❌ Submission not found:', submissionError);
+          return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+        }
+
+        // Get assignment to find classroom
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('classroom_assignment')
+          .select('classroom_id')
+          .eq('id', submission.assignment_id)
+          .single();
+
+        console.log('📋 Assignment lookup:', { assignment, assignmentError });
+
+        if (assignmentError || !assignment) {
+          console.error('❌ Assignment not found:', assignmentError);
+          return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+        }
+
+        // Check if user is tutor/owner of the classroom
+        const { data: membership, error: membershipError } = await supabase
+          .from('classroom_member')
+          .select('role')
+          .eq('classroom_id', assignment.classroom_id)
+          .eq('user_id', profile.id)
+          .single();
+
+        console.log('👥 Membership lookup:', { 
+          membership, 
+          membershipError,
+          classroomId: assignment.classroom_id,
+          profileId: profile.id
+        });
+
+        if (membershipError || !membership) {
+          console.error('❌ Membership not found:', membershipError);
+          return NextResponse.json({ 
+            message: 'Forbidden: Not a member of this classroom.' 
+          }, { status: 403 });
+        }
+
+        if (!['owner', 'tutor'].includes(membership.role)) {
+          console.error('❌ Insufficient role:', membership.role);
+          return NextResponse.json({ 
+            message: `Forbidden: Insufficient permissions. Role: ${membership.role}` 
+          }, { status: 403 });
+        }
+
+        console.log('✅ Access granted. User role:', membership.role);
+      } else {
+        console.log('✅ Access granted. User is the owner.');
+      }
+    } else if (attachment.context_type === 'material') {
+      // For materials, context_id might be classroom_id directly
+      console.log('🔍 Material attachment, context_id:', attachment.context_id);
+      
+      // Try to find classroom directly first
+      const { data: classroom, error: classroomError } = await supabase
+        .from('classroom')
+        .select('id')
+        .eq('id', attachment.context_id)
+        .single();
+
+      console.log('🏫 Classroom lookup for material:', { classroom, classroomError });
+
+      if (classroom) {
+        // Check if user is member of the classroom
+        const { data: membership, error: membershipError } = await supabase
+          .from('classroom_member')
+          .select('role')
+          .eq('classroom_id', classroom.id)
+          .eq('user_id', profile.id)
+          .single();
+
+        console.log('👥 Membership lookup for material:', { 
+          membership, 
+          membershipError,
+          classroomId: classroom.id,
+          profileId: profile.id
+        });
+
+        if (membershipError || !membership) {
+          console.error('❌ Not a member of classroom for material');
+          return NextResponse.json({ 
+            message: 'Forbidden: Not a member of this classroom.' 
+          }, { status: 403 });
+        }
+
+        console.log('✅ Access granted. User is a classroom member with role:', membership.role);
+      } else {
+        // If not a classroom, try as assignment
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('classroom_assignment')
+          .select('classroom_id')
+          .eq('id', attachment.context_id)
+          .single();
+
+        console.log('📋 Assignment lookup for material:', { assignment, assignmentError });
+
+        if (assignmentError || !assignment) {
+          console.error('❌ Neither classroom nor assignment found for material');
+          // If not found, only owner can access
+          if (attachment.owner_id !== profile.id) {
+            return NextResponse.json({ 
+              message: 'Forbidden: Insufficient permissions for material.' 
+            }, { status: 403 });
+          }
+        } else {
+          // Check if user is member of the classroom
+          const { data: membership, error: membershipError } = await supabase
             .from('classroom_member')
             .select('role')
-            .eq('classroom_id', classroom.id)
+            .eq('classroom_id', assignment.classroom_id)
             .eq('user_id', profile.id)
             .single();
 
-          if (!membership || membership.role === 'student') {
-            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+          console.log('👥 Membership lookup via assignment:', { 
+            membership, 
+            membershipError,
+            classroomId: assignment.classroom_id,
+            profileId: profile.id
+          });
+
+          if (membershipError || !membership) {
+            console.error('❌ Not a member of classroom');
+            return NextResponse.json({ 
+              message: 'Forbidden: Not a member of this classroom.' 
+            }, { status: 403 });
           }
+
+          console.log('✅ Access granted. User is a classroom member with role:', membership.role);
         }
       }
+    } else if (attachment.context_type === 'assignment') {
+      // For assignments, context_id is assignment ID
+      console.log('🔍 Assignment attachment, context_id:', attachment.context_id);
+      
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('classroom_assignment')
+        .select('classroom_id')
+        .eq('id', attachment.context_id)
+        .single();
+
+      console.log('📋 Assignment lookup:', { assignment, assignmentError });
+
+      if (assignmentError || !assignment) {
+        console.error('❌ Assignment not found');
+        if (attachment.owner_id !== profile.id) {
+          return NextResponse.json({ 
+            message: 'Forbidden: Insufficient permissions for assignment.' 
+          }, { status: 403 });
+        }
+      } else {
+        // Check if user is member of the classroom
+        const { data: membership, error: membershipError } = await supabase
+          .from('classroom_member')
+          .select('role')
+          .eq('classroom_id', assignment.classroom_id)
+          .eq('user_id', profile.id)
+          .single();
+
+        console.log('👥 Membership lookup:', { 
+          membership, 
+          membershipError,
+          classroomId: assignment.classroom_id,
+          profileId: profile.id
+        });
+
+        if (membershipError || !membership) {
+          console.error('❌ Not a member of classroom');
+          return NextResponse.json({ 
+            message: 'Forbidden: Not a member of this classroom.' 
+          }, { status: 403 });
+        }
+
+        console.log('✅ Access granted. User is a classroom member with role:', membership.role);
+      }
+    } else {
+      // For other context types, only owner can access
+      console.log('🔍 Other context type:', attachment.context_type);
+      if (attachment.owner_id !== profile.id) {
+        console.error('❌ Access denied: Not the owner for context type:', attachment.context_type);
+        return NextResponse.json({ 
+          message: `Forbidden: Insufficient permissions for ${attachment.context_type}.` 
+        }, { status: 403 });
+      }
+      console.log('✅ Access granted. User is the owner.');
     }
+
+    console.log('🎉 Permission check passed, generating URL...');
 
     // Generate signed URL based on visibility
     if (attachment.visibility === 'public') {

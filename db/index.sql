@@ -885,3 +885,7 @@ WHERE status = 'scheduled' AND is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_live_session_active_ending 
 ON classroom_live_session(ends_at) 
 WHERE status = 'active' AND ends_at IS NOT NULL AND is_deleted = FALSE;
+
+CREATE INDEX idx_quiz_session_quiz ON classroom_quiz_session(quiz_id);
+CREATE INDEX idx_quiz_session_student ON classroom_quiz_session(student_id);
+CREATE INDEX idx_quiz_session_active ON classroom_quiz_session(is_active) WHERE is_active = true;

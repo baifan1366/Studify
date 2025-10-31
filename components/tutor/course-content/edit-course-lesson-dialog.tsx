@@ -65,7 +65,7 @@ export function EditCourseLessonDialog({
 
   // Form state
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<'video' | 'document' | 'assignment'>('video')
+  const [kind, setKind] = useState<'video' | 'document' | 'image'>('video')
   const [contentUrl, setContentUrl] = useState('manual-url')
   const [manualUrl, setManualUrl] = useState('')
   const [selectedAttachments, setSelectedAttachments] = useState<number[]>([])

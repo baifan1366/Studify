@@ -122,7 +122,7 @@ export default function CourseLessonGrid({
       duration: lesson.duration_sec ? `${Math.ceil(lesson.duration_sec / 60)}m` : '15m',
       type: lesson.kind === 'video' ? 'video' : 
             lesson.kind === 'document' ? 'reading' : 
-            lesson.kind === 'assignment' ? 'assignment' : 'reading',
+            lesson.kind === 'image' ? 'reading' : 'reading',
       difficulty: 'intermediate' as const,
       isCompleted: false,
       isLocked: false,

@@ -1,16 +1,23 @@
 // Content Recommendation Tool - 内容推荐工具
-import { DynamicTool } from "@langchain/core/tools";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 import { searchSimilarContentDual } from '../vectorstore';
 
-export const recommendationTool = new DynamicTool({
+const RecommendationSchema = z.object({
+  userId: z.number().describe("The user ID to generate recommendations for"),
+  contentType: z.enum(["course", "lesson", "post"]).optional().describe("Type of content to recommend"),
+  maxRecommendations: z.number().optional().default(5).describe("Maximum number of recommendations to return"),
+  context: z.string().optional().describe("Additional context for recommendations")
+});
+
+export const recommendationTool = new DynamicStructuredTool({
   name: "recommend_content",
-  description: `Generate personalized content recommendations based on user profile and learning history.
-  Input should be a JSON string: {"userId": number, "contentType"?: "course|lesson|post", "maxRecommendations"?: number, "context"?: "additional context"}`,
-  func: async (input: string) => {
+  description: `Generate personalized content recommendations based on user profile and learning history.`,
+  schema: RecommendationSchema,
+  func: async (input) => {
     try {
-      const params = JSON.parse(input);
-      const { userId, contentType, maxRecommendations = 5, context } = params;
+      const { userId, contentType, maxRecommendations = 5, context } = input;
 
       if (!userId) {
         return 'Error: userId is required';

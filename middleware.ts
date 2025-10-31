@@ -29,6 +29,7 @@ const PUBLIC_PATHS = [
   /\/webhook$/, // Generic webhooks
   /^\/api\/ai\/coach\/cron\//, // AI coach cron jobs (streak, motivation, evening-retro, daily-plan)
   /^\/api\/tutor\/earnings\/release/, // Tutor earnings release cron
+  /^\/api\/cron\//, // General cron jobs (daily-digest, weekly-digest, etc.)
 ];
 
 // Cache key generators

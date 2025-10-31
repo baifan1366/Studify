@@ -23,31 +23,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use smart contextual search if context is provided
-    let searchFunction = 'universal_search_enhanced';
-    let functionParams = [query, tables.length > 0 ? tables : null, maxResults, minRank];
+    // Always use universal_search_enhanced
+    const searchFunction = 'universal_search_enhanced';
 
-    if (context !== 'general') {
-      searchFunction = 'smart_contextual_search';
-      functionParams = [query, null, userRole, context, maxResults];
-    }
-
-    const { data, error } = await supabase.rpc(searchFunction, 
-      searchFunction === 'smart_contextual_search' 
-        ? {
-            search_query: query,
-            user_id_param: null,
-            user_role_param: userRole,
-            search_context: context,
-            max_results: maxResults
-          }
-        : {
-            search_query: query,
-            search_tables: tables.length > 0 ? tables : undefined,
-            max_results: maxResults,
-            min_rank: minRank
-          }
-    );
+    const { data, error } = await supabase.rpc(searchFunction, {
+      search_query: query,
+      search_tables: tables.length > 0 ? tables : undefined,
+      max_results: maxResults,
+      min_rank: minRank
+    });
 
     if (error) {
       console.error('Search error:', error);

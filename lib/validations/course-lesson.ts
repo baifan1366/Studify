@@ -16,7 +16,7 @@ export const courseLessonSchema = (t: (key: string) => string) =>
       .max(100, { message: t("title_max_length") }),
 
     kind: z.enum(
-      ["video", "live", "document", "quiz", "assignment", "whiteboard"],
+      ["video", "document", "image"],
       { message: t("kind_required") }
     ),
 

@@ -4,7 +4,7 @@ export interface Lesson {
   course_id: number;
   module_id?: number;
   title: string;
-  kind: 'video' | 'document' | 'assignment';
+  kind: 'video' | 'document' | 'image';
   content_url?: string;
   attachments?: number[]; // Array of attachment IDs
   duration_sec?: number;

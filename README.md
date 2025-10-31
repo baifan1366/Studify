@@ -1,4 +1,4 @@
-﻿<!-- Language Switcher -->
+<!-- Language Switcher -->
 <p align="right">
   <b>English</b> · <a href="./README.zh-CN.md">简体中文</a>
 </p>

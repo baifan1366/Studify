@@ -138,6 +138,14 @@ export async function POST(
       .select("*", { count: "exact", head: true })
       .eq("quiz_id", attempt.quiz_id);
 
+    // 3.1. 验证题目数量
+    if (!totalQuestions || totalQuestions === 0) {
+      return NextResponse.json(
+        { error: "Quiz has no questions" }, 
+        { status: 400 }
+      );
+    }
+
     // 4. 检查是否已存在 session
     const { data: existingSession } = await supabase
       .from("community_quiz_attempt_session")

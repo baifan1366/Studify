@@ -40,23 +40,34 @@ export async function POST(
     // Verify user has permission to grade in this classroom
     const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
-      .select(`
-        id,
-        classroom_member!classroom_member_classroom_id_fkey!inner(role)
-      `)
+      .select('id')
       .eq('slug', slug)
-      .eq('classroom_member.user_id', profile.id)
       .single();
 
-    console.log('Classroom query result:', { classroom, classroomError, profileId: profile.id, slug });
+    console.log('Classroom query result:', { classroom, classroomError, slug });
 
     if (classroomError || !classroom) {
       console.log('Classroom not found:', classroomError);
       return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 403 });
     }
 
-    const userRole = classroom.classroom_member[0]?.role;
-    if (!userRole || !['owner', 'tutor'].includes(userRole)) {
+    // Check user's role in the classroom
+    const { data: membership, error: membershipError } = await supabase
+      .from('classroom_member')
+      .select('role')
+      .eq('classroom_id', classroom.id)
+      .eq('user_id', profile.id)
+      .single();
+
+    console.log('Membership query result:', { membership, membershipError, classroomId: classroom.id, profileId: profile.id });
+
+    if (membershipError || !membership) {
+      console.log('User is not a member of this classroom');
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const userRole = membership.role;
+    if (!['owner', 'tutor'].includes(userRole)) {
       console.log('Insufficient permissions. User role:', userRole);
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
@@ -76,9 +87,19 @@ export async function POST(
     // Get request body
     const { student_id, score, feedback } = await request.json();
 
+    console.log('POST Grade - Request body:', { student_id, score, feedback, student_id_type: typeof student_id });
+
     if (!student_id || score === undefined) {
       return NextResponse.json({ 
         error: 'Missing required fields: student_id, score' 
+      }, { status: 400 });
+    }
+
+    // Convert student_id to integer
+    const studentProfileId = parseInt(String(student_id));
+    if (isNaN(studentProfileId)) {
+      return NextResponse.json({ 
+        error: 'Invalid student_id format' 
       }, { status: 400 });
     }
 
@@ -89,14 +110,36 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Check if grade already exists
-    const { data: existingGrade } = await supabase
+    // Get student's user_id (UUID from users table)
+    const { data: studentProfile, error: studentProfileError } = await supabase
+      .from('profiles')
+      .select('id, user_id')
+      .eq('id', studentProfileId)
+      .single();
+
+    if (studentProfileError || !studentProfile) {
+      console.log('POST Grade - Student profile not found:', studentProfileError);
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
+    }
+
+    console.log('POST Grade - Validated data:', { 
+      studentProfileId, 
+      studentUserId: studentProfile.user_id,
+      graderUserId: userId, // This is already the user_id from auth
+      score, 
+      assignmentId 
+    });
+
+    // Check if grade already exists (use user_id from users table)
+    const { data: existingGrade, error: existingGradeError } = await supabase
       .from('classroom_grade')
       .select('id')
       .eq('assignment_id', assignmentId)
-      .eq('user_id', student_id)
+      .eq('user_id', studentProfile.user_id) // UUID from users table
       .eq('is_deleted', false)
       .single();
+
+    console.log('POST Grade - Existing grade check:', { existingGrade, existingGradeError });
 
     if (existingGrade) {
       // Update existing grade
@@ -105,11 +148,10 @@ export async function POST(
         .update({
           score,
           feedback: feedback || null,
-          grader_id: profile.id,
-          updated_at: new Date().toISOString()
+          grader_id: userId // UUID from users table (from auth)
         })
         .eq('id', existingGrade.id)
-        .select('*')
+        .select('id, assignment_id, user_id, grader_id, score, feedback, created_at, updated_at')
         .single();
 
       if (updateError) throw updateError;
@@ -129,22 +171,48 @@ export async function POST(
       return NextResponse.json({ grade: gradeWithProfiles });
     } else {
       // Create new grade
+      console.log('POST Grade - Creating new grade with data:', {
+        assignment_id: assignmentId,
+        user_id: studentProfileId,
+        grader_id: profile.id,
+        score,
+        types: {
+          assignment_id: typeof assignmentId,
+          user_id: typeof studentProfileId,
+          grader_id: typeof profile.id,
+          score: typeof score
+        }
+      });
+
+      // Use user_id (UUID from users table) for both user_id and grader_id
+      const insertData = {
+        assignment_id: Number(assignmentId),
+        user_id: studentProfile.user_id, // UUID from users table
+        grader_id: userId, // UUID from users table (from auth)
+        score: Number(score),
+        feedback: feedback ? String(feedback) : null
+      };
+
+      console.log('POST Grade - Insert data:', JSON.stringify(insertData, null, 2));
+
       const { data: grade, error: createError } = await supabase
         .from('classroom_grade')
-        .insert({
-          assignment_id: assignmentId,
-          user_id: student_id,
-          grader_id: profile.id,
-          score,
-          feedback: feedback || null,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
+        .insert([insertData])
+        .select('id, assignment_id, user_id, grader_id, score, feedback, created_at, updated_at')
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        console.error('POST Grade - Create error details:', {
+          error: createError,
+          code: createError.code,
+          message: createError.message,
+          details: createError.details,
+          hint: createError.hint
+        });
+        throw createError;
+      }
+
+      console.log('POST Grade - Grade created successfully:', grade);
 
       // Fetch user profiles
       const { data: profiles } = await supabase
@@ -204,22 +272,33 @@ export async function GET(
     // Verify user has access to this classroom
     const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
-      .select(`
-        id,
-        classroom_member!classroom_member_classroom_id_fkey!inner(role)
-      `)
+      .select('id')
       .eq('slug', slug)
-      .eq('classroom_member.user_id', profile.id)
       .single();
 
-    console.log('GET Grade - Classroom query:', { classroom, classroomError, profileId: profile.id, slug });
+    console.log('GET Grade - Classroom query:', { classroom, classroomError, slug });
 
     if (classroomError || !classroom) {
       console.log('GET Grade - Classroom not found:', classroomError);
       return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 404 });
     }
 
-    const userRole = classroom.classroom_member[0]?.role;
+    // Check user's role in the classroom
+    const { data: membership, error: membershipError } = await supabase
+      .from('classroom_member')
+      .select('role')
+      .eq('classroom_id', classroom.id)
+      .eq('user_id', profile.id)
+      .single();
+
+    console.log('GET Grade - Membership query:', { membership, membershipError, classroomId: classroom.id, profileId: profile.id });
+
+    if (membershipError || !membership) {
+      console.log('GET Grade - User is not a member of this classroom');
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const userRole = membership.role;
     const isOwnerOrTutor = ['owner', 'tutor'].includes(userRole);
     
     console.log('GET Grade - User role in classroom:', { userRole, isOwnerOrTutor });
@@ -313,12 +392,8 @@ export async function DELETE(
     // Verify user has permission to delete grades in this classroom
     const { data: classroom, error: classroomError } = await supabase
       .from('classroom')
-      .select(`
-        id,
-        classroom_member!classroom_member_classroom_id_fkey!inner(role)
-      `)
+      .select('id')
       .eq('slug', slug)
-      .eq('classroom_member.user_id', profile.id)
       .single();
 
     if (classroomError || !classroom) {
@@ -326,8 +401,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Classroom not found or access denied' }, { status: 403 });
     }
 
-    const userRole = classroom.classroom_member[0]?.role;
-    if (!userRole || !['owner', 'tutor'].includes(userRole)) {
+    // Check user's role in the classroom
+    const { data: membership, error: membershipError } = await supabase
+      .from('classroom_member')
+      .select('role')
+      .eq('classroom_id', classroom.id)
+      .eq('user_id', profile.id)
+      .single();
+
+    if (membershipError || !membership) {
+      console.log('User is not a member of this classroom for delete grade');
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const userRole = membership.role;
+    if (!['owner', 'tutor'].includes(userRole)) {
       console.log('Insufficient permissions for delete grade. User role:', userRole);
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }

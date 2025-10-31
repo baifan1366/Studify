@@ -371,7 +371,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                     </div>
                     <div className="flex items-center space-x-2">
                       {/* Tutor/Owner actions */}
-                      {isOwnerOrTutor && (
+                      {isOwnerOrTutor && userRole !== 'student' && (
                         <>
                           <Button
                             size="sm"

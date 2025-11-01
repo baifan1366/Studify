@@ -184,7 +184,25 @@ export default function BilibiliVideoPlayer({
   // Get real data or fallback to props
   const realVideoStats = videoStats || likesData?.stats;
   const realComments = commentsData?.comments || comments;
-  const realDanmaku = danmakuData?.danmaku || danmakuMessages;
+  
+  // Transform danmaku data from API format to component format
+  const realDanmaku = React.useMemo(() => {
+    const apiDanmaku = danmakuData?.danmaku || [];
+    if (apiDanmaku.length > 0 && duration > 0) {
+      return apiDanmaku.map((d: any) => ({
+        id: d.public_id || d.id,
+        text: d.content,
+        color: d.color || '#FFFFFF',
+        size: d.size || 'medium',
+        position: duration > 0 ? d.video_time_sec / duration : 0, // Normalize to 0-1
+        timestamp: new Date(d.created_at).getTime(),
+        userId: d.user_id || d.userId || 'anonymous',
+        username: d.author?.full_name || d.author?.display_name || 'Anonymous'
+      }));
+    }
+    return danmakuMessages; // Fallback to prop data
+  }, [danmakuData?.danmaku, danmakuMessages, duration]);
+  
   const isLiked = likesData?.currentUserLiked ?? currentUserLiked;
 
   // Helper functions
@@ -1306,9 +1324,24 @@ export default function BilibiliVideoPlayer({
               {/* Comment Input - Only for direct videos */}
               {videoSourceInfo.type === "direct" ? (
                 <div className="flex gap-3 mb-6">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    U
-                  </div>
+                  {currentUser?.profile?.avatar_url ? (
+                    <img
+                      src={currentUser.profile.avatar_url}
+                      alt={currentUser.profile.full_name || currentUser.profile.display_name || "User"}
+                      className="w-8 h-8 rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/default-avatar.png";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                      {currentUser?.profile?.full_name?.[0] || 
+                       currentUser?.profile?.display_name?.[0] || 
+                       currentUser?.email?.[0]?.toUpperCase() || 
+                       "U"}
+                    </div>
+                  )}
                   <div className="flex-1">
                     <textarea
                       value={commentText}
@@ -1316,13 +1349,22 @@ export default function BilibiliVideoPlayer({
                       placeholder={t("VideoPlayer.comment_placeholder")}
                       className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                       rows={3}
+                      disabled={!currentUser || createCommentMutation.isPending}
                     />
                     <div className="flex justify-end mt-2">
                       <button
                         onClick={handleSendComment}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                        disabled={!commentText.trim() || !currentUser || createCommentMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
-                        {t("VideoPlayer.publish")}
+                        {createCommentMutation.isPending ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            {t("VideoPlayer.posting")}
+                          </>
+                        ) : (
+                          t("VideoPlayer.publish")
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1373,13 +1415,18 @@ export default function BilibiliVideoPlayer({
                     </div>
                   ) : (
                     realComments.map((comment: any) => {
-                      const commentId = comment.id || comment.public_id;
+                      const commentId = comment.public_id || comment.id;
+                      // Extract author information from nested author object
+                      const author = comment.author || {};
                       const avatar =
-                        comment.avatar ||
-                        comment.avatarUrl ||
+                        author.avatar_url ||
                         comment.avatar_url ||
+                        comment.avatarUrl ||
+                        comment.avatar ||
                         "/default-avatar.png";
                       const username =
+                        author.full_name ||
+                        author.display_name ||
                         comment.username ||
                         comment.display_name ||
                         comment.displayName ||
@@ -1393,6 +1440,10 @@ export default function BilibiliVideoPlayer({
                         comment.likesCount ||
                         comment.likes ||
                         0;
+                      const repliesCount =
+                        comment.replies_count ||
+                        comment.repliesCount ||
+                        (comment.replies?.length || 0);
                       const isLiked =
                         comment.is_liked || comment.isLiked || false;
 
@@ -1454,21 +1505,26 @@ export default function BilibiliVideoPlayer({
                                 onClick={() =>
                                   handleToggleCommentLike(commentId)
                                 }
-                                className={`flex items-center gap-1 hover:text-blue-600 ${
+                                disabled={toggleCommentLikeMutation.isPending}
+                                className={`flex items-center gap-1 hover:text-blue-600 transition-colors ${
                                   isLiked ? "text-blue-600" : ""
-                                }`}
+                                } ${toggleCommentLikeMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
                               >
                                 <Heart
                                   size={14}
                                   className={isLiked ? "fill-current" : ""}
                                 />
-                                <span>{likesCount}</span>
+                                <span>{likesCount > 0 ? likesCount : ""}</span>
                               </button>
                               <button
                                 onClick={() => handleReplyToComment(commentId)}
-                                className="hover:text-blue-600"
+                                className="hover:text-blue-600 flex items-center gap-1"
                               >
+                                <MessageCircle size={14} />
                                 {t("VideoPlayer.reply")}
+                                {repliesCount > 0 && (
+                                  <span className="text-xs">({repliesCount})</span>
+                                )}
                               </button>
                               {isCommentOwner(comment) && (
                                 <>
@@ -1548,12 +1604,16 @@ export default function BilibiliVideoPlayer({
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="mt-3 pl-4 border-l-2 border-gray-100 dark:border-gray-700 space-y-3">
                                 {comment.replies.map((reply: any) => {
+                                  const replyAuthor = reply.author || {};
                                   const replyAvatar =
-                                    reply.avatar ||
-                                    reply.avatarUrl ||
+                                    replyAuthor.avatar_url ||
                                     reply.avatar_url ||
+                                    reply.avatarUrl ||
+                                    reply.avatar ||
                                     "/default-avatar.png";
                                   const replyUsername =
+                                    replyAuthor.full_name ||
+                                    replyAuthor.display_name ||
                                     reply.username ||
                                     reply.display_name ||
                                     reply.displayName ||

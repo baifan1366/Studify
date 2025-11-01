@@ -6,9 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Star, 
-  Users, 
+import {
+  Star,
+  Users,
   Hash,
   User,
   MessageCircle,
@@ -26,16 +26,16 @@ interface CompactRecommendationsProps {
   hashtags?: string[];
 }
 
-export default function CompactRecommendations({ 
+export default function CompactRecommendations({
   limit = 3,
   q,
   hashtags
 }: CompactRecommendationsProps) {
   const t = useTranslations('CompactRecommendations');
-  const { 
-    data: recommendations, 
-    isLoading, 
-    error 
+  const {
+    data: recommendations,
+    isLoading,
+    error
   } = useCommunityRecommendations({
     limit,
     q,
@@ -98,7 +98,7 @@ export default function CompactRecommendations({
 
 function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
   const t = useTranslations('CompactRecommendations');
-  
+
   return (
     <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-200 group h-full w-full max-w-full overflow-hidden">
 
@@ -122,7 +122,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
               {post.title}
             </h3>
           )}
-          
+
           {post.body && (
             <p className="text-sm text-gray-400 mb-2 line-clamp-2">
               {post.body}
@@ -169,7 +169,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
               </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             {post.comments_count !== undefined && (
               <span className="flex items-center gap-1">
@@ -187,15 +187,15 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
         </div>
 
         {/* Action Button */}
-        <Link href={`/community/${post.group?.slug}/posts/${post.slug}`}>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
-            >
-              {t('read_more')}
-            </Button>
-          </Link>
+        <Link href={`/community/${post.group?.slug || 'undefined'}/posts/${post.slug}`}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-white/20 text-white hover:bg-white/10"
+          >
+            {t('read_more')}
+          </Button>
+        </Link>
       </CardContent>
     </Card>
   );
@@ -209,7 +209,7 @@ function RecommendationsLoading() {
         <Skeleton className="h-5 w-24" />
         <Skeleton className="h-4 w-16" />
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i} className="bg-white/5 border-white/10">

@@ -1052,6 +1052,18 @@ async function calculateHybridRecommendations(
 
     return {
       ...post,
+      author: post.profiles ? {
+        id: post.profiles.id,
+        display_name: post.profiles.display_name,
+        avatar_url: post.profiles.avatar_url
+      } : undefined,
+      group: post.community_group ? {
+        id: post.community_group.id,
+        name: post.community_group.name,
+        slug: post.community_group.slug,
+        visibility: post.community_group.visibility
+      } : undefined,
+      hashtags: post.post_hashtags?.map((ph: any) => ph.hashtags) || [],
       recommendation_score: Math.round(hybridScore * 100),
       recommendation_reasons: reasons,
       interaction_score: factors.interaction_count,

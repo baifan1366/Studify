@@ -274,19 +274,34 @@ export async function GET(request: NextRequest) {
           // Ignore any role parameter from the OAuth flow
           console.log("[AUTH CALLBACK] Using existing profile role:", profile.role);
 
-          // Update last login (non-blocking)
+          // Extract avatar URL from OAuth data if available
+          const avatarUrl =
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            user.identities?.[0]?.identity_data?.avatar_url ||
+            user.identities?.[0]?.identity_data?.picture;
+
+          // Update last login and avatar (if available from OAuth)
+          const updateData: any = {
+            last_login: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          // Only update avatar if we have one from OAuth and current profile doesn't have one
+          if (avatarUrl && !profile.avatar_url) {
+            updateData.avatar_url = avatarUrl;
+            console.log("[AUTH CALLBACK] Updating avatar from OAuth:", avatarUrl);
+          }
+
           Promise.resolve(
             supabaseAdmin
               .from("profiles")
-              .update({
-                last_login: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
+              .update(updateData)
               .eq("user_id", userId)
           )
-            .then(() => console.log("[AUTH CALLBACK] Last login updated"))
+            .then(() => console.log("[AUTH CALLBACK] Profile updated (last login + avatar)"))
             .catch((err: any) =>
-              console.error("[AUTH CALLBACK] Failed to update last login:", err)
+              console.error("[AUTH CALLBACK] Failed to update profile:", err)
             );
         }
 

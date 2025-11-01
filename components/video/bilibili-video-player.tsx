@@ -191,13 +191,7 @@ export default function BilibiliVideoPlayer({
   const realVideoStats = videoStats || likesData?.stats;
   const realComments = commentsData?.comments || comments;
 
-  // Debug: Log comment data to check structure
-  React.useEffect(() => {
-    if (commentsData?.comments && commentsData.comments.length > 0) {
-      console.log("📝 Comments data:", commentsData.comments[0]);
-      console.log("👤 Author data:", commentsData.comments[0]?.author);
-    }
-  }, [commentsData]);
+
 
   // Transform danmaku data from API format to component format
   const realDanmaku = React.useMemo(() => {
@@ -1469,17 +1463,6 @@ export default function BilibiliVideoPlayer({
                         0;
                       const isLiked =
                         comment.is_liked || comment.isLiked || false;
-
-                      // Debug log for first comment
-                      if (realComments.indexOf(comment) === 0) {
-                        console.log("🔍 Comment debug:", {
-                          commentId,
-                          author,
-                          avatar,
-                          username,
-                          rawComment: comment,
-                        });
-                      }
 
                       return (
                         <div key={commentId} className="flex gap-3">

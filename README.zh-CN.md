@@ -26,6 +26,12 @@
   <img src="https://img.shields.io/badge/QStash-Queue-00AA88?logo=icloud" />
 </p>
 
+<p align="center">
+  <a href="https://deepwiki.com/baifan1366/Studify">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
+  </a>
+</p>
+
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="divider" />

@@ -337,7 +337,33 @@ export function useCreateComment() {
       return response.json();
     },
     onSuccess: (data, variables) => {
-      // Invalidate relevant comment queries
+      // The API returns the new comment with full author data
+      console.log('✅ Comment created successfully:', data);
+      console.log('👤 New comment author data:', data.comment?.author);
+      
+      // Update the cache optimistically with the new comment
+      if (data.success && data.comment) {
+        queryClient.setQueryData(
+          ['video-comments', variables.lessonId, undefined, 1, 50, 'newest'],
+          (oldData: any) => {
+            if (!oldData) return oldData;
+            
+            console.log('📝 Updating cache with new comment');
+            
+            // Add the new comment to the beginning of the list
+            return {
+              ...oldData,
+              comments: [data.comment, ...(oldData.comments || [])],
+              pagination: {
+                ...oldData.pagination,
+                total: (oldData.pagination?.total || 0) + 1
+              }
+            };
+          }
+        );
+      }
+      
+      // Also invalidate to ensure consistency
       queryClient.invalidateQueries({
         queryKey: ['video-comments', variables.lessonId]
       });

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -19,17 +20,29 @@ import {
 } from "@/hooks/community/use-quiz-questions";
 import { useUpdateQuiz } from "@/hooks/community/use-quiz";
 import { useUser } from "@/hooks/profile/use-user";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { X, Save } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useCallback } from "react";
 
 interface Props {
   quizSlug: string;
 }
 
 export default function QuestionForm({ quizSlug }: Props) {
+  const t = useTranslations('QuestionForm');
   const [questionType, setQuestionType] = useState<
     "single_choice" | "multiple_choice" | "fill_in_blank"
   >("single_choice");
@@ -41,11 +54,59 @@ export default function QuestionForm({ quizSlug }: Props) {
 
   const router = useRouter();
   const { data: user } = useUser();
-  const { toast } = useToast();
+
   const isTutor = user?.profile?.role === 'tutor';
   const { data: questions } = useQuizQuestions(quizSlug);
-  const { mutate: createQuestion } = useCreateQuizQuestion(quizSlug);
-  const { mutate: updateQuiz } = useUpdateQuiz(quizSlug);
+  const { mutate: createQuestion, isPending: isCreatingQuestion } = useCreateQuizQuestion(quizSlug);
+
+  // Alert dialog state
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant: "default" | "destructive" | "success";
+    onConfirm?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    variant: "default",
+  });
+
+  const showAlert = useCallback((options: {
+    title: string;
+    description: string;
+    variant?: "default" | "destructive" | "success";
+    onConfirm?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+  }) => {
+    setAlertDialog({
+      isOpen: true,
+      title: options.title,
+      description: options.description,
+      variant: options.variant || "default",
+      onConfirm: options.onConfirm,
+      confirmText: options.confirmText || "OK",
+      cancelText: options.cancelText || "Cancel",
+      showCancel: options.showCancel || false,
+    });
+  }, []);
+
+  const hideAlert = useCallback(() => {
+    setAlertDialog(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const handleAlertConfirm = useCallback(() => {
+    if (alertDialog.onConfirm) {
+      alertDialog.onConfirm();
+    }
+    hideAlert();
+  }, [alertDialog.onConfirm, hideAlert]);
 
   const resetForm = () => {
     setQuestionText("");
@@ -62,11 +123,19 @@ export default function QuestionForm({ quizSlug }: Props) {
         .map((opt) => opt.trim())
         .filter((opt) => opt !== "");
       if (filtered.length < 2) {
-        alert("You must provide at least 2 valid options.");
+        showAlert({
+          title: "Invalid Options",
+          description: "You must provide at least 2 valid options.",
+          variant: "destructive",
+        });
         return;
       }
       if (correctAnswers.length === 0) {
-        alert("Please select at least one correct answer.");
+        showAlert({
+          title: "No Correct Answer",
+          description: "Please select at least one correct answer.",
+          variant: "destructive",
+        });
         return;
       }
     } else {
@@ -74,9 +143,11 @@ export default function QuestionForm({ quizSlug }: Props) {
         .map((ans) => ans.toString().trim())
         .filter((ans) => ans !== "");
       if (filtered.length === 0) {
-        alert(
-          "You must provide at least one correct answer for fill-in-the-blank."
-        );
+        showAlert({
+          title: "No Correct Answer",
+          description: "You must provide at least one correct answer for fill-in-the-blank.",
+          variant: "destructive",
+        });
         return;
       }
     }
@@ -91,6 +162,17 @@ export default function QuestionForm({ quizSlug }: Props) {
       onSuccess: () => {
         // Reset form fields after successful submission
         resetForm();
+        // Show success toast
+        toast.success(t('question_added_successfully'), {
+          description: t('question_added_description'),
+        });
+      },
+      onError: (error) => {
+        // Show error toast
+        console.error("Failed to create question:", error);
+        toast.error(t('question_add_failed'), {
+          description: t('question_add_failed_description'),
+        });
       }
     });
   };
@@ -122,24 +204,20 @@ export default function QuestionForm({ quizSlug }: Props) {
 
   const handleSaveAndQuit = async () => {
     if (!questions || questions.length === 0) {
-      toast({
-        title: "No questions to save",
+      toast.error("No questions to save", {
         description: "Please add at least one question before saving.",
-        variant: "destructive",
       });
       return;
     }
 
     setIsSaving(true);
-    
+
     try {
       // Quiz is already saved when questions are added, just show success and navigate
-      toast({
-        title: "Quiz saved successfully!",
+      toast.success("Quiz saved successfully!", {
         description: `Your quiz has been saved with ${questions.length} questions.`,
-        variant: "success",
       });
-      
+
       // Navigate based on user role
       const route = isTutor
         ? "/tutor/community/quizzes"
@@ -147,10 +225,8 @@ export default function QuestionForm({ quizSlug }: Props) {
       router.push(route);
     } catch (error) {
       console.error("Save and quit error:", error);
-      toast({
-        title: "Failed to save quiz",
+      toast.error("Failed to save quiz", {
         description: "An error occurred while saving the quiz.",
-        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -158,185 +234,224 @@ export default function QuestionForm({ quizSlug }: Props) {
   };
 
   return (
-    <Card className="p-6 shadow-lg rounded-2xl space-y-2">
-      <CardHeader className="flex flex-col items-start gap-2">
-        {/* Question Counter */}
-        {questions && (
-          <div className="flex items-center justify-center gap-1 bg-blue-100 text-blue-700 px-3 py-2 rounded-full text-lg font-semibold w-full">
-            <span className="inline-block">✅</span>
-            <span>{questions.length} questions created so far</span>
-          </div>
-        )}
-        <CardTitle className="text-xl font-bold">Create a Question</CardTitle>
-      </CardHeader>
+    <>
+      <Card className="p-6 shadow-lg rounded-2xl space-y-2">
+        <CardHeader className="flex flex-col items-start gap-2">
+          {/* Question Counter */}
+          {questions && (
+            <div className="flex items-center justify-center gap-1 bg-blue-100 text-blue-700 px-3 py-2 rounded-full text-lg font-semibold w-full">
+              <span className="inline-block">✅</span>
+              <span>{t('questions_created_so_far', { count: questions.length })}</span>
+            </div>
+          )}
+          <CardTitle className="text-xl font-bold">{t('create_a_question')}</CardTitle>
+        </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Question text */}
-        <Textarea
-          placeholder="Enter your question..."
-          value={questionText}
-          onChange={(e) => setQuestionText(e.target.value)}
-          className="min-h-[100px]"
-        />
+        <CardContent className="space-y-4">
+          {/* Question text */}
+          <Textarea
+            placeholder={t('question_placeholder')}
+            value={questionText}
+            onChange={(e) => setQuestionText(e.target.value)}
+            className="min-h-[100px]"
+          />
 
-        {/* Question type selector */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Question Type</label>
-          <Select
-            value={questionType}
-            onValueChange={(v) => setQuestionType(v as any)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="single_choice">Single Choice</SelectItem>
-              <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-              <SelectItem value="fill_in_blank">Fill in the Blank</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Render inputs depending on type */}
-        {questionType === "fill_in_blank" ? (
+          {/* Question type selector */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Correct Answers (case-insensitive)
-            </label>
+            <label className="text-sm font-medium">{t('question_type')}</label>
+            <Select
+              value={questionType}
+              onValueChange={(v) => setQuestionType(v as any)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single_choice">{t('single_choice')}</SelectItem>
+                <SelectItem value="multiple_choice">{t('multiple_choice')}</SelectItem>
+                <SelectItem value="fill_in_blank">{t('fill_in_blank')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Render inputs depending on type */}
+          {questionType === "fill_in_blank" ? (
             <div className="space-y-2">
-              {correctAnswers.map((ans, idx) => (
+              <label className="text-sm font-medium">
+                {t('correct_answers_case_insensitive')}
+              </label>
+              <div className="space-y-2">
+                {correctAnswers.map((ans, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      value={ans as string}
+                      onChange={(e) => {
+                        const newAnswers = [...correctAnswers];
+                        newAnswers[idx] = e.target.value.trim();
+                        setCorrectAnswers(newAnswers);
+                      }}
+                      placeholder={`Answer ${idx + 1}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setCorrectAnswers(
+                          correctAnswers.filter((_, i) => i !== idx)
+                        )
+                      }
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  onClick={() => setCorrectAnswers([...correctAnswers, ""])}
+                >
+                  {t('add_answer')}
+                </Button>
+              </div>
+            </div>
+          ) : questionType === "single_choice" ? (
+            <RadioGroup
+              value={correctAnswers[0]?.toString() || ""}
+              onValueChange={(val) => toggleCorrect(parseInt(val))}
+            >
+              {options.map((opt, idx) => (
                 <div key={idx} className="flex items-center gap-2">
+                  <RadioGroupItem value={idx.toString()} id={`option-${idx}`} />
                   <Input
                     className="flex-1"
-                    value={ans as string}
-                    onChange={(e) => {
-                      const newAnswers = [...correctAnswers];
-                      newAnswers[idx] = e.target.value.trim();
-                      setCorrectAnswers(newAnswers);
-                    }}
-                    placeholder={`Answer ${idx + 1}`}
+                    value={opt}
+                    onChange={(e) => updateOption(idx, e.target.value)}
+                    placeholder={`Option ${idx + 1}`}
                   />
+                  {correctAnswers.includes(idx) && (
+                    <span className="text-green-600 text-sm font-medium">
+                      {t('correct_answer')}
+                    </span>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() =>
-                      setCorrectAnswers(
-                        correctAnswers.filter((_, i) => i !== idx)
-                      )
-                    }
+                    onClick={() => removeOption(idx)}
                   >
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
               ))}
-              <Button
-                variant="outline"
-                onClick={() => setCorrectAnswers([...correctAnswers, ""])}
-              >
-                + Add Answer
+              <Button variant="outline" onClick={addOption}>
+                {t('add_option')}
+              </Button>
+            </RadioGroup>
+          ) : (
+            <div className="space-y-2">
+              {options.map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={correctAnswers.includes(idx)}
+                    onChange={() => toggleCorrect(idx)}
+                    id={`option-${idx}`}
+                  />
+                  <Input
+                    className="flex-1"
+                    value={opt}
+                    onChange={(e) => updateOption(idx, e.target.value)}
+                    placeholder={`Option ${idx + 1}`}
+                  />
+                  {correctAnswers.includes(idx) && (
+                    <span className="text-green-600 text-sm font-medium">
+                      {t('correct_answer')}
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeOption(idx)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" onClick={addOption}>
+                {t('add_option')}
               </Button>
             </div>
-          </div>
-        ) : questionType === "single_choice" ? (
-          <RadioGroup
-            value={correctAnswers[0]?.toString() || ""}
-            onValueChange={(val) => toggleCorrect(parseInt(val))}
-          >
-            {options.map((opt, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <RadioGroupItem value={idx.toString()} id={`option-${idx}`} />
-                <Input
-                  className="flex-1"
-                  value={opt}
-                  onChange={(e) => updateOption(idx, e.target.value)}
-                  placeholder={`Option ${idx + 1}`}
-                />
-                {correctAnswers.includes(idx) && (
-                  <span className="text-green-600 text-sm font-medium">
-                    (Correct Answer)
-                  </span>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeOption(idx)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addOption}>
-              + Add Option
+          )}
+
+          {/* Explanation */}
+          <Textarea
+            placeholder={t('explanation_optional')}
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            className="min-h-[80px]"
+          />
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button
+              onClick={handleSubmit}
+              disabled={isCreatingQuestion}
+              className="flex-1"
+            >
+              {isCreatingQuestion ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  {t('adding_question')}
+                </>
+              ) : (
+                t('add_question')
+              )}
             </Button>
-          </RadioGroup>
-        ) : (
-          <div className="space-y-2">
-            {options.map((opt, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <Checkbox
-                  checked={correctAnswers.includes(idx)}
-                  onChange={() => toggleCorrect(idx)}
-                  id={`option-${idx}`}
-                />
-                <Input
-                  className="flex-1"
-                  value={opt}
-                  onChange={(e) => updateOption(idx, e.target.value)}
-                  placeholder={`Option ${idx + 1}`}
-                />
-                {correctAnswers.includes(idx) && (
-                  <span className="text-green-600 text-sm font-medium">
-                    (Correct Answer)
-                  </span>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeOption(idx)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addOption}>
-              + Add Option
+            <Button
+              onClick={handleSaveAndQuit}
+              disabled={isSaving || !questions || questions.length === 0}
+              variant="outline"
+              className="flex-1 flex items-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  {t('saving')}
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {t('save_and_quit')}
+                </>
+              )}
             </Button>
           </div>
-        )}
+        </CardContent>
+      </Card>
 
-        {/* Explanation */}
-        <Textarea
-          placeholder="Explanation (optional)"
-          value={explanation}
-          onChange={(e) => setExplanation(e.target.value)}
-          className="min-h-[80px]"
-        />
-
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button onClick={handleSubmit} className="flex-1">
-            Add Question
-          </Button>
-          <Button 
-            onClick={handleSaveAndQuit}
-            disabled={isSaving || !questions || questions.length === 0}
-            variant="outline"
-            className="flex-1 flex items-center gap-2"
-          >
-            {isSaving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Save & Quit
-              </>
+      {/* Alert Dialog */}
+      <AlertDialog open={alertDialog.isOpen} onOpenChange={hideAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alertDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {alertDialog.showCancel && (
+              <AlertDialogCancel onClick={hideAlert}>
+                {alertDialog.cancelText || "Cancel"}
+              </AlertDialogCancel>
             )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <AlertDialogAction
+              onClick={handleAlertConfirm}
+              className={cn(
+                alertDialog.variant === "destructive" && "text-red-600 hover:bg-red-600 hover:text-white",
+                alertDialog.variant === "success" && "text-green-600 hover:bg-green-600 hover:text-white"
+              )}
+            >
+              {alertDialog.confirmText || "OK"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

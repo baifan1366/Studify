@@ -7337,11 +7337,11 @@
   "QuizCard": {
     "difficulty_levels": {
       "all": "全部",
-      "easy": "⭐ 简单",
-      "fair": "⭐⭐ 尚可",
-      "good": "⭐⭐⭐ 良好",
-      "hard": "⭐⭐⭐⭐ 困难",
-      "expert": "⭐⭐⭐⭐⭐ 专家",
+      "easy": "简单",
+      "fair": "尚可",
+      "good": "良好",
+      "hard": "困难",
+      "expert": "专家",
       "custom_number": "难度 {value}",
       "custom_text": "{value}",
       "unknown": "未知"

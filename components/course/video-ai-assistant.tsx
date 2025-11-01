@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
-import { useSimpleVideoAI } from "@/hooks/course/use-video-ai";
+import { useStreamingVideoAI } from "@/hooks/course/use-video-ai";
 import { getGlobalVideoPlayer } from "@/hooks/video/use-video-player";
 
 interface AIMessage {
@@ -75,7 +75,7 @@ export default function VideoAIAssistant({
     selectedText: selectedText || undefined,
   };
 
-  const { ask, isLoading, error } = useSimpleVideoAI(videoContext);
+  const { askStreaming, isLoading, error } = useStreamingVideoAI(videoContext);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,20 +87,21 @@ export default function VideoAIAssistant({
 
   // Update context info when video state changes
   useEffect(() => {
-    let context = `Course: ${courseSlug}`;
-    if (currentLessonId) {
-      context += ` | Lesson: ${currentLessonId}`;
-    }
+    let context = "";
+    const parts: string[] = [];
+    
     if (currentTimestamp > 0) {
-      context += ` | ${t("input.context_info", {
+      parts.push(t("input.context_info", {
         timestamp: formatTimestamp(currentTimestamp),
-      })}`;
+      }));
     }
     if (selectedText) {
-      context += t("input.selected_text", { text: selectedText });
+      parts.push(t("input.selected_text", { text: selectedText }));
     }
+    
+    context = parts.join(" | ");
     setContextInfo(context);
-  }, [courseSlug, currentLessonId, currentTimestamp, selectedText, t]);
+  }, [currentTimestamp, selectedText, t]);
 
   const formatTimestamp = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -121,79 +122,72 @@ export default function VideoAIAssistant({
     const currentQuestion = question;
     setQuestion("");
 
-    // Stage 1: 分析问题阶段
-    const partialMessage: AIMessage = {
+    // Create initial assistant message for streaming
+    const assistantMessageIndex = conversation.length + 1;
+    const initialMessage: AIMessage = {
       role: "assistant",
-      content: t("loading_stages.analyzing"),
+      content: "",
       timestamp: Date.now(),
       isPartial: true,
       loadingStage: "analyzing",
       sources: [],
     };
 
-    setConversation((prev) => [...prev, partialMessage]);
+    setConversation((prev) => [...prev, initialMessage]);
 
     try {
-      // 模拟渐进式体验
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      let accumulatedContent = "";
 
-      // Stage 2: 搜索信息阶段
-      setConversation((prev) => {
-        const newConv = [...prev];
-        const lastIdx = newConv.length - 1;
-        newConv[lastIdx] = {
-          ...newConv[lastIdx],
-          content: t("loading_stages.searching"),
-          loadingStage: "searching",
-        };
-        return newConv;
-      });
+      await askStreaming(
+        currentQuestion,
+        conversation.slice(-4),
+        // onToken callback - update message as tokens arrive
+        (token: string) => {
+          accumulatedContent += token;
+          setConversation((prev) => {
+            const newConv = [...prev];
+            const lastIdx = newConv.length - 1;
+            newConv[lastIdx] = {
+              ...newConv[lastIdx],
+              content: accumulatedContent,
+              isPartial: true,
+              loadingStage: "synthesizing",
+            };
+            return newConv;
+          });
+        },
+        // onComplete callback - finalize with metadata
+        (data) => {
+          setConversation((prev) => {
+            const newConv = [...prev];
+            const lastIdx = newConv.length - 1;
+            newConv[lastIdx] = {
+              ...newConv[lastIdx],
+              content: accumulatedContent,
+              sources: data.sources || [],
+              confidence: data.confidence || 0.85,
+              suggestedActions: [
+                "Review related course materials",
+                "Take notes on key points",
+                "Try related practice questions",
+              ],
+              relatedConcepts: data.sources?.slice(0, 3).map((s: any) => s.title) || [],
+              isPartial: false,
+              loadingStage: "complete",
+            };
+            return newConv;
+          });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Stage 3: 合成答案阶段
-      setConversation((prev) => {
-        const newConv = [...prev];
-        const lastIdx = newConv.length - 1;
-        newConv[lastIdx] = {
-          ...newConv[lastIdx],
-          content: t("loading_stages.synthesizing"),
-          loadingStage: "synthesizing",
-        };
-        return newConv;
-      });
-
-      // 实际AI调用
-      const result = await ask(currentQuestion, conversation.slice(-4));
-
-      // Stage 4: 完成阶段
-      const finalMessage: AIMessage = {
-        role: "assistant",
-        content: result.answer,
-        timestamp: Date.now(),
-        sources: result.sources || [],
-        confidence: result.confidence || 0.8,
-        suggestedActions: result.suggestedActions || [],
-        relatedConcepts: result.relatedConcepts || [],
-        isPartial: false,
-        loadingStage: "complete",
-      };
-
-      setConversation((prev) => {
-        const newConv = [...prev];
-        const lastIdx = newConv.length - 1;
-        newConv[lastIdx] = finalMessage;
-        return newConv;
-      });
-
-      // Show toast for low confidence answers
-      if (result.confidence < 0.6) {
-        toast({
-          title: t("notifications.low_confidence.title"),
-          description: t("notifications.low_confidence.description"),
-          duration: 3000,
-        });
-      }
+          // Show toast for low confidence answers
+          if (data.confidence < 0.6) {
+            toast({
+              title: t("notifications.low_confidence.title"),
+              description: t("notifications.low_confidence.description"),
+              duration: 3000,
+            });
+          }
+        }
+      );
     } catch (error) {
       console.error("AI assistant error:", error);
 

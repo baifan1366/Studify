@@ -56,6 +56,9 @@ export async function POST(request: NextRequest) {
 
     const { question, videoContext, conversationHistory } = validatedData;
 
+    // Check if streaming is requested
+    const isStreaming = request.headers.get("accept") === "text/event-stream";
+
     console.log(
       `🎓 Video AI Assistant request from user ${userId}: "${question.substring(
         0,
@@ -174,6 +177,109 @@ export async function POST(request: NextRequest) {
       ? ["video_segment", "lesson", "note"] // Prioritize video segments for video lessons
       : ["course_content", "lesson", "note"]; // General content for non-video
 
+    // If streaming is requested, use Server-Sent Events
+    if (isStreaming) {
+      console.log("🎬 Starting streaming response...");
+
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            // Send initial metadata
+            const metadata = {
+              type: "metadata",
+              videoContext,
+              contentTypes,
+              model: modelToUse,
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`)
+            );
+
+            // Pass just the user's question - educationalQA will handle the search internally
+            const result = await enhancedAIExecutor.educationalQA(question, {
+              userId,
+              includeAnalysis: true,
+              conversationContext: conversationHistory,
+              contentTypes,
+              model: modelToUse,
+              // Pass video context separately so the tool can use it properly
+              videoContext: videoContext.currentLessonId
+                ? {
+                    lessonId: videoContext.currentLessonId,
+                    ...(attachmentId !== null && { attachmentId }), // Only include if not null
+                    currentTime: videoContext.currentTimestamp || 0,
+                  }
+                : undefined,
+            });
+
+            // Stream the answer word by word for better UX
+            const words = result.answer.split(" ");
+            for (let i = 0; i < words.length; i++) {
+              const chunk = {
+                type: "token",
+                content: words[i] + (i < words.length - 1 ? " " : ""),
+              };
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+              );
+              // Small delay for smoother streaming
+              await new Promise((resolve) => setTimeout(resolve, 30));
+            }
+
+            // Send final metadata
+            const totalProcessingTime = Date.now() - startTime;
+            const formattedSources = (result.sources || []).map(
+              (source: any) => ({
+                type: source.type || "course_content",
+                title: source.title || "Course Content",
+                timestamp: source.timestamp,
+                url: source.url,
+                contentPreview:
+                  source.contentPreview || source.content?.substring(0, 100),
+              })
+            );
+
+            const finalData = {
+              type: "final",
+              sources: formattedSources,
+              confidence: result.confidence || 0.85,
+              toolsUsed: result.toolsUsed || [],
+              processingTimeMs: totalProcessingTime,
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`)
+            );
+
+            controller.close();
+          } catch (error) {
+            console.error("❌ Streaming error:", error);
+            const errorData = {
+              type: "error",
+              message:
+                error instanceof Error ? error.message : "Unknown error",
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(errorData)}\n\n`)
+            );
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": resetTime.toString(),
+        },
+      });
+    }
+
+    // Non-streaming response (original behavior)
     // Pass just the user's question - educationalQA will handle the search internally
     const result = await enhancedAIExecutor.educationalQA(question, {
       userId,

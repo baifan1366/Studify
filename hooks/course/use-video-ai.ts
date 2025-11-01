@@ -107,3 +107,93 @@ export function useSimpleVideoAI(videoContext: VideoContext) {
     error,
   };
 }
+
+// Streaming hook for real-time AI responses
+export function useStreamingVideoAI(videoContext: VideoContext) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const askStreaming = async (
+    question: string,
+    conversationHistory?: Array<{role: 'user' | 'assistant'; content: string}>,
+    onToken?: (token: string) => void,
+    onComplete?: (data: { sources: any[]; confidence: number; toolsUsed: string[] }) => void
+  ) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/ai/video-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({
+          question,
+          videoContext,
+          conversationHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      let buffer = '';
+      let finalData: any = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === 'token' && onToken) {
+              onToken(data.content);
+            } else if (data.type === 'final') {
+              finalData = data;
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            }
+          }
+        }
+      }
+
+      if (finalData && onComplete) {
+        onComplete({
+          sources: finalData.sources || [],
+          confidence: finalData.confidence || 0.85,
+          toolsUsed: finalData.toolsUsed || [],
+        });
+      }
+
+      setIsLoading(false);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      setError(error);
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  return {
+    askStreaming,
+    isLoading,
+    error,
+  };
+}

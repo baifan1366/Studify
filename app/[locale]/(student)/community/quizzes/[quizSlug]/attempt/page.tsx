@@ -22,6 +22,7 @@ import {
   useCreateQuizAttempt,
   useSubmitAnswer,
   useCompleteAttempt,
+  useQuiz,
 } from "@/hooks/community/use-quiz";
 import { useQuizSession } from "@/hooks/community/use-quiz-session";
 import QuizTimer from "@/components/community/quiz/quiz-timer";
@@ -69,6 +70,7 @@ export default function QuizAttemptPage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Hooks
+  const { data: quiz } = useQuiz(quizSlug);
   const { data: questions, isLoading } = useQuizQuestions(quizSlug);
   const { mutateAsync: createAttempt } = useCreateQuizAttempt(quizSlug);
   const { mutateAsync: submitAnswer } = useSubmitAnswer(
@@ -79,6 +81,13 @@ export default function QuizAttemptPage() {
     quizSlug,
     attemptId ?? -1
   );
+
+  // Update document title with quiz name
+  useEffect(() => {
+    if (quiz?.title) {
+      document.title = `${quiz.title} | Attempt`;
+    }
+  }, [quiz?.title]);
 
   // Session 管理
   const {

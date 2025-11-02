@@ -7554,6 +7554,11 @@
     "page_title": "Create a New Quiz"
   },
   "QuizDetailPage": {
+    "metadata_title": "Quiz | Studify",
+    "metadata_description": "Take interactive quizzes to test your knowledge and track your learning progress",
+    "metadata_keywords": "quiz,assessment,test,learning,knowledge,progress tracking",
+    "og_title": "Quiz | Studify",
+    "og_description": "Test Your Knowledge with Interactive Quizzes",
     "loading": "Loading quiz...",
     "quiz_not_found": "Quiz Not Found",
     "quiz_not_found_description": "The quiz you're looking for doesn't exist or has been removed.",
@@ -7581,6 +7586,11 @@
     "og_description": "Modify and update quiz content"
   },
   "QuizAttemptPage": {
+    "metadata_title": "Quiz Attempt | Studify",
+    "metadata_description": "Take your quiz attempt and answer questions to test your knowledge",
+    "metadata_keywords": "quiz attempt,test taking,assessment,questions,answers,learning",
+    "og_title": "Quiz Attempt | Studify",
+    "og_description": "Answer Questions and Test Your Knowledge",
     "enter_quiz_session": "Enter Quiz Session",
     "session_description": "To avoid accidental duplicate attempts, please use the button to enter the session. We will create or restore your quiz session and append a session identifier to the URL.",
     "start_continue": "Start / Continue",

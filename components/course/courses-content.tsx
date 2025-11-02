@@ -96,6 +96,10 @@ export default function CoursesContent() {
         }
       }
       
+      // Get actual point price from database or fallback to calculated value
+      const pointPrice = c.point_price || Math.max(100, Math.floor((c.price_cents || 0) / 10));
+      const hasPointPrice = !!c.point_price;
+      
       return {
         id: c.public_id,
         title: c.title,
@@ -110,8 +114,8 @@ export default function CoursesContent() {
         priceCents: c.price_cents || 0,
         sourceCurrency: courseCurrency, // Store original currency
         isFree: !c.price_cents || c.price_cents === 0,
-        points: Math.max(100, Math.floor((c.price_cents || 0) / 10)), // Calculate points based on price
-        pointsAvailable: true, // TODO: Check if course has point price set
+        points: pointPrice,
+        pointsAvailable: hasPointPrice, // Only show points redemption if course has point price set
         thumbnailUrl: c.thumbnail_url,
         level: c.level || 'beginner',
         category: c.category || 'General',

@@ -13,7 +13,10 @@ export async function GET(req: Request) {
     if (owner_id) {
       const { data, error } = await client
         .from("course")
-        .select("*")
+        .select(`
+          *,
+          course_point_price!left(point_price, is_active)
+        `)
         .eq("is_deleted", false)
         .eq("owner_id", parseInt(owner_id))
         .order("created_at", { ascending: true });
@@ -21,13 +24,27 @@ export async function GET(req: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
-      return NextResponse.json({ data });
+
+      // Transform data to include point_price at the top level
+      const transformedData = data?.map(course => {
+        const activePointPrice = course.course_point_price?.find((cpp: any) => cpp.is_active);
+        return {
+          ...course,
+          point_price: activePointPrice?.point_price || null,
+          course_point_price: undefined // Remove the nested array
+        };
+      });
+
+      return NextResponse.json({ data: transformedData });
     }
 
     if (slug) {
       const { data, error } = await client
         .from("course")
-        .select("*")
+        .select(`
+          *,
+          course_point_price!left(point_price, is_active)
+        `)
         .eq("is_deleted", false)
         .eq("slug", slug)
         .single();
@@ -35,7 +52,16 @@ export async function GET(req: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 404 });
       }
-      return NextResponse.json({ data });
+
+      // Transform data to include point_price at the top level
+      const activePointPrice = data.course_point_price?.find((cpp: any) => cpp.is_active);
+      const transformedData = {
+        ...data,
+        point_price: activePointPrice?.point_price || null,
+        course_point_price: undefined // Remove the nested array
+      };
+
+      return NextResponse.json({ data: transformedData });
     }
 
     // Try to get authenticated user (optional - don't fail if not authenticated)
@@ -49,7 +75,10 @@ export async function GET(req: Request) {
         // Return tutor's own courses (all statuses and visibilities)
         const { data, error } = await client
           .from("course")
-          .select("*")
+          .select(`
+            *,
+            course_point_price!left(point_price, is_active)
+          `)
           .eq("is_deleted", false)
           .eq("owner_id", profile.id)
           .order("created_at", { ascending: true });
@@ -57,14 +86,28 @@ export async function GET(req: Request) {
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 400 });
         }
-        return NextResponse.json({ data });
+
+        // Transform data to include point_price at the top level
+        const transformedData = data?.map(course => {
+          const activePointPrice = course.course_point_price?.find((cpp: any) => cpp.is_active);
+          return {
+            ...course,
+            point_price: activePointPrice?.point_price || null,
+            course_point_price: undefined // Remove the nested array
+          };
+        });
+
+        return NextResponse.json({ data: transformedData });
       }
     }
 
     // Default: return public active courses (for students or unauthenticated users)
     const { data, error } = await client
       .from("course")
-      .select("*")
+      .select(`
+        *,
+        course_point_price!left(point_price, is_active)
+      `)
       .eq("is_deleted", false)
       .eq("visibility", "public")
       .eq("status", "active")
@@ -74,7 +117,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ data });
+    // Transform data to include point_price at the top level
+    const transformedData = data?.map(course => {
+      const activePointPrice = course.course_point_price?.find((cpp: any) => cpp.is_active);
+      return {
+        ...course,
+        point_price: activePointPrice?.point_price || null,
+        course_point_price: undefined // Remove the nested array
+      };
+    });
+
+    return NextResponse.json({ data: transformedData });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message ?? "Internal error" },

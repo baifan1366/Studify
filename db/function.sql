@@ -5622,3 +5622,38 @@ WHERE is_deleted = false
 GROUP BY push_subscription_status;
 
 COMMENT ON VIEW push_subscription_stats IS 'Statistics on push notification subscription status across all active users';
+
+
+-- ============================================================================
+-- SEED SCRIPT: Course Point Prices
+-- ============================================================================
+-- This script adds point prices to existing courses
+-- Point price is calculated as: price_cents / 10 (e.g., $100 = 10,000 cents = 1,000 points)
+
+-- Insert point prices for all active courses that don't have one yet
+INSERT INTO course_point_price (course_id, point_price, is_active)
+SELECT 
+    c.id,
+    GREATEST(100, (c.price_cents / 10)::integer) as point_price, -- Minimum 100 points
+    true as is_active
+FROM course c
+WHERE c.is_deleted = false
+  AND c.status = 'active'
+  AND NOT EXISTS (
+    SELECT 1 FROM course_point_price cpp 
+    WHERE cpp.course_id = c.id AND cpp.is_active = true
+  )
+ON CONFLICT DO NOTHING;
+
+-- Verify the results
+SELECT 
+    c.id,
+    c.title,
+    c.price_cents,
+    cpp.point_price,
+    cpp.is_active
+FROM course c
+LEFT JOIN course_point_price cpp ON cpp.course_id = c.id AND cpp.is_active = true
+WHERE c.is_deleted = false
+ORDER BY c.created_at DESC
+LIMIT 20;

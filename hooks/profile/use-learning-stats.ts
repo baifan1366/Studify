@@ -158,6 +158,7 @@ export function useRedeemCourse() {
       queryClient.invalidateQueries({ queryKey: ["points-data"] });
       queryClient.invalidateQueries({ queryKey: ["learning-stats"] });
       queryClient.invalidateQueries({ queryKey: ["courses"] });
+      queryClient.invalidateQueries({ queryKey: ["enrolled-courses"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
   });

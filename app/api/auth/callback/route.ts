@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
         // Check if profile exists
         let { data: profile } = await supabaseAdmin
           .from("profiles")
-          .select("id, role, full_name, display_name, email, onboarded")
+          .select("id, role, full_name, display_name, email, onboarded, avatar_url")
           .eq("user_id", userId)
           .maybeSingle();
 
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
                     last_login: new Date().toISOString(),
                     onboarded: false, // New users need onboarding
                   })
-                  .select("id, role, full_name, display_name, email, onboarded")
+                  .select("id, role, full_name, display_name, email, onboarded, avatar_url")
                   .single(),
                 new Promise((_, reject) =>
                   setTimeout(
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
               if (createError.code === "23505") {
                 const { data: existingProfile } = await supabaseAdmin
                   .from("profiles")
-                  .select("id, role, full_name, display_name, email, onboarded")
+                  .select("id, role, full_name, display_name, email, onboarded, avatar_url")
                   .eq("user_id", userId)
                   .single();
 

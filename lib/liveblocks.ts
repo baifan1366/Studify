@@ -1,28 +1,28 @@
-import { createClient } from '@liveblocks/client';
-import { createRoomContext } from '@liveblocks/react';
+import { createClient } from "@liveblocks/client";
+import { createRoomContext } from "@liveblocks/react";
 
 // Liveblocks client configuration
 const client = createClient({
   authEndpoint: async (room) => {
-    console.log('🔐 [Liveblocks] Requesting auth for room:', room);
-    
+    console.log("🔐 [Liveblocks] Requesting auth for room:", room);
+
     // Use the simpler auth endpoint that handles authentication internally
-    const response = await fetch('/api/liveblocks-auth', {
-      method: 'POST',
+    const response = await fetch("/api/liveblocks-auth", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ room }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('❌ [Liveblocks] Auth failed:', error);
-      throw new Error(error.error || 'Authentication failed');
+      console.error("❌ [Liveblocks] Auth failed:", error);
+      throw new Error(error.error || "Authentication failed");
     }
 
     const data = await response.json();
-    console.log('✅ [Liveblocks] Auth successful');
+    console.log("✅ [Liveblocks] Auth successful");
     return data;
   },
   throttle: 100,
@@ -31,7 +31,13 @@ const client = createClient({
 // Type definitions for Liveblocks storage
 type Presence = {
   cursor: { x: number; y: number } | null;
-  selectedTool: string | null;
+  selectedTool?: string | null;
+  userName?: string;
+  userAvatar?: string;
+  userRole?: "student" | "tutor" | "owner";
+  isDrawing?: boolean;
+  selection?: any;
+  userColor?: string;
 };
 
 type Storage = {
@@ -43,12 +49,16 @@ type UserMeta = {
   info: {
     name: string;
     avatar?: string;
-    role: 'student' | 'tutor' | 'owner';
+    role: "student" | "tutor" | "owner";
   };
 };
 
 type RoomEvent = {
-  type: 'DRAWING_ADDED' | 'DRAWING_UPDATED' | 'DRAWING_DELETED' | 'CANVAS_CLEARED';
+  type:
+    | "DRAWING_ADDED"
+    | "DRAWING_UPDATED"
+    | "DRAWING_DELETED"
+    | "CANVAS_CLEARED";
   data: any;
 };
 
@@ -82,12 +92,16 @@ export const {
 export { client };
 
 // Helper function to generate consistent room IDs
-export function generateRoomId(classroomSlug: string, type: string, sessionId?: string): string {
+export function generateRoomId(
+  classroomSlug: string,
+  type: string,
+  sessionId?: string
+): string {
   const parts = [classroomSlug, type];
   if (sessionId) {
     parts.push(sessionId);
   }
-  return parts.join(':');
+  return parts.join(":");
 }
 
 // Initial storage for Liveblocks rooms

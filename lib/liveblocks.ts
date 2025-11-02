@@ -55,12 +55,13 @@ type UserMeta = {
   };
 };
 
-type RoomEvent = {
+export type RoomEvent = {
   type:
     | "DRAWING_ADDED"
     | "DRAWING_UPDATED"
     | "DRAWING_DELETED"
-    | "CANVAS_CLEARED";
+    | "CANVAS_CLEARED"
+    | "CHAT_MESSAGE";
   data: any;
 };
 

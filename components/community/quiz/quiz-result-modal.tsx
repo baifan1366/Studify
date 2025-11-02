@@ -32,17 +32,13 @@ export default function QuizResultModal({ quizSlug, attemptId, totalQuestions = 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('quiz_completed')}</DialogTitle>
-          <DialogDescription>
-            {t('view_answers')}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="py-2">
           <QuizScoreDisplay attemptId={attemptId} totalQuestions={totalQuestions} />
         </div>
 
-        <DialogFooter className="flex gap-2">
-          <Button variant="secondary" onClick={handleClose}>{t('view_answers')}</Button>
+        <DialogFooter className="flex">
           <Button onClick={handleClose}>{t('close')}</Button>
         </DialogFooter>
       </DialogContent>

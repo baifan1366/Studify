@@ -7672,6 +7672,11 @@
     "page_title": "创建新测验"
   },
   "QuizDetailPage": {
+    "metadata_title": "测验 | Studify",
+    "metadata_description": "参与互动测验，检验你的知识并追踪学习进度",
+    "metadata_keywords": "测验,评估,考试,学习,知识,进度追踪",
+    "og_title": "测验 | Studify",
+    "og_description": "通过互动测验检验你的知识",
     "loading": "正在加载测验...",
     "quiz_not_found": "未找到测验",
     "quiz_not_found_description": "你要查找的测验不存在或已被移除。",
@@ -7699,6 +7704,11 @@
     "og_description": "修改和更新测验内容"
   },
   "QuizAttemptPage": {
+    "metadata_title": "测验作答 | Studify",
+    "metadata_description": "参与测验作答，回答问题检验你的知识",
+    "metadata_keywords": "测验作答,考试,评估,问题,答案,学习",
+    "og_title": "测验作答 | Studify",
+    "og_description": "回答问题，检验你的知识",
     "enter_quiz_session": "进入测验会话",
     "session_description": "为了避免误触导致的重复作答，请通过按钮进入会话。我们会创建或恢复你的测验会话，并在 URL 上追加会话标识。",
     "start_continue": "开始 / 继续",
@@ -8182,7 +8192,6 @@
     "excellent": "太棒了！",
     "good_job": "干得好！",
     "keep_trying": "继续努力！",
-    "view_answers": "查看答案",
     "retake_quiz": "重新测验",
     "close": "关闭"
   },

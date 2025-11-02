@@ -6,12 +6,18 @@ import { useQuiz } from "@/hooks/community/use-quiz";
 import SingleQuizContent from "@/components/community/quiz/single/single-quiz-content";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
-import { CommunityQuiz } from "@/interface/community/quiz-interface";
+import { useEffect } from "react";
 
 export default function QuizDetailPage() {
   const { quizSlug } = useParams<{ quizSlug: string }>();
   const { data: quiz, isLoading, error } = useQuiz(quizSlug);
   const t = useTranslations('QuizDetailPage');
+
+  useEffect(() => {
+    if (quiz?.title) {
+      document.title = `${quiz.title} | Quiz`;
+    }
+  }, [quiz?.title]);
 
   if (isLoading) {
     return (

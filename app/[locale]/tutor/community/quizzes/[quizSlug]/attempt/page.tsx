@@ -22,6 +22,7 @@ import {
   useCreateQuizAttempt,
   useSubmitAnswer,
   useCompleteAttempt,
+  useQuiz,
 } from "@/hooks/community/use-quiz";
 import { useQuizSession } from "@/hooks/community/use-quiz-session";
 import { useUser } from "@/hooks/profile/use-user";
@@ -69,8 +70,10 @@ export default function QuizAttemptPage() {
   const [needsSessionParam, setNeedsSessionParam] = useState<boolean>(false);
   const [isNavigatingToSession, setIsNavigatingToSession] =
     useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Hooks
+  const { data: quiz } = useQuiz(quizSlug);
   const { data: questions, isLoading } = useQuizQuestions(quizSlug);
   const { mutateAsync: createAttempt } = useCreateQuizAttempt(quizSlug);
   const { mutateAsync: submitAnswer } = useSubmitAnswer(
@@ -81,6 +84,13 @@ export default function QuizAttemptPage() {
     quizSlug,
     attemptId ?? -1
   );
+
+  // Update document title with quiz name
+  useEffect(() => {
+    if (quiz?.title) {
+      document.title = `${quiz.title} | Attempt`;
+    }
+  }, [quiz?.title]);
 
   // Session 管理
   const {
@@ -406,8 +416,9 @@ export default function QuizAttemptPage() {
 
   // 下一题 / 结束
   const handleNextQuestion = async () => {
-    if (!attemptId) return;
+    if (!attemptId || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       // 提交答案
       if (
@@ -467,6 +478,8 @@ export default function QuizAttemptPage() {
     } catch (error) {
       console.error("Error in handleNextQuestion:", error);
       alert("提交答案时出错，请重试");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -527,21 +540,41 @@ export default function QuizAttemptPage() {
               {!isAnswered ? (
                 <Button
                   onClick={handleNextQuestion}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
+                  disabled={isSubmitting}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg disabled:opacity-50"
                 >
-                  {currentQuestionIndex < questions.length - 1
-                    ? t("next")
-                    : t("finish")}
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {currentQuestionIndex < questions.length - 1
+                        ? t("next")
+                        : t("finish")}
+                    </div>
+                  ) : (
+                    currentQuestionIndex < questions.length - 1
+                      ? t("next")
+                      : t("finish")
+                  )}
                 </Button>
               ) : (
                 <div className="mt-6 text-center animate-fade-in">
                   <Button
                     onClick={handleNextQuestion}
-                    className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
+                    disabled={isSubmitting}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg disabled:opacity-50"
                   >
-                    {currentQuestionIndex < questions.length - 1
-                      ? t("next")
-                      : t("finish")}
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {currentQuestionIndex < questions.length - 1
+                          ? t("next")
+                          : t("finish")}
+                      </div>
+                    ) : (
+                      currentQuestionIndex < questions.length - 1
+                        ? t("next")
+                        : t("finish")
+                    )}
                   </Button>
                 </div>
               )}
@@ -592,12 +625,21 @@ export default function QuizAttemptPage() {
               <div className="mt-6 text-center">
                 <Button
                   onClick={handleNextQuestion}
-                  disabled={selectedAnswers.length === 0}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
+                  disabled={selectedAnswers.length === 0 || isSubmitting}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg disabled:opacity-50"
                 >
-                  {currentQuestionIndex < questions.length - 1
-                    ? t("next")
-                    : t("finish")}
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {currentQuestionIndex < questions.length - 1
+                        ? t("next")
+                        : t("finish")}
+                    </div>
+                  ) : (
+                    currentQuestionIndex < questions.length - 1
+                      ? t("next")
+                      : t("finish")
+                  )}
                 </Button>
               </div>
             </>
@@ -646,11 +688,21 @@ export default function QuizAttemptPage() {
                 <div className="mt-6 text-center animate-fade-in">
                   <Button
                     onClick={handleNextQuestion}
-                    className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
+                    disabled={isSubmitting}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg disabled:opacity-50"
                   >
-                    {currentQuestionIndex < questions.length - 1
-                      ? t("next")
-                      : t("finish")}
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {currentQuestionIndex < questions.length - 1
+                          ? t("next")
+                          : t("finish")}
+                      </div>
+                    ) : (
+                      currentQuestionIndex < questions.length - 1
+                        ? t("next")
+                        : t("finish")
+                    )}
                   </Button>
                 </div>
               )}

@@ -80,3 +80,17 @@ export const {
 } = createRoomContext<Presence, Storage, UserMeta, RoomEvent>(client);
 
 export { client };
+
+// Helper function to generate consistent room IDs
+export function generateRoomId(classroomSlug: string, type: string, sessionId?: string): string {
+  const parts = [classroomSlug, type];
+  if (sessionId) {
+    parts.push(sessionId);
+  }
+  return parts.join(':');
+}
+
+// Initial storage for Liveblocks rooms
+export const initialStorage = {
+  drawings: [],
+};

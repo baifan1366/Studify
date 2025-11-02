@@ -87,7 +87,7 @@ export default function StripeConnectSetup({ className = '' }: StripeConnectSetu
               {createStripeAccount.isPending ? 'Setting up...' : 'Set Up Payments'}
             </motion.button>
           </div>
-        ) : !isAccountFullySetup(stripeConnectData.account) ? (
+        ) : !isAccountFullySetup(stripeConnectData) ? (
           // Account exists but not fully set up
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -95,8 +95,8 @@ export default function StripeConnectSetup({ className = '' }: StripeConnectSetu
             </div>
             <h4 className="text-xl font-semibold text-white mb-2">Complete Your Setup</h4>
             <p className="text-white/70 mb-2">
-              Status: <span className={`font-medium text-${getAccountStatusColor(stripeConnectData.account)}-400`}>
-                {getAccountStatusText(stripeConnectData.account)}
+              Status: <span className={`font-medium text-${getAccountStatusColor(stripeConnectData)}-400`}>
+                {getAccountStatusText(stripeConnectData)}
               </span>
             </p>
             <p className="text-white/60 mb-6 max-w-md mx-auto">

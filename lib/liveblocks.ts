@@ -61,7 +61,11 @@ export type RoomEvent = {
     | "DRAWING_UPDATED"
     | "DRAWING_DELETED"
     | "CANVAS_CLEARED"
-    | "CHAT_MESSAGE";
+    | "CHAT_MESSAGE"
+    | "USER_REACTION"
+    | "DRAWING_START"
+    | "DRAWING_END"
+    | "CLEAR_CANVAS";
   data: any;
 };
 

@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import {
   X,
-  Timer,
   Triangle,
   Square,
   Circle,
@@ -49,6 +49,7 @@ const optionStyles = [
 ];
 
 export default function QuizAttemptPage() {
+  const t = useTranslations("QuizAttemptPage");
   const { quizSlug } = useParams<{ quizSlug: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -143,7 +144,7 @@ export default function QuizAttemptPage() {
         console.error("Failed to initialize quiz:", err);
         setError(
           err.message ||
-            "Failed to start quiz. You may have reached the maximum number of attempts."
+          "Failed to start quiz. You may have reached the maximum number of attempts."
         );
         attemptCreatedRef.current = false; // 重置以允许重试
       } finally {
@@ -190,12 +191,12 @@ export default function QuizAttemptPage() {
   useEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => {
       if ((e as any).persisted && attemptId) {
-        getSession(attemptId).catch(() => {});
+        getSession(attemptId).catch(() => { });
       }
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible" && attemptId) {
-        getSession(attemptId).catch(() => {});
+        getSession(attemptId).catch(() => { });
       }
     };
     window.addEventListener("pageshow", onPageShow as any);
@@ -241,8 +242,26 @@ export default function QuizAttemptPage() {
 
       // 如果没有 attempt，创建一个
       if (!aId) {
-        const newAttempt = await createAttempt();
-        aId = newAttempt.id;
+        try {
+          const newAttempt = await createAttempt();
+          aId = newAttempt.id;
+        } catch (createError: any) {
+          // Handle max attempts reached error
+          if (createError.message?.includes("maximum") ||
+            createError.message?.includes("attempts") ||
+            createError.message?.includes("limit")) {
+            toast.error("Maximum attempts reached", {
+              description: "You have reached the maximum number of attempts for this quiz.",
+            });
+            // Redirect back to quiz page
+            const route = isTutor
+              ? `/tutor/community/quizzes/${quizSlug}`
+              : `/community/quizzes/${quizSlug}`;
+            router.push(route);
+            return;
+          }
+          throw createError; // Re-throw if it's a different error
+        }
       }
 
       // 如果没有 session，创建一个
@@ -281,18 +300,17 @@ export default function QuizAttemptPage() {
   if (needsSessionParam) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-6">
-        <Card className="max-w-lg w-full p-6 text-center">
-          <h2 className="text-xl font-bold mb-2">Enter Quiz Session</h2>
+        <Card className="max-w-lg w-full p-6 text-center border-2 border-white !border-white">
+          <h2 className="text-xl font-bold mb-2">{t("enter_quiz_session")}</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            为了避免误触导致的重复作答，请通过按钮进入会话。我们会创建或恢复你的测验会话，并在
-            URL 上追加会话标识。
+            {t("session_description")}
           </p>
           <div className="flex items-center justify-center gap-3">
             <Button
               onClick={navigateWithSession}
               disabled={isNavigatingToSession}
             >
-              {isNavigatingToSession ? "Processing..." : "Start / Continue"}
+              {isNavigatingToSession ? t("processing") : t("start_continue")}
             </Button>
             <Button
               variant="ghost"
@@ -303,7 +321,7 @@ export default function QuizAttemptPage() {
                 router.push(route);
               }}
             >
-              Back to Quiz
+              {t("back_to_quiz")}
             </Button>
           </div>
         </Card>
@@ -331,17 +349,20 @@ export default function QuizAttemptPage() {
               }}
               variant="outline"
             >
-              Back to Quiz
+              {t("back_to_quiz")}
             </Button>
             <Button
               onClick={() => {
+                // Don't reset state - instead navigate to guard screen
+                // This prevents bypassing max attempts check
+                setNeedsSessionParam(true);
                 setError(null);
                 setAttemptId(null);
-                attemptCreatedRef.current = false; // 重置ref以允许重新创建
+                attemptCreatedRef.current = false;
               }}
               variant="default"
             >
-              Try Again
+              {t("try_again")}
             </Button>
           </div>
         </div>
@@ -352,7 +373,7 @@ export default function QuizAttemptPage() {
   if (isLoading || isCreatingAttempt) {
     return (
       <div className="flex h-screen items-center justify-center text-white">
-        {isCreatingAttempt ? "Starting quiz..." : "Loading questions..."}
+        {isCreatingAttempt ? t("starting_quiz") : t("loading_questions")}
       </div>
     );
   }
@@ -360,7 +381,7 @@ export default function QuizAttemptPage() {
   if (!questions || questions.length === 0) {
     return (
       <div className="flex h-screen items-center justify-center text-white">
-        No questions found for this quiz.
+        {t("no_questions_found")}
       </div>
     );
   }
@@ -501,7 +522,7 @@ export default function QuizAttemptPage() {
                 onChange={(e) => setTextAnswer(e.target.value)}
                 disabled={isAnswered}
                 className="w-full bg-blue-400 px-4 py-2 text-lg text-black rounded-md"
-                placeholder="Type your answer here..."
+                placeholder={t("type_answer_placeholder")}
               />
               {!isAnswered ? (
                 <Button
@@ -509,8 +530,8 @@ export default function QuizAttemptPage() {
                   className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
                 >
                   {currentQuestionIndex < questions.length - 1
-                    ? "Next"
-                    : "Finish"}
+                    ? t("next")
+                    : t("finish")}
                 </Button>
               ) : (
                 <div className="mt-6 text-center animate-fade-in">
@@ -519,8 +540,8 @@ export default function QuizAttemptPage() {
                     className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
                   >
                     {currentQuestionIndex < questions.length - 1
-                      ? "Next"
-                      : "Finish"}
+                      ? t("next")
+                      : t("finish")}
                   </Button>
                 </div>
               )}
@@ -575,8 +596,8 @@ export default function QuizAttemptPage() {
                   className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
                 >
                   {currentQuestionIndex < questions.length - 1
-                    ? "Next"
-                    : "Finish"}
+                    ? t("next")
+                    : t("finish")}
                 </Button>
               </div>
             </>
@@ -628,8 +649,8 @@ export default function QuizAttemptPage() {
                     className="bg-purple-600 hover:bg-purple-700 text-white text-lg px-12 py-6 rounded-lg shadow-lg"
                   >
                     {currentQuestionIndex < questions.length - 1
-                      ? "Next"
-                      : "Finish"}
+                      ? t("next")
+                      : t("finish")}
                   </Button>
                 </div>
               )}

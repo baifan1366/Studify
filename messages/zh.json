@@ -4187,7 +4187,8 @@
       "document": "文档",
       "assignment": "作业",
       "quiz": "测验",
-      "whiteboard": "白板"
+      "whiteboard": "白板",
+      "image": "图片"
     },
     "content_url_label": "内容 URL",
     "content_url_placeholder": "https://example.com/lesson-content",
@@ -4232,7 +4233,9 @@
     "document": "文档",
     "quiz": "测验",
     "whiteboard": "白板",
-    "loading_attachments": "正在加载附件..."
+    "loading_attachments": "正在加载附件...",
+    "course_id_required": "课程 ID 必填",
+    "module_id_required": "模块 ID 必填"
   },
   "CreateCourseModule": {
     "create_module_button": "创建模块",

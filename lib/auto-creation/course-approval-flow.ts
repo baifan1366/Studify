@@ -2,7 +2,7 @@
  * Auto-creation flow for classroom and community when course is approved
  */
 
-import { createAdminClient } from '@/utils/supabase/server';
+import { createAdminClient } from "@/utils/supabase/server";
 
 export interface AutoCreationResult {
   success: boolean;
@@ -20,45 +20,48 @@ export async function handleCourseApprovalAutoCreation(
   courseId: number,
   courseName: string,
   courseSlug: string,
-  tutorProfileId: number,
+  _tutorProfileId: number, // Unused but kept for API compatibility
   autoCreateClassroom: boolean,
   autoCreateCommunity: boolean
 ): Promise<AutoCreationResult> {
-  console.log('[AutoCreation] Starting auto-creation flow for course:', courseId);
-  
+  console.log(
+    "[AutoCreation] Starting auto-creation flow for course:",
+    courseId
+  );
+
   // Validate input parameters
   if (!courseName?.trim()) {
     return {
       success: false,
       classroomCreated: false,
       communityCreated: false,
-      errors: ['Course name is required for auto-creation']
+      errors: ["Course name is required for auto-creation"],
     };
   }
-  
+
   if (!courseSlug?.trim()) {
     return {
       success: false,
       classroomCreated: false,
       communityCreated: false,
-      errors: ['Course slug is required for auto-creation']
+      errors: ["Course slug is required for auto-creation"],
     };
   }
-  
+
   const result: AutoCreationResult = {
     success: false,
     classroomCreated: false,
     communityCreated: false,
-    errors: []
+    errors: [],
   };
 
   const supabase = await createAdminClient();
 
-  // Get the course owner_id from the course table and the corresponding user_id (UUID)
+  // Get the course owner_id from the course table
   const { data: courseData, error: courseError } = await supabase
-    .from('course')
-    .select('owner_id')
-    .eq('id', courseId)
+    .from("course")
+    .select("owner_id")
+    .eq("id", courseId)
     .single();
 
   if (courseError || !courseData) {
@@ -66,30 +69,16 @@ export async function handleCourseApprovalAutoCreation(
       success: false,
       classroomCreated: false,
       communityCreated: false,
-      errors: [`Failed to get course owner: ${courseError?.message || 'Course not found'}`]
+      errors: [
+        `Failed to get course owner: ${
+          courseError?.message || "Course not found"
+        }`,
+      ],
     };
   }
 
   const courseOwnerId = courseData.owner_id;
-  
-  // Get the user_id (UUID) from the profiles table
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('user_id')
-    .eq('id', courseOwnerId)
-    .single();
-
-  if (profileError || !profileData) {
-    return {
-      success: false,
-      classroomCreated: false,
-      communityCreated: false,
-      errors: [`Failed to get course owner profile: ${profileError?.message || 'Profile not found'}`]
-    };
-  }
-
-  const courseOwnerUserId = profileData.user_id;
-  console.log('[AutoCreation] Course owner ID:', courseOwnerId, 'User UUID:', courseOwnerUserId);
+  console.log("[AutoCreation] Course owner ID:", courseOwnerId);
 
   // Auto-create classroom if requested
   if (autoCreateClassroom) {
@@ -98,22 +87,32 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerId,
-        courseOwnerUserId
+        courseOwnerId
       );
-      
+
       if (classroomResult.success) {
         result.classroomCreated = true;
         result.classroomId = classroomResult.classroomId;
-        console.log('[AutoCreation] Classroom created successfully:', classroomResult.classroomId);
+        console.log(
+          "[AutoCreation] Classroom created successfully:",
+          classroomResult.classroomId
+        );
       } else {
-        result.errors?.push(classroomResult.error || 'Failed to create classroom');
-        console.error('[AutoCreation] Classroom creation failed:', classroomResult.error);
+        result.errors?.push(
+          classroomResult.error || "Failed to create classroom"
+        );
+        console.error(
+          "[AutoCreation] Classroom creation failed:",
+          classroomResult.error
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown classroom creation error';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Unknown classroom creation error";
       result.errors?.push(errorMessage);
-      console.error('[AutoCreation] Classroom creation exception:', error);
+      console.error("[AutoCreation] Classroom creation exception:", error);
     }
   }
 
@@ -124,28 +123,38 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerId,
-        courseOwnerUserId
+        courseOwnerId
       );
-      
+
       if (communityResult.success) {
         result.communityCreated = true;
         result.communityId = communityResult.communityId;
-        console.log('[AutoCreation] Community created successfully:', communityResult.communityId);
+        console.log(
+          "[AutoCreation] Community created successfully:",
+          communityResult.communityId
+        );
       } else {
-        result.errors?.push(communityResult.error || 'Failed to create community');
-        console.error('[AutoCreation] Community creation failed:', communityResult.error);
+        result.errors?.push(
+          communityResult.error || "Failed to create community"
+        );
+        console.error(
+          "[AutoCreation] Community creation failed:",
+          communityResult.error
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown community creation error';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Unknown community creation error";
       result.errors?.push(errorMessage);
-      console.error('[AutoCreation] Community creation exception:', error);
+      console.error("[AutoCreation] Community creation exception:", error);
     }
   }
 
   result.success = result.errors?.length === 0;
-  
-  console.log('[AutoCreation] Auto-creation flow completed:', result);
+
+  console.log("[AutoCreation] Auto-creation flow completed:", result);
   return result;
 }
 
@@ -156,30 +165,35 @@ async function createClassroomForCourse(
   supabase: any,
   courseName: string,
   courseSlug: string,
-  courseOwnerId: number,
-  courseOwnerUserId: string
+  courseOwnerId: number
 ) {
   // Ensure courseName is not empty and provide fallback
-  const safeCourseTitle = courseName?.trim() || 'Course';
+  const safeCourseTitle = courseName?.trim() || "Course";
   const classroomName = `${safeCourseTitle} - Classroom`;
   const classroomSlug = `${courseSlug}-classroom`;
 
-  console.log('[AutoCreation] Checking if classroom exists:', { name: classroomName, slug: classroomSlug });
+  console.log("[AutoCreation] Checking if classroom exists:", {
+    name: classroomName,
+    slug: classroomSlug,
+  });
 
   // Check if classroom already exists (check by slug for uniqueness)
   const { data: existingClassroom } = await supabase
-    .from('classroom')
-    .select('id, name')
-    .eq('slug', classroomSlug)
-    .eq('is_deleted', false)
+    .from("classroom")
+    .select("id, name")
+    .eq("slug", classroomSlug)
+    .eq("is_deleted", false)
     .maybeSingle();
 
   if (existingClassroom) {
-    console.log('[AutoCreation] Classroom already exists:', existingClassroom.id);
+    console.log(
+      "[AutoCreation] Classroom already exists:",
+      existingClassroom.id
+    );
     return {
       success: true,
       classroomId: existingClassroom.id,
-      error: null
+      error: null,
     };
   }
 
@@ -188,46 +202,49 @@ async function createClassroomForCourse(
 
   // Create classroom with robust content for embedding - ensure no null values
   const classroomDescription = `Classroom for ${safeCourseTitle}. Join this classroom to participate in discussions, activities, and collaborative learning related to the course. This is an interactive learning environment where students can engage with course materials, ask questions, share insights, and connect with peers and instructors.`;
-  
+
   const { data: classroom, error: classroomError } = await supabase
-    .from('classroom')
+    .from("classroom")
     .insert({
       name: classroomName,
       description: classroomDescription,
-      visibility: 'public',
+      visibility: "public",
       class_code: classCode,
       slug: classroomSlug,
       owner_id: courseOwnerId,
     })
-    .select('id')
+    .select("id")
     .single();
 
   if (classroomError) {
-    console.error('[AutoCreation] Failed to create classroom:', classroomError);
+    console.error("[AutoCreation] Failed to create classroom:", classroomError);
     return {
       success: false,
-      error: `Failed to create classroom: ${classroomError.message}`
+      error: `Failed to create classroom: ${classroomError.message}`,
     };
   }
 
-  // Add course owner as classroom owner member (using UUID)
+  // Add course owner as classroom owner member (using profile ID, not UUID)
   const { error: memberError } = await supabase
-    .from('classroom_member')
+    .from("classroom_member")
     .insert({
       classroom_id: classroom.id,
-      user_id: courseOwnerUserId,
-      role: 'owner',
+      user_id: courseOwnerId,
+      role: "owner",
     });
 
   if (memberError) {
-    console.error('[AutoCreation] Failed to add course owner as classroom member:', memberError);
+    console.error(
+      "[AutoCreation] Failed to add course owner as classroom member:",
+      memberError
+    );
     // Don't fail the whole process for this
   }
 
   return {
     success: true,
     classroomId: classroom.id,
-    error: null
+    error: null,
   };
 }
 
@@ -238,92 +255,107 @@ async function createCommunityForCourse(
   supabase: any,
   courseName: string,
   courseSlug: string,
-  courseOwnerId: number,
-  courseOwnerUserId: string
+  courseOwnerId: number
 ) {
   // Ensure courseName is not empty and provide fallback
-  const safeCourseTitle = courseName?.trim() || 'Course';
+  const safeCourseTitle = courseName?.trim() || "Course";
   const communityName = `${safeCourseTitle} - Group`;
 
   const communitySlug = `${courseSlug}-group`;
 
-  console.log('[AutoCreation] Checking if community exists:', { name: communityName, slug: communitySlug });
+  console.log("[AutoCreation] Checking if community exists:", {
+    name: communityName,
+    slug: communitySlug,
+  });
 
   // Check if community already exists by slug first
   const { data: existingCommunity } = await supabase
-    .from('community_group')
-    .select('id, name, slug')
-    .eq('slug', communitySlug)
-    .eq('is_deleted', false)
+    .from("community_group")
+    .select("id, name, slug")
+    .eq("slug", communitySlug)
+    .eq("is_deleted", false)
     .maybeSingle();
 
   if (existingCommunity) {
-    console.log('[AutoCreation] Community already exists:', existingCommunity.id, 'with slug:', existingCommunity.slug);
+    console.log(
+      "[AutoCreation] Community already exists:",
+      existingCommunity.id,
+      "with slug:",
+      existingCommunity.slug
+    );
     return {
       success: true,
       communityId: existingCommunity.id,
-      error: null
+      error: null,
     };
   }
 
   // Double check by name as well in case slug was different
   const { data: existingByName } = await supabase
-    .from('community_group')
-    .select('id, name, slug')
-    .eq('name', communityName)
-    .eq('is_deleted', false)
+    .from("community_group")
+    .select("id, name, slug")
+    .eq("name", communityName)
+    .eq("is_deleted", false)
     .maybeSingle();
 
   if (existingByName) {
-    console.log('[AutoCreation] Community already exists by name:', existingByName.id, 'with slug:', existingByName.slug);
+    console.log(
+      "[AutoCreation] Community already exists by name:",
+      existingByName.id,
+      "with slug:",
+      existingByName.slug
+    );
     return {
       success: true,
       communityId: existingByName.id,
-      error: null
+      error: null,
     };
   }
 
   // Create community group with robust content for embedding - ensure no null values
   const communityDescription = `Discussion group for ${safeCourseTitle}. Connect with other learners, ask questions, share insights, and engage in meaningful discussions about the course content. This community provides a platform for collaborative learning, peer support, knowledge sharing, and building connections with fellow students and educators.`;
-  
+
   const { data: community, error: communityError } = await supabase
-    .from('community_group')
+    .from("community_group")
     .insert({
       name: communityName,
       description: communityDescription,
       slug: communitySlug,
-      visibility: 'public',
-      owner_id: courseOwnerId
+      visibility: "public",
+      owner_id: courseOwnerId,
     })
-    .select('id')
+    .select("id")
     .single();
 
   if (communityError) {
-    console.error('[AutoCreation] Failed to create community:', communityError);
+    console.error("[AutoCreation] Failed to create community:", communityError);
     return {
       success: false,
-      error: `Failed to create community: ${communityError.message}`
+      error: `Failed to create community: ${communityError.message}`,
     };
   }
 
-  // Add course owner as community owner member (using UUID)
+  // Add course owner as community owner member (using profile ID, not UUID)
   const { error: memberError } = await supabase
-    .from('community_group_member')
+    .from("community_group_member")
     .insert({
       group_id: community.id,
-      user_id: courseOwnerUserId,
-      role: 'owner'
+      user_id: courseOwnerId,
+      role: "owner",
     });
 
   if (memberError) {
-    console.error('[AutoCreation] Failed to add course owner as community member:', memberError);
+    console.error(
+      "[AutoCreation] Failed to add course owner as community member:",
+      memberError
+    );
     // Don't fail the whole process for this
   }
 
   return {
     success: true,
     communityId: community.id,
-    error: null
+    error: null,
   };
 }
 
@@ -331,8 +363,8 @@ async function createCommunityForCourse(
  * Generate classroom invite code
  */
 function generateClassCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
   for (let i = 0; i < 8; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }

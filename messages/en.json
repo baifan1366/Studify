@@ -4188,7 +4188,8 @@
       "document": "Document",
       "assignment": "Assignment",
       "quiz": "Quiz",
-      "whiteboard": "Whiteboard"
+      "whiteboard": "Whiteboard",
+      "image": "Image"
     },
     "content_url_label": "Content URL",
     "content_url_placeholder": "https://example.com/lesson-content",
@@ -4232,7 +4233,9 @@
     "live": "Live Session",
     "document": "Document",
     "quiz": "Quiz",
-    "whiteboard": "Whiteboard"
+    "whiteboard": "Whiteboard",
+    "course_id_required": "Course ID is required",
+    "module_id_required": "Module ID is required"
   },
   "CreateCourseModule": {
     "create_module_button": "Create Module",

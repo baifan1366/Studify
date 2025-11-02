@@ -8768,5 +8768,14 @@
       "attempt": "You can view and attempt the quiz",
       "edit": "You can view, attempt, and edit the quiz"
     }
+  },
+  "QuizScoreDisplay": {
+    "quiz_score": "Quiz Score",
+    "correct_questions_count": "Correct Questions Count",
+    "accuracy": "Accuracy:",
+    "correct_total": "Correct/Total:",
+    "grade": "Grade:",
+    "calculating_score": "Calculating quiz score...",
+    "failed_to_get_score": "Failed to get quiz score information"
   }
 }

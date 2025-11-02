@@ -4,6 +4,7 @@ import { useQuizScore } from "@/hooks/community/use-quiz";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Target } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface QuizScoreDisplayProps {
   attemptId: number | null;
@@ -11,11 +12,12 @@ interface QuizScoreDisplayProps {
   showDetails?: boolean;
 }
 
-export default function QuizScoreDisplay({ 
-  attemptId, 
+export default function QuizScoreDisplay({
+  attemptId,
   totalQuestions = 0,
-  showDetails = true 
+  showDetails = true
 }: QuizScoreDisplayProps) {
+  const t = useTranslations("QuizScoreDisplay");
   const { data: scoreData, isLoading, error } = useQuizScore(attemptId);
 
   if (isLoading) {
@@ -24,7 +26,7 @@ export default function QuizScoreDisplay({
         <CardContent className="p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Calculation quiz score...</span>
+            <span className="ml-2">{t("calculating_score")}</span>
           </div>
         </CardContent>
       </Card>
@@ -37,7 +39,7 @@ export default function QuizScoreDisplay({
         <CardContent className="p-6">
           <div className="flex items-center text-red-600">
             <Target className="h-5 w-5 mr-2" />
-            <span>Fail to get quiz score information</span>
+            <span>{t("failed_to_get_score")}</span>
           </div>
         </CardContent>
       </Card>
@@ -65,7 +67,7 @@ export default function QuizScoreDisplay({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
-          测验分数
+          {t("quiz_score")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -76,7 +78,7 @@ export default function QuizScoreDisplay({
               {score}
             </div>
             <div className="text-sm text-gray-600">
-              答对题目数量
+              {t("correct_questions_count")}
             </div>
           </div>
 
@@ -84,19 +86,19 @@ export default function QuizScoreDisplay({
           {showDetails && totalQuestions > 0 && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">正确率:</span>
+                <span className="text-sm text-gray-600">{t("accuracy")}</span>
                 <span className="font-medium">{percentage}%</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">答对/总题数:</span>
+                <span className="text-sm text-gray-600">{t("correct_total")}</span>
                 <span className="font-medium">{score}/{totalQuestions}</span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">等级:</span>
-                <Badge 
-                  variant="outline" 
+                <span className="text-sm text-gray-600">{t("grade")}</span>
+                <Badge
+                  variant="outline"
                   className={`
                     ${color === 'green' ? 'border-green-500 text-green-700 bg-green-50' : ''}
                     ${color === 'blue' ? 'border-blue-500 text-blue-700 bg-blue-50' : ''}
@@ -112,14 +114,13 @@ export default function QuizScoreDisplay({
 
               {/* 进度条 */}
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    color === 'green' ? 'bg-green-500' :
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${color === 'green' ? 'bg-green-500' :
                     color === 'blue' ? 'bg-blue-500' :
-                    color === 'yellow' ? 'bg-yellow-500' :
-                    color === 'orange' ? 'bg-orange-500' :
-                    color === 'red' ? 'bg-red-500' : 'bg-gray-500'
-                  }`}
+                      color === 'yellow' ? 'bg-yellow-500' :
+                        color === 'orange' ? 'bg-orange-500' :
+                          color === 'red' ? 'bg-red-500' : 'bg-gray-500'
+                    }`}
                   style={{ width: `${percentage}%` }}
                 ></div>
               </div>

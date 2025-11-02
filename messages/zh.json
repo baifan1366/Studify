@@ -7594,8 +7594,8 @@
   },
   "QuizAttemptPage": {
     "enter_quiz_session": "进入测验会话",
-    "session_description": "为避免意外重复尝试，请使用按钮进入会话。我们将创建或恢复你的测验会话并在 URL 中添加会话标识符。",
-    "start_continue": "开始/继续",
+    "session_description": "为了避免误触导致的重复作答，请通过按钮进入会话。我们会创建或恢复你的测验会话，并在 URL 上追加会话标识。",
+    "start_continue": "开始 / 继续",
     "processing": "处理中...",
     "back_to_quiz": "返回测验",
     "starting_quiz": "正在开始测验...",
@@ -8768,5 +8768,14 @@
       "attempt": "你可以查看并参与测验",
       "edit": "你可以查看、参与并编辑测验"
     }
+  },
+  "QuizScoreDisplay": {
+    "quiz_score": "测验分数",
+    "correct_questions_count": "答对题目数量",
+    "accuracy": "正确率:",
+    "correct_total": "答对/总题数:",
+    "grade": "等级:",
+    "calculating_score": "正在计算测验分数...",
+    "failed_to_get_score": "获取测验分数信息失败"
   }
 }

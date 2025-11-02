@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Bell, Mail, BookOpen, Users, Calendar, MessageSquare, Megaphone } from 'lucide-react';
+import { Bell, Mail, BookOpen, Users, Calendar, MessageSquare } from 'lucide-react';
 import { useNotificationSettings, useUpdateNotificationSettings } from '@/hooks/notifications/use-notification-settings';
 import { useOneSignal } from '@/hooks/notifications/use-onesignal';
 import { toast } from 'sonner';
@@ -30,7 +30,7 @@ export default function NotificationSettings() {
   const t = useTranslations('NotificationSettings');
   const { data: settingsData, isLoading } = useNotificationSettings();
   const updateSettingsMutation = useUpdateNotificationSettings();
-  const { user: oneSignalUser, requestPermission, optIn, optOut } = useOneSignal();
+  const { user: oneSignalUser, requestPermission, optIn, optOut, updateUserState } = useOneSignal();
   
   const [settings, setSettings] = useState<NotificationSettings>({
     email_notifications: true,
@@ -50,6 +50,31 @@ export default function NotificationSettings() {
       setSettings(settingsData.settings);
     }
   }, [settingsData]);
+
+  // Sync OneSignal state with database on mount and when OneSignal state changes
+  useEffect(() => {
+    const syncPushNotificationState = async () => {
+      if (!settingsData?.settings) return;
+      
+      const dbPushEnabled = settingsData.settings.push_notifications;
+      const oneSignalSubscribed = oneSignalUser.isSubscribed;
+      
+      // If there's a mismatch, update the database to match OneSignal
+      if (dbPushEnabled !== oneSignalSubscribed) {
+        console.log('Syncing push notification state:', { dbPushEnabled, oneSignalSubscribed });
+        try {
+          await updateSettingsMutation.mutateAsync({
+            ...settingsData.settings,
+            push_notifications: oneSignalSubscribed
+          });
+        } catch (error) {
+          console.error('Failed to sync push notification state:', error);
+        }
+      }
+    };
+
+    syncPushNotificationState();
+  }, [oneSignalUser.isSubscribed, settingsData]);
 
   const handleSettingChange = async (key: string, value: boolean) => {
     const newSettings = { ...settings, [key]: value };
@@ -83,6 +108,11 @@ export default function NotificationSettings() {
         const granted = await requestPermission();
         if (granted) {
           await optIn();
+          // Wait a bit for OneSignal to update its state
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await updateUserState();
+          
+          // Save to database
           await handleSettingChange('push_notifications', true);
           toast.success('Push notifications enabled successfully!');
         } else {
@@ -95,6 +125,11 @@ export default function NotificationSettings() {
     } else {
       try {
         await optOut();
+        // Wait a bit for OneSignal to update its state
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await updateUserState();
+        
+        // Save to database
         await handleSettingChange('push_notifications', false);
         toast.success('Push notifications disabled');
       } catch (error) {

@@ -56,13 +56,19 @@ export function useOneSignal() {
       const isPushSupported = OneSignal.Notifications.isPushSupported();
       const pushSubscription = OneSignal.User.PushSubscription;
       
+      // Get the actual subscription state
+      const isSubscribed = pushSubscription?.optedIn || false;
+      const permissionState = permission ? 'granted' : (Notification.permission === 'denied' ? 'denied' : 'default');
+      
       setUser({
         playerId: pushSubscription?.id || undefined,
         externalUserId: OneSignal.User.externalId || undefined,
-        isSubscribed: pushSubscription?.optedIn || false,
+        isSubscribed,
         isPushSupported,
-        permission: permission ? 'granted' : 'denied',
+        permission: permissionState,
       });
+      
+      console.log('OneSignal state updated:', { isSubscribed, permission: permissionState });
     } catch (error) {
       console.error('Failed to update OneSignal user state:', error);
     }

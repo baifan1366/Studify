@@ -1,4 +1,4 @@
-﻿<!-- Language Switcher -->
+<!-- Language Switcher -->
 <p align="right">
   <b>English</b> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
@@ -27,6 +27,12 @@
 </p>
 
 <p align="center">
+  <a href="https://deepwiki.com/baifan1366/Studify">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
+  </a>
+</p>
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="divider" />
 </p>
 
@@ -37,19 +43,15 @@ Studify is a modern, AI-powered platform that unifies Courses, Classrooms, and C
 ## **1. Track & Problem Statement**
 
 ### Competition:
-
 **Codenection 2025 Hackathon**
 
 ### Track:
-
-**Student Lifestyle** → _Tutoring for Students_
+**Student Lifestyle** → *Tutoring for Students*
 
 ### Problem Statement:
-
 Many students struggle with academic challenges, including difficulty understanding course material, limited access to personalized help, and inefficient study habits. Traditional tutoring services are often expensive, inconvenient, or unavailable outside fixed hours, leaving students without adequate support when they need it most.
 
 ### Goal:
-
 Develop a **tutoring platform** that provides **on-demand, affordable, and personalized academic assistance**. The platform connects students with tutors, offers interactive learning tools, and provides curated study resources to improve academic outcomes and boost student confidence.
 
 <p>
@@ -63,7 +65,7 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
 ## Features
 
 - **Courses**
-  - Modules and Lessons (video/document/image)
+  - Modules and Lessons (video/live/document/quiz/assignment/whiteboard)
   - Enrollment, Progress Tracking, Notes, Quizzes (auto grading), Certificates
   - Payments with Stripe (Checkout + Webhooks), free/paid courses
 - **Classrooms**
@@ -98,8 +100,6 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
 
 ## Screenshots / Demo
 
-> Replace with your real screenshots or a short GIF
-
 <p>
   <img src="./public/homepagess.png" alt="Dashboard" />
 </p>
@@ -120,40 +120,39 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
 > Role-based access is enforced in APIs via `utils/auth/server-guard.ts` using `authorize('student'|'tutor'|'admin')` and DB-level ownership checks.
 
 ## Highlights
-
-- **AI-first learning experience**
-  - Time-aware video Q&A with ±30s window, terminology cards, and jump-to-timestamp
-  - Components and APIs: `app/api/video/qa`, `components/ai-coach/*`, `components/ai/*`, `documentation/ai/AI_LEARNING_COACH_SYSTEM.md`
-- **Rich video interactions**
-  - Endpoints: `app/api/video/views`, `app/api/video/likes`, `app/api/video/danmaku`, `app/api/video/comments`, `app/api/video/comments/[id]/likes`
-  - Player: `components/video/bilibili-video-player.tsx`
-- **Dual-embedding semantic search**
-  - E5-Small (384d) + BGE-M3 (1024d) hybrid search, background queue, admin controls
-  - Key files: `db/migrations/20250905_embedding_system.sql`, `lib/langChain/embedding.ts`, `lib/langChain/vectorstore.ts`, `app/api/embeddings/*`
-- **Background processing with resilience**
-  - QStash-powered pipelines with warmup and retry for Whisper transcription
-  - Transcription step: `app/api/video-processing/steps/transcribe/route.ts`
-- **Payments and real payouts**
-  - Stripe Checkout + Connect with 90/10 split, scheduled earnings release
-  - Endpoints: `app/api/course/webhook`, `app/api/tutor/stripe-connect`, `app/api/tutor/earnings`, `app/api/tutor/earnings/release`
-- **Notifications and growth**
-  - OneSignal push + DB persistence, unread counts, user preferences
-  - Worker: `public/OneSignalSDKWorker.js`, hooks/components under `components/` and `hooks/`
-- **Internationalization and UX**
-  - `next-intl` multi-language, glass-morphism design, dark/light themes, accessibility
-- **Admin and RBAC**
-  - Admin dashboards and APIs: `app/api/admin/*`, `components/admin/*`, `hooks/admin/*`
+  - **AI-first learning experience**
+    - Time-aware video Q&A with ±30s window, terminology cards, and jump-to-timestamp
+    - Components and APIs: `app/api/video/qa`, `components/ai-coach/*`, `components/ai/*`, `documentation/ai/AI_LEARNING_COACH_SYSTEM.md`
+  - **Rich video interactions**
+    - Endpoints: `app/api/video/views`, `app/api/video/likes`, `app/api/video/danmaku`, `app/api/video/comments`, `app/api/video/comments/[id]/likes`
+    - Player: `components/video/bilibili-video-player.tsx`
+  - **Dual-embedding semantic search**
+    - E5-Small (384d) + BGE-M3 (1024d) hybrid search, background queue, admin controls
+    - Key files: `db/migrations/20250905_embedding_system.sql`, `lib/langChain/embedding.ts`, `lib/langChain/vectorstore.ts`, `app/api/embeddings/*`
+  - **Background processing with resilience**
+    - QStash-powered pipelines with warmup and retry for Whisper transcription
+    - Transcription step: `app/api/video-processing/steps/transcribe/route.ts`
+  - **Payments and real payouts**
+    - Stripe Checkout + Connect with 90/10 split, scheduled earnings release
+    - Endpoints: `app/api/course/webhook`, `app/api/tutor/stripe-connect`, `app/api/tutor/earnings`, `app/api/tutor/earnings/release`
+  - **Notifications and growth**
+    - OneSignal push + DB persistence, unread counts, user preferences
+    - Worker: `public/OneSignalSDKWorker.js`, hooks/components under `components/` and `hooks/`
+  - **Internationalization and UX**
+    - `next-intl` multi-language, glass-morphism design, dark/light themes, accessibility
+  - **Admin and RBAC**
+    - Admin dashboards and APIs: `app/api/admin/*`, `components/admin/*`, `hooks/admin/*`
 
 ## Performance and Security
+  
+  - **Security**: RLS policies on all sensitive tables, API-level `authorize(...)`, ownership checks, audit logs
+  - **Reliability**: React Query caching, Redis caching, warmup + retries, rate limits (e.g., danmaku), DB indexes and triggers
+  - **Scalability**: Background processors for embeddings/transcriptions, paginated APIs, hybrid vector search
 
-- **Security**: RLS policies on all sensitive tables, API-level `authorize(...)`, ownership checks, audit logs
-- **Reliability**: React Query caching, Redis caching, warmup + retries, rate limits (e.g., danmaku), DB indexes and triggers
-- **Scalability**: Background processors for embeddings/transcriptions, paginated APIs, hybrid vector search
 
 ## PWA & Capacitor
 
 - **PWA layer (Serwist + Manifest)**
-
   - Service Worker: defined in `app/sw.ts`, bundled via `@serwist/next` as `public/sw.js` (see `next.config.ts`). It is disabled in development and enabled only in production.
   - Manifest: `public/manifest.json` provides PWA metadata and icons. Ensure icons match your branding and sizes.
   - OneSignal worker: `public/OneSignalSDKWorker.js` is intentionally excluded from Serwist (see `exclude` in `next.config.ts`) and served with proper headers.
@@ -163,7 +162,6 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
     ```
 
 - **Capacitor mobile shell**
-
   - Config: `capacitor.config.ts`
     ```ts
     const config: CapacitorConfig = {
@@ -174,11 +172,9 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
     };
     ```
   - Development (Android/iOS): point `server.url` to your dev host
-
     - Android emulator: `http://10.0.2.2:3000`
     - Real device (same LAN): `http://<LAN-IP>:3000`
     - Steps:
-
       ```bash
       # 1) Start Next.js
       npm run dev
@@ -189,10 +185,7 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
       # 3) Run the app
       npx cap run android    # or open with Android Studio: npx cap open android
       ```
-
     - Note: `cleartext: true` allows http during local testing; use https in production.
-
-  - Production
     - Deploy the web (e.g., to Vercel) and set `server.url` to the https domain (already set in this repo).
     - Then package the app:
       ```bash
@@ -204,6 +197,7 @@ Develop a **tutoring platform** that provides **on-demand, affordable, and perso
     - Web push continues to use `public/OneSignalSDKWorker.js`.
     - If moving to native push, integrate the respective Capacitor plugin and platform setup; this repo currently focuses on web push (OneSignal) with correct SW headers in `next.config.ts`.
 
-<p>
-  <a href="#pwa--capacitor">PWA & Capacitor</a> ·
-</p>
+## Feedback
+
+- **User Feedback Form**: https://forms.gle/cZSzsLVbRqysDcER9
+- **Issue Reporting Form**: https://forms.gle/8ZYapQ9e9MFZ7EC97

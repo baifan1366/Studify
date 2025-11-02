@@ -56,15 +56,8 @@ export async function POST(request: NextRequest) {
 
     const { question, videoContext, conversationHistory } = validatedData;
 
-    console.log(
-      `🎓 Video AI Assistant request from user ${userId}: "${question.substring(
-        0,
-        50
-      )}..."`
-    );
-    console.log(
-      `📍 Context: Course=${videoContext.courseSlug}, Lesson=${videoContext.currentLessonId}, Time=${videoContext.currentTimestamp}s`
-    );
+    // Check if streaming is requested
+    const isStreaming = request.headers.get("accept") === "text/event-stream";
 
     // Check lesson type and determine appropriate model
     let isExternalVideo = false;
@@ -88,8 +81,6 @@ export async function POST(request: NextRequest) {
       } else if (lesson) {
         lessonKind = lesson.kind;
 
-        console.log(`📝 Lesson found, attachments:`, lesson.attachments);
-
         // Get attachment ID for video lessons
         // attachments is a JSONB array, need to parse it properly
         if (
@@ -102,8 +93,6 @@ export async function POST(request: NextRequest) {
             .map((id: any) => (typeof id === "number" ? id : parseInt(id)))
             .filter((id: any) => !isNaN(id));
 
-          console.log(`📎 Parsed attachment IDs:`, attachmentIds);
-
           if (attachmentIds.length > 0) {
             // Query to find video attachment
             const { data: attachments } = await supabase
@@ -115,15 +104,8 @@ export async function POST(request: NextRequest) {
 
             if (attachments && attachments.length > 0) {
               attachmentId = attachments[0].id;
-              console.log(`✅ Found video attachment: ${attachmentId}`);
-            } else {
-              console.log(`⚠️ No video attachment found in attachments array`);
             }
-          } else {
-            console.log(`⚠️ No valid attachment IDs found`);
           }
-        } else {
-          console.log(`⚠️ Lesson has no attachments array or it's empty`);
         }
 
         // Check if it's an external video
@@ -137,14 +119,7 @@ export async function POST(request: NextRequest) {
         // Use document model for PDF and image types
         if (lesson.kind === "document" || lesson.kind === "image") {
           useDocumentModel = true;
-          console.log(
-            `📄 Document/Image lesson detected - using DOCUMENT model`
-          );
         }
-
-        console.log(
-          `📎 Lesson info: kind=${lessonKind}, attachmentId=${attachmentId}, isExternal=${isExternalVideo}`
-        );
       }
     }
 
@@ -157,16 +132,6 @@ export async function POST(request: NextRequest) {
         "nvidia/nemotron-nano-12b-v2-vl:free"
       : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
 
-    console.log(
-      `🤖 Using model: ${modelToUse} (Document model: ${useDocumentModel})`
-    );
-
-    if (isExternalVideo) {
-      console.log(
-        `🎬 External video detected - using direct AI without embeddings`
-      );
-    }
-
     // Specify content types to search - prioritize video_segment for video lessons
     const contentTypes = isExternalVideo
       ? ["course_content", "lesson", "note"] // External videos don't have segments
@@ -174,6 +139,131 @@ export async function POST(request: NextRequest) {
       ? ["video_segment", "lesson", "note"] // Prioritize video segments for video lessons
       : ["course_content", "lesson", "note"]; // General content for non-video
 
+    // If streaming is requested, use Server-Sent Events
+    if (isStreaming) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            // Send initial metadata
+            const metadata = {
+              type: "metadata",
+              videoContext,
+              contentTypes,
+              model: modelToUse,
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`)
+            );
+
+            // Use streaming version of educationalQA
+            const streamGenerator = enhancedAIExecutor.educationalQAStream(question, {
+              userId,
+              includeAnalysis: true,
+              conversationContext: conversationHistory,
+              contentTypes,
+              model: modelToUse,
+              // Pass video context separately so the tool can use it properly
+              videoContext: videoContext.currentLessonId
+                ? {
+                    lessonId: videoContext.currentLessonId,
+                    ...(attachmentId !== null && { attachmentId }), // Only include if not null
+                    currentTime: videoContext.currentTimestamp || 0,
+                  }
+                : undefined,
+            });
+
+            let finalMetadata: any = null;
+
+            // Stream tokens as they arrive
+            for await (const chunk of streamGenerator) {
+              if (chunk.type === 'token' && chunk.content) {
+                // Send token immediately
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "token",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'search_start') {
+                // Send search status
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "status",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'search_complete') {
+                // Send search complete status
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "status",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'answer_start') {
+                // Send answer start status
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "status",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'complete') {
+                // Store final metadata
+                finalMetadata = chunk.metadata;
+              } else if (chunk.type === 'error') {
+                // Send error
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "error",
+                    message: chunk.content
+                  })}\n\n`)
+                );
+              }
+            }
+
+            // Send final metadata
+            const totalProcessingTime = Date.now() - startTime;
+            const finalData = {
+              type: "final",
+              sources: finalMetadata?.sources || [],
+              confidence: finalMetadata?.confidence || 0.85,
+              toolsUsed: finalMetadata?.toolsUsed || [],
+              processingTimeMs: totalProcessingTime,
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`)
+            );
+
+            controller.close();
+          } catch (error) {
+            console.error("❌ Streaming error:", error);
+            const errorData = {
+              type: "error",
+              message: error instanceof Error ? error.message : "Unknown error",
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(errorData)}\n\n`)
+            );
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": resetTime.toString(),
+        },
+      });
+    }
+
+    // Non-streaming response (original behavior)
     // Pass just the user's question - educationalQA will handle the search internally
     const result = await enhancedAIExecutor.educationalQA(question, {
       userId,
@@ -192,20 +282,6 @@ export async function POST(request: NextRequest) {
     });
 
     const totalProcessingTime = Date.now() - startTime;
-
-    console.log(
-      `✅ Video AI Assistant completed in ${totalProcessingTime}ms using tools: ${
-        result.toolsUsed?.join(", ") || "NONE"
-      }`
-    );
-    console.log(
-      `📊 Response quality: Sources=${result.sources?.length || 0}, Tools=${
-        result.toolsUsed?.length || 0
-      }`
-    );
-    console.log(
-      `📝 Answer preview: ${result.answer?.substring(0, 200) || "No answer"}`
-    );
 
     // Format sources for compatibility
     const formattedSources = (result.sources || []).map((source: any) => ({

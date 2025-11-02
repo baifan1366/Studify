@@ -66,7 +66,14 @@ import CourseChapterContent from "./course-chapter-content";
 import VideoAIAssistant from "./video-ai-assistant";
 import BilibiliVideoPlayer from "@/components/video/bilibili-video-player";
 import { useDanmaku } from "@/hooks/video/use-danmaku";
-import { useVideoComments } from "@/hooks/video/use-video-comments";
+import { 
+  useVideoComments, 
+  useCreateComment,
+  useToggleCommentLike,
+  useUpdateComment,
+  useDeleteComment,
+  type VideoComment 
+} from "@/hooks/video/use-video-interactions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
@@ -347,10 +354,24 @@ export default function CourseLearningContent({
     ],
   });
 
-  const { comments, addComment } = useVideoComments({
-    videoId: currentLessonId, // Pass null when no lesson is selected (hook will handle it)
-    userId: user?.profile?.id?.toString(), // Pass profile ID for proper user identification
-  });
+  // Video comments hooks
+  const { data: commentsData } = useVideoComments(
+    currentLessonIdMemo || "", // lessonId
+    undefined, // parentId
+    1, // page
+    50, // limit - show more comments
+    'newest' // sortBy
+  );
+  const createCommentMutation = useCreateComment();
+  const toggleCommentLikeMutation = useToggleCommentLike();
+  const updateCommentMutation = useUpdateComment();
+  const deleteCommentMutation = useDeleteComment();
+
+  // Extract comments from API response
+  const comments = React.useMemo(() => {
+    if (!commentsData?.comments) return [];
+    return commentsData.comments;
+  }, [commentsData?.comments]);
 
   // Get attachment ID from current lesson attachments (for all types with attachments)
   // Skip loading attachment for external videos (YouTube/Vimeo)
@@ -558,7 +579,6 @@ export default function CourseLearningContent({
 
     // Prevent duplicate saves within MIN_SAVE_INTERVAL
     if (now - lastSaveTimeRef.current < MIN_SAVE_INTERVAL) {
-      console.log(`⏭️ Skipping duplicate save (too soon)`);
       return;
     }
 
@@ -568,12 +588,6 @@ export default function CourseLearningContent({
       // Force save using trackProgress with force=true via ref
       trackProgressRef.current(currentTime, duration, true);
       lastSaveTimeRef.current = now;
-
-      console.log(
-        `💾 Saved progress: ${Math.round(progressPct)}% at ${Math.round(
-          currentTime
-        )}s for lesson ${lessonId}`
-      );
     }
   }, []); // No dependencies to prevent infinite loop
 
@@ -677,7 +691,6 @@ export default function CourseLearningContent({
       lessonProgress?.state === "in_progress" ||
       lessonProgress?.state === "completed"
     ) {
-      console.log(`⏭️ Lesson already ${lessonProgress.state}, skipping start`);
       return;
     }
 
@@ -801,7 +814,13 @@ export default function CourseLearningContent({
   };
 
   const handleCommentSend = (content: string) => {
-    addComment(content);
+    if (!currentLessonIdMemo || !content.trim()) return;
+    
+    createCommentMutation.mutate({
+      lessonId: currentLessonIdMemo,
+      attachmentId: attachmentId || undefined,
+      content: content.trim(),
+    });
   };
 
   if (courseLoading) {

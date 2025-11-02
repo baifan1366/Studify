@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { avatarUploader } from '@/lib/avatar-upload';
+import { uploadToMega } from '@/lib/mega';
 import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
@@ -12,6 +12,13 @@ export async function POST(request: NextRequest) {
       userId = authData?.user?.id ?? null;
     } catch (err) {
       // 未登录则继续
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please login first.' },
+        { status: 401 }
+      );
     }
     
     const formData = await request.formData();
@@ -32,25 +39,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (10MB limit for avatars)
+    if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'File too large. Maximum size is 5MB.' },
+        { error: 'File too large. Maximum size is 10MB.' },
         { status: 400 }
       );
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    console.log(`Uploading avatar for user ${userId}: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     
-    // Upload to Cloudinary
-    const avatar_url = await avatarUploader.uploadAvatar(buffer, userId!);
+    // Upload to MEGA and get the public link
+    const { url: avatar_url, size } = await uploadToMega(file);
 
-    // Update profile in database
+    console.log(`Avatar uploaded successfully to MEGA: ${avatar_url}`);
+
+    // Update profile in database with MEGA link
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ avatar_url })
+      .update({ 
+        avatar_url,
+        updated_at: new Date().toISOString()
+      })
       .eq('user_id', userId);
 
     if (updateError) {
@@ -61,13 +71,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       avatar_url,
-      message: 'Avatar uploaded successfully'
+      file_size: size,
+      message: 'Avatar uploaded successfully to MEGA'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Avatar upload error:', error);
+    
+    // Provide user-friendly error messages
+    const errorMessage = error?.message || 'Failed to upload avatar';
+    
+    if (errorMessage.includes('MEGA')) {
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to upload avatar' },
+      { error: 'Failed to upload avatar. Please try again.' },
       { status: 500 }
     );
   }

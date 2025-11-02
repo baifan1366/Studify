@@ -158,7 +158,7 @@ export async function middleware(request: NextRequest) {
     reqHeaders.set("x-user-id", userId);
     reqHeaders.set("x-user-role", role);
 
-    // Check onboarding status for protected pages (skip for API routes and onboarding pages)
+    // Check onboarding status and role-based access for protected pages (skip for API routes and onboarding pages)
     if (!isApi && !isOnboardingPage) {
       try {
         // Try to get cached profile first
@@ -186,11 +186,41 @@ export async function middleware(request: NextRequest) {
             onboarded: boolean;
             role: string;
           };
+
+          const userRole = profile.role || role || "student";
+
+          // Check if user is trying to access a role-specific path
+          const rolePathMatch = pathname.match(
+            /\/(?:[a-zA-Z-]+)?\/(student|tutor|admin)(?:\/|$)/
+          );
+          if (rolePathMatch) {
+            const requestedRole = rolePathMatch[1];
+
+            // Prevent users from accessing other roles' pages
+            if (userRole !== requestedRole) {
+              const url = request.nextUrl.clone();
+              const locale =
+                request.cookies.get("next-intl-locale")?.value || "en";
+
+              // Redirect to their own role's dashboard
+              url.pathname = `/${locale}/${userRole}`;
+
+              debugLog("role mismatch - redirecting", {
+                userId,
+                userRole,
+                requestedRole,
+                pathname,
+              });
+
+              return NextResponse.redirect(url);
+            }
+          }
+
+          // Check onboarding status
           if (!profile.onboarded) {
             const url = request.nextUrl.clone();
             const locale =
               request.cookies.get("next-intl-locale")?.value || "en";
-            const userRole = profile.role || role || "student";
             // Tutor onboarding uses /step1, student uses root path
             url.pathname =
               userRole === "tutor"

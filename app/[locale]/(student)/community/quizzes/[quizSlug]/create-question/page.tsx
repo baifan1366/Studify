@@ -11,9 +11,9 @@ export default async function CreateQuestionPage({
     // Use a flex container for the main layout
     <div className="flex h-full gap-8 px-4 py-8">
       {/* Main content area, takes up the remaining space and centers its content */}
-      <div className="flex-1 min-w-0 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">
-          Add Question to Quiz: {quizSlug}
+      <div className="flex-1 min-w-0 max-w-4xl mx-auto border border-white rounded-lg p-6">
+        <h1 className="text-3xl font-bold mb-8">
+          {quizSlug}
         </h1>
         <QuestionForm quizSlug={quizSlug} />
       </div>

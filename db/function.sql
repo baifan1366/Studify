@@ -5446,3 +5446,179 @@ ON video_embeddings USING ivfflat (embedding_e5_small vector_cosine_ops)
 WHERE status = 'completed' AND has_e5_embedding = true;
 
 COMMENT ON FUNCTION search_video_embeddings_e5 IS 'Search video embeddings using E5 model with optional time range filtering';
+
+
+-- ============================================================================
+-- Notification System Functions
+-- ============================================================================
+
+-- Function to clean up old read notifications
+CREATE OR REPLACE FUNCTION cleanup_old_notifications()
+RETURNS void AS $$
+BEGIN
+  -- Soft delete notifications older than 90 days that are already read
+  UPDATE notifications
+  SET is_deleted = true,
+      deleted_at = NOW()
+  WHERE is_read = true
+    AND created_at < NOW() - INTERVAL '90 days'
+    AND is_deleted = false;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION cleanup_old_notifications IS 'Soft deletes read notifications older than 90 days to keep the table clean';
+
+-- Function to get unread notification count efficiently
+CREATE OR REPLACE FUNCTION get_unread_notification_count(p_user_id bigint)
+RETURNS integer AS $$
+DECLARE
+  count integer;
+BEGIN
+  SELECT COUNT(*)::integer INTO count
+  FROM notifications
+  WHERE user_id = p_user_id
+    AND is_read = false
+    AND is_deleted = false;
+  
+  RETURN count;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+COMMENT ON FUNCTION get_unread_notification_count IS 'Returns the count of unread notifications for a specific user';
+
+-- Function to mark all notifications as read for a user
+CREATE OR REPLACE FUNCTION mark_all_notifications_read(p_user_id bigint)
+RETURNS integer AS $$
+DECLARE
+  updated_count integer;
+BEGIN
+  UPDATE notifications
+  SET is_read = true,
+      updated_at = NOW()
+  WHERE user_id = p_user_id
+    AND is_read = false
+    AND is_deleted = false;
+  
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  RETURN updated_count;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION mark_all_notifications_read IS 'Marks all unread notifications as read for a specific user and returns the count';
+
+-- Function to get notification statistics by type
+CREATE OR REPLACE FUNCTION get_notification_stats(
+  p_start_date date DEFAULT CURRENT_DATE - INTERVAL '30 days',
+  p_end_date date DEFAULT CURRENT_DATE
+)
+RETURNS TABLE (
+  notification_kind text,
+  total_sent bigint,
+  total_read bigint,
+  total_unread bigint,
+  read_percentage numeric
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    n.kind as notification_kind,
+    COUNT(*) as total_sent,
+    COUNT(*) FILTER (WHERE n.is_read = true) as total_read,
+    COUNT(*) FILTER (WHERE n.is_read = false) as total_unread,
+    ROUND(
+      COUNT(*) FILTER (WHERE n.is_read = true)::numeric / 
+      NULLIF(COUNT(*), 0) * 100, 
+      2
+    ) as read_percentage
+  FROM notifications n
+  WHERE n.is_deleted = false
+    AND DATE(n.created_at) BETWEEN p_start_date AND p_end_date
+  GROUP BY n.kind
+  ORDER BY total_sent DESC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+COMMENT ON FUNCTION get_notification_stats IS 'Returns notification statistics by type for a given date range';
+
+-- Function to check if user has push notifications enabled
+CREATE OR REPLACE FUNCTION has_push_notifications_enabled(p_user_id bigint)
+RETURNS boolean AS $$
+DECLARE
+  settings jsonb;
+  push_enabled boolean;
+BEGIN
+  SELECT notification_settings INTO settings
+  FROM profiles
+  WHERE id = p_user_id;
+  
+  IF settings IS NULL THEN
+    RETURN false;
+  END IF;
+  
+  push_enabled := COALESCE((settings->>'push_notifications')::boolean, false);
+  RETURN push_enabled;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+COMMENT ON FUNCTION has_push_notifications_enabled IS 'Checks if a user has push notifications enabled in their settings';
+
+-- Function to get users with specific notification preferences
+CREATE OR REPLACE FUNCTION get_users_with_notification_preference(
+  p_preference_key text,
+  p_preference_value boolean DEFAULT true
+)
+RETURNS TABLE (
+  user_id bigint,
+  public_id uuid,
+  onesignal_player_id text,
+  push_subscription_status text
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    p.id as user_id,
+    p.public_id,
+    p.onesignal_player_id,
+    p.push_subscription_status
+  FROM profiles p
+  WHERE p.is_deleted = false
+    AND p.status = 'active'
+    AND p.notification_settings IS NOT NULL
+    AND COALESCE((p.notification_settings->>p_preference_key)::boolean, false) = p_preference_value;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+COMMENT ON FUNCTION get_users_with_notification_preference IS 'Returns users who have a specific notification preference enabled or disabled';
+
+-- Create view for notification statistics
+CREATE OR REPLACE VIEW notification_stats AS
+SELECT 
+  DATE(created_at) as date,
+  kind,
+  COUNT(*) as total_sent,
+  COUNT(*) FILTER (WHERE is_read = true) as total_read,
+  COUNT(*) FILTER (WHERE is_read = false) as total_unread,
+  ROUND(
+    COUNT(*) FILTER (WHERE is_read = true)::numeric / 
+    NULLIF(COUNT(*), 0) * 100, 
+    2
+  ) as read_percentage
+FROM notifications
+WHERE is_deleted = false
+GROUP BY DATE(created_at), kind
+ORDER BY date DESC, kind;
+
+COMMENT ON VIEW notification_stats IS 'Daily notification statistics by type for monitoring and analytics';
+
+-- Create view for push notification subscription stats
+CREATE OR REPLACE VIEW push_subscription_stats AS
+SELECT 
+  push_subscription_status,
+  COUNT(*) as user_count,
+  ROUND(COUNT(*)::numeric / SUM(COUNT(*)) OVER () * 100, 2) as percentage
+FROM profiles
+WHERE is_deleted = false
+  AND status = 'active'
+GROUP BY push_subscription_status;
+
+COMMENT ON VIEW push_subscription_stats IS 'Statistics on push notification subscription status across all active users';

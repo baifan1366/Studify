@@ -75,14 +75,26 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
   }, [isOpen, onClose, triggerRef]);
 
   const handleProfileClick = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/tutor/profile`);
+    const userRole = profile?.role || 'student';
+    if (userRole === 'admin') {
+      router.push('/admin/profile');
+    } else if (userRole === 'tutor') {
+      router.push('/tutor/profile');
+    } else {
+      router.push('/profile');
+    }
     onClose();
   };
 
   const handleSettingsClick = () => {
-    const locale = pathname.split('/')[1] || 'en';
-    router.push(`/${locale}/tutor/settings`);
+    const userRole = profile?.role || 'student';
+    if (userRole === 'admin') {
+      router.push('/admin/settings');
+    } else if (userRole === 'tutor') {
+      router.push('/tutor/settings');
+    } else {
+      router.push('/settings');
+    }
     onClose();
   };
 
@@ -124,7 +136,7 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
       {isOpen && (
         <motion.div
           ref={popoverRef}
-          className="absolute top-full right-0 mt-2 w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-600/30 overflow-hidden z-50"
+          className="absolute top-full right-0 mt-2 w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-600/30 overflow-hidden z-[9999]"
           initial={{ opacity: 0, y: -10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}

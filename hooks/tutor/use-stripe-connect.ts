@@ -139,8 +139,9 @@ export function useGetDashboardLink() {
 }
 
 // Helper function to check if account is fully set up
-export function isAccountFullySetup(account: StripeConnectAccount | null): boolean {
-  if (!account) return false;
+export function isAccountFullySetup(data: StripeConnectResponse | null | undefined): boolean {
+  if (!data || !data.account) return false;
+  const account = data.account;
   
   return (
     account.details_submitted &&
@@ -151,10 +152,11 @@ export function isAccountFullySetup(account: StripeConnectAccount | null): boole
 }
 
 // Helper function to get account status text
-export function getAccountStatusText(account: StripeConnectAccount | null): string {
-  if (!account) return 'Not connected';
+export function getAccountStatusText(data: StripeConnectResponse | null | undefined): string {
+  if (!data || !data.account) return 'Not connected';
+  const account = data.account;
   
-  if (isAccountFullySetup(account)) {
+  if (isAccountFullySetup(data)) {
     return 'Active';
   }
   
@@ -170,16 +172,16 @@ export function getAccountStatusText(account: StripeConnectAccount | null): stri
 }
 
 // Helper function to get status color
-export function getAccountStatusColor(account: StripeConnectAccount | null): string {
-  if (!account) return 'gray';
+export function getAccountStatusColor(data: StripeConnectResponse | null | undefined): string {
+  if (!data || !data.account) return 'bg-gray-400';
   
-  if (isAccountFullySetup(account)) {
-    return 'green';
+  if (isAccountFullySetup(data)) {
+    return 'bg-green-400';
   }
   
-  if (account.details_submitted) {
-    return 'yellow';
+  if (data.account.details_submitted) {
+    return 'bg-yellow-400';
   }
   
-  return 'red';
+  return 'bg-red-400';
 }

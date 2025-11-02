@@ -164,7 +164,13 @@ export default function BilibiliVideoPlayer({
   const toggleVideoLikeMutation = useToggleVideoLike();
   const { data: danmakuData } = useVideoDanmaku(lessonId);
   const sendDanmakuMutation = useSendDanmaku();
-  const { data: commentsData } = useVideoComments(lessonId);
+  const { data: commentsData } = useVideoComments(
+    lessonId,
+    undefined, // parentId
+    1, // page
+    50, // limit
+    "newest" // sortBy
+  );
   const createCommentMutation = useCreateComment();
   const updateCommentMutation = useUpdateComment();
   const deleteCommentMutation = useDeleteComment();
@@ -184,7 +190,32 @@ export default function BilibiliVideoPlayer({
   // Get real data or fallback to props
   const realVideoStats = videoStats || likesData?.stats;
   const realComments = commentsData?.comments || comments;
-  const realDanmaku = danmakuData?.danmaku || danmakuMessages;
+
+
+
+  // Transform danmaku data from API format to component format
+  const realDanmaku = React.useMemo(() => {
+    const apiDanmaku = danmakuData?.danmaku || [];
+    if (apiDanmaku.length > 0) {
+      return apiDanmaku.map((d: any) => {
+        const videoTimeSec = d.video_time_sec || 0;
+        const position = duration > 0 ? videoTimeSec / duration : 0;
+        return {
+          id: d.public_id || d.id,
+          text: d.content,
+          color: d.color || "#FFFFFF",
+          size: d.size || "medium",
+          position, // Normalize to 0-1
+          videoTimeSec, // Keep original time for debugging
+          timestamp: new Date(d.created_at).getTime(),
+          userId: d.user_id || d.userId || "anonymous",
+          username: d.author?.full_name || d.author?.display_name || "Anonymous",
+        };
+      });
+    }
+    return danmakuMessages; // Fallback to prop data
+  }, [danmakuData?.danmaku, danmakuMessages, duration]);
+
   const isLiked = likesData?.currentUserLiked ?? currentUserLiked;
 
   // Helper functions
@@ -516,21 +547,12 @@ export default function BilibiliVideoPlayer({
       // Handle page visibility changes - pause tracking when page is hidden
       const handleVisibilityChange = () => {
         isPaused = document.visibilityState === "hidden";
-        console.log(
-          `📺 External video tracking ${
-            isPaused ? "paused" : "resumed"
-          } (page ${document.visibilityState})`
-        );
       };
 
       document.addEventListener("visibilitychange", handleVisibilityChange);
 
       // Start tracking after iframe loads (give it 3 seconds to load)
       const startTimeout = setTimeout(() => {
-        console.log(
-          `🎬 Starting progress tracking for external video (${videoSourceInfo.type})`
-        );
-
         // Update progress every 10 seconds
         progressInterval = setInterval(() => {
           // Only increment time if page is visible
@@ -560,9 +582,6 @@ export default function BilibiliVideoPlayer({
             if (simulatedTime >= estimatedDuration) {
               if (progressInterval) {
                 clearInterval(progressInterval);
-                console.log(
-                  `✅ External video tracking completed (reached duration)`
-                );
               }
             }
           }
@@ -577,7 +596,6 @@ export default function BilibiliVideoPlayer({
         if (startTimeout) clearTimeout(startTimeout);
         if (progressInterval) {
           clearInterval(progressInterval);
-          console.log(`🛑 External video tracking stopped`);
         }
       };
     }
@@ -748,17 +766,57 @@ export default function BilibiliVideoPlayer({
 
   // Danmaku rendering
   const renderDanmaku = () => {
-    if (!danmakuEnabled || !danmakuContainerRef.current) return null;
+    if (!danmakuEnabled || !danmakuContainerRef.current) {
+      return null;
+    }
 
-    const currentProgress = duration > 0 ? currentTime / duration : 0;
-    const visibleDanmaku = danmakuMessages.filter((msg) => {
-      const msgProgress = msg.position;
-      return Math.abs(msgProgress - currentProgress) < 0.1; // Show danmaku within 10% of current time
+    // For direct video with duration
+    if (duration > 0) {
+      const currentProgress = currentTime / duration;
+      // Use realDanmaku instead of danmakuMessages to show API data
+      const visibleDanmaku = realDanmaku.filter((msg: any) => {
+        const msgProgress = msg.position;
+        const timeDiff = Math.abs(msgProgress - currentProgress);
+        // Show danmaku within 5% of current time (more lenient)
+        return timeDiff < 0.05;
+      });
+
+      return visibleDanmaku.map((msg: any, index: number) => (
+        <motion.div
+          key={`${msg.id}-${msg.timestamp}`}
+          className={`absolute text-white font-bold pointer-events-none select-none ${
+            msg.size === "small"
+              ? "text-sm"
+              : msg.size === "large"
+              ? "text-xl"
+              : "text-base"
+          }`}
+          style={{
+            color: msg.color,
+            top: `${20 + (index % 10) * 40}px`, // Cycle through 10 vertical positions
+            textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+            zIndex: 10,
+          }}
+          initial={{ x: "100vw" }}
+          animate={{ x: "-100%" }}
+          transition={{ duration: 8, ease: "linear" }}
+        >
+          {msg.text}
+        </motion.div>
+      ));
+    }
+
+    // For external videos (YouTube/Vimeo) - show based on absolute time
+    const visibleDanmaku = realDanmaku.filter((msg: any) => {
+      const msgTime = msg.videoTimeSec || 0;
+      const timeDiff = Math.abs(msgTime - currentTime);
+      // Show danmaku within 3 seconds of current time
+      return timeDiff < 3;
     });
 
-    return visibleDanmaku.map((msg, index) => (
+    return visibleDanmaku.map((msg: any, index: number) => (
       <motion.div
-        key={msg.id}
+        key={`${msg.id}-${msg.timestamp}`}
         className={`absolute text-white font-bold pointer-events-none select-none ${
           msg.size === "small"
             ? "text-sm"
@@ -768,8 +826,9 @@ export default function BilibiliVideoPlayer({
         }`}
         style={{
           color: msg.color,
-          top: `${20 + index * 40}px`,
-          textShadow: "1px 1px 2px rgba(0,0,0,0.8)",
+          top: `${20 + (index % 10) * 40}px`,
+          textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+          zIndex: 10,
         }}
         initial={{ x: "100vw" }}
         animate={{ x: "-100%" }}
@@ -1306,9 +1365,28 @@ export default function BilibiliVideoPlayer({
               {/* Comment Input - Only for direct videos */}
               {videoSourceInfo.type === "direct" ? (
                 <div className="flex gap-3 mb-6">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    U
-                  </div>
+                  {currentUser?.profile?.avatar_url ? (
+                    <img
+                      src={currentUser.profile.avatar_url}
+                      alt={
+                        currentUser.profile.full_name ||
+                        currentUser.profile.display_name ||
+                        "User"
+                      }
+                      className="w-8 h-8 rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/default-avatar.png";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                      {currentUser?.profile?.full_name?.[0] ||
+                        currentUser?.profile?.display_name?.[0] ||
+                        currentUser?.email?.[0]?.toUpperCase() ||
+                        "U"}
+                    </div>
+                  )}
                   <div className="flex-1">
                     <textarea
                       value={commentText}
@@ -1316,13 +1394,26 @@ export default function BilibiliVideoPlayer({
                       placeholder={t("VideoPlayer.comment_placeholder")}
                       className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                       rows={3}
+                      disabled={!currentUser || createCommentMutation.isPending}
                     />
                     <div className="flex justify-end mt-2">
                       <button
                         onClick={handleSendComment}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                        disabled={
+                          !commentText.trim() ||
+                          !currentUser ||
+                          createCommentMutation.isPending
+                        }
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
-                        {t("VideoPlayer.publish")}
+                        {createCommentMutation.isPending ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            {t("VideoPlayer.posting")}
+                          </>
+                        ) : (
+                          t("VideoPlayer.publish")
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1373,13 +1464,18 @@ export default function BilibiliVideoPlayer({
                     </div>
                   ) : (
                     realComments.map((comment: any) => {
-                      const commentId = comment.id || comment.public_id;
+                      const commentId = comment.public_id || comment.id;
+                      // Extract author information from nested author object
+                      const author = comment.author || {};
                       const avatar =
-                        comment.avatar ||
-                        comment.avatarUrl ||
+                        author.avatar_url ||
                         comment.avatar_url ||
+                        comment.avatarUrl ||
+                        comment.avatar ||
                         "/default-avatar.png";
                       const username =
+                        author.full_name ||
+                        author.display_name ||
                         comment.username ||
                         comment.display_name ||
                         comment.displayName ||
@@ -1393,20 +1489,41 @@ export default function BilibiliVideoPlayer({
                         comment.likesCount ||
                         comment.likes ||
                         0;
+                      const repliesCount =
+                        comment.replies_count ||
+                        comment.repliesCount ||
+                        comment.replies?.length ||
+                        0;
                       const isLiked =
                         comment.is_liked || comment.isLiked || false;
 
                       return (
                         <div key={commentId} className="flex gap-3">
-                          <img
-                            src={avatar}
-                            alt={username}
-                            className="w-8 h-8 rounded-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = "/default-avatar.png";
+                          {avatar && avatar !== "/default-avatar.png" ? (
+                            <img
+                              src={avatar}
+                              alt={username}
+                              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                const fallback =
+                                  target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = "flex";
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                            style={{
+                              display:
+                                avatar && avatar !== "/default-avatar.png"
+                                  ? "none"
+                                  : "flex",
                             }}
-                          />
+                          >
+                            {username?.[0]?.toUpperCase() || "U"}
+                          </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-semibold text-sm">
@@ -1454,21 +1571,32 @@ export default function BilibiliVideoPlayer({
                                 onClick={() =>
                                   handleToggleCommentLike(commentId)
                                 }
-                                className={`flex items-center gap-1 hover:text-blue-600 ${
+                                disabled={toggleCommentLikeMutation.isPending}
+                                className={`flex items-center gap-1 hover:text-blue-600 transition-colors ${
                                   isLiked ? "text-blue-600" : ""
+                                } ${
+                                  toggleCommentLikeMutation.isPending
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
                                 }`}
                               >
                                 <Heart
                                   size={14}
                                   className={isLiked ? "fill-current" : ""}
                                 />
-                                <span>{likesCount}</span>
+                                <span>{likesCount > 0 ? likesCount : ""}</span>
                               </button>
                               <button
                                 onClick={() => handleReplyToComment(commentId)}
-                                className="hover:text-blue-600"
+                                className="hover:text-blue-600 flex items-center gap-1"
                               >
+                                <MessageCircle size={14} />
                                 {t("VideoPlayer.reply")}
+                                {repliesCount > 0 && (
+                                  <span className="text-xs">
+                                    ({repliesCount})
+                                  </span>
+                                )}
                               </button>
                               {isCommentOwner(comment) && (
                                 <>
@@ -1505,8 +1633,38 @@ export default function BilibiliVideoPlayer({
                             {replyingToId === commentId && (
                               <div className="mt-3 pl-4 border-l-2 border-blue-500 space-y-3">
                                 <div className="flex gap-2">
-                                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                                    R
+                                  {currentUser?.profile?.avatar_url ? (
+                                    <img
+                                      src={currentUser.profile.avatar_url}
+                                      alt={
+                                        currentUser.profile.full_name ||
+                                        currentUser.profile.display_name ||
+                                        "User"
+                                      }
+                                      className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                      onError={(e) => {
+                                        const target =
+                                          e.target as HTMLImageElement;
+                                        target.style.display = "none";
+                                        const fallback =
+                                          target.nextElementSibling as HTMLElement;
+                                        if (fallback)
+                                          fallback.style.display = "flex";
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div
+                                    className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                                    style={{
+                                      display: currentUser?.profile?.avatar_url
+                                        ? "none"
+                                        : "flex",
+                                    }}
+                                  >
+                                    {currentUser?.profile?.full_name?.[0]?.toUpperCase() ||
+                                      currentUser?.profile?.display_name?.[0]?.toUpperCase() ||
+                                      currentUser?.email?.[0]?.toUpperCase() ||
+                                      "R"}
                                   </div>
                                   <div className="flex-1">
                                     <div className="text-xs text-blue-600 mb-1">
@@ -1548,12 +1706,16 @@ export default function BilibiliVideoPlayer({
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="mt-3 pl-4 border-l-2 border-gray-100 dark:border-gray-700 space-y-3">
                                 {comment.replies.map((reply: any) => {
+                                  const replyAuthor = reply.author || {};
                                   const replyAvatar =
-                                    reply.avatar ||
-                                    reply.avatarUrl ||
+                                    replyAuthor.avatar_url ||
                                     reply.avatar_url ||
+                                    reply.avatarUrl ||
+                                    reply.avatar ||
                                     "/default-avatar.png";
                                   const replyUsername =
+                                    replyAuthor.full_name ||
+                                    replyAuthor.display_name ||
                                     reply.username ||
                                     reply.display_name ||
                                     reply.displayName ||
@@ -1568,16 +1730,37 @@ export default function BilibiliVideoPlayer({
                                       key={reply.id || reply.public_id}
                                       className="flex gap-2"
                                     >
-                                      <img
-                                        src={replyAvatar}
-                                        alt={replyUsername}
-                                        className="w-6 h-6 rounded-full"
-                                        onError={(e) => {
-                                          const target =
-                                            e.target as HTMLImageElement;
-                                          target.src = "/default-avatar.png";
+                                      {replyAvatar &&
+                                      replyAvatar !== "/default-avatar.png" ? (
+                                        <img
+                                          src={replyAvatar}
+                                          alt={replyUsername}
+                                          className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                          onError={(e) => {
+                                            const target =
+                                              e.target as HTMLImageElement;
+                                            target.style.display = "none";
+                                            const fallback =
+                                              target.nextElementSibling as HTMLElement;
+                                            if (fallback)
+                                              fallback.style.display = "flex";
+                                          }}
+                                        />
+                                      ) : null}
+                                      <div
+                                        className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                                        style={{
+                                          display:
+                                            replyAvatar &&
+                                            replyAvatar !==
+                                              "/default-avatar.png"
+                                              ? "none"
+                                              : "flex",
                                         }}
-                                      />
+                                      >
+                                        {replyUsername?.[0]?.toUpperCase() ||
+                                          "R"}
+                                      </div>
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                           <span className="font-semibold text-xs">

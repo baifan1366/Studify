@@ -1829,7 +1829,7 @@ CREATE TABLE public.profiles (
     preferences jsonb DEFAULT '{}'::jsonb,
     theme text DEFAULT 'system'::text,
     language text DEFAULT 'en'::text,
-    notification_settings jsonb DEFAULT '{"course_updates": true, "marketing_emails": false, "community_updates": false, "push_notifications": true, "email_notifications": true}'::jsonb,
+    notification_settings jsonb DEFAULT '{"email_notifications": true, "push_notifications": true, "course_updates": true, "classroom_updates": true, "community_updates": false, "assignment_reminders": true, "live_session_alerts": true, "marketing_emails": false, "daily_digest": true, "weekly_digest": true}'::jsonb NOT NULL,
     privacy_settings jsonb DEFAULT '{"show_email": false, "show_progress": true, "data_collection": true, "profile_visibility": "public"}'::jsonb,
     two_factor_enabled boolean DEFAULT false,
     email_verified boolean DEFAULT false,

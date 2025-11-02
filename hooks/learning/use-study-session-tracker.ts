@@ -1,5 +1,7 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useCreateStudySession } from "@/hooks/profile/use-learning-stats";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface UseStudySessionTrackerOptions {
   lessonId?: string; // public_id
@@ -23,7 +25,8 @@ export function useStudySessionTracker({
   const createSession = useCreateStudySession();
 
   const sessionStartRef = useRef<Date | null>(null);
-  const accumulatedTimeRef = useRef(0); // In minutes
+  const currentSessionTimeRef = useRef(0); // Current session time in minutes
+  const historicalTimeRef = useRef(0); // Historical time from database in minutes
   const lastSaveRef = useRef<Date | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -33,6 +36,49 @@ export function useStudySessionTracker({
   const activityTypeRef = useRef(activityType);
   const minDurationRef = useRef(minDuration);
   
+  // Fetch historical study time from course_progress table
+  const { data: progressData } = useQuery({
+    queryKey: ["lesson-progress", lessonId],
+    queryFn: async () => {
+      if (!lessonId) return { time_spent_sec: 0 };
+      
+      try {
+        const response = await api.get(`/api/learning-progress?lessonId=${lessonId}`);
+        return response.data?.data || { time_spent_sec: 0 };
+      } catch (error) {
+        console.error("Failed to fetch progress data:", error);
+        return { time_spent_sec: 0 };
+      }
+    },
+    enabled: !!lessonId,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Update historical time when data is fetched (convert seconds to minutes)
+  useEffect(() => {
+    if (progressData?.time_spent_sec !== undefined) {
+      const minutes = progressData.time_spent_sec / 60;
+      historicalTimeRef.current = minutes;
+      console.log(`📊 Historical study time loaded: ${Math.round(minutes)} min (${progressData.time_spent_sec}s)`);
+    }
+  }, [progressData]);
+
+  // Track current session time
+  const [currentSessionTime, setCurrentSessionTime] = useState(0);
+
+  // Update current session time every second
+  useEffect(() => {
+    if (!sessionStartRef.current) return;
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      const minutes = (now.getTime() - sessionStartRef.current!.getTime()) / 1000 / 60;
+      setCurrentSessionTime(minutes);
+    }, 1000); // Update every second for smooth display
+
+    return () => clearInterval(timer);
+  }, [sessionStartRef.current !== null]);
+
   // Update refs when props change
   useEffect(() => {
     lessonIdRef.current = lessonId;
@@ -77,7 +123,8 @@ export function useStudySessionTracker({
           }
         );
 
-        accumulatedTimeRef.current += durationMinutes;
+        currentSessionTimeRef.current += durationMinutes;
+        historicalTimeRef.current += durationMinutes; // Update historical time
       } catch (error) {
         console.error("Failed to save study session:", error);
       }
@@ -122,7 +169,8 @@ export function useStudySessionTracker({
         });
 
         console.log(`💾 Progress saved: ${Math.round(durationToSave)} minutes`);
-        accumulatedTimeRef.current += durationToSave;
+        currentSessionTimeRef.current += durationToSave;
+        historicalTimeRef.current += durationToSave; // Update historical time
         lastSaveRef.current = now;
       } catch (error) {
         console.error("Failed to save progress:", error);
@@ -177,12 +225,17 @@ export function useStudySessionTracker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only set up once
 
+  // Calculate total time: historical + current session
+  const totalTime = historicalTimeRef.current + currentSessionTime;
+
   return {
     startSession,
     stopSession,
     saveProgress,
     isTracking: sessionStartRef.current !== null,
-    accumulatedTime: accumulatedTimeRef.current,
+    accumulatedTime: totalTime, // Total time including historical
+    currentSessionTime, // Just current session
+    historicalTime: historicalTimeRef.current, // Just historical
     isSaving: createSession.isPending,
   };
 }

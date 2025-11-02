@@ -79,17 +79,31 @@ async function searchVideoEmbeddings(
       return [];
     }
     
-    console.log(`🎯 Two-stage search: E5 (whole video) → BGE-M3 (top ${maxResults})`);
+    // 计算时间窗口 - 如果提供了 currentTime，则搜索前后各 timeWindow 秒
+    let timeStart: number | null = null;
+    let timeEnd: number | null = null;
     
-    // Stage 1: E5 粗筛 - 搜索整个视频，不限时间窗口
+    if (currentTime !== undefined && currentTime > 0) {
+      // 扩大时间窗口以获取更多上下文
+      const expandedWindow = timeWindow * 3; // 默认前后各 180 秒（3分钟）
+      timeStart = Math.max(0, currentTime - expandedWindow);
+      timeEnd = currentTime + expandedWindow;
+      console.log(`⏱️ Time-focused search: ${timeStart}s - ${timeEnd}s (current: ${currentTime}s, window: ±${expandedWindow}s)`);
+    } else {
+      console.log(`🎯 Full video search (no time constraint)`);
+    }
+    
+    console.log(`🎯 Two-stage search: E5 (${timeStart !== null ? 'time-focused' : 'whole video'}) → BGE-M3 (top ${maxResults})`);
+    
+    // Stage 1: E5 粗筛 - 根据时间窗口搜索
     // 返回 top 30 结果用于第二阶段重排
     const e5CandidateCount = Math.max(30, maxResults * 3);
     
     const { data: e5Results, error: e5Error } = await supabase.rpc('search_video_embeddings_e5', {
       query_embedding: `[${e5Embedding.join(',')}]`,
       p_attachment_id: targetAttachmentId,
-      time_start: null,  // 不限制时间范围，搜索整个视频
-      time_end: null,
+      time_start: timeStart,
+      time_end: timeEnd,
       match_threshold: 0.5,  // 降低阈值以获取更多候选
       match_count: e5CandidateCount
     });
@@ -99,12 +113,92 @@ async function searchVideoEmbeddings(
       return [];
     }
     
+    // 如果时间窗口搜索结果不足，回退到全视频搜索
+    if ((!e5Results || e5Results.length < 5) && timeStart !== null) {
+      console.log(`⚠️ Insufficient results (${e5Results?.length || 0}) in time window, expanding to full video search`);
+      
+      const { data: fullResults, error: fullError } = await supabase.rpc('search_video_embeddings_e5', {
+        query_embedding: `[${e5Embedding.join(',')}]`,
+        p_attachment_id: targetAttachmentId,
+        time_start: null,
+        time_end: null,
+        match_threshold: 0.5,
+        match_count: e5CandidateCount
+      });
+      
+      if (fullError) {
+        console.error('❌ Full video search error:', fullError);
+        return e5Results || [];
+      }
+      
+      if (fullResults && fullResults.length > 0) {
+        console.log(`✅ Fallback: Found ${fullResults.length} candidates from full video`);
+        // 使用全视频搜索结果
+        const finalE5Results = fullResults;
+        
+        // 继续使用 finalE5Results 进行 BGE 重排
+        const candidateIds = finalE5Results.map((r: any) => r.id);
+        
+        const { data: bgeResults, error: bgeError } = await supabase
+          .from('video_embeddings')
+          .select('id, content_text, segment_start_time, segment_end_time, section_title, embedding_bge_m3, attachment_id')
+          .in('id', candidateIds)
+          .eq('has_bge_embedding', true);
+        
+        if (bgeError || !bgeResults || bgeResults.length === 0) {
+          console.log('⚠️ BGE embeddings not available, using E5 results');
+          return finalE5Results.slice(0, maxResults);
+        }
+        
+        // BGE 重排逻辑（与下面相同）
+        const rerankedResults = bgeResults.map((result: any) => {
+          const bgeVec = result.embedding_bge_m3;
+          let similarity = 0;
+          
+          if (bgeVec && bgeEmbedding) {
+            let dotProduct = 0;
+            let normA = 0;
+            let normB = 0;
+            
+            for (let i = 0; i < Math.min(bgeVec.length, bgeEmbedding.length); i++) {
+              dotProduct += bgeVec[i] * bgeEmbedding[i];
+              normA += bgeVec[i] * bgeVec[i];
+              normB += bgeEmbedding[i] * bgeEmbedding[i];
+            }
+            
+            similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+          }
+          
+          return {
+            id: result.id,
+            content_text: result.content_text,
+            segment_start_time: result.segment_start_time,
+            segment_end_time: result.segment_end_time,
+            section_title: result.section_title,
+            attachment_id: result.attachment_id,
+            similarity: similarity
+          };
+        });
+        
+        rerankedResults.sort((a, b) => b.similarity - a.similarity);
+        const finalResults = rerankedResults.slice(0, maxResults);
+        
+        console.log(`✅ BGE Stage: Reranked to top ${finalResults.length} results`);
+        console.log(`📊 Similarity range: ${finalResults[0]?.similarity.toFixed(3)} - ${finalResults[finalResults.length - 1]?.similarity.toFixed(3)}`);
+        
+        return finalResults;
+      }
+    }
+    
     if (!e5Results || e5Results.length === 0) {
       console.log('⚠️ No results from E5 search');
       return [];
     }
     
-    console.log(`✅ E5 Stage: Found ${e5Results.length} candidates from whole video`);
+    const searchScope = timeStart !== null 
+      ? `time range ${timeStart}s-${timeEnd}s` 
+      : 'whole video';
+    console.log(`✅ E5 Stage: Found ${e5Results.length} candidates from ${searchScope}`);
     
     // Stage 2: BGE-M3 精排 - 对候选结果重新排序
     // 获取这些候选的 BGE embeddings 并计算相似度

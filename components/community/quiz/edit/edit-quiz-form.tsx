@@ -11,15 +11,26 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Edit3, FileText, CheckCircle2, List, Save, ArrowLeft, Plus, X, Check, Trash2 } from "lucide-react";
+import { AlertCircle, Edit3, FileText, List, Save, ArrowLeft, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuiz, useUpdateQuiz, useQuizSubjects, useQuizGrades } from "@/hooks/community/use-quiz";
 import { useQuizQuestions, useUpdateQuizQuestion, useDeleteQuizQuestion } from "@/hooks/community/use-quiz-questions";
-import { CommunityQuiz, CommunityQuizQuestion } from "@/interface/community/quiz-interface";
+import { CommunityQuizQuestion } from "@/interface/community/quiz-interface";
 import { useLocale } from "next-intl";
 import { getSubjectName, getGradeName } from "@/utils/quiz/translation-utils";
 import { useUser } from "@/hooks/profile/use-user";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useState as useAlertState, useCallback } from "react";
 
 interface EditQuizFormProps {
   quizSlug: string;
@@ -54,6 +65,55 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const locale = useLocale();
   const { data: currentUser } = useUser();
   const isTutor = currentUser?.profile?.role === 'tutor';
+
+  // Alert dialog state
+  const [alertDialog, setAlertDialog] = useAlertState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant: "default" | "destructive" | "success";
+    onConfirm?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    variant: "default",
+  });
+
+  const showAlert = useCallback((options: {
+    title: string;
+    description: string;
+    variant?: "default" | "destructive" | "success";
+    onConfirm?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+  }) => {
+    setAlertDialog({
+      isOpen: true,
+      title: options.title,
+      description: options.description,
+      variant: options.variant || "default",
+      onConfirm: options.onConfirm,
+      confirmText: options.confirmText || "OK",
+      cancelText: options.cancelText || "Cancel",
+      showCancel: options.showCancel || false,
+    });
+  }, []);
+
+  const hideAlert = useCallback(() => {
+    setAlertDialog(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const handleAlertConfirm = useCallback(() => {
+    if (alertDialog.onConfirm) {
+      alertDialog.onConfirm();
+    }
+    hideAlert();
+  }, [alertDialog.onConfirm, hideAlert]);
 
   // Hooks
   const { data: quiz, isLoading, error } = useQuiz(quizSlug);
@@ -101,7 +161,11 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   // Handle form submission
   const handleSubmit = () => {
     if (!title.trim()) {
-      alert("Title is required");
+      showAlert({
+        title: "Title Required",
+        description: "Title is required",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -119,16 +183,26 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
 
     updateQuiz.mutate(updateData, {
       onSuccess: () => {
-        alert("Quiz updated successfully!");
-        // Optionally redirect back to quiz detail page
-        const locale = (params as any)?.locale ?? "en";
-        const route = isTutor
-          ? `/${locale}/tutor/community/quizzes/${quizSlug}`
-          : `/${locale}/community/quizzes/${quizSlug}`;
-        router.push(route);
+        showAlert({
+          title: "Success",
+          description: "Quiz updated successfully!",
+          variant: "success",
+          onConfirm: () => {
+            // Redirect back to quiz detail page
+            const locale = (params as any)?.locale ?? "en";
+            const route = isTutor
+              ? `/${locale}/tutor/community/quizzes/${quizSlug}`
+              : `/${locale}/community/quizzes/${quizSlug}`;
+            router.push(route);
+          },
+        });
       },
       onError: (err: any) => {
-        alert(err?.message ?? "Update failed");
+        showAlert({
+          title: "Update Failed",
+          description: err?.message ?? "Update failed",
+          variant: "destructive",
+        });
       },
     });
   };
@@ -212,7 +286,11 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
     if (!editingQuestion) return;
 
     if (!questionText.trim()) {
-      alert("Question text is required");
+      showAlert({
+        title: "Question Text Required",
+        description: "Question text is required",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -225,7 +303,11 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
     if (questionType === "fill_in_blank") {
       const validAnswers = fillInAnswers.filter(ans => ans.trim());
       if (validAnswers.length === 0) {
-        alert("At least one correct answer is required for fill-in-blank questions");
+        showAlert({
+          title: "No Correct Answer",
+          description: "At least one correct answer is required for fill-in-blank questions",
+          variant: "destructive",
+        });
         return;
       }
       payload.correctAnswers = validAnswers;
@@ -233,11 +315,19 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
     } else {
       const validOptions = options.filter(opt => opt.trim());
       if (validOptions.length < 2) {
-        alert("At least 2 options are required for choice questions");
+        showAlert({
+          title: "Invalid Options",
+          description: "At least 2 options are required for choice questions",
+          variant: "destructive",
+        });
         return;
       }
       if (correctAnswers.length === 0) {
-        alert("Please select at least one correct answer");
+        showAlert({
+          title: "No Correct Answer",
+          description: "Please select at least one correct answer",
+          variant: "destructive",
+        });
         return;
       }
       payload.options = validOptions;
@@ -249,11 +339,19 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       payload
     }, {
       onSuccess: () => {
-        alert("Question updated successfully!");
-        setEditingQuestion(null);
+        showAlert({
+          title: "Success",
+          description: "Question updated successfully!",
+          variant: "success",
+          onConfirm: () => setEditingQuestion(null),
+        });
       },
       onError: (err: any) => {
-        alert(err?.message ?? "Failed to update question");
+        showAlert({
+          title: "Update Failed",
+          description: err?.message ?? "Failed to update question",
+          variant: "destructive",
+        });
       }
     });
   };
@@ -262,17 +360,33 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
   const handleQuestionDelete = () => {
     if (!editingQuestion) return;
 
-    if (confirm(`Are you sure you want to delete this question? This action cannot be undone.`)) {
-      deleteQuestion.mutate(editingQuestion.slug, {
-        onSuccess: () => {
-          alert("Question deleted successfully!");
-          setEditingQuestion(null);
-        },
-        onError: (err: any) => {
-          alert(err?.message ?? "Failed to delete question");
-        }
-      });
-    }
+    showAlert({
+      title: "Delete Question",
+      description: "Are you sure you want to delete this question? This action cannot be undone.",
+      variant: "destructive",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      showCancel: true,
+      onConfirm: () => {
+        deleteQuestion.mutate(editingQuestion.slug, {
+          onSuccess: () => {
+            showAlert({
+              title: "Success",
+              description: "Question deleted successfully!",
+              variant: "success",
+              onConfirm: () => setEditingQuestion(null),
+            });
+          },
+          onError: (err: any) => {
+            showAlert({
+              title: "Delete Failed",
+              description: err?.message ?? "Failed to delete question",
+              variant: "destructive",
+            });
+          }
+        });
+      },
+    });
   };
 
   // Use real questions data
@@ -283,7 +397,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading quiz...</p>
+          <p className="text-gray-600">{t('loading_quiz')}</p>
         </div>
       </div>
     );
@@ -296,13 +410,13 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
           <CardContent className="pt-6">
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Quiz Not Found</h2>
+              <h2 className="text-xl font-semibold mb-2">{t('quiz_not_found')}</h2>
               <p className="text-gray-600 mb-4">
-                {error?.message || "The quiz you're trying to edit doesn't exist or you don't have permission."}
+                {error?.message || t('quiz_not_found_message')}
               </p>
               <Button onClick={handleBack} variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Go Back
+                {t('go_back')}
               </Button>
             </div>
           </CardContent>
@@ -317,11 +431,11 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
       <div className="flex items-center gap-4 mb-8">
         <Button onClick={handleBack} variant="outline" size="sm">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          {t('go_back')}
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Edit Quiz</h1>
-          <p className="text-muted-foreground">Update quiz information and manage questions</p>
+          <h1 className="text-3xl font-bold">{t('edit_quiz')}</h1>
+          <p className="text-muted-foreground">{t('update_quiz_description')}</p>
         </div>
       </div>
 
@@ -332,37 +446,37 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Edit3 className="h-5 w-5" />
-                Quiz Information
+                {t('quiz_information')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title">{t('title_required')}</Label>
                 <Input
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter quiz title"
+                  placeholder={t('title_placeholder')}
                   required
                 />
               </div>
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('description')}</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Enter quiz description"
+                  placeholder={t('description_placeholder')}
                   rows={3}
                 />
               </div>
 
               {/* Difficulty */}
               <div className="space-y-2">
-                <Label htmlFor="difficulty">Difficulty (1-5)</Label>
+                <Label htmlFor="difficulty">{t('difficulty')}</Label>
                 <Input
                   id="difficulty"
                   type="number"
@@ -375,16 +489,16 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
 
               {/* Subject Selection */}
               <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
+                <Label htmlFor="subject">{t('subject')}</Label>
                 <Select
                   value={selectedSubjectId?.toString() || "none"}
                   onValueChange={(value) => setSelectedSubjectId(value === "none" ? undefined : Number(value))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select a subject"} />
+                    <SelectValue placeholder={subjectsLoading ? t('loading_subjects') : t('select_subject')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No subject</SelectItem>
+                    <SelectItem value="none">{t('no_subject')}</SelectItem>
                     {subjects?.map((subject) => (
                       <SelectItem key={subject.id} value={subject.id.toString()}>
                         {getSubjectName(subject, locale)}
@@ -396,16 +510,16 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
 
               {/* Grade Selection */}
               <div className="space-y-2">
-                <Label htmlFor="grade">Grade Level</Label>
+                <Label htmlFor="grade">{t('grade_level')}</Label>
                 <Select
                   value={selectedGradeId?.toString() || "none"}
                   onValueChange={(value) => setSelectedGradeId(value === "none" ? undefined : Number(value))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={gradesLoading ? "Loading grades..." : "Select a grade level"} />
+                    <SelectValue placeholder={gradesLoading ? t('loading_grades') : t('select_grade_level')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No grade level</SelectItem>
+                    <SelectItem value="none">{t('no_grade_level')}</SelectItem>
                     {grades?.map((grade) => (
                       <SelectItem key={grade.id} value={grade.id.toString()}>
                         {getGradeName(grade, locale)}
@@ -421,43 +535,43 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                 <RadioGroup value={visibility} onValueChange={(value: 'public' | 'private') => setVisibility(value)}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="public" id="public" />
-                    <Label htmlFor="public">Public - Anyone can access</Label>
+                    <Label htmlFor="public">{t('public_access')}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="private" id="private" />
-                    <Label htmlFor="private">Private - Invite only</Label>
+                    <Label htmlFor="private">{t('private_access')}</Label>
                   </div>
                 </RadioGroup>
               </div>
 
               {/* Max Attempts */}
               <div className="space-y-2">
-                <Label htmlFor="maxAttempts">Max Attempts</Label>
+                <Label htmlFor="maxAttempts">{t('max_attempts')}</Label>
                 <Select value={maxAttempts.toString()} onValueChange={(value) => setMaxAttempts(parseInt(value))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 attempt</SelectItem>
-                    <SelectItem value="2">2 attempts</SelectItem>
-                    <SelectItem value="3">3 attempts</SelectItem>
-                    <SelectItem value="5">5 attempts</SelectItem>
-                    <SelectItem value="10">10 attempts</SelectItem>
-                    <SelectItem value="999">Unlimited</SelectItem>
+                    <SelectItem value="1">{t('one_attempt')}</SelectItem>
+                    <SelectItem value="2">{t('two_attempts')}</SelectItem>
+                    <SelectItem value="3">{t('three_attempts')}</SelectItem>
+                    <SelectItem value="5">{t('five_attempts')}</SelectItem>
+                    <SelectItem value="10">{t('ten_attempts')}</SelectItem>
+                    <SelectItem value="999">{t('unlimited_attempts')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Time Limit */}
               <div className="space-y-2">
-                <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
+                <Label htmlFor="timeLimit">{t('time_limit')}</Label>
                 <Input
                   id="timeLimit"
                   type="number"
                   min="1"
                   value={timeLimitMinutes || ""}
                   onChange={(e) => setTimeLimitMinutes(e.target.value ? parseInt(e.target.value) : null)}
-                  placeholder="Leave empty for no time limit"
+                  placeholder={t('time_limit_placeholder')}
                 />
               </div>
 
@@ -469,7 +583,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
 
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {updateQuiz.isPending ? "Saving..." : "Save Changes"}
+                  {updateQuiz.isPending ? t('saving') : t('save_changes')}
                 </Button>
               </div>
             </CardContent>
@@ -482,7 +596,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <List className="h-5 w-5" />
-                Quiz Questions ({questionsList.length})
+                {t('quiz_questions')} ({questionsList.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -498,7 +612,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               ) : questionsList.length === 0 ? (
                 <div className="text-center py-6">
                   <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                  <p className="text-gray-400 text-sm mb-3">No questions added yet</p>
+                  <p className="text-gray-400 text-sm mb-3">{t('no_questions_yet')}</p>
                   <Button
                     variant="outline"
                     size="sm"
@@ -510,45 +624,62 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                       router.push(route);
                     }}
                   >
-                    Add Question
+                    {t('add_question')}
                   </Button>
                 </div>
               ) : (
-                questionsList.map((question, index) => (
-                  <div
-                    key={question.id}
-                    className={`p-4 rounded-lg transition-colors cursor-pointer min-h-[80px] ${editingQuestion?.id === question.id
-                      ? 'bg-white/20 hover:bg-white/25'
-                      : 'bg-white/5 hover:bg-white/10'
-                      }`}
-                    onClick={() => setEditingQuestion(question)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            Question {index + 1}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="text-xs border-blue-400 text-blue-400"
-                          >
-                            {question.question_type.replace("_", " ")}
-                          </Badge>
-                        </div>
-                        <p className="font-medium text-sm leading-relaxed line-clamp-2">
-                          {question.question_text}
-                        </p>
-                        {question.options && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {question.options.length} options
+                <>
+                  {questionsList.map((question, index) => (
+                    <div
+                      key={question.id}
+                      className={`p-4 rounded-lg transition-colors cursor-pointer min-h-[80px] ${editingQuestion?.id === question.id
+                        ? 'bg-white/20 hover:bg-white/25'
+                        : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                      onClick={() => setEditingQuestion(question)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {t('question')} {index + 1}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-blue-400 text-blue-400"
+                            >
+                              {question.question_type.replace("_", " ")}
+                            </Badge>
+                          </div>
+                          <p className="font-medium text-sm leading-relaxed line-clamp-2">
+                            {question.question_text}
                           </p>
-                        )}
+                          {question.options && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {t('options_count', { count: question.options.length })}
+                            </p>
+                          )}
+                        </div>
+                        <Edit3 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       </div>
-                      <Edit3 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     </div>
+                  ))}
+                  <div className="text-center pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const locale = (params as any)?.locale ?? "en";
+                        const route = isTutor
+                          ? `/${locale}/tutor/community/quizzes/${quizSlug}/create-question`
+                          : `/${locale}/community/quizzes/${quizSlug}/create-question`;
+                        router.push(route);
+                      }}
+                    >
+                      {t('add_question')}
+                    </Button>
                   </div>
-                ))
+                </>
               )}
             </CardContent>
           </Card>
@@ -563,7 +694,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Edit3 className="h-5 w-5" />
-                  Edit Question {questionsList.findIndex((q: CommunityQuizQuestion) => q.id === editingQuestion.id) + 1}
+                  {t('edit_question')} {questionsList.findIndex((q: CommunityQuizQuestion) => q.id === editingQuestion.id) + 1}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -574,14 +705,14 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4" />
-                    {deleteQuestion.isPending ? "Deleting..." : "Delete"}
+                    {deleteQuestion.isPending ? t('deleting') : t('delete')}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setEditingQuestion(null)}
                   >
-                    Close
+                    {t('close')}
                   </Button>
                 </div>
               </CardTitle>
@@ -589,19 +720,19 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
             <CardContent className="space-y-6">
               {/* Question Text */}
               <div className="space-y-2">
-                <Label htmlFor="questionText">Question Text *</Label>
+                <Label htmlFor="questionText">{t('question_text_required')}</Label>
                 <Textarea
                   id="questionText"
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
-                  placeholder="Enter your question"
+                  placeholder={t('question_placeholder')}
                   rows={3}
                 />
               </div>
 
               {/* Question Type */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Question Type</Label>
+                <Label className="text-sm font-medium">{t('question_type')}</Label>
                 <Select
                   value={questionType}
                   onValueChange={handleQuestionTypeChange}
@@ -610,9 +741,9 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single_choice">Single Choice</SelectItem>
-                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                    <SelectItem value="fill_in_blank">Fill in the Blank</SelectItem>
+                    <SelectItem value="single_choice">{t('single_choice')}</SelectItem>
+                    <SelectItem value="multiple_choice">{t('multiple_choice')}</SelectItem>
+                    <SelectItem value="fill_in_blank">{t('fill_in_blank')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -634,7 +765,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                       />
                       {correctAnswers.includes(index) && (
                         <span className="text-green-600 text-sm font-medium">
-                          (Correct Answer)
+                          {t('correct_answer')}
                         </span>
                       )}
                       {options.length > 2 && (
@@ -649,7 +780,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                     </div>
                   ))}
                   <Button variant="outline" onClick={handleAddOption}>
-                    + Add Option
+                    {t('add_option')}
                   </Button>
                 </RadioGroup>
               ) : questionType === "multiple_choice" ? (
@@ -669,7 +800,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                       />
                       {correctAnswers.includes(index) && (
                         <span className="text-green-600 text-sm font-medium">
-                          (Correct Answer)
+                          {t('correct_answer')}
                         </span>
                       )}
                       {options.length > 2 && (
@@ -684,7 +815,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                     </div>
                   ))}
                   <Button variant="outline" onClick={handleAddOption}>
-                    + Add Option
+                    {t('add_option')}
                   </Button>
                 </div>
               ) : null}
@@ -693,7 +824,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
               {questionType === "fill_in_blank" && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">
-                    Correct Answers (case-insensitive)
+                    {t('correct_answers_case_insensitive')}
                   </Label>
                   <div className="space-y-2">
                     {fillInAnswers.map((answer, index) => (
@@ -702,7 +833,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                           className="flex-1"
                           value={answer}
                           onChange={(e) => handleFillInAnswerChange(index, e.target.value)}
-                          placeholder={`Answer ${index + 1}`}
+                          placeholder={t('answer_placeholder', { index: index + 1 })}
                         />
                         <Button
                           variant="ghost"
@@ -717,7 +848,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                       variant="outline"
                       onClick={handleAddFillInAnswer}
                     >
-                      + Add Answer
+                      {t('add_answer')}
                     </Button>
                   </div>
                 </div>
@@ -725,7 +856,7 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
 
               {/* Explanation */}
               <Textarea
-                placeholder="Explanation (optional)"
+                placeholder={t('explanation_optional')}
                 value={explanation}
                 onChange={(e) => setExplanation(e.target.value)}
                 className="min-h-[80px]"
@@ -737,12 +868,38 @@ export default function EditQuizForm({ quizSlug }: EditQuizFormProps) {
                 className="w-full"
                 disabled={updateQuestion.isPending}
               >
-                {updateQuestion.isPending ? "Saving..." : "Save Question"}
+                {updateQuestion.isPending ? t('saving') : t('save_question')}
               </Button>
             </CardContent>
           </Card>
         </div>
       )}
+
+      {/* Alert Dialog */}
+      <AlertDialog open={alertDialog.isOpen} onOpenChange={hideAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alertDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {alertDialog.showCancel && (
+              <AlertDialogCancel onClick={hideAlert}>
+                {alertDialog.cancelText || "Cancel"}
+              </AlertDialogCancel>
+            )}
+            <AlertDialogAction
+              onClick={handleAlertConfirm}
+              className={cn(
+                alertDialog.variant === "destructive" && "text-red-600 hover:bg-red-600 hover:text-white",
+                alertDialog.variant === "success" && "text-green-600 hover:bg-green-600 hover:text-white"
+              )}
+            >
+              {alertDialog.confirmText || "OK"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

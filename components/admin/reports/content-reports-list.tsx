@@ -322,7 +322,7 @@ export default function ContentReportsList({
               </div>
             ))}
           </div>
-        ) : reportsData?.data.length === 0 ? (
+        ) : !reportsData?.data || reportsData.data.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
@@ -334,7 +334,7 @@ export default function ContentReportsList({
           </div>
         ) : (
           <div className="space-y-4">
-            {reportsData?.data.map((content) => (
+            {reportsData.data.map((content) => (
               <div
                 key={`${content.type}-${content.id}`}
                 className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 

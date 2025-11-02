@@ -579,7 +579,6 @@ export default function CourseLearningContent({
 
     // Prevent duplicate saves within MIN_SAVE_INTERVAL
     if (now - lastSaveTimeRef.current < MIN_SAVE_INTERVAL) {
-      console.log(`⏭️ Skipping duplicate save (too soon)`);
       return;
     }
 
@@ -589,12 +588,6 @@ export default function CourseLearningContent({
       // Force save using trackProgress with force=true via ref
       trackProgressRef.current(currentTime, duration, true);
       lastSaveTimeRef.current = now;
-
-      console.log(
-        `💾 Saved progress: ${Math.round(progressPct)}% at ${Math.round(
-          currentTime
-        )}s for lesson ${lessonId}`
-      );
     }
   }, []); // No dependencies to prevent infinite loop
 
@@ -698,7 +691,6 @@ export default function CourseLearningContent({
       lessonProgress?.state === "in_progress" ||
       lessonProgress?.state === "completed"
     ) {
-      console.log(`⏭️ Lesson already ${lessonProgress.state}, skipping start`);
       return;
     }
 

@@ -96,7 +96,6 @@ export function useSimpleVideoAI(videoContext: VideoContext) {
       });
       return result;
     } catch (error) {
-      console.error('AI question failed:', error);
       throw error;
     }
   };

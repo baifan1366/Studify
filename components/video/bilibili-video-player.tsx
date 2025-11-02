@@ -197,11 +197,9 @@ export default function BilibiliVideoPlayer({
   const realDanmaku = React.useMemo(() => {
     const apiDanmaku = danmakuData?.danmaku || [];
     if (apiDanmaku.length > 0) {
-      console.log(`🎯 Processing ${apiDanmaku.length} danmaku messages, duration: ${duration}s`);
       return apiDanmaku.map((d: any) => {
         const videoTimeSec = d.video_time_sec || 0;
         const position = duration > 0 ? videoTimeSec / duration : 0;
-        console.log(`  - Danmaku at ${videoTimeSec}s (position: ${position.toFixed(3)}): "${d.content}"`);
         return {
           id: d.public_id || d.id,
           text: d.content,
@@ -549,21 +547,12 @@ export default function BilibiliVideoPlayer({
       // Handle page visibility changes - pause tracking when page is hidden
       const handleVisibilityChange = () => {
         isPaused = document.visibilityState === "hidden";
-        console.log(
-          `📺 External video tracking ${
-            isPaused ? "paused" : "resumed"
-          } (page ${document.visibilityState})`
-        );
       };
 
       document.addEventListener("visibilitychange", handleVisibilityChange);
 
       // Start tracking after iframe loads (give it 3 seconds to load)
       const startTimeout = setTimeout(() => {
-        console.log(
-          `🎬 Starting progress tracking for external video (${videoSourceInfo.type})`
-        );
-
         // Update progress every 10 seconds
         progressInterval = setInterval(() => {
           // Only increment time if page is visible
@@ -593,9 +582,6 @@ export default function BilibiliVideoPlayer({
             if (simulatedTime >= estimatedDuration) {
               if (progressInterval) {
                 clearInterval(progressInterval);
-                console.log(
-                  `✅ External video tracking completed (reached duration)`
-                );
               }
             }
           }
@@ -610,7 +596,6 @@ export default function BilibiliVideoPlayer({
         if (startTimeout) clearTimeout(startTimeout);
         if (progressInterval) {
           clearInterval(progressInterval);
-          console.log(`🛑 External video tracking stopped`);
         }
       };
     }
@@ -796,10 +781,6 @@ export default function BilibiliVideoPlayer({
         return timeDiff < 0.05;
       });
 
-      if (visibleDanmaku.length > 0) {
-        console.log(`🎬 Showing ${visibleDanmaku.length} danmaku at ${currentTime.toFixed(1)}s (progress: ${currentProgress.toFixed(3)})`);
-      }
-
       return visibleDanmaku.map((msg: any, index: number) => (
         <motion.div
           key={`${msg.id}-${msg.timestamp}`}
@@ -832,10 +813,6 @@ export default function BilibiliVideoPlayer({
       // Show danmaku within 3 seconds of current time
       return timeDiff < 3;
     });
-
-    if (visibleDanmaku.length > 0) {
-      console.log(`🎬 Showing ${visibleDanmaku.length} danmaku at ${currentTime.toFixed(1)}s (external video)`);
-    }
 
     return visibleDanmaku.map((msg: any, index: number) => (
       <motion.div

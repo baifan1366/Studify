@@ -59,16 +59,6 @@ export async function POST(request: NextRequest) {
     // Check if streaming is requested
     const isStreaming = request.headers.get("accept") === "text/event-stream";
 
-    console.log(
-      `🎓 Video AI Assistant request from user ${userId}: "${question.substring(
-        0,
-        50
-      )}..."`
-    );
-    console.log(
-      `📍 Context: Course=${videoContext.courseSlug}, Lesson=${videoContext.currentLessonId}, Time=${videoContext.currentTimestamp}s`
-    );
-
     // Check lesson type and determine appropriate model
     let isExternalVideo = false;
     let lessonKind: string | null = null;
@@ -91,8 +81,6 @@ export async function POST(request: NextRequest) {
       } else if (lesson) {
         lessonKind = lesson.kind;
 
-        console.log(`📝 Lesson found, attachments:`, lesson.attachments);
-
         // Get attachment ID for video lessons
         // attachments is a JSONB array, need to parse it properly
         if (
@@ -105,8 +93,6 @@ export async function POST(request: NextRequest) {
             .map((id: any) => (typeof id === "number" ? id : parseInt(id)))
             .filter((id: any) => !isNaN(id));
 
-          console.log(`📎 Parsed attachment IDs:`, attachmentIds);
-
           if (attachmentIds.length > 0) {
             // Query to find video attachment
             const { data: attachments } = await supabase
@@ -118,15 +104,8 @@ export async function POST(request: NextRequest) {
 
             if (attachments && attachments.length > 0) {
               attachmentId = attachments[0].id;
-              console.log(`✅ Found video attachment: ${attachmentId}`);
-            } else {
-              console.log(`⚠️ No video attachment found in attachments array`);
             }
-          } else {
-            console.log(`⚠️ No valid attachment IDs found`);
           }
-        } else {
-          console.log(`⚠️ Lesson has no attachments array or it's empty`);
         }
 
         // Check if it's an external video
@@ -140,14 +119,7 @@ export async function POST(request: NextRequest) {
         // Use document model for PDF and image types
         if (lesson.kind === "document" || lesson.kind === "image") {
           useDocumentModel = true;
-          console.log(
-            `📄 Document/Image lesson detected - using DOCUMENT model`
-          );
         }
-
-        console.log(
-          `📎 Lesson info: kind=${lessonKind}, attachmentId=${attachmentId}, isExternal=${isExternalVideo}`
-        );
       }
     }
 
@@ -160,16 +132,6 @@ export async function POST(request: NextRequest) {
         "nvidia/nemotron-nano-12b-v2-vl:free"
       : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
 
-    console.log(
-      `🤖 Using model: ${modelToUse} (Document model: ${useDocumentModel})`
-    );
-
-    if (isExternalVideo) {
-      console.log(
-        `🎬 External video detected - using direct AI without embeddings`
-      );
-    }
-
     // Specify content types to search - prioritize video_segment for video lessons
     const contentTypes = isExternalVideo
       ? ["course_content", "lesson", "note"] // External videos don't have segments
@@ -179,8 +141,6 @@ export async function POST(request: NextRequest) {
 
     // If streaming is requested, use Server-Sent Events
     if (isStreaming) {
-      console.log("🎬 Starting streaming response...");
-
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
@@ -297,20 +257,6 @@ export async function POST(request: NextRequest) {
     });
 
     const totalProcessingTime = Date.now() - startTime;
-
-    console.log(
-      `✅ Video AI Assistant completed in ${totalProcessingTime}ms using tools: ${
-        result.toolsUsed?.join(", ") || "NONE"
-      }`
-    );
-    console.log(
-      `📊 Response quality: Sources=${result.sources?.length || 0}, Tools=${
-        result.toolsUsed?.length || 0
-      }`
-    );
-    console.log(
-      `📝 Answer preview: ${result.answer?.substring(0, 200) || "No answer"}`
-    );
 
     // Format sources for compatibility
     const formattedSources = (result.sources || []).map((source: any) => ({

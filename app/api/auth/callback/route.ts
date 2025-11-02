@@ -142,7 +142,9 @@ export async function GET(request: NextRequest) {
         // Check if profile exists
         let { data: profile } = await supabaseAdmin
           .from("profiles")
-          .select("id, role, full_name, display_name, email, onboarded, avatar_url")
+          .select(
+            "id, role, full_name, display_name, email, onboarded, avatar_url"
+          )
           .eq("user_id", userId)
           .maybeSingle();
 
@@ -209,7 +211,9 @@ export async function GET(request: NextRequest) {
                     last_login: new Date().toISOString(),
                     onboarded: false, // New users need onboarding
                   })
-                  .select("id, role, full_name, display_name, email, onboarded, avatar_url")
+                  .select(
+                    "id, role, full_name, display_name, email, onboarded, avatar_url"
+                  )
                   .single(),
                 new Promise((_, reject) =>
                   setTimeout(
@@ -230,7 +234,9 @@ export async function GET(request: NextRequest) {
               if (createError.code === "23505") {
                 const { data: existingProfile } = await supabaseAdmin
                   .from("profiles")
-                  .select("id, role, full_name, display_name, email, onboarded, avatar_url")
+                  .select(
+                    "id, role, full_name, display_name, email, onboarded, avatar_url"
+                  )
                   .eq("user_id", userId)
                   .single();
 
@@ -272,7 +278,10 @@ export async function GET(request: NextRequest) {
 
           // For existing users, ALWAYS use their existing role from the database
           // Ignore any role parameter from the OAuth flow
-          console.log("[AUTH CALLBACK] Using existing profile role:", profile.role);
+          console.log(
+            "[AUTH CALLBACK] Using existing profile role:",
+            profile.role
+          );
 
           // Extract avatar URL from OAuth data if available
           const avatarUrl =
@@ -290,7 +299,10 @@ export async function GET(request: NextRequest) {
           // Only update avatar if we have one from OAuth and current profile doesn't have one
           if (avatarUrl && !profile.avatar_url) {
             updateData.avatar_url = avatarUrl;
-            console.log("[AUTH CALLBACK] Updating avatar from OAuth:", avatarUrl);
+            console.log(
+              "[AUTH CALLBACK] Updating avatar from OAuth:",
+              avatarUrl
+            );
           }
 
           Promise.resolve(
@@ -299,7 +311,11 @@ export async function GET(request: NextRequest) {
               .update(updateData)
               .eq("user_id", userId)
           )
-            .then(() => console.log("[AUTH CALLBACK] Profile updated (last login + avatar)"))
+            .then(() =>
+              console.log(
+                "[AUTH CALLBACK] Profile updated (last login + avatar)"
+              )
+            )
             .catch((err: any) =>
               console.error("[AUTH CALLBACK] Failed to update profile:", err)
             );
@@ -355,23 +371,29 @@ export async function GET(request: NextRequest) {
             // New user needs onboarding - extract locale from next param
             const locale = next.split("/")[1] || "en";
             // Use role to determine onboarding path
-            if (role === 'tutor') {
+            if (role === "tutor") {
               redirectPath = `/${locale}/onboarding/tutor/step1`;
-            } else if (role === 'admin') {
+            } else if (role === "admin") {
               redirectPath = `/${locale}/admin/dashboard`;
             } else {
               redirectPath = `/${locale}/onboarding/student/step1`;
             }
-            console.log("[AUTH CALLBACK] New user from email verification, redirecting to onboarding:", {
-              userId,
-              role,
-              onboarded: profile.onboarded,
-              redirectPath,
-            });
+            console.log(
+              "[AUTH CALLBACK] New user from email verification, redirecting to onboarding:",
+              {
+                userId,
+                role,
+                onboarded: profile.onboarded,
+                redirectPath,
+              }
+            );
           } else {
             // Existing user who clicked verification link again - use next param
             redirectPath = next;
-            console.log("[AUTH CALLBACK] Existing user email verification, using next param:", redirectPath);
+            console.log(
+              "[AUTH CALLBACK] Existing user email verification, using next param:",
+              redirectPath
+            );
           }
         } else if (!profile.onboarded) {
           // New user needs onboarding

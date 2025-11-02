@@ -189,8 +189,6 @@ export default function VideoAIAssistant({
         }
       );
     } catch (error) {
-      console.error("AI assistant error:", error);
-
       const errorMessage: AIMessage = {
         role: "assistant",
         content: t("error_message"),
@@ -261,7 +259,6 @@ export default function VideoAIAssistant({
           duration: 2000,
         });
       } catch (error) {
-        console.error("Failed to jump to timestamp:", error);
         toast({
           title: t("notifications.error.title"),
           description: t("notifications.jump_timestamp.failed_to_jump", {

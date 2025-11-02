@@ -66,22 +66,41 @@ export default function NotificationSettings() {
   };
 
   const handlePushPermission = async () => {
-    if (oneSignalUser.permission === 'denied') {
+    // Check if notifications are supported
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast.error('Push notifications are not supported in your browser.');
+      return;
+    }
+
+    // Check if already denied
+    if (Notification.permission === 'denied') {
       toast.error('Push notifications are blocked. Please enable them in your browser settings.');
       return;
     }
 
     if (!oneSignalUser.isSubscribed) {
-      const granted = await requestPermission();
-      if (granted) {
-        await optIn();
-        toast.success('Push notifications enabled');
-      } else {
-        toast.error('You need to allow browser notification access to enable push notifications. Please click Enable again and allow access when prompted.');
+      try {
+        const granted = await requestPermission();
+        if (granted) {
+          await optIn();
+          await handleSettingChange('push_notifications', true);
+          toast.success('Push notifications enabled successfully!');
+        } else {
+          toast.error('You need to allow browser notification access to enable push notifications. Please click Enable again and allow access when prompted.');
+        }
+      } catch (error) {
+        console.error('Error enabling push notifications:', error);
+        toast.error('Failed to enable push notifications. Please try again.');
       }
     } else {
-      await optOut();
-      toast.success('Push notifications disabled');
+      try {
+        await optOut();
+        await handleSettingChange('push_notifications', false);
+        toast.success('Push notifications disabled');
+      } catch (error) {
+        console.error('Error disabling push notifications:', error);
+        toast.error('Failed to disable push notifications. Please try again.');
+      }
     }
   };
 

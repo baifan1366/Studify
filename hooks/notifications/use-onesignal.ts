@@ -96,13 +96,25 @@ export function useOneSignal() {
   };
 
   const requestPermission = async (): Promise<boolean> => {
-    if (typeof window === 'undefined' || !(window as any).OneSignal) return false;
+    if (typeof window === 'undefined') return false;
 
     try {
-      const OneSignal = (window as any).OneSignal;
-      const result = await OneSignal.Slidedown.promptPush();
-      await updateUserState();
-      return Boolean(result);
+      // First, request native browser permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          return false;
+        }
+      }
+
+      // Then handle OneSignal subscription
+      if ((window as any).OneSignal) {
+        const OneSignal = (window as any).OneSignal;
+        await OneSignal.Slidedown.promptPush();
+        await updateUserState();
+      }
+      
+      return true;
     } catch (error) {
       console.error('Failed to request notification permission:', error);
       return false;

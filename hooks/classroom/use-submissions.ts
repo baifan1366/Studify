@@ -1,24 +1,52 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiSend } from '@/lib/api-config';
-import { Submission, SubmissionResponse, SubmissionListResponse, CreateSubmissionRequest, GradeSubmissionRequest } from '@/interface/classroom/submission-interface';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiGet, apiSend } from "@/lib/api-config";
+import {
+  ClassroomSubmission,
+  CreateSubmissionData,
+  UpdateSubmissionData,
+} from "@/interface/classroom/submission-interface";
+
+// Response types
+interface SubmissionResponse {
+  submission: ClassroomSubmission;
+}
+
+interface SubmissionListResponse {
+  submissions: ClassroomSubmission[];
+  total?: number;
+}
+
+interface GradeSubmissionRequest {
+  score?: number;
+  max_score?: number;
+  feedback?: string;
+  grade?: number;
+}
 
 /**
  * Hook for fetching submissions for a classroom or specific assignment
  */
-export function useSubmissions(classroomSlug: string, assignmentId?: number, studentId?: number) {
+export function useSubmissions(
+  classroomSlug: string,
+  assignmentId?: number,
+  studentId?: number
+) {
   const queryParams = new URLSearchParams();
-  
+
   if (assignmentId) {
-    queryParams.set('assignment_id', assignmentId.toString());
+    queryParams.set("assignment_id", assignmentId.toString());
   }
-  
+
   if (studentId) {
-    queryParams.set('student_id', studentId.toString());
+    queryParams.set("student_id", studentId.toString());
   }
 
   return useQuery<SubmissionListResponse>({
-    queryKey: ['classroom-submissions', classroomSlug, assignmentId, studentId],
-    queryFn: () => apiGet<SubmissionListResponse>(`/api/classroom/${classroomSlug}/submissions?${queryParams}`),
+    queryKey: ["classroom-submissions", classroomSlug, assignmentId, studentId],
+    queryFn: () =>
+      apiGet<SubmissionListResponse>(
+        `/api/classroom/${classroomSlug}/submissions?${queryParams}`
+      ),
     enabled: !!classroomSlug,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
@@ -29,8 +57,11 @@ export function useSubmissions(classroomSlug: string, assignmentId?: number, stu
  */
 export function useSubmission(classroomSlug: string, submissionId: number) {
   return useQuery<SubmissionResponse>({
-    queryKey: ['classroom-submission', classroomSlug, submissionId],
-    queryFn: () => apiGet<SubmissionResponse>(`/api/classroom/${classroomSlug}/submissions/${submissionId}`),
+    queryKey: ["classroom-submission", classroomSlug, submissionId],
+    queryFn: () =>
+      apiGet<SubmissionResponse>(
+        `/api/classroom/${classroomSlug}/submissions/${submissionId}`
+      ),
     enabled: !!classroomSlug && !!submissionId,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
@@ -41,23 +72,29 @@ export function useSubmission(classroomSlug: string, submissionId: number) {
  */
 export function useCreateSubmission() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ classroomSlug, data }: { classroomSlug: string; data: CreateSubmissionRequest & { assignment_id: number } }) => {
+    mutationFn: async ({
+      classroomSlug,
+      data,
+    }: {
+      classroomSlug: string;
+      data: CreateSubmissionData;
+    }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/submissions`,
-        method: 'POST',
-        body: data
+        method: "POST",
+        body: data,
       });
     },
     onSuccess: (_, { classroomSlug, data }) => {
       // Invalidate submissions queries for this assignment
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug, data.assignment_id]
+        queryKey: ["classroom-submissions", classroomSlug, data.submittable_id],
       });
       // Invalidate all submissions for this classroom
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug]
+        queryKey: ["classroom-submissions", classroomSlug],
       });
     },
   });
@@ -68,27 +105,31 @@ export function useCreateSubmission() {
  */
 export function useUpdateSubmission() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ classroomSlug, submissionId, content }: { 
-      classroomSlug: string; 
-      submissionId: number; 
-      content: string; 
+    mutationFn: async ({
+      classroomSlug,
+      submissionId,
+      content,
+    }: {
+      classroomSlug: string;
+      submissionId: number;
+      content: string;
     }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/submissions/${submissionId}`,
-        method: 'PUT',
-        body: { content }
+        method: "PUT",
+        body: { content },
       });
     },
     onSuccess: (_, { classroomSlug, submissionId }) => {
       // Invalidate the specific submission
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submission', classroomSlug, submissionId]
+        queryKey: ["classroom-submission", classroomSlug, submissionId],
       });
       // Invalidate submissions list
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug]
+        queryKey: ["classroom-submissions", classroomSlug],
       });
     },
   });
@@ -99,27 +140,31 @@ export function useUpdateSubmission() {
  */
 export function useGradeSubmission() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ classroomSlug, submissionId, data }: { 
-      classroomSlug: string; 
-      submissionId: number; 
-      data: GradeSubmissionRequest; 
+    mutationFn: async ({
+      classroomSlug,
+      submissionId,
+      data,
+    }: {
+      classroomSlug: string;
+      submissionId: number;
+      data: GradeSubmissionRequest;
     }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/submissions/${submissionId}/grade`,
-        method: 'PUT',
-        body: data
+        method: "PUT",
+        body: data,
       });
     },
     onSuccess: (_, { classroomSlug, submissionId }) => {
       // Invalidate the specific submission
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submission', classroomSlug, submissionId]
+        queryKey: ["classroom-submission", classroomSlug, submissionId],
       });
       // Invalidate submissions list
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug]
+        queryKey: ["classroom-submissions", classroomSlug],
       });
     },
   });
@@ -130,21 +175,24 @@ export function useGradeSubmission() {
  */
 export function useDeleteSubmission() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ classroomSlug, submissionId }: { 
-      classroomSlug: string; 
-      submissionId: number; 
+    mutationFn: async ({
+      classroomSlug,
+      submissionId,
+    }: {
+      classroomSlug: string;
+      submissionId: number;
     }) => {
       return apiSend({
         url: `/api/classroom/${classroomSlug}/submissions/${submissionId}`,
-        method: 'DELETE'
+        method: "DELETE",
       });
     },
     onSuccess: (_, { classroomSlug }) => {
       // Invalidate submissions list
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug]
+        queryKey: ["classroom-submissions", classroomSlug],
       });
     },
   });
@@ -155,24 +203,29 @@ export function useDeleteSubmission() {
  */
 export function useSubmitAssignment() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ classroomSlug, assignmentId, content, attachmentIds }: { 
-      classroomSlug: string; 
-      assignmentId: number; 
+    mutationFn: async ({
+      classroomSlug,
+      assignmentId,
+      content,
+      attachmentIds,
+    }: {
+      classroomSlug: string;
+      assignmentId: number;
       content: string;
       attachmentIds?: number[];
     }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/assignments/${assignmentId}/submit`,
-        method: 'POST',
-        body: { content, attachment_ids: attachmentIds || [] }
+        method: "POST",
+        body: { content, attachment_ids: attachmentIds || [] },
       });
     },
     onSuccess: (_, { classroomSlug, assignmentId }) => {
       // Invalidate submissions queries for this assignment
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug, assignmentId]
+        queryKey: ["classroom-submissions", classroomSlug, assignmentId],
       });
     },
   });
@@ -183,24 +236,29 @@ export function useSubmitAssignment() {
  */
 export function useUpdateAssignmentSubmission() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ classroomSlug, assignmentId, content, attachmentIds }: { 
-      classroomSlug: string; 
-      assignmentId: number; 
+    mutationFn: async ({
+      classroomSlug,
+      assignmentId,
+      content,
+      attachmentIds,
+    }: {
+      classroomSlug: string;
+      assignmentId: number;
       content: string;
       attachmentIds?: number[];
     }) => {
       return apiSend<SubmissionResponse>({
         url: `/api/classroom/${classroomSlug}/assignments/${assignmentId}/submit`,
-        method: 'PUT',
-        body: { content, attachment_ids: attachmentIds || [] }
+        method: "PUT",
+        body: { content, attachment_ids: attachmentIds || [] },
       });
     },
     onSuccess: (_, { classroomSlug, assignmentId }) => {
       // Invalidate submissions queries for this assignment
       queryClient.invalidateQueries({
-        queryKey: ['classroom-submissions', classroomSlug, assignmentId]
+        queryKey: ["classroom-submissions", classroomSlug, assignmentId],
       });
     },
   });

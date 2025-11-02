@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiSend } from '@/lib/api-config';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiGet, apiSend } from "@/lib/api-config";
 
 // Grade interfaces
 export interface Grade {
@@ -64,25 +64,28 @@ export interface BulkGradeRequest {
  * Hook for fetching grades in a classroom
  */
 export function useGrades(
-  classroomSlug: string | undefined, 
+  classroomSlug: string | undefined,
   filters?: {
     assignment_id?: number;
     student_id?: number;
   }
 ) {
   const queryParams = new URLSearchParams();
-  
+
   if (filters?.assignment_id) {
-    queryParams.set('assignment_id', filters.assignment_id.toString());
+    queryParams.set("assignment_id", filters.assignment_id.toString());
   }
-  
+
   if (filters?.student_id) {
-    queryParams.set('student_id', filters.student_id.toString());
+    queryParams.set("student_id", filters.student_id.toString());
   }
 
   return useQuery<GradesResponse>({
-    queryKey: ['classroom-grades', classroomSlug, filters],
-    queryFn: () => apiGet<GradesResponse>(`/api/classroom/${classroomSlug}/grades?${queryParams}`),
+    queryKey: ["classroom-grades", classroomSlug, filters],
+    queryFn: () =>
+      apiGet<GradesResponse>(
+        `/api/classroom/${classroomSlug}/grades?${queryParams}`
+      ),
     enabled: !!classroomSlug,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
@@ -91,10 +94,16 @@ export function useGrades(
 /**
  * Hook for fetching grades for a specific assignment
  */
-export function useAssignmentGrades(classroomSlug: string | undefined, assignmentId: number | undefined) {
+export function useAssignmentGrades(
+  classroomSlug: string | undefined,
+  assignmentId: number | undefined
+) {
   return useQuery<{ grades: Grade[] }>({
-    queryKey: ['assignment-grades', classroomSlug, assignmentId],
-    queryFn: () => apiGet<{ grades: Grade[] }>(`/api/classroom/${classroomSlug}/assignments/${assignmentId}/grade`),
+    queryKey: ["assignment-grades", classroomSlug, assignmentId],
+    queryFn: () =>
+      apiGet<{ grades: Grade[] }>(
+        `/api/classroom/${classroomSlug}/assignments/${assignmentId}/grade`
+      ),
     enabled: !!classroomSlug && !!assignmentId,
     staleTime: 2 * 60 * 1000,
   });
@@ -105,31 +114,39 @@ export function useAssignmentGrades(classroomSlug: string | undefined, assignmen
  */
 export function useCreateGrade() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      classroomSlug, 
-      assignmentId, 
-      data 
-    }: { 
-      classroomSlug: string; 
-      assignmentId: number; 
+    mutationFn: async ({
+      classroomSlug,
+      assignmentId,
+      data,
+    }: {
+      classroomSlug: string;
+      assignmentId: number;
       data: CreateGradeRequest;
     }) => {
       return await apiSend({
         url: `/api/classroom/${classroomSlug}/assignments/${assignmentId}/grade`,
-        method: 'POST',
-        body: data
+        method: "POST",
+        body: data,
       });
     },
     onSuccess: (_, { classroomSlug, assignmentId, data }) => {
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['classroom-grades', classroomSlug] });
-      queryClient.invalidateQueries({ queryKey: ['assignment-grades', classroomSlug, assignmentId] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-grades", classroomSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["assignment-grades", classroomSlug, assignmentId],
+      });
+
       // Also invalidate submission queries since grades are related to submissions
-      queryClient.invalidateQueries({ queryKey: ['classroom-submissions', classroomSlug, assignmentId] });
-      queryClient.invalidateQueries({ queryKey: ['classroom-submissions', classroomSlug] });
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-submissions", classroomSlug, assignmentId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-submissions", classroomSlug],
+      });
     },
   });
 }
@@ -139,26 +156,32 @@ export function useCreateGrade() {
  */
 export function useBulkGrade() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      classroomSlug, 
-      grades 
-    }: { 
-      classroomSlug: string; 
+    mutationFn: async ({
+      classroomSlug,
+      grades,
+    }: {
+      classroomSlug: string;
       grades: BulkGradeRequest[];
     }) => {
       return await apiSend({
         url: `/api/classroom/${classroomSlug}/grades`,
-        method: 'POST',
-        body: { grades }
+        method: "POST",
+        body: { grades },
       });
     },
     onSuccess: (_, { classroomSlug }) => {
       // Invalidate all grade-related queries
-      queryClient.invalidateQueries({ queryKey: ['classroom-grades', classroomSlug] });
-      queryClient.invalidateQueries({ queryKey: ['assignment-grades', classroomSlug] });
-      queryClient.invalidateQueries({ queryKey: ['classroom-submissions', classroomSlug] });
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-grades", classroomSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["assignment-grades", classroomSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-submissions", classroomSlug],
+      });
     },
   });
 }
@@ -168,27 +191,33 @@ export function useBulkGrade() {
  */
 export function useDeleteGrade() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      classroomSlug, 
-      assignmentId, 
-      studentId 
-    }: { 
-      classroomSlug: string; 
+    mutationFn: async ({
+      classroomSlug,
+      assignmentId,
+      studentId,
+    }: {
+      classroomSlug: string;
       assignmentId: number;
       studentId: number;
     }) => {
       return await apiSend({
         url: `/api/classroom/${classroomSlug}/assignments/${assignmentId}/grade?student_id=${studentId}`,
-        method: 'DELETE'
+        method: "DELETE",
       });
     },
     onSuccess: (_, { classroomSlug, assignmentId }) => {
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['classroom-grades', classroomSlug] });
-      queryClient.invalidateQueries({ queryKey: ['assignment-grades', classroomSlug, assignmentId] });
-      queryClient.invalidateQueries({ queryKey: ['classroom-submissions', classroomSlug] });
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-grades", classroomSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["assignment-grades", classroomSlug, assignmentId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["classroom-submissions", classroomSlug],
+      });
     },
   });
 }
@@ -198,8 +227,9 @@ export function useDeleteGrade() {
  */
 export function useMyGrades(classroomSlug: string | undefined) {
   return useQuery<GradesResponse>({
-    queryKey: ['my-grades', classroomSlug],
-    queryFn: () => apiGet<GradesResponse>(`/api/classroom/${classroomSlug}/grades`),
+    queryKey: ["my-grades", classroomSlug],
+    queryFn: () =>
+      apiGet<GradesResponse>(`/api/classroom/${classroomSlug}/grades`),
     enabled: !!classroomSlug,
     staleTime: 5 * 60 * 1000, // 5 minutes - student grades change less frequently
   });

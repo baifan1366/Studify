@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Trash2, Edit, Users } from 'lucide-react';
-import { WhiteboardCanvas } from '../live-session/whiteboard-canvas';
+import { LiveblocksWhiteboard } from '../live-session/whiteboard-canvas';
 
 interface WhiteboardManagerProps {
   classroomSlug: string;
@@ -178,10 +178,12 @@ export default function WhiteboardManager({
       {/* Main Content - Whiteboard Canvas */}
       <div className="flex-1">
         {selectedWhiteboard ? (
-          <WhiteboardCanvas
+          <LiveblocksWhiteboard
             classroomSlug={classroomSlug}
-            whiteboardId={selectedWhiteboard.id.toString()}
-            isReadOnly={!isSessionActive || (userRole === 'student' && !isSessionActive)}
+            sessionId={sessionId}
+            userId=""
+            userName=""
+            userRole={userRole}
             className="h-full"
           />
         ) : (

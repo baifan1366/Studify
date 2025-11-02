@@ -1,29 +1,39 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  FileText, 
-  CheckCircle2, 
-  Clock, 
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  FileText,
+  CheckCircle2,
+  Clock,
   Star,
   Calendar,
   MessageSquare,
   AlertTriangle,
   Edit3,
-  User
-} from 'lucide-react';
-import { useSubmissions } from '@/hooks/classroom/use-submissions';
-import { useAssignmentGrades } from '@/hooks/classroom/use-grades';
-import { useUser } from '@/hooks/profile/use-user';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ClassroomColor, getCardStyling, CLASSROOM_COLORS } from '@/utils/classroom/color-generator';
-import { SubmissionAttachments } from './submission-attachments';
-import { SubmissionAIChecker } from '@/components/ai/submission-ai-checker';
+  User,
+} from "lucide-react";
+import { useSubmissions } from "@/hooks/classroom/use-submissions";
+import { useAssignmentGrades } from "@/hooks/classroom/use-grades";
+import { useUser } from "@/hooks/profile/use-user";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ClassroomColor,
+  getCardStyling,
+  CLASSROOM_COLORS,
+} from "@/utils/classroom/color-generator";
+import { SubmissionAttachments } from "./submission-attachments";
+import { SubmissionAIChecker } from "@/components/ai/submission-ai-checker";
 
 interface StudentSubmissionSummaryProps {
   assignmentId: number;
@@ -46,27 +56,39 @@ export function StudentSubmissionSummary({
   className,
   classroomColor = CLASSROOM_COLORS[0],
   onEditSubmission,
-  onViewAssignment
+  onViewAssignment,
 }: StudentSubmissionSummaryProps) {
   const { data: user } = useUser();
-  
+
   // Fetch student's submission for this assignment
-  const { data: submissionsData, isLoading: isSubmissionsLoading } = useSubmissions(classroomSlug, assignmentId);
-  
+  const { data: submissionsData, isLoading: isSubmissionsLoading } =
+    useSubmissions(classroomSlug, assignmentId);
+
   // Fetch student's grade for this assignment
-  const { data: gradesData, isLoading: isGradesLoading } = useAssignmentGrades(classroomSlug, assignmentId);
+  const { data: gradesData, isLoading: isGradesLoading } = useAssignmentGrades(
+    classroomSlug,
+    assignmentId
+  );
 
   // Find current user's submission and grade
-  const submissions = Array.isArray(submissionsData) ? submissionsData : submissionsData?.submissions || [];
+  const submissions = Array.isArray(submissionsData)
+    ? submissionsData
+    : submissionsData?.submissions || [];
   const grades = Array.isArray(gradesData?.grades) ? gradesData.grades : [];
-  
-  const mySubmission = submissions.find(s => s.student_id === parseInt(user?.profile?.id || '0'));
-  const myGrade = grades.find(g => g.user_id === parseInt(user?.profile?.id || '0'));
 
-  const validColor = (classroomColor && CLASSROOM_COLORS.includes(classroomColor as ClassroomColor)) 
-    ? classroomColor as ClassroomColor 
-    : CLASSROOM_COLORS[0];
-  const cardStyling = getCardStyling(validColor, 'light');
+  const mySubmission = submissions.find(
+    (s: any) => s.student_id === parseInt(user?.profile?.id || "0")
+  );
+  const myGrade = grades.find(
+    (g) => g.user_id === parseInt(user?.profile?.id || "0")
+  );
+
+  const validColor =
+    classroomColor &&
+    CLASSROOM_COLORS.includes(classroomColor as ClassroomColor)
+      ? (classroomColor as ClassroomColor)
+      : CLASSROOM_COLORS[0];
+  const cardStyling = getCardStyling(validColor, "light");
 
   const isOverdue = new Date(dueDate) < new Date();
   const hasSubmitted = !!mySubmission;
@@ -85,12 +107,12 @@ export function StudentSubmissionSummary({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Submission Status Card */}
-      <Card 
+      <Card
         className="border-l-4 hover:shadow-md transition-shadow"
-        style={{ 
+        style={{
           borderLeftColor: validColor,
           backgroundColor: cardStyling.backgroundColor,
-          borderColor: cardStyling.borderColor
+          borderColor: cardStyling.borderColor,
         }}
       >
         <CardHeader>
@@ -99,7 +121,8 @@ export function StudentSubmissionSummary({
             Your Submission Status
           </CardTitle>
           <CardDescription>
-            {assignmentTitle} - Due: {new Date(dueDate).toLocaleDateString()} at {new Date(dueDate).toLocaleTimeString()}
+            {assignmentTitle} - Due: {new Date(dueDate).toLocaleDateString()} at{" "}
+            {new Date(dueDate).toLocaleTimeString()}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -113,13 +136,16 @@ export function StudentSubmissionSummary({
               )}
               <div>
                 <div className="font-medium">
-                  {hasSubmitted ? 'Submitted' : 'Not Submitted'}
+                  {hasSubmitted ? "Submitted" : "Not Submitted"}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {hasSubmitted 
-                    ? `On ${new Date(mySubmission.submitted_at).toLocaleDateString()}`
-                    : isOverdue ? 'Assignment is overdue' : 'Pending submission'
-                  }
+                  {hasSubmitted
+                    ? `On ${new Date(
+                        mySubmission.submitted_at
+                      ).toLocaleDateString()}`
+                    : isOverdue
+                    ? "Assignment is overdue"
+                    : "Pending submission"}
                 </div>
               </div>
             </div>
@@ -132,18 +158,19 @@ export function StudentSubmissionSummary({
               )}
               <div>
                 <div className="font-medium">
-                  {isGraded ? `${myGrade.score}%` : 'Not Graded'}
+                  {isGraded ? `${myGrade.score}%` : "Not Graded"}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {isGraded 
+                  {isGraded
                     ? `Grade: ${myGrade.score}/${totalPoints || 100}`
-                    : hasSubmitted ? 'Waiting for grade' : 'No submission yet'
-                  }
+                    : hasSubmitted
+                    ? "Waiting for grade"
+                    : "No submission yet"}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">              
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
               {isOverdue ? (
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               ) : (
@@ -151,13 +178,15 @@ export function StudentSubmissionSummary({
               )}
               <div>
                 <div className="font-medium">
-                  {isOverdue ? 'Overdue' : 'On Time'}
+                  {isOverdue ? "Overdue" : "On Time"}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {isOverdue 
-                    ? 'Past due date' 
-                    : `${Math.ceil((new Date(dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left`
-                  }
+                  {isOverdue
+                    ? "Past due date"
+                    : `${Math.ceil(
+                        (new Date(dueDate).getTime() - new Date().getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      )} days left`}
                 </div>
               </div>
             </div>
@@ -165,18 +194,25 @@ export function StudentSubmissionSummary({
 
           {/* Status Badges */}
           <div className="flex flex-wrap gap-2">
-            <Badge variant={hasSubmitted ? "default" : "secondary"} className="flex items-center gap-1">
-              <div className={`w-2 h-2 ${hasSubmitted ? 'bg-green-500' : 'bg-gray-400'} rounded-full`}></div>
-              {hasSubmitted ? 'Submitted' : 'Not Submitted'}
+            <Badge
+              variant={hasSubmitted ? "default" : "secondary"}
+              className="flex items-center gap-1"
+            >
+              <div
+                className={`w-2 h-2 ${
+                  hasSubmitted ? "bg-green-500" : "bg-gray-400"
+                } rounded-full`}
+              ></div>
+              {hasSubmitted ? "Submitted" : "Not Submitted"}
             </Badge>
-            
+
             {isGraded && (
               <Badge variant="outline" className="flex items-center gap-1">
                 <Star className="h-3 w-3" />
                 Graded: {myGrade.score}%
               </Badge>
             )}
-            
+
             {isOverdue && (
               <Badge variant="destructive" className="flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
@@ -188,12 +224,15 @@ export function StudentSubmissionSummary({
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
             {!hasSubmitted && !isOverdue && (
-              <Button onClick={onEditSubmission} style={{ backgroundColor: validColor }}>
+              <Button
+                onClick={onEditSubmission}
+                style={{ backgroundColor: validColor }}
+              >
                 <Edit3 className="h-4 w-4 mr-2" />
                 Submit Assignment
               </Button>
             )}
-            
+
             {canResubmit && (
               <Button variant="outline" onClick={onEditSubmission}>
                 <Edit3 className="h-4 w-4 mr-2" />
@@ -211,12 +250,12 @@ export function StudentSubmissionSummary({
 
       {/* Feedback Card - Only show if graded */}
       {isGraded && myGrade.feedback && (
-        <Card 
+        <Card
           className="border-l-4 hover:shadow-md transition-shadow"
-          style={{ 
-            borderLeftColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.05)',
-            borderColor: '#10b981'
+          style={{
+            borderLeftColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.05)",
+            borderColor: "#10b981",
           }}
         >
           <CardHeader>
@@ -252,12 +291,12 @@ export function StudentSubmissionSummary({
 
       {/* Submission Details - Only show if submitted */}
       {hasSubmitted && (
-        <Card 
+        <Card
           className="border-l-4 hover:shadow-md transition-shadow"
-          style={{ 
+          style={{
             borderLeftColor: validColor,
             backgroundColor: cardStyling.backgroundColor,
-            borderColor: cardStyling.borderColor
+            borderColor: cardStyling.borderColor,
           }}
         >
           <CardHeader>
@@ -269,28 +308,31 @@ export function StudentSubmissionSummary({
           <CardContent>
             <div className="space-y-3">
               <div>
-                <div className="text-sm font-medium text-muted-foreground">Submitted At:</div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Submitted At:
+                </div>
                 <div className="text-sm">
-                  {new Date(mySubmission.submitted_at).toLocaleDateString()} at{' '}
+                  {new Date(mySubmission.submitted_at).toLocaleDateString()} at{" "}
                   {new Date(mySubmission.submitted_at).toLocaleTimeString()}
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div>
-                <div className="text-sm font-medium text-muted-foreground mb-2">Content:</div>
+                <div className="text-sm font-medium text-muted-foreground mb-2">
+                  Content:
+                </div>
                 <div className="bg-muted/30 p-3 rounded-lg text-sm max-h-32 overflow-y-auto">
-                  {mySubmission.content || 'No content provided'}
+                  {mySubmission.content || "No content provided"}
                 </div>
               </div>
-              
-              
+
               {/* Show attachments if any exist */}
               {mySubmission.classroom_attachments && (
                 <>
                   <Separator />
-                  <SubmissionAttachments 
+                  <SubmissionAttachments
                     attachments={[mySubmission.classroom_attachments]}
                     userRole="student"
                     showTitle={false}

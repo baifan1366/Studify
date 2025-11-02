@@ -225,12 +225,12 @@ function OnlineUsers() {
               <Avatar className="w-6 h-6">
                 <AvatarImage src={user.avatar} />
                 <AvatarFallback className="text-xs">
-                  {user.name.charAt(0).toUpperCase()}
+                  {user.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {user.name} {user.isMe && '(Me)'}
+                  {user.name || 'Unknown'} {user.isMe && '(Me)'}
                 </div>
               </div>
               <Badge 

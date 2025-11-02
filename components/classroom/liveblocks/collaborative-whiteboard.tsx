@@ -236,7 +236,7 @@ function WhiteboardCanvas() {
             <div className="flex items-center gap-2">
               <Palette className="w-4 h-4" />
               <div className="flex gap-1">
-                {COLORS.map((c) => (
+                {COLORS.map((c: string) => (
                   <button
                     key={c}
                     className={`w-6 h-6 rounded border-2 ${
@@ -325,7 +325,7 @@ function WhiteboardCanvas() {
           onPointerUp={handlePointerUp}
         >
           {/* Render existing shapes */}
-          {shapes && Array.from(shapes.entries()).map(([id, shape]) => {
+          {shapes && (Array.from(shapes.entries()) as Array<[any, any]>).map(([id, shape]) => {
             if (shape.type === 'path' && shape.points) {
               return (
                 <path

@@ -32,6 +32,7 @@ const client = createClient({
 type Presence = {
   cursor: { x: number; y: number } | null;
   selectedTool?: string | null;
+  currentTool?: string | null;
   userName?: string;
   userAvatar?: string;
   userRole?: "student" | "tutor" | "owner";
@@ -43,7 +44,8 @@ type Presence = {
 type Storage = {
   drawings: any[]; // Will be defined more specifically based on drawing data structure
   messages?: any[]; // Chat messages for collaborative chat
-  shapes?: any[]; // Whiteboard shapes for collaborative drawing
+  shapes?: any; // Whiteboard shapes for collaborative drawing (LiveMap)
+  whiteboardTextBoxes?: any; // Text boxes for whiteboard
 };
 
 type UserMeta = {
@@ -111,9 +113,27 @@ export function generateRoomId(
   return parts.join(":");
 }
 
+// Whiteboard tool types
+export type Tool = 'pen' | 'eraser' | 'rectangle' | 'circle' | 'select';
+
+// Color palette for whiteboard
+export const COLORS = [
+  '#000000', // Black
+  '#FF0000', // Red
+  '#00FF00', // Green
+  '#0000FF', // Blue
+  '#FFFF00', // Yellow
+  '#FF00FF', // Magenta
+  '#00FFFF', // Cyan
+  '#FFA500', // Orange
+  '#800080', // Purple
+  '#FFC0CB', // Pink
+];
+
 // Initial storage for Liveblocks rooms
 export const initialStorage = {
   drawings: [],
   messages: [],
-  shapes: [],
+  shapes: {},
+  whiteboardTextBoxes: {},
 };

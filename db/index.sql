@@ -16,6 +16,13 @@ CREATE INDEX idx_community_quiz_question_slug ON public.community_quiz_question 
 
 CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id);
 
+-- Notification system performance indexes
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications USING btree (user_id, is_read, is_deleted) WHERE (is_deleted = false);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications USING btree (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_kind ON public.notifications USING btree (kind);
+
 CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id);
 
 CREATE UNIQUE INDEX checkins_pkey ON public.checkins USING btree (id);
@@ -268,9 +275,11 @@ CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
 
 CREATE UNIQUE INDEX profiles_user_id_key ON public.profiles USING btree (user_id);
 
-CREATE INDEX idx_profiles_onesignal_player_id ON public.profiles USING btree (onesignal_player_id);
+CREATE INDEX idx_profiles_onesignal_player_id ON public.profiles USING btree (onesignal_player_id) WHERE (onesignal_player_id IS NOT NULL);
 
 CREATE INDEX idx_profiles_onesignal_external_id ON public.profiles USING btree (onesignal_external_id);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_push_subscription ON public.profiles USING btree (push_subscription_status);
 
 CREATE INDEX idx_profiles_user_id ON public.profiles USING btree (user_id);
 

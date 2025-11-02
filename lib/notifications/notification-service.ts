@@ -137,14 +137,38 @@ export class NotificationService {
           if (!settings.push_notifications) return;
       }
 
-      await oneSignalService.sendToUsers(
+      const response = await oneSignalService.sendToUsers(
         [profile.public_id],
         title,
         message,
         data
       );
+
+      // Log delivery attempt
+      if (response?.id) {
+        await supabase.from('notification_delivery_log').insert({
+          notification_id: userId, // You may want to pass actual notification ID
+          delivery_method: 'push',
+          onesignal_notification_id: response.id,
+          delivery_status: 'sent',
+          delivery_response: response,
+          delivered_at: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       console.error('Failed to send push notification:', error);
+      
+      // Log failed delivery
+      try {
+        await supabase.from('notification_delivery_log').insert({
+          notification_id: userId,
+          delivery_method: 'push',
+          delivery_status: 'failed',
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      } catch (logError) {
+        console.error('Failed to log delivery error:', logError);
+      }
     }
   }
 

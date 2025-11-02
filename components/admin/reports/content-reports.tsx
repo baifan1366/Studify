@@ -288,13 +288,13 @@ export default function ContentReports() {
                     </div>
                   ))}
                 </div>
-              ) : overviewData?.data.length === 0 ? (
+              ) : !overviewData?.data || overviewData.data.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400 text-center py-4">
                   {t('no_data_available')}
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {overviewData?.data.slice(0, 5).map((content) => (
+                  {overviewData.data.slice(0, 5).map((content) => (
                     <div
                       key={`${content.type}-${content.id}`}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 
@@ -369,13 +369,13 @@ export default function ContentReports() {
                     </div>
                   ))}
                 </div>
-              ) : trendingData?.trending_posts.length === 0 ? (
+              ) : !trendingData?.trending_posts || trendingData.trending_posts.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400 text-center py-4">
                   {t('no_data_available')}
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {trendingData?.trending_posts.slice(0, 5).map((content) => (
+                  {trendingData.trending_posts.slice(0, 5).map((content) => (
                     <div
                       key={`${content.type}-${content.id}`}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 

@@ -73,7 +73,7 @@ export default function NotificationSettings() {
         await optIn();
         toast.success('Push notifications enabled');
       } else {
-        toast.error('Push notification permission denied');
+        toast.error('You need to allow browser notification access to enable push notifications. Please click Enable again and allow access when prompted.');
       }
     } else {
       await optOut();

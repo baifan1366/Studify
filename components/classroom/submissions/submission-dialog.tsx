@@ -102,7 +102,7 @@ export function SubmissionDialog({
   // Load existing submission content and attachments
   useEffect(() => {
     if (existingSubmission) {
-      setContent(existingSubmission.content);
+      setContent(existingSubmission.content || '');
     } else {
       setContent('');
     }
@@ -307,7 +307,7 @@ export function SubmissionDialog({
                   </div>
                   
                   <div className="text-sm text-muted-foreground">
-                    Submitted on: {formatDate(existingSubmission.submitted_at)}
+                    Submitted on: {formatDate(existingSubmission.submitted_at.toString())}
                   </div>
 
                   {existingSubmission.feedback && (
@@ -320,15 +320,11 @@ export function SubmissionDialog({
                   )}
 
                   {/* Show existing submission attachments */}
-                  {existingSubmission && existingSubmission.classroom_attachments && (
+                  {existingSubmission && existingSubmission.attachments_id && (
                     <div>
                       <Label className="text-sm font-medium">Submitted Attachments</Label>
-                      <div className="mt-2">
-                        <SubmissionAttachments 
-                          attachments={[existingSubmission.classroom_attachments]}
-                          userRole="student"
-                          showTitle={false}
-                        />
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Attachment ID: {existingSubmission.attachments_id}
                       </div>
                     </div>
                   )}

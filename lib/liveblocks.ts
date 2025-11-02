@@ -42,6 +42,8 @@ type Presence = {
 
 type Storage = {
   drawings: any[]; // Will be defined more specifically based on drawing data structure
+  messages?: any[]; // Chat messages for collaborative chat
+  shapes?: any[]; // Whiteboard shapes for collaborative drawing
 };
 
 type UserMeta = {
@@ -107,4 +109,6 @@ export function generateRoomId(
 // Initial storage for Liveblocks rooms
 export const initialStorage = {
   drawings: [],
+  messages: [],
+  shapes: [],
 };

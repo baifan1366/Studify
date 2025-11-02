@@ -196,17 +196,24 @@ export default function BilibiliVideoPlayer({
   // Transform danmaku data from API format to component format
   const realDanmaku = React.useMemo(() => {
     const apiDanmaku = danmakuData?.danmaku || [];
-    if (apiDanmaku.length > 0 && duration > 0) {
-      return apiDanmaku.map((d: any) => ({
-        id: d.public_id || d.id,
-        text: d.content,
-        color: d.color || "#FFFFFF",
-        size: d.size || "medium",
-        position: duration > 0 ? d.video_time_sec / duration : 0, // Normalize to 0-1
-        timestamp: new Date(d.created_at).getTime(),
-        userId: d.user_id || d.userId || "anonymous",
-        username: d.author?.full_name || d.author?.display_name || "Anonymous",
-      }));
+    if (apiDanmaku.length > 0) {
+      console.log(`🎯 Processing ${apiDanmaku.length} danmaku messages, duration: ${duration}s`);
+      return apiDanmaku.map((d: any) => {
+        const videoTimeSec = d.video_time_sec || 0;
+        const position = duration > 0 ? videoTimeSec / duration : 0;
+        console.log(`  - Danmaku at ${videoTimeSec}s (position: ${position.toFixed(3)}): "${d.content}"`);
+        return {
+          id: d.public_id || d.id,
+          text: d.content,
+          color: d.color || "#FFFFFF",
+          size: d.size || "medium",
+          position, // Normalize to 0-1
+          videoTimeSec, // Keep original time for debugging
+          timestamp: new Date(d.created_at).getTime(),
+          userId: d.user_id || d.userId || "anonymous",
+          username: d.author?.full_name || d.author?.display_name || "Anonymous",
+        };
+      });
     }
     return danmakuMessages; // Fallback to prop data
   }, [danmakuData?.danmaku, danmakuMessages, duration]);
@@ -774,17 +781,65 @@ export default function BilibiliVideoPlayer({
 
   // Danmaku rendering
   const renderDanmaku = () => {
-    if (!danmakuEnabled || !danmakuContainerRef.current) return null;
+    if (!danmakuEnabled || !danmakuContainerRef.current) {
+      return null;
+    }
 
-    const currentProgress = duration > 0 ? currentTime / duration : 0;
-    const visibleDanmaku = danmakuMessages.filter((msg) => {
-      const msgProgress = msg.position;
-      return Math.abs(msgProgress - currentProgress) < 0.1; // Show danmaku within 10% of current time
+    // For direct video with duration
+    if (duration > 0) {
+      const currentProgress = currentTime / duration;
+      // Use realDanmaku instead of danmakuMessages to show API data
+      const visibleDanmaku = realDanmaku.filter((msg: any) => {
+        const msgProgress = msg.position;
+        const timeDiff = Math.abs(msgProgress - currentProgress);
+        // Show danmaku within 5% of current time (more lenient)
+        return timeDiff < 0.05;
+      });
+
+      if (visibleDanmaku.length > 0) {
+        console.log(`🎬 Showing ${visibleDanmaku.length} danmaku at ${currentTime.toFixed(1)}s (progress: ${currentProgress.toFixed(3)})`);
+      }
+
+      return visibleDanmaku.map((msg: any, index: number) => (
+        <motion.div
+          key={`${msg.id}-${msg.timestamp}`}
+          className={`absolute text-white font-bold pointer-events-none select-none ${
+            msg.size === "small"
+              ? "text-sm"
+              : msg.size === "large"
+              ? "text-xl"
+              : "text-base"
+          }`}
+          style={{
+            color: msg.color,
+            top: `${20 + (index % 10) * 40}px`, // Cycle through 10 vertical positions
+            textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+            zIndex: 10,
+          }}
+          initial={{ x: "100vw" }}
+          animate={{ x: "-100%" }}
+          transition={{ duration: 8, ease: "linear" }}
+        >
+          {msg.text}
+        </motion.div>
+      ));
+    }
+
+    // For external videos (YouTube/Vimeo) - show based on absolute time
+    const visibleDanmaku = realDanmaku.filter((msg: any) => {
+      const msgTime = msg.videoTimeSec || 0;
+      const timeDiff = Math.abs(msgTime - currentTime);
+      // Show danmaku within 3 seconds of current time
+      return timeDiff < 3;
     });
 
-    return visibleDanmaku.map((msg, index) => (
+    if (visibleDanmaku.length > 0) {
+      console.log(`🎬 Showing ${visibleDanmaku.length} danmaku at ${currentTime.toFixed(1)}s (external video)`);
+    }
+
+    return visibleDanmaku.map((msg: any, index: number) => (
       <motion.div
-        key={msg.id}
+        key={`${msg.id}-${msg.timestamp}`}
         className={`absolute text-white font-bold pointer-events-none select-none ${
           msg.size === "small"
             ? "text-sm"
@@ -794,8 +849,9 @@ export default function BilibiliVideoPlayer({
         }`}
         style={{
           color: msg.color,
-          top: `${20 + index * 40}px`,
-          textShadow: "1px 1px 2px rgba(0,0,0,0.8)",
+          top: `${20 + (index % 10) * 40}px`,
+          textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+          zIndex: 10,
         }}
         initial={{ x: "100vw" }}
         animate={{ x: "-100%" }}

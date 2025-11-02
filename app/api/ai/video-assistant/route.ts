@@ -256,8 +256,7 @@ export async function POST(request: NextRequest) {
             console.error("❌ Streaming error:", error);
             const errorData = {
               type: "error",
-              message:
-                error instanceof Error ? error.message : "Unknown error",
+              message: error instanceof Error ? error.message : "Unknown error",
             };
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify(errorData)}\n\n`)

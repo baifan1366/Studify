@@ -89,16 +89,18 @@ export default function VideoAIAssistant({
   useEffect(() => {
     let context = "";
     const parts: string[] = [];
-    
+
     if (currentTimestamp > 0) {
-      parts.push(t("input.context_info", {
-        timestamp: formatTimestamp(currentTimestamp),
-      }));
+      parts.push(
+        t("input.context_info", {
+          timestamp: formatTimestamp(currentTimestamp),
+        })
+      );
     }
     if (selectedText) {
       parts.push(t("input.selected_text", { text: selectedText }));
     }
-    
+
     context = parts.join(" | ");
     setContextInfo(context);
   }, [currentTimestamp, selectedText, t]);
@@ -171,7 +173,8 @@ export default function VideoAIAssistant({
                 "Take notes on key points",
                 "Try related practice questions",
               ],
-              relatedConcepts: data.sources?.slice(0, 3).map((s: any) => s.title) || [],
+              relatedConcepts:
+                data.sources?.slice(0, 3).map((s: any) => s.title) || [],
               isPartial: false,
               loadingStage: "complete",
             };
@@ -186,6 +189,34 @@ export default function VideoAIAssistant({
               duration: 3000,
             });
           }
+        },
+        // onStatus callback - update loading stage based on status
+        (status: string) => {
+          setConversation((prev) => {
+            const newConv = [...prev];
+            const lastIdx = newConv.length - 1;
+
+            // Determine loading stage from status message
+            let loadingStage:
+              | "analyzing"
+              | "searching"
+              | "synthesizing"
+              | "complete" = "analyzing";
+            if (status.toLowerCase().includes("search")) {
+              loadingStage = "searching";
+            } else if (
+              status.toLowerCase().includes("answer") ||
+              status.toLowerCase().includes("generat")
+            ) {
+              loadingStage = "synthesizing";
+            }
+
+            newConv[lastIdx] = {
+              ...newConv[lastIdx],
+              loadingStage,
+            };
+            return newConv;
+          });
         }
       );
     } catch (error) {
@@ -415,6 +446,20 @@ export default function VideoAIAssistant({
                   )}
                 </div>
 
+                {/* Loading Stage Indicator */}
+                {msg.isPartial && msg.loadingStage && (
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                    <span>
+                      {msg.loadingStage === "analyzing" &&
+                        "🔍 Analyzing question..."}
+                      {msg.loadingStage === "searching" &&
+                        "📚 Searching content..."}
+                      {msg.loadingStage === "synthesizing" &&
+                        "✨ Generating answer..."}
+                    </span>
+                  </div>
+                )}
+
                 {/* AI Response Enhancements */}
                 {msg.role === "assistant" && !msg.isPartial && (
                   <div className="mt-3 space-y-2">
@@ -615,7 +660,10 @@ export default function VideoAIAssistant({
         <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 truncate">
           {t("input.context_prefix")} {contextInfo}
           {selectedText &&
-            ` | ${t("input.selected_prefix")} "${selectedText.substring(0, 30)}..."`}
+            ` | ${t("input.selected_prefix")} "${selectedText.substring(
+              0,
+              30
+            )}..."`}
         </div>
       </div>
     </div>

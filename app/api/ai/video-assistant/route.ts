@@ -156,8 +156,8 @@ export async function POST(request: NextRequest) {
               encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`)
             );
 
-            // Pass just the user's question - educationalQA will handle the search internally
-            const result = await enhancedAIExecutor.educationalQA(question, {
+            // Use streaming version of educationalQA
+            const streamGenerator = enhancedAIExecutor.educationalQAStream(question, {
               userId,
               includeAnalysis: true,
               conversationContext: conversationHistory,
@@ -173,38 +173,63 @@ export async function POST(request: NextRequest) {
                 : undefined,
             });
 
-            // Stream the answer word by word for better UX
-            const words = result.answer.split(" ");
-            for (let i = 0; i < words.length; i++) {
-              const chunk = {
-                type: "token",
-                content: words[i] + (i < words.length - 1 ? " " : ""),
-              };
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
-              );
-              // Small delay for smoother streaming
-              await new Promise((resolve) => setTimeout(resolve, 30));
+            let finalMetadata: any = null;
+
+            // Stream tokens as they arrive
+            for await (const chunk of streamGenerator) {
+              if (chunk.type === 'token' && chunk.content) {
+                // Send token immediately
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "token",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'search_start') {
+                // Send search status
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "status",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'search_complete') {
+                // Send search complete status
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "status",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'answer_start') {
+                // Send answer start status
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "status",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'complete') {
+                // Store final metadata
+                finalMetadata = chunk.metadata;
+              } else if (chunk.type === 'error') {
+                // Send error
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "error",
+                    message: chunk.content
+                  })}\n\n`)
+                );
+              }
             }
 
             // Send final metadata
             const totalProcessingTime = Date.now() - startTime;
-            const formattedSources = (result.sources || []).map(
-              (source: any) => ({
-                type: source.type || "course_content",
-                title: source.title || "Course Content",
-                timestamp: source.timestamp,
-                url: source.url,
-                contentPreview:
-                  source.contentPreview || source.content?.substring(0, 100),
-              })
-            );
-
             const finalData = {
               type: "final",
-              sources: formattedSources,
-              confidence: result.confidence || 0.85,
-              toolsUsed: result.toolsUsed || [],
+              sources: finalMetadata?.sources || [],
+              confidence: finalMetadata?.confidence || 0.85,
+              toolsUsed: finalMetadata?.toolsUsed || [],
               processingTimeMs: totalProcessingTime,
             };
             controller.enqueue(

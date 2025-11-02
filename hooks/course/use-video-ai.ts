@@ -116,7 +116,8 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
     question: string,
     conversationHistory?: Array<{role: 'user' | 'assistant'; content: string}>,
     onToken?: (token: string) => void,
-    onComplete?: (data: { sources: any[]; confidence: number; toolsUsed: string[] }) => void
+    onComplete?: (data: { sources: any[]; confidence: number; toolsUsed: string[] }) => void,
+    onStatus?: (status: string) => void
   ) => {
     setIsLoading(true);
     setError(null);
@@ -164,6 +165,8 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
 
             if (data.type === 'token' && onToken) {
               onToken(data.content);
+            } else if (data.type === 'status' && onStatus) {
+              onStatus(data.content);
             } else if (data.type === 'final') {
               finalData = data;
             } else if (data.type === 'error') {

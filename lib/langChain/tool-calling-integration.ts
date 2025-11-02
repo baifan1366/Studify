@@ -687,6 +687,180 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
   }
 
   /**
+   * Educational Q&A with streaming support
+   */
+  async *educationalQAStream(
+    question: string,
+    options: {
+      userId?: number;
+      contentTypes?: string[];
+      includeAnalysis?: boolean;
+      conversationContext?: Array<{ role: string; content: string }>;
+      conversationId?: string;
+      model?: string;
+      videoContext?: {
+        lessonId?: string;
+        attachmentId?: number | null;
+        currentTime?: number;
+      };
+    } = {}
+  ): AsyncGenerator<{
+    type: 'search_start' | 'search_complete' | 'answer_start' | 'token' | 'complete' | 'error';
+    content?: string;
+    metadata?: any;
+  }> {
+    console.log(`🎯 Streaming Q&A: "${question.substring(0, 100)}..."`);
+    const toolsUsed: string[] = [];
+
+    try {
+      const videoContext = options.videoContext;
+
+      if (videoContext) {
+        console.log("📹 Video context:", videoContext);
+      }
+
+      // OPTIMIZATION: Start answer generation immediately, search in background
+      // This provides instant feedback to users
+      
+      console.log("💬 Starting immediate answer generation...");
+      yield { type: 'answer_start', content: 'Generating answer...' };
+      
+      // Start search in background (don't await)
+      let searchResults = "";
+      const searchPromise = (async () => {
+        const searchTool = getToolByName("search");
+        if (searchTool && (videoContext || options.contentTypes)) {
+          console.log("🔍 Background search started...");
+          const searchInput = {
+            query: question,
+            contentTypes: options.contentTypes || ["video_segment", "lesson", "note"],
+            videoContext: videoContext || undefined,
+          };
+
+          try {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Search timeout')), 3000) // 3 second timeout
+            );
+            
+            const result = await Promise.race([
+              (searchTool as any).call(searchInput),
+              timeoutPromise
+            ]) as string;
+            
+            toolsUsed.push("search");
+            console.log(`✅ Background search completed: ${result?.length || 0} chars`);
+            return result;
+          } catch (e) {
+            console.error("❌ Background search failed:", e);
+            return "";
+          }
+        }
+        return "";
+      })();
+
+      // Wait briefly for search (max 1 second), then proceed with or without results
+      const quickSearchPromise = Promise.race([
+        searchPromise,
+        new Promise<string>((resolve) => setTimeout(() => resolve(""), 1000))
+      ]);
+      
+      searchResults = await quickSearchPromise;
+      
+      if (searchResults) {
+        console.log("✅ Quick search succeeded, using results");
+      } else {
+        console.log("⏭️ Proceeding without search results for faster response");
+      }
+
+      // Step 2: Stream answer from LLM
+      console.log("💬 Step 2: Starting LLM streaming...");
+      yield { type: 'answer_start', content: 'Generating answer...' };
+      
+      const llm = await getLLM({
+        model: options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+        temperature: 0.3,
+        streaming: true,
+      });
+      console.log("✅ LLM instance created");
+
+      let finalQ = question;
+      if (
+        searchResults &&
+        !searchResults.includes("No relevant content found")
+      ) {
+        finalQ = `Based on these search results, answer the question concisely and accurately.
+
+Question: "${question}"
+
+Search Results:
+${searchResults}
+
+Instructions:
+- Provide a clear, direct answer
+- Reference specific information from the search results
+- If the results mention timestamps, include them in your answer
+- Keep the answer focused and relevant to the question`;
+      } else {
+        finalQ = `Answer this educational question: "${question}"
+
+Provide a clear, helpful answer using your knowledge.`;
+      }
+
+      // Build conversation context
+      const messages: any[] = [];
+      
+      if (options.conversationContext && options.conversationContext.length > 0) {
+        for (const msg of options.conversationContext.slice(-4)) {
+          if (msg.role === 'user') {
+            messages.push(new HumanMessage(msg.content));
+          } else {
+            messages.push(new AIMessage(msg.content));
+          }
+        }
+      }
+      
+      messages.push(new HumanMessage(finalQ));
+      console.log(`📝 Prepared ${messages.length} messages for LLM`);
+
+      // Stream the response
+      console.log("🌊 Starting stream...");
+      const stream = await llm.stream(messages);
+      console.log("✅ Stream started, waiting for chunks...");
+      
+      let chunkCount = 0;
+      for await (const chunk of stream) {
+        chunkCount++;
+        const content = chunk.content as string;
+        if (content) {
+          console.log(`📦 Chunk ${chunkCount}: ${content.substring(0, 20)}...`);
+          yield { type: 'token', content };
+        }
+      }
+      console.log(`✅ Stream completed with ${chunkCount} chunks`);
+
+      toolsUsed.push("answer_question");
+
+      yield { 
+        type: 'complete', 
+        content: 'Answer complete',
+        metadata: {
+          toolsUsed,
+          confidence: searchResults ? 0.9 : 0.75,
+          sources: []
+        }
+      };
+
+    } catch (error) {
+      console.error("❌ Streaming Q&A failed:", error);
+      yield {
+        type: 'error',
+        content: "I apologize, but I encountered an error. Please try again.",
+        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+      };
+    }
+  }
+
+  /**
    * Content analysis with tools - 扩展支持更多分析类型
    */
   async analyzeCourseContent(

@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiSend } from "@/lib/api-config";
 
 interface GamificationSectionProps {
@@ -56,6 +56,15 @@ interface CheckinResponse {
     message: string;
     alreadyCheckedIn?: boolean;
     weeklyCheckins?: boolean[];
+  };
+}
+
+interface CheckinStatusResponse {
+  success: boolean;
+  data: {
+    hasCheckedInToday: boolean;
+    currentStreak: number;
+    weeklyCheckins: boolean[];
   };
 }
 
@@ -79,6 +88,16 @@ export default function GamificationSection({
   const { data: leaderboardData, isLoading: leaderboardLoading } =
     useWeeklyLeaderboard(5);
 
+  // Fetch check-in status on load
+  const { data: checkinStatusData } = useQuery<CheckinStatusResponse>({
+    queryKey: ["checkin-status"],
+    queryFn: () =>
+      apiSend({
+        url: "/api/community/checkin",
+        method: "GET",
+      }),
+  });
+
   // Check-in mutation
   const checkinMutation = useMutation<CheckinResponse, Error>({
     mutationFn: () =>
@@ -90,9 +109,10 @@ export default function GamificationSection({
     onSuccess: (response) => {
       setCheckinResult(response.data);
       setShowCheckinModal(true);
-      // Refresh learning stats to update streak
+      // Refresh learning stats and check-in status
       queryClient.invalidateQueries({ queryKey: ["learning-stats"] });
       queryClient.invalidateQueries({ queryKey: ["points-data"] });
+      queryClient.invalidateQueries({ queryKey: ["checkin-status"] });
       onDailyCheckin?.();
     },
     onError: (error: any) => {
@@ -112,11 +132,21 @@ export default function GamificationSection({
   const achievements = achievementsData?.data;
   const leaderboard = leaderboardData?.data?.users || [];
 
-  // 签到状态从checkinResult获取
-  const hasCheckedInToday = checkinResult?.alreadyCheckedIn || false;
+  // Get check-in status from API or checkinResult
+  const checkinStatus = checkinStatusData?.data;
+  const hasCheckedInToday = 
+    checkinResult?.alreadyCheckedIn || 
+    checkinStatus?.hasCheckedInToday || 
+    false;
   const currentStreak =
-    checkinResult?.currentStreak || learningStats?.summary.studyStreak || 0;
-  const weeklyCheckins = checkinResult?.weeklyCheckins || Array(7).fill(false);
+    checkinResult?.currentStreak || 
+    checkinStatus?.currentStreak ||
+    learningStats?.summary.studyStreak || 
+    0;
+  const weeklyCheckins = 
+    checkinResult?.weeklyCheckins || 
+    checkinStatus?.weeklyCheckins ||
+    Array(7).fill(false);
 
   // 获取成就图标
   const getAchievementIcon = (category: string) => {

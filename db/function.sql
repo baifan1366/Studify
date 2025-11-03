@@ -1580,10 +1580,14 @@ declare
   ach_type text;
   emoji_filter text;
   current_val int;
+  v_points_reward int;
+  v_achievement_code text;
+  v_achievement_name text;
+  v_rows_updated int;
 begin
-  -- 取成就规则
-  select rule, (rule->>'min')::int, rule->>'type', rule->>'emoji'
-  into rule_json, min_count, ach_type, emoji_filter
+  -- 取成就规则和积分奖励
+  select rule, (rule->>'min')::int, rule->>'type', rule->>'emoji', (rule->>'points')::int, code, name
+  into rule_json, min_count, ach_type, emoji_filter, v_points_reward, v_achievement_code, v_achievement_name
   from community_achievement
   where id = _achievement_id and is_deleted = false;
 
@@ -1599,7 +1603,35 @@ begin
     set unlocked = true, unlocked_at = now(), updated_at = now()
     where user_id = _user_id and achievement_id = _achievement_id
       and unlocked = false;
-    return true;
+    
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+    
+    -- 只有在实际解锁时才奖励积分（避免重复奖励）
+    if v_rows_updated > 0 and v_points_reward > 0 then
+      -- 更新用户总积分
+      update profiles 
+      set points = points + v_points_reward
+      where id = _user_id;
+      
+      -- 记录积分获得
+      insert into community_points_ledger (
+        user_id,
+        points,
+        reason,
+        ref
+      ) values (
+        _user_id,
+        v_points_reward,
+        'Achievement unlocked: ' || coalesce(v_achievement_name, v_achievement_code),
+        jsonb_build_object(
+          'type', 'achievement_reward',
+          'achievement_id', _achievement_id,
+          'achievement_code', v_achievement_code
+        )
+      );
+    end if;
+    
+    return v_rows_updated > 0;
   end if;
 
   return false;

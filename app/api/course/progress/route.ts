@@ -133,6 +133,51 @@ export async function POST(request: NextRequest) {
         }
       });
 
+    // Award points for lesson completion (only on first completion)
+    if (progressPct >= 100 && state === 'completed') {
+      // Check if this is the first time completing this lesson
+      const { data: existingCompletion } = await supabase
+        .from('community_points_ledger')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('reason', 'Lesson completed')
+        .eq('ref->lesson_id', lesson.id.toString())
+        .maybeSingle();
+
+      if (!existingCompletion) {
+        const lessonPoints = 5; // Base points for completing a lesson
+
+        // Add points to ledger
+        await supabase
+          .from('community_points_ledger')
+          .insert({
+            user_id: userId,
+            points: lessonPoints,
+            reason: 'Lesson completed',
+            ref: {
+              lesson_id: lesson.id,
+              lesson_title: lesson.title,
+              course_id: course.id,
+              course_title: course.title
+            }
+          });
+
+        // Update user's total points
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('points')
+          .eq('id', userId)
+          .single();
+
+        if (currentProfile) {
+          await supabase
+            .from('profiles')
+            .update({ points: (currentProfile.points || 0) + lessonPoints })
+            .eq('id', userId);
+        }
+      }
+    }
+
     // Send notification if lesson completed and requested
     if (sendNotification && progressPct >= 100) {
       try {

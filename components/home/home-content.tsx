@@ -1,22 +1,22 @@
 "use client";
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
-import HeroSection from '@/components/home/hero-section';
-import ShowHeroButton from '@/components/home/show-hero-button';
-import AIAssistantPreview from '@/components/ai-assistant-preview';
-import LearningPath from '@/components/learning-path';
-import CommunityHighlights from '@/components/community-highlights';
-import LearningReport from '@/components/learning-report';
-import GamificationSection from '@/components/gamification-section';
-import { useToast } from '@/hooks/use-toast';
-import { useTranslations } from 'next-intl';
-import { useUser } from '@/hooks/profile/use-user';
+import React from "react";
+import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
+import HeroSection from "@/components/home/hero-section";
+import ShowHeroButton from "@/components/home/show-hero-button";
+import AIAssistantPreview from "@/components/ai-assistant-preview";
+import LearningPath from "@/components/learning-path";
+import CommunityHighlights from "@/components/community-highlights";
+import LearningReport from "@/components/learning-report";
+import GamificationSection from "@/components/gamification-section";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
+import { useUser } from "@/hooks/profile/use-user";
 
 export default function HomeContent() {
-  const t = useTranslations('HomeContent');
+  const t = useTranslations("HomeContent");
   const { toast } = useToast();
   const router = useRouter();
   const locale = useLocale();
@@ -25,7 +25,7 @@ export default function HomeContent() {
   const { data: user, isLoading, isError, error } = useUser();
 
   const handleHeaderAction = (action: string) => {
-    console.log('Header action:', action);
+    console.log("Header action:", action);
   };
 
   const handleStartLearning = () => {
@@ -74,7 +74,7 @@ export default function HomeContent() {
       <div>
         {/* Show Hero Button (only visible when hero is hidden) */}
         <ShowHeroButton />
-        
+
         {/* Hero Section */}
         <HeroSection
           onStartLearning={handleStartLearning}
@@ -82,9 +82,7 @@ export default function HomeContent() {
         />
 
         {/* AI Learning Assistant Preview */}
-        <AIAssistantPreview
-          onExperienceAI={handleExperienceAI}
-        />
+        <AIAssistantPreview onExperienceAI={handleExperienceAI} />
 
         {/* Community Highlights */}
         <CommunityHighlights
@@ -93,19 +91,13 @@ export default function HomeContent() {
         />
 
         {/* Gamification Section */}
-        <GamificationSection
-          onDailyCheckin={handleDailyCheckin}
-        />
+        <GamificationSection onDailyCheckin={handleDailyCheckin} />
 
         {/* Learning Path Planning */}
-        <LearningPath
-          onGenerateStudyPlan={handleGenerateStudyPlan}
-        />
+        <LearningPath onGenerateStudyPlan={handleGenerateStudyPlan} />
 
         {/* Learning Report */}
-        <LearningReport
-          onViewProgress={handleViewProgress}
-        />
+        <LearningReport onViewProgress={handleViewProgress} />
       </div>
     </>
   );

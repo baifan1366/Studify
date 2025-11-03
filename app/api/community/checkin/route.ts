@@ -1,7 +1,66 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
 
-export async function POST(req: Request) {
+export async function GET() {
+  try {
+    const supabase = await createServerClient();
+
+    // Get current user from session
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+
+    const userId = profile.id;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split("T")[0];
+
+    // Check if already checked in today
+    const { data: existingCheckin } = await supabase
+      .from("community_checkin")
+      .select("id, checkin_date")
+      .eq("user_id", userId)
+      .eq("checkin_date", todayStr)
+      .single();
+
+    const hasCheckedInToday = !!existingCheckin;
+    const currentStreak = await calculateStreak(supabase, userId);
+    const weeklyCheckins = await getWeeklyCheckins(supabase, userId);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        hasCheckedInToday,
+        currentStreak,
+        weeklyCheckins,
+      },
+    });
+  } catch (error: any) {
+    console.error("Check-in status error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST() {
   try {
     const supabase = await createServerClient();
 
@@ -80,31 +139,58 @@ export async function POST(req: Request) {
     const streakBonus = Math.floor(currentStreak / 7) * 5; // +5 points per week
     const pointsEarned = basePoints + streakBonus;
 
-    // Award points
-    const { error: pointsError } = await supabase.from("user_points").insert({
-      user_id: userId,
-      points: pointsEarned,
-      reason: "Daily check-in",
-      ref: { streak: currentStreak, date: todayStr },
-    });
+    // Award points to ledger
+    const { error: pointsError } = await supabase
+      .from("community_points_ledger")
+      .insert({
+        user_id: userId,
+        points: pointsEarned,
+        reason: "Daily check-in",
+        ref: { streak: currentStreak, date: todayStr },
+      });
 
     if (pointsError) {
-      console.error("Points award error:", pointsError);
+      console.error("Points ledger error:", pointsError);
     }
 
-    // Check if it's a new record
-    const { data: maxStreak } = await supabase
+    // Update user's total points in profile
+    const { data: currentProfile } = await supabase
       .from("profiles")
-      .select("max_streak")
+      .select("points")
       .eq("id", userId)
       .single();
 
-    const isNewRecord = currentStreak > (maxStreak?.max_streak || 0);
+    const newTotalPoints = (currentProfile?.points || 0) + pointsEarned;
+
+    const { error: profileUpdateError } = await supabase
+      .from("profiles")
+      .update({ points: newTotalPoints })
+      .eq("id", userId);
+
+    if (profileUpdateError) {
+      console.error("Profile points update error:", profileUpdateError);
+    }
+
+    // Check if it's a new record (using preferences jsonb field to store max_streak)
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("preferences")
+      .eq("id", userId)
+      .single();
+
+    const preferences = profileData?.preferences || {};
+    const maxStreak = preferences.max_streak || 0;
+    const isNewRecord = currentStreak > maxStreak;
 
     if (isNewRecord) {
       await supabase
         .from("profiles")
-        .update({ max_streak: currentStreak })
+        .update({
+          preferences: {
+            ...preferences,
+            max_streak: currentStreak,
+          },
+        })
         .eq("id", userId);
     }
 

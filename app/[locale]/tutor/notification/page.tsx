@@ -21,7 +21,7 @@ export default async function TutorNotificationsPage() {
   const t = await getTranslations('TutorNotificationsPage');
 
   return (
-    <div>
+    <div className="min-h-screen bg-background">
       <NotificationsPage />
     </div>
   );

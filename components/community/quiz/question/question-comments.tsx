@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart } from "lucide-react";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 export default function QuestionComments({
   comments,
@@ -18,7 +19,15 @@ export default function QuestionComments({
         {comments.map((c) => (
           <div key={c.id} className="flex items-start gap-3">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={c.author.avatarUrl} />
+              {c.author.avatarUrl && c.author.avatarUrl.includes('mega.nz') ? (
+                <MegaImage
+                  megaUrl={c.author.avatarUrl}
+                  alt={c.author.name || ''}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <AvatarImage src={c.author.avatarUrl} />
+              )}
               <AvatarFallback>{c.author.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">

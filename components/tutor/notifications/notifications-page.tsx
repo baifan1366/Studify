@@ -52,7 +52,7 @@ export default function NotificationsPage() {
         >
           <div>
             <motion.h1 
-              className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400 bg-clip-text text-transparent"
+              className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-orange-600 dark:from-blue-400 dark:via-purple-400 dark:to-orange-400 bg-clip-text text-transparent"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
@@ -60,7 +60,7 @@ export default function NotificationsPage() {
               {t('notifications')}
             </motion.h1>
             <motion.p 
-              className="text-white/70 dark:text-white/70 text-lg"
+              className="text-gray-600 dark:text-gray-400 text-lg"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
@@ -81,7 +81,7 @@ export default function NotificationsPage() {
                 whileTap={{ scale: 0.95 }}
               >
                 <Button
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 dark:from-blue-500 dark:to-purple-500 dark:hover:from-blue-600 dark:hover:to-purple-600 text-white border-0"
                   onClick={handleMarkAllRead}
                   disabled={markAllReadMutation.isPending}
                 >
@@ -96,17 +96,17 @@ export default function NotificationsPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Button className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm" size="icon">
+                  <Button variant="outline" size="icon">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </motion.div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-sm border-white/20">
-                <DropdownMenuItem className="text-white hover:bg-white/10">
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
                   <Filter className="h-4 w-4 mr-2" />
                   {t('filter_notifications')}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-white hover:bg-white/10">
+                <DropdownMenuItem>
                   {t('export_notifications')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -120,25 +120,25 @@ export default function NotificationsPage() {
           transition={{ delay: 0.8, duration: 0.6 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm border border-white/20">
-              <TabsTrigger value="all" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" />
                 {t('all')}
                 {allNotifications && (
-                  <Badge variant="secondary" className="ml-1 bg-blue-500/20 text-blue-300 border-blue-400/30">
+                  <Badge variant="secondary" className="ml-1">
                     {allNotifications.total}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="unread" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
+              <TabsTrigger value="unread" className="flex items-center gap-2">
                 {t('unread')}
                 {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-1 bg-red-500/20 text-red-300 border-red-400/30">
+                  <Badge variant="destructive" className="ml-1">
                     {unreadCount}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
+              <TabsTrigger value="settings" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 {t('settings')}
               </TabsTrigger>
@@ -150,10 +150,10 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+                <Card>
                   <CardHeader>
-                    <CardTitle className="text-white">All Notifications</CardTitle>
-                    <CardDescription className="text-white/70">
+                    <CardTitle>All Notifications</CardTitle>
+                    <CardDescription>
                       View all your notifications, both read and unread
                     </CardDescription>
                   </CardHeader>
@@ -164,13 +164,14 @@ export default function NotificationsPage() {
                     />
                     
                     {currentNotifications?.hasMore && (
-                      <div className="p-4 border-t border-white/10">
+                      <div className="p-4 border-t">
                         <motion.div
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <Button
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                            variant="outline"
+                            className="w-full"
                             onClick={handleLoadMore}
                           >
                             Load more notifications
@@ -189,15 +190,15 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+                <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
+                    <CardTitle className="flex items-center gap-2">
                       Unread Notifications
                       {unreadCount > 0 && (
-                        <Badge className="bg-red-500/20 text-red-300 border-red-400/30">{unreadCount}</Badge>
+                        <Badge variant="destructive">{unreadCount}</Badge>
                       )}
                     </CardTitle>
-                    <CardDescription className="text-white/70">
+                    <CardDescription>
                       {unreadCount > 0 
                         ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
                         : 'You\'re all caught up! No unread notifications.'
@@ -211,13 +212,14 @@ export default function NotificationsPage() {
                     />
                     
                     {currentNotifications?.hasMore && (
-                      <div className="p-4 border-t border-white/10">
+                      <div className="p-4 border-t">
                         <motion.div
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <Button
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                            variant="outline"
+                            className="w-full"
                             onClick={handleLoadMore}
                           >
                             Load more notifications

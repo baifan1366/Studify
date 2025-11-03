@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import MegaImage from "@/components/attachment/mega-blob-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap, Trash2 } from "lucide-react";
@@ -59,10 +60,18 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
       </h1>
       <div className="flex items-center mb-4">
         <Avatar className="h-10 w-10 mr-3">
-          <AvatarImage
-            src={quiz.author?.avatar_url || ''}
-            alt={quiz.author?.display_name || ''}
-          />
+          {quiz.author?.avatar_url && quiz.author.avatar_url.includes('mega.nz') ? (
+            <MegaImage
+              megaUrl={quiz.author.avatar_url}
+              alt={quiz.author.display_name || ''}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <AvatarImage
+              src={quiz.author?.avatar_url || ''}
+              alt={quiz.author?.display_name || ''}
+            />
+          )}
           <AvatarFallback>{quiz.author?.display_name?.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>

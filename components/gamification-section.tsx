@@ -32,6 +32,7 @@ import {
   useWeeklyLeaderboard,
   getRankColorClass,
 } from "@/hooks/profile/use-leaderboard";
+import MegaImage from "@/components/attachment/mega-blob-image";
 import {
   Dialog,
   DialogContent,
@@ -134,17 +135,17 @@ export default function GamificationSection({
 
   // Get check-in status from API or checkinResult
   const checkinStatus = checkinStatusData?.data;
-  const hasCheckedInToday = 
-    checkinResult?.alreadyCheckedIn || 
-    checkinStatus?.hasCheckedInToday || 
+  const hasCheckedInToday =
+    checkinResult?.alreadyCheckedIn ||
+    checkinStatus?.hasCheckedInToday ||
     false;
   const currentStreak =
-    checkinResult?.currentStreak || 
+    checkinResult?.currentStreak ||
     checkinStatus?.currentStreak ||
-    learningStats?.summary.studyStreak || 
+    learningStats?.summary.studyStreak ||
     0;
-  const weeklyCheckins = 
-    checkinResult?.weeklyCheckins || 
+  const weeklyCheckins =
+    checkinResult?.weeklyCheckins ||
     checkinStatus?.weeklyCheckins ||
     Array(7).fill(false);
 
@@ -248,7 +249,7 @@ export default function GamificationSection({
 
   return (
     <motion.section
-      className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8"
+      className="bg-white/5 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-200/20 dark:border-white/10 p-6 mb-8"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6, duration: 0.6 }}
@@ -259,23 +260,25 @@ export default function GamificationSection({
           <Trophy className="text-white" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">{t("title")}</h2>
-          <p className="text-white/70">{t("subtitle")}</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t("title")}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">{t("subtitle")}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Daily Check-in */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+        <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200/20 dark:border-white/10">
           <div className="text-center">
             <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar size={32} className="text-white" />
             </div>
 
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               {t("daily_checkin_title")}
             </h3>
-            <p className="text-sm text-white/70 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {t("daily_checkin_desc_prefix")}{" "}
               {t("current_streak", {
                 count: currentStreak,
@@ -330,17 +333,17 @@ export default function GamificationSection({
                 />
               ))}
             </div>
-            <p className="text-xs text-white/50 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
               {t("this_weeks_progress")}
             </p>
           </div>
         </div>
 
         {/* Leaderboard */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+        <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200/20 dark:border-white/10">
           <div className="flex items-center gap-2 mb-4">
-            <Crown size={20} className="text-yellow-400" />
-            <h3 className="text-lg font-semibold text-white">
+            <Crown size={20} className="text-yellow-400 dark:text-yellow-500" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               {t("weekly_leaderboard_title")}
             </h3>
           </div>
@@ -365,9 +368,12 @@ export default function GamificationSection({
               ))
             ) : leaderboard.length === 0 ? (
               // 无数据状态
-              <div className="bg-white/5 rounded-lg p-6 border border-white/10 text-center">
-                <Trophy className="mx-auto mb-2 text-white/40" size={24} />
-                <p className="text-white/60 text-sm">
+              <div className="bg-white/5 dark:bg-gray-800/50 rounded-lg p-6 border border-gray-200/20 dark:border-white/10 text-center">
+                <Trophy
+                  className="mx-auto mb-2 text-gray-400 dark:text-gray-500"
+                  size={24}
+                />
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
                   {t("no_leaderboard_data") ||
                     "No leaderboard data available yet"}
                 </p>
@@ -379,8 +385,8 @@ export default function GamificationSection({
                   key={user.publicId || user.userId}
                   className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                     user.isCurrentUser
-                      ? "bg-blue-600/20 border border-blue-400/30"
-                      : "bg-white/5 hover:bg-white/10"
+                      ? "bg-blue-600/20 dark:bg-blue-500/20 border border-blue-400/30"
+                      : "bg-white/5 dark:bg-gray-800/50 hover:bg-white/10 dark:hover:bg-gray-700/50"
                   }`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -395,18 +401,28 @@ export default function GamificationSection({
                     >
                       {user.rank}
                     </span>
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.displayName}
-                      className="w-8 h-8 rounded-full"
-                    />
+                    {user.avatarUrl && user.avatarUrl.includes("mega.nz") ? (
+                      <MegaImage
+                        megaUrl={user.avatarUrl}
+                        alt={user.displayName}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.displayName}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    )}
                   </div>
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span
                         className={`font-medium text-sm ${
-                          user.isCurrentUser ? "text-blue-400" : "text-white"
+                          user.isCurrentUser
+                            ? "text-blue-400 dark:text-blue-300"
+                            : "text-gray-900 dark:text-white"
                         }`}
                       >
                         {user.displayName}
@@ -415,7 +431,7 @@ export default function GamificationSection({
                         <span className="text-sm">{user.badge}</span>
                       )}
                     </div>
-                    <span className="text-xs text-white/60">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
                       {user.points} {t("points_suffix")}
                     </span>
                   </div>
@@ -426,15 +442,18 @@ export default function GamificationSection({
         </div>
 
         {/* Enhanced Badge Showcase */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+        <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200/20 dark:border-white/10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Award size={20} className="text-purple-400" />
-              <h3 className="text-lg font-semibold text-white">
+              <Award
+                size={20}
+                className="text-purple-400 dark:text-purple-500"
+              />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {t("badge_collection_title")}
               </h3>
             </div>
-            <div className="flex items-center gap-2 text-xs text-white/60">
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <Trophy size={14} />
               <span>
                 {achievementStats.unlocked}/{achievementStats.total}
@@ -445,23 +464,29 @@ export default function GamificationSection({
           {/* Achievement Stats */}
           {!achievementsLoading && achievementStats.total > 0 && (
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="bg-white/5 rounded-lg p-2 text-center">
-                <div className="text-green-400 font-bold text-sm">
+              <div className="bg-white/5 dark:bg-gray-800/50 rounded-lg p-2 text-center">
+                <div className="text-green-400 dark:text-green-500 font-bold text-sm">
                   {achievementStats.unlocked}
                 </div>
-                <div className="text-xs text-white/60">Earned</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Earned
+                </div>
               </div>
-              <div className="bg-white/5 rounded-lg p-2 text-center">
-                <div className="text-yellow-400 font-bold text-sm">
+              <div className="bg-white/5 dark:bg-gray-800/50 rounded-lg p-2 text-center">
+                <div className="text-yellow-400 dark:text-yellow-500 font-bold text-sm">
                   {achievementStats.inProgress}
                 </div>
-                <div className="text-xs text-white/60">In Progress</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  In Progress
+                </div>
               </div>
-              <div className="bg-white/5 rounded-lg p-2 text-center">
-                <div className="text-blue-400 font-bold text-sm">
+              <div className="bg-white/5 dark:bg-gray-800/50 rounded-lg p-2 text-center">
+                <div className="text-blue-400 dark:text-blue-500 font-bold text-sm">
                   {achievementStats.total - achievementStats.unlocked}
                 </div>
-                <div className="text-xs text-white/60">Locked</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Locked
+                </div>
               </div>
             </div>
           )}
@@ -477,8 +502,8 @@ export default function GamificationSection({
                     onClick={() => setSelectedCategory(option.value)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedCategory === option.value
-                        ? "bg-purple-600 text-white"
-                        : "bg-white/10 text-white/70 hover:bg-white/20"
+                        ? "bg-purple-600 dark:bg-purple-500 text-white"
+                        : "bg-white/10 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-white/20 dark:hover:bg-gray-600/50"
                     }`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -511,9 +536,12 @@ export default function GamificationSection({
               ))
             ) : displayAchievements.length === 0 ? (
               // 无数据状态
-              <div className="bg-white/5 rounded-lg p-6 border border-white/10 text-center">
-                <Lock className="mx-auto mb-2 text-white/40" size={24} />
-                <p className="text-white/60 text-sm">
+              <div className="bg-white/5 dark:bg-gray-800/50 rounded-lg p-6 border border-gray-200/20 dark:border-white/10 text-center">
+                <Lock
+                  className="mx-auto mb-2 text-gray-400 dark:text-gray-500"
+                  size={24}
+                />
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
                   {selectedCategory === "all"
                     ? t("no_achievements") || "No achievements available"
                     : `No ${selectedCategory} achievements yet`}
@@ -535,8 +563,8 @@ export default function GamificationSection({
                       key={achievement.public_id}
                       className={`p-3 rounded-lg border transition-all duration-300 cursor-pointer ${
                         achievement.isUnlocked
-                          ? "bg-white/10 border-white/20 hover:bg-white/15"
-                          : "bg-white/5 border-white/10 hover:bg-white/10"
+                          ? "bg-white/10 dark:bg-gray-700/50 border-gray-200/20 dark:border-white/20 hover:bg-white/15 dark:hover:bg-gray-600/50"
+                          : "bg-white/5 dark:bg-gray-800/50 border-gray-200/20 dark:border-white/10 hover:bg-white/10 dark:hover:bg-gray-700/50"
                       }`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -557,8 +585,8 @@ export default function GamificationSection({
                             <span
                               className={`font-medium text-sm ${
                                 achievement.isUnlocked
-                                  ? "text-white"
-                                  : "text-white/60"
+                                  ? "text-gray-900 dark:text-white"
+                                  : "text-gray-600 dark:text-gray-400"
                               }`}
                             >
                               {achievement.name}
@@ -566,15 +594,15 @@ export default function GamificationSection({
                             <span
                               className={`px-2 py-1 rounded-full text-xs ${
                                 achievement.isUnlocked
-                                  ? "bg-green-500/20 text-green-300"
-                                  : "bg-purple-500/20 text-purple-300"
+                                  ? "bg-green-500/20 text-green-700 dark:text-green-300"
+                                  : "bg-purple-500/20 text-purple-700 dark:text-purple-300"
                               }`}
                             >
                               {achievement.category}
                             </span>
                           </div>
 
-                          <p className="text-xs text-white/60 mb-2">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
                             {achievement.description}
                           </p>
 
@@ -582,14 +610,14 @@ export default function GamificationSection({
                             achievement.progress < 100 && (
                               <div className="space-y-1">
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-white/50">
+                                  <span className="text-gray-500 dark:text-gray-500">
                                     {t("progress_label")}
                                   </span>
-                                  <span className="text-white/70">
+                                  <span className="text-gray-700 dark:text-gray-300">
                                     {Math.round(achievement.progress)}%
                                   </span>
                                 </div>
-                                <div className="w-full bg-white/10 rounded-full h-1.5">
+                                <div className="w-full bg-gray-200 dark:bg-white/10 rounded-full h-1.5">
                                   <motion.div
                                     className={`h-1.5 rounded-full bg-gradient-to-r ${achievementColor}`}
                                     initial={{ width: 0 }}
@@ -625,7 +653,7 @@ export default function GamificationSection({
           {!achievementsLoading && allAchievements.length > 4 && (
             <motion.button
               onClick={() => setShowAllAchievements(!showAllAchievements)}
-              className="w-full mt-4 p-3 bg-white/10 hover:bg-white/20 rounded-lg border border-white/20 text-white/80 text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2"
+              className="w-full mt-4 p-3 bg-white/10 dark:bg-gray-700/50 hover:bg-white/20 dark:hover:bg-gray-600/50 rounded-lg border border-gray-200/20 dark:border-white/20 text-gray-700 dark:text-gray-300 text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -772,7 +800,7 @@ export default function GamificationSection({
 
               {/* Message */}
               {checkinResult.message && (
-                <p className="text-center text-sm text-white/70 italic">
+                <p className="text-center text-sm text-gray-600 dark:text-gray-400 italic">
                   "{checkinResult.message}"
                 </p>
               )}

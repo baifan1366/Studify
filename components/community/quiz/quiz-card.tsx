@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import MegaImage from "@/components/attachment/mega-blob-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -184,7 +185,15 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
         {quiz.author && (
           <div className="flex items-center gap-2 mt-3 mb-3">
             <Avatar className="h-6 w-6">
-              <AvatarImage src={quiz.author.avatar_url || ''} alt={quiz.author.display_name || ''} />
+              {quiz.author.avatar_url && quiz.author.avatar_url.includes('mega.nz') ? (
+                <MegaImage
+                  megaUrl={quiz.author.avatar_url}
+                  alt={quiz.author.display_name || ''}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <AvatarImage src={quiz.author.avatar_url || ''} alt={quiz.author.display_name || ''} />
+              )}
               <AvatarFallback className="text-xs">
                 {quiz.author.display_name?.charAt(0) || <User className="h-3 w-3" />}
               </AvatarFallback>

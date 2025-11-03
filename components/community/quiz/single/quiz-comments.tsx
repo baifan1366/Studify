@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, ThumbsUp } from "lucide-react";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 interface Comment {
   id: string;
@@ -18,7 +19,15 @@ export default function QuizComments({ comments }: { comments: Comment[] }) {
         {comments.map((comment) => (
           <div key={comment.id} className="flex items-start gap-4">
             <Avatar>
-              <AvatarImage src={comment.author.avatarUrl} />
+              {comment.author.avatarUrl && comment.author.avatarUrl.includes('mega.nz') ? (
+                <MegaImage
+                  megaUrl={comment.author.avatarUrl}
+                  alt={comment.author.name || ''}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <AvatarImage src={comment.author.avatarUrl} />
+              )}
               <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">

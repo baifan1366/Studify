@@ -173,7 +173,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('total_courses')}</CardTitle>
-            <BookOpen className="h-4 w-4 text-blue-600" />
+            <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalCourses}</div>
@@ -186,7 +186,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('total_students')}</CardTitle>
-            <Users className="h-4 w-4 text-green-600" />
+            <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStudents}</div>
@@ -199,7 +199,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('classrooms')}</CardTitle>
-            <Video className="h-4 w-4 text-purple-600" />
+            <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
@@ -212,7 +212,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('this_month')}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-orange-600" />
+            <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -241,10 +241,10 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {features.map((feature, index) => (
-            <Card key={index} className="hover:shadow-md transition-shadow">
+            <Card key={index} className="hover:shadow-md dark:hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center space-x-3">
-                  <feature.icon className="h-6 w-6 text-blue-600" />
+                  <feature.icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                   <div>
                     <CardTitle className="text-lg">{feature.title}</CardTitle>
                     <CardDescription className="mt-1">{feature.description}</CardDescription>
@@ -255,7 +255,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                 <div className="space-y-3">
                   {feature.items.map((item, itemIndex) => (
                     <div key={itemIndex} className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
                       <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
                     </div>
                   ))}

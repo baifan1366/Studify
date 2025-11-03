@@ -34,6 +34,7 @@ import {
 import AllAttemptsModal from "./all-attempts-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/profile/use-user";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 const AttemptCard = ({
   attempt,
@@ -140,7 +141,15 @@ const SharedPrivateQuizCard = ({
       {/* Shared by info */}
       <div className="flex items-center gap-2 mb-2">
         <Avatar className="h-5 w-5">
-          <AvatarImage src={quiz.granted_by_avatar || undefined} />
+          {quiz.granted_by_avatar && quiz.granted_by_avatar.includes('mega.nz') ? (
+            <MegaImage
+              megaUrl={quiz.granted_by_avatar}
+              alt={quiz.granted_by_name || ''}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <AvatarImage src={quiz.granted_by_avatar || undefined} />
+          )}
           <AvatarFallback className="text-xs bg-white/10">
             {quiz.granted_by_name?.charAt(0)?.toUpperCase() || "U"}
           </AvatarFallback>

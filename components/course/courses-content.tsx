@@ -1,48 +1,93 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { BookOpen, Clock, Users, Star, Zap, Filter, ChevronDown, ChevronUp, Coins, CreditCard } from 'lucide-react';
-import { useCourses } from '@/hooks/course/use-courses';
-import { useEnrolledCoursesByUserId } from '@/hooks/course/use-enrolled-courses';
-import { usePurchaseCourse } from '@/hooks/course/use-course-purchase';
-import { useUser } from '@/hooks/profile/use-user';
-import { usePointsData, useRedeemCourse } from '@/hooks/profile/use-learning-stats';
-import { useProfileCurrency, useUpdateProfileCurrency, getSupportedCurrencies as getProfileSupportedCurrencies, getCurrencySymbol } from '@/hooks/profile/use-profile-currency';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { useTranslations, useLocale } from 'next-intl';
-import { formatCurrency } from '@/lib/formatters';
-import { useCurrencies } from '@/hooks/currency/use-currencies';
-import { convertAndFormatPrice, getSupportedCurrencies } from '@/lib/currency-converter';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { useRouter } from 'next/navigation';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import MegaImage from '@/components/attachment/mega-blob-image';
+import React, { useMemo, useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  BookOpen,
+  Clock,
+  Users,
+  Star,
+  Zap,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Coins,
+  CreditCard,
+} from "lucide-react";
+import { useCourses } from "@/hooks/course/use-courses";
+import { useEnrolledCoursesByUserId } from "@/hooks/course/use-enrolled-courses";
+import { usePurchaseCourse } from "@/hooks/course/use-course-purchase";
+import { useUser } from "@/hooks/profile/use-user";
+import {
+  usePointsData,
+  useRedeemCourse,
+} from "@/hooks/profile/use-learning-stats";
+import {
+  useProfileCurrency,
+  useUpdateProfileCurrency,
+  getSupportedCurrencies as getProfileSupportedCurrencies,
+  getCurrencySymbol,
+} from "@/hooks/profile/use-profile-currency";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { useTranslations, useLocale } from "next-intl";
+import { formatCurrency } from "@/lib/formatters";
+import { useCurrencies } from "@/hooks/currency/use-currencies";
+import {
+  convertAndFormatPrice,
+  getSupportedCurrencies,
+} from "@/lib/currency-converter";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 export default function CoursesContent() {
   const { data: user } = useUser();
   const { data: courses, isLoading } = useCourses();
   const userId = user?.profile?.id || 0;
-  const { data: enrolledCourses } = useEnrolledCoursesByUserId(userId as number);
+  const { data: enrolledCourses } = useEnrolledCoursesByUserId(
+    userId as number
+  );
   const { data: currencies, isLoading: currenciesLoading } = useCurrencies();
-  const { data: pointsData } = usePointsData();
-  const { data: profileCurrency, isLoading: profileCurrencyLoading } = useProfileCurrency();
+  const { data: pointsData, isLoading: pointsLoading } = usePointsData();
+  const { data: profileCurrency, isLoading: profileCurrencyLoading } =
+    useProfileCurrency();
+
+  // Debug: Log points data
+  React.useEffect(() => {
+    if (pointsData) {
+      console.log("[CoursesContent] Points data loaded:", pointsData);
+    }
+  }, [pointsData]);
   const updateProfileCurrency = useUpdateProfileCurrency();
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
   const redeemCourse = useRedeemCourse();
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const [isRedeemingNow, setIsRedeemingNow] = useState(false);
-  const t = useTranslations('CoursesContent');
+  const t = useTranslations("CoursesContent");
   const locale = useLocale();
-  
+
   // Use profile currency or fallback to MYR
-  const currency = profileCurrency?.currency || 'MYR';
+  const currency = profileCurrency?.currency || "MYR";
 
   // Handle currency change with profile update
   const handleCurrencyChange = (newCurrency: string) => {
@@ -51,62 +96,70 @@ export default function CoursesContent() {
   const router = useRouter();
 
   // Filter states
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLevel, setSelectedLevel] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [priceFilter, setPriceFilter] = useState('all');
-  const [durationFilter, setDurationFilter] = useState('all');
-  const [instructorFilter, setInstructorFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [priceFilter, setPriceFilter] = useState("all");
+  const [durationFilter, setDurationFilter] = useState("all");
+  const [instructorFilter, setInstructorFilter] = useState("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Categorize courses based on enrollment
-  const { enrolledCourseIds, availableCourses, enrolledCoursesData } = useMemo(() => {
-    const enrolledIds = new Set((enrolledCourses ?? []).map(ec => ec.course_id));
-    const available = (courses ?? []).filter(c => !enrolledIds.has(c.id));
-    const enrolled = (courses ?? []).filter(c => enrolledIds.has(c.id));
+  const { enrolledCourseIds, availableCourses, enrolledCoursesData } =
+    useMemo(() => {
+      const enrolledIds = new Set(
+        (enrolledCourses ?? []).map((ec) => ec.course_id)
+      );
+      const available = (courses ?? []).filter((c) => !enrolledIds.has(c.id));
+      const enrolled = (courses ?? []).filter((c) => enrolledIds.has(c.id));
 
-    return {
-      enrolledCourseIds: enrolledIds,
-      availableCourses: available,
-      enrolledCoursesData: enrolled
-    };
-  }, [courses, enrolledCourses]);
+      return {
+        enrolledCourseIds: enrolledIds,
+        availableCourses: available,
+        enrolledCoursesData: enrolled,
+      };
+    }, [courses, enrolledCourses]);
 
   const uiCourses = useMemo(() => {
     return (courses ?? []).map((c, idx) => {
       const isEnrolled = enrolledCourseIds.has(c.id);
-      const courseCurrency = c.currency || 'MYR'; // Get the course's original currency
-      
+      const courseCurrency = c.currency || "MYR"; // Get the course's original currency
+
       // Format price with proper currency conversion
-      let formattedPrice = 'Free';
+      let formattedPrice = "Free";
       if (c.price_cents && c.price_cents > 0) {
         if (currencies && currencies.length > 0) {
           // Convert from course currency to user's preferred currency
           formattedPrice = convertAndFormatPrice(
-            c.price_cents, 
-            courseCurrency,  // Source currency (from database)
-            currency,        // Target currency (user preference)
-            currencies, 
+            c.price_cents,
+            courseCurrency, // Source currency (from database)
+            currency, // Target currency (user preference)
+            currencies,
             locale
           );
         } else {
           // Fallback: display in original currency without conversion
-          formattedPrice = formatCurrency(c.price_cents / 100, locale, courseCurrency);
+          formattedPrice = formatCurrency(
+            c.price_cents / 100,
+            locale,
+            courseCurrency
+          );
         }
       }
-      
+
       // Get actual point price from database or fallback to calculated value
-      const pointPrice = c.point_price || Math.max(100, Math.floor((c.price_cents || 0) / 10));
+      const pointPrice =
+        c.point_price || Math.max(100, Math.floor((c.price_cents || 0) / 10));
       const hasPointPrice = !!c.point_price;
-      
+
       return {
         id: c.public_id,
         title: c.title,
         instructor: `Instructor`, // TODO: Fetch actual instructor info from owner_id
         duration: c.total_duration_minutes
           ? `${c.total_duration_minutes} mins`
-          : '—',
+          : "—",
         durationMinutes: c.total_duration_minutes || 0,
         students: c.total_students ?? 0,
         rating: c.average_rating ?? 0,
@@ -117,17 +170,17 @@ export default function CoursesContent() {
         points: pointPrice,
         pointsAvailable: hasPointPrice, // Only show points redemption if course has point price set
         thumbnailUrl: c.thumbnail_url,
-        level: c.level || 'beginner',
-        category: c.category || 'General',
+        level: c.level || "beginner",
+        category: c.category || "General",
         isEnrolled,
         slug: c.slug,
         color: [
-          'from-blue-500 to-cyan-500',
-          'from-purple-500 to-pink-500',
-          'from-green-500 to-teal-500',
-          'from-orange-500 to-red-500',
-          'from-indigo-500 to-purple-500',
-          'from-cyan-500 to-blue-500',
+          "from-blue-500 to-cyan-500",
+          "from-purple-500 to-pink-500",
+          "from-green-500 to-teal-500",
+          "from-orange-500 to-red-500",
+          "from-indigo-500 to-purple-500",
+          "from-cyan-500 to-blue-500",
         ][idx % 6],
       };
     });
@@ -137,31 +190,33 @@ export default function CoursesContent() {
     setIsBuyingNow(true);
     try {
       const result = await purchaseCourse.mutateAsync({
-        courseId: String(courseId)
+        courseId: String(courseId),
       });
-      
+
       // The purchaseCourse hook now handles all navigation and enrollment
       // No need for manual enrollment creation here as the API handles it
-      
     } catch (error) {
       toast({
-        title: t('purchase_failed'),
-        description: t('error_processing_purchase'),
-        variant: 'destructive',
+        title: t("purchase_failed"),
+        description: t("error_processing_purchase"),
+        variant: "destructive",
       });
     } finally {
       setIsBuyingNow(false);
     }
   };
 
-  const handleRedeemWithPoints = async (courseId: string | number, pointsNeeded: number) => {
+  const handleRedeemWithPoints = async (
+    courseId: string | number,
+    pointsNeeded: number
+  ) => {
     const userPoints = pointsData?.data?.currentPoints || 0;
-    
+
     if (userPoints < pointsNeeded) {
       toast({
-        title: t('insufficient_points'),
-        description: t('not_enough_points_to_redeem'),
-        variant: 'destructive',
+        title: t("insufficient_points"),
+        description: t("not_enough_points_to_redeem"),
+        variant: "destructive",
       });
       return;
     }
@@ -169,26 +224,27 @@ export default function CoursesContent() {
     setIsRedeemingNow(true);
     try {
       // Convert course.id back to numeric courseId for API
-      const numericCourseId = courses?.find(c => c.public_id === courseId)?.id;
-      
+      const numericCourseId = courses?.find(
+        (c) => c.public_id === courseId
+      )?.id;
+
       if (!numericCourseId) {
-        throw new Error('Course not found');
+        throw new Error("Course not found");
       }
 
       const result = await redeemCourse.mutateAsync({
-        courseId: numericCourseId
+        courseId: numericCourseId,
       });
-      
+
       toast({
-        title: t('redemption_successful'),
-        description: t('course_redeemed_with_points', { points: pointsNeeded }),
+        title: t("redemption_successful"),
+        description: t("course_redeemed_with_points", { points: pointsNeeded }),
       });
-      
     } catch (error: any) {
       toast({
-        title: t('redemption_failed'),
-        description: error.message || t('error_redeeming_course'),
-        variant: 'destructive',
+        title: t("redemption_failed"),
+        description: error.message || t("error_redeeming_course"),
+        variant: "destructive",
       });
     } finally {
       setIsRedeemingNow(false);
@@ -201,17 +257,17 @@ export default function CoursesContent() {
 
     // Apply main filter
     switch (activeFilter) {
-      case 'enrolled':
-        filtered = filtered.filter(course => course.isEnrolled);
+      case "enrolled":
+        filtered = filtered.filter((course) => course.isEnrolled);
         break;
-      case 'available':
-        filtered = filtered.filter(course => !course.isEnrolled);
+      case "available":
+        filtered = filtered.filter((course) => !course.isEnrolled);
         break;
-      case 'free':
-        filtered = filtered.filter(course => course.isFree);
+      case "free":
+        filtered = filtered.filter((course) => course.isFree);
         break;
-      case 'paid':
-        filtered = filtered.filter(course => !course.isFree);
+      case "paid":
+        filtered = filtered.filter((course) => !course.isFree);
         break;
       default: // 'all'
         break;
@@ -219,65 +275,88 @@ export default function CoursesContent() {
 
     // Apply search term
     if (searchTerm) {
-      filtered = filtered.filter(course =>
-        course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructor.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (course) =>
+          course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          course.instructor.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Apply level filter
-    if (selectedLevel !== 'all') {
-      filtered = filtered.filter(course => course.level === selectedLevel);
+    if (selectedLevel !== "all") {
+      filtered = filtered.filter((course) => course.level === selectedLevel);
     }
 
     // Apply category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(course => course.category === selectedCategory);
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(
+        (course) => course.category === selectedCategory
+      );
     }
 
     // Apply price filter
-    if (priceFilter !== 'all') {
+    if (priceFilter !== "all") {
       switch (priceFilter) {
-        case 'under-50':
-          filtered = filtered.filter(course => course.priceCents < 5000);
+        case "under-50":
+          filtered = filtered.filter((course) => course.priceCents < 5000);
           break;
-        case '50-100':
-          filtered = filtered.filter(course => course.priceCents >= 5000 && course.priceCents < 10000);
+        case "50-100":
+          filtered = filtered.filter(
+            (course) => course.priceCents >= 5000 && course.priceCents < 10000
+          );
           break;
-        case 'over-100':
-          filtered = filtered.filter(course => course.priceCents >= 10000);
+        case "over-100":
+          filtered = filtered.filter((course) => course.priceCents >= 10000);
           break;
       }
     }
 
     // Apply duration filter
-    if (durationFilter !== 'all') {
+    if (durationFilter !== "all") {
       switch (durationFilter) {
-        case 'short':
-          filtered = filtered.filter(course => course.durationMinutes < 60);
+        case "short":
+          filtered = filtered.filter((course) => course.durationMinutes < 60);
           break;
-        case 'medium':
-          filtered = filtered.filter(course => course.durationMinutes >= 60 && course.durationMinutes < 180);
+        case "medium":
+          filtered = filtered.filter(
+            (course) =>
+              course.durationMinutes >= 60 && course.durationMinutes < 180
+          );
           break;
-        case 'long':
-          filtered = filtered.filter(course => course.durationMinutes >= 180);
+        case "long":
+          filtered = filtered.filter((course) => course.durationMinutes >= 180);
           break;
       }
     }
 
     // Apply instructor filter
-    if (instructorFilter !== 'all') {
-      filtered = filtered.filter(course => course.instructor === instructorFilter);
+    if (instructorFilter !== "all") {
+      filtered = filtered.filter(
+        (course) => course.instructor === instructorFilter
+      );
     }
 
     return filtered;
-  }, [uiCourses, activeFilter, searchTerm, selectedLevel, selectedCategory, priceFilter, durationFilter, instructorFilter]);
+  }, [
+    uiCourses,
+    activeFilter,
+    searchTerm,
+    selectedLevel,
+    selectedCategory,
+    priceFilter,
+    durationFilter,
+    instructorFilter,
+  ]);
 
   // Get unique values for filter options
   const filterOptions = useMemo(() => {
-    const levels = [...new Set(uiCourses.map(c => c.level).filter(Boolean))];
-    const categories = [...new Set(uiCourses.map(c => c.category).filter(Boolean))];
-    const instructors = [...new Set(uiCourses.map(c => c.instructor).filter(Boolean))];
+    const levels = [...new Set(uiCourses.map((c) => c.level).filter(Boolean))];
+    const categories = [
+      ...new Set(uiCourses.map((c) => c.category).filter(Boolean)),
+    ];
+    const instructors = [
+      ...new Set(uiCourses.map((c) => c.instructor).filter(Boolean)),
+    ];
 
     return { levels, categories, instructors };
   }, [uiCourses]);
@@ -287,12 +366,12 @@ export default function CoursesContent() {
   };
 
   const resetFilters = () => {
-    setSearchTerm('');
-    setSelectedLevel('all');
-    setSelectedCategory('all');
-    setPriceFilter('all');
-    setDurationFilter('all');
-    setInstructorFilter('all');
+    setSearchTerm("");
+    setSelectedLevel("all");
+    setSelectedCategory("all");
+    setPriceFilter("all");
+    setDurationFilter("all");
+    setInstructorFilter("all");
   };
 
   return (
@@ -304,35 +383,55 @@ export default function CoursesContent() {
     >
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-black/90 mb-4 dark:text-white/90">
-          {t('explore_courses')}
+          {t("explore_courses")}
         </h1>
         <p className="text-lg text-black/70 mb-8 dark:text-white/70">
-          {t('find_your_next_learning_adventure_from_our_curated_collection')}
+          {t("find_your_next_learning_adventure_from_our_curated_collection")}
         </p>
       </div>
 
       {/* Filter Tabs */}
-      <Tabs value={activeFilter} onValueChange={setActiveFilter} className="mb-6">
+      <Tabs
+        value={activeFilter}
+        onValueChange={setActiveFilter}
+        className="mb-6"
+      >
         <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-sm">
           <TabsTrigger value="all" className="data-[state=active]:bg-white/20">
-            {t('all_courses')}
-            <Badge variant="secondary" className="ml-2">{uiCourses.length}</Badge>
+            {t("all_courses")}
+            <Badge variant="secondary" className="ml-2">
+              {uiCourses.length}
+            </Badge>
           </TabsTrigger>
-          <TabsTrigger value="enrolled" className="data-[state=active]:bg-white/20">
-            {t('enrolled')}
-            <Badge variant="secondary" className="ml-2">{enrolledCoursesData.length}</Badge>
+          <TabsTrigger
+            value="enrolled"
+            className="data-[state=active]:bg-white/20"
+          >
+            {t("enrolled")}
+            <Badge variant="secondary" className="ml-2">
+              {enrolledCoursesData.length}
+            </Badge>
           </TabsTrigger>
-          <TabsTrigger value="available" className="data-[state=active]:bg-white/20">
-            {t('available')}
-            <Badge variant="secondary" className="ml-2">{availableCourses.length}</Badge>
+          <TabsTrigger
+            value="available"
+            className="data-[state=active]:bg-white/20"
+          >
+            {t("available")}
+            <Badge variant="secondary" className="ml-2">
+              {availableCourses.length}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="free" className="data-[state=active]:bg-white/20">
-            {t('free')}
-            <Badge variant="secondary" className="ml-2">{uiCourses.filter(c => c.isFree).length}</Badge>
+            {t("free")}
+            <Badge variant="secondary" className="ml-2">
+              {uiCourses.filter((c) => c.isFree).length}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="paid" className="data-[state=active]:bg-white/20">
-            {t('paid')}
-            <Badge variant="secondary" className="ml-2">{uiCourses.filter(c => !c.isFree).length}</Badge>
+            {t("paid")}
+            <Badge variant="secondary" className="ml-2">
+              {uiCourses.filter((c) => !c.isFree).length}
+            </Badge>
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -341,28 +440,30 @@ export default function CoursesContent() {
       <div className="bg-white/5 backdrop-blur-md rounded-xl p-6 border border-white/20 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <Filter size={20} className="text-black/70 dark:text-white/70" />
-          <h3 className="text-lg font-semibold text-black dark:text-white">Filters & Search</h3>
+          <h3 className="text-lg font-semibold text-black dark:text-white">
+            Filters & Search
+          </h3>
           <div className="ml-auto flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className="flex items-center gap-2"
             >
               {showAdvancedFilters ? (
                 <>
                   <ChevronUp size={16} />
-                  {t('show_less')}
+                  {t("show_less")}
                 </>
               ) : (
                 <>
                   <ChevronDown size={16} />
-                  {t('show_more')}
+                  {t("show_more")}
                 </>
               )}
             </Button>
             <Button variant="ghost" size="sm" onClick={resetFilters}>
-              {t('reset_all')}
+              {t("reset_all")}
             </Button>
           </div>
         </div>
@@ -370,10 +471,10 @@ export default function CoursesContent() {
         {/* Always visible: Search */}
         <div className="mb-4">
           <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-            {t('search_courses')}
+            {t("search_courses")}
           </label>
           <Input
-            placeholder={t('search_courses')}
+            placeholder={t("search_courses")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-white/10 border-white/20 max-w-md"
@@ -384,25 +485,25 @@ export default function CoursesContent() {
         <motion.div
           initial={false}
           animate={{
-            height: showAdvancedFilters ? 'auto' : 0,
+            height: showAdvancedFilters ? "auto" : 0,
             opacity: showAdvancedFilters ? 1 : 0,
           }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
           className="overflow-hidden"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-4 border-t border-white/10">
             {/* Level Filter */}
             <div>
               <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-                {t('level')}
+                {t("level")}
               </label>
               <Select value={selectedLevel} onValueChange={setSelectedLevel}>
                 <SelectTrigger className="bg-white/10 border-white/20">
-                  <SelectValue placeholder={t('select_level')} />
+                  <SelectValue placeholder={t("select_level")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('all_levels')}</SelectItem>
-                  {filterOptions.levels.map(level => (
+                  <SelectItem value="all">{t("all_levels")}</SelectItem>
+                  {filterOptions.levels.map((level) => (
                     <SelectItem key={level} value={level}>
                       {level.charAt(0).toUpperCase() + level.slice(1)}
                     </SelectItem>
@@ -414,15 +515,18 @@ export default function CoursesContent() {
             {/* Category Filter */}
             <div>
               <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-                {t('category')}
+                {t("category")}
               </label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+              >
                 <SelectTrigger className="bg-white/10 border-white/20">
-                  <SelectValue placeholder={t('select_category')} />
+                  <SelectValue placeholder={t("select_category")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('all_categories')}</SelectItem>
-                  {filterOptions.categories.map(category => (
+                  <SelectItem value="all">{t("all_categories")}</SelectItem>
+                  {filterOptions.categories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -434,17 +538,17 @@ export default function CoursesContent() {
             {/* Price Filter */}
             <div>
               <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-                {t('price_range')}
+                {t("price_range")}
               </label>
               <Select value={priceFilter} onValueChange={setPriceFilter}>
                 <SelectTrigger className="bg-white/10 border-white/20">
-                  <SelectValue placeholder={t('select_price_range')} />
+                  <SelectValue placeholder={t("select_price_range")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('all_prices')}</SelectItem>
-                  <SelectItem value="under-50">{t('under_50')}</SelectItem>
-                  <SelectItem value="50-100">{t('50_100')}</SelectItem>
-                  <SelectItem value="over-100">{t('over_100')}</SelectItem>
+                  <SelectItem value="all">{t("all_prices")}</SelectItem>
+                  <SelectItem value="under-50">{t("under_50")}</SelectItem>
+                  <SelectItem value="50-100">{t("50_100")}</SelectItem>
+                  <SelectItem value="over-100">{t("over_100")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -452,17 +556,19 @@ export default function CoursesContent() {
             {/* Duration Filter */}
             <div>
               <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-                {t('duration')}
+                {t("duration")}
               </label>
               <Select value={durationFilter} onValueChange={setDurationFilter}>
                 <SelectTrigger className="bg-white/10 border-white/20">
-                  <SelectValue placeholder={t('select_duration')} />
+                  <SelectValue placeholder={t("select_duration")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('all_durations')}</SelectItem>
-                  <SelectItem value="short">{t('short_2_hours')}</SelectItem>
-                  <SelectItem value="medium">{t('medium_2_3_hours')}</SelectItem>
-                  <SelectItem value="long">{t('long_3_hours')}</SelectItem>
+                  <SelectItem value="all">{t("all_durations")}</SelectItem>
+                  <SelectItem value="short">{t("short_2_hours")}</SelectItem>
+                  <SelectItem value="medium">
+                    {t("medium_2_3_hours")}
+                  </SelectItem>
+                  <SelectItem value="long">{t("long_3_hours")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -470,15 +576,18 @@ export default function CoursesContent() {
             {/* Instructor Filter */}
             <div>
               <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
-                {t('instructor')}
+                {t("instructor")}
               </label>
-              <Select value={instructorFilter} onValueChange={setInstructorFilter}>
+              <Select
+                value={instructorFilter}
+                onValueChange={setInstructorFilter}
+              >
                 <SelectTrigger className="bg-white/10 border-white/20">
-                  <SelectValue placeholder={t('select_instructor')} />
+                  <SelectValue placeholder={t("select_instructor")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('all_instructors')}</SelectItem>
-                  {filterOptions.instructors.map(instructor => (
+                  <SelectItem value="all">{t("all_instructors")}</SelectItem>
+                  {filterOptions.instructors.map((instructor) => (
                     <SelectItem key={instructor} value={instructor}>
                       {instructor}
                     </SelectItem>
@@ -492,13 +601,16 @@ export default function CoursesContent() {
         {/* Results Count */}
         <div className="mt-4 text-center">
           <p className="text-sm text-black/60 dark:text-white/60">
-            {t('showing_courses', { count: filteredCourses.length, total: uiCourses.length })}
+            {t("showing_courses", {
+              count: filteredCourses.length,
+              total: uiCourses.length,
+            })}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {(isLoading || currenciesLoading)
+        {isLoading || currenciesLoading || pointsLoading
           ? [...Array(8)].map((_, index) => (
               <div
                 key={index}
@@ -532,13 +644,16 @@ export default function CoursesContent() {
                   >
                     {course.thumbnailUrl ? (
                       // Check if it's a MEGA URL
-                      course.thumbnailUrl.includes('mega.nz') ? (
+                      course.thumbnailUrl.includes("mega.nz") ? (
                         <MegaImage
                           megaUrl={course.thumbnailUrl}
                           alt={course.title}
                           className="w-full h-full object-cover"
                           onError={(error) => {
-                            console.error('Failed to load MEGA course thumbnail:', error);
+                            console.error(
+                              "Failed to load MEGA course thumbnail:",
+                              error
+                            );
                           }}
                         />
                       ) : (
@@ -549,11 +664,14 @@ export default function CoursesContent() {
                         />
                       )
                     ) : (
-                      <BookOpen size={48} className="text-black/80 dark:text-white/80" />
+                      <BookOpen
+                        size={48}
+                        className="text-black/80 dark:text-white/80"
+                      />
                     )}
                   </div>
                   <div className="absolute top-2 right-2 bg-black/50 dark:bg-white/50 text-black dark:text-white px-2 py-1 rounded-md text-xs font-bold">
-                    {course.level?.toUpperCase() || 'ALL LEVELS'}
+                    {course.level?.toUpperCase() || "ALL LEVELS"}
                   </div>
                 </div>
 
@@ -587,8 +705,8 @@ export default function CoursesContent() {
                           size={14}
                           className={
                             i < Math.round(course.rating)
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-black/30 dark:text-white/30'
+                              ? "text-yellow-400 fill-current"
+                              : "text-black/30 dark:text-white/30"
                           }
                         />
                       ))}
@@ -616,7 +734,7 @@ export default function CoursesContent() {
                           className="w-full"
                         >
                           <BookOpen size={16} className="mr-2" />
-                          {t('go_to_course')}
+                          {t("go_to_course")}
                         </Button>
                       ) : (
                         <>
@@ -626,7 +744,7 @@ export default function CoursesContent() {
                               variant="outline"
                               className="flex-1"
                             >
-                              {t('view_details')}
+                              {t("view_details")}
                             </Button>
                             <Button
                               onClick={() => handleBuyNow(course.id)}
@@ -635,31 +753,42 @@ export default function CoursesContent() {
                               disabled={isBuyingNow}
                             >
                               <CreditCard size={16} className="mr-1" />
-                              {isBuyingNow ? t('buying_now') : t('buy_now')}
+                              {isBuyingNow ? t("buying_now") : t("buy_now")}
                             </Button>
                           </div>
-                          
+
                           {/* Points Redemption Button */}
                           {course.pointsAvailable && (
                             <Button
-                              onClick={() => handleRedeemWithPoints(course.id, course.points)}
+                              onClick={() =>
+                                handleRedeemWithPoints(course.id, course.points)
+                              }
                               variant="secondary"
                               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-semibold"
-                              disabled={isRedeemingNow || (pointsData?.data?.currentPoints || 0) < course.points}
+                              disabled={
+                                isRedeemingNow ||
+                                (pointsData?.data?.currentPoints || 0) <
+                                  course.points
+                              }
                             >
                               <Coins size={16} className="mr-2" />
-                              {isRedeemingNow 
-                                ? t('redeeming_now') 
-                                : (pointsData?.data?.currentPoints || 0) < course.points
-                                  ? t('insufficient_points_short')
-                                  : t('redeem_with_points', { points: course.points })
-                              }
+                              {isRedeemingNow
+                                ? t("redeeming_now")
+                                : (pointsData?.data?.currentPoints || 0) <
+                                  course.points
+                                ? t("insufficient_points_short")
+                                : t("redeem_with_points", {
+                                    points: course.points,
+                                  })}
                             </Button>
                           )}
-                          
+
                           {/* Points Status Display */}
                           <div className="text-center text-xs text-black/60 dark:text-white/60">
-                            {t('your_points')}: <span className="font-semibold text-yellow-500">{pointsData?.data?.currentPoints || 0}</span>
+                            {t("your_points")}:{" "}
+                            <span className="font-semibold text-yellow-500">
+                              {pointsData?.data?.currentPoints || 0}
+                            </span>
                           </div>
                         </>
                       )}

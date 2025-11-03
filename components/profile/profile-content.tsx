@@ -69,6 +69,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AchievementsSection from "@/components/student/achievements-section";
 import StudentAchievementStats from "@/components/student/achievement-stats";
 import Image from "next/image";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 export default function ProfileContent() {
   const t = useTranslations("ProfileContent");
@@ -440,13 +441,21 @@ export default function ProfileContent() {
                         className="w-full h-full object-cover"
                       />
                     ) : userAvatar ? (
-                      <Image
-                        src={userAvatar}
-                        alt="Profile"
-                        width={128}
-                        height={128}
-                        className="w-full h-full object-cover"
-                      />
+                      userAvatar.includes('mega.nz') ? (
+                        <MegaImage
+                          megaUrl={userAvatar}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={userAvatar}
+                          alt="Profile"
+                          width={128}
+                          height={128}
+                          className="w-full h-full object-cover"
+                        />
+                      )
                     ) : (
                       <User
                         size={64}
@@ -599,13 +608,21 @@ export default function ProfileContent() {
                               >
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-2 ring-gray-200 dark:ring-gray-600">
                                   {account.avatar ? (
-                                    <Image
-                                      src={account.avatar}
-                                      alt={account.name}
-                                      width={40}
-                                      height={40}
-                                      className="w-full h-full object-cover"
-                                    />
+                                    account.avatar.includes('mega.nz') ? (
+                                      <MegaImage
+                                        megaUrl={account.avatar}
+                                        alt={account.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <Image
+                                        src={account.avatar}
+                                        alt={account.name}
+                                        width={40}
+                                        height={40}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    )
                                   ) : (
                                     <UserCircle
                                       size={20}

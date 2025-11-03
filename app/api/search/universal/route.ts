@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Always use universal_search_enhanced
-    const searchFunction = 'universal_search_enhanced';
+    // Use universal_search function
+    const searchFunction = 'universal_search';
 
     const { data, error } = await supabase.rpc(searchFunction, {
       search_query: query,

@@ -29,7 +29,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
 
   // 处理每日学习时长数据
   const weeklyData = React.useMemo(() => {
-    if (!learningStats?.data?.charts?.dailyStudyTime) {
+    if (!learningStats?.charts?.dailyStudyTime) {
       return [];
     }
     
@@ -42,7 +42,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
 
   // 生成学科掌握度数据（基于课程进度和活动类型）
   const masteryLevels = React.useMemo(() => {
-    if (!learningStats?.data?.charts?.activityBreakdown) {
+    if (!learningStats?.charts?.activityBreakdown) {
       return [];
     }
 
@@ -175,7 +175,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
   }
 
   // 获取统计数据
-  const stats = learningStats?.data?.summary;
+  const stats = learningStats?.summary;
   if (!stats) {
     return (
       <motion.section

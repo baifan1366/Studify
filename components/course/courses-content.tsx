@@ -210,7 +210,7 @@ export default function CoursesContent() {
     courseId: string | number,
     pointsNeeded: number
   ) => {
-    const userPoints = pointsData?.data?.currentPoints || 0;
+    const userPoints = pointsData?.currentPoints || 0;
 
     if (userPoints < pointsNeeded) {
       toast({
@@ -767,14 +767,14 @@ export default function CoursesContent() {
                               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-semibold"
                               disabled={
                                 isRedeemingNow ||
-                                (pointsData?.data?.currentPoints || 0) <
+                                (pointsData?.currentPoints || 0) <
                                   course.points
                               }
                             >
                               <Coins size={16} className="mr-2" />
                               {isRedeemingNow
                                 ? t("redeeming_now")
-                                : (pointsData?.data?.currentPoints || 0) <
+                                : (pointsData?.currentPoints || 0) <
                                   course.points
                                 ? t("insufficient_points_short")
                                 : t("redeem_with_points", {
@@ -787,7 +787,7 @@ export default function CoursesContent() {
                           <div className="text-center text-xs text-black/60 dark:text-white/60">
                             {t("your_points")}:{" "}
                             <span className="font-semibold text-yellow-500">
-                              {pointsData?.data?.currentPoints || 0}
+                              {pointsData?.currentPoints || 0}
                             </span>
                           </div>
                         </>

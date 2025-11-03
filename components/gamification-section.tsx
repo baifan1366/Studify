@@ -129,9 +129,9 @@ export default function GamificationSection({
   });
 
   // 解析学习统计数据
-  const learningStats = learningStatsData?.data;
-  const achievements = achievementsData?.data;
-  const leaderboard = leaderboardData?.data?.users || [];
+  const learningStats = learningStatsData;
+  const achievements = achievementsData;
+  const leaderboard = leaderboardData?.users || [];
 
   // Get check-in status from API or checkinResult
   const checkinStatus = checkinStatusData?.data;

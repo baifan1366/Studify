@@ -58,6 +58,7 @@ import {
   Bot,
   GraduationCap,
 } from "lucide-react";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 interface DanmakuMessage {
   id: string;
@@ -99,6 +100,58 @@ interface VideoPlayerProps {
   onTimeUpdate?: (time: number, duration?: number) => void;
   onShare?: () => void;
   onDownload?: () => void;
+}
+
+// Helper component to render avatar with MEGA support
+function UserAvatar({ 
+  avatarUrl, 
+  username, 
+  size = "w-8 h-8" 
+}: { 
+  avatarUrl: string; 
+  username: string; 
+  size?: string;
+}) {
+  const isMegaUrl = avatarUrl && (
+    avatarUrl.includes('mega.nz') || 
+    avatarUrl.includes('mega.co.nz') || 
+    avatarUrl.includes('mega.io')
+  );
+  
+  const [imageError, setImageError] = useState(false);
+  
+  // Show fallback if no valid avatar or error occurred
+  if (!avatarUrl || avatarUrl === "/default-avatar.png" || imageError) {
+    return (
+      <div
+        className={`${size} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0`}
+      >
+        {username?.[0]?.toUpperCase() || "U"}
+      </div>
+    );
+  }
+  
+  // Use MegaImage for MEGA URLs
+  if (isMegaUrl) {
+    return (
+      <MegaImage
+        megaUrl={avatarUrl}
+        alt={username}
+        className={`${size} rounded-full object-cover flex-shrink-0`}
+        onError={() => setImageError(true)}
+      />
+    );
+  }
+  
+  // Use regular img for other URLs
+  return (
+    <img
+      src={avatarUrl}
+      alt={username}
+      className={`${size} rounded-full object-cover flex-shrink-0`}
+      onError={() => setImageError(true)}
+    />
+  );
 }
 
 export default function BilibiliVideoPlayer({
@@ -1499,31 +1552,11 @@ export default function BilibiliVideoPlayer({
 
                       return (
                         <div key={commentId} className="flex gap-3">
-                          {avatar && avatar !== "/default-avatar.png" ? (
-                            <img
-                              src={avatar}
-                              alt={username}
-                              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = "none";
-                                const fallback =
-                                  target.nextElementSibling as HTMLElement;
-                                if (fallback) fallback.style.display = "flex";
-                              }}
-                            />
-                          ) : null}
-                          <div
-                            className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
-                            style={{
-                              display:
-                                avatar && avatar !== "/default-avatar.png"
-                                  ? "none"
-                                  : "flex",
-                            }}
-                          >
-                            {username?.[0]?.toUpperCase() || "U"}
-                          </div>
+                          <UserAvatar 
+                            avatarUrl={avatar} 
+                            username={username}
+                            size="w-8 h-8"
+                          />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-semibold text-sm">
@@ -1730,37 +1763,11 @@ export default function BilibiliVideoPlayer({
                                       key={reply.id || reply.public_id}
                                       className="flex gap-2"
                                     >
-                                      {replyAvatar &&
-                                      replyAvatar !== "/default-avatar.png" ? (
-                                        <img
-                                          src={replyAvatar}
-                                          alt={replyUsername}
-                                          className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-                                          onError={(e) => {
-                                            const target =
-                                              e.target as HTMLImageElement;
-                                            target.style.display = "none";
-                                            const fallback =
-                                              target.nextElementSibling as HTMLElement;
-                                            if (fallback)
-                                              fallback.style.display = "flex";
-                                          }}
-                                        />
-                                      ) : null}
-                                      <div
-                                        className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
-                                        style={{
-                                          display:
-                                            replyAvatar &&
-                                            replyAvatar !==
-                                              "/default-avatar.png"
-                                              ? "none"
-                                              : "flex",
-                                        }}
-                                      >
-                                        {replyUsername?.[0]?.toUpperCase() ||
-                                          "R"}
-                                      </div>
+                                      <UserAvatar 
+                                        avatarUrl={replyAvatar} 
+                                        username={replyUsername}
+                                        size="w-6 h-6"
+                                      />
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                           <span className="font-semibold text-xs">

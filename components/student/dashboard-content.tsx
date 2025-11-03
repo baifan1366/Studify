@@ -74,7 +74,7 @@ export default function DashboardContent() {
   }
 
   // Combine dashboard data with learning stats
-  const learningData = learningStats?.data?.summary;
+  const learningData = learningStats?.summary;
   const dashStats = dashboardData?.stats;
   
   // Prioritize API data and provide better fallbacks
@@ -118,8 +118,8 @@ export default function DashboardContent() {
     });
   }
   
-  const recentAchievements = achievementsData?.data?.stats?.recentUnlocks || [];
-  const dailyStats = learningStats?.data?.charts?.dailyStudyTime || [];
+  const recentAchievements = achievementsData?.stats?.recentUnlocks || [];
+  const dailyStats = learningStats?.charts?.dailyStudyTime || [];
 
   const recentCourses = dashboardData?.recentCourses || [];
   const upcomingEvents = dashboardData?.upcomingEvents || [];

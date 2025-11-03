@@ -536,6 +536,85 @@ END;
 $function$;
 
 
+CREATE OR REPLACE FUNCTION public.update_profiles_search_vector()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.search_vector := 
+    setweight(to_tsvector('english', coalesce(NEW.display_name, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.full_name, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.bio, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.role, '')), 'C') ||
+    setweight(to_tsvector('english', coalesce(NEW.email, '')), 'D');
+  
+  RETURN NEW;
+END;
+$function$;
+
+
+CREATE OR REPLACE FUNCTION public.update_course_search_vector()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.search_vector := 
+    setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.description, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.category, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(NEW.tags, ' '), '')), 'C') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(NEW.requirements, ' '), '')), 'C') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(NEW.learning_objectives, ' '), '')), 'C') ||
+    setweight(to_tsvector('english', coalesce(NEW.level, '')), 'D');
+  
+  RETURN NEW;
+END;
+$function$;
+
+
+CREATE OR REPLACE FUNCTION public.update_course_lesson_search_vector()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.search_vector := 
+    setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.description, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.transcript, '')), 'C') ||
+    setweight(to_tsvector('english', coalesce(NEW.kind, '')), 'D');
+  
+  RETURN NEW;
+END;
+$function$;
+
+
+CREATE OR REPLACE FUNCTION public.update_community_comment_search_vector()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.search_vector := 
+    setweight(to_tsvector('english', coalesce(NEW.body, '')), 'A');
+  
+  RETURN NEW;
+END;
+$function$;
+
+
+CREATE OR REPLACE FUNCTION public.update_classroom_search_vector()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.search_vector := 
+    setweight(to_tsvector('english', coalesce(NEW.name, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.description, '')), 'B');
+  
+  RETURN NEW;
+END;
+$function$;
+
+
 CREATE OR REPLACE FUNCTION public.update_tutor_earnings_summary()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4884,6 +4963,9 @@ CREATE TRIGGER quiz_mistake_trigger AFTER INSERT ON course_quiz_submission FOR E
 DROP TRIGGER IF EXISTS update_chat_attachments_updated_at ON chat_attachments;
 CREATE TRIGGER update_chat_attachments_updated_at BEFORE UPDATE ON chat_attachments FOR EACH ROW EXECUTE FUNCTION update_chat_attachments_updated_at();
 
+DROP TRIGGER IF EXISTS course_lesson_search_vector_trigger ON course_lesson;
+CREATE TRIGGER course_lesson_search_vector_trigger BEFORE INSERT OR UPDATE ON course_lesson FOR EACH ROW EXECUTE FUNCTION update_course_lesson_search_vector();
+
 DROP TRIGGER IF EXISTS lesson_embedding_trigger ON course_lesson;
 CREATE TRIGGER lesson_embedding_trigger AFTER INSERT OR UPDATE ON course_lesson FOR EACH ROW EXECUTE FUNCTION trigger_lesson_embedding();
 
@@ -4917,6 +4999,9 @@ CREATE TRIGGER course_progress_continue_watching_trigger BEFORE INSERT OR UPDATE
 DROP TRIGGER IF EXISTS set_timestamp ON classroom_attachments;
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON classroom_attachments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS community_comment_search_vector_trigger ON community_comment;
+CREATE TRIGGER community_comment_search_vector_trigger BEFORE INSERT OR UPDATE ON community_comment FOR EACH ROW EXECUTE FUNCTION update_community_comment_search_vector();
+
 DROP TRIGGER IF EXISTS comment_embedding_trigger ON community_comment;
 CREATE TRIGGER comment_embedding_trigger AFTER INSERT OR UPDATE ON community_comment FOR EACH ROW EXECUTE FUNCTION trigger_comment_embedding();
 
@@ -4934,6 +5019,9 @@ CREATE TRIGGER trigger_update_quiz_search_on_subject_change AFTER UPDATE ON comm
 
 DROP TRIGGER IF EXISTS tutoring_tutors_search_vector_trigger ON tutoring_tutors;
 CREATE TRIGGER tutoring_tutors_search_vector_trigger BEFORE INSERT OR UPDATE ON tutoring_tutors FOR EACH ROW EXECUTE FUNCTION update_tutoring_tutors_search_vector();
+
+DROP TRIGGER IF EXISTS profiles_search_vector_trigger ON profiles;
+CREATE TRIGGER profiles_search_vector_trigger BEFORE INSERT OR UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_profiles_search_vector();
 
 DROP TRIGGER IF EXISTS profile_embedding_trigger ON profiles;
 CREATE TRIGGER profile_embedding_trigger AFTER INSERT OR UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION trigger_profile_embedding();
@@ -4961,6 +5049,9 @@ CREATE TRIGGER classroom_live_session_search_vector_trigger BEFORE INSERT OR UPD
 
 DROP TRIGGER IF EXISTS live_session_embedding_trigger ON classroom_live_session;
 CREATE TRIGGER live_session_embedding_trigger AFTER INSERT OR UPDATE ON classroom_live_session FOR EACH ROW EXECUTE FUNCTION trigger_live_session_embedding();
+
+DROP TRIGGER IF EXISTS classroom_search_vector_trigger ON classroom;
+CREATE TRIGGER classroom_search_vector_trigger BEFORE INSERT OR UPDATE ON classroom FOR EACH ROW EXECUTE FUNCTION update_classroom_search_vector();
 
 DROP TRIGGER IF EXISTS classroom_embedding_trigger ON classroom;
 CREATE TRIGGER classroom_embedding_trigger AFTER INSERT OR UPDATE ON classroom FOR EACH ROW EXECUTE FUNCTION trigger_classroom_embedding();
@@ -5075,6 +5166,9 @@ CREATE TRIGGER video_segments_updated_at BEFORE UPDATE ON video_segments FOR EAC
 
 DROP TRIGGER IF EXISTS announcements_search_vector_trigger ON announcements;
 CREATE TRIGGER announcements_search_vector_trigger BEFORE INSERT OR UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_announcements_search_vector();
+
+DROP TRIGGER IF EXISTS course_search_vector_trigger ON course;
+CREATE TRIGGER course_search_vector_trigger BEFORE INSERT OR UPDATE ON course FOR EACH ROW EXECUTE FUNCTION update_course_search_vector();
 
 DROP TRIGGER IF EXISTS course_embedding_trigger ON course;
 CREATE TRIGGER course_embedding_trigger AFTER INSERT OR UPDATE ON course FOR EACH ROW EXECUTE FUNCTION trigger_course_embedding();

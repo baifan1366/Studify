@@ -119,6 +119,9 @@ CREATE TABLE public.ai_workflow_templates (
     search_vector tsvector
 );
 
+-- Add index for search_vector
+CREATE INDEX IF NOT EXISTS idx_ai_workflow_templates_search_vector ON public.ai_workflow_templates USING gin(search_vector);
+
 
 CREATE TABLE public.announcements (
     id bigint DEFAULT nextval('announcements_id_seq'::regclass) NOT NULL,

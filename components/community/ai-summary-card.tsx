@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAICommunitySummary, useSummaryFormatter } from "@/hooks/ai/use-ai-community-summary";
+import { useUser } from "@/hooks/profile/use-user";
 import { cn } from "@/utils/styles";
 import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -56,6 +57,12 @@ interface AISummaryCardProps {
 
 export default function AISummaryCard({ query, resultIds, locale = "en", className }: AISummaryCardProps) {
   const t = useTranslations('AISummaryCard');
+  const { data: userData } = useUser();
+  
+  // Get user's preferred language from profile, fallback to locale prop
+  const userLanguage = userData?.profile?.language || locale;
+  const effectiveLocale = (userLanguage === 'zh' || userLanguage === 'zh-CN') ? 'zh' : 'en';
+  
   const {
     summarizeSearch,
     isSearching,
@@ -92,7 +99,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         query,
         resultIds,
         maxItems: Math.min(10, resultIds.length || 10),
-        locale
+        locale: effectiveLocale
       },
       {
         onSuccess: (data) => {
@@ -101,7 +108,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, locale]);
+  }, [autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, effectiveLocale]);
 
   const handleGenerate = () => {
     if (disabled) return;
@@ -110,7 +117,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         query,
         resultIds,
         maxItems: Math.min(10, resultIds.length || 10),
-        locale
+        locale: effectiveLocale
       },
       {
         onSuccess: (data) => {
@@ -363,7 +370,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                               : c.slug;
 
                             return (
-                              <Link key={i} href={`/${locale}/community/${fullPath}`} className="block">
+                              <Link key={i} href={`/${effectiveLocale}/community/${fullPath}`} className="block">
                                 <div className="bg-white/5 rounded-md p-3 border border-white/10 hover:bg-white/10 transition">
                                   <div className="text-sm text-white line-clamp-1">{c.title}</div>
                                   <div className="text-xs text-gray-400 line-clamp-2 mt-1">{c.snippet}</div>

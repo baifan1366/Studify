@@ -70,16 +70,16 @@ interface UICourse {
 }
 
 // Custom hook to calculate course progress based on lesson completion
-function useCourseProgressCalculation(courseId: number, courseSlug: string) {
+function useCourseProgressCalculation(courseId: number, coursePublicId: string) {
   const { data: courseModules } = useModuleByCourseId(courseId);
   const { data: allLessons = [] } = useAllLessonsByCourseId(courseId, courseModules || []);
-  const { data: progress } = useCourseProgress(courseSlug);
+  const { data: progress } = useCourseProgress(coursePublicId);
 
   const calculatedProgress = React.useMemo(() => {
     if (!allLessons.length) return 0;
+    if (!progress || !Array.isArray(progress)) return 0;
     
-    const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
-    const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
+    const completedCount = progress.filter((p) => p.state === 'completed').length;
     return Math.round((completedCount / allLessons.length) * 100);
   }, [progress, allLessons]);
 
@@ -94,7 +94,7 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
   onContinueCourse: (courseSlug: string) => void;
   onCourseDetails: (courseSlug: string) => void;
 }) {
-  const calculatedProgress = useCourseProgressCalculation(course.course.id, course.course.slug);
+  const calculatedProgress = useCourseProgressCalculation(course.course.id, course.course.public_id);
   
   return (
     <motion.div

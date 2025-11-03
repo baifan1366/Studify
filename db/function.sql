@@ -5689,3 +5689,100 @@ LEFT JOIN course_point_price cpp ON cpp.course_id = c.id AND cpp.is_active = tru
 WHERE c.is_deleted = false
 ORDER BY c.created_at DESC
 LIMIT 20;
+
+
+-- ============================================================================
+-- PROFILE POINTS SYNC FUNCTIONS
+-- ============================================================================
+-- Migration to sync points from community_points_ledger to profiles.points
+-- This fixes any discrepancies where points were added to the ledger but not to the profile
+
+-- Function to sync points for all users
+CREATE OR REPLACE FUNCTION sync_all_user_points()
+RETURNS TABLE(user_id bigint, old_points integer, new_points integer, difference integer)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH ledger_totals AS (
+    SELECT 
+      cpl.user_id,
+      COALESCE(SUM(cpl.points), 0)::integer as total_points_from_ledger
+    FROM community_points_ledger cpl
+    WHERE cpl.is_deleted = false
+    GROUP BY cpl.user_id
+  ),
+  profile_updates AS (
+    SELECT 
+      p.id as user_id,
+      p.points as old_points,
+      COALESCE(lt.total_points_from_ledger, 0) as new_points,
+      COALESCE(lt.total_points_from_ledger, 0) - p.points as difference
+    FROM profiles p
+    LEFT JOIN ledger_totals lt ON lt.user_id = p.id
+    WHERE p.is_deleted = false
+  )
+  UPDATE profiles p
+  SET points = pu.new_points,
+      updated_at = now()
+  FROM profile_updates pu
+  WHERE p.id = pu.user_id
+    AND pu.difference != 0  -- Only update if there's a difference
+  RETURNING p.id, pu.old_points, pu.new_points, pu.difference;
+END;
+$$;
+
+COMMENT ON FUNCTION sync_all_user_points IS 'Syncs all user points from community_points_ledger to profiles.points';
+
+-- Function to automatically sync points when ledger is updated
+CREATE OR REPLACE FUNCTION sync_profile_points_on_ledger_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_total_points integer;
+BEGIN
+  -- Calculate total points for the user from ledger
+  SELECT COALESCE(SUM(points), 0)::integer
+  INTO v_total_points
+  FROM community_points_ledger
+  WHERE user_id = COALESCE(NEW.user_id, OLD.user_id)
+    AND is_deleted = false;
+  
+  -- Update profile with correct total
+  UPDATE profiles
+  SET points = v_total_points,
+      updated_at = now()
+  WHERE id = COALESCE(NEW.user_id, OLD.user_id);
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+COMMENT ON FUNCTION sync_profile_points_on_ledger_change IS 'Trigger function to sync profile points when community_points_ledger changes';
+
+-- Drop existing triggers if they exist
+DROP TRIGGER IF EXISTS trg_sync_profile_points_on_ledger_insert ON community_points_ledger;
+DROP TRIGGER IF EXISTS trg_sync_profile_points_on_ledger_update ON community_points_ledger;
+DROP TRIGGER IF EXISTS trg_sync_profile_points_on_ledger_delete ON community_points_ledger;
+
+-- Create triggers for INSERT, UPDATE, and DELETE on community_points_ledger
+CREATE TRIGGER trg_sync_profile_points_on_ledger_insert
+AFTER INSERT ON community_points_ledger
+FOR EACH ROW
+EXECUTE FUNCTION sync_profile_points_on_ledger_change();
+
+CREATE TRIGGER trg_sync_profile_points_on_ledger_update
+AFTER UPDATE ON community_points_ledger
+FOR EACH ROW
+WHEN (OLD.points IS DISTINCT FROM NEW.points OR OLD.is_deleted IS DISTINCT FROM NEW.is_deleted)
+EXECUTE FUNCTION sync_profile_points_on_ledger_change();
+
+CREATE TRIGGER trg_sync_profile_points_on_ledger_delete
+AFTER DELETE ON community_points_ledger
+FOR EACH ROW
+EXECUTE FUNCTION sync_profile_points_on_ledger_change();
+
+COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_insert ON community_points_ledger IS 'Syncs profile points when new ledger entry is inserted';
+COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_update ON community_points_ledger IS 'Syncs profile points when ledger entry is updated';
+COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_delete ON community_points_ledger IS 'Syncs profile points when ledger entry is deleted';

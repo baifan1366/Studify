@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Smartphone, ExternalLink } from "lucide-react";
@@ -12,7 +12,7 @@ import { Smartphone, ExternalLink } from "lucide-react";
  * when Android App Links don't work. It attempts to open the app using
  * a custom URL scheme and provides a manual button if needed.
  */
-export default function MobileRedirectPage() {
+function MobileRedirectContent() {
   const searchParams = useSearchParams();
   const [showManualButton, setShowManualButton] = useState(false);
   const [deepLink, setDeepLink] = useState("");
@@ -115,5 +115,27 @@ export default function MobileRedirectPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function MobileRedirectPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-screen flex items-center justify-center p-4 bg-[#FDF5E6] dark:bg-[#0D1F1A]">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-6">
+            <Smartphone className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+            正在加载...
+          </h1>
+          <div className="flex justify-center mb-6">
+            <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <MobileRedirectContent />
+    </Suspense>
   );
 }

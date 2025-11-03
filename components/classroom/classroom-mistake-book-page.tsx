@@ -689,21 +689,6 @@ export default function MistakeBookPageContent() {
                               </div>
                             </div>
 
-                            {/* Analysis */}
-                            {mistake.analysis && (
-                              <div className="flex items-start gap-2 bg-white/5 rounded-lg p-4 border border-white/10">
-                                <Lightbulb className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <h4 className="font-medium text-white/90 mb-1">
-                                    {t("error_analysis_label")}
-                                  </h4>
-                                  <p className="text-white/70 leading-relaxed">
-                                    {mistake.analysis}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
                             {/* Knowledge Points */}
                             {mistake.knowledge_points &&
                               mistake.knowledge_points.length > 0 && (

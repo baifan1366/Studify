@@ -218,7 +218,7 @@ CREATE TABLE public.classroom (
     id bigint DEFAULT nextval('classroom_id_seq'::regclass) NOT NULL,
     public_id uuid DEFAULT uuid_generate_v4() NOT NULL,
     slug text,
-    password TEXT;
+    password text,
     name text NOT NULL,
     description text,
     class_code text NOT NULL,

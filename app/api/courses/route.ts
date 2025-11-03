@@ -27,7 +27,8 @@ export async function GET(req: Request) {
 
       // Transform data to include point_price at the top level
       const transformedData = data?.map(course => {
-        const activePointPrice = course.course_point_price?.find((cpp: any) => cpp.is_active);
+        const priceArray = Array.isArray(course.course_point_price) ? course.course_point_price : [];
+        const activePointPrice = priceArray.find((cpp: any) => cpp.is_active);
         return {
           ...course,
           point_price: activePointPrice?.point_price || null,
@@ -54,7 +55,8 @@ export async function GET(req: Request) {
       }
 
       // Transform data to include point_price at the top level
-      const activePointPrice = data.course_point_price?.find((cpp: any) => cpp.is_active);
+      const priceArray = Array.isArray(data.course_point_price) ? data.course_point_price : [];
+      const activePointPrice = priceArray.find((cpp: any) => cpp.is_active);
       const transformedData = {
         ...data,
         point_price: activePointPrice?.point_price || null,
@@ -89,7 +91,8 @@ export async function GET(req: Request) {
 
         // Transform data to include point_price at the top level
         const transformedData = data?.map(course => {
-          const activePointPrice = course.course_point_price?.find((cpp: any) => cpp.is_active);
+          const priceArray = Array.isArray(course.course_point_price) ? course.course_point_price : [];
+          const activePointPrice = priceArray.find((cpp: any) => cpp.is_active);
           return {
             ...course,
             point_price: activePointPrice?.point_price || null,
@@ -119,7 +122,8 @@ export async function GET(req: Request) {
 
     // Transform data to include point_price at the top level
     const transformedData = data?.map(course => {
-      const activePointPrice = course.course_point_price?.find((cpp: any) => cpp.is_active);
+      const priceArray = Array.isArray(course.course_point_price) ? course.course_point_price : [];
+      const activePointPrice = priceArray.find((cpp: any) => cpp.is_active);
       return {
         ...course,
         point_price: activePointPrice?.point_price || null,

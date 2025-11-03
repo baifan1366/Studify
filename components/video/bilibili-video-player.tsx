@@ -22,6 +22,7 @@ import {
   type VideoStats as VideoStatsType,
 } from "@/hooks/video/use-video-interactions";
 import { useUser } from "@/hooks/profile/use-user";
+import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useVideoQAPanel,
@@ -233,6 +234,7 @@ export default function BilibiliVideoPlayer({
   // Get current user data
   const { data: userData } = useUser();
   const currentUser = userData || null;
+  const { toast } = useToast();
 
   // Comment management state
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -384,6 +386,133 @@ export default function BilibiliVideoPlayer({
   const isCommentOwner = (comment: any) => {
     const commentUserId = comment.user_id || comment.userId;
     return currentUser && commentUserId === currentUser.id;
+  };
+
+  // Share functionality
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareText = `${title} - ${t("VideoPlayer.check_out_video")}`;
+
+    // Try native share API first (mobile devices)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        // User cancelled or error occurred
+        console.log("Share cancelled or failed:", error);
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: t("VideoPlayer.link_copied"),
+          description: t("VideoPlayer.link_copied_desc"),
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error("Failed to copy link:", error);
+        toast({
+          title: t("VideoPlayer.share_failed"),
+          description: t("VideoPlayer.share_failed_desc"),
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Download functionality
+  const handleDownload = async () => {
+    // For MEGA attachments, use the streaming endpoint with download attribute
+    if (attachmentId) {
+      try {
+        // Use the existing stream endpoint - browser will handle download
+        const downloadUrl = `/api/attachments/${attachmentId}/stream`;
+        
+        // Create a temporary link and trigger download
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `${title}.mp4`; // Suggest filename
+        link.setAttribute("download", `${title}.mp4`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+          title: t("VideoPlayer.download_started"),
+          description: t("VideoPlayer.download_started_desc"),
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Download failed:", error);
+        toast({
+          title: t("VideoPlayer.download_failed"),
+          description: t("VideoPlayer.download_failed_desc"),
+          variant: "destructive",
+        });
+      }
+    } else if (src && videoSourceInfo.type === "direct") {
+      // For direct video URLs
+      try {
+        // Fetch the video and create a blob URL for download
+        const response = await fetch(src);
+        if (!response.ok) throw new Error("Failed to fetch video");
+        
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `${title}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+        toast({
+          title: t("VideoPlayer.download_started"),
+          description: t("VideoPlayer.download_started_desc"),
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Download failed:", error);
+        // Fallback: try direct link
+        try {
+          const link = document.createElement("a");
+          link.href = src;
+          link.download = `${title}.mp4`;
+          link.target = "_blank";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast({
+            title: t("VideoPlayer.download_started"),
+            description: t("VideoPlayer.download_started_desc"),
+            duration: 3000,
+          });
+        } catch (fallbackError) {
+          toast({
+            title: t("VideoPlayer.download_failed"),
+            description: t("VideoPlayer.download_failed_desc"),
+            variant: "destructive",
+          });
+        }
+      }
+    } else {
+      // For YouTube/Vimeo videos, show a message
+      toast({
+        title: t("VideoPlayer.download_not_available"),
+        description: t("VideoPlayer.download_external_video"),
+        variant: "destructive",
+      });
+    }
   };
 
   // Control visibility timer
@@ -1368,14 +1497,14 @@ export default function BilibiliVideoPlayer({
               </span>
             </button>
             <button
-              onClick={onShare}
+              onClick={handleShare}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
             >
               <Share2 size={16} />
               <span>{t("VideoPlayer.share")}</span>
             </button>
             <button
-              onClick={onDownload}
+              onClick={handleDownload}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
             >
               <Download size={16} />

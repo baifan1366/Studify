@@ -33,7 +33,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
       return [];
     }
     
-    return learningStats.data.charts.dailyStudyTime.map(day => ({
+    return learningStats.charts.dailyStudyTime.map(day => ({
       day: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
       hours: day.hours,
       date: day.date
@@ -46,7 +46,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
       return [];
     }
 
-    const breakdown = learningStats.data.charts.activityBreakdown;
+    const breakdown = learningStats.charts.activityBreakdown;
     const subjects = [
       { subject: 'Video Watching', level: Math.min((breakdown.video_watching || 0) / 10, 100), color: 'text-blue-400' },
       { subject: 'Quiz Taking', level: Math.min((breakdown.quiz_taking || 0) / 5, 100), color: 'text-green-400' },

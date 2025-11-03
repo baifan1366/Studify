@@ -13,6 +13,7 @@ import {
 import { BookOpen, GraduationCap } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { isCapacitor } from "@/utils/platform";
 
 interface OAuthHandlerProps {
   locale: string;
@@ -70,6 +71,42 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
+      // Detect if running in Capacitor (mobile app)
+      const isMobile = isCapacitor();
+
+      // For mobile app, check if we're on the deep link callback path
+      // Handle both custom scheme (studify://) and HTTPS (App Links)
+      if (isMobile && (window.location.protocol === 'studify:' || window.location.protocol === 'https:')) {
+        console.log("📱 Mobile app deep link detected:", {
+          protocol: window.location.protocol,
+          href: window.location.href,
+          pathname: window.location.pathname
+        });
+        
+        // Parse the URL
+        const url = new URL(window.location.href);
+        const params = new URLSearchParams(url.search);
+        
+        // Extract parameters from deep link
+        const code = params.get("code");
+        const error = params.get("error");
+        const type = params.get("type");
+        const next = params.get("next");
+        const role = params.get("role");
+
+        if (error) {
+          console.error("OAuth error:", error);
+          return;
+        }
+
+        if (code) {
+          console.log("📱 Processing mobile OAuth callback with code");
+          // Process the OAuth code
+          await processMobileOAuthCallback(code, type, next, role);
+          return;
+        }
+      }
+
       // Check if we have OAuth callback parameters
       const code = searchParams.get("code");
       const error = searchParams.get("error");
@@ -246,6 +283,34 @@ export function OAuthHandler({ locale }: OAuthHandlerProps) {
           statusText: syncResponse.statusText,
           body: errorText,
         });
+        setIsProcessing(false);
+      }
+    };
+
+    // Helper function to process mobile OAuth callback
+    const processMobileOAuthCallback = async (
+      code: string,
+      type: string | null,
+      next: string | null,
+      role: string | null
+    ) => {
+      setIsProcessing(true);
+      console.log("📱 Processing mobile OAuth callback:", { code: !!code, type, next, role });
+
+      try {
+        // Exchange code for session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error || !data?.session) {
+          console.error("❌ Mobile OAuth session exchange failed:", error);
+          setIsProcessing(false);
+          return;
+        }
+
+        console.log("✅ Mobile OAuth session obtained");
+        await processSession(data.session);
+      } catch (err) {
+        console.error("❌ Mobile OAuth callback error:", err);
         setIsProcessing(false);
       }
     };

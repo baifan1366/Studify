@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { isCapacitor, getOAuthCallbackUrl } from "@/utils/platform";
 
 // HCaptcha configuration
 const HCAPTCHA_SITE_KEY = "d26a2d9a-3b10-4210-86a6-c8e4d872db56";
@@ -161,15 +162,24 @@ export function AuthForm({
     try {
       console.log("Starting OAuth flow with Google", { role, authMode });
 
-      // Build the callback URL that Supabase will redirect to after OAuth
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const callbackUrl = new URL('/api/auth/callback', siteUrl);
-      
+      // Detect if running in Capacitor (mobile app)
+      const isMobile = isCapacitor();
+
+      // Get the appropriate callback URL for the platform
+      const baseCallbackUrl = getOAuthCallbackUrl();
+      const callbackUrl = new URL(baseCallbackUrl);
+
+      console.log(
+        isMobile
+          ? "Using mobile deep link callback"
+          : "Using web HTTPS callback"
+      );
+
       // Add role parameter to callback URL
       if (role) {
-        callbackUrl.searchParams.set('role', role);
+        callbackUrl.searchParams.set("role", role);
       }
-      
+
       // Add auth mode if present
       if (authMode === "add") {
         callbackUrl.searchParams.set("mode", "add");
@@ -177,21 +187,24 @@ export function AuthForm({
           callbackUrl.searchParams.set("redirect", redirectUrl);
         }
       }
-      
+
       // Set the next redirect path based on role
-      const nextPath = role === 'tutor' 
-        ? `/${locale}/tutor/dashboard`
-        : role === 'admin'
-        ? `/${locale}/admin/dashboard`
-        : `/${locale}/home`;
-      
-      callbackUrl.searchParams.set('next', nextPath);
+      const nextPath =
+        role === "tutor"
+          ? `/${locale}/tutor/dashboard`
+          : role === "admin"
+          ? `/${locale}/admin/dashboard`
+          : `/${locale}/home`;
+
+      callbackUrl.searchParams.set("next", nextPath);
 
       console.log(
         "OAuth callback URL:",
         callbackUrl.toString(),
         "with role:",
-        role
+        role,
+        "isMobile:",
+        isMobile
       );
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -202,7 +215,7 @@ export function AuthForm({
             access_type: "offline",
             prompt: "consent",
             // Pass role as a query parameter that will be in the callback URL
-            role: role || 'student'
+            role: role || "student",
           },
         },
       });

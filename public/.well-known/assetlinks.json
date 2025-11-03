@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.studify.platform.vercel.app",
+    "sha256_cert_fingerprints": [
+      "5228682A034750EF69526D72FDE499F9263A3CCF8065D8B17202BEF58641D994"
+    ]
+  }
+}]

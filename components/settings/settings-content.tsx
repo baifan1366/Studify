@@ -172,24 +172,29 @@ export default function SettingsContent() {
     }
     if (key === 'language') {
       updateData.language = value;
-      // Set the locale cookie and redirect to update the language
-      const newPathname = pathname.replace(/^\/[a-z]{2}/, `/${value}`);
-      
-      // Set locale cookie
-      document.cookie = `locale=${value}; path=/; max-age=31536000; samesite=lax`;
-      
-      // Redirect to the new locale path
-      router.push(newPathname);
-      
-      toast({
-        title: t('language_updated'),
-        description: t('language_updated_desc'),
-      });
-      return; // Early return to avoid the database update below
     }
     
     try {
       await updateSettingsMutation.mutateAsync(updateData);
+      
+      // Handle language change after successful database update
+      if (key === 'language') {
+        // Set the locale cookie and redirect to update the language
+        const newPathname = pathname.replace(/^\/[a-z]{2}/, `/${value}`);
+        
+        // Set locale cookie
+        document.cookie = `locale=${value}; path=/; max-age=31536000; samesite=lax`;
+        
+        toast({
+          title: t('language_updated'),
+          description: t('language_updated_desc'),
+        });
+        
+        // Redirect to the new locale path
+        router.push(newPathname);
+        return;
+      }
+      
       toast({
         title: t('setting_updated'),
         description: t('setting_updated_desc'),

@@ -1444,7 +1444,22 @@
     "copy": "Copy",
     "copy_summary_glance": "Copy summary at a glance",
     "hide": "Hide",
-    "show": "Show"
+    "show": "Show",
+    "title": "AI Summary",
+    "auto_summarize": "Auto summarize",
+    "regenerate": "Regenerate",
+    "generate": "Generate",
+    "summary_at_glance": "Summary at a Glance",
+    "show_details": "Show Details",
+    "hide_details": "Hide Details",
+    "no_summary_yet": "No summary yet. Click Generate to create an AI summary for your search.",
+    "failed_to_generate": "Failed to generate summary. Please try again.",
+    "generate_concise_summary": "Generate a concise summary based on your top search results.",
+    "no_results_yet": "No results yet. Try adjusting your search to enable summarization.",
+    "type_query_to_enable": "Type a query to enable AI summary.",
+    "themes": "Themes",
+    "sources": "Sources",
+    "key_points": "Key Points"
   },
   "CommunityHighlights": {
     "title": "Learning Community",

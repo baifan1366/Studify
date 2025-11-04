@@ -58,11 +58,11 @@ interface AISummaryCardProps {
 export default function AISummaryCard({ query, resultIds, locale = "en", className }: AISummaryCardProps) {
   const t = useTranslations('AISummaryCard');
   const { data: userData } = useUser();
-  
+
   // Get user's preferred language from profile, fallback to locale prop
   const userLanguage = userData?.profile?.language || locale;
   const effectiveLocale = (userLanguage === 'zh' || userLanguage === 'zh-CN') ? 'zh' : 'en';
-  
+
   const {
     summarizeSearch,
     isSearching,
@@ -155,11 +155,11 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-400" />
-            <CardTitle className="text-lg sm:text-xl text-white">AI Summary</CardTitle>
+            <CardTitle className="text-lg sm:text-xl text-white">{t('title')}</CardTitle>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-xs text-gray-300">
-              <span>Auto summarize</span>
+              <span>{t('auto_summarize')}</span>
               <Switch
                 checked={autoEnabled}
                 onCheckedChange={(v) => setAutoEnabled(!!v)}
@@ -176,12 +176,12 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
               {cachedResult ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-1.5" />
-                  Regenerate
+                  {t('regenerate')}
                 </>
               ) : (
                 <>
                   <FileText className="w-4 h-4 mr-1.5" />
-                  Generate
+                  {t('generate')}
                 </>
               )}
             </Button>
@@ -200,12 +200,12 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         <div className="mt-2 text-xs text-gray-400">
           {hasQuery ? (
             hasResults ? (
-              <span>Generate a concise summary based on your top search results.</span>
+              <span>{t('generate_concise_summary')}</span>
             ) : (
-              <span>No results yet. Try adjusting your search to enable summarization.</span>
+              <span>{t('no_results_yet')}</span>
             )
           ) : (
-            <span>Type a query to enable AI summary.</span>
+            <span>{t('type_query_to_enable')}</span>
           )}
         </div>
       </CardHeader>
@@ -226,14 +226,14 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         {/* Error state */}
         {!isSearching && searchError && (
           <div className="text-sm text-red-400">
-            Failed to generate summary. Please try again.
+            {t('failed_to_generate')}
           </div>
         )}
 
         {/* Empty state */}
         {!isSearching && !searchError && !cachedResult && (
           <div className="text-sm text-gray-400">
-            No summary yet. Click Generate to create an AI summary for your search.
+            {t('no_summary_yet')}
           </div>
         )}
 
@@ -246,7 +246,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">📌</span>
-                    <h4 className="text-yellow-200 font-medium text-base">Summary at a Glance</h4>
+                    <h4 className="text-yellow-200 font-medium text-base">{t('summary_at_glance')}</h4>
                   </div>
                   <Button
                     size="sm"
@@ -280,7 +280,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                     >
                       <ChevronDown className="w-4 h-4 mr-1.5" />
                     </motion.div>
-                    Show Details
+                    {t('show_details')}
                   </Button>
                 </motion.div>
               </div>
@@ -304,7 +304,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.bullets && cachedResult.bullets.length > 0 && (
                     <div>
                       <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
-                        <List className="w-4 h-4" /> Key Points
+                        <List className="w-4 h-4" /> {t('key_points')}
                       </h4>
                       <ul className="list-disc list-inside space-y-1 text-sm text-gray-200">
                         {cachedResult.bullets.map((b, i) => (
@@ -318,7 +318,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.themes && cachedResult.themes.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-white font-semibold">Themes</h4>
+                        <h4 className="text-white font-semibold">{t('themes')}</h4>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -350,7 +350,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-white font-semibold flex items-center gap-2">
-                          <LinkIcon className="w-4 h-4" /> Sources
+                          <LinkIcon className="w-4 h-4" /> {t('sources')}
                         </h4>
                         <Button
                           variant="ghost"
@@ -403,7 +403,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                         >
                           <ChevronUp className="w-4 h-4 mr-1.5" />
                         </motion.div>
-                        Hide Details
+                        {t('hide_details')}
                       </Button>
                     </motion.div>
                   )}

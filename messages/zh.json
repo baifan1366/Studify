@@ -1444,7 +1444,22 @@
     "copy": "复制",
     "copy_summary_glance": "复制摘要",
     "hide": "隐藏",
-    "show": "显示"
+    "show": "显示",
+    "title": "AI 摘要",
+    "auto_summarize": "自动摘要",
+    "regenerate": "重新生成",
+    "generate": "生成",
+    "summary_at_glance": "摘要一览",
+    "show_details": "显示详情",
+    "hide_details": "隐藏详情",
+    "no_summary_yet": "暂无摘要。点击生成按钮为你的搜索创建 AI 摘要。",
+    "failed_to_generate": "生成摘要失败。请重试。",
+    "generate_concise_summary": "根据你的热门搜索结果生成简洁摘要。",
+    "no_results_yet": "暂无结果。尝试调整搜索以启用摘要功能。",
+    "type_query_to_enable": "输入查询以启用 AI 摘要。",
+    "themes": "主题",
+    "sources": "来源",
+    "key_points": "关键要点"
   },
   "CommunityHighlights": {
     "title": "学习社区",

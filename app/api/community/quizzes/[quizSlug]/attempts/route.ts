@@ -29,6 +29,17 @@ export async function POST(
     // 检查是否是作者
     const isAuthor = quiz.author_id === userId;
 
+    // Authors cannot create actual attempts - they should use preview mode
+    if (isAuthor) {
+      return NextResponse.json(
+        { 
+          error: "Authors cannot create attempts. Use preview mode instead.",
+          isPreviewOnly: true 
+        },
+        { status: 403 }
+      );
+    }
+
     // 检查 quiz 是否为 public（如果是 private 需要权限检查）
     if (quiz.visibility === 'private' && !isAuthor) {
       // 取出所有权限行，计算最高权限，避免多行导致 maybeSingle 异常
@@ -100,13 +111,12 @@ export async function POST(
       }
     }
 
-    // 作者可以无限制预览自己的quiz
     // 只计算已完成的attempts (submitted 或 graded 状态)
     const completedAttempts = existingAttempts?.filter(attempt => 
       attempt.status === 'submitted' || attempt.status === 'graded'
     ) || [];
     
-    if (!isAuthor && completedAttempts.length >= quiz.max_attempts) {
+    if (completedAttempts.length >= quiz.max_attempts) {
       return NextResponse.json(
         { error: `Maximum attempts (${quiz.max_attempts}) reached for this quiz` },
         { status: 403 }

@@ -8235,6 +8235,8 @@
   },
   "QuizResultModal": {
     "quiz_completed": "Quiz Completed!",
+    "preview_completed": "Preview Completed!",
+    "preview_notice": "This was a preview - no data was saved.",
     "your_score": "Your Score",
     "correct_answers": "Correct Answers",
     "total_questions": "Total Questions",

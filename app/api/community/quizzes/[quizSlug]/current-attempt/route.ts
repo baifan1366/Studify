@@ -29,6 +29,15 @@ export async function GET(
     // 检查是否是作者
     const isAuthor = quiz.author_id === userId;
 
+    // Authors don't have attempts, they use preview mode
+    if (isAuthor) {
+      return NextResponse.json({ 
+        hasCurrentAttempt: false,
+        currentAttempt: null,
+        isPreviewOnly: true
+      }, { status: 200 });
+    }
+
     // 检查private quiz的访问权限
     if (quiz.visibility === 'private' && !isAuthor) {
       const { data: perms } = await supabase

@@ -114,6 +114,15 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               if (isNavigating) return;
               setIsNavigating(true);
               try {
+                // Authors go directly to preview mode (no attempt creation)
+                if (isAuthor) {
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/attempt?mode=preview`
+                    : `/community/quizzes/${quiz.slug}/attempt?mode=preview`;
+                  router.push(route);
+                  return;
+                }
+
                 // 1) Check current attempt and session
                 let attemptId: number | null = null;
                 let sessionPublicId: string | null = null;

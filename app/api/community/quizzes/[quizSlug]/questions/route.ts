@@ -83,7 +83,18 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data, { status: 200 });
+  // Check if current user is the author
+  const isAuthor = userId && quiz.author_id === userId;
+
+  // For non-authors, remove correct_answers from response
+  const responseData = isAuthor 
+    ? data 
+    : data?.map(q => {
+        const { correct_answers, ...rest } = q;
+        return rest;
+      });
+
+  return NextResponse.json(responseData, { status: 200 });
 }
 
 export async function POST(

@@ -8235,6 +8235,8 @@
   },
   "QuizResultModal": {
     "quiz_completed": "测验完成！",
+    "preview_completed": "预览完成！",
+    "preview_notice": "这是预览模式 - 未保存任何数据。",
     "your_score": "你的得分",
     "correct_answers": "正确答案数",
     "total_questions": "总题数",

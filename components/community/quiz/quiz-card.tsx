@@ -249,6 +249,15 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
+                  // Authors go directly to preview mode
+                  if (isAuthor) {
+                    const route = isTutor
+                      ? `/tutor/community/quizzes/${quiz.slug}/attempt?mode=preview`
+                      : `/community/quizzes/${quiz.slug}/attempt?mode=preview`;
+                    router.push(route);
+                    return;
+                  }
+
                   let attemptId: number | null = null;
                   let sessionPublicId: string | null = null;
 

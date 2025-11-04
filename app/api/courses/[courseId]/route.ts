@@ -84,6 +84,46 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Handle point_price update
+    if (body.point_price !== undefined) {
+      if (body.point_price && body.point_price > 0) {
+        // Check if point price already exists
+        const { data: existingPointPrice } = await client
+          .from("course_point_price")
+          .select("*")
+          .eq("course_id", courseIdNum)
+          .single();
+
+        if (existingPointPrice) {
+          // Update existing point price
+          await client
+            .from("course_point_price")
+            .update({
+              point_price: parseInt(body.point_price),
+              is_active: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq("course_id", courseIdNum);
+        } else {
+          // Create new point price
+          await client
+            .from("course_point_price")
+            .insert([{
+              course_id: courseIdNum,
+              point_price: parseInt(body.point_price),
+              is_active: true
+            }]);
+        }
+      } else {
+        // Deactivate point price if set to 0 or null
+        await client
+          .from("course_point_price")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("course_id", courseIdNum);
+      }
+    }
+
     return NextResponse.json({ data });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });

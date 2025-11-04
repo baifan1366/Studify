@@ -81,8 +81,8 @@ export default function CoursesContent() {
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
   const redeemCourse = useRedeemCourse();
-  const [isBuyingNow, setIsBuyingNow] = useState(false);
-  const [isRedeemingNow, setIsRedeemingNow] = useState(false);
+  const [buyingCourseId, setBuyingCourseId] = useState<string | number | null>(null);
+  const [redeemingCourseId, setRedeemingCourseId] = useState<string | number | null>(null);
   const t = useTranslations("CoursesContent");
   const locale = useLocale();
 
@@ -187,7 +187,7 @@ export default function CoursesContent() {
   }, [courses, currency, enrolledCourseIds, currencies, locale]);
 
   const handleBuyNow = async (courseId: string | number) => {
-    setIsBuyingNow(true);
+    setBuyingCourseId(courseId);
     try {
       const result = await purchaseCourse.mutateAsync({
         courseId: String(courseId),
@@ -202,7 +202,7 @@ export default function CoursesContent() {
         variant: "destructive",
       });
     } finally {
-      setIsBuyingNow(false);
+      setBuyingCourseId(null);
     }
   };
 
@@ -221,7 +221,7 @@ export default function CoursesContent() {
       return;
     }
 
-    setIsRedeemingNow(true);
+    setRedeemingCourseId(courseId);
     try {
       // Convert course.id back to numeric courseId for API
       const numericCourseId = courses?.find(
@@ -247,7 +247,7 @@ export default function CoursesContent() {
         variant: "destructive",
       });
     } finally {
-      setIsRedeemingNow(false);
+      setRedeemingCourseId(null);
     }
   };
 
@@ -750,10 +750,10 @@ export default function CoursesContent() {
                               onClick={() => handleBuyNow(course.id)}
                               variant="default"
                               className="flex-1"
-                              disabled={isBuyingNow}
+                              disabled={buyingCourseId === course.id}
                             >
                               <CreditCard size={16} className="mr-1" />
-                              {isBuyingNow ? t("buying_now") : t("buy_now")}
+                              {buyingCourseId === course.id ? t("buying_now") : t("buy_now")}
                             </Button>
                           </div>
 
@@ -766,13 +766,13 @@ export default function CoursesContent() {
                               variant="secondary"
                               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-semibold"
                               disabled={
-                                isRedeemingNow ||
+                                redeemingCourseId === course.id ||
                                 (pointsData?.currentPoints || 0) <
                                   course.points
                               }
                             >
                               <Coins size={16} className="mr-2" />
-                              {isRedeemingNow
+                              {redeemingCourseId === course.id
                                 ? t("redeeming_now")
                                 : (pointsData?.currentPoints || 0) <
                                   course.points

@@ -2125,7 +2125,10 @@
     "course_under_review": "Course Under Review",
     "course_under_review_desc": "This course is currently being updated or is under review by our team. Please check back later for access to the course content.",
     "status": "Status",
-    "browse_other_courses": "Browse Other Courses"
+    "browse_other_courses": "Browse Other Courses",
+    "CourseDetail": {
+      "access_classroom_community": "You can now access your classroom and community resources"
+    }
   },
   "StudentEnrollmentFlow": {
     "auto_creation_starting": "Setting up your learning environment...",
@@ -4180,7 +4183,11 @@
     "eur": "EUR",
     "gbp": "GBP",
     "myr": "MYR",
-    "sgd": "SGD"
+    "sgd": "SGD",
+    "enable_point_redemption": "Enable Point Redemption",
+    "enable_point_redemption_description": "Allow students to redeem this course using points instead of paying with money",
+    "point_price": "Point Price",
+    "point_price_description": "Number of points required to redeem this course (e.g., 500 points)"
   },
   "CreateCourseLesson": {
     "loading_attachments": "Loading attachments...",
@@ -4643,7 +4650,11 @@
     "eur": "EUR",
     "gbp": "GBP",
     "myr": "MYR",
-    "sgd": "SGD"
+    "sgd": "SGD",
+    "enable_point_redemption": "Enable Point Redemption",
+    "enable_point_redemption_description": "Allow students to redeem this course using points instead of paying with money",
+    "point_price": "Point Price",
+    "point_price_description": "Number of points required to redeem this course (e.g., 500 points)"
   },
   "CourseModuleSchema": {
     "course_id_required": "Course selection is required.",

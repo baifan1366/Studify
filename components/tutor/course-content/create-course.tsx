@@ -44,6 +44,8 @@ export default function CreateCourse() {
     const [objectiveInput, setObjectiveInput] = useState('');
     const [totalLessons, setTotalLessons] = useState<number | undefined>();
     const [totalDurationMinutes, setTotalDurationMinutes] = useState<number | undefined>();
+    const [pointPrice, setPointPrice] = useState<number | undefined>();
+    const [enablePointRedemption, setEnablePointRedemption] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const t = useTranslations('CreateCourse');
@@ -147,7 +149,8 @@ export default function CreateCourse() {
                 tags: tags,
                 total_lessons: totalLessons,
                 total_duration_minutes: totalDurationMinutes,
-                owner_id: ownerId
+                owner_id: ownerId,
+                point_price: enablePointRedemption ? pointPrice : undefined
             };
             
             // Use the mutation to create the course
@@ -173,6 +176,8 @@ export default function CreateCourse() {
             setIsFree(false);
             setTotalLessons(undefined);
             setTotalDurationMinutes(undefined);
+            setPointPrice(undefined);
+            setEnablePointRedemption(false);
             setRequirementInput('');
             setObjectiveInput('');
             setTags([]);
@@ -541,6 +546,44 @@ export default function CreateCourse() {
                                         </div>
                                     </div>
                                 )}
+
+                                <Separator />
+
+                                {/* Points Redemption Settings */}
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="enable_point_redemption"
+                                                checked={enablePointRedemption}
+                                                onChange={(e) => setEnablePointRedemption(e.target.checked)}
+                                            />
+                                            <Label htmlFor="enable_point_redemption">{t('enable_point_redemption')}</Label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground ml-6">
+                                            {t('enable_point_redemption_description')}
+                                        </p>
+                                    </div>
+
+                                    {enablePointRedemption && (
+                                        <div className="grid w-full items-center gap-1.5 ml-6">
+                                            <Label htmlFor="point_price">{t('point_price')}</Label>
+                                            <Input
+                                                type="number"
+                                                id="point_price"
+                                                placeholder="500"
+                                                min="1"
+                                                value={pointPrice || ''}
+                                                onChange={(e) => setPointPrice(e.target.value ? parseInt(e.target.value) : undefined)}
+                                                className={errors.point_price ? 'border-red-500' : ''}
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                {t('point_price_description')}
+                                            </p>
+                                            {errors.point_price && <span className="text-xs text-red-500">{errors.point_price}</span>}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <Separator />
 

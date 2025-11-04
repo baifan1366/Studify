@@ -2125,7 +2125,10 @@
     "course_under_review": "课程审核中",
     "course_under_review_desc": "此课程正在审核中，暂时无法访问。请稍后查看课程内容。",
     "status": "状态",
-    "browse_other_courses": "浏览其他课程"
+    "browse_other_courses": "浏览其他课程",
+    "CourseDetail": {
+      "access_classroom_community": "你现在可以访问你的课堂和社区资源"
+    }
   },
   "StudentEnrollmentFlow": {
     "auto_creation_starting": "正在设置你的学习环境...",
@@ -4180,7 +4183,11 @@
     "eur": "欧元",
     "gbp": "英镑",
     "myr": "马来西亚林吉特",
-    "sgd": "新加坡元"
+    "sgd": "新加坡元",
+    "enable_point_redemption": "启用积分兑换",
+    "enable_point_redemption_description": "允许学生使用积分兑换此课程，而不是用钱支付",
+    "point_price": "积分价格",
+    "point_price_description": "兑换此课程所需的积分数量（例如：500积分）"
   },
   "CreateCourseLesson": {
     "create_lesson_button": "创建课时",
@@ -4643,7 +4650,11 @@
     "gbp": "英镑",
     "myr": "马来西亚林吉特",
     "sgd": "新加坡元",
-    "updating": "更新中..."
+    "updating": "更新中...",
+    "enable_point_redemption": "启用积分兑换",
+    "enable_point_redemption_description": "允许学生使用积分兑换此课程，而不是用钱支付",
+    "point_price": "积分价格",
+    "point_price_description": "兑换此课程所需的积分数量（例如：500积分）"
   },
   "CourseModuleSchema": {
     "course_id_required": "课程选择为必填项。",

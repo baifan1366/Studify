@@ -170,7 +170,7 @@ export async function middleware(request: NextRequest) {
           const supabase = await createServerClient();
           const { data: profile } = await supabase
             .from("profiles")
-            .select("onboarded, role")
+            .select("onboarded, role, language")
             .eq("user_id", userId)
             .single();
 
@@ -185,9 +185,39 @@ export async function middleware(request: NextRequest) {
           const profile = JSON.parse(profileData) as {
             onboarded: boolean;
             role: string;
+            language?: string;
           };
 
           const userRole = profile.role || role || "student";
+
+          // Language sync: Check if user's preferred language matches current locale
+          if (profile.language) {
+            const pathSegments = pathname.split('/').filter(Boolean);
+            const currentLocale = pathSegments[0] || 'en';
+            
+            // If user's language preference doesn't match current locale, redirect
+            if (profile.language !== currentLocale && ['en', 'zh', 'ms'].includes(profile.language)) {
+              const url = request.nextUrl.clone();
+              const newPathname = pathname.replace(/^\/[a-z]{2}/, `/${profile.language}`);
+              url.pathname = newPathname;
+              
+              debugLog("language mismatch - redirecting", {
+                userId,
+                userLanguage: profile.language,
+                currentLocale,
+                pathname,
+              });
+              
+              const response = NextResponse.redirect(url);
+              // Update the locale cookie to match user preference
+              response.cookies.set('next-intl-locale', profile.language, {
+                path: '/',
+                maxAge: 31536000,
+                sameSite: 'lax',
+              });
+              return response;
+            }
+          }
 
           // Check if user is trying to access a role-specific path
           const rolePathMatch = pathname.match(

@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAICommunitySummary, useSummaryFormatter } from "@/hooks/ai/use-ai-community-summary";
+import { useUser } from "@/hooks/profile/use-user";
 import { cn } from "@/utils/styles";
 import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -35,12 +36,12 @@ const detailsVariants = {
 };
 
 const buttonVariants = {
-  hidden: { 
+  hidden: {
     opacity: 0,
     y: -10,
     transition: { duration: 0.2 }
   },
-  visible: { 
+  visible: {
     opacity: 1,
     y: 0,
     transition: { duration: 0.2, delay: 0.1 }
@@ -56,7 +57,13 @@ interface AISummaryCardProps {
 
 export default function AISummaryCard({ query, resultIds, locale = "en", className }: AISummaryCardProps) {
   const t = useTranslations('AISummaryCard');
-  const { 
+  const { data: userData } = useUser();
+  
+  // Get user's preferred language from profile, fallback to locale prop
+  const userLanguage = userData?.profile?.language || locale;
+  const effectiveLocale = (userLanguage === 'zh' || userLanguage === 'zh-CN') ? 'zh' : 'en';
+  
+  const {
     summarizeSearch,
     isSearching,
     searchResult,
@@ -92,7 +99,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         query,
         resultIds,
         maxItems: Math.min(10, resultIds.length || 10),
-        locale
+        locale: effectiveLocale
       },
       {
         onSuccess: (data) => {
@@ -101,7 +108,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, locale]);
+  }, [autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, effectiveLocale]);
 
   const handleGenerate = () => {
     if (disabled) return;
@@ -110,7 +117,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         query,
         resultIds,
         maxItems: Math.min(10, resultIds.length || 10),
-        locale
+        locale: effectiveLocale
       },
       {
         onSuccess: (data) => {
@@ -255,7 +262,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.tldr}
                 </p>
                 {/* Show Details Button - positioned at bottom right with animation */}
-                <motion.div 
+                <motion.div
                   className="flex justify-end"
                   variants={buttonVariants}
                   initial="visible"
@@ -282,7 +289,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
             {/* Detailed Content - shown when showDetails is true OR when no TLDR exists */}
             <AnimatePresence>
               {(showDetails || !cachedResult.tldr) && (
-                <motion.div 
+                <motion.div
                   className="space-y-4"
                   variants={detailsVariants}
                   initial={cachedResult.tldr ? "hidden" : "visible"}
@@ -293,85 +300,92 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {/* Summary paragraph */}
                   <p className="text-sm text-gray-200 leading-6 whitespace-pre-wrap">{cachedResult.summary}</p>
 
-                {/* Bullets */}
-                {cachedResult.bullets && cachedResult.bullets.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
-                      <List className="w-4 h-4" /> Key Points
-                    </h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-200">
-                      {cachedResult.bullets.map((b, i) => (
-                        <li key={i}>{b}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Themes (toggle) */}
-                {cachedResult.themes && cachedResult.themes.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-white font-semibold">Themes</h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleThemes}
-                        className="text-gray-300 hover:text-white"
-                      >
-                        {showThemes ? t('hide') : t('show')}
-                      </Button>
-                    </div>
-                    {showThemes && (
-                      <div className="space-y-3">
-                        {cachedResult.themes.map((th, idx) => (
-                          <div key={idx} className="bg-white/5 rounded-md p-3 border border-white/10">
-                            <div className="text-white font-medium mb-1">{th.title}</div>
-                            <ul className="list-disc list-inside text-sm text-gray-200 space-y-1">
-                              {th.points.map((p, pi) => (
-                                <li key={pi}>{p}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Citations (toggle) */}
-                {cachedResult.citations && cachedResult.citations.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-white font-semibold flex items-center gap-2">
-                        <LinkIcon className="w-4 h-4" /> Sources
+                  {/* Bullets */}
+                  {cachedResult.bullets && cachedResult.bullets.length > 0 && (
+                    <div>
+                      <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
+                        <List className="w-4 h-4" /> Key Points
                       </h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleCitations}
-                        className="text-gray-300 hover:text-white"
-                      >
-                        {showCitations ? t('hide') : t('show')}
-                      </Button>
-                    </div>
-                    {showCitations && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {cachedResult.citations.map((c, i) => (
-                          <Link key={i} href={`/community/${c.slug}`} className="block">
-                            <div className="bg-white/5 rounded-md p-3 border border-white/10 hover:bg-white/10 transition">
-                              <div className="text-sm text-white line-clamp-1">{c.title}</div>
-                              <div className="text-xs text-gray-400 line-clamp-2 mt-1">{c.snippet}</div>
-                            </div>
-                          </Link>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-200">
+                        {cachedResult.bullets.map((b, i) => (
+                          <li key={i}>{b}</li>
                         ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Themes (toggle) */}
+                  {cachedResult.themes && cachedResult.themes.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-white font-semibold">Themes</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={toggleThemes}
+                          className="text-gray-300 hover:text-white"
+                        >
+                          {showThemes ? t('hide') : t('show')}
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {showThemes && (
+                        <div className="space-y-3">
+                          {cachedResult.themes.map((th, idx) => (
+                            <div key={idx} className="bg-white/5 rounded-md p-3 border border-white/10">
+                              <div className="text-white font-medium mb-1">{th.title}</div>
+                              <ul className="list-disc list-inside text-sm text-gray-200 space-y-1">
+                                {th.points.map((p, pi) => (
+                                  <li key={pi}>{p}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Citations (toggle) */}
+                  {cachedResult.citations && cachedResult.citations.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-white font-semibold flex items-center gap-2">
+                          <LinkIcon className="w-4 h-4" /> Sources
+                        </h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={toggleCitations}
+                          className="text-gray-300 hover:text-white"
+                        >
+                          {showCitations ? t('hide') : t('show')}
+                        </Button>
+                      </div>
+                      {showCitations && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {cachedResult.citations.map((c, i) => {
+                            const slugParts = c.slug.split('/');
+                            const fullPath = slugParts.length === 2
+                              ? `${slugParts[0]}/posts/${slugParts[1]}`
+                              : c.slug;
+
+                            return (
+                              <Link key={i} href={`/${effectiveLocale}/community/${fullPath}`} className="block">
+                                <div className="bg-white/5 rounded-md p-3 border border-white/10 hover:bg-white/10 transition">
+                                  <div className="text-sm text-white line-clamp-1">{c.title}</div>
+                                  <div className="text-xs text-gray-400 line-clamp-2 mt-1">{c.snippet}</div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Hide Details Button - positioned at bottom right when TLDR exists and details are shown */}
                   {cachedResult.tldr && showDetails && (
-                    <motion.div 
+                    <motion.div
                       className="flex justify-end pt-2"
                       variants={buttonVariants}
                       initial="hidden"

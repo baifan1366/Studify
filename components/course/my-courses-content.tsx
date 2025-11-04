@@ -121,8 +121,8 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-semibold text-lg truncate">{course?.title || t('untitled_course')}</h3>
-          <div className="text-sm text-white/60 capitalize">
+          <h3 className="text-gray-900 dark:text-white font-semibold text-lg truncate">{course?.title || t('untitled_course')}</h3>
+          <div className="text-sm text-gray-600 dark:text-white/60 capitalize">
             {course?.level ? t(course.level as 'beginner' | 'intermediate' | 'advanced') : t('beginner')}
           </div>
         </div>
@@ -136,15 +136,15 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
 
       {/* Course Stats */}
       <div className="flex items-center gap-2 mb-4">
-        <Clock size={16} className="text-white/60 flex-shrink-0" />
-        <span className="text-white/80 text-sm truncate">{t('self_paced')}</span>
+        <Clock size={16} className="text-gray-600 dark:text-white/60 flex-shrink-0" />
+        <span className="text-gray-700 dark:text-white/80 text-sm truncate">{t('self_paced')}</span>
       </div>
 
       {/* Progress with calculated percentage */}
       <div className="mt-auto">
         <div className="flex justify-between text-sm mb-1">
-          <span className="text-white/70">{t('progress')}</span>
-          <span className="text-white">{calculatedProgress}%</span>
+          <span className="text-gray-600 dark:text-white/70">{t('progress')}</span>
+          <span className="text-gray-900 dark:text-white">{calculatedProgress}%</span>
         </div>
         <div className="w-full bg-white/20 rounded-full h-1.5 mb-4">
           <motion.div
@@ -213,7 +213,7 @@ function ErrorState({ onRetry, t }: { onRetry: () => void; t: (key: string) => s
   return (
     <div className="text-center py-12">
       <h2 className="text-2xl font-bold text-red-500 mb-4">{t('error_loading')}</h2>
-      <p className="text-white/70 mb-6">{t('error_message')}</p>
+      <p className="text-gray-600 dark:text-white/70 mb-6">{t('error_message')}</p>
       <Button 
         onClick={onRetry}
         variant="outline"
@@ -229,8 +229,8 @@ function ErrorState({ onRetry, t }: { onRetry: () => void; t: (key: string) => s
 function EmptyState({ onBrowseCourses, t }: { onBrowseCourses: () => void; t: (key: string) => string }) {
   return (
     <div className="text-center py-12">
-      <h2 className="text-2xl font-bold text-white mb-4">{t('no_courses_title')}</h2>
-      <p className="text-white/70 mb-6">{t('no_courses_message')}</p>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t('no_courses_title')}</h2>
+      <p className="text-gray-600 dark:text-white/70 mb-6">{t('no_courses_message')}</p>
       <Button 
         onClick={onBrowseCourses}
         className="bg-blue-600 hover:bg-blue-700"

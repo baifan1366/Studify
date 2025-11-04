@@ -96,7 +96,7 @@ export default function CommunityContent() {
                   <TrendingUp className="w-8 h-8 text-blue-400" />
                 )}
                 <div>
-                  <h1 className="text-3xl font-bold text-white">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                     {debouncedQuery.trim().length > 0
                       ? t('search_results')
                       : t('community_feed_title')}
@@ -117,7 +117,7 @@ export default function CommunityContent() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('search_placeholder')}
-                className="w-full px-4 py-3 rounded-2xl bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 rounded-2xl bg-white/10 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -160,7 +160,7 @@ export default function CommunityContent() {
               <div className="text-center py-12">
                 <div className="bg-white/5 rounded-xl p-8 border border-white/10">
                   <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                     {debouncedQuery.trim().length > 0
                       ? t('no_results_found')
                       : t('no_posts_yet')}
@@ -172,7 +172,7 @@ export default function CommunityContent() {
                   </p>
                   <div className="flex gap-3 justify-center">
                     <Link href={createGroupPath}>
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Button className="bg-blue-600 hover:bg-blue-700">
                         <Plus className="w-4 h-4 mr-2" />
                         {debouncedQuery.trim().length > 0
                           ? t('create_post')

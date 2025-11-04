@@ -8083,7 +8083,16 @@
     "title": "我的全部小组",
     "close": "关闭",
     "no_groups": "你还没有加入任何小组",
-    "explore_groups": "探索小组并加入！"
+    "explore_groups": "探索小组并加入！",
+    "private_groups": "私密群主",
+    "private":"私密",
+    "public_groups":"公开群主",
+    "public":"公开",
+    "posts":"个帖子",
+    "members": "位成员",
+    "joined":"加入时间",
+    "view_group": "查看群主",
+    "browse_groups": "浏览群主"
   },
   "QuizContent": {
     "title": "社区测验",

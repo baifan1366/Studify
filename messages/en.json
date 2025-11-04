@@ -8083,7 +8083,16 @@
     "title": "All My Groups",
     "close": "Close",
     "no_groups": "You haven't joined any groups yet",
-    "explore_groups": "Explore groups to join!"
+    "explore_groups": "Explore groups to join!",
+    "private_groups": "Private Groups",
+    "private":"Private",
+    "public_groups":"Public Groups",
+    "public":"Public",
+    "posts":"posts",
+    "members": "members",
+    "joined":"Joined",
+    "view_group": "View Group",
+    "browse_groups": "Broswe Groups"
   },
   "QuizContent": {
     "title": "Community Quizzes",

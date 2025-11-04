@@ -241,9 +241,8 @@ export default function NotificationsPage() {
                   </CardTitle>
                   <CardDescription className="text-white/70">
                     {unreadCount > 0
-                      ? `You have ${unreadCount} unread notification${
-                          unreadCount > 1 ? "s" : ""
-                        }`
+                      ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""
+                      }`
                       : "You're all caught up! No unread notifications."}
                   </CardDescription>
                 </CardHeader>

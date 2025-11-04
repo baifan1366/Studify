@@ -127,12 +127,12 @@ export default function CommunitySidebar() {
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-400 text-sm mb-3">
-                  You haven't joined any groups yet
+                  {t("CommunitySidebar.no_groups_joined")}
                 </p>
                 <Link href={createGroupPath}>
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-1" />
-                    Create Group
+                    {t("CommunitySidebar.create_group")}
                   </Button>
                 </Link>
               </div>
@@ -144,7 +144,7 @@ export default function CommunitySidebar() {
                 className="w-full text-blue-400 hover:bg-blue-400/10"
                 onClick={() => setShowAllGroupsModal(true)}
               >
-                View All Groups
+                {t("CommunitySidebar.view_all_groups")}
               </Button>
             )}
           </CardContent>
@@ -169,7 +169,7 @@ export default function CommunitySidebar() {
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-400 text-sm">
-                  No suggestions available
+                  {t("CommunitySidebar.no_suggestions")}
                 </p>
               </div>
             )}

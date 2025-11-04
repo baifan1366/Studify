@@ -1459,7 +1459,8 @@
     "type_query_to_enable": "Type a query to enable AI summary.",
     "themes": "Themes",
     "sources": "Sources",
-    "key_points": "Key Points"
+    "key_points": "Key Points",
+    "copied": "Copied!"
   },
   "CommunityHighlights": {
     "title": "Learning Community",

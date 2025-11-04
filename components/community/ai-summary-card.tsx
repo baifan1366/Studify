@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAICommunitySummary, useSummaryFormatter } from "@/hooks/ai/use-ai-community-summary";
 import { useUser } from "@/hooks/profile/use-user";
 import { cn } from "@/utils/styles";
-import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp, Check } from "lucide-react";
 
 // Animation variants for smooth transitions
 const detailsVariants = {
@@ -82,6 +82,9 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
   const [showDetails, setShowDetails] = useState(false);
   // Auto summarize toggle (non-persistent)
   const [autoEnabled, setAutoEnabled] = useState(true);
+  // Copy button feedback state
+  const [copied, setCopied] = useState(false);
+  const [copiedTldr, setCopiedTldr] = useState(false);
 
   const hasQuery = query.trim().length > 0;
   const hasResults = resultIds && resultIds.length > 0;
@@ -130,13 +133,20 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
   const handleCopy = async () => {
     if (!cachedResult) return;
     const ok = await state.copyToClipboard(formatFullSummary(cachedResult));
-    // We rely on global toasts inside hooks; no local toast needed
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
     return ok;
   };
 
   const handleCopyTldr = async () => {
     if (!cachedResult?.tldr) return;
     const ok = await state.copyToClipboard(cachedResult.tldr);
+    if (ok) {
+      setCopiedTldr(true);
+      setTimeout(() => setCopiedTldr(false), 2000);
+    }
     return ok;
   };
 
@@ -188,12 +198,25 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
             <Button
               size="sm"
               variant="secondary"
-              className="bg-white/10 hover:bg-white/20 text-white"
+              className={cn(
+                "transition-all duration-200",
+                copied
+                  ? "bg-green-500/20 hover:bg-green-500/30 text-green-300"
+                  : "bg-white/10 hover:bg-white/20 text-white"
+              )}
               onClick={handleCopy}
               disabled={!cachedResult}
               title={t('copy_summary')}
             >
-              <Copy className="w-4 h-4 mr-1.5" /> {t('copy')}
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-1.5" /> {t('copied') || 'Copied!'}
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-1.5" /> {t('copy')}
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -251,11 +274,20 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/10"
+                    className={cn(
+                      "transition-all duration-200",
+                      copiedTldr
+                        ? "text-green-300 hover:text-green-200 bg-green-500/10 hover:bg-green-500/20"
+                        : "text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/10"
+                    )}
                     onClick={handleCopyTldr}
                     title={t('copy_summary_glance')}
                   >
-                    <Copy className="w-4 h-4" />
+                    {copiedTldr ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
                 <p className="text-yellow-200 text-lg font-medium leading-relaxed mb-4">

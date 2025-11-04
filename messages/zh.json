@@ -1459,7 +1459,8 @@
     "type_query_to_enable": "输入查询以启用 AI 摘要。",
     "themes": "主题",
     "sources": "来源",
-    "key_points": "关键要点"
+    "key_points": "关键要点",
+    "copied": "已复制！"
   },
   "CommunityHighlights": {
     "title": "学习社区",

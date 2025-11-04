@@ -1402,7 +1402,6 @@
     "in_progress": "In Progress",
     "completed": "Completed",
     "graded": "Graded",
-    "view_only": "View Only",
     "can_attempt": "Can Attempt",
     "can_edit": "Can Edit",
     "no_expiry": "No expiry",
@@ -2855,7 +2854,6 @@
       "in_progress": "In Progress",
       "completed": "Completed",
       "graded": "Graded",
-      "view_only": "View Only",
       "can_attempt": "Can Attempt",
       "can_edit": "Can Edit",
       "no_expiry": "No expiry",
@@ -8139,7 +8137,6 @@
       "title": "Shared with Me",
       "private_label": "Private",
       "permission": {
-        "view": "View Only",
         "attempt": "Can Attempt",
         "edit": "Can Edit"
       },
@@ -8313,13 +8310,11 @@
     "start_quiz": "Start Quiz",
     "status": {
       "no_access": "No Access",
-      "view_only": "View Only",
       "completed": "Completed",
       "unavailable": "Unavailable"
     },
     "permission_badge": "{permission} Permission",
     "permissions": {
-      "view": "View",
       "attempt": "Attempt",
       "edit": "Edit",
       "owner": "Owner"

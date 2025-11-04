@@ -1402,7 +1402,6 @@
     "in_progress": "进行中",
     "completed": "完成",
     "graded": "评分",
-    "view_only": "仅查看",
     "can_attempt": "可尝试",
     "can_edit": "可编辑",
     "no_expiry": "无到期日",
@@ -2855,7 +2854,6 @@
       "in_progress": "进行中",
       "completed": "已完成",
       "graded": "已评分",
-      "view_only": "查看 Only",
       "can_attempt": "可尝试",
       "can_edit": "Ca编辑",
       "no_expiry": "否 expiry",
@@ -8085,12 +8083,12 @@
     "no_groups": "你还没有加入任何小组",
     "explore_groups": "探索小组并加入！",
     "private_groups": "私密群主",
-    "private":"私密",
-    "public_groups":"公开群主",
-    "public":"公开",
-    "posts":"个帖子",
+    "private": "私密",
+    "public_groups": "公开群主",
+    "public": "公开",
+    "posts": "个帖子",
     "members": "位成员",
-    "joined":"加入时间",
+    "joined": "加入时间",
     "view_group": "查看群主",
     "browse_groups": "浏览群主"
   },
@@ -8139,7 +8137,6 @@
       "title": "分享给我",
       "private_label": "私有",
       "permission": {
-        "view": "仅可查看",
         "attempt": "可尝试",
         "edit": "可编辑"
       },
@@ -8313,13 +8310,11 @@
     "start_quiz": "开始测验",
     "status": {
       "no_access": "无访问权限",
-      "view_only": "仅可查看",
       "completed": "已完成",
       "unavailable": "不可用"
     },
     "permission_badge": "{permission} 权限",
     "permissions": {
-      "view": "查看",
       "attempt": "尝试",
       "edit": "编辑",
       "owner": "拥有者"

@@ -31,7 +31,7 @@ import { toast } from "sonner";
 interface InviteLink {
   token: string;
   invite_link: string;
-  permission_type: 'view' | 'attempt' | 'edit';
+  permission_type: 'attempt' | 'edit';
   expires_at?: string;
   max_uses?: number;
   current_uses: number;
@@ -60,7 +60,7 @@ export default function ShareQuizModal({
   const [error, setError] = useState<string | null>(null);
 
   // 新邀请表单状态
-  const [permissionType, setPermissionType] = useState<'view' | 'attempt' | 'edit'>('attempt');
+  const [permissionType, setPermissionType] = useState<'attempt' | 'edit'>('attempt');
   const [expiresInDays, setExpiresInDays] = useState<string>('');
   const [maxUses, setMaxUses] = useState<string>('');
 
@@ -134,7 +134,6 @@ export default function ShareQuizModal({
 
   const getPermissionLabel = (type: string) => {
     switch (type) {
-      case 'view': return 'View';
       case 'attempt': return 'Attempt';
       case 'edit': return 'Edit';
       default: return type;
@@ -143,7 +142,6 @@ export default function ShareQuizModal({
 
   const getPermissionColor = (type: string) => {
     switch (type) {
-      case 'view': return 'bg-blue-100 text-blue-800';
       case 'attempt': return 'bg-green-100 text-green-800';
       case 'edit': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -247,7 +245,6 @@ export default function ShareQuizModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="view">View Only</SelectItem>
                     <SelectItem value="attempt">Can Attempt</SelectItem>
                     <SelectItem value="edit">Can Edit</SelectItem>
                   </SelectContent>

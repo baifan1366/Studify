@@ -224,7 +224,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
         {/* 显示尝试次数信息 */}
         {!statusLoading && attemptStatus && (
           <div className="text-xs text-gray-500 text-center">
-            {isAuthor ? (
+            {(isAuthor || attemptStatus?.userPermission === 'edit') ? (
               <span className="text-blue-600">{t("author_preview")}</span>
             ) : (
               <span>
@@ -249,8 +249,8 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
-                  // Authors go directly to preview mode
-                  if (isAuthor) {
+                  // Authors and users with edit permission go directly to preview mode
+                  if (isAuthor || attemptStatus?.userPermission === 'edit') {
                     const route = isTutor
                       ? `/tutor/community/quizzes/${quiz.slug}/attempt?mode=preview`
                       : `/community/quizzes/${quiz.slug}/attempt?mode=preview`;
@@ -314,7 +314,7 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
               <Play className="h-4 w-4 mr-1" />
               {attemptStatus?.hasInProgressAttempt
                 ? t("actions.continue")
-                : (isAuthor ? t("actions.preview") : t("actions.start"))}
+                : (isAuthor || attemptStatus?.userPermission === 'edit' ? t("actions.preview") : t("actions.start"))}
             </Button>
           ) : (
             <Button size="sm" disabled className="rounded-lg">
@@ -322,12 +322,6 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
                 <>
                   <Lock className="h-4 w-4 mr-1" />
                   Private
-                </>
-              )}
-              {attemptStatus?.accessReason === "view_only_permission" && (
-                <>
-                  <Eye className="h-4 w-4 mr-1" />
-                  View Only
                 </>
               )}
               {attemptStatus?.accessReason === "max_attempts_reached" && (

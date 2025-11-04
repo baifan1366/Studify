@@ -29,16 +29,8 @@ export async function GET(
     // 检查是否是作者
     const isAuthor = quiz.author_id === userId;
 
-    // Authors don't have attempts, they use preview mode
-    if (isAuthor) {
-      return NextResponse.json({ 
-        hasCurrentAttempt: false,
-        currentAttempt: null,
-        isPreviewOnly: true
-      }, { status: 200 });
-    }
-
-    // 检查private quiz的访问权限
+    // 检查用户权限（对于 private quiz）
+    let userPermission: 'attempt'|'edit'|null = null;
     if (quiz.visibility === 'private' && !isAuthor) {
       const { data: perms } = await supabase
         .from("community_quiz_permission")
@@ -46,21 +38,29 @@ export async function GET(
         .eq("quiz_id", quiz.id)
         .eq("user_id", userId);
 
-      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
-      let best: 'view'|'attempt'|'edit'|null = null;
+      const order: Record<'attempt'|'edit', number> = { attempt: 1, edit: 2 };
       if (perms && perms.length > 0) {
         for (const p of perms) {
-          const t = p.permission_type as 'view'|'attempt'|'edit';
-          if (!best || order[t] > order[best]) best = t;
+          const t = p.permission_type as 'attempt'|'edit';
+          if (!userPermission || order[t] > order[userPermission]) userPermission = t;
         }
       }
 
-      if (!best || (best !== 'attempt' && best !== 'edit')) {
+      if (!userPermission) {
         return NextResponse.json(
           { error: "You don't have permission to access this private quiz" },
           { status: 403 }
         );
       }
+    }
+
+    // Authors and users with edit permission don't have attempts, they use preview mode
+    if (isAuthor || userPermission === 'edit') {
+      return NextResponse.json({ 
+        hasCurrentAttempt: false,
+        currentAttempt: null,
+        isPreviewOnly: true
+      }, { status: 200 });
     }
 
     // 查找用户当前的进行中attempt

@@ -97,7 +97,6 @@ const SharedPrivateQuizCard = ({
   const t = useTranslations('QuizzesSidebar');
   const quizPath = isTutor ? `/tutor/community/quizzes/${quiz.quiz_slug}` : `/community/quizzes/${quiz.quiz_slug}`;
   const permissionConfig = {
-    view: { icon: Eye, label: t('shared.permission.view'), color: "text-blue-400" },
     attempt: { icon: Target, label: t('shared.permission.attempt'), color: "text-green-400" },
     edit: { icon: Edit, label: t('shared.permission.edit'), color: "text-purple-400" },
   };

@@ -16,7 +16,7 @@ interface InviteInfo {
     title: string;
     description: string;
   };
-  permission_type: 'view' | 'attempt' | 'edit';
+  permission_type: 'attempt' | 'edit';
   expires_at?: string;
 }
 
@@ -81,7 +81,6 @@ export default function QuizInvitePage() {
 
   const getPermissionLabel = (type: string) => {
     switch (type) {
-      case 'view': return 'View Quiz';
       case 'attempt': return 'Attempt Quiz';
       case 'edit': return 'Edit Quiz';
       default: return type;
@@ -90,7 +89,6 @@ export default function QuizInvitePage() {
 
   const getPermissionDescription = (type: string) => {
     switch (type) {
-      case 'view': return 'You can view the quiz content but not attempt it';
       case 'attempt': return 'You can view and attempt the quiz';
       case 'edit': return 'You can view, attempt, and edit the quiz';
       default: return '';

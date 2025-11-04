@@ -29,41 +29,40 @@ export async function POST(
     // 检查是否是作者
     const isAuthor = quiz.author_id === userId;
 
-    // Authors cannot create actual attempts - they should use preview mode
-    if (isAuthor) {
-      return NextResponse.json(
-        { 
-          error: "Authors cannot create attempts. Use preview mode instead.",
-          isPreviewOnly: true 
-        },
-        { status: 403 }
-      );
-    }
-
-    // 检查 quiz 是否为 public（如果是 private 需要权限检查）
+    // 检查用户权限（对于 private quiz）
+    let userPermission: 'attempt'|'edit'|null = null;
     if (quiz.visibility === 'private' && !isAuthor) {
-      // 取出所有权限行，计算最高权限，避免多行导致 maybeSingle 异常
       const { data: perms } = await supabase
         .from("community_quiz_permission")
         .select("permission_type")
         .eq("quiz_id", quiz.id)
         .eq("user_id", userId);
 
-      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
-      let best: 'view'|'attempt'|'edit'|null = null;
+      const order: Record<'attempt'|'edit', number> = { attempt: 1, edit: 2 };
       if (perms && perms.length > 0) {
         for (const p of perms) {
-          const t = p.permission_type as 'view'|'attempt'|'edit';
-          if (!best || order[t] > order[best]) best = t;
+          const t = p.permission_type as 'attempt'|'edit';
+          if (!userPermission || order[t] > order[userPermission]) userPermission = t;
         }
       }
 
-      if (!best || (best !== 'attempt' && best !== 'edit')) {
+      if (!userPermission) {
         return NextResponse.json(
           { error: "You don't have permission to access this private quiz" },
           { status: 403 }
         );
       }
+    }
+
+    // Authors and users with edit permission cannot create actual attempts - they should use preview mode
+    if (isAuthor || userPermission === 'edit') {
+      return NextResponse.json(
+        { 
+          error: "Authors and editors cannot create attempts. Use preview mode instead.",
+          isPreviewOnly: true 
+        },
+        { status: 403 }
+      );
     }
 
     // 检查用户已有的 attempts 数量和最近的attempt

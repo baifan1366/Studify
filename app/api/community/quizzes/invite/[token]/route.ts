@@ -59,9 +59,9 @@ export async function GET(
       if (user?.id) me = { id: user.id };
     } catch {}
 
-    let current_permission: 'view'|'attempt'|'edit'|null = null;
+    let current_permission: 'attempt'|'edit'|null = null;
     let will_upgrade = false;
-    let upgrade_to: 'view'|'attempt'|'edit'|null = null;
+    let upgrade_to: 'attempt'|'edit'|null = null;
     if (me) {
       const { data: perms } = await supabase
         .from("community_quiz_permission")
@@ -69,15 +69,15 @@ export async function GET(
         .eq("quiz_id", inviteToken.quiz_id)
         .eq("user_id", me.id);
 
-      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
+      const order: Record<'attempt'|'edit', number> = { attempt: 1, edit: 2 };
       if (perms && perms.length > 0) {
         for (const p of perms) {
-          const t = p.permission_type as 'view'|'attempt'|'edit';
+          const t = p.permission_type as 'attempt'|'edit';
           if (!current_permission || order[t] > order[current_permission]) current_permission = t;
         }
       }
 
-      const invitedType = inviteToken.permission_type as 'view'|'attempt'|'edit';
+      const invitedType = inviteToken.permission_type as 'attempt'|'edit';
       const currentOrder = current_permission ? order[current_permission] : 0;
       will_upgrade = order[invitedType] > currentOrder;
       upgrade_to = will_upgrade ? invitedType : (current_permission ?? invitedType);
@@ -168,21 +168,21 @@ export async function POST(
       return NextResponse.json({ error: existingErr.message }, { status: 500 });
     }
 
-    // 权限等级：edit > attempt > view
-    const order: Record<'view' | 'attempt' | 'edit', number> = { view: 1, attempt: 2, edit: 3 };
-    const invitedType = inviteToken.permission_type as 'view' | 'attempt' | 'edit';
+    // 权限等级：edit > attempt
+    const order: Record<'attempt' | 'edit', number> = { attempt: 1, edit: 2 };
+    const invitedType = inviteToken.permission_type as 'attempt' | 'edit';
 
     // 先求出“已有权限”的最高等级（不包含此次邀请）
-    let existingHighest: 'view'|'attempt'|'edit'|null = null;
+    let existingHighest: 'attempt'|'edit'|null = null;
     if (existingPerms && existingPerms.length > 0) {
       for (const row of existingPerms) {
-        const t = row.permission_type as 'view'|'attempt'|'edit';
+        const t = row.permission_type as 'attempt'|'edit';
         if (!existingHighest || order[t] > order[existingHighest]) existingHighest = t;
       }
     }
 
     // 计算应当赋予的最高权限：max(existingHighest, invitedType)
-    let bestType: 'view' | 'attempt' | 'edit' = existingHighest && order[existingHighest] > order[invitedType]
+    let bestType: 'attempt' | 'edit' = existingHighest && order[existingHighest] > order[invitedType]
       ? existingHighest
       : invitedType;
     let keepId: number | null = null;

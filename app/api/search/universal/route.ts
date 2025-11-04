@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q');
     const tables = searchParams.get('tables')?.split(',') || [];
     const maxResults = parseInt(searchParams.get('limit') || '20');
-    const minRank = parseFloat(searchParams.get('min_rank') || '0.1');
+    const minRank = parseFloat(searchParams.get('min_rank') || '0.01'); // Changed from 0.1 to 0.01
     const context = searchParams.get('context') || 'general';
     const userRole = searchParams.get('user_role') || 'student';
 
@@ -45,9 +45,11 @@ export async function GET(request: NextRequest) {
       min_rank: minRank
     });
 
+    // IMPORTANT: Pass NULL instead of undefined for default tables
+    // PostgreSQL functions handle NULL differently than undefined
     const { data, error } = await supabase.rpc(searchFunction, {
       search_query: query,
-      search_tables: tables.length > 0 ? tables : undefined,
+      search_tables: tables.length > 0 ? tables : null,
       max_results: maxResults,
       min_rank: minRank
     });

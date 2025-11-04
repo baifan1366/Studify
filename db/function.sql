@@ -5471,37 +5471,606 @@ COMMENT ON FUNCTION check_live_session_status() IS
 -- Fix the classroom_assignment search to remove non-existent columns
 DROP FUNCTION IF EXISTS public.universal_search_enhanced(text, text[], integer, real);
 
-CREATE OR REPLACE FUNCTION public.universal_search_enhanced(search_query text, search_tables text[] DEFAULT ARRAY['profiles'::text, 'course'::text, 'course_lesson'::text, 'community_post'::text, 'community_comment'::text, 'classroom'::text, 'community_group'::text, 'ai_agent'::text, 'course_notes'::text, 'tutoring_tutors'::text, 'course_reviews'::text, 'announcements'::text, 'course_quiz_question'::text, 'ai_workflow_templates'::text, 'learning_goal'::text, 'classroom_assignment'::text, 'classroom_posts'::text, 'course_chapter'::text, 'mistake_book'::text, 'tutoring_note'::text, 'community_quiz'::text, 'community_quiz_question'::text], max_results integer DEFAULT 50, min_rank real DEFAULT 0.1)
- RETURNS TABLE(table_name text, record_id bigint, title text, snippet text, rank real, content_type text, created_at timestamp with time zone, additional_data jsonb)
- LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION public.universal_search_enhanced(
+  search_query text,
+  search_tables text[] DEFAULT NULL,
+  max_results integer DEFAULT 50,
+  min_rank real DEFAULT 0.1
+)
+RETURNS TABLE(
+  table_name text,
+  record_id bigint,
+  title text,
+  snippet text,
+  rank real,
+  content_type text,
+  created_at timestamp with time zone,
+  additional_data jsonb
+)
+LANGUAGE plpgsql
 AS $function$
 DECLARE
   table_name text;
+  default_tables text[] := ARRAY[
+    'profiles', 'course', 'course_lesson', 'community_post', 'community_comment',
+    'classroom', 'community_group', 'ai_agent', 'course_notes', 'tutoring_tutors',
+    'course_reviews', 'announcements', 'ai_workflow_templates', 'learning_goal',
+    'classroom_assignment', 'classroom_posts', 'course_chapter', 'mistake_book',
+    'tutoring_note', 'community_quiz', 'community_quiz_question', 'hashtags'
+  ];
 BEGIN
+  -- Handle NULL by using default tables (FIX for FOREACH NULL error)
+  IF search_tables IS NULL OR array_length(search_tables, 1) IS NULL THEN
+    search_tables := default_tables;
+  END IF;
+
   -- Search across specified tables
   FOREACH table_name IN ARRAY search_tables
   LOOP
-    -- Classroom assignment search (FIXED - removed non-existent columns)
+    
+    -- 1. Profiles
+    IF table_name = 'profiles' THEN
+      RETURN QUERY
+      SELECT 
+        'profiles'::text,
+        p.id,
+        COALESCE(p.display_name, p.full_name, p.email, 'Unknown User'),
+        LEFT(COALESCE(p.bio, p.display_name || ' - ' || p.role, p.email), 200),
+        ts_rank(p.search_vector, plainto_tsquery('english', search_query))::real,
+        'user'::text,
+        p.created_at,
+        jsonb_build_object(
+          'role', p.role,
+          'avatar_url', p.avatar_url,
+          'public_id', p.public_id,
+          'status', p.status
+        )
+      FROM profiles p
+      WHERE p.search_vector @@ plainto_tsquery('english', search_query)
+        AND p.is_deleted = false
+        AND p.status = 'active'
+        AND ts_rank(p.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(p.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 2. Course
+    IF table_name = 'course' THEN
+      RETURN QUERY
+      SELECT 
+        'course'::text,
+        c.id,
+        c.title,
+        LEFT(COALESCE(c.description, c.title), 200),
+        ts_rank(c.search_vector, plainto_tsquery('english', search_query))::real,
+        'course'::text,
+        c.created_at,
+        jsonb_build_object(
+          'slug', c.slug,
+          'category', c.category,
+          'level', c.level,
+          'thumbnail_url', c.thumbnail_url,
+          'price_cents', c.price_cents,
+          'is_free', c.is_free,
+          'public_id', c.public_id,
+          'status', c.status,
+          'visibility', c.visibility
+        )
+      FROM course c
+      WHERE c.search_vector @@ plainto_tsquery('english', search_query)
+        AND c.is_deleted = false
+        AND c.status = 'active'
+        AND c.visibility = 'public'
+        AND ts_rank(c.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(c.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 3. Course Lesson
+    IF table_name = 'course_lesson' THEN
+      RETURN QUERY
+      SELECT 
+        'course_lesson'::text,
+        cl.id,
+        cl.title,
+        LEFT(COALESCE(cl.description, cl.title), 200),
+        ts_rank(cl.search_vector, plainto_tsquery('english', search_query))::real,
+        'lesson'::text,
+        cl.created_at,
+        jsonb_build_object(
+          'slug', cl.slug,
+          'kind', cl.kind,
+          'duration_sec', cl.duration_sec,
+          'course_id', cl.course_id,
+          'module_id', cl.module_id,
+          'public_id', cl.public_id
+        )
+      FROM course_lesson cl
+      WHERE cl.search_vector @@ plainto_tsquery('english', search_query)
+        AND cl.is_deleted = false
+        AND ts_rank(cl.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cl.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 4. Community Post
+    IF table_name = 'community_post' THEN
+      RETURN QUERY
+      SELECT 
+        'community_post'::text,
+        cp.id,
+        COALESCE(cp.title, LEFT(cp.body, 50)),
+        LEFT(COALESCE(cp.body, cp.title), 200),
+        ts_rank(cp.search_vector, plainto_tsquery('english', search_query))::real,
+        'post'::text,
+        cp.created_at,
+        jsonb_build_object(
+          'slug', cp.slug,
+          'author_id', cp.author_id,
+          'group_id', cp.group_id,
+          'public_id', cp.public_id
+        )
+      FROM community_post cp
+      WHERE cp.search_vector @@ plainto_tsquery('english', search_query)
+        AND cp.is_deleted = false
+        AND ts_rank(cp.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cp.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 5. Community Comment
+    IF table_name = 'community_comment' THEN
+      RETURN QUERY
+      SELECT 
+        'community_comment'::text,
+        cc.id,
+        LEFT(cc.body, 50),
+        LEFT(cc.body, 200),
+        ts_rank(cc.search_vector, plainto_tsquery('english', search_query))::real,
+        'comment'::text,
+        cc.created_at,
+        jsonb_build_object(
+          'post_id', cc.post_id,
+          'author_id', cc.author_id,
+          'parent_id', cc.parent_id,
+          'public_id', cc.public_id
+        )
+      FROM community_comment cc
+      WHERE cc.search_vector @@ plainto_tsquery('english', search_query)
+        AND cc.is_deleted = false
+        AND ts_rank(cc.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cc.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 6. Classroom
+    IF table_name = 'classroom' THEN
+      RETURN QUERY
+      SELECT 
+        'classroom'::text,
+        c.id,
+        c.name,
+        LEFT(COALESCE(c.description, c.name), 200),
+        ts_rank(c.search_vector, plainto_tsquery('english', search_query))::real,
+        'classroom'::text,
+        c.created_at,
+        jsonb_build_object(
+          'slug', c.slug,
+          'owner_id', c.owner_id,
+          'visibility', c.visibility,
+          'class_code', c.class_code,
+          'public_id', c.public_id
+        )
+      FROM classroom c
+      WHERE c.search_vector @@ plainto_tsquery('english', search_query)
+        AND c.is_deleted = false
+        AND ts_rank(c.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(c.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 7. Community Group
+    IF table_name = 'community_group' THEN
+      RETURN QUERY
+      SELECT 
+        'community_group'::text,
+        cg.id,
+        cg.name,
+        LEFT(COALESCE(cg.description, cg.name), 200),
+        ts_rank(cg.search_vector, plainto_tsquery('english', search_query))::real,
+        'group'::text,
+        cg.created_at,
+        jsonb_build_object(
+          'slug', cg.slug,
+          'owner_id', cg.owner_id,
+          'visibility', cg.visibility,
+          'public_id', cg.public_id
+        )
+      FROM community_group cg
+      WHERE cg.search_vector @@ plainto_tsquery('english', search_query)
+        AND cg.is_deleted = false
+        AND ts_rank(cg.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cg.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 8. AI Agent
+    IF table_name = 'ai_agent' THEN
+      RETURN QUERY
+      SELECT 
+        'ai_agent'::text,
+        aa.id,
+        aa.name,
+        LEFT(COALESCE(aa.purpose, aa.name), 200),
+        ts_rank(aa.search_vector, plainto_tsquery('english', search_query))::real,
+        'ai_agent'::text,
+        aa.created_at,
+        jsonb_build_object(
+          'owner_id', aa.owner_id,
+          'config', aa.config,
+          'public_id', aa.public_id
+        )
+      FROM ai_agent aa
+      WHERE aa.search_vector @@ plainto_tsquery('english', search_query)
+        AND aa.is_deleted = false
+        AND ts_rank(aa.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(aa.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 9. Course Notes
+    IF table_name = 'course_notes' THEN
+      RETURN QUERY
+      SELECT 
+        'course_notes'::text,
+        cn.id,
+        COALESCE(cn.title, LEFT(cn.content, 50)),
+        LEFT(COALESCE(cn.content, cn.ai_summary), 200),
+        ts_rank(cn.search_vector, plainto_tsquery('english', search_query))::real,
+        'note'::text,
+        cn.created_at,
+        jsonb_build_object(
+          'user_id', cn.user_id,
+          'lesson_id', cn.lesson_id,
+          'course_id', cn.course_id,
+          'note_type', cn.note_type,
+          'tags', cn.tags,
+          'public_id', cn.public_id
+        )
+      FROM course_notes cn
+      WHERE cn.search_vector @@ plainto_tsquery('english', search_query)
+        AND cn.is_deleted = false
+        AND ts_rank(cn.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cn.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 10. Tutoring Tutors
+    IF table_name = 'tutoring_tutors' THEN
+      RETURN QUERY
+      SELECT 
+        'tutoring_tutors'::text,
+        tt.id,
+        COALESCE(tt.headline, 'Tutor'),
+        LEFT(COALESCE(tt.qualifications, tt.headline, array_to_string(tt.subjects, ', ')), 200),
+        ts_rank(tt.search_vector, plainto_tsquery('english', search_query))::real,
+        'tutor'::text,
+        tt.created_at,
+        jsonb_build_object(
+          'user_id', tt.user_id,
+          'subjects', tt.subjects,
+          'hourly_rate', tt.hourly_rate,
+          'rating_avg', tt.rating_avg,
+          'public_id', tt.public_id
+        )
+      FROM tutoring_tutors tt
+      WHERE tt.search_vector @@ plainto_tsquery('english', search_query)
+        AND tt.is_deleted = false
+        AND ts_rank(tt.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(tt.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 11. Course Reviews
+    IF table_name = 'course_reviews' THEN
+      RETURN QUERY
+      SELECT 
+        'course_reviews'::text,
+        cr.id,
+        LEFT(COALESCE(cr.comment, 'Review'), 50),
+        LEFT(cr.comment, 200),
+        ts_rank(cr.search_vector, plainto_tsquery('english', search_query))::real,
+        'review'::text,
+        cr.created_at,
+        jsonb_build_object(
+          'course_id', cr.course_id,
+          'user_id', cr.user_id,
+          'rating', cr.rating,
+          'public_id', cr.public_id
+        )
+      FROM course_reviews cr
+      WHERE cr.search_vector @@ plainto_tsquery('english', search_query)
+        AND cr.is_deleted = false
+        AND ts_rank(cr.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cr.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 12. Announcements
+    IF table_name = 'announcements' THEN
+      RETURN QUERY
+      SELECT 
+        'announcements'::text,
+        a.id,
+        a.title,
+        LEFT(COALESCE(a.message, a.title), 200),
+        ts_rank(a.search_vector, plainto_tsquery('english', search_query))::real,
+        'announcement'::text,
+        a.created_at,
+        jsonb_build_object(
+          'created_by', a.created_by,
+          'status', a.status,
+          'scheduled_at', a.scheduled_at,
+          'public_id', a.public_id
+        )
+      FROM announcements a
+      WHERE a.search_vector @@ plainto_tsquery('english', search_query)
+        AND a.is_deleted = false
+        AND ts_rank(a.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(a.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 13. AI Workflow Templates
+    IF table_name = 'ai_workflow_templates' THEN
+      RETURN QUERY
+      SELECT 
+        'ai_workflow_templates'::text,
+        awt.id,
+        awt.name,
+        LEFT(COALESCE(awt.description, awt.name), 200),
+        ts_rank(awt.search_vector, plainto_tsquery('english', search_query))::real,
+        'workflow_template'::text,
+        awt.created_at,
+        jsonb_build_object(
+          'category', awt.category,
+          'visibility', awt.visibility,
+          'tags', awt.tags,
+          'usage_count', awt.usage_count,
+          'public_id', awt.public_id
+        )
+      FROM ai_workflow_templates awt
+      WHERE awt.search_vector @@ plainto_tsquery('english', search_query)
+        AND awt.is_deleted = false
+        AND awt.is_active = true
+        AND ts_rank(awt.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(awt.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 14. Learning Goal
+    IF table_name = 'learning_goal' THEN
+      RETURN QUERY
+      SELECT 
+        'learning_goal'::text,
+        lg.id,
+        CONCAT(lg.goal_type, ' Goal'),
+        CONCAT('Target: ', lg.target_value, ' - Status: ', lg.status),
+        ts_rank(lg.search_vector, plainto_tsquery('english', search_query))::real,
+        'learning_goal'::text,
+        lg.created_at,
+        jsonb_build_object(
+          'user_id', lg.user_id,
+          'goal_type', lg.goal_type,
+          'target_value', lg.target_value,
+          'current_value', lg.current_value,
+          'status', lg.status,
+          'public_id', lg.public_id
+        )
+      FROM learning_goal lg
+      WHERE lg.search_vector @@ plainto_tsquery('english', search_query)
+        AND lg.is_deleted = false
+        AND ts_rank(lg.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(lg.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 15. Classroom Assignment
     IF table_name = 'classroom_assignment' THEN
       RETURN QUERY
       SELECT 
-        'classroom_assignment'::text as table_name,
-        ca.id as record_id,
-        ca.title as title,
-        LEFT(COALESCE(ca.description, ca.title), 200) as snippet,
-        ts_rank(ca.search_vector, plainto_tsquery('english', search_query)) as rank,
-        'assignment'::text as content_type,
+        'classroom_assignment'::text,
+        ca.id,
+        ca.title,
+        LEFT(COALESCE(ca.description, ca.title), 200),
+        ts_rank(ca.search_vector, plainto_tsquery('english', search_query))::real,
+        'assignment'::text,
         ca.created_at,
         jsonb_build_object(
           'classroom_id', ca.classroom_id,
+          'author_id', ca.author_id,
           'due_date', ca.due_date,
           'slug', ca.slug
-        ) as additional_data
+        )
       FROM classroom_assignment ca
       WHERE ca.search_vector @@ plainto_tsquery('english', search_query)
         AND ca.is_deleted = false
         AND ts_rank(ca.search_vector, plainto_tsquery('english', search_query)) >= min_rank
       ORDER BY ts_rank(ca.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 16. Classroom Posts
+    IF table_name = 'classroom_posts' THEN
+      RETURN QUERY
+      SELECT 
+        'classroom_posts'::text,
+        cp.id,
+        LEFT(cp.content, 50),
+        LEFT(cp.content, 200),
+        ts_rank(cp.search_vector, plainto_tsquery('english', search_query))::real,
+        'classroom_post'::text,
+        cp.created_at,
+        jsonb_build_object(
+          'session_id', cp.session_id,
+          'user_id', cp.user_id,
+          'public_id', cp.public_id
+        )
+      FROM classroom_posts cp
+      WHERE cp.search_vector @@ plainto_tsquery('english', search_query)
+        AND cp.is_deleted = false
+        AND ts_rank(cp.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cp.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 17. Course Chapter
+    IF table_name = 'course_chapter' THEN
+      RETURN QUERY
+      SELECT 
+        'course_chapter'::text,
+        cc.id,
+        cc.title,
+        LEFT(COALESCE(cc.description, cc.title), 200),
+        ts_rank(cc.search_vector, plainto_tsquery('english', search_query))::real,
+        'chapter'::text,
+        cc.created_at,
+        jsonb_build_object(
+          'lesson_id', cc.lesson_id,
+          'start_time_sec', cc.start_time_sec,
+          'end_time_sec', cc.end_time_sec,
+          'order_index', cc.order_index
+        )
+      FROM course_chapter cc
+      WHERE cc.search_vector @@ plainto_tsquery('english', search_query)
+        AND cc.is_deleted = false
+        AND ts_rank(cc.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cc.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 18. Mistake Book
+    IF table_name = 'mistake_book' THEN
+      RETURN QUERY
+      SELECT 
+        'mistake_book'::text,
+        mb.id,
+        LEFT(mb.mistake_content, 50),
+        LEFT(COALESCE(mb.analysis, mb.mistake_content), 200),
+        ts_rank(mb.search_vector, plainto_tsquery('english', search_query))::real,
+        'mistake'::text,
+        mb.created_at,
+        jsonb_build_object(
+          'user_id', mb.user_id,
+          'course_id', mb.course_id,
+          'lesson_id', mb.lesson_id,
+          'source_type', mb.source_type,
+          'knowledge_points', mb.knowledge_points,
+          'public_id', mb.public_id
+        )
+      FROM mistake_book mb
+      WHERE mb.search_vector @@ plainto_tsquery('english', search_query)
+        AND mb.is_deleted = false
+        AND ts_rank(mb.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(mb.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 19. Tutoring Note
+    IF table_name = 'tutoring_note' THEN
+      RETURN QUERY
+      SELECT 
+        'tutoring_note'::text,
+        tn.id,
+        COALESCE(tn.title, 'Untitled Note'),
+        LEFT(COALESCE(tn.body, tn.title, 'No content'), 200),
+        ts_rank(tn.search_vector, plainto_tsquery('english', search_query))::real,
+        'tutoring_note'::text,
+        tn.created_at,
+        jsonb_build_object(
+          'owner_id', tn.owner_id,
+          'public_id', tn.public_id
+        )
+      FROM tutoring_note tn
+      WHERE tn.search_vector @@ plainto_tsquery('english', search_query)
+        AND tn.is_deleted = false
+        AND ts_rank(tn.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(tn.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 20. Community Quiz
+    IF table_name = 'community_quiz' THEN
+      RETURN QUERY
+      SELECT 
+        'community_quiz'::text,
+        cq.id,
+        cq.title,
+        LEFT(COALESCE(cq.description, cq.title), 200),
+        ts_rank(cq.search_vector, plainto_tsquery('english', search_query))::real,
+        'quiz'::text,
+        cq.created_at,
+        jsonb_build_object(
+          'slug', cq.slug,
+          'author_id', cq.author_id,
+          'difficulty', cq.difficulty,
+          'visibility', cq.visibility,
+          'public_id', cq.public_id
+        )
+      FROM community_quiz cq
+      WHERE cq.search_vector @@ plainto_tsquery('english', search_query)
+        AND cq.is_deleted = false
+        AND cq.visibility = 'public'
+        AND ts_rank(cq.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cq.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 21. Community Quiz Question
+    IF table_name = 'community_quiz_question' THEN
+      RETURN QUERY
+      SELECT 
+        'community_quiz_question'::text,
+        cqq.id,
+        LEFT(cqq.question_text, 50),
+        LEFT(COALESCE(cqq.explanation, cqq.question_text), 200),
+        ts_rank(cqq.search_vector, plainto_tsquery('english', search_query))::real,
+        'quiz_question'::text,
+        cq.created_at,
+        jsonb_build_object(
+          'quiz_id', cqq.quiz_id,
+          'question_type', cqq.question_type,
+          'options', cqq.options,
+          'public_id', cqq.public_id
+        )
+      FROM community_quiz_question cqq
+      JOIN community_quiz cq ON cqq.quiz_id = cq.id
+      WHERE cqq.search_vector @@ plainto_tsquery('english', search_query)
+        AND cq.visibility = 'public'
+        AND cq.is_deleted = false
+        AND ts_rank(cqq.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(cqq.search_vector, plainto_tsquery('english', search_query)) DESC
+      LIMIT max_results;
+    END IF;
+    
+    -- 22. Hashtags
+    IF table_name = 'hashtags' THEN
+      RETURN QUERY
+      SELECT 
+        'hashtags'::text,
+        h.id,
+        h.name,
+        h.name,
+        ts_rank(h.search_vector, plainto_tsquery('english', search_query))::real,
+        'hashtag'::text,
+        now(), -- hashtags don't have created_at
+        jsonb_build_object(
+          'name', h.name
+        )
+      FROM hashtags h
+      WHERE h.search_vector @@ plainto_tsquery('english', search_query)
+        AND ts_rank(h.search_vector, plainto_tsquery('english', search_query)) >= min_rank
+      ORDER BY ts_rank(h.search_vector, plainto_tsquery('english', search_query)) DESC
       LIMIT max_results;
     END IF;
     

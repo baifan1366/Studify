@@ -37,15 +37,15 @@ export async function GET(
         .select("permission_type")
         .eq("quiz_id", quiz.id)
         .eq("user_id", userId);
-      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
-      let best: 'view'|'attempt'|'edit'|null = null;
+      const order: Record<'attempt'|'edit', number> = { attempt: 1, edit: 2 };
+      let best: 'attempt'|'edit'|null = null;
       if (perms && perms.length > 0) {
         for (const p of perms) {
-          const t = p.permission_type as 'view'|'attempt'|'edit';
+          const t = p.permission_type as 'attempt'|'edit';
           if (!best || order[t] > order[best]) best = t;
         }
       }
-      hasPermission = !!best && (best === 'attempt' || best === 'edit');
+      hasPermission = !!best;
     }
 
     // 获取用户的尝试次数 (包括所有状态用于分析)
@@ -66,17 +66,17 @@ export async function GET(
     const attemptCount = completedAttempts.length; // 用于限制检查的是已完成的尝试
     
     // 检查用户权限等级
-    let userPermission: 'view'|'attempt'|'edit'|null = null;
+    let userPermission: 'attempt'|'edit'|null = null;
     if (!isAuthor && quiz.visibility === 'private') {
       const { data: perms } = await supabase
         .from("community_quiz_permission")
         .select("permission_type")
         .eq("quiz_id", quiz.id)
         .eq("user_id", userId);
-      const order: Record<'view'|'attempt'|'edit', number> = { view: 1, attempt: 2, edit: 3 };
+      const order: Record<'attempt'|'edit', number> = { attempt: 1, edit: 2 };
       if (perms && perms.length > 0) {
         for (const p of perms) {
-          const t = p.permission_type as 'view'|'attempt'|'edit';
+          const t = p.permission_type as 'attempt'|'edit';
           if (!userPermission || order[t] > order[userPermission]) userPermission = t;
         }
       }
@@ -93,12 +93,13 @@ export async function GET(
       canAttempt = attemptCount < quiz.max_attempts;
       accessReason = canAttempt ? "public" : "max_attempts_reached";
     } else if (quiz.visibility === 'private') {
-      if (userPermission === 'attempt' || userPermission === 'edit') {
+      if (userPermission === 'edit') {
+        // Users with edit permission use preview mode like authors
+        canAttempt = true;
+        accessReason = "editor";
+      } else if (userPermission === 'attempt') {
         canAttempt = attemptCount < quiz.max_attempts;
         accessReason = canAttempt ? "granted_permission" : "max_attempts_reached";
-      } else if (userPermission === 'view') {
-        canAttempt = false;
-        accessReason = "view_only_permission";
       } else {
         canAttempt = false;
         accessReason = "no_permission";

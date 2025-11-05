@@ -114,6 +114,15 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               if (isNavigating) return;
               setIsNavigating(true);
               try {
+                // Authors and users with edit permission go directly to preview mode (no attempt creation)
+                if (isAuthor || attemptStatus?.userPermission === 'edit') {
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/attempt?mode=preview`
+                    : `/community/quizzes/${quiz.slug}/attempt?mode=preview`;
+                  router.push(route);
+                  return;
+                }
+
                 // 1) Check current attempt and session
                 let attemptId: number | null = null;
                 let sessionPublicId: string | null = null;
@@ -181,7 +190,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               ? t('starting')
               : attemptStatus?.hasInProgressAttempt
                 ? t('continue_quiz')
-                : isAuthor
+                : (isAuthor || attemptStatus?.userPermission === 'edit')
                   ? t('preview_quiz')
                   : t('start_quiz')}
           </Button>
@@ -191,12 +200,6 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               <>
                 <Lock className="h-5 w-5 mr-2" />
                 {t('status.no_access')}
-              </>
-            )}
-            {attemptStatus?.accessReason === "view_only_permission" && (
-              <>
-                <Eye className="h-5 w-5 mr-2" />
-                {t('status.view_only')}
               </>
             )}
             {attemptStatus?.accessReason === "max_attempts_reached" && (

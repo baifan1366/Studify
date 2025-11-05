@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAICommunitySummary, useSummaryFormatter } from "@/hooks/ai/use-ai-community-summary";
 import { useUser } from "@/hooks/profile/use-user";
 import { cn } from "@/utils/styles";
-import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp, Check } from "lucide-react";
 
 // Animation variants for smooth transitions
 const detailsVariants = {
@@ -58,11 +58,11 @@ interface AISummaryCardProps {
 export default function AISummaryCard({ query, resultIds, locale = "en", className }: AISummaryCardProps) {
   const t = useTranslations('AISummaryCard');
   const { data: userData } = useUser();
-  
+
   // Get user's preferred language from profile, fallback to locale prop
   const userLanguage = userData?.profile?.language || locale;
   const effectiveLocale = (userLanguage === 'zh' || userLanguage === 'zh-CN') ? 'zh' : 'en';
-  
+
   const {
     summarizeSearch,
     isSearching,
@@ -82,6 +82,9 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
   const [showDetails, setShowDetails] = useState(false);
   // Auto summarize toggle (non-persistent)
   const [autoEnabled, setAutoEnabled] = useState(true);
+  // Copy button feedback state
+  const [copied, setCopied] = useState(false);
+  const [copiedTldr, setCopiedTldr] = useState(false);
 
   const hasQuery = query.trim().length > 0;
   const hasResults = resultIds && resultIds.length > 0;
@@ -130,13 +133,20 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
   const handleCopy = async () => {
     if (!cachedResult) return;
     const ok = await state.copyToClipboard(formatFullSummary(cachedResult));
-    // We rely on global toasts inside hooks; no local toast needed
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
     return ok;
   };
 
   const handleCopyTldr = async () => {
     if (!cachedResult?.tldr) return;
     const ok = await state.copyToClipboard(cachedResult.tldr);
+    if (ok) {
+      setCopiedTldr(true);
+      setTimeout(() => setCopiedTldr(false), 2000);
+    }
     return ok;
   };
 
@@ -155,11 +165,11 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-400" />
-            <CardTitle className="text-lg sm:text-xl text-white">AI Summary</CardTitle>
+            <CardTitle className="text-lg sm:text-xl text-white">{t('title')}</CardTitle>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-xs text-gray-300">
-              <span>Auto summarize</span>
+              <span>{t('auto_summarize')}</span>
               <Switch
                 checked={autoEnabled}
                 onCheckedChange={(v) => setAutoEnabled(!!v)}
@@ -176,36 +186,49 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
               {cachedResult ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-1.5" />
-                  Regenerate
+                  {t('regenerate')}
                 </>
               ) : (
                 <>
                   <FileText className="w-4 h-4 mr-1.5" />
-                  Generate
+                  {t('generate')}
                 </>
               )}
             </Button>
             <Button
               size="sm"
               variant="secondary"
-              className="bg-white/10 hover:bg-white/20 text-white"
+              className={cn(
+                "transition-all duration-200",
+                copied
+                  ? "bg-green-500/20 hover:bg-green-500/30 text-green-300"
+                  : "bg-white/10 hover:bg-white/20 text-white"
+              )}
               onClick={handleCopy}
               disabled={!cachedResult}
               title={t('copy_summary')}
             >
-              <Copy className="w-4 h-4 mr-1.5" /> {t('copy')}
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-1.5" /> {t('copied') || 'Copied!'}
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-1.5" /> {t('copy')}
+                </>
+              )}
             </Button>
           </div>
         </div>
         <div className="mt-2 text-xs text-gray-400">
           {hasQuery ? (
             hasResults ? (
-              <span>Generate a concise summary based on your top search results.</span>
+              <span>{t('generate_concise_summary')}</span>
             ) : (
-              <span>No results yet. Try adjusting your search to enable summarization.</span>
+              <span>{t('no_results_yet')}</span>
             )
           ) : (
-            <span>Type a query to enable AI summary.</span>
+            <span>{t('type_query_to_enable')}</span>
           )}
         </div>
       </CardHeader>
@@ -226,14 +249,14 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
         {/* Error state */}
         {!isSearching && searchError && (
           <div className="text-sm text-red-400">
-            Failed to generate summary. Please try again.
+            {t('failed_to_generate')}
           </div>
         )}
 
         {/* Empty state */}
         {!isSearching && !searchError && !cachedResult && (
           <div className="text-sm text-gray-400">
-            No summary yet. Click Generate to create an AI summary for your search.
+            {t('no_summary_yet')}
           </div>
         )}
 
@@ -246,16 +269,25 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">📌</span>
-                    <h4 className="text-yellow-200 font-medium text-base">Summary at a Glance</h4>
+                    <h4 className="text-yellow-200 font-medium text-base">{t('summary_at_glance')}</h4>
                   </div>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/10"
+                    className={cn(
+                      "transition-all duration-200",
+                      copiedTldr
+                        ? "text-green-300 hover:text-green-200 bg-green-500/10 hover:bg-green-500/20"
+                        : "text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/10"
+                    )}
                     onClick={handleCopyTldr}
                     title={t('copy_summary_glance')}
                   >
-                    <Copy className="w-4 h-4" />
+                    {copiedTldr ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
                 <p className="text-yellow-200 text-lg font-medium leading-relaxed mb-4">
@@ -280,7 +312,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                     >
                       <ChevronDown className="w-4 h-4 mr-1.5" />
                     </motion.div>
-                    Show Details
+                    {t('show_details')}
                   </Button>
                 </motion.div>
               </div>
@@ -304,7 +336,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.bullets && cachedResult.bullets.length > 0 && (
                     <div>
                       <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
-                        <List className="w-4 h-4" /> Key Points
+                        <List className="w-4 h-4" /> {t('key_points')}
                       </h4>
                       <ul className="list-disc list-inside space-y-1 text-sm text-gray-200">
                         {cachedResult.bullets.map((b, i) => (
@@ -318,7 +350,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.themes && cachedResult.themes.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-white font-semibold">Themes</h4>
+                        <h4 className="text-white font-semibold">{t('themes')}</h4>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -350,7 +382,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-white font-semibold flex items-center gap-2">
-                          <LinkIcon className="w-4 h-4" /> Sources
+                          <LinkIcon className="w-4 h-4" /> {t('sources')}
                         </h4>
                         <Button
                           variant="ghost"
@@ -403,7 +435,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                         >
                           <ChevronUp className="w-4 h-4 mr-1.5" />
                         </motion.div>
-                        Hide Details
+                        {t('hide_details')}
                       </Button>
                     </motion.div>
                   )}

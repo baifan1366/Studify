@@ -1402,7 +1402,6 @@
     "in_progress": "In Progress",
     "completed": "Completed",
     "graded": "Graded",
-    "view_only": "View Only",
     "can_attempt": "Can Attempt",
     "can_edit": "Can Edit",
     "no_expiry": "No expiry",
@@ -1444,7 +1443,23 @@
     "copy": "Copy",
     "copy_summary_glance": "Copy summary at a glance",
     "hide": "Hide",
-    "show": "Show"
+    "show": "Show",
+    "title": "AI Summary",
+    "auto_summarize": "Auto summarize",
+    "regenerate": "Regenerate",
+    "generate": "Generate",
+    "summary_at_glance": "Summary at a Glance",
+    "show_details": "Show Details",
+    "hide_details": "Hide Details",
+    "no_summary_yet": "No summary yet. Click Generate to create an AI summary for your search.",
+    "failed_to_generate": "Failed to generate summary. Please try again.",
+    "generate_concise_summary": "Generate a concise summary based on your top search results.",
+    "no_results_yet": "No results yet. Try adjusting your search to enable summarization.",
+    "type_query_to_enable": "Type a query to enable AI summary.",
+    "themes": "Themes",
+    "sources": "Sources",
+    "key_points": "Key Points",
+    "copied": "Copied!"
   },
   "CommunityHighlights": {
     "title": "Learning Community",
@@ -2839,7 +2854,6 @@
       "in_progress": "In Progress",
       "completed": "Completed",
       "graded": "Graded",
-      "view_only": "View Only",
       "can_attempt": "Can Attempt",
       "can_edit": "Can Edit",
       "no_expiry": "No expiry",
@@ -8016,10 +8030,13 @@
     "suggested_groups": "Suggested Groups",
     "create_group": "Create Group",
     "view_all": "View All",
+    "view_all_groups": "View All Groups",
     "join": "Join",
     "joining": "Joining...",
     "members": "members",
     "no_groups": "No groups yet",
+    "no_groups_joined": "You haven't joined any groups yet",
+    "no_suggestions": "No suggestions available",
     "join_groups": "Join some groups to get started!",
     "community_stats": "Community Stats",
     "total_groups": "Total Groups",
@@ -8064,7 +8081,16 @@
     "title": "All My Groups",
     "close": "Close",
     "no_groups": "You haven't joined any groups yet",
-    "explore_groups": "Explore groups to join!"
+    "explore_groups": "Explore groups to join!",
+    "private_groups": "Private Groups",
+    "private":"Private",
+    "public_groups":"Public Groups",
+    "public":"Public",
+    "posts":"posts",
+    "members": "members",
+    "joined":"Joined",
+    "view_group": "View Group",
+    "browse_groups": "Broswe Groups"
   },
   "QuizContent": {
     "title": "Community Quizzes",
@@ -8111,7 +8137,6 @@
       "title": "Shared with Me",
       "private_label": "Private",
       "permission": {
-        "view": "View Only",
         "attempt": "Can Attempt",
         "edit": "Can Edit"
       },
@@ -8207,6 +8232,8 @@
   },
   "QuizResultModal": {
     "quiz_completed": "Quiz Completed!",
+    "preview_completed": "Preview Completed!",
+    "preview_notice": "This was a preview - no data was saved.",
     "your_score": "Your Score",
     "correct_answers": "Correct Answers",
     "total_questions": "Total Questions",
@@ -8283,13 +8310,11 @@
     "start_quiz": "Start Quiz",
     "status": {
       "no_access": "No Access",
-      "view_only": "View Only",
       "completed": "Completed",
       "unavailable": "Unavailable"
     },
     "permission_badge": "{permission} Permission",
     "permissions": {
-      "view": "View",
       "attempt": "Attempt",
       "edit": "Edit",
       "owner": "Owner"

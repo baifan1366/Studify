@@ -28,6 +28,7 @@ import { useQuizSession } from "@/hooks/community/use-quiz-session";
 import { useUser } from "@/hooks/profile/use-user";
 import QuizTimer from "@/components/community/quiz/quiz-timer";
 import QuizDebugPanel from "@/components/community/quiz/quiz-debug-panel";
+import QuizResultModal from "@/components/community/quiz/quiz-result-modal";
 import { toast } from "sonner";
 
 const optionStyles = [
@@ -71,6 +72,10 @@ export default function QuizAttemptPage() {
   const [isNavigatingToSession, setIsNavigatingToSession] =
     useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+  const [previewAnswers, setPreviewAnswers] = useState<Record<string, { answer: string[], isCorrect: boolean }>>({});
+  const [showPreviewResult, setShowPreviewResult] = useState<boolean>(false);
+  const [previewScore, setPreviewScore] = useState<number>(0);
 
   // Hooks
   const { data: quiz } = useQuiz(quizSlug);
@@ -120,6 +125,15 @@ export default function QuizAttemptPage() {
       setIsCreatingAttempt(true);
 
       try {
+        // Check for preview mode
+        const modeParam = searchParams.get("mode");
+        if (modeParam === "preview") {
+          setIsPreviewMode(true);
+          setIsInitialized(true);
+          setIsCreatingAttempt(false);
+          return;
+        }
+
         const sessionParam = searchParams.get("session");
         if (sessionParam) {
           // 通过 public_id 获取 session 和 attemptId
@@ -416,10 +430,55 @@ export default function QuizAttemptPage() {
 
   // 下一题 / 结束
   const handleNextQuestion = async () => {
-    if (!attemptId || isSubmitting) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
+      // Preview mode: validate answers client-side
+      if (isPreviewMode) {
+        let userAnswer: string[] = [];
+        let isCorrect = false;
+
+        if (currentQuestion.question_type === "single_choice" && selectedAnswer !== null) {
+          userAnswer = [selectedAnswer.toString()];
+          isCorrect = (currentQuestion.correct_answers || []).includes(selectedAnswer.toString());
+        } else if (currentQuestion.question_type === "multiple_choice" && selectedAnswers.length > 0) {
+          userAnswer = selectedAnswers.map((i) => i.toString());
+          const correctSet = new Set(currentQuestion.correct_answers || []);
+          const userSet = new Set(userAnswer);
+          isCorrect = correctSet.size === userSet.size && [...correctSet].every(a => userSet.has(a));
+        } else if (currentQuestion.question_type === "fill_in_blank" && textAnswer.trim() !== "") {
+          userAnswer = [textAnswer.trim()];
+          isCorrect = (currentQuestion.correct_answers || []).some(ans => 
+            ans.toLowerCase() === textAnswer.trim().toLowerCase()
+          );
+        }
+
+        // Store preview answer
+        setPreviewAnswers(prev => ({
+          ...prev,
+          [currentQuestion.public_id]: { answer: userAnswer, isCorrect }
+        }));
+
+        // Move to next question or finish
+        if (currentQuestionIndex < questions.length - 1) {
+          setCurrentQuestionIndex(currentQuestionIndex + 1);
+          setSelectedAnswer(null);
+          setSelectedAnswers([]);
+          setTextAnswer("");
+          setIsAnswered(false);
+        } else {
+          // Calculate preview results
+          const totalCorrect = Object.values(previewAnswers).filter(a => a.isCorrect).length + (isCorrect ? 1 : 0);
+          setPreviewScore(totalCorrect);
+          setShowPreviewResult(true);
+        }
+        return;
+      }
+
+      // Normal mode: submit to server
+      if (!attemptId) return;
+
       // 提交答案
       if (
         currentQuestion.question_type === "single_choice" &&
@@ -486,6 +545,15 @@ export default function QuizAttemptPage() {
   return (
     <div className="h-screen w-full bg-gray-900 text-white flex items-center justify-center p-4">
       <div className="relative flex flex-col w-full max-w-5xl h-[90%] bg-black/20 rounded-2xl p-4 md:p-6 border border-white/10 shadow-2xl">
+        {/* Preview Mode Banner */}
+        {isPreviewMode && (
+          <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg text-center">
+            <p className="text-yellow-200 font-semibold">
+              🔍 Preview Mode - No data will be saved
+            </p>
+          </div>
+        )}
+        
         {/* Header */}
         <header className="w-full">
           <div className="flex items-center justify-between gap-4">
@@ -504,13 +572,15 @@ export default function QuizAttemptPage() {
             </Button>
             <Progress value={progress} className="w-full bg-gray-700" />
 
-            {/* Quiz Timer - 显示整个 quiz 的剩余时间 */}
-            <QuizTimer
-              remainingSeconds={remainingTime}
-              isExpired={sessionExpired}
-              size="md"
-              className="flex-shrink-0"
-            />
+            {/* Quiz Timer - 显示整个 quiz 的剩余时间 (hidden in preview mode) */}
+            {!isPreviewMode && (
+              <QuizTimer
+                remainingSeconds={remainingTime}
+                isExpired={sessionExpired}
+                size="md"
+                className="flex-shrink-0"
+              />
+            )}
           </div>
         </header>
 
@@ -650,7 +720,7 @@ export default function QuizAttemptPage() {
                   (option: string, index: number) => {
                     const style = optionStyles[index % 4];
                     const isSelected = selectedAnswer === index;
-                    const isCorrect = currentQuestion.correct_answers.includes(
+                    const isCorrect = (currentQuestion.correct_answers || []).includes(
                       index.toString()
                     );
 
@@ -719,6 +789,17 @@ export default function QuizAttemptPage() {
         remainingTime={remainingTime}
         isExpired={sessionExpired}
       />
+
+      {/* Preview Result Modal */}
+      {showPreviewResult && (
+        <QuizResultModal
+          quizSlug={quizSlug}
+          totalQuestions={questions?.length || 0}
+          open={showPreviewResult}
+          isPreview={true}
+          previewScore={previewScore}
+        />
+      )}
     </div>
   );
 }

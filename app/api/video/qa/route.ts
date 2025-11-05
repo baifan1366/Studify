@@ -160,6 +160,9 @@ export async function POST(request: NextRequest) {
     }
 
     // For regular videos with embeddings/transcripts
+    const dbStartTime = Date.now();
+    console.log(`🔍 [${Date.now()}] Fetching attachment data...`);
+    
     // 2. 获取 attachment ID 用于视频搜索
     const { data: lessonWithAttachment } = await supabase
       .from('course_lesson')
@@ -172,7 +175,9 @@ export async function POST(request: NextRequest) {
       .single();
     
     const attachmentId = lessonWithAttachment?.course_attachments?.[0]?.id;
+    const dbTime = Date.now() - dbStartTime;
     
+    console.log(`✅ [${Date.now()}] DB query completed in ${dbTime}ms`);
     console.log(`🎓 Video QA with embeddings and tool calling: "${question.substring(0, 50)}..."`);
     console.log(`📎 Attachment ID: ${attachmentId}, Current time: ${currentTime}s`);
     
@@ -204,25 +209,45 @@ ${question}
     // 1. 使用 search tool 进行语义搜索（包括 video_segment 类型）
     // 2. 使用 answer_question tool 生成答案
     // Add timeout to prevent long-running requests (4.5 minutes to stay under 5 min limit)
+    console.log(`🚀 [${Date.now()}] Starting educationalQA with 270s timeout...`);
+    const qaStartTime = Date.now();
+    
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Video QA timeout after 270 seconds')), 270000)
+      setTimeout(() => {
+        console.error(`⏰ [${Date.now()}] Video QA timeout after 270 seconds!`);
+        reject(new Error('Video QA timeout after 270 seconds'));
+      }, 270000)
     );
     
     const result = await Promise.race([
       enhancedAIExecutor.educationalQA(enhancedQuestion, {
         userId,
         includeAnalysis: true,
-        contentTypes: ['video_segment', 'lesson', 'note'] // 优先搜索视频片段
+        contentTypes: ['video_segment', 'lesson', 'note'], // 优先搜索视频片段
+        videoContext: {
+          lessonId,
+          attachmentId,
+          currentTime
+        }
       }),
       timeoutPromise
     ]) as any;
 
+    const qaTime = Date.now() - qaStartTime;
+    console.log(`✅ [${Date.now()}] educationalQA completed in ${qaTime}ms`);
+
     const answer = result.answer;
     const toolsUsed = result.toolsUsed || [];
     const sources = result.sources || [];
+    const timings = result.timings || {};
     
     console.log(`✅ Video QA completed using tools: ${toolsUsed.join(', ')}`);
     console.log(`📊 Found ${sources.length} sources from embeddings`);
+    console.log(`⏱️ Detailed timings:`, {
+      database: dbTime,
+      qa_total: qaTime,
+      ...timings
+    });
 
     // 从 sources 中提取视频片段信息
     const videoSegments = sources
@@ -269,7 +294,12 @@ ${question}
       metadata: {
         toolsUsed,
         sourcesCount: sources.length,
-        videoSegmentsCount: videoSegments.length
+        videoSegmentsCount: videoSegments.length,
+        timings: {
+          database: dbTime,
+          qa_total: qaTime,
+          ...timings
+        }
       }
     }, {
       headers: {

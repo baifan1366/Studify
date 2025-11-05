@@ -224,19 +224,24 @@ async function createClassroomForCourse(
     };
   }
 
-  // Add course owner as classroom owner member (using profile ID, not UUID)
+  // Add course owner as classroom owner member
   const { error: memberError } = await supabase
     .from("classroom_member")
     .insert({
       classroom_id: classroom.id,
-      user_id: courseOwnerId,
+      user_id: courseOwnerId, // This is profiles.id (bigint)
       role: "owner",
     });
 
   if (memberError) {
     console.error(
       "[AutoCreation] Failed to add course owner as classroom member:",
-      memberError
+      {
+        error: memberError,
+        classroomId: classroom.id,
+        userId: courseOwnerId,
+        userIdType: typeof courseOwnerId,
+      }
     );
     // Don't fail the whole process for this
   }
@@ -335,19 +340,24 @@ async function createCommunityForCourse(
     };
   }
 
-  // Add course owner as community owner member (using profile ID, not UUID)
+  // Add course owner as community owner member
   const { error: memberError } = await supabase
     .from("community_group_member")
     .insert({
       group_id: community.id,
-      user_id: courseOwnerId,
+      user_id: courseOwnerId, // This is profiles.id (bigint)
       role: "owner",
     });
 
   if (memberError) {
     console.error(
       "[AutoCreation] Failed to add course owner as community member:",
-      memberError
+      {
+        error: memberError,
+        communityId: community.id,
+        userId: courseOwnerId,
+        userIdType: typeof courseOwnerId,
+      }
     );
     // Don't fail the whole process for this
   }

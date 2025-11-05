@@ -94,11 +94,11 @@ const AttemptCard = ({
       : 0;
 
   return (
-    <div className="p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
+    <div className="p-4 rounded-lg bg-card hover:bg-accent/50 transition-colors border">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <Link href={quizPath}>
-            <h4 className="font-medium text-white hover:text-blue-300 cursor-pointer line-clamp-1">
+            <h4 className="font-medium text-foreground hover:text-blue-500 cursor-pointer line-clamp-1">
               {attempt.quiz.title}
             </h4>
           </Link>
@@ -110,25 +110,25 @@ const AttemptCard = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="flex items-center gap-2 text-gray-300">
+        <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="w-4 h-4" />
           <span>{format(new Date(attempt.created_at), "MMM d, yyyy")}</span>
         </div>
 
         {(attempt.status === "submitted" || attempt.status === "graded") && (
           <>
-            <div className="flex items-center gap-2 text-gray-300">
-              <Trophy className="w-4 h-4 text-yellow-400" />
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Trophy className="w-4 h-4 text-yellow-500" />
               <span>{attempt.score} points</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-300">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Target className="w-4 h-4" />
               <span>
                 {attempt.correct_answers || 0}/{attempt.total_questions || 0}{" "}
                 correct
               </span>
             </div>
-            <div className="flex items-center gap-2 text-gray-300">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <div className="flex items-center gap-1">
                 {scorePercentage >= 80 ? (
                   <CheckCircle className="w-4 h-4 text-green-400" />
@@ -184,9 +184,9 @@ export default function AllAttemptsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh] bg-gray-900 border-white/10">
+      <DialogContent className="max-w-3xl max-h-[80vh]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             All Quiz Attempts
           </DialogTitle>
         </DialogHeader>
@@ -195,14 +195,14 @@ export default function AllAttemptsModal({
           {isLoading ? (
             <div className="space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full bg-white/10" />
+                <Skeleton key={i} className="h-32 w-full" />
               ))}
             </div>
           ) : attempts && attempts.length > 0 ? (
             <div className="space-y-6">
               {groupedAttempts.in_progress?.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-medium text-white mb-3">
+                  <h3 className="text-lg font-medium text-foreground mb-3">
                     In Progress
                   </h3>
                   <div className="space-y-3">
@@ -219,7 +219,7 @@ export default function AllAttemptsModal({
 
               {groupedAttempts.submitted?.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-medium text-white mb-3">
+                  <h3 className="text-lg font-medium text-foreground mb-3">
                     Completed
                   </h3>
                   <div className="space-y-3">
@@ -236,7 +236,7 @@ export default function AllAttemptsModal({
 
               {groupedAttempts.graded?.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-medium text-white mb-3">
+                  <h3 className="text-lg font-medium text-foreground mb-3">
                     Graded
                   </h3>
                   <div className="space-y-3">
@@ -253,9 +253,9 @@ export default function AllAttemptsModal({
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-400">No quiz attempts yet</p>
+              <p className="text-muted-foreground">No quiz attempts yet</p>
               <Link href={quizzesPath}>
-                <p className="text-blue-400 hover:text-blue-300 mt-2 cursor-pointer">
+                <p className="text-blue-500 hover:text-blue-600 mt-2 cursor-pointer">
                   Browse quizzes to get started
                 </p>
               </Link>

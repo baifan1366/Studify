@@ -618,7 +618,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         console.log("📹 Video context:", videoContext);
       }
 
-      // Step 1: Search
+      // Step 1: Search with timeout
       let searchResults = "";
       const searchTool = getToolByName("search");
 
@@ -635,15 +635,25 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         };
 
         try {
-          searchResults = await (searchTool as any).call(searchInput);
+          // Add 2-minute timeout for search (120 seconds)
+          const searchTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Search timeout')), 120000)
+          );
+          
+          searchResults = await Promise.race([
+            (searchTool as any).call(searchInput),
+            searchTimeout
+          ]) as string;
+          
           toolsUsed.push("search");
           console.log(`✅ Search: ${searchResults?.length || 0} chars`);
         } catch (e) {
-          console.error("❌ Search failed:", e);
+          console.error("❌ Search failed or timed out:", e);
+          // Continue without search results
         }
       }
 
-      // Step 2: Answer
+      // Step 2: Answer with timeout
       const qaTool = getToolByName("answer_question");
       if (!qaTool) throw new Error("answer_question tool not found");
 
@@ -656,11 +666,20 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         finalQ = `Based on these search results, answer: "${question}"\n\nResults:\n${searchResults}`;
       }
 
-      const qaResult = await (qaTool as any).call({
-        question: finalQ,
-        contentTypes: options.contentTypes,
-        includeSourceReferences: true,
-      });
+      // Add 2-minute timeout for answer generation (120 seconds)
+      const answerTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Answer generation timeout')), 120000)
+      );
+      
+      const qaResult = await Promise.race([
+        (qaTool as any).call({
+          question: finalQ,
+          contentTypes: options.contentTypes,
+          includeSourceReferences: true,
+        }),
+        answerTimeout
+      ]);
+      
       toolsUsed.push("answer_question");
 
       const answer =
@@ -676,8 +695,21 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       };
     } catch (error) {
       console.error("❌ Direct tool calling failed:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('timeout')) {
+        return {
+          answer: "I apologize, but the request took too long to process. Please try asking a more specific question or try again.",
+          sources: [],
+          analysis: undefined,
+          toolsUsed,
+          confidence: 0.3,
+        };
+      }
+      
       return {
-        answer: "I apologize, but I encountered an error. Please try again.",
+        answer: "I apologize, but I encountered an error processing your question. Please try again.",
         sources: [],
         analysis: undefined,
         toolsUsed,

@@ -370,7 +370,8 @@
     "comment_posted": "Comment posted!",
     "comment_post_failed": "Failed to post comment",
     "comment_update_failed": "Failed to update comment",
-    "comment_delete_failed": "Failed to delete comment"
+    "comment_delete_failed": "Failed to delete comment",
+    "click_timestamp_to_jump": "Click on timestamps to jump to that moment in the video"
   },
   "LessonContent": {
     "content_coming_soon": "Content coming soon",
@@ -1846,16 +1847,16 @@
     "features": "Smart cache • Context-aware",
     "thinking": "Thinking...",
     "welcome": {
-      "title": "Start Learning Conversation",
-      "description": "Ask me any questions about this video, I will provide detailed answers based on course content",
-      "quick_start": "💡 Quick Start:",
+      "title": "AI Learning Assistant",
+      "description": "Ask me anything about this lesson",
+      "quick_start": "Quick Start Questions:",
       "preset_questions": {
-        "lesson_focus": "What are the key points of this lesson?",
-        "core_concepts": "What core concepts do I need to master?",
-        "practice_questions": "Are there any related practice questions?",
-        "practical_applications": "What are the practical applications of this knowledge?",
-        "explain_current": "I didn't understand what was just explained, can you explain in detail?",
-        "explain_selected": "Explain the content I selected"
+        "explain_current": "Explain what's happening at this moment",
+        "explain_selected": "Explain the selected text",
+        "lesson_focus": "What is the main focus of this lesson?",
+        "core_concepts": "What are the core concepts?",
+        "practice_questions": "Give me some practice questions",
+        "practical_applications": "What are the practical applications?"
       }
     },
     "confidence": {
@@ -1864,36 +1865,32 @@
       "low": "Low Confidence"
     },
     "sources": {
-      "title": "Reference Sources",
-      "count": "({count} sources)",
-      "click_to_jump": "Click to jump",
+      "title": "Sources",
+      "count": "{count} sources",
       "view": "View",
+      "click_to_jump": "Click to jump",
+      "click_timestamp_hint": "Click on timestamps to jump to that moment in the video",
       "types": {
-        "video_segment": "Video",
+        "video_segment": "Video Segment",
         "course_content": "Course Content",
         "lesson": "Lesson",
-        "note": "Notes",
-        "web": "Web Search",
+        "note": "Note",
+        "web": "Web",
         "metadata": "Metadata"
       }
     },
     "suggested_actions": {
-      "title": "Suggested Actions",
-      "title_colon": "Suggested Actions:",
-      "view_materials": "View related course materials",
-      "take_notes": "Take notes on key points",
-      "try_exercises": "Try related exercises"
+      "title_colon": "Suggested Actions:"
     },
     "related_concepts": {
       "title": "Related Concepts"
     },
     "input": {
-      "placeholder": "Ask any questions about this video...",
-      "context_info": "Current location: {timestamp}",
-      "selected_text": " | Selected: \"{text}...\"",
-      "selected_prefix": "Selected:",
-      "context_prefix": "📍",
-      "send_button": "Send"
+      "placeholder": "Ask a question about this lesson...",
+      "context_prefix": "Context:",
+      "context_info": "At {timestamp}",
+      "selected_text": "Selected: {text}",
+      "selected_prefix": "Selected"
     },
     "loading_stages": {
       "analyzing": "Analyzing your question...",
@@ -1911,7 +1908,7 @@
       },
       "jump_timestamp": {
         "title": "Jump to Timestamp",
-        "description": "Will jump to {timestamp} (feature in development)",
+        "description": "Click to jump to {timestamp}",
         "jumped_to": "Jumped to {timestamp}",
         "failed_to_jump": "Failed to jump to {timestamp}"
       }

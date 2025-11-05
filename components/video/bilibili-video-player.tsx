@@ -60,6 +60,8 @@ import {
   GraduationCap,
 } from "lucide-react";
 import MegaImage from "@/components/attachment/mega-blob-image";
+import { setGlobalVideoPlayer, clearGlobalVideoPlayer } from "@/hooks/video/use-video-player";
+import type { VideoPlayerAPI } from "@/interfaces/video-player-api";
 
 interface DanmakuMessage {
   id: string;
@@ -585,6 +587,60 @@ export default function BilibiliVideoPlayer({
       canPlay: true,
     };
   }, [attachmentId, src, getYouTubeEmbedUrl, getVimeoEmbedUrl]);
+
+  // Video Player API implementation for AI Assistant integration
+  const videoPlayerAPI: VideoPlayerAPI = useMemo(() => ({
+    seekTo: async (timestamp: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = timestamp;
+        setCurrentTime(timestamp);
+      }
+    },
+    getCurrentTime: () => currentTime,
+    play: async () => {
+      if (videoRef.current) {
+        await videoRef.current.play();
+      }
+    },
+    pause: async () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+    },
+    getDuration: () => duration,
+    isPlaying: () => isPlaying,
+    setPlaybackSpeed: (speed: number) => {
+      if (videoRef.current) {
+        videoRef.current.playbackRate = speed;
+        setPlaybackRate(speed);
+      }
+    },
+    getPlaybackSpeed: () => playbackRate,
+    addEventListener: (event, callback) => {
+      // Event listener implementation
+      if (videoRef.current) {
+        videoRef.current.addEventListener(event, callback);
+      }
+    },
+    removeEventListener: (event, callback) => {
+      if (videoRef.current) {
+        videoRef.current.removeEventListener(event, callback);
+      }
+    },
+  }), [currentTime, duration, isPlaying, playbackRate]);
+
+  // Register video player globally for AI Assistant
+  useEffect(() => {
+    if (videoRef.current && videoSourceInfo.canPlay) {
+      setGlobalVideoPlayer(videoPlayerAPI);
+      console.log('🎬 Video player registered globally for AI Assistant');
+    }
+
+    return () => {
+      clearGlobalVideoPlayer();
+      console.log('🗑️ Video player unregistered');
+    };
+  }, [videoPlayerAPI, videoSourceInfo.canPlay]);
 
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);

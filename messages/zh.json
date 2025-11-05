@@ -370,7 +370,8 @@
     "comment_posted": "评论已发布！",
     "comment_post_failed": "发布评论失败",
     "comment_update_failed": "更新评论失败",
-    "comment_delete_failed": "删除评论失败"
+    "comment_delete_failed": "删除评论失败",
+    "click_timestamp_to_jump": "点击时间戳可跳转到视频中的对应时刻"
   },
   "LessonContent": {
     "content_coming_soon": "内容即将上线",
@@ -1846,16 +1847,16 @@
     "features": "智能缓存 • 上下文感知",
     "thinking": "思考中...",
     "welcome": {
-      "title": "开始学习对话",
-      "description": "问我任何关于此视频的问题，我将根据课程内容提供详细答案",
-      "quick_start": "💡 Quick 开始:",
+      "title": "AI 学习助手",
+      "description": "向我提问关于本课程的任何问题",
+      "quick_start": "快速开始问题：",
       "preset_questions": {
-        "lesson_focus": "本课的重点是什么？",
-        "core_concepts": "我需要掌握哪些核心概念？",
-        "practice_questions": "有相关的练习题吗？",
-        "practical_applications": "这些知识有什么实际应用？",
-        "explain_current": "我没听懂刚才讲的，能详细解释一下吗？",
-        "explain_selected": "解释我选择的内容"
+        "explain_current": "解释当前时刻发生的内容",
+        "explain_selected": "解释选中的文本",
+        "lesson_focus": "这节课的主要重点是什么？",
+        "core_concepts": "核心概念有哪些？",
+        "practice_questions": "给我一些练习题",
+        "practical_applications": "实际应用有哪些？"
       }
     },
     "confidence": {
@@ -1864,36 +1865,32 @@
       "low": "低置信度"
     },
     "sources": {
-      "title": "参考来源",
-      "count": "({count} 来源)",
-      "click_to_jump": "点击跳转",
+      "title": "来源",
+      "count": "{count} 个来源",
       "view": "查看",
+      "click_to_jump": "点击跳转",
+      "click_timestamp_hint": "点击时间戳可跳转到视频中的对应时刻",
       "types": {
-        "video_segment": "视频",
+        "video_segment": "视频片段",
         "course_content": "课程内容",
-        "lesson": "课程",
+        "lesson": "课时",
         "note": "笔记",
-        "web": "网络搜索",
+        "web": "网页",
         "metadata": "元数据"
       }
     },
     "suggested_actions": {
-      "title": "建议操作",
-      "title_colon": "建议操作:",
-      "view_materials": "查看相关课程资料",
-      "take_notes": "记录重点笔记",
-      "try_exercises": "尝试相关练习"
+      "title_colon": "建议操作："
     },
     "related_concepts": {
       "title": "相关概念"
     },
     "input": {
-      "placeholder": "问任何关于此视频的问题...",
-      "context_info": "当前位置：{timestamp}",
-      "selected_text": " | 已选择: \"{text}...\"",
-      "selected_prefix": "已选择:",
-      "context_prefix": "📍",
-      "send_button": "发送"
+      "placeholder": "询问关于本课程的问题...",
+      "context_prefix": "上下文：",
+      "context_info": "在 {timestamp}",
+      "selected_text": "已选择：{text}",
+      "selected_prefix": "已选择"
     },
     "loading_stages": {
       "analyzing": "正在分析你的问题...",
@@ -1911,12 +1908,12 @@
       },
       "jump_timestamp": {
         "title": "跳转到时间戳",
-        "description": "将跳转到 {timestamp} (feature in development)",
+        "description": "点击跳转到 {timestamp}",
         "jumped_to": "已跳转到 {timestamp}",
         "failed_to_jump": "跳转失败 {timestamp}"
       }
     },
-    "error_message": "抱歉，AI 助手 is temporarily unable 到答案 your 问题. 请稍后重试或 联系 technical 支持."
+    "error_message": "抱歉，AI 助手暂时无法回答您的问题。请稍后重试或联系技术支持。"
   },
   "LearningPath": {
     "title": "你的定制学习之旅",

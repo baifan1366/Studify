@@ -211,34 +211,54 @@ export function VideoQAPanel({
               {/* Related Segments */}
               {answer.segments && answer.segments.length > 0 && (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-200">
-                    {t('related_video_segments')}:
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-medium text-gray-200">
+                      {t('related_video_segments')} ({answer.segments.length})
+                    </span>
                   </div>
-                  {answer.segments.map((segment, index) => (
-                    <div
-                      key={index}
-                      className="bg-slate-700 p-3 rounded-xl border border-slate-600"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3 h-3 text-gray-300" />
-                          <span className="text-xs text-gray-300">
-                            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                          </span>
+                  <div className="space-y-2">
+                    {answer.segments.map((segment, index) => (
+                      <div
+                        key={index}
+                        className="bg-slate-700 p-3 rounded-xl border border-slate-600 hover:border-blue-500 transition-all duration-200 group"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium text-blue-400">
+                                #{index + 1}
+                              </span>
+                              <button
+                                onClick={() => handleSeekToSegment(segment.startTime)}
+                                className="flex items-center gap-1.5 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 group-hover:scale-105"
+                              >
+                                <Clock className="w-3 h-3" />
+                                <span className="font-mono font-medium">
+                                  {formatTime(segment.startTime)}
+                                </span>
+                                {segment.endTime && segment.endTime !== segment.startTime && (
+                                  <>
+                                    <span className="opacity-60">-</span>
+                                    <span className="font-mono font-medium">
+                                      {formatTime(segment.endTime)}
+                                    </span>
+                                  </>
+                                )}
+                                <ChevronRight className="w-3 h-3 ml-0.5" />
+                              </button>
+                            </div>
+                            <div className="text-xs text-gray-300 leading-relaxed">
+                              {segment.relevantText || segment.text}
+                            </div>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => handleSeekToSegment(segment.startTime)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
-                        >
-                          <Volume2 className="w-3 h-3" />
-                          {t('jump_to')}
-                        </button>
                       </div>
-                      <div className="text-xs text-gray-300">
-                        {segment.relevantText}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-400 italic mt-2">
+                    💡 {t('click_timestamp_to_jump')}
+                  </div>
                 </div>
               )}
 

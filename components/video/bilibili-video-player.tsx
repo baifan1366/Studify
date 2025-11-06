@@ -65,6 +65,7 @@ import {
 import MegaImage from "@/components/attachment/mega-blob-image";
 import { setGlobalVideoPlayer, clearGlobalVideoPlayer } from "@/hooks/video/use-video-player";
 import type { VideoPlayerAPI } from "@/interfaces/video-player-api";
+import Hls from 'hls.js';
 
 interface DanmakuMessage {
   id: string;
@@ -180,6 +181,7 @@ export default function BilibiliVideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const danmakuContainerRef = useRef<HTMLDivElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
   // Video state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -817,14 +819,100 @@ export default function BilibiliVideoPlayer({
     }
   }, [duration, initialTime, onTimeUpdate]);
 
-  // Initialize loading state based on video source
+  // Initialize loading state based on video source and setup HLS if needed
   useEffect(() => {
-    if (videoSourceInfo.src || videoSourceInfo.embedUrl) {
+    const video = videoRef.current;
+    const src = videoSourceInfo.src;
+    
+    if (!video || !src) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if it's an HLS stream
+    const isHLS = src.includes('.m3u8');
+    
+    if (isHLS && Hls.isSupported()) {
+      console.log('🎬 Initializing HLS.js for:', src);
+      setIsLoading(true);
+      
+      // Create HLS instance
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 90,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 600,
+        maxBufferSize: 60 * 1000 * 1000, // 60MB
+        maxBufferHole: 0.5,
+      });
+
+      hlsRef.current = hls;
+
+      // Load source
+      hls.loadSource(src);
+      hls.attachMedia(video);
+
+      // Handle manifest parsed
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log('✅ HLS manifest loaded, found ' + data.levels.length + ' quality levels');
+        setIsLoading(false);
+      });
+
+      // Handle errors
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('❌ HLS error:', data);
+        
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('🔄 Fatal network error, trying to recover');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('🔄 Fatal media error, trying to recover');
+              hls.recoverMediaError();
+              break;
+            default:
+              console.error('💥 Fatal error, cannot recover');
+              setIsLoading(false);
+              toast({
+                title: "HLS Error",
+                description: "Failed to load HLS stream",
+                variant: "destructive",
+              });
+              hls.destroy();
+              break;
+          }
+        }
+      });
+
+      // Handle quality level switching
+      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+        const level = hls.levels[data.level];
+        console.log('🎨 Quality switched to:', level.height + 'p');
+      });
+
+      // Cleanup
+      return () => {
+        console.log('🧹 Cleaning up HLS instance');
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
+    } else if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support (Safari)
+      console.log('🍎 Using native HLS support (Safari)');
+      setIsLoading(true);
+      video.src = src;
+    } else if (videoSourceInfo.src || videoSourceInfo.embedUrl) {
+      // Regular video
       setIsLoading(true);
     } else {
       setIsLoading(false);
     }
-  }, [videoSourceInfo.src, videoSourceInfo.embedUrl]);
+  }, [videoSourceInfo.src, videoSourceInfo.embedUrl, toast]);
 
   // For YouTube/Vimeo videos, simulate progress tracking with a timer
   // since iframe doesn't provide timeupdate events
@@ -1205,6 +1293,16 @@ export default function BilibiliVideoPlayer({
             onWaiting={handleWaiting}
             onPlaying={handlePlaying}
             onProgress={handleProgress}
+            onError={(e) => {
+              console.error('Video error:', e);
+              setIsLoading(false);
+              toast({
+                title: t("VideoPlayer.video_error") || "Video Error",
+                description: t("VideoPlayer.video_error_desc") || "Failed to load video. Please try again or contact support.",
+                variant: "destructive",
+                duration: 10000,
+              });
+            }}
             onClick={togglePlay}
           />
         ) : (

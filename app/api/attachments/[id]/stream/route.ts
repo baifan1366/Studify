@@ -6,15 +6,9 @@ import { File } from 'megajs';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
 export async function GET(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: { params: { id: string } }
 ) {
   try {
     const attachmentId = params.id;

@@ -795,8 +795,9 @@ export default function BilibiliVideoPlayer({
         const progress = (totalBuffered / duration) * 100;
         setLoadingProgress(Math.min(progress, 100));
         
-        // Auto-hide loading indicator if enough is buffered
-        if (progress > 10 && isLoading) {
+        // Auto-hide loading indicator if enough is buffered (at least 5 seconds)
+        const bufferedSeconds = totalBuffered;
+        if (bufferedSeconds > 5 && isLoading) {
           setIsLoading(false);
         }
       }
@@ -1278,22 +1279,25 @@ export default function BilibiliVideoPlayer({
                     </p>
                   )}
                   
-                  {/* Enhanced Loading Progress Bar for MEGA streaming */}
-                  {videoSourceInfo.type === "direct" && attachmentId && (
+                  {/* Simple Progress Bar for all direct videos */}
+                  {videoSourceInfo.type === "direct" && (
                     <div className="mt-3 w-64">
+                      {/* Progress Bar */}
                       <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
                         <motion.div
                           className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
                           initial={{ width: 0 }}
-                          animate={{ width: `${Math.max(loadingProgress, 5)}%` }}
+                          animate={{ width: `${Math.max(loadingProgress, 2)}%` }}
                           transition={{ duration: 0.3 }}
                         />
                       </div>
+                      
+                      {/* Progress Text */}
                       <div className="flex justify-between items-center mt-2">
                         <p className="text-white/60 text-xs">
                           {loadingProgress > 0
-                            ? `${Math.round(loadingProgress)}% buffered`
-                            : "Connecting to MEGA..."}
+                            ? `${Math.round(loadingProgress)}% loaded`
+                            : "Initializing..."}
                         </p>
                         {duration > 0 && loadingProgress > 0 && (
                           <p className="text-white/60 text-xs">
@@ -1301,30 +1305,28 @@ export default function BilibiliVideoPlayer({
                           </p>
                         )}
                       </div>
-                      {loadingProgress > 10 && (
-                        <p className="text-green-400 text-xs mt-1">
-                          ✓ Ready to play
+                      
+                      {/* Ready to play indicator */}
+                      {loadingProgress >= 5 && (
+                        <motion.p 
+                          className="text-green-400 text-xs mt-1 flex items-center justify-center gap-1"
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                        >
+                          <span>✓</span>
+                          <span>Ready to play</span>
+                        </motion.p>
+                      )}
+                      
+                      {/* Preloading tip */}
+                      {loadingProgress > 0 && loadingProgress < 100 && (
+                        <p className="text-white/40 text-xs mt-2">
+                          Video is preloading in background...
                         </p>
                       )}
                     </div>
                   )}
-                  
-                  {/* Standard progress for non-MEGA direct videos */}
-                  {videoSourceInfo.type === "direct" && !attachmentId && loadingProgress > 0 && loadingProgress < 100 && (
-                    <div className="mt-3 w-48">
-                      <div className="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
-                        <motion.div
-                          className="h-full bg-blue-500 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${loadingProgress}%` }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </div>
-                      <p className="text-white/60 text-xs mt-1">
-                        {Math.round(loadingProgress)}% buffered
-                      </p>
-                    </div>
-                  )}
+
                 </div>
               </motion.div>
             </motion.div>

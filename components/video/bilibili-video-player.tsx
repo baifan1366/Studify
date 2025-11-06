@@ -30,10 +30,8 @@ import {
   useVideoTerms,
 } from "@/hooks/video/use-video-qa";
 import { useCourseNotes } from "@/hooks/course/use-course-notes";
-import { useVideoPreload, useAdaptiveBitrate } from "@/hooks/video/use-video-preload";
 import { VideoQAPanel } from "./video-qa-panel";
 import { VideoTermsTooltip, VideoTermsIndicator } from "./video-terms-tooltip";
-import { VideoBufferIndicator, CompactBufferIndicator } from "./video-buffer-indicator";
 import {
   Play,
   Pause,
@@ -223,18 +221,6 @@ export default function BilibiliVideoPlayer({
   // Fetch course notes for this lesson
   const { data: courseNotes = [] } = useCourseNotes(
     lessonId ? parseInt(lessonId) : undefined
-  );
-
-  // Preload optimization for MEGA videos
-  const preloadState = useVideoPreload(videoRef, {
-    enabled: !!attachmentId, // Only enable for MEGA attachments
-    preloadAmount: 30, // Preload 30 seconds ahead
-    minBufferHealth: 20, // Start preloading when buffer < 20%
-  });
-
-  // Adaptive bitrate based on network conditions
-  const { recommendedQuality, shouldReduceQuality } = useAdaptiveBitrate(
-    preloadState.estimatedBandwidth
   );
 
   // Internationalization
@@ -1353,17 +1339,6 @@ export default function BilibiliVideoPlayer({
           {renderDanmaku()}
         </div>
 
-        {/* Buffer Health Indicator (for MEGA videos) */}
-        {attachmentId && videoSourceInfo.type === "direct" && (
-          <VideoBufferIndicator
-            bufferHealth={preloadState.bufferHealth}
-            isPreloading={preloadState.isPreloading}
-            preloadProgress={preloadState.preloadProgress}
-            estimatedBandwidth={preloadState.estimatedBandwidth}
-            show={preloadState.bufferHealth < 100 || preloadState.isPreloading}
-          />
-        )}
-
         {/* Video Controls Overlay - Only show for direct video, not for YouTube/Vimeo */}
         <AnimatePresence>
           {showControls &&
@@ -1538,14 +1513,6 @@ export default function BilibiliVideoPlayer({
                       <span className="text-white text-sm">
                         {formatTime(currentTime)} / {formatTime(duration)}
                       </span>
-
-                      {/* Compact Buffer Indicator */}
-                      {attachmentId && (
-                        <CompactBufferIndicator
-                          bufferHealth={preloadState.bufferHealth}
-                          isPreloading={preloadState.isPreloading}
-                        />
-                      )}
                     </div>
 
                     <div className="flex items-center gap-2">

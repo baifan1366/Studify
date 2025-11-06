@@ -109,13 +109,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
     // Use the internal lesson ID (bigint)
     const internalLessonId = validation.lesson.id;
 
-    // Check if course status allows chapter creation (only inactive courses)
-    if (validation.lesson.course.status !== 'inactive') {
-      return NextResponse.json({ 
-        error: `Cannot create chapter for course with status '${validation.lesson.course.status}'. Only courses with 'inactive' status can have chapters created.` 
-      }, { status: 403 });
-    }
-
     // Validate request body
     let validatedData;
     try {

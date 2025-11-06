@@ -1,508 +1,421 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { authorize } from '@/utils/auth/server-guard';
 
-export async function POST(request: NextRequest) {
+// GET - Fetch notes for a lesson or course
+export async function GET(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    
-    const { payload, user } = authResult;
-    const userId = user.profile?.id;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
-    }
-
     const supabase = await createClient();
-    
-    const { lessonId, timestampSec, content, tags } = await request.json();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!lessonId || !content) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: 'Lesson ID and content are required' },
-        { status: 400 }
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    // Get lesson details - support both public_id (UUID) and internal id (number)
-    let lesson;
-    let lessonError;
-    
-    if (typeof lessonId === 'string' && lessonId.includes('-')) {
-      // It's a UUID (public_id)
-      const result = await supabase
-        .from('course_lesson')
-        .select('*, course!inner(*)')
-        .eq('public_id', lessonId)
-        .eq('is_deleted', false)
-        .single();
-      lesson = result.data;
-      lessonError = result.error;
-    } else if (typeof lessonId === 'number') {
-      // It's a number (internal id)
-      const result = await supabase
-        .from('course_lesson')
-        .select('*, course!inner(*)')
-        .eq('id', lessonId)
-        .eq('is_deleted', false)
-        .single();
-      lesson = result.data;
-      lessonError = result.error;
-    } else {
-      return NextResponse.json(
-        { error: 'Invalid lesson ID format' },
-        { status: 400 }
-      );
-    }
+    const searchParams = request.nextUrl.searchParams;
+    const lessonId = searchParams.get('lessonId');
+    const courseId = searchParams.get('courseId');
 
-    if (lessonError || !lesson) {
+    // Get user profile ID
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Lesson not found' },
+        { success: false, error: 'Profile not found' },
         { status: 404 }
       );
     }
 
-    // Check if user is enrolled in the course
-    const { data: enrollment } = await supabase
-      .from('course_enrollment')
-      .select('id')
-      .eq('course_id', lesson.course.id)
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .single();
+    let query = supabase
+      .from('course_notes')
+      .select(`
+        *,
+        lesson:course_lesson!course_notes_lesson_id_fkey(id, public_id, title),
+        course:course!course_notes_course_id_fkey(id, public_id, title)
+      `)
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false });
 
-    if (!enrollment) {
-      return NextResponse.json(
-        { error: 'Not enrolled in this course' },
-        { status: 403 }
-      );
+    if (lessonId) {
+      // Get lesson internal ID from public_id
+      const { data: lesson } = await supabase
+        .from('course_lesson')
+        .select('id')
+        .eq('public_id', lessonId)
+        .single();
+
+      if (lesson) {
+        query = query.eq('lesson_id', lesson.id);
+      }
     }
 
-    // Create note
-    const { data: note, error: noteError } = await supabase
-      .from('course_notes')
-      .insert({
-        user_id: userId,
-        lesson_id: lesson.id,
-        timestamp_sec: timestampSec,
-        content,
-        tags: tags || []
-      })
-      .select()
-      .single();
+    if (courseId) {
+      // Get course internal ID from public_id
+      const { data: course } = await supabase
+        .from('course')
+        .select('id')
+        .eq('public_id', courseId)
+        .single();
 
-    if (noteError) {
+      if (course) {
+        query = query.eq('course_id', course.id);
+      }
+    }
+
+    const { data: notes, error } = await query;
+
+    if (error) {
+      console.error('Error fetching notes:', error);
       return NextResponse.json(
-        { error: 'Failed to create note' },
+        { success: false, error: error.message },
         { status: 500 }
       );
     }
 
-    // Log analytics event
-    await supabase
-      .from('course_analytics')
-      .insert({
-        user_id: userId,
-        course_id: lesson.course.id,
-        lesson_id: lesson.id,
-        event_type: 'note_created',
-        event_data: {
-          timestamp_sec: timestampSec,
-          content_length: content.length,
-          tags: tags || []
-        }
-      });
+    // Transform notes to include public IDs
+    const transformedNotes = notes?.map(note => ({
+      id: note.public_id,
+      lessonId: note.lesson?.public_id,
+      lessonTitle: note.lesson?.title,
+      courseId: note.course?.public_id,
+      courseTitle: note.course?.title,
+      timestampSec: note.timestamp_sec,
+      content: note.content,
+      aiSummary: note.ai_summary,
+      tags: note.tags || [],
+      noteType: note.note_type,
+      title: note.title,
+      createdAt: note.created_at,
+      updatedAt: note.updated_at,
+    })) || [];
 
     return NextResponse.json({
       success: true,
-      note: {
-        id: note.public_id,
-        lessonId: lesson.public_id,
-        timestampSec: note.timestamp_sec,
-        content: note.content,
-        tags: note.tags,
-        createdAt: note.created_at
-      }
+      notes: transformedNotes,
     });
-
   } catch (error) {
-    console.error('Note creation error:', error);
+    console.error('Unexpected error in GET /api/course/notes:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-export async function GET(request: NextRequest) {
+// POST - Create a new note
+export async function POST(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
-    const { payload, user } = authResult;
-    const userId = user.profile?.id;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
-    }
-
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    const { searchParams } = new URL(request.url);
-    const lessonIdParam = searchParams.get('lessonId');
-    const courseIdParam = searchParams.get('courseId');
-
-    if (!lessonIdParam && !courseIdParam) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: 'Lesson ID or Course ID is required' },
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    let { lessonId, courseId, timestampSec, content, aiSummary, tags, title, noteType } = body;
+
+    if (!content) {
+      return NextResponse.json(
+        { success: false, error: 'Content is required' },
         { status: 400 }
       );
     }
 
-    if (lessonIdParam) {
-      // Check if lessonIdParam is a UUID (public_id) or number (internal id)
-      let lesson;
-      let lessonError;
-      
-      if (lessonIdParam.includes('-')) {
-        // It's a UUID (public_id)
-        const result = await supabase
-          .from('course_lesson')
-          .select('id, public_id, title, course_id')
-          .eq('public_id', lessonIdParam)
-          .single();
-        lesson = result.data;
-        lessonError = result.error;
-      } else {
-        // It's a number (internal id)
-        const lessonId = parseInt(lessonIdParam);
-        if (isNaN(lessonId)) {
-          return NextResponse.json(
-            { error: 'Invalid lesson ID format' },
-            { status: 400 }
-          );
-        }
-        
-        const result = await supabase
-          .from('course_lesson')
-          .select('id, public_id, title, course_id')
-          .eq('id', lessonId)
-          .single();
-        lesson = result.data;
-        lessonError = result.error;
-      }
-
-      if (lessonError) {
-        console.error('❌ Lesson lookup error:', lessonError);
-        return NextResponse.json(
-          { error: 'Lesson not found' },
-          { status: 404 }
-        );
-      }
-
-      if (!lesson) {
-        console.error('❌ No lesson found for public_id:', lessonIdParam);
-        return NextResponse.json(
-          { error: 'Lesson not found' },
-          { status: 404 }
-        );
-      }
-
-      // Then get the course info
-      const { data: course, error: courseError } = await supabase
-        .from('course')
-        .select('public_id, title')
-        .eq('id', lesson.course_id)
-        .single();
-
-      if (courseError) {
-        console.error('❌ Course lookup error:', courseError);
-        return NextResponse.json(
-          { error: 'Course not found' },
-          { status: 500 }
-        );
-      }
-      
-      let notes = [];
-      let notesError = null;
-
-      try {
-        // Query with explicit bigint type - lesson.id should be 25 (bigint)
-        const result = await supabase
-          .from('course_notes')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('lesson_id', lesson.id) // This MUST be bigint 25, not UUID
-          .eq('is_deleted', false)
-          .order('timestamp_sec', { ascending: true });
-        
-        notes = result.data || [];
-        notesError = result.error;
-      } catch (error) {
-        console.error('🚨 Query execution failed:', error);
-        // For now, return empty notes instead of breaking the app
-        notes = [];
-        notesError = null;
-      }
-
-      if (notesError) {
-        console.error('❌ Notes fetch error:', notesError);
-        return NextResponse.json(
-          { error: 'Failed to fetch notes' },
-          { status: 500 }
-        );
-      }
-
-      const formattedNotes = notes.map(note => ({
-        id: note.public_id,
-        lessonId: lesson.public_id,
-        lessonTitle: lesson.title,
-        courseId: course.public_id,
-        courseTitle: course.title,
-        timestampSec: note.timestamp_sec,
-        content: note.content,
-        aiSummary: note.ai_summary,
-        tags: note.tags,
-        createdAt: note.created_at,
-        updatedAt: note.updated_at,
-      }));
-
-      return NextResponse.json({
-        success: true,
-        notes: formattedNotes,
-      });
-    }
-
-    if (courseIdParam) {
-      const courseId = parseInt(courseIdParam);
-      if (isNaN(courseId)) {
-        return NextResponse.json(
-          { error: 'Invalid course ID - must be a number' },
-          { status: 400 }
-        );
-      }
-      
-      // Get the course info using internal ID
-      const { data: course, error: courseError } = await supabase
-        .from('course')
-        .select('id, public_id, title')
-        .eq('id', courseId)
-        .single();
-
-      if (courseError || !course) {
-        console.error('❌ Course lookup error:', courseError);
-        return NextResponse.json(
-          { error: 'Course not found' },
-          { status: 404 }
-        );
-      }
-
-      // Get all lessons for that course
-      const { data: lessons, error: lessonsError } = await supabase
-        .from('course_lesson')
-        .select('id, public_id, title')
-        .eq('course_id', course.id);
-
-      if (lessonsError) {
-        console.error('❌ Lessons lookup error:', lessonsError);
-        return NextResponse.json(
-          { error: 'Failed to fetch lessons for course' },
-          { status: 500 }
-        );
-      }
-
-      const lessonIds = lessons?.map(l => l.id) ?? [];
-      if (lessonIds.length === 0) {
-        return NextResponse.json({ success: true, notes: [] });
-      }
-
-      // Get all notes for these lessons
-      const { data: notes, error: notesError } = await supabase
-        .from('course_notes')
-        .select('*')
-        .eq('user_id', userId)
-        .in('lesson_id', lessonIds) // Use bigint IDs
-        .eq('is_deleted', false)
-        .order('timestamp_sec', { ascending: true });
-
-      if (notesError) {
-        console.error('❌ Notes fetch error:', notesError);
-        return NextResponse.json(
-          { error: 'Failed to fetch notes' },
-          { status: 500 }
-        );
-      }
-
-      // Create a lookup map for lessons
-      const lessonMap = lessons.reduce((acc, lesson) => {
-        acc[lesson.id] = lesson;
-        return acc;
-      }, {} as Record<number, any>);
-
-      const formattedNotes = notes.map(note => {
-        const lesson = lessonMap[note.lesson_id];
-        return {
-          id: note.public_id,
-          lessonId: lesson?.public_id || '',
-          lessonTitle: lesson?.title || 'Unknown Lesson',
-          courseId: course.public_id,
-          courseTitle: course.title,
-          timestampSec: note.timestamp_sec,
-          content: note.content,
-          aiSummary: note.ai_summary,
-          tags: note.tags,
-          createdAt: note.created_at,
-          updatedAt: note.updated_at,
-        };
-      });
-
-      return NextResponse.json({
-        success: true,
-        notes: formattedNotes,
-      });
-    }
-
-    // This should never be reached due to the validation above, but just in case
-    return NextResponse.json(
-      { error: 'Invalid request parameters' },
-      { status: 400 }
-    );
-  } catch (error) {
-    console.error('Notes fetch error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const authResult = await authorize('student');
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    
-    const { payload, user } = authResult;
-    const userId = user.profile?.id;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
-    }
-
-    const supabase = await createClient();
-    
-    const { noteId, content, tags, timestampSec } = await request.json();
-
-    if (!noteId) {
-      return NextResponse.json(
-        { error: 'Note ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Update note
-    const updateData: any = {
-      updated_at: new Date().toISOString()
-    };
-    
-    if (content !== undefined) updateData.content = content;
-    if (tags !== undefined) updateData.tags = tags;
-    if (timestampSec !== undefined) updateData.timestamp_sec = timestampSec;
-    
-    const { data: note, error: noteError } = await supabase
-      .from('course_notes')
-      .update(updateData)
-      .eq('public_id', noteId)
-      .eq('user_id', userId)
-      .eq('is_deleted', false)
-      .select()
+    // Get user profile ID
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
       .single();
 
-    if (noteError || !note) {
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Note not found or update failed' },
+        { success: false, error: 'Profile not found' },
         { status: 404 }
       );
     }
 
+    // Get lesson internal ID if provided
+    let lessonInternalId = null;
+    if (lessonId) {
+      const { data: lesson } = await supabase
+        .from('course_lesson')
+        .select('id, module_id')
+        .eq('public_id', lessonId)
+        .single();
+
+      if (lesson) {
+        lessonInternalId = lesson.id;
+
+        // If courseId not provided, get it from lesson's module
+        if (!courseId && lesson.module_id) {
+          const { data: module } = await supabase
+            .from('course_module')
+            .select('course_id')
+            .eq('id', lesson.module_id)
+            .single();
+
+          if (module) {
+            courseId = module.course_id;
+          }
+        }
+      }
+    }
+
+    // Get course internal ID if provided
+    let courseInternalId = null;
+    if (courseId) {
+      const { data: course } = await supabase
+        .from('course')
+        .select('id')
+        .eq('public_id', courseId)
+        .single();
+
+      if (course) {
+        courseInternalId = course.id;
+      }
+    }
+
+    // Create note
+    const { data: note, error } = await supabase
+      .from('course_notes')
+      .insert({
+        user_id: profile.id,
+        lesson_id: lessonInternalId,
+        course_id: courseInternalId,
+        timestamp_sec: timestampSec,
+        content,
+        ai_summary: aiSummary,
+        tags: tags || [],
+        title,
+        note_type: noteType || 'ai_generated',
+      })
+      .select(`
+        *,
+        lesson:course_lesson!course_notes_lesson_id_fkey(id, public_id, title),
+        course:course!course_notes_course_id_fkey(id, public_id, title)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error creating note:', error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    // Transform note
+    const transformedNote = {
+      id: note.public_id,
+      lessonId: note.lesson?.public_id,
+      lessonTitle: note.lesson?.title,
+      courseId: note.course?.public_id,
+      courseTitle: note.course?.title,
+      timestampSec: note.timestamp_sec,
+      content: note.content,
+      aiSummary: note.ai_summary,
+      tags: note.tags || [],
+      noteType: note.note_type,
+      title: note.title,
+      createdAt: note.created_at,
+      updatedAt: note.updated_at,
+    };
+
     return NextResponse.json({
       success: true,
-      note: {
-        id: note.public_id,
-        content: note.content,
-        tags: note.tags,
-        timestampSec: note.timestamp_sec,
-        updatedAt: note.updated_at
-      }
+      note: transformedNote,
     });
-
   } catch (error) {
-    console.error('Note update error:', error);
+    console.error('Unexpected error in POST /api/course/notes:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
+// PATCH - Update a note
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { noteId, content, tags, timestampSec, title } = body;
+
+    if (!noteId) {
+      return NextResponse.json(
+        { success: false, error: 'Note ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Get user profile ID
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile) {
+      return NextResponse.json(
+        { success: false, error: 'Profile not found' },
+        { status: 404 }
+      );
+    }
+
+    // Build update object
+    const updates: any = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (content !== undefined) updates.content = content;
+    if (tags !== undefined) updates.tags = tags;
+    if (timestampSec !== undefined) updates.timestamp_sec = timestampSec;
+    if (title !== undefined) updates.title = title;
+
+    // Update note (ensure user owns it)
+    const { data: note, error } = await supabase
+      .from('course_notes')
+      .update(updates)
+      .eq('public_id', noteId)
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false)
+      .select(`
+        *,
+        lesson:course_lesson!course_notes_lesson_id_fkey(id, public_id, title),
+        course:course!course_notes_course_id_fkey(id, public_id, title)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error updating note:', error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    if (!note) {
+      return NextResponse.json(
+        { success: false, error: 'Note not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+
+    // Transform note
+    const transformedNote = {
+      id: note.public_id,
+      lessonId: note.lesson?.public_id,
+      lessonTitle: note.lesson?.title,
+      courseId: note.course?.public_id,
+      courseTitle: note.course?.title,
+      timestampSec: note.timestamp_sec,
+      content: note.content,
+      aiSummary: note.ai_summary,
+      tags: note.tags || [],
+      noteType: note.note_type,
+      title: note.title,
+      createdAt: note.created_at,
+      updatedAt: note.updated_at,
+    };
+
+    return NextResponse.json({
+      success: true,
+      note: transformedNote,
+    });
+  } catch (error) {
+    console.error('Unexpected error in PATCH /api/course/notes:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Soft delete a note
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await authorize('student');
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    
-    const { payload, user } = authResult;
-    const userId = user.profile?.id;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
-    }
-
     const supabase = await createClient();
-    
-    const { searchParams } = new URL(request.url);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const searchParams = request.nextUrl.searchParams;
     const noteId = searchParams.get('noteId');
 
     if (!noteId) {
       return NextResponse.json(
-        { error: 'Note ID is required' },
+        { success: false, error: 'Note ID is required' },
         { status: 400 }
       );
     }
 
-    // Soft delete note
-    const { error: deleteError } = await supabase
+    // Get user profile ID
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile) {
+      return NextResponse.json(
+        { success: false, error: 'Profile not found' },
+        { status: 404 }
+      );
+    }
+
+    // Soft delete note (ensure user owns it)
+    const { error } = await supabase
       .from('course_notes')
       .update({
         is_deleted: true,
-        deleted_at: new Date().toISOString()
+        deleted_at: new Date().toISOString(),
       })
       .eq('public_id', noteId)
-      .eq('user_id', userId);
+      .eq('user_id', profile.id)
+      .eq('is_deleted', false);
 
-    if (deleteError) {
+    if (error) {
+      console.error('Error deleting note:', error);
       return NextResponse.json(
-        { error: 'Failed to delete note' },
+        { success: false, error: error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Note deleted successfully'
+      message: 'Note deleted successfully',
     });
-
   } catch (error) {
-    console.error('Note deletion error:', error);
+    console.error('Unexpected error in DELETE /api/course/notes:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

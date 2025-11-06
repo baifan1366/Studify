@@ -10,11 +10,14 @@ import {
   BookOpen, 
   Lightbulb,
   Loader2,
-  Volume2,
-  ChevronRight
+  ChevronRight,
+  Save,
+  Check
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideoQA, type VideoQAResponse } from '@/hooks/video/use-video-qa';
+import { useCreateNote } from '@/hooks/course/use-course-notes';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface VideoQAPanelProps {
@@ -35,9 +38,13 @@ export function VideoQAPanel({
   const t = useTranslations('VideoPlayer');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<VideoQAResponse | null>(null);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const videoQA = useVideoQA();
+  const createNote = useCreateNote();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -83,6 +90,41 @@ export function VideoQAPanel({
   const startNewQuestion = () => {
     setQuestion('');
     setAnswer(null);
+    setNoteSaved(false);
+  };
+
+  const handleSaveAsNote = async () => {
+    if (!answer || !lessonId) return;
+
+    setIsSavingNote(true);
+    try {
+      await createNote.mutateAsync({
+        lessonId: parseInt(lessonId),
+        timestampSec: currentTime,
+        content: `**Q:** ${question}\n\n**A:** ${answer.answer}`,
+        aiSummary: answer.answer,
+        tags: ['ai-qa', 'video-note'],
+        title: question.length > 50 ? question.substring(0, 50) + '...' : question,
+        noteType: 'ai_generated',
+      });
+
+      setNoteSaved(true);
+      toast({
+        title: t('note_saved'),
+        description: t('note_saved_description'),
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to save note:', error);
+      toast({
+        title: t('note_save_failed'),
+        description: t('note_save_failed_description'),
+        variant: 'destructive',
+        duration: 3000,
+      });
+    } finally {
+      setIsSavingNote(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -292,19 +334,49 @@ export function VideoQAPanel({
               )}
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="space-y-2">
+                {/* Save as Note Button */}
                 <button
-                  onClick={startNewQuestion}
-                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl transition-all duration-200"
+                  onClick={handleSaveAsNote}
+                  disabled={isSavingNote || noteSaved}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-xl transition-all duration-200 ${
+                    noteSaved
+                      ? 'bg-green-600 text-white cursor-default'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
                 >
-                  {t('ask_another_question')}
+                  {isSavingNote ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t('saving_note')}
+                    </>
+                  ) : noteSaved ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      {t('note_saved')}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      {t('save_as_note')}
+                    </>
+                  )}
                 </button>
-                <button
-                  onClick={onClose}
-                  className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-gray-200 hover:text-white text-sm rounded-xl transition-all duration-200"
-                >
-                  {t('close')}
-                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={startNewQuestion}
+                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl transition-all duration-200"
+                  >
+                    {t('ask_another_question')}
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-gray-200 hover:text-white text-sm rounded-xl transition-all duration-200"
+                  >
+                    {t('close')}
+                  </button>
+                </div>
               </div>
             </div>
           )}

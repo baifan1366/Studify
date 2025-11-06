@@ -293,63 +293,6 @@ export default function CourseLessonGrid({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Filter Button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 h-10 px-4 border border-border rounded-lg bg-background text-foreground hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <Filter className="h-4 w-4" />
-              <span className="text-sm">{t('filters')}</span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform", showFilters && "rotate-180")} />
-            </button>
-
-            {/* Filter Dropdown */}
-            {showFilters && (
-              <div className="absolute top-12 right-0 z-10 w-64 p-4 bg-background border border-border rounded-lg shadow-lg space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">{t('type')}</label>
-                  <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value as FilterType)}
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="all">{t('allTypes')}</option>
-                    <option value="video">{t('video')}</option>
-                    <option value="reading">{t('reading')}</option>
-                    <option value="quiz">{t('quiz')}</option>
-                    <option value="assignment">{t('assignment')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">{t('sort_by')}</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortType)}
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="order">{t('sortByOrder')}</option>
-                    <option value="duration">{t('sortByDuration')}</option>
-                    <option value="difficulty">{t('sortByDifficulty')}</option>
-                    <option value="completion">{t('sortByCompletion')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="flex items-center gap-2 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={showCompleted}
-                      onChange={(e) => setShowCompleted(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary"
-                    />
-                    {t('showCompleted')}
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* View Mode Button */}
           <button

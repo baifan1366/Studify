@@ -11,15 +11,21 @@ interface CourseNote {
   content: string;
   aiSummary?: string;
   tags: string[];
+  title?: string;
+  noteType?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 interface CreateNoteData {
   lessonId: number;
+  courseId?: number;
   timestampSec?: number;
   content: string;
+  aiSummary?: string;
   tags?: string[];
+  title?: string;
+  noteType?: string;
 }
 
 interface UpdateNoteData {
@@ -67,7 +73,7 @@ export function useCreateNote() {
         body: data,
       });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate notes queries
       queryClient.invalidateQueries({ 
         queryKey: ['course-notes', undefined, variables.lessonId] 

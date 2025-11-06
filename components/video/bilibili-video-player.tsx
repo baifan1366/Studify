@@ -29,8 +29,11 @@ import {
   useVideoTermsTooltip,
   useVideoTerms,
 } from "@/hooks/video/use-video-qa";
+import { useCourseNotes } from "@/hooks/course/use-course-notes";
+import { useVideoPreload, useAdaptiveBitrate } from "@/hooks/video/use-video-preload";
 import { VideoQAPanel } from "./video-qa-panel";
 import { VideoTermsTooltip, VideoTermsIndicator } from "./video-terms-tooltip";
+import { VideoBufferIndicator, CompactBufferIndicator } from "./video-buffer-indicator";
 import {
   Play,
   Pause,
@@ -58,6 +61,8 @@ import {
   Loader2,
   Bot,
   GraduationCap,
+  BookOpen,
+  Clock,
 } from "lucide-react";
 import MegaImage from "@/components/attachment/mega-blob-image";
 import { setGlobalVideoPlayer, clearGlobalVideoPlayer } from "@/hooks/video/use-video-player";
@@ -187,6 +192,8 @@ export default function BilibiliVideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [bufferedRanges, setBufferedRanges] = useState<TimeRanges | null>(null);
 
   // UI state
   const [showControls, setShowControls] = useState(true);
@@ -204,12 +211,30 @@ export default function BilibiliVideoPlayer({
   // AI QA and Terms functionality
   const qaPanel = useVideoQAPanel();
   const termsTooltip = useVideoTermsTooltip();
+  const [showNotes, setShowNotes] = useState(false);
 
   // Fetch terms for current time (update every 15 seconds)
   const { data: termsData } = useVideoTerms(
     lessonId || "",
     currentTime,
     !!lessonId && currentTime > 0
+  );
+
+  // Fetch course notes for this lesson
+  const { data: courseNotes = [] } = useCourseNotes(
+    lessonId ? parseInt(lessonId) : undefined
+  );
+
+  // Preload optimization for MEGA videos
+  const preloadState = useVideoPreload(videoRef, {
+    enabled: !!attachmentId, // Only enable for MEGA attachments
+    preloadAmount: 30, // Preload 30 seconds ahead
+    minBufferHealth: 20, // Start preloading when buffer < 20%
+  });
+
+  // Adaptive bitrate based on network conditions
+  const { recommendedQuality, shouldReduceQuality } = useAdaptiveBitrate(
+    preloadState.estimatedBandwidth
   );
 
   // Internationalization
@@ -731,15 +756,66 @@ export default function BilibiliVideoPlayer({
 
   const handleCanPlay = useCallback(() => {
     setIsLoading(false);
+    // Mark that we have enough data to start playing
+    if (videoRef.current) {
+      const buffered = videoRef.current.buffered;
+      if (buffered.length > 0) {
+        const bufferedEnd = buffered.end(buffered.length - 1);
+        const progress = (bufferedEnd / videoRef.current.duration) * 100;
+        setLoadingProgress(Math.min(progress, 100));
+      }
+    }
   }, []);
 
   const handleWaiting = useCallback(() => {
-    setIsLoading(true);
+    // Only show loading if we're actually waiting for data
+    if (videoRef.current) {
+      const currentTime = videoRef.current.currentTime;
+      const buffered = videoRef.current.buffered;
+      
+      // Check if current time is beyond buffered range
+      let isBuffering = true;
+      for (let i = 0; i < buffered.length; i++) {
+        if (currentTime >= buffered.start(i) && currentTime <= buffered.end(i)) {
+          isBuffering = false;
+          break;
+        }
+      }
+      
+      if (isBuffering) {
+        setIsLoading(true);
+      }
+    }
   }, []);
 
   const handlePlaying = useCallback(() => {
     setIsLoading(false);
   }, []);
+
+  const handleProgress = useCallback(() => {
+    if (videoRef.current && videoRef.current.buffered.length > 0) {
+      setBufferedRanges(videoRef.current.buffered);
+      
+      // Calculate loading progress based on buffered data
+      const buffered = videoRef.current.buffered;
+      const duration = videoRef.current.duration;
+      
+      if (duration > 0) {
+        // Calculate total buffered amount
+        let totalBuffered = 0;
+        for (let i = 0; i < buffered.length; i++) {
+          totalBuffered += buffered.end(i) - buffered.start(i);
+        }
+        const progress = (totalBuffered / duration) * 100;
+        setLoadingProgress(Math.min(progress, 100));
+        
+        // Auto-hide loading indicator if enough is buffered
+        if (progress > 10 && isLoading) {
+          setIsLoading(false);
+        }
+      }
+    }
+  }, [currentTime, isLoading]);
 
   // Handle initialTime when video metadata is loaded
   useEffect(() => {
@@ -969,6 +1045,12 @@ export default function BilibiliVideoPlayer({
             termsTooltip.showTerms(termsData.terms);
           }
           break;
+        case "KeyN":
+          e.preventDefault();
+          if (lessonId && courseNotes.length > 0) {
+            setShowNotes(!showNotes);
+          }
+          break;
       }
     };
 
@@ -987,6 +1069,8 @@ export default function BilibiliVideoPlayer({
     qaPanel,
     termsData,
     termsTooltip,
+    courseNotes,
+    showNotes,
   ]);
 
   // Mouse movement handler
@@ -1123,6 +1207,8 @@ export default function BilibiliVideoPlayer({
             src={videoSourceInfo.src}
             poster={poster}
             className="w-full h-full object-contain"
+            preload="auto"
+            crossOrigin="anonymous"
             onPlay={handlePlay}
             onPause={handlePause}
             onTimeUpdate={handleTimeUpdate}
@@ -1131,6 +1217,7 @@ export default function BilibiliVideoPlayer({
             onCanPlay={handleCanPlay}
             onWaiting={handleWaiting}
             onPlaying={handlePlaying}
+            onProgress={handleProgress}
             onClick={togglePlay}
           />
         ) : (
@@ -1156,7 +1243,7 @@ export default function BilibiliVideoPlayer({
           </div>
         )}
 
-        {/* Loading Overlay */}
+        {/* Enhanced Loading Overlay with Progressive Loading Indicator */}
         <AnimatePresence>
           {isLoading && (
             <motion.div
@@ -1190,7 +1277,9 @@ export default function BilibiliVideoPlayer({
                 </div>
                 <div className="text-center">
                   <p className="text-white text-sm font-medium mb-1">
-                    {t("VideoPlayer.loading") || "Loading..."}
+                    {loadingProgress > 0 && loadingProgress < 100
+                      ? t("VideoPlayer.buffering") || "Buffering..."
+                      : t("VideoPlayer.loading") || "Loading..."}
                   </p>
                   {(videoSourceInfo.type === "youtube" ||
                     videoSourceInfo.type === "vimeo") && (
@@ -1201,6 +1290,54 @@ export default function BilibiliVideoPlayer({
                         : t("VideoPlayer.loading_vimeo") ||
                           "Loading Vimeo video..."}
                     </p>
+                  )}
+                  
+                  {/* Enhanced Loading Progress Bar for MEGA streaming */}
+                  {videoSourceInfo.type === "direct" && attachmentId && (
+                    <div className="mt-3 w-64">
+                      <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.max(loadingProgress, 5)}%` }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-white/60 text-xs">
+                          {loadingProgress > 0
+                            ? `${Math.round(loadingProgress)}% buffered`
+                            : "Connecting to MEGA..."}
+                        </p>
+                        {duration > 0 && loadingProgress > 0 && (
+                          <p className="text-white/60 text-xs">
+                            {formatTime((duration * loadingProgress) / 100)} / {formatTime(duration)}
+                          </p>
+                        )}
+                      </div>
+                      {loadingProgress > 10 && (
+                        <p className="text-green-400 text-xs mt-1">
+                          ✓ Ready to play
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Standard progress for non-MEGA direct videos */}
+                  {videoSourceInfo.type === "direct" && !attachmentId && loadingProgress > 0 && loadingProgress < 100 && (
+                    <div className="mt-3 w-48">
+                      <div className="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+                        <motion.div
+                          className="h-full bg-blue-500 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${loadingProgress}%` }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                      <p className="text-white/60 text-xs mt-1">
+                        {Math.round(loadingProgress)}% buffered
+                      </p>
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -1215,6 +1352,17 @@ export default function BilibiliVideoPlayer({
         >
           {renderDanmaku()}
         </div>
+
+        {/* Buffer Health Indicator (for MEGA videos) */}
+        {attachmentId && videoSourceInfo.type === "direct" && (
+          <VideoBufferIndicator
+            bufferHealth={preloadState.bufferHealth}
+            isPreloading={preloadState.isPreloading}
+            preloadProgress={preloadState.preloadProgress}
+            estimatedBandwidth={preloadState.estimatedBandwidth}
+            show={preloadState.bufferHealth < 100 || preloadState.isPreloading}
+          />
+        )}
 
         {/* Video Controls Overlay - Only show for direct video, not for YouTube/Vimeo */}
         <AnimatePresence>
@@ -1287,21 +1435,51 @@ export default function BilibiliVideoPlayer({
 
                 {/* Bottom Controls */}
                 <div className="absolute bottom-0 left-0 right-0 p-4">
-                  {/* Progress Bar */}
+                  {/* Enhanced Progress Bar with Buffering Visualization */}
                   <div
                     ref={progressRef}
-                    className="w-full h-2 bg-white/20 rounded-full cursor-pointer mb-4 group/progress"
+                    className="w-full h-2 bg-white/20 rounded-full cursor-pointer mb-4 group/progress relative overflow-hidden"
                     onClick={handleProgressClick}
                   >
+                    {/* Buffered Progress (lighter) - Shows what's loaded */}
+                    {bufferedRanges && duration > 0 && (
+                      <>
+                        {Array.from({ length: bufferedRanges.length }).map((_, i) => {
+                          const start = (bufferedRanges.start(i) / duration) * 100;
+                          const end = (bufferedRanges.end(i) / duration) * 100;
+                          return (
+                            <motion.div
+                              key={i}
+                              className="absolute h-full bg-white/40"
+                              initial={{ width: 0 }}
+                              animate={{ 
+                                left: `${start}%`,
+                                width: `${end - start}%`,
+                              }}
+                              transition={{ duration: 0.3 }}
+                            />
+                          );
+                        })}
+                      </>
+                    )}
+                    
+                    {/* Current Progress */}
                     <div
-                      className="h-full bg-blue-500 rounded-full relative"
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full relative z-10 transition-all duration-200"
                       style={{
                         width: `${
                           duration > 0 ? (currentTime / duration) * 100 : 0
                         }%`,
                       }}
                     >
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-lg border-2 border-white" />
+                    </div>
+                    
+                    {/* Hover tooltip showing time */}
+                    <div className="absolute inset-0 opacity-0 group-hover/progress:opacity-100 transition-opacity pointer-events-none">
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                        {formatTime((currentTime / duration) * duration || 0)}
+                      </div>
                     </div>
                   </div>
 
@@ -1360,6 +1538,14 @@ export default function BilibiliVideoPlayer({
                       <span className="text-white text-sm">
                         {formatTime(currentTime)} / {formatTime(duration)}
                       </span>
+
+                      {/* Compact Buffer Indicator */}
+                      {attachmentId && (
+                        <CompactBufferIndicator
+                          bufferHealth={preloadState.bufferHealth}
+                          isPreloading={preloadState.isPreloading}
+                        />
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1385,6 +1571,149 @@ export default function BilibiliVideoPlayer({
                           }
                           isActive={termsTooltip.isVisible}
                         />
+                      )}
+
+                      {/* Notes Indicator */}
+                      {lessonId && courseNotes.length > 0 && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowNotes(!showNotes)}
+                            className={`relative text-white hover:text-yellow-400 transition-colors ${
+                              showNotes ? 'text-yellow-400' : ''
+                            }`}
+                            title={showNotes ? t('hide_notes') : t('show_notes')}
+                          >
+                            <BookOpen size={20} />
+                            {(() => {
+                              const nearbyNotes = courseNotes.filter(note => {
+                                if (!note.timestampSec) return false;
+                                const timeDiff = Math.abs(note.timestampSec - currentTime);
+                                return timeDiff <= 30;
+                              });
+                              return nearbyNotes.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                                  {nearbyNotes.length}
+                                </span>
+                              );
+                            })()}
+                          </button>
+
+                          {/* Notes Panel */}
+                          <AnimatePresence>
+                            {showNotes && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 20 }}
+                                className="absolute bottom-full right-0 mb-2 w-80 max-h-96 bg-slate-800 rounded-xl border border-slate-600 shadow-xl overflow-hidden z-50"
+                              >
+                                {/* Header */}
+                                <div className="flex items-center justify-between p-3 border-b border-slate-600 bg-slate-700">
+                                  <div className="flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4 text-yellow-400" />
+                                    <h3 className="font-medium text-white text-sm">
+                                      {t('notes_at_timestamp')}
+                                    </h3>
+                                  </div>
+                                  <button
+                                    onClick={() => setShowNotes(false)}
+                                    className="p-1 hover:bg-slate-600 rounded-full transition-colors"
+                                  >
+                                    <X className="w-4 h-4 text-gray-300" />
+                                  </button>
+                                </div>
+
+                                {/* Notes List */}
+                                <div className="overflow-y-auto max-h-80">
+                                  {(() => {
+                                    const nearbyNotes = courseNotes.filter(note => {
+                                      if (!note.timestampSec) return false;
+                                      const timeDiff = Math.abs(note.timestampSec - currentTime);
+                                      return timeDiff <= 30;
+                                    });
+
+                                    const formatTime = (seconds: number) => {
+                                      const mins = Math.floor(seconds / 60);
+                                      const secs = Math.floor(seconds % 60);
+                                      return `${mins}:${secs.toString().padStart(2, '0')}`;
+                                    };
+
+                                    const formatDate = (dateString: string) => {
+                                      const date = new Date(dateString);
+                                      return date.toLocaleDateString();
+                                    };
+
+                                    return nearbyNotes.length > 0 ? (
+                                      <div className="p-3 space-y-3">
+                                        {nearbyNotes.map((note) => (
+                                          <div
+                                            key={note.id}
+                                            className="bg-slate-700 p-3 rounded-lg border border-slate-600 hover:border-yellow-500 transition-all duration-200"
+                                          >
+                                            {/* Note Header */}
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                              <div className="flex-1 min-w-0">
+                                                {note.title && (
+                                                  <h4 className="text-sm font-medium text-white mb-1 truncate">
+                                                    {note.title}
+                                                  </h4>
+                                                )}
+                                                <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                  {note.timestampSec !== undefined && (
+                                                    <button
+                                                      onClick={() => {
+                                                        if (videoRef.current) {
+                                                          videoRef.current.currentTime = note.timestampSec!;
+                                                        }
+                                                      }}
+                                                      className="flex items-center gap-1 px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                                    >
+                                                      <Clock className="w-3 h-3" />
+                                                      <span className="font-mono">
+                                                        {formatTime(note.timestampSec)}
+                                                      </span>
+                                                    </button>
+                                                  )}
+                                                  <span>{formatDate(note.createdAt)}</span>
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            {/* Note Content */}
+                                            <div className="text-sm text-gray-300 leading-relaxed">
+                                              {note.aiSummary || note.content}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="p-6 text-center text-gray-400">
+                                        <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">{t('no_notes_at_timestamp')}</p>
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* All Notes Count */}
+                                  {(() => {
+                                    const nearbyNotes = courseNotes.filter(note => {
+                                      if (!note.timestampSec) return false;
+                                      const timeDiff = Math.abs(note.timestampSec - currentTime);
+                                      return timeDiff <= 30;
+                                    });
+                                    return courseNotes.length > nearbyNotes.length && (
+                                      <div className="p-3 border-t border-slate-600 bg-slate-700">
+                                        <p className="text-xs text-gray-400 text-center">
+                                          {courseNotes.length - nearbyNotes.length} more notes in this lesson
+                                        </p>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       )}
 
                       <button
@@ -2043,6 +2372,12 @@ export default function BilibiliVideoPlayer({
               T
             </kbd>{" "}
             {t("VideoPlayer.keyboard_shortcuts.toggle_terms")}
+          </span>
+          <span>
+            <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
+              N
+            </kbd>{" "}
+            {t("VideoPlayer.keyboard_shortcuts.toggle_notes")}
           </span>
         </div>
       </div>

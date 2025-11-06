@@ -549,14 +549,17 @@ export default function BilibiliVideoPlayer({
   // Detect video source type and calculate appropriate source
   const videoSourceInfo = useMemo(() => {
     if (attachmentId) {
+      const streamSrc = `/api/attachments/${attachmentId}/stream`;
+      console.log('📹 Video source:', { attachmentId, src: streamSrc, type: 'direct' });
       return {
-        src: `/api/attachments/${attachmentId}/stream`,
+        src: streamSrc,
         type: "direct",
         canPlay: true,
       };
     }
 
     if (!src) {
+      console.log('📹 No video source provided');
       return {
         src: null,
         type: "none",
@@ -642,18 +645,17 @@ export default function BilibiliVideoPlayer({
     },
   }), [currentTime, duration, isPlaying, playbackRate]);
 
-  // Register video player globally for AI Assistant
+  // Register video player globally for AI Assistant (only once)
   useEffect(() => {
     if (videoRef.current && videoSourceInfo.canPlay) {
       setGlobalVideoPlayer(videoPlayerAPI);
-      console.log('🎬 Video player registered globally for AI Assistant');
     }
 
     return () => {
       clearGlobalVideoPlayer();
-      console.log('🗑️ Video player unregistered');
     };
-  }, [videoPlayerAPI, videoSourceInfo.canPlay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoSourceInfo.canPlay]);
 
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
@@ -912,7 +914,8 @@ export default function BilibiliVideoPlayer({
     } else {
       setIsLoading(false);
     }
-  }, [videoSourceInfo.src, videoSourceInfo.embedUrl, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoSourceInfo.src, videoSourceInfo.embedUrl]);
 
   // For YouTube/Vimeo videos, simulate progress tracking with a timer
   // since iframe doesn't provide timeupdate events
@@ -1279,7 +1282,7 @@ export default function BilibiliVideoPlayer({
         ) : videoSourceInfo.canPlay && videoSourceInfo.src ? (
           <video
             ref={videoRef}
-            src={videoSourceInfo.src}
+            {...(!videoSourceInfo.src.includes('.m3u8') && { src: videoSourceInfo.src })}
             poster={poster}
             className="w-full h-full object-contain"
             preload="auto"

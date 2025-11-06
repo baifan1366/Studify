@@ -83,7 +83,7 @@ export default function CommunityContent() {
 
   return (
     <>
-      <div className="flex h-full">
+      <div className="flex h-full bg-background">
         {/* Main Feed */}
         <div className="flex-1 min-w-0 p-6 overflow-y-auto max-w-4xl mx-auto">
           <div className="max-w-full">
@@ -91,9 +91,9 @@ export default function CommunityContent() {
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-3">
                 {debouncedQuery.trim().length > 0 ? (
-                  <Search className="w-8 h-8 text-green-400" />
+                  <Search className="w-8 h-8 text-green-600 dark:text-green-400" />
                 ) : (
-                  <TrendingUp className="w-8 h-8 text-blue-400" />
+                  <TrendingUp className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 )}
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -101,7 +101,7 @@ export default function CommunityContent() {
                       ? t('search_results')
                       : t('community_feed_title')}
                   </h1>
-                  <p className="text-gray-400">
+                  <p className="text-muted-foreground">
                     {debouncedQuery.trim().length > 0
                       ? t('posts_matching_search')
                       : t('discover_popular_posts')}
@@ -117,7 +117,7 @@ export default function CommunityContent() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('search_placeholder')}
-                className="w-full px-4 py-3 rounded-2xl bg-white/10 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 rounded-2xl bg-muted text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary border border-border"
               />
             </div>
 
@@ -135,7 +135,7 @@ export default function CommunityContent() {
                 {[...Array(5)].map((_, i) => (
                   <Skeleton
                     key={i}
-                    className="h-48 w-full rounded-xl bg-white/10"
+                    className="h-48 w-full rounded-xl"
                   />
                 ))}
               </div>
@@ -143,8 +143,8 @@ export default function CommunityContent() {
 
             {isError && (
               <div className="text-center py-12">
-                <p className="text-red-400 mb-4">Failed to load posts</p>
-                <p className="text-gray-400">{error?.message}</p>
+                <p className="text-destructive mb-4">Failed to load posts</p>
+                <p className="text-muted-foreground">{error?.message}</p>
               </div>
             )}
 
@@ -158,21 +158,21 @@ export default function CommunityContent() {
 
             {!isLoading && !isError && (!posts || posts.length === 0) && (
               <div className="text-center py-12">
-                <div className="bg-white/5 rounded-xl p-8 border border-white/10">
-                  <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <div className="bg-muted rounded-xl p-8 border border-border">
+                  <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                     {debouncedQuery.trim().length > 0
                       ? t('no_results_found')
                       : t('no_posts_yet')}
                   </h3>
-                  <p className="text-gray-400 mb-6">
+                  <p className="text-muted-foreground mb-6">
                     {debouncedQuery.trim().length > 0
                       ? t('try_different_keywords')
                       : t('be_first_to_share')}
                   </p>
                   <div className="flex gap-3 justify-center">
                     <Link href={createGroupPath}>
-                      <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Button>
                         <Plus className="w-4 h-4 mr-2" />
                         {debouncedQuery.trim().length > 0
                           ? t('create_post')
@@ -187,7 +187,7 @@ export default function CommunityContent() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-96 flex-shrink-0 p-6 border-l border-white/10 overflow-y-auto">
+        <div className="w-96 flex-shrink-0 p-6 border-l border-border overflow-y-auto bg-background">
           <CommunitySidebar />
         </div>
       </div>

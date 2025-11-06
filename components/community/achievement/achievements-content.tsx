@@ -137,7 +137,7 @@ export default function AchievementsContent() {
             <div className="flex items-center gap-3">
               <Trophy size={32} className="text-yellow-400" />
               <div>
-                <h1 className="text-4xl font-bold">Achievements</h1>
+                <h1 className="text-4xl font-bold text-foreground">Achievements</h1>
                 <p className="text-muted-foreground mt-1">
                   Track your learning milestones and unlock rewards
                 </p>

@@ -110,14 +110,14 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
   return (
       <Card
         className="h-full flex flex-col justify-between relative cursor-pointer 
-        bg-white/5 backdrop-blur-lg border border-white/10 text-white 
-        rounded-xl shadow-lg hover:bg-white/10 transition-all duration-200"
+        bg-card border-border 
+        rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
         onClick={handleCardClick}
       >
       <div className="absolute top-3 right-3 flex gap-2 items-center">
-        <Badge className="bg-red-500 text-white">{difficultyLabel}</Badge>
+        <Badge className="bg-red-500 text-white dark:bg-red-600">{difficultyLabel}</Badge>
         {isPrivate && (
-          <Badge className="bg-orange-500 text-white flex items-center gap-1">
+          <Badge className="bg-orange-500 text-white dark:bg-orange-600 flex items-center gap-1">
             <Lock className="h-3 w-3" />
             {t("badges.private")}
           </Badge>
@@ -176,10 +176,10 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
         )}
       </div>
       <CardHeader>
-        <CardTitle className="line-clamp-1">{quiz.title}</CardTitle>
+        <CardTitle className="line-clamp-1 text-gray-900 dark:text-white">{quiz.title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-gray-600 line-clamp-2">{quiz.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2">{quiz.description}</p>
         
         {/* Author info */}
         {quiz.author && (
@@ -198,9 +198,9 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
                 {quiz.author.display_name?.charAt(0) || <User className="h-3 w-3" />}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {t("author_by", { name: quiz.author.display_name || t("unknown_author") })}
-              {isAuthor && <span className="text-blue-600 font-medium"> {t("you_suffix")}</span>}
+              {isAuthor && <span className="text-primary font-medium"> {t("you_suffix")}</span>}
             </span>
           </div>
         )}
@@ -223,9 +223,9 @@ export default function QuizCard({ quiz, showWarning = false }: QuizCardProps) {
       <CardFooter className="mt-auto px-4 pb-4 flex flex-col gap-2">
         {/* 显示尝试次数信息 */}
         {!statusLoading && attemptStatus && (
-          <div className="text-xs text-gray-500 text-center">
+          <div className="text-xs text-muted-foreground text-center">
             {(isAuthor || attemptStatus?.userPermission === 'edit') ? (
-              <span className="text-blue-600">{t("author_preview")}</span>
+              <span className="text-primary">{t("author_preview")}</span>
             ) : (
               <span>
                 {maxAttempts && maxAttempts > 0

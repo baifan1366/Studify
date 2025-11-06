@@ -29,16 +29,31 @@ export async function GET(
       );
     }
 
+    // Check if file_url exists
+    if (!attachment.file_url) {
+      return NextResponse.json(
+        { error: 'Attachment has no file URL' },
+        { status: 404 }
+      );
+    }
+
     // Check if it's a MEGA URL
-    const isMegaUrl = attachment.file_url && (
+    const isMegaUrl = 
       attachment.file_url.includes('mega.nz') ||
       attachment.file_url.includes('mega.co.nz') ||
-      attachment.file_url.includes('mega.io')
-    );
+      attachment.file_url.includes('mega.io');
 
     if (!isMegaUrl) {
-      // For non-MEGA files, redirect to the URL
-      return NextResponse.redirect(attachment.file_url);
+      // For non-MEGA files, redirect to the URL if it's a valid absolute URL
+      try {
+        new URL(attachment.file_url); // Validate URL
+        return NextResponse.redirect(attachment.file_url);
+      } catch (urlError) {
+        return NextResponse.json(
+          { error: 'Invalid file URL', url: attachment.file_url },
+          { status: 400 }
+        );
+      }
     }
 
     // Parse Range header for partial content support

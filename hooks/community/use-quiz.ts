@@ -225,7 +225,7 @@ export const useUserAttemptStatus = (quizSlug: string) => {
     canAttempt: boolean;
     accessReason: string;
     isAuthor: boolean;
-    userPermission: 'view' | 'attempt' | 'edit' | null;
+    userPermission: 'attempt' | 'edit' | null;
     hasInProgressAttempt: boolean;
     quiz: Pick<CommunityQuiz, 'max_attempts' | 'visibility'>;
   }, Error>({

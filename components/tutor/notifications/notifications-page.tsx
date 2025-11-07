@@ -42,17 +42,17 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
 
         <motion.div 
-          className="flex items-center justify-between"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div>
+          <div className="flex-1 min-w-0">
             <motion.h1 
-              className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400 bg-clip-text text-transparent"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-orange-600 dark:from-blue-400 dark:via-purple-400 dark:to-orange-400 bg-clip-text text-transparent"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
@@ -60,7 +60,7 @@ export default function NotificationsPage() {
               {t('notifications')}
             </motion.h1>
             <motion.p 
-              className="text-white/70 dark:text-white/70 text-lg"
+              className="text-gray-600 dark:text-gray-400 text-sm sm:text-base md:text-lg mt-1"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
@@ -70,7 +70,7 @@ export default function NotificationsPage() {
           </div>
           
           <motion.div 
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full sm:w-auto"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6, duration: 0.6 }}
@@ -79,13 +79,16 @@ export default function NotificationsPage() {
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                className="flex-1 sm:flex-initial"
               >
                 <Button
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 dark:from-blue-500 dark:to-purple-500 dark:hover:from-blue-600 dark:hover:to-purple-600 text-white border-0 text-xs sm:text-sm"
                   onClick={handleMarkAllRead}
                   disabled={markAllReadMutation.isPending}
+                  size="sm"
                 >
-                  {t('mark_all_as_read')}
+                  <span className="hidden sm:inline">{t('mark_all_as_read')}</span>
+                  <span className="sm:hidden">{t('mark_all')}</span>
                 </Button>
               </motion.div>
             )}
@@ -96,17 +99,17 @@ export default function NotificationsPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Button className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm" size="icon">
+                  <Button variant="outline" size="icon" className="flex-shrink-0">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </motion.div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-sm border-white/20">
-                <DropdownMenuItem className="text-white hover:bg-white/10">
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
                   <Filter className="h-4 w-4 mr-2" />
                   {t('filter_notifications')}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-white hover:bg-white/10">
+                <DropdownMenuItem>
                   {t('export_notifications')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -119,28 +122,31 @@ export default function NotificationsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8, duration: 0.6 }}
         >
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm border border-white/20">
-              <TabsTrigger value="all" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
-                <Bell className="h-4 w-4" />
-                {t('all')}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+            <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="all" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+                <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">{t('all')}</span>
+                <span className="sm:hidden">All</span>
                 {allNotifications && (
-                  <Badge variant="secondary" className="ml-1 bg-blue-500/20 text-blue-300 border-blue-400/30">
+                  <Badge variant="secondary" className="ml-0.5 sm:ml-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     {allNotifications.total}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="unread" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
-                {t('unread')}
+              <TabsTrigger value="unread" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+                <span className="hidden sm:inline">{t('unread')}</span>
+                <span className="sm:hidden">New</span>
                 {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-1 bg-red-500/20 text-red-300 border-red-400/30">
+                  <Badge variant="destructive" className="ml-0.5 sm:ml-1 text-[10px] sm:text-xs px-1 sm:px-2">
                     {unreadCount}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
-                <Settings className="h-4 w-4" />
-                {t('settings')}
+              <TabsTrigger value="settings" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">{t('settings')}</span>
+                <span className="sm:hidden">Set</span>
               </TabsTrigger>
             </TabsList>
 
@@ -150,10 +156,10 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
-                  <CardHeader>
-                    <CardTitle className="text-white">All Notifications</CardTitle>
-                    <CardDescription className="text-white/70">
+                <Card>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">All Notifications</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       View all your notifications, both read and unread
                     </CardDescription>
                   </CardHeader>
@@ -164,13 +170,15 @@ export default function NotificationsPage() {
                     />
                     
                     {currentNotifications?.hasMore && (
-                      <div className="p-4 border-t border-white/10">
+                      <div className="p-3 sm:p-4 border-t">
                         <motion.div
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <Button
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                            variant="outline"
+                            className="w-full text-xs sm:text-sm"
+                            size="sm"
                             onClick={handleLoadMore}
                           >
                             Load more notifications
@@ -189,15 +197,15 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      Unread Notifications
+                <Card>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-base sm:text-lg">
+                      <span>Unread Notifications</span>
                       {unreadCount > 0 && (
-                        <Badge className="bg-red-500/20 text-red-300 border-red-400/30">{unreadCount}</Badge>
+                        <Badge variant="destructive" className="text-xs">{unreadCount}</Badge>
                       )}
                     </CardTitle>
-                    <CardDescription className="text-white/70">
+                    <CardDescription className="text-xs sm:text-sm">
                       {unreadCount > 0 
                         ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
                         : 'You\'re all caught up! No unread notifications.'
@@ -211,13 +219,15 @@ export default function NotificationsPage() {
                     />
                     
                     {currentNotifications?.hasMore && (
-                      <div className="p-4 border-t border-white/10">
+                      <div className="p-3 sm:p-4 border-t">
                         <motion.div
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <Button
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                            variant="outline"
+                            className="w-full text-xs sm:text-sm"
+                            size="sm"
                             onClick={handleLoadMore}
                           >
                             Load more notifications

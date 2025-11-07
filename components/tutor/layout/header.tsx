@@ -7,6 +7,7 @@ import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 import { useUser } from '@/hooks/profile/use-user';
 import Image from 'next/image';
 import UserProfilePopover from '@/components/tutor/layout/user-profile-popover';
+import MegaImage from '@/components/attachment/mega-blob-image';
 
 interface ClassroomHeaderProps {
   title?: string;
@@ -114,13 +115,21 @@ export default function ClassroomHeader({
             >
               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary overflow-hidden">
                 {userAvatar ? (
-                  <Image
-                    src={userAvatar}
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover rounded-full"
-                  />
+                  userAvatar.includes('mega.nz') ? (
+                    <MegaImage
+                      megaUrl={userAvatar}
+                      alt="Profile"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <Image
+                      src={userAvatar}
+                      alt="Profile"
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  )
                 ) : (
                   <User size={16} className="text-white" />
                 )}

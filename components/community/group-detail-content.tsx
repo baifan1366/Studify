@@ -64,6 +64,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 // Group Settings Modal Component
 const GroupSettingsModal = ({
@@ -318,7 +319,15 @@ const GroupSettingsModal = ({
                     >
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.avatar} alt={user.name} />
+                          {user.avatar && user.avatar.includes('mega.nz') ? (
+                            <MegaImage
+                              megaUrl={user.avatar}
+                              alt={user.name || ''}
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          ) : (
+                            <AvatarImage src={user.avatar} alt={user.name} />
+                          )}
                           <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -361,10 +370,18 @@ const GroupSettingsModal = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage
-                              src={member.user?.avatar_url}
-                              alt={member.user?.display_name}
-                            />
+                            {member.user?.avatar_url && member.user.avatar_url.includes('mega.nz') ? (
+                              <MegaImage
+                                megaUrl={member.user.avatar_url}
+                                alt={member.user.display_name || ''}
+                                className="w-full h-full object-cover rounded-full"
+                              />
+                            ) : (
+                              <AvatarImage
+                                src={member.user?.avatar_url}
+                                alt={member.user?.display_name}
+                              />
+                            )}
                             <AvatarFallback className="bg-blue-500/20 text-blue-300">
                               {member.user?.display_name?.[0] || "U"}
                             </AvatarFallback>
@@ -507,10 +524,18 @@ const GroupMemberList = ({ groupSlug, currentUserId }: { groupSlug: string; curr
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Avatar className="h-8 w-8 flex-shrink-0">
-                    <AvatarImage
-                      src={member.user?.avatar_url}
-                      alt={member.user?.display_name}
-                    />
+                    {member.user?.avatar_url && member.user.avatar_url.includes('mega.nz') ? (
+                      <MegaImage
+                        megaUrl={member.user.avatar_url}
+                        alt={member.user.display_name || ''}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <AvatarImage
+                        src={member.user?.avatar_url}
+                        alt={member.user?.display_name}
+                      />
+                    )}
                     <AvatarFallback className="bg-blue-500/20 text-blue-300">
                       {member.user?.display_name?.[0] || "U"}
                     </AvatarFallback>

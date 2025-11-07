@@ -9,6 +9,7 @@ import { useUser } from '@/hooks/profile/use-user';
 import { useLogout } from '@/hooks/profile/use-logout';
 import { useAccountSwitcher } from '@/hooks/auth/use-account-switcher';
 import Image from 'next/image';
+import MegaImage from '@/components/attachment/mega-blob-image';
 
 interface UserProfilePopoverProps {
   isOpen: boolean;
@@ -139,13 +140,21 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
             <div className="relative flex items-center space-x-4">
               <div className="w-14 h-14 rounded-full overflow-hidden bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/20 shadow-lg">
                 {userAvatar ? (
-                  <Image
-                    src={userAvatar}
-                    alt="Profile"
-                    width={56}
-                    height={56}
-                    className="w-full h-full object-cover rounded-full"
-                  />
+                  userAvatar.includes('mega.nz') ? (
+                    <MegaImage
+                      megaUrl={userAvatar}
+                      alt="Profile"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <Image
+                      src={userAvatar}
+                      alt="Profile"
+                      width={56}
+                      height={56}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  )
                 ) : (
                   <UserCircle size={36} className="text-white" />
                 )}
@@ -283,13 +292,21 @@ export default function UserProfilePopover({ isOpen, onClose, triggerRef }: User
                         >
                           <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-600 flex items-center justify-center ring-2 ring-white/50">
                             {account.avatar ? (
-                              <Image
-                                src={account.avatar}
-                                alt={account.name}
-                                width={32}
-                                height={32}
-                                className="w-full h-full object-cover rounded-full"
-                              />
+                              account.avatar.includes('mega.nz') ? (
+                                <MegaImage
+                                  megaUrl={account.avatar}
+                                  alt={account.name}
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              ) : (
+                                <Image
+                                  src={account.avatar}
+                                  alt={account.name}
+                                  width={32}
+                                  height={32}
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              )
                             ) : (
                               <UserCircle size={16} className="text-slate-400 dark:text-slate-500" />
                             )}

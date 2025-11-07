@@ -273,16 +273,33 @@
     "keyboard_shortcuts": {
       "play_pause": "播放/暂停",
       "seek_backward_forward": "快退/快进 10 秒",
+      "toggle_notes": "显示/隐藏笔记侧边栏",
       "volume_up_down": "音量增大/减小",
       "mute": "静音",
       "fullscreen": "全屏",
       "toggle_danmaku": "切换弹幕",
       "toggle_comments": "切换评论",
       "ask_ai": "向 AI 询问视频内容",
-      "toggle_terms": "切换关键术语"
+      "toggle_terms": "切换关键术语",
+      "toggle_chapters": "显示/隐藏章节"
     },
-    "quality": "质量",
+    "quality": "画质",
     "auto": "自动",
+    "normal": "正常",
+    "quality_changed": "画质已切换",
+    "auto_quality": "自动（自适应码率）",
+    "quality_not_available": "画质选择不可用",
+    "quality_requires_hls": "此视频为 MP4 格式。要启用画质切换，需要将视频转换为 HLS 格式（.m3u8）并提供多个码率版本。",
+    "learn_more": "了解更多关于 HLS",
+    "show_stats": "显示统计",
+    "stats_title": "视频统计",
+    "current_quality": "当前画质",
+    "bandwidth": "带宽",
+    "buffer": "缓冲",
+    "dropped_frames": "丢帧",
+    "resolution": "分辨率",
+    "speed": "速度",
+    "codec": "编码",
     "danmaku_placeholder": "发一条弹幕来见证此刻",
     "default_lesson_title": "课程课时",
     "edit": "编辑",
@@ -336,6 +353,19 @@
     "course_context": "课程上下文",
     "ask_another_question": "再问一个问题",
     "close": "关闭",
+    "save_as_note": "保存为笔记",
+    "saving_note": "保存中...",
+    "note_saved": "笔记已保存",
+    "note_saved_description": "AI回答已保存到课程笔记",
+    "note_save_failed": "保存笔记失败",
+    "note_save_failed_description": "请稍后重试",
+    "show_notes": "显示笔记",
+    "hide_notes": "隐藏笔记",
+    "notes_at_timestamp": "此时间点的笔记",
+    "no_notes_at_timestamp": "此时间点暂无笔记",
+    "jump_to_note": "跳转到笔记",
+    "buffering": "缓冲中...",
+    "buffered": "已缓冲",
     "quick_questions": "快捷提问",
     "explain_this_concept": "能解释一下这个概念吗？",
     "what_is_key_point": "这里的关键点是什么？",
@@ -348,6 +378,18 @@
     "terms_auto_detected": "术语由视频内容自动识别",
     "view_key_terms": "查看关键术语",
     "video_liked": "已点赞视频！",
+    "check_out_video": "看看这个视频",
+    "link_copied": "链接已复制！",
+    "link_copied_desc": "视频链接已复制到剪贴板",
+    "share_failed": "分享失败",
+    "share_failed_desc": "分享视频链接失败",
+    "download_started": "下载已开始",
+    "download_started_desc": "视频下载已开始",
+    "download_failed": "下载失败",
+    "download_failed_desc": "下载视频失败",
+    "download_not_available": "无法下载",
+    "download_external_video": "此视频托管在外部平台，无法直接下载",
+    "posting": "发布中...",
     "video_disliked": "已踩视频！",
     "changed_to_like": "已改为点赞！",
     "changed_to_dislike": "已改为踩！",
@@ -358,7 +400,33 @@
     "comment_posted": "评论已发布！",
     "comment_post_failed": "发布评论失败",
     "comment_update_failed": "更新评论失败",
-    "comment_delete_failed": "删除评论失败"
+    "comment_delete_failed": "删除评论失败",
+    "click_timestamp_to_jump": "点击时间戳可跳转到视频中的对应时刻",
+    "no_video_segments_title": "暂无视频片段时间戳",
+    "no_video_segments_message": "此视频尚未处理转写分段。AI 已基于课程内容回答您的问题，但无法提供精确的视频时间戳跳转。",
+    "chapters": "章节",
+    "show_chapters": "显示章节",
+    "hide_chapters": "隐藏章节",
+    "chapter": "章节",
+    "current_chapter": "当前章节",
+    "jump_to_chapter": "跳转到章节",
+    "chapter_list": "章节列表",
+    "no_chapters": "此视频没有章节",
+    "video_error": "视频错误",
+    "video_error_desc": "视频加载失败，请重试或联系支持。",
+    "notes_sidebar_title": "课程笔记",
+    "nearby_notes": "条附近笔记",
+    "total_notes": "条总笔记",
+    "no_notes_nearby": "附近没有笔记",
+    "notes_will_appear_here": "当播放到有笔记的时间点时，笔记会自动显示在这里",
+    "view_all_notes": "查看全部笔记",
+    "more_notes": "更多",
+    "press_n_to_toggle": "按",
+    "to_toggle_sidebar": "切换侧边栏",
+    "now": "现在",
+    "away": "前后",
+    "active": "当前",
+    "summary": "摘要"
   },
   "LessonContent": {
     "content_coming_soon": "内容即将上线",
@@ -1552,7 +1620,6 @@
     "in_progress": "进行中",
     "completed": "完成",
     "graded": "评分",
-    "view_only": "仅查看",
     "can_attempt": "可尝试",
     "can_edit": "可编辑",
     "no_expiry": "无到期日",
@@ -1594,7 +1661,23 @@
     "copy": "复制",
     "copy_summary_glance": "复制摘要",
     "hide": "隐藏",
-    "show": "显示"
+    "show": "显示",
+    "title": "AI 摘要",
+    "auto_summarize": "自动摘要",
+    "regenerate": "重新生成",
+    "generate": "生成",
+    "summary_at_glance": "摘要一览",
+    "show_details": "显示详情",
+    "hide_details": "隐藏详情",
+    "no_summary_yet": "暂无摘要。点击生成按钮为你的搜索创建 AI 摘要。",
+    "failed_to_generate": "生成摘要失败。请重试。",
+    "generate_concise_summary": "根据你的热门搜索结果生成简洁摘要。",
+    "no_results_yet": "暂无结果。尝试调整搜索以启用摘要功能。",
+    "type_query_to_enable": "输入查询以启用 AI 摘要。",
+    "themes": "主题",
+    "sources": "来源",
+    "key_points": "关键要点",
+    "copied": "已复制！"
   },
   "CommunityHighlights": {
     "title": "学习社区",
@@ -1981,16 +2064,16 @@
     "features": "智能缓存 • 上下文感知",
     "thinking": "思考中...",
     "welcome": {
-      "title": "开始学习对话",
-      "description": "问我任何关于此视频的问题，我将根据课程内容提供详细答案",
-      "quick_start": "💡 Quick 开始:",
+      "title": "AI 学习助手",
+      "description": "向我提问关于本课程的任何问题",
+      "quick_start": "快速开始问题：",
       "preset_questions": {
-        "lesson_focus": "本课的重点是什么？",
-        "core_concepts": "我需要掌握哪些核心概念？",
-        "practice_questions": "有相关的练习题吗？",
-        "practical_applications": "这些知识有什么实际应用？",
-        "explain_current": "我没听懂刚才讲的，能详细解释一下吗？",
-        "explain_selected": "解释我选择的内容"
+        "explain_current": "解释当前时刻发生的内容",
+        "explain_selected": "解释选中的文本",
+        "lesson_focus": "这节课的主要重点是什么？",
+        "core_concepts": "核心概念有哪些？",
+        "practice_questions": "给我一些练习题",
+        "practical_applications": "实际应用有哪些？"
       }
     },
     "confidence": {
@@ -1999,36 +2082,32 @@
       "low": "低置信度"
     },
     "sources": {
-      "title": "参考来源",
-      "count": "({count} 来源)",
-      "click_to_jump": "点击跳转",
+      "title": "来源",
+      "count": "{count} 个来源",
       "view": "查看",
+      "click_to_jump": "点击跳转",
+      "click_timestamp_hint": "点击时间戳可跳转到视频中的对应时刻",
       "types": {
-        "video_segment": "视频",
+        "video_segment": "视频片段",
         "course_content": "课程内容",
-        "lesson": "课程",
+        "lesson": "课时",
         "note": "笔记",
-        "web": "网络搜索",
+        "web": "网页",
         "metadata": "元数据"
       }
     },
     "suggested_actions": {
-      "title": "建议操作",
-      "title_colon": "建议操作:",
-      "view_materials": "查看相关课程资料",
-      "take_notes": "记录重点笔记",
-      "try_exercises": "尝试相关练习"
+      "title_colon": "建议操作："
     },
     "related_concepts": {
       "title": "相关概念"
     },
     "input": {
-      "placeholder": "问任何关于此视频的问题...",
-      "context_info": "当前位置：{timestamp}",
-      "selected_text": " | 已选择: \"{text}...\"",
-      "selected_prefix": "已选择:",
-      "context_prefix": "📍",
-      "send_button": "发送"
+      "placeholder": "询问关于本课程的问题...",
+      "context_prefix": "上下文：",
+      "context_info": "在 {timestamp}",
+      "selected_text": "已选择：{text}",
+      "selected_prefix": "已选择"
     },
     "loading_stages": {
       "analyzing": "正在分析你的问题...",
@@ -2046,12 +2125,12 @@
       },
       "jump_timestamp": {
         "title": "跳转到时间戳",
-        "description": "将跳转到 {timestamp} (feature in development)",
+        "description": "点击跳转到 {timestamp}",
         "jumped_to": "已跳转到 {timestamp}",
         "failed_to_jump": "跳转失败 {timestamp}"
       }
     },
-    "error_message": "抱歉，AI 助手 is temporarily unable 到答案 your 问题. 请稍后重试或 联系 technical 支持."
+    "error_message": "抱歉，AI 助手暂时无法回答您的问题。请稍后重试或联系技术支持。"
   },
   "LearningPath": {
     "title": "你的定制学习之旅",
@@ -2275,7 +2354,10 @@
     "course_under_review": "课程审核中",
     "course_under_review_desc": "此课程正在审核中，暂时无法访问。请稍后查看课程内容。",
     "status": "状态",
-    "browse_other_courses": "浏览其他课程"
+    "browse_other_courses": "浏览其他课程",
+    "CourseDetail": {
+      "access_classroom_community": "你现在可以访问你的课堂和社区资源"
+    }
   },
   "StudentEnrollmentFlow": {
     "auto_creation_starting": "正在设置你的学习环境...",
@@ -2986,7 +3068,6 @@
       "in_progress": "进行中",
       "completed": "已完成",
       "graded": "已评分",
-      "view_only": "查看 Only",
       "can_attempt": "可尝试",
       "can_edit": "Ca编辑",
       "no_expiry": "否 expiry",
@@ -4330,7 +4411,11 @@
     "eur": "欧元",
     "gbp": "英镑",
     "myr": "马来西亚林吉特",
-    "sgd": "新加坡元"
+    "sgd": "新加坡元",
+    "enable_point_redemption": "启用积分兑换",
+    "enable_point_redemption_description": "允许学生使用积分兑换此课程，而不是用钱支付",
+    "point_price": "积分价格",
+    "point_price_description": "兑换此课程所需的积分数量（例如：500积分）"
   },
   "CreateCourseLesson": {
     "create_lesson_button": "创建课时",
@@ -4363,11 +4448,15 @@
     "description_label": "描述",
     "video_url_label": "视频 URL",
     "thumbnail_url_label": "缩略图 URL",
-    "transcript_label": "字幕",
-    "transcript_description": "视频字幕。",
+    "transcript_label": "字幕 / 文稿",
+    "transcript_description": "添加带时间戳的字幕。格式：[MM:SS] 文本 或 [HH:MM:SS] 文本",
+    "transcript_placeholder": "输入带时间戳的字幕，例如：\n[00:15] 欢迎来到这个课程\n[00:20] 今天我们将学习React\n[00:25] 让我们从组件开始",
+    "transcript_section": "字幕与文稿",
+    "generate_with_ai": "AI 生成",
+    "generating": "生成中...",
+    "characters": "字符",
     "video_url_placeholder": "例如：https://example.com/video.mp4",
     "thumbnail_url_placeholder": "例如：https://example.com/thumbnail.jpg",
-    "transcript_placeholder": "例如：https://example.com/transcript.txt",
     "slug_label": "别名",
     "slug_placeholder": "例如：lesson-slug",
     "position_label": "位置",
@@ -4793,7 +4882,11 @@
     "gbp": "英镑",
     "myr": "马来西亚林吉特",
     "sgd": "新加坡元",
-    "updating": "更新中..."
+    "updating": "更新中...",
+    "enable_point_redemption": "启用积分兑换",
+    "enable_point_redemption_description": "允许学生使用积分兑换此课程，而不是用钱支付",
+    "point_price": "积分价格",
+    "point_price_description": "兑换此课程所需的积分数量（例如：500积分）"
   },
   "CourseModuleSchema": {
     "course_id_required": "课程选择为必填项。",
@@ -8201,10 +8294,13 @@
     "suggested_groups": "推荐群组",
     "create_group": "创建群组",
     "view_all": "查看更多",
+    "view_all_groups": "查看所有群组",
     "join": "加入",
     "joining": "加入中...",
     "members": "位成员",
     "no_groups": "还未加入任何群组",
+    "no_groups_joined": "您还未加入任何群组",
+    "no_suggestions": "暂无推荐",
     "join_groups": "加入一些群组开始吧!",
     "community_stats": "社区统计",
     "total_groups": "总群组",
@@ -8249,7 +8345,16 @@
     "title": "我的全部小组",
     "close": "关闭",
     "no_groups": "你还没有加入任何小组",
-    "explore_groups": "探索小组并加入！"
+    "explore_groups": "探索小组并加入！",
+    "private_groups": "私密群主",
+    "private": "私密",
+    "public_groups": "公开群主",
+    "public": "公开",
+    "posts": "个帖子",
+    "members": "位成员",
+    "joined": "加入时间",
+    "view_group": "查看群主",
+    "browse_groups": "浏览群主"
   },
   "QuizContent": {
     "title": "社区测验",
@@ -8296,7 +8401,6 @@
       "title": "分享给我",
       "private_label": "私有",
       "permission": {
-        "view": "仅可查看",
         "attempt": "可尝试",
         "edit": "可编辑"
       },
@@ -8392,6 +8496,8 @@
   },
   "QuizResultModal": {
     "quiz_completed": "测验完成！",
+    "preview_completed": "预览完成！",
+    "preview_notice": "这是预览模式 - 未保存任何数据。",
     "your_score": "你的得分",
     "correct_answers": "正确答案数",
     "total_questions": "总题数",
@@ -8468,13 +8574,11 @@
     "start_quiz": "开始测验",
     "status": {
       "no_access": "无访问权限",
-      "view_only": "仅可查看",
       "completed": "已完成",
       "unavailable": "不可用"
     },
     "permission_badge": "{permission} 权限",
     "permissions": {
-      "view": "查看",
       "attempt": "尝试",
       "edit": "编辑",
       "owner": "拥有者"

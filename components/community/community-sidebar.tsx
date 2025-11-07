@@ -50,22 +50,22 @@ function GroupCard({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="flex-shrink-0">
           {group.visibility === "private" ? (
-            <Lock className="w-4 h-4 text-yellow-400" />
+            <Lock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
           ) : (
-            <Globe className="w-4 h-4 text-green-400" />
+            <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <Link href={groupPath}>
-            <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
+            <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate hover:text-primary cursor-pointer">
               {group.name}
             </h4>
           </Link>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Users className="w-3 h-3" />
             <span>{group.member_count || 0} {t("CommunitySidebar.members")}</span>
           </div>
@@ -75,7 +75,7 @@ function GroupCard({
         <Button
           size="sm"
           variant="outline"
-          className="border-blue-400 text-blue-400 hover:bg-blue-400/10 text-xs px-2 cursor-pointer"
+          className="text-xs px-2 cursor-pointer"
           onClick={handleJoinGroup}
           disabled={isJoining}
         >
@@ -100,15 +100,14 @@ export default function CommunitySidebar() {
     <>
       <div className="w-80 space-y-6">
         {/* User's Groups */}
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-lg">{t("CommunitySidebar.my_groups")}</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white text-lg">{t("CommunitySidebar.my_groups")}</CardTitle>
               <Link href={createGroupPath}>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-blue-400 hover:bg-blue-400/10"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -126,13 +125,13 @@ export default function CommunitySidebar() {
               ))
             ) : (
               <div className="text-center py-6">
-                <p className="text-gray-400 text-sm mb-3">
-                  You haven't joined any groups yet
+                <p className="text-muted-foreground text-sm mb-3">
+                  {t("CommunitySidebar.no_groups_joined")}
                 </p>
                 <Link href={createGroupPath}>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                  <Button size="sm">
                     <Plus className="w-4 h-4 mr-1" />
-                    Create Group
+                    {t("CommunitySidebar.create_group")}
                   </Button>
                 </Link>
               </div>
@@ -141,19 +140,19 @@ export default function CommunitySidebar() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-blue-400 hover:bg-blue-400/10"
+                className="w-full"
                 onClick={() => setShowAllGroupsModal(true)}
               >
-                View All Groups
+                {t("CommunitySidebar.view_all_groups")}
               </Button>
             )}
           </CardContent>
         </Card>
 
         {/* Suggested Groups */}
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-gray-900 dark:text-white text-lg">
               {t("CommunitySidebar.suggested_groups")}
             </CardTitle>
           </CardHeader>
@@ -168,22 +167,22 @@ export default function CommunitySidebar() {
               ))
             ) : (
               <div className="text-center py-6">
-                <p className="text-gray-400 text-sm">
-                  No suggestions available
+                <p className="text-muted-foreground text-sm">
+                  {t("CommunitySidebar.no_suggestions")}
                 </p>
               </div>
             )}
 
-          
+
 
 
           </CardContent>
         </Card>
 
         {/* Quick Stats */}
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-white text-lg">
+            <CardTitle className="text-gray-900 dark:text-white text-lg">
               {t("CommunitySidebar.community_stats")}
             </CardTitle>
           </CardHeader>
@@ -192,30 +191,28 @@ export default function CommunitySidebar() {
               {loadingUserGroups || loadingSuggested ? (
                 <>
                   <div className="flex justify-between items-center">
-                    <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
-                    <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                    <span className="h-4 w-24 rounded bg-muted animate-pulse" />
+                    <span className="h-4 w-10 rounded bg-muted animate-pulse" />
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
-                    <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                    <span className="h-4 w-24 rounded bg-muted animate-pulse" />
+                    <span className="h-4 w-10 rounded bg-muted animate-pulse" />
                   </div>
                 </>
               ) : (
                 <>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300 text-sm">{t("CommunitySidebar.total_groups")}</span>
+                    <span className="text-gray-900 dark:text-white text-sm">{t("CommunitySidebar.total_groups")}</span>
                     <Badge
                       variant="outline"
-                      className="border-blue-400 text-blue-400"
                     >
                       {(userGroups?.length || 0) + (suggestedGroups?.length || 0)}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300 text-sm">{t("CommunitySidebar.your_groups")}</span>
+                    <span className="text-gray-900 dark:text-white text-sm">{t("CommunitySidebar.your_groups")}</span>
                     <Badge
                       variant="outline"
-                      className="border-green-400 text-green-400"
                     >
                       {userGroups?.length || 0}
                     </Badge>

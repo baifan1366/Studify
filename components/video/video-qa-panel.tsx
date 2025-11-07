@@ -10,11 +10,14 @@ import {
   BookOpen, 
   Lightbulb,
   Loader2,
-  Volume2,
-  ChevronRight
+  ChevronRight,
+  Save,
+  Check
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideoQA, type VideoQAResponse } from '@/hooks/video/use-video-qa';
+import { useCreateNote } from '@/hooks/course/use-course-notes';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface VideoQAPanelProps {
@@ -35,9 +38,13 @@ export function VideoQAPanel({
   const t = useTranslations('VideoPlayer');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<VideoQAResponse | null>(null);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const videoQA = useVideoQA();
+  const createNote = useCreateNote();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -83,6 +90,41 @@ export function VideoQAPanel({
   const startNewQuestion = () => {
     setQuestion('');
     setAnswer(null);
+    setNoteSaved(false);
+  };
+
+  const handleSaveAsNote = async () => {
+    if (!answer || !lessonId) return;
+
+    setIsSavingNote(true);
+    try {
+      await createNote.mutateAsync({
+        lessonId: parseInt(lessonId),
+        timestampSec: currentTime,
+        content: `**Q:** ${question}\n\n**A:** ${answer.answer}`,
+        aiSummary: answer.answer,
+        tags: ['ai-qa', 'video-note'],
+        title: question.length > 50 ? question.substring(0, 50) + '...' : question,
+        noteType: 'ai_generated',
+      });
+
+      setNoteSaved(true);
+      toast({
+        title: t('note_saved'),
+        description: t('note_saved_description'),
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to save note:', error);
+      toast({
+        title: t('note_save_failed'),
+        description: t('note_save_failed_description'),
+        variant: 'destructive',
+        duration: 3000,
+      });
+    } finally {
+      setIsSavingNote(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -209,38 +251,70 @@ export function VideoQAPanel({
               </div>
 
               {/* Related Segments */}
-              {answer.segments && answer.segments.length > 0 && (
+              {answer.segments && answer.segments.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-200">
-                    {t('related_video_segments')}:
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-medium text-gray-200">
+                      {t('related_video_segments')} ({answer.segments.length})
+                    </span>
                   </div>
-                  {answer.segments.map((segment, index) => (
-                    <div
-                      key={index}
-                      className="bg-slate-700 p-3 rounded-xl border border-slate-600"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3 h-3 text-gray-300" />
-                          <span className="text-xs text-gray-300">
-                            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                          </span>
+                  <div className="space-y-2">
+                    {answer.segments.map((segment, index) => (
+                      <div
+                        key={index}
+                        className="bg-slate-700 p-3 rounded-xl border border-slate-600 hover:border-blue-500 transition-all duration-200 group"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium text-blue-400">
+                                #{index + 1}
+                              </span>
+                              <button
+                                onClick={() => handleSeekToSegment(segment.startTime)}
+                                className="flex items-center gap-1.5 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 group-hover:scale-105"
+                              >
+                                <Clock className="w-3 h-3" />
+                                <span className="font-mono font-medium">
+                                  {formatTime(segment.startTime)}
+                                </span>
+                                {segment.endTime && segment.endTime !== segment.startTime && (
+                                  <>
+                                    <span className="opacity-60">-</span>
+                                    <span className="font-mono font-medium">
+                                      {formatTime(segment.endTime)}
+                                    </span>
+                                  </>
+                                )}
+                                <ChevronRight className="w-3 h-3 ml-0.5" />
+                              </button>
+                            </div>
+                            <div className="text-xs text-gray-300 leading-relaxed">
+                              {segment.relevantText || segment.text}
+                            </div>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => handleSeekToSegment(segment.startTime)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
-                        >
-                          <Volume2 className="w-3 h-3" />
-                          {t('jump_to')}
-                        </button>
                       </div>
-                      <div className="text-xs text-gray-300">
-                        {segment.relevantText}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-400 italic mt-2">
+                    💡 {t('click_timestamp_to_jump')}
+                  </div>
                 </div>
-              )}
+              ) : answer.segments && answer.segments.length === 0 ? (
+                <div className="bg-yellow-800/30 border border-yellow-600/50 rounded-xl p-3">
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-yellow-200">
+                      <p className="font-medium mb-1">{t('no_video_segments_title')}</p>
+                      <p className="opacity-90">
+                        {t('no_video_segments_message')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Course Context */}
               {answer.courseInfo && (
@@ -272,19 +346,49 @@ export function VideoQAPanel({
               )}
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="space-y-2">
+                {/* Save as Note Button */}
                 <button
-                  onClick={startNewQuestion}
-                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl transition-all duration-200"
+                  onClick={handleSaveAsNote}
+                  disabled={isSavingNote || noteSaved}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-xl transition-all duration-200 ${
+                    noteSaved
+                      ? 'bg-green-600 text-white cursor-default'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
                 >
-                  {t('ask_another_question')}
+                  {isSavingNote ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t('saving_note')}
+                    </>
+                  ) : noteSaved ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      {t('note_saved')}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      {t('save_as_note')}
+                    </>
+                  )}
                 </button>
-                <button
-                  onClick={onClose}
-                  className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-gray-200 hover:text-white text-sm rounded-xl transition-all duration-200"
-                >
-                  {t('close')}
-                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={startNewQuestion}
+                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl transition-all duration-200"
+                  >
+                    {t('ask_another_question')}
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-gray-200 hover:text-white text-sm rounded-xl transition-all duration-200"
+                  >
+                    {t('close')}
+                  </button>
+                </div>
               </div>
             </div>
           )}

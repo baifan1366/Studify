@@ -69,6 +69,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AchievementsSection from "@/components/student/achievements-section";
 import StudentAchievementStats from "@/components/student/achievement-stats";
 import Image from "next/image";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 export default function ProfileContent() {
   const t = useTranslations("ProfileContent");
@@ -440,13 +441,21 @@ export default function ProfileContent() {
                         className="w-full h-full object-cover"
                       />
                     ) : userAvatar ? (
-                      <Image
-                        src={userAvatar}
-                        alt="Profile"
-                        width={128}
-                        height={128}
-                        className="w-full h-full object-cover"
-                      />
+                      userAvatar.includes('mega.nz') ? (
+                        <MegaImage
+                          megaUrl={userAvatar}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={userAvatar}
+                          alt="Profile"
+                          width={128}
+                          height={128}
+                          className="w-full h-full object-cover"
+                        />
+                      )
                     ) : (
                       <User
                         size={64}
@@ -482,7 +491,7 @@ export default function ProfileContent() {
                 <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {pointsData?.data?.currentPoints ||
+                      {pointsData?.currentPoints ||
                         (profile as any)?.points ||
                         0}
                     </div>
@@ -492,7 +501,7 @@ export default function ProfileContent() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {learningStats?.data?.summary?.completedCourses || 0}
+                      {learningStats?.summary?.completedCourses || 0}
                     </div>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
                       {t("courses")}
@@ -599,13 +608,21 @@ export default function ProfileContent() {
                               >
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-2 ring-gray-200 dark:ring-gray-600">
                                   {account.avatar ? (
-                                    <Image
-                                      src={account.avatar}
-                                      alt={account.name}
-                                      width={40}
-                                      height={40}
-                                      className="w-full h-full object-cover"
-                                    />
+                                    account.avatar.includes('mega.nz') ? (
+                                      <MegaImage
+                                        megaUrl={account.avatar}
+                                        alt={account.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <Image
+                                        src={account.avatar}
+                                        alt={account.name}
+                                        width={40}
+                                        height={40}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    )
                                   ) : (
                                     <UserCircle
                                       size={20}
@@ -961,7 +978,7 @@ export default function ProfileContent() {
                       />
                       <div className="text-xl font-bold text-gray-900 dark:text-white">
                         {formatStudyTime(
-                          learningStats?.data?.summary?.totalStudyMinutes || 0
+                          learningStats?.summary?.totalStudyMinutes || 0
                         )}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
@@ -974,7 +991,7 @@ export default function ProfileContent() {
                         className="text-green-600 dark:text-green-400 mx-auto mb-2"
                       />
                       <div className="text-xl font-bold text-gray-900 dark:text-white">
-                        {learningStats?.data?.summary?.completedLessons || 0}
+                        {learningStats?.summary?.completedLessons || 0}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
                         {t("lessons_done")}
@@ -986,7 +1003,7 @@ export default function ProfileContent() {
                         className="text-orange-600 dark:text-orange-400 mx-auto mb-2"
                       />
                       <div className="text-xl font-bold text-gray-900 dark:text-white">
-                        {learningStats?.data?.summary?.studyStreak || 0}
+                        {learningStats?.summary?.studyStreak || 0}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
                         {t("day_streak")}
@@ -998,7 +1015,7 @@ export default function ProfileContent() {
                         className="text-yellow-600 dark:text-yellow-400 mx-auto mb-2"
                       />
                       <div className="text-xl font-bold text-gray-900 dark:text-white">
-                        {learningStats?.data?.summary?.avgProgress || 0}%
+                        {learningStats?.summary?.avgProgress || 0}%
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
                         {t("avg_progress")}

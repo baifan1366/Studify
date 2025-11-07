@@ -95,19 +95,19 @@ export default function QuizHeader({
       {/* 第二行：筛选器 */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-muted/50 rounded-lg">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">{t("filters_label")}</span>
+          <Filter className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+          <span className="text-sm font-medium text-gray-900 dark:text-white">{t("filters_label")}</span>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
           {/* Subject Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("filters.subject.label")}</span>
+            <span className="text-sm text-gray-900 dark:text-white whitespace-nowrap">{t("filters.subject.label")}</span>
             <Select
               value={filters.subjectId?.toString() || "none"}
               onValueChange={(value) => updateFilter('subjectId', value === "none" ? undefined : Number(value))}
             >
-              <SelectTrigger className="w-[140px] h-8">
+              <SelectTrigger className="w-[140px] h-8 text-gray-900 dark:text-white">
                 <SelectValue placeholder={t("filters.subject.placeholder")} />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -123,12 +123,12 @@ export default function QuizHeader({
 
           {/* Grade Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("filters.grade.label")}</span>
+            <span className="text-sm text-gray-900 dark:text-white whitespace-nowrap">{t("filters.grade.label")}</span>
             <Select
               value={filters.gradeId?.toString() || "none"}
               onValueChange={(value) => updateFilter('gradeId', value === "none" ? undefined : Number(value))}
             >
-              <SelectTrigger className="w-[120px] h-8">
+              <SelectTrigger className="w-[120px] h-8 text-gray-900 dark:text-white">
                 <SelectValue placeholder={t("filters.grade.placeholder")} />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -144,12 +144,12 @@ export default function QuizHeader({
 
           {/* Difficulty Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("filters.difficulty.label")}</span>
+            <span className="text-sm text-gray-900 dark:text-white whitespace-nowrap">{t("filters.difficulty.label")}</span>
             <Select
               value={filters.difficulty?.toString() || "none"}
               onValueChange={(value) => updateFilter('difficulty', value === "none" ? undefined : Number(value))}
             >
-              <SelectTrigger className="w-[100px] h-8">
+              <SelectTrigger className="w-[100px] h-8 text-gray-900 dark:text-white">
                 <SelectValue placeholder={t("filters.difficulty.placeholder")} />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">

@@ -53,6 +53,7 @@ interface VideoAIAssistantProps {
   currentLessonId: string | null;
   currentTimestamp: number;
   selectedText?: string | null;
+  onSeekTo?: (time: number, duration?: number) => void;
 }
 
 export default function VideoAIAssistant({
@@ -60,6 +61,7 @@ export default function VideoAIAssistant({
   currentLessonId,
   currentTimestamp,
   selectedText,
+  onSeekTo,
 }: VideoAIAssistantProps) {
   const [question, setQuestion] = useState("");
   const [conversation, setConversation] = useState<AIMessage[]>([]);
@@ -277,8 +279,25 @@ export default function VideoAIAssistant({
   };
 
   const handleJumpToTimestamp = async (timestamp: number) => {
-    const videoPlayer = getGlobalVideoPlayer();
+    // Try parent component's onSeekTo first (preferred method)
+    if (onSeekTo) {
+      try {
+        onSeekTo(timestamp);
+        toast({
+          title: t("notifications.jump_timestamp.title"),
+          description: t("notifications.jump_timestamp.jumped_to", {
+            timestamp: formatTimestamp(timestamp),
+          }),
+          duration: 2000,
+        });
+        return;
+      } catch (error) {
+        console.error("Failed to seek via onSeekTo:", error);
+      }
+    }
 
+    // Fallback to global video player
+    const videoPlayer = getGlobalVideoPlayer();
     if (videoPlayer) {
       try {
         await videoPlayer.seekTo(timestamp);
@@ -300,7 +319,7 @@ export default function VideoAIAssistant({
         });
       }
     } else {
-      // Fallback when video player not available
+      // Last fallback when video player not available
       toast({
         title: t("notifications.jump_timestamp.title"),
         description: t("notifications.jump_timestamp.description", {
@@ -478,7 +497,7 @@ export default function VideoAIAssistant({
                       </span>
                     </div>
 
-                    {/* Enhanced Sources Display */}
+                    {/* Enhanced Sources Display with Video Segments */}
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="text-xs border-t border-gray-200 dark:border-gray-600 pt-2">
                         <div className="font-medium mb-2 flex items-center space-x-1">
@@ -492,34 +511,34 @@ export default function VideoAIAssistant({
                         <div className="space-y-2">
                           {msg.sources.map((source, sourceIdx) => (
                             <div key={sourceIdx} className="group">
-                              <div className="flex items-start justify-between bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                              <div className="flex items-start justify-between bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all duration-200 border border-transparent hover:border-blue-500/30">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-1">
+                                  <div className="flex items-center space-x-2 mb-1 flex-wrap">
                                     {/* Source Type Icon */}
                                     <div
-                                      className={`w-2 h-2 rounded-full ${getSourceTypeColor(
+                                      className={`w-2 h-2 rounded-full flex-shrink-0 ${getSourceTypeColor(
                                         source.type
                                       )}`}
                                     />
-                                    <span className="font-medium truncate">
+                                    <span className="font-medium truncate flex-1 min-w-0">
                                       {source.title}
                                     </span>
                                     {source.type === "video_segment" && (
-                                      <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded text-xs font-medium">
+                                      <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded text-xs font-medium flex-shrink-0">
                                         {t("sources.types.video_segment")}
                                       </span>
                                     )}
                                   </div>
 
                                   {source.contentPreview && (
-                                    <div className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-1">
-                                      "{source.contentPreview.substring(0, 80)}
-                                      ..."
+                                    <div className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed mb-2">
+                                      "{source.contentPreview.substring(0, 100)}
+                                      {source.contentPreview.length > 100 ? "..." : ""}"
                                     </div>
                                   )}
 
-                                  <div className="flex items-center space-x-3">
-                                    {/* Video Timestamp Jump */}
+                                  <div className="flex items-center flex-wrap gap-2">
+                                    {/* Video Timestamp Jump Button - Enhanced */}
                                     {source.type === "video_segment" &&
                                       (source.startTime !== undefined ||
                                         source.timestamp !== undefined) && (
@@ -531,32 +550,33 @@ export default function VideoAIAssistant({
                                                 0
                                             )
                                           }
-                                          className="flex items-center space-x-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                          className="flex items-center space-x-1.5 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200 group-hover:scale-105 shadow-sm"
                                         >
                                           <Clock size={10} />
-                                          <span className="font-mono">
+                                          <span className="font-mono font-medium">
                                             {formatTimestamp(
                                               source.startTime ||
                                                 source.timestamp ||
                                                 0
                                             )}
                                             {source.endTime &&
+                                              source.endTime !== (source.startTime || source.timestamp) &&
                                               ` - ${formatTimestamp(
                                                 source.endTime
                                               )}`}
                                           </span>
-                                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {t("sources.click_to_jump")}
+                                          <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                            ▶
                                           </span>
                                         </button>
                                       )}
 
-                                    {/* Regular Timestamp */}
+                                    {/* Regular Timestamp (non-video sources) */}
                                     {source.type !== "video_segment" &&
                                       source.timestamp && (
-                                        <div className="flex items-center space-x-1 text-gray-500">
+                                        <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-400 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-md">
                                           <Clock size={10} />
-                                          <span className="font-mono">
+                                          <span className="font-mono text-xs">
                                             {formatTimestamp(source.timestamp)}
                                           </span>
                                         </div>
@@ -568,7 +588,7 @@ export default function VideoAIAssistant({
                                         href={source.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center space-x-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                        className="flex items-center space-x-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md"
                                       >
                                         <ExternalLink size={10} />
                                         <span>{t("sources.view")}</span>
@@ -577,13 +597,13 @@ export default function VideoAIAssistant({
 
                                     {/* Source Confidence */}
                                     {source.confidence !== undefined && (
-                                      <div className="flex items-center space-x-1">
+                                      <div className="flex items-center space-x-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-md">
                                         <div
                                           className={`w-1.5 h-1.5 rounded-full ${getConfidenceColor(
                                             source.confidence
                                           )}`}
                                         />
-                                        <span className="text-gray-400">
+                                        <span className="text-gray-400 text-xs">
                                           {(source.confidence * 100).toFixed(0)}
                                           %
                                         </span>
@@ -595,6 +615,13 @@ export default function VideoAIAssistant({
                             </div>
                           ))}
                         </div>
+                        {/* Hint for video segments */}
+                        {msg.sources.some(s => s.type === "video_segment") && (
+                          <div className="text-xs text-gray-400 dark:text-gray-500 italic mt-2 flex items-center space-x-1">
+                            <span>💡</span>
+                            <span>{t("sources.click_timestamp_hint")}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 

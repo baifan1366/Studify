@@ -478,6 +478,45 @@ export default function CourseLearningContent({
     }
   }, [firstLessonId, currentLessonId]);
 
+  // Navigation handlers with useCallback
+  const handlePreviousLesson = React.useCallback(() => {
+    if (!currentLessonId) return;
+
+    const currentIndex = allLessons.findIndex(
+      (l: any) => l.public_id === currentLessonId
+    );
+    if (currentIndex > 0) {
+      const previousLesson = allLessons[currentIndex - 1];
+      setCurrentLessonId(previousLesson.public_id);
+
+      // Show toast with lesson info
+      toast({
+        title: t("LessonNavigation.previous_lesson"),
+        description: `${previousLesson.moduleTitle} • ${previousLesson.title}`,
+        duration: 2000,
+      });
+    }
+  }, [currentLessonId, allLessons, toast, t]);
+
+  const handleNextLesson = React.useCallback(() => {
+    if (!currentLessonId) return;
+
+    const currentIndex = allLessons.findIndex(
+      (l: any) => l.public_id === currentLessonId
+    );
+    if (currentIndex < allLessons.length - 1) {
+      const nextLesson = allLessons[currentIndex + 1];
+      setCurrentLessonId(nextLesson.public_id);
+
+      // Show toast with lesson info
+      toast({
+        title: t("LessonNavigation.next_lesson"),
+        description: `${nextLesson.moduleTitle} • ${nextLesson.title}`,
+        duration: 2000,
+      });
+    }
+  }, [currentLessonId, allLessons, toast, t]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -529,7 +568,7 @@ export default function CourseLearningContent({
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [currentLessonId, isFullscreen]);
+  }, [currentLessonId, isFullscreen, handlePreviousLesson, handleNextLesson, currentLesson]);
 
   // Initialize progress when starting a lesson - triggered by user action, not useEffect
   const initializeProgress = () => {
@@ -760,44 +799,6 @@ export default function CourseLearningContent({
       toast({
         title: t("LessonNavigation.lesson_completed"),
         description: t("LessonNavigation.lesson_completed_desc"),
-      });
-    }
-  };
-
-  const handlePreviousLesson = () => {
-    if (!currentLessonId) return;
-
-    const currentIndex = allLessons.findIndex(
-      (l: any) => l.public_id === currentLessonId
-    );
-    if (currentIndex > 0) {
-      const previousLesson = allLessons[currentIndex - 1];
-      setCurrentLessonId(previousLesson.public_id);
-
-      // Show toast with lesson info
-      toast({
-        title: t("LessonNavigation.previous_lesson"),
-        description: `${previousLesson.moduleTitle} • ${previousLesson.title}`,
-        duration: 2000,
-      });
-    }
-  };
-
-  const handleNextLesson = () => {
-    if (!currentLessonId) return;
-
-    const currentIndex = allLessons.findIndex(
-      (l: any) => l.public_id === currentLessonId
-    );
-    if (currentIndex < allLessons.length - 1) {
-      const nextLesson = allLessons[currentIndex + 1];
-      setCurrentLessonId(nextLesson.public_id);
-
-      // Show toast with lesson info
-      toast({
-        title: t("LessonNavigation.next_lesson"),
-        description: `${nextLesson.moduleTitle} • ${nextLesson.title}`,
-        duration: 2000,
       });
     }
   };
@@ -1108,6 +1109,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
@@ -1118,6 +1120,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
             videoDuration={currentLesson.duration_sec || undefined}
@@ -1142,6 +1145,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
@@ -1151,6 +1155,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
@@ -1657,6 +1662,7 @@ export default function CourseLearningContent({
                 currentLessonId={currentLessonId}
                 currentTimestamp={currentVideoTimestamp}
                 selectedText={null} // TODO: 实现文本选择功能
+                onSeekTo={handleTimeUpdate}
               />
             )}
           </div>

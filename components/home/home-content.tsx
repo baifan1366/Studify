@@ -14,6 +14,7 @@ import GamificationSection from "@/components/gamification-section";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/hooks/profile/use-user";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomeContent() {
   const t = useTranslations("HomeContent");
@@ -68,10 +69,51 @@ export default function HomeContent() {
     // No navigation needed - modal will show rewards and streak
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 sm:space-y-8 px-4 sm:px-0">
+        {/* Hero Skeleton */}
+        <div className="space-y-3 sm:space-y-4">
+          <Skeleton className="h-10 sm:h-12 w-full sm:w-3/4 mx-auto" />
+          <Skeleton className="h-5 sm:h-6 w-3/4 sm:w-1/2 mx-auto" />
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-4 sm:mt-6">
+            <Skeleton className="h-10 w-full sm:w-32" />
+            <Skeleton className="h-10 w-full sm:w-32" />
+          </div>
+        </div>
+
+        {/* AI Assistant Skeleton */}
+        <div className="space-y-3 sm:space-y-4">
+          <Skeleton className="h-7 sm:h-8 w-48 sm:w-64" />
+          <Skeleton className="h-24 sm:h-32 w-full" />
+        </div>
+
+        {/* Community Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <Skeleton className="h-40 sm:h-48 w-full" />
+          <Skeleton className="h-40 sm:h-48 w-full" />
+        </div>
+
+        {/* Gamification Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+          <Skeleton className="h-28 sm:h-32 w-full" />
+          <Skeleton className="h-28 sm:h-32 w-full" />
+          <Skeleton className="h-28 sm:h-32 w-full" />
+        </div>
+
+        {/* Learning Path Skeleton */}
+        <Skeleton className="h-48 sm:h-64 w-full" />
+
+        {/* Learning Report Skeleton */}
+        <Skeleton className="h-40 sm:h-48 w-full" />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Main Content */}
-      <div>
+      <div className="space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-0">
         {/* Show Hero Button (only visible when hero is hidden) */}
         <ShowHeroButton />
 

@@ -256,7 +256,7 @@ export default function MistakeBookPageContent() {
       case "manual":
         return "bg-purple-500/20 text-purple-300 border-purple-500/30";
       default:
-        return "bg-white/10 text-white/70 border-white/20";
+        return "bg-white/10 text-gray-700 dark:text-white/70 border-white/20";
     }
   };
 
@@ -295,13 +295,13 @@ export default function MistakeBookPageContent() {
           className="flex items-center justify-between"
         >
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
               <div className="p-3 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-2xl border border-red-500/30">
                 <AlertCircle className="h-8 w-8 text-red-400" />
               </div>
               {t("mistake_book")}
             </h1>
-            <p className="text-white/70 text-lg">{t("track_mistakes")}</p>
+            <p className="text-gray-600 dark:text-white/70 text-lg">{t("track_mistakes")}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -329,139 +329,139 @@ export default function MistakeBookPageContent() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl bg-gray-900/95 border-white/10">
-              <DialogHeader>
-                <DialogTitle className="text-white text-xl">
-                  {t("create_mistake")}
-                </DialogTitle>
-                <DialogDescription className="text-white/60">
-                  {t("track_mistakes")}
-                </DialogDescription>
-              </DialogHeader>
+                <DialogHeader>
+                  <DialogTitle className="text-gray-900 dark:text-white text-xl">
+                    {t("create_mistake")}
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 dark:text-white/60">
+                    {t("track_mistakes")}
+                  </DialogDescription>
+                </DialogHeader>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="source-type" className="text-white">
-                    {t("source_type")}
-                  </Label>
-                  <Select
-                    value={newMistake.sourceType}
-                    onValueChange={(value: "quiz" | "assignment" | "manual") =>
-                      setNewMistake((prev) => ({ ...prev, sourceType: value }))
-                    }
-                  >
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/10">
-                      <SelectItem value="manual">{t("manual")}</SelectItem>
-                      <SelectItem value="quiz">{t("quiz")}</SelectItem>
-                      <SelectItem value="assignment">
-                        {t("assignment")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="mistake-content" className="text-white">
-                    {t("mistake_content")}
-                  </Label>
-                  <Textarea
-                    id="mistake-content"
-                    placeholder={t("mistake_content")}
-                    value={newMistake.mistakeContent}
-                    onChange={(e) =>
-                      setNewMistake((prev) => ({
-                        ...prev,
-                        mistakeContent: e.target.value,
-                      }))
-                    }
-                    rows={4}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="analysis" className="text-white">
-                    {t("analysis")}
-                  </Label>
-                  <Textarea
-                    id="analysis"
-                    placeholder={t("error_analysis_placeholder")}
-                    value={newMistake.analysis}
-                    onChange={(e) =>
-                      setNewMistake((prev) => ({
-                        ...prev,
-                        analysis: e.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-white">{t("knowledge_points")}</Label>
-                  <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                    {newMistake.knowledgePoints.map((point, index) => (
-                      <Badge
-                        key={index}
-                        className="bg-purple-500/20 text-purple-300 border-purple-500/30 flex items-center gap-1"
-                      >
-                        {point}
-                        <X
-                          className="h-3 w-3 cursor-pointer hover:text-purple-100"
-                          onClick={() => removeKnowledgePoint(point)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={t("add_knowledge_point_placeholder")}
-                      value={knowledgePointInput}
-                      onChange={(e) => setKnowledgePointInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addKnowledgePoint();
-                        }
-                      }}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addKnowledgePoint}
-                      className="border-white/10 hover:bg-white/5"
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="source-type" className="text-gray-900 dark:text-white">
+                      {t("source_type")}
+                    </Label>
+                    <Select
+                      value={newMistake.sourceType}
+                      onValueChange={(value: "quiz" | "assignment" | "manual") =>
+                        setNewMistake((prev) => ({ ...prev, sourceType: value }))
+                      }
                     >
-                      {t("add")}
-                    </Button>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-gray-900 dark:text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-white/10">
+                        <SelectItem value="manual">{t("manual")}</SelectItem>
+                        <SelectItem value="quiz">{t("quiz")}</SelectItem>
+                        <SelectItem value="assignment">
+                          {t("assignment")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="mistake-content" className="text-gray-900 dark:text-white">
+                      {t("mistake_content")}
+                    </Label>
+                    <Textarea
+                      id="mistake-content"
+                      placeholder={t("mistake_content")}
+                      value={newMistake.mistakeContent}
+                      onChange={(e) =>
+                        setNewMistake((prev) => ({
+                          ...prev,
+                          mistakeContent: e.target.value,
+                        }))
+                      }
+                      rows={4}
+                      className="bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="analysis" className="text-gray-900 dark:text-white">
+                      {t("analysis")}
+                    </Label>
+                    <Textarea
+                      id="analysis"
+                      placeholder={t("error_analysis_placeholder")}
+                      value={newMistake.analysis}
+                      onChange={(e) =>
+                        setNewMistake((prev) => ({
+                          ...prev,
+                          analysis: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      className="bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-900 dark:text-white">{t("knowledge_points")}</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 mb-3">
+                      {newMistake.knowledgePoints.map((point, index) => (
+                        <Badge
+                          key={index}
+                          className="bg-purple-500/20 text-purple-300 border-purple-500/30 flex items-center gap-1"
+                        >
+                          {point}
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-purple-100"
+                            onClick={() => removeKnowledgePoint(point)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={t("add_knowledge_point_placeholder")}
+                        value={knowledgePointInput}
+                        onChange={(e) => setKnowledgePointInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addKnowledgePoint();
+                          }
+                        }}
+                        className="bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addKnowledgePoint}
+                        className="border-white/10 hover:bg-white/5"
+                      >
+                        {t("add")}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                  className="border-white/10 hover:bg-white/5"
-                >
-                  {t("cancel")}
-                </Button>
-                <Button
-                  onClick={handleCreateMistake}
-                  disabled={
-                    !newMistake.mistakeContent.trim() || saveMistake.isPending
-                  }
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  {saveMistake.isPending
-                    ? t("create") + "..."
-                    : t("save_mistake")}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateDialogOpen(false)}
+                    className="border-white/10 hover:bg-white/5"
+                  >
+                    {t("cancel")}
+                  </Button>
+                  <Button
+                    onClick={handleCreateMistake}
+                    disabled={
+                      !newMistake.mistakeContent.trim() || saveMistake.isPending
+                    }
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saveMistake.isPending
+                      ? t("create") + "..."
+                      : t("save_mistake")}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
             </Dialog>
           </div>
         </motion.div>
@@ -478,10 +478,10 @@ export default function MistakeBookPageContent() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/70">
+                  <p className="text-sm font-medium text-gray-600 dark:text-white/70">
                     {t("total_mistakes")}
                   </p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
                     {mistakes.length}
                   </p>
                 </div>
@@ -494,10 +494,10 @@ export default function MistakeBookPageContent() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/70">
+                  <p className="text-sm font-medium text-gray-600 dark:text-white/70">
                     {t("quiz_mistakes")}
                   </p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
                     {
                       mistakes.filter((m: any) => m.source_type === "quiz")
                         .length
@@ -513,10 +513,10 @@ export default function MistakeBookPageContent() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/70">
+                  <p className="text-sm font-medium text-gray-600 dark:text-white/70">
                     {t("assignment_mistakes")}
                   </p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
                     {
                       mistakes.filter(
                         (m: any) => m.source_type === "assignment"
@@ -533,10 +533,10 @@ export default function MistakeBookPageContent() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/70">
+                  <p className="text-sm font-medium text-gray-600 dark:text-white/70">
                     {t("knowledge_point_count")}
                   </p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
                     {allKnowledgePoints.length}
                   </p>
                 </div>
@@ -557,12 +557,12 @@ export default function MistakeBookPageContent() {
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-white/40 h-4 w-4" />
                   <Input
                     placeholder={t("search_content_analysis_knowledge")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    className="pl-10 bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
                   />
                 </div>
 
@@ -570,7 +570,7 @@ export default function MistakeBookPageContent() {
                   value={selectedSourceType}
                   onValueChange={setSelectedSourceType}
                 >
-                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-white">
+                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-gray-900 dark:text-white">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
@@ -588,7 +588,7 @@ export default function MistakeBookPageContent() {
                   value={selectedKnowledgePoint}
                   onValueChange={setSelectedKnowledgePoint}
                 >
-                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-white">
+                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-gray-900 dark:text-white">
                     <Tag className="h-4 w-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
@@ -625,11 +625,11 @@ export default function MistakeBookPageContent() {
                 <Card className="bg-white/5 backdrop-blur-sm border-white/10">
                   <CardContent className="pt-6">
                     <div className="text-center py-12">
-                      <BookOpen className="h-16 w-16 text-white/30 mx-auto mb-4" />
-                      <h3 className="text-xl font-medium text-white mb-2">
+                      <BookOpen className="h-16 w-16 text-gray-400 dark:text-white/30 mx-auto mb-4" />
+                      <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
                         {t("no_mistake_records")}
                       </h3>
-                      <p className="text-white/60 mb-6">
+                      <p className="text-gray-600 dark:text-white/60 mb-6">
                         {t("start_recording_mistakes")}
                       </p>
                       <Button
@@ -667,7 +667,7 @@ export default function MistakeBookPageContent() {
                               {getSourceTypeLabel(mistake.source_type)}
                             </Badge>
 
-                            <div className="flex items-center text-sm text-white/50">
+                            <div className="flex items-center text-sm text-gray-500 dark:text-white/50">
                               <Calendar className="h-3.5 w-3.5 mr-1" />
                               {new Date(
                                 mistake.created_at
@@ -680,10 +680,10 @@ export default function MistakeBookPageContent() {
                             <div className="flex items-start gap-2">
                               <Target className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
                               <div>
-                                <h4 className="font-medium text-white/90 mb-1">
+                                <h4 className="font-medium text-gray-800 dark:text-white/90 mb-1">
                                   {t("mistake_content_label")}
                                 </h4>
-                                <p className="text-white/70 leading-relaxed">
+                                <p className="text-gray-700 dark:text-white/70 leading-relaxed">
                                   {mistake.mistake_content}
                                 </p>
                               </div>
@@ -710,7 +710,7 @@ export default function MistakeBookPageContent() {
 
                             {/* Recommended Exercises */}
                             {mistake.recommended_exercises && (
-                              <div className="flex items-center gap-2 text-sm text-white/60">
+                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-white/60">
                                 <TrendingUp className="h-4 w-4 text-blue-400" />
                                 <span>
                                   {t("from")}:{" "}
@@ -746,13 +746,13 @@ export default function MistakeBookPageContent() {
       <Dialog open={showGuide} onOpenChange={setShowGuide}>
         <DialogContent className="max-w-2xl bg-gradient-to-br from-gray-900 via-gray-900 to-purple-900/30 border-white/20">
           <DialogHeader>
-            <DialogTitle className="text-2xl text-white flex items-center gap-3">
+            <DialogTitle className="text-2xl text-gray-900 dark:text-white flex items-center gap-3">
               {React.createElement(GUIDE_STEPS[currentGuideStep].icon, {
                 className: "h-7 w-7 text-purple-400",
               })}
               {GUIDE_STEPS[currentGuideStep].title}
             </DialogTitle>
-            <DialogDescription className="text-white/70 text-base pt-2">
+            <DialogDescription className="text-gray-600 dark:text-white/70 text-base pt-2">
               {GUIDE_STEPS[currentGuideStep].description}
             </DialogDescription>
           </DialogHeader>
@@ -763,13 +763,12 @@ export default function MistakeBookPageContent() {
               {GUIDE_STEPS.map((_, index) => (
                 <div
                   key={index}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    index === currentGuideStep
-                      ? "w-8 bg-purple-500"
-                      : index < currentGuideStep
-                        ? "w-2 bg-purple-500/50"
-                        : "w-2 bg-white/20"
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${index === currentGuideStep
+                    ? "w-8 bg-purple-500"
+                    : index < currentGuideStep
+                      ? "w-2 bg-purple-500/50"
+                      : "w-2 bg-white/20"
+                    }`}
                 />
               ))}
             </div>
@@ -781,8 +780,8 @@ export default function MistakeBookPageContent() {
                   <div className="flex items-start gap-3">
                     <Target className="h-5 w-5 text-red-400 mt-1 flex-shrink-0" />
                     <div>
-                      <h4 className="font-medium text-white mb-1">{t("guide_record_mistakes")}</h4>
-                      <p className="text-white/70 text-sm">
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-1">{t("guide_record_mistakes")}</h4>
+                      <p className="text-gray-700 dark:text-white/70 text-sm">
                         {t("guide_record_mistakes_desc")}
                       </p>
                     </div>
@@ -790,8 +789,8 @@ export default function MistakeBookPageContent() {
                   <div className="flex items-start gap-3">
                     <Lightbulb className="h-5 w-5 text-yellow-400 mt-1 flex-shrink-0" />
                     <div>
-                      <h4 className="font-medium text-white mb-1">{t("guide_analyze_reasons")}</h4>
-                      <p className="text-white/70 text-sm">
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-1">{t("guide_analyze_reasons")}</h4>
+                      <p className="text-gray-700 dark:text-white/70 text-sm">
                         {t("guide_analyze_reasons_desc")}
                       </p>
                     </div>
@@ -799,8 +798,8 @@ export default function MistakeBookPageContent() {
                   <div className="flex items-start gap-3">
                     <TrendingUp className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
                     <div>
-                      <h4 className="font-medium text-white mb-1">{t("guide_continuous_improvement")}</h4>
-                      <p className="text-white/70 text-sm">
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-1">{t("guide_continuous_improvement")}</h4>
+                      <p className="text-gray-700 dark:text-white/70 text-sm">
                         {t("guide_continuous_improvement_desc")}
                       </p>
                     </div>
@@ -811,10 +810,10 @@ export default function MistakeBookPageContent() {
               {currentGuideStep === 1 && (
                 <div className="space-y-4">
                   <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg p-4 border border-blue-500/30">
-                    <h4 className="font-medium text-white mb-2">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                       {t("guide_create_ways_title")}
                     </h4>
-                    <ul className="space-y-2 text-white/70 text-sm">
+                    <ul className="space-y-2 text-gray-700 dark:text-white/70 text-sm">
                       <li className="flex items-center gap-2">
                         <Brain className="h-4 w-4 text-blue-400" />
                         <span>{t("guide_create_from_quiz")}</span>

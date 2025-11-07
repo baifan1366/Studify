@@ -32,7 +32,7 @@ export interface SharedPrivateQuiz {
   difficulty: number;
   max_attempts?: number;
   time_limit_minutes?: number;
-  permission_type: 'view' | 'attempt' | 'edit';
+  permission_type: 'attempt' | 'edit';
   expires_at?: string;
   granted_by: string;
   granted_by_name: string;

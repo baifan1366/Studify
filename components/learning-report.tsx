@@ -29,11 +29,11 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
 
   // 处理每日学习时长数据
   const weeklyData = React.useMemo(() => {
-    if (!learningStats?.data?.charts?.dailyStudyTime) {
+    if (!learningStats?.charts?.dailyStudyTime) {
       return [];
     }
     
-    return learningStats.data.charts.dailyStudyTime.map(day => ({
+    return learningStats.charts.dailyStudyTime.map(day => ({
       day: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
       hours: day.hours,
       date: day.date
@@ -42,11 +42,11 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
 
   // 生成学科掌握度数据（基于课程进度和活动类型）
   const masteryLevels = React.useMemo(() => {
-    if (!learningStats?.data?.charts?.activityBreakdown) {
+    if (!learningStats?.charts?.activityBreakdown) {
       return [];
     }
 
-    const breakdown = learningStats.data.charts.activityBreakdown;
+    const breakdown = learningStats.charts.activityBreakdown;
     const subjects = [
       { subject: 'Video Watching', level: Math.min((breakdown.video_watching || 0) / 10, 100), color: 'text-blue-400' },
       { subject: 'Quiz Taking', level: Math.min((breakdown.quiz_taking || 0) / 5, 100), color: 'text-green-400' },
@@ -175,7 +175,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
   }
 
   // 获取统计数据
-  const stats = learningStats?.data?.summary;
+  const stats = learningStats?.summary;
   if (!stats) {
     return (
       <motion.section

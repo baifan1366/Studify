@@ -5,6 +5,9 @@ import { getLLM } from '@/lib/langChain/client';
 import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 
+// Set max duration to 5 minutes (300 seconds) - Vercel's maximum
+export const maxDuration = 300;
+
 // 视频时间轴智能问答API
 export async function POST(request: NextRequest) {
   try {
@@ -157,6 +160,9 @@ export async function POST(request: NextRequest) {
     }
 
     // For regular videos with embeddings/transcripts
+    const dbStartTime = Date.now();
+    console.log(`🔍 [${Date.now()}] Fetching attachment data...`);
+    
     // 2. 获取 attachment ID 用于视频搜索
     const { data: lessonWithAttachment } = await supabase
       .from('course_lesson')
@@ -169,7 +175,9 @@ export async function POST(request: NextRequest) {
       .single();
     
     const attachmentId = lessonWithAttachment?.course_attachments?.[0]?.id;
+    const dbTime = Date.now() - dbStartTime;
     
+    console.log(`✅ [${Date.now()}] DB query completed in ${dbTime}ms`);
     console.log(`🎓 Video QA with embeddings and tool calling: "${question.substring(0, 50)}..."`);
     console.log(`📎 Attachment ID: ${attachmentId}, Current time: ${currentTime}s`);
     
@@ -200,29 +208,86 @@ ${question}
     // 使用 Tool Calling 系统，它会自动：
     // 1. 使用 search tool 进行语义搜索（包括 video_segment 类型）
     // 2. 使用 answer_question tool 生成答案
-    const result = await enhancedAIExecutor.educationalQA(enhancedQuestion, {
-      userId,
-      includeAnalysis: true,
-      contentTypes: ['video_segment', 'lesson', 'note'] // 优先搜索视频片段
-    });
+    // Add timeout to prevent long-running requests (4.5 minutes to stay under 5 min limit)
+    console.log(`🚀 [${Date.now()}] Starting educationalQA with 270s timeout...`);
+    const qaStartTime = Date.now();
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => {
+        console.error(`⏰ [${Date.now()}] Video QA timeout after 270 seconds!`);
+        reject(new Error('Video QA timeout after 270 seconds'));
+      }, 270000)
+    );
+    
+    const result = await Promise.race([
+      enhancedAIExecutor.educationalQA(enhancedQuestion, {
+        userId,
+        includeAnalysis: true,
+        contentTypes: ['video_segment', 'lesson', 'note'], // 优先搜索视频片段
+        videoContext: {
+          lessonId,
+          attachmentId,
+          currentTime
+        }
+      }),
+      timeoutPromise
+    ]) as any;
+
+    const qaTime = Date.now() - qaStartTime;
+    console.log(`✅ [${Date.now()}] educationalQA completed in ${qaTime}ms`);
 
     const answer = result.answer;
     const toolsUsed = result.toolsUsed || [];
     const sources = result.sources || [];
+    const timings = result.timings || {};
     
     console.log(`✅ Video QA completed using tools: ${toolsUsed.join(', ')}`);
     console.log(`📊 Found ${sources.length} sources from embeddings`);
+    console.log(`⏱️ Detailed timings:`, {
+      database: dbTime,
+      qa_total: qaTime,
+      ...timings
+    });
 
     // 从 sources 中提取视频片段信息
+    // 优先使用 video_embeddings 中的 segment 数据
+    console.log(`📊 Processing ${sources.length} sources for video segments`);
+    
     const videoSegments = sources
-      .filter((source: any) => source.type === 'video_segment')
-      .map((source: any) => ({
-        startTime: source.startTime || source.timestamp || 0,
-        endTime: source.endTime || (source.startTime || source.timestamp || 0) + 30,
-        text: source.content || source.contentPreview || '',
-        relevantText: (source.content || source.contentPreview || '').substring(0, 300) + 
-                     ((source.content || source.contentPreview || '').length > 300 ? '...' : '')
-      }));
+      .filter((source: any) => {
+        const isVideoSegment = source.type === 'video_segment' || source.content_type === 'video_segment';
+        if (isVideoSegment) {
+          console.log(`✅ Found video segment:`, {
+            type: source.type || source.content_type,
+            startTime: source.segment_start_time,
+            endTime: source.segment_end_time,
+            hasText: !!source.content_text
+          });
+        }
+        return isVideoSegment;
+      })
+      .map((source: any) => {
+        // 从 source 中提取时间信息 - 支持多种字段名
+        const startTime = source.segment_start_time || source.startTime || source.timestamp || 0;
+        const endTime = source.segment_end_time || source.endTime || (startTime + 30);
+        const text = source.content_text || source.content || source.contentPreview || '';
+        
+        console.log(`📝 Mapped segment:`, {
+          startTime: Math.floor(startTime),
+          endTime: Math.floor(endTime),
+          textLength: text.length
+        });
+        
+        return {
+          startTime: Math.floor(startTime),
+          endTime: Math.floor(endTime),
+          text: text,
+          relevantText: text.substring(0, 300) + (text.length > 300 ? '...' : '')
+        };
+      })
+      .filter((seg: any) => seg.startTime >= 0 && seg.text.length > 0); // 过滤无效数据
+    
+    console.log(`✅ Extracted ${videoSegments.length} valid video segments`);
 
     // 5. 保存问答记录（可选）
     await supabase
@@ -233,7 +298,7 @@ ${question}
         question,
         answer,
         video_time: currentTime,
-        context_segments: videoSegments.map(s => ({
+        context_segments: videoSegments.map((s: any) => ({
           start_time: s.startTime,
           end_time: s.endTime,
           text: s.text.substring(0, 200)
@@ -258,7 +323,12 @@ ${question}
       metadata: {
         toolsUsed,
         sourcesCount: sources.length,
-        videoSegmentsCount: videoSegments.length
+        videoSegmentsCount: videoSegments.length,
+        timings: {
+          database: dbTime,
+          qa_total: qaTime,
+          ...timings
+        }
       }
     }, {
       headers: {
@@ -270,8 +340,24 @@ ${question}
 
   } catch (error) {
     console.error('Video QA error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide more specific error messages
+    if (errorMessage.includes('timeout')) {
+      return NextResponse.json(
+        { 
+          error: 'Request timeout',
+          message: 'The video QA request took too long. Please try asking a more specific question.'
+        },
+        { status: 504 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to process video question' },
+      { 
+        error: 'Failed to process video question',
+        message: errorMessage
+      },
       { status: 500 }
     );
   }
@@ -350,7 +436,16 @@ Requirements:
 
 Return the JSON array directly without additional formatting:`;
 
-    const completion = await model.invoke(prompt);
+    // Add timeout for LLM call (60 seconds)
+    const llmTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('LLM timeout')), 60000)
+    );
+    
+    const completion = await Promise.race([
+      model.invoke(prompt),
+      llmTimeout
+    ]) as any;
+    
     let terms = [];
     
     try {
@@ -392,8 +487,23 @@ Return the JSON array directly without additional formatting:`;
 
   } catch (error) {
     console.error('Video terms extraction error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide graceful fallback for timeout
+    if (errorMessage.includes('timeout')) {
+      return NextResponse.json({
+        success: true,
+        terms: [],
+        suggestions: [],
+        note: 'Term extraction timed out. Please try again.'
+      });
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to extract video terms' },
+      { 
+        error: 'Failed to extract video terms',
+        message: errorMessage
+      },
       { status: 500 }
     );
   }

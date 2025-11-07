@@ -60,7 +60,7 @@ export interface CommunityQuizQuestion {
   slug: string;
   question_text: string;
   options: string[];
-  correct_answers: string[];
+  correct_answers?: string[]; // Optional for non-authors
   explanation?: string;
   question_type: "single_choice" | "multiple_choice" | "fill_in_blank";
 }

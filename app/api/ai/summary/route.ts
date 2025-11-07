@@ -68,9 +68,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = summaryRequestSchema.parse(body);
 
+    const userLanguage = user.profile?.language;
+    const requestLocale = validatedData.locale;
+
+    // Determine final locale: prioritize user profile language
+    let locale: 'en' | 'zh' = 'en';
+    if (userLanguage) {
+      // User has a language preference in their profile
+      locale = (userLanguage === 'zh' || userLanguage === 'zh-CN' || userLanguage.startsWith('zh')) ? 'zh' : 'en';
+    } else if (requestLocale) {
+      // No user preference, use request locale
+      locale = requestLocale;
+    }
+
+    console.log(`📊 AI Summary request from user ${userId}: ${validatedData.mode} mode (locale: ${locale}, user language: ${userLanguage || 'not set'}, request locale: ${requestLocale || 'not provided'})`);
+
     const {
       mode,
-      locale,
       includeCitations,
       stream,
       query,
@@ -81,8 +95,6 @@ export async function POST(request: NextRequest) {
       includeComments,
       includeRelatedContext
     } = validatedData;
-
-    console.log(`📊 AI Summary request from user ${userId}: ${mode} mode (locale: ${locale})`);
 
     const supabase = await createClient();
     const startTime = Date.now();
@@ -346,7 +358,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { 
+        {
           error: 'Validation error',
           details: error.errors
         },
@@ -355,7 +367,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         error: 'AI Summary failed',
         message: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -410,7 +422,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('❌ AI Summary capabilities error:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to get capabilities',
         message: error instanceof Error ? error.message : 'Unknown error'
       },

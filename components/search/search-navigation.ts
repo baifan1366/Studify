@@ -6,21 +6,37 @@ import { SearchResult } from '@/hooks/search/use-universal-search';
 export function generateSearchResultUrl(result: SearchResult): string {
   const { table_name, record_id, content_type, additional_data } = result;
 
+  // Debug logging to help identify missing data
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔗 Generating URL for:', {
+      content_type,
+      record_id,
+      table_name,
+      additional_data
+    });
+  }
+
   switch (content_type) {
     case 'course':
-      // 课程详情页: /courses/[id] 或 /[locale]/courses/[slug]
+      // 课程详情页: /courses/[slug]
       if (additional_data?.slug) {
         return `/courses/${additional_data.slug}`;
       }
+      // Fallback: use ID if slug is missing
+      console.warn('⚠️ Course missing slug, using ID:', record_id);
       return `/courses/${record_id}`;
 
     case 'lesson':
-      // 课程学习页: /courses/[courseSlug]/learn?lesson=[lessonId]
-      if (additional_data?.course_slug && additional_data?.lesson_slug) {
+      // 课程学习页: /courses/[courseSlug]/learn?lesson=[lessonSlug]
+      if (additional_data?.course_slug && additional_data?.public_id) {
+        return `/courses/${additional_data.course_slug}/learn?lesson=${additional_data.public_id}`;
+      } else if (additional_data?.course_slug && additional_data?.lesson_slug) {
         return `/courses/${additional_data.course_slug}/learn?lesson=${additional_data.lesson_slug}`;
       } else if (additional_data?.course_id) {
+        console.warn('⚠️ Lesson missing course_slug, using course_id:', additional_data.course_id);
         return `/courses/${additional_data.course_id}/learn?lesson=${record_id}`;
       }
+      console.warn('⚠️ Lesson missing course data:', result);
       return `/courses/learn?lesson=${record_id}`;
 
     case 'post':
@@ -32,58 +48,79 @@ export function generateSearchResultUrl(result: SearchResult): string {
       if (additional_data?.post_id) {
         return `/community/posts/${additional_data.post_id}#comment-${record_id}`;
       }
+      console.warn('⚠️ Comment missing post_id:', record_id);
       return `/community/posts?comment=${record_id}`;
 
     case 'user':
-      // 用户资料: /profile/[id] 或 /users/[id]
-      if (additional_data?.email) {
+      // 用户资料: /profile/[username] 或 /users/[id]
+      if (additional_data?.username) {
+        return `/profile/${additional_data.username}`;
+      } else if (additional_data?.email) {
         return `/users/${additional_data.email}`;
       }
+      console.warn('⚠️ User missing username/email, using ID:', record_id);
       return `/users/${record_id}`;
 
     case 'classroom':
-      // 教室: /classroom/[id]
-      if (additional_data?.class_code) {
+      // 教室: /classroom/[slug]
+      if (additional_data?.slug) {
+        return `/classroom/${additional_data.slug}`;
+      } else if (additional_data?.class_code) {
         return `/classroom/${additional_data.class_code}`;
       }
+      console.warn('⚠️ Classroom missing slug/class_code, using ID:', record_id);
       return `/classroom/${record_id}`;
 
     case 'group':
-      // 社区群组: /community/groups/[id]
+      // 社区群组: /community/groups/[slug]
       if (additional_data?.slug) {
         return `/community/groups/${additional_data.slug}`;
       }
+      console.warn('⚠️ Group missing slug, using ID:', record_id);
       return `/community/groups/${record_id}`;
 
     case 'note':
-      // 笔记 (可能在课程或个人空间): /notes/[id] 或 /courses/[courseId]/notes/[noteId]
-      if (additional_data?.course_id) {
+      // 笔记: /courses/[courseSlug]/notes/[noteId]
+      if (additional_data?.course_slug) {
+        return `/courses/${additional_data.course_slug}/notes/${record_id}`;
+      } else if (additional_data?.course_id) {
+        console.warn('⚠️ Note missing course_slug, using course_id:', additional_data.course_id);
         return `/courses/${additional_data.course_id}/notes/${record_id}`;
       }
+      console.warn('⚠️ Note missing course data, using standalone URL:', record_id);
       return `/notes/${record_id}`;
 
     case 'quiz':
-      // 测验: /quiz/[id] 或 /classroom/[classroomId]/quiz/[quizId]
-      if (additional_data?.classroom_id) {
+      // 测验: /quiz/[id] 或 /classroom/[classroomSlug]/quiz/[quizId]
+      if (additional_data?.classroom_slug) {
+        return `/classroom/${additional_data.classroom_slug}/quiz/${record_id}`;
+      } else if (additional_data?.classroom_id) {
+        console.warn('⚠️ Quiz missing classroom_slug, using classroom_id:', additional_data.classroom_id);
         return `/classroom/${additional_data.classroom_id}/quiz/${record_id}`;
+      } else if (additional_data?.course_slug) {
+        return `/courses/${additional_data.course_slug}/quiz/${record_id}`;
       } else if (additional_data?.course_id) {
+        console.warn('⚠️ Quiz missing course_slug, using course_id:', additional_data.course_id);
         return `/courses/${additional_data.course_id}/quiz/${record_id}`;
       }
+      console.warn('⚠️ Quiz missing context data, using standalone URL:', record_id);
       return `/quiz/${record_id}`;
 
     case 'tutor':
-      // 导师资料: /tutors/[id]
+      // 导师资料: /tutors/[userId]
       if (additional_data?.user_id) {
         return `/tutors/${additional_data.user_id}`;
       }
+      console.warn('⚠️ Tutor missing user_id, using record_id:', record_id);
       return `/tutors/${record_id}`;
 
     case 'announcement':
-      // 公告: /announcements/[id] 或在首页显示
+      // 公告: /announcements/[id]
       return `/announcements/${record_id}`;
 
     default:
       // 默认跳转到搜索结果页
+      console.warn('⚠️ Unknown content type, using search fallback:', content_type);
       return `/search?type=${content_type}&id=${record_id}`;
   }
 }

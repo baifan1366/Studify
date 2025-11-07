@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, X, Users, User, Loader2, Send } from "lucide-react";
 import { Post } from "@/interface/community/post-interface";
 import { useTranslations } from "next-intl";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 interface SearchResult {
   id: number;
@@ -167,7 +168,15 @@ export default function SharePostDialog({
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={post.author?.avatar_url} />
+                {post.author?.avatar_url && post.author.avatar_url.includes('mega.nz') ? (
+                  <MegaImage
+                    megaUrl={post.author.avatar_url}
+                    alt={post.author.display_name || ''}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <AvatarImage src={post.author?.avatar_url} />
+                )}
                 <AvatarFallback>{post.author?.display_name?.[0]}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
@@ -240,7 +249,15 @@ export default function SharePostDialog({
                 className="w-full p-3 text-left hover:bg-gray-700 transition-colors flex items-center gap-3"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={result.avatar_url} />
+                  {result.avatar_url && result.avatar_url.includes('mega.nz') ? (
+                    <MegaImage
+                      megaUrl={result.avatar_url}
+                      alt={result.name || ''}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <AvatarImage src={result.avatar_url} />
+                  )}
                   <AvatarFallback>{result.name[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">

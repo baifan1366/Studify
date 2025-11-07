@@ -94,6 +94,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
       duration_sec: validatedData.duration_sec,
       live_session_id: body.live_session_id,
       attachments: validatedData.attachments,
+      transcript: body.transcript || null, // ✅ Support transcript updates
       updated_at: new Date().toISOString(),
     } as Record<string, any>;
 

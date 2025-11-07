@@ -79,7 +79,7 @@ export default function PostCard({ post }: { post: Post }) {
   };
 
   return (
-    <Card className="bg-white/5 backdrop-blur-lg border border-white/10 text-white rounded-xl shadow-lg hover:bg-white/10 transition-all duration-200">
+    <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -88,19 +88,19 @@ export default function PostCard({ post }: { post: Post }) {
                 <Link href={groupPath}>
                   <Badge
                     variant="outline"
-                    className="border-blue-400 text-blue-400 hover:bg-blue-400/10 cursor-pointer"
+                    className="border-primary text-primary hover:bg-primary/10 cursor-pointer"
                   >
                     <Users className="w-3 h-3 mr-1" />
                     {post.group.name}
                   </Badge>
                 </Link>
               )}
-              <div className="flex items-center text-xs text-gray-400">
+              <div className="flex items-center text-xs text-muted-foreground">
                 <Clock className="w-3 h-3 mr-1" />
                 {formatTimeAgo(post.created_at || new Date().toISOString())}
               </div>
             </div>
-            <CardTitle className="text-lg leading-tight hover:text-blue-300 cursor-pointer">
+            <CardTitle className="text-lg leading-tight text-gray-900 dark:text-white hover:text-primary cursor-pointer">
               {postPath ? (
                 <Link href={postPath}>
                   {post.title}
@@ -109,14 +109,14 @@ export default function PostCard({ post }: { post: Post }) {
                 <span>{post.title}</span>
               )}
             </CardTitle>
-            <p className="text-sm text-gray-300 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {t('by_prefix')}{post.author?.display_name || t('unknown_user')}
             </p>
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <p className="text-gray-200 line-clamp-3">{post.body}</p>
+        <p className="text-foreground line-clamp-3">{post.body}</p>
 
         {post.files && post.files.length > 0 && (
           <div className="mt-4">
@@ -124,7 +124,7 @@ export default function PostCard({ post }: { post: Post }) {
               {post.files.map((file) => (
                 <div
                   key={file.id}
-                  className="bg-black/30 rounded-lg overflow-hidden group hover:ring-2 hover:ring-blue-400 transition-all"
+                  className="bg-muted rounded-lg overflow-hidden group hover:ring-2 hover:ring-primary transition-all"
                 >
                   {file.mime_type.startsWith("image/") ? (
                     <ZoomImage
@@ -146,8 +146,8 @@ export default function PostCard({ post }: { post: Post }) {
                       rel="noopener noreferrer"
                       className="w-full h-full flex flex-col items-center justify-center p-2"
                     >
-                      <Paperclip className="w-6 h-6 text-gray-400" />
-                      <span className="text-xs text-gray-400 text-center truncate w-full mt-1 group-hover:text-blue-300">
+                      <Paperclip className="w-6 h-6 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground text-center truncate w-full mt-1 group-hover:text-primary">
                         {file.file_name}
                       </span>
                     </a>
@@ -159,12 +159,12 @@ export default function PostCard({ post }: { post: Post }) {
         )}
       </CardContent>
       <CardFooter className="flex flex-col gap-2 pt-3">
-        <div className="flex justify-between w-full text-gray-300">
+        <div className="flex justify-between w-full text-muted-foreground">
           <div className="flex space-x-4">
             <Button
               variant="ghost"
               size="sm"
-              className="hover:bg-white/10 hover:text-white px-2"
+              className="hover:bg-muted px-2"
               onClick={() => handleReaction("👍")}
               disabled={toggleReactionMutation.isPending}
             >
@@ -174,7 +174,7 @@ export default function PostCard({ post }: { post: Post }) {
             <Button
               variant="ghost"
               size="sm"
-              className="hover:bg-white/10 hover:text-white px-2"
+              className="hover:bg-muted px-2"
               onClick={() => handleReaction("❤️")}
               disabled={toggleReactionMutation.isPending}
             >
@@ -184,7 +184,7 @@ export default function PostCard({ post }: { post: Post }) {
             <Button
               variant="ghost"
               size="sm"
-              className="hover:bg-white/10 hover:text-white px-2"
+              className="hover:bg-muted px-2"
             >
               <MessageSquare className="mr-1 h-4 w-4" />
               <span className="text-xs">{post.comments_count || 0}</span>
@@ -192,7 +192,7 @@ export default function PostCard({ post }: { post: Post }) {
             <Button
               variant="ghost"
               size="sm"
-              className="hover:bg-white/10 hover:text-white px-2"
+              className="hover:bg-muted px-2"
               onClick={() => setShowShareDialog(true)}
             >
               <Send className="mr-1 h-4 w-4" />

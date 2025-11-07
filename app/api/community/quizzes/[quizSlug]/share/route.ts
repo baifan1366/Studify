@@ -43,7 +43,7 @@ export async function POST(
     } = body;
 
     // 验证permission_type
-    if (!['view', 'attempt', 'edit'].includes(permission_type)) {
+    if (!['attempt', 'edit'].includes(permission_type)) {
       return NextResponse.json(
         { error: "Invalid permission type" },
         { status: 400 }

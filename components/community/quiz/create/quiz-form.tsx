@@ -95,7 +95,7 @@ export default function QuizForm() {
         onChange={(e) => setDescription(e.target.value)}
       />
       <div>
-        <label className="block mb-2 font-medium">Difficulty (1-5)</label>
+        <Label className="block mb-2 font-medium">Difficulty (1-5)</Label>
         <Input
           type="number"
           min={1}

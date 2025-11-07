@@ -2,6 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslations } from "next-intl";
 import { CheckCircle, Clock, Award } from "lucide-react";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 interface LeaderItem {
   rank: number;
@@ -73,7 +74,15 @@ export default function QuizLeaderboard({
 
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={entry.avatar_url || ""} />
+                    {entry.avatar_url && entry.avatar_url.includes('mega.nz') ? (
+                      <MegaImage
+                        megaUrl={entry.avatar_url}
+                        alt={entry.display_name || ''}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <AvatarImage src={entry.avatar_url || ""} />
+                    )}
                     <AvatarFallback>
                       {entry.display_name ? entry.display_name.charAt(0).toUpperCase() : "?"}
                     </AvatarFallback>

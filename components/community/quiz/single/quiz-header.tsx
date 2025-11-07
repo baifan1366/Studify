@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import MegaImage from "@/components/attachment/mega-blob-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, Share2, Lock, Eye, CheckCircle, Pencil, BookOpen, GraduationCap, Trash2 } from "lucide-react";
@@ -59,10 +60,18 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
       </h1>
       <div className="flex items-center mb-4">
         <Avatar className="h-10 w-10 mr-3">
-          <AvatarImage
-            src={quiz.author?.avatar_url || ''}
-            alt={quiz.author?.display_name || ''}
-          />
+          {quiz.author?.avatar_url && quiz.author.avatar_url.includes('mega.nz') ? (
+            <MegaImage
+              megaUrl={quiz.author.avatar_url}
+              alt={quiz.author.display_name || ''}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <AvatarImage
+              src={quiz.author?.avatar_url || ''}
+              alt={quiz.author?.display_name || ''}
+            />
+          )}
           <AvatarFallback>{quiz.author?.display_name?.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
@@ -105,6 +114,15 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               if (isNavigating) return;
               setIsNavigating(true);
               try {
+                // Authors and users with edit permission go directly to preview mode (no attempt creation)
+                if (isAuthor || attemptStatus?.userPermission === 'edit') {
+                  const route = isTutor
+                    ? `/tutor/community/quizzes/${quiz.slug}/attempt?mode=preview`
+                    : `/community/quizzes/${quiz.slug}/attempt?mode=preview`;
+                  router.push(route);
+                  return;
+                }
+
                 // 1) Check current attempt and session
                 let attemptId: number | null = null;
                 let sessionPublicId: string | null = null;
@@ -172,7 +190,7 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               ? t('starting')
               : attemptStatus?.hasInProgressAttempt
                 ? t('continue_quiz')
-                : isAuthor
+                : (isAuthor || attemptStatus?.userPermission === 'edit')
                   ? t('preview_quiz')
                   : t('start_quiz')}
           </Button>
@@ -182,12 +200,6 @@ export default function QuizHeader({ quiz }: { quiz: CommunityQuiz }) {
               <>
                 <Lock className="h-5 w-5 mr-2" />
                 {t('status.no_access')}
-              </>
-            )}
-            {attemptStatus?.accessReason === "view_only_permission" && (
-              <>
-                <Eye className="h-5 w-5 mr-2" />
-                {t('status.view_only')}
               </>
             )}
             {attemptStatus?.accessReason === "max_attempts_reached" && (

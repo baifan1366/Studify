@@ -498,7 +498,9 @@ export async function GET(
             'Accept-Ranges': 'bytes',
             'Content-Length': chunkSize.toString(),
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year (video chunks don't change)
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length',
           },
         })
       } else {
@@ -661,7 +663,9 @@ export async function GET(
             'Content-Length': fileSize.toString(),
             'Content-Type': contentType,
             'Accept-Ranges': 'bytes',
-            'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length',
           },
         })
       }

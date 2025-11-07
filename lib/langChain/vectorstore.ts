@@ -100,6 +100,12 @@ export interface SearchResult {
     word_count?: number;
     sentence_count?: number;
   };
+  // Video segment specific fields
+  segment_start_time?: number;
+  segment_end_time?: number;
+  segment_index?: number;
+  attachment_id?: number;
+  type?: string;
 }
 
 interface DualSearchOptions {
@@ -109,6 +115,11 @@ interface DualSearchOptions {
   userId?: number;
   searchType?: 'e5_only' | 'bge_only' | 'hybrid';
   embeddingWeights?: { e5: number; bge: number };
+  videoContext?: {
+    lessonId?: string;
+    attachmentId?: number;
+    currentTime?: number;
+  };
 }
 
 // Content types enum
@@ -119,7 +130,8 @@ export const CONTENT_TYPES = {
   COURSE: 'course',
   LESSON: 'lesson',
   AUTH_USER: 'auth_user',
-  QUIZ_QUESTION: 'quiz_question'
+  QUIZ_QUESTION: 'quiz_question',
+  VIDEO_SEGMENT: 'video_segment'
 } as const;
 
 export type ContentType = typeof CONTENT_TYPES[keyof typeof CONTENT_TYPES];
@@ -588,17 +600,28 @@ export class VectorStore {
       let searchFunction: string;
       let searchParams: any;
 
+      // Check if we need video context (for video_embeddings table)
+      const hasVideoContext = options.videoContext && 
+        (options.videoContext.attachmentId || options.videoContext.lessonId);
+
       if (searchType === 'hybrid') {
-        searchFunction = 'search_embeddings_hybrid'; // General-purpose hybrid search
+        // Use unified search if video context is provided or video_segment is in content types
+        const needsUnifiedSearch = hasVideoContext || 
+          (contentTypes && contentTypes.includes('video_segment'));
+        
+        searchFunction = needsUnifiedSearch ? 'search_content_unified' : 'search_embeddings_hybrid';
         searchParams = {
           query_embedding_e5: queryEmbeddingE5 ? `[${queryEmbeddingE5.join(',')}]` : null,
-          query_embedding_bge: queryEmbeddingBGE ? `[${queryEmbeddingBGE.join(',')}]` : null, // ✅ Enabled BGE
+          query_embedding_bge: queryEmbeddingBGE ? `[${queryEmbeddingBGE.join(',')}]` : null,
           content_types: contentTypes || null,
           match_threshold: similarityThreshold,
           match_count: maxResults,
-          weight_e5: embeddingWeights.e5, // Use configured weights
-          weight_bge: embeddingWeights.bge, // Use configured weights
-          user_id: userId || null
+          weight_e5: embeddingWeights.e5,
+          weight_bge: embeddingWeights.bge,
+          user_id: userId || null,
+          ...(needsUnifiedSearch && options.videoContext ? {
+            video_context: JSON.stringify(options.videoContext)
+          } : {})
         };
       } else if (searchType === 'e5_only') {
         searchFunction = 'search_embeddings_e5'; // General-purpose E5 search

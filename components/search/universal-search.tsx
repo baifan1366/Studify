@@ -68,17 +68,17 @@ const contentTypeIcons: Record<string, React.ReactNode> = {
 };
 
 const contentTypeColors: Record<string, string> = {
-  course: 'bg-blue-500/20 text-blue-300 border-blue-400/30',
-  lesson: 'bg-green-500/20 text-green-300 border-green-400/30',
-  post: 'bg-purple-500/20 text-purple-300 border-purple-400/30',
-  comment: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/30',
-  user: 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30',
-  classroom: 'bg-red-500/20 text-red-300 border-red-400/30',
-  group: 'bg-pink-500/20 text-pink-300 border-pink-400/30',
-  note: 'bg-gray-500/20 text-gray-300 border-gray-400/30',
-  quiz: 'bg-orange-500/20 text-orange-300 border-orange-400/30',
-  tutor: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30',
-  announcement: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
+  course: 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-400/30',
+  lesson: 'bg-green-500/10 dark:bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/20 dark:border-green-400/30',
+  post: 'bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/20 dark:border-purple-400/30',
+  comment: 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 dark:border-indigo-400/30',
+  user: 'bg-yellow-500/10 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 dark:border-yellow-400/30',
+  classroom: 'bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-400/30',
+  group: 'bg-pink-500/10 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400 border-pink-500/20 dark:border-pink-400/30',
+  note: 'bg-gray-500/10 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-500/20 dark:border-gray-400/30',
+  quiz: 'bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/20 dark:border-orange-400/30',
+  tutor: 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/20 dark:border-cyan-400/30',
+  announcement: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-400/30',
 };
 
 export default function UniversalSearch({ 
@@ -145,7 +145,12 @@ export default function UniversalSearch({
     }
     
     // 使用内置导航逻辑
-    handleSearchResultClick(result, router);
+    try {
+      handleSearchResultClick(result, router);
+    } catch (error) {
+      console.error('❌ Failed to navigate to search result:', error);
+      console.error('Result data:', result);
+    }
   };
 
   const handleResultHover = (result: SearchResult) => {
@@ -198,7 +203,7 @@ export default function UniversalSearch({
     <div ref={searchRef} className={cn("relative w-full", className)}>
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none z-10" />
         <Input
           ref={inputRef}
           type="text"
@@ -206,13 +211,13 @@ export default function UniversalSearch({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           placeholder={placeholder || getSearchTranslation('UniversalSearch.placeholder', 'Search courses, lessons, posts, users...')}
-          className="pl-10 pr-12 bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-blue-400 focus:ring-blue-400/20"
+          className="pl-10 pr-20 bg-background/50 dark:bg-background/80 border-border hover:border-primary/50 focus:border-primary transition-colors"
         />
         
         {/* Filter Button */}
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {hasActiveFilters && (
-            <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 text-xs px-1 py-0">
+            <Badge variant="secondary" className="bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs px-1.5 py-0.5">
               {selectedTables.length + (context !== 'general' ? 1 : 0)}
             </Badge>
           )}
@@ -221,17 +226,17 @@ export default function UniversalSearch({
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10"
+                className="h-8 w-8 p-0 hover:bg-accent"
               >
                 <Filter className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-gray-900/95 backdrop-blur-sm border-white/20 z-[110]">
-              <DropdownMenuLabel className="text-white">{getSearchTranslation('UniversalSearch.filters', 'Filters')}</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56 z-[110]">
+              <DropdownMenuLabel>{getSearchTranslation('UniversalSearch.filters', 'Filters')}</DropdownMenuLabel>
               
               {/* Context Filter */}
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-white/70 text-xs">{getSearchTranslation('UniversalSearch.context', 'Context')}</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-muted-foreground text-xs">{getSearchTranslation('UniversalSearch.context', 'Context')}</DropdownMenuLabel>
               {[
                 { id: 'general', label: 'General' },
                 { id: 'learning', label: 'Learning' },
@@ -241,8 +246,7 @@ export default function UniversalSearch({
                   key={ctx.id}
                   onClick={() => setContext(ctx.id as any)}
                   className={cn(
-                    "text-white hover:bg-white/10",
-                    context === ctx.id && "bg-blue-500/20"
+                    context === ctx.id && "bg-blue-500/10 dark:bg-blue-500/20"
                   )}
                 >
                   {ctx.label}
@@ -251,14 +255,14 @@ export default function UniversalSearch({
 
               {/* Content Type Filters */}
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-white/70 text-xs">{getSearchTranslation('UniversalSearch.content_types', 'Content Types')}</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-muted-foreground text-xs">{getSearchTranslation('UniversalSearch.content_types', 'Content Types')}</DropdownMenuLabel>
               {contentTypes.map((type) => (
                 <DropdownMenuItem
                   key={type.id}
                   onClick={() => toggleContentType(type.id)}
                   className={cn(
-                    "text-white hover:bg-white/10 flex items-center gap-2",
-                    selectedTables.some(table => table.includes(type.id)) && "bg-blue-500/20"
+                    "flex items-center gap-2",
+                    selectedTables.some(table => table.includes(type.id)) && "bg-blue-500/10 dark:bg-blue-500/20"
                   )}
                 >
                   <span>{type.icon}</span>
@@ -271,7 +275,7 @@ export default function UniversalSearch({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={clearFilters}
-                    className="text-red-400 hover:bg-red-500/10"
+                    className="text-red-600 dark:text-red-400 hover:bg-red-500/10"
                   >
                     <X className="w-4 h-4 mr-2" />
                     {getSearchTranslation('UniversalSearch.clear_filters', 'Clear Filters')}
@@ -291,11 +295,11 @@ export default function UniversalSearch({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-full left-0 right-0 mt-2 z-[100] bg-gray-900/95 backdrop-blur-sm border border-white/20 rounded-xl shadow-2xl max-h-96 overflow-hidden"
+            className="absolute top-full left-0 right-0 mt-2 z-[100] bg-popover/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl max-h-96 overflow-hidden"
           >
             {/* Loading State */}
             {isLoading && (
-              <div className="p-4 flex items-center justify-center text-white/70">
+              <div className="p-4 flex items-center justify-center text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 {getSearchTranslation('UniversalSearch.searching', 'Searching...')}
               </div>
@@ -303,7 +307,7 @@ export default function UniversalSearch({
 
             {/* Error State */}
             {error && (
-              <div className="p-4 text-red-400 text-sm">
+              <div className="p-4 text-red-600 dark:text-red-400 text-sm">
                 {getSearchTranslation('UniversalSearch.search_error', 'Search failed. Please try again.')}
               </div>
             )}
@@ -311,7 +315,7 @@ export default function UniversalSearch({
             {/* Search History (when no query) */}
             {!query.trim() && searchHistory.length > 0 && (
               <div className="p-2">
-                <div className="flex items-center justify-between px-2 py-1 text-white/70 text-xs">
+                <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-xs">
                   <span className="flex items-center gap-1">
                     <History className="w-3 h-3" />
                     {getSearchTranslation('UniversalSearch.recent_searches', 'Recent Searches')}
@@ -320,7 +324,7 @@ export default function UniversalSearch({
                     variant="ghost"
                     size="sm"
                     onClick={clearHistory}
-                    className="h-5 px-1 text-white/50 hover:text-white/70"
+                    className="h-5 px-1 text-muted-foreground hover:text-foreground"
                   >
                     {getSearchTranslation('UniversalSearch.clear', 'Clear')}
                   </Button>
@@ -330,9 +334,9 @@ export default function UniversalSearch({
                     <button
                       key={index}
                       onClick={() => handleHistoryClick(historyQuery)}
-                      className="w-full text-left px-3 py-2 text-white/80 hover:bg-white/10 rounded-lg text-sm transition-colors"
+                      className="w-full text-left px-3 py-2 text-foreground hover:bg-accent rounded-lg text-sm transition-colors"
                     >
-                      <Clock className="w-3 h-3 inline mr-2 text-white/50" />
+                      <Clock className="w-3 h-3 inline mr-2 text-muted-foreground" />
                       {historyQuery}
                     </button>
                   ))}
@@ -344,13 +348,13 @@ export default function UniversalSearch({
             {searchResults.data && query.trim() && (
               <div className="max-h-80 overflow-y-auto">
                 {searchResults.data.results.length === 0 ? (
-                  <div className="p-4 text-white/70 text-center">
+                  <div className="p-4 text-muted-foreground text-center">
                     {getSearchTranslation('UniversalSearch.no_results', 'No results found')}
                   </div>
                 ) : (
                   <div className="p-2 space-y-1">
                     {/* Results Summary */}
-                    <div className="px-2 py-1 text-white/50 text-xs flex items-center justify-between">
+                    <div className="px-2 py-1 text-muted-foreground text-xs flex items-center justify-between">
                       <span>
                         {getSearchTranslation('UniversalSearch.results_count', `${searchResults.data.stats.total_results} results`).replace('{count}', searchResults.data.stats.total_results.toString())}
                       </span>
@@ -380,8 +384,8 @@ export default function UniversalSearch({
                           className={cn(
                             "w-full text-left p-3 rounded-lg transition-all duration-200 group relative",
                             isHovered 
-                              ? "bg-blue-500/10 border border-blue-400/30" 
-                              : "hover:bg-white/10 border border-transparent"
+                              ? "bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/30 dark:border-blue-400/30" 
+                              : "hover:bg-accent border border-transparent"
                           )}
                         >
                           <div className="flex items-start gap-3">
@@ -389,9 +393,7 @@ export default function UniversalSearch({
                             <div className="flex-shrink-0 mt-0.5">
                               <div className={cn(
                                 "p-1.5 rounded-md transition-colors",
-                                isHovered 
-                                  ? contentTypeColors[result.content_type]?.replace('/20', '/30') || 'bg-gray-500/30'
-                                  : contentTypeColors[result.content_type] || 'bg-gray-500/20'
+                                contentTypeColors[result.content_type] || 'bg-gray-500/10 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
                               )}>
                                 {contentTypeIcons[result.content_type] || <FileText className="w-4 h-4" />}
                               </div>
@@ -405,8 +407,8 @@ export default function UniversalSearch({
                                   text={result.title}
                                   searchQuery={query}
                                   className={cn(
-                                    "truncate transition-colors",
-                                    isHovered ? "text-blue-300" : "text-white"
+                                    "truncate transition-colors font-medium",
+                                    isHovered ? "text-blue-600 dark:text-blue-400" : "text-foreground"
                                   )}
                                 />
                                 <Badge 
@@ -421,7 +423,7 @@ export default function UniversalSearch({
 
                               {/* Primary Info (Author, Instructor, etc.) */}
                               {previewInfo.primaryInfo && (
-                                <div className="text-white/60 text-xs mb-1 flex items-center gap-1">
+                                <div className="text-muted-foreground text-xs mb-1 flex items-center gap-1">
                                   <Users className="w-3 h-3" />
                                   <span>{previewInfo.primaryInfo}</span>
                                   {previewInfo.secondaryInfo && (
@@ -442,7 +444,7 @@ export default function UniversalSearch({
 
                               {/* Metadata and Stats */}
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4 text-white/50 text-xs">
+                                <div className="flex items-center gap-4 text-muted-foreground text-xs">
                                   <span className="flex items-center gap-1">
                                     <TrendingUp className="w-3 h-3" />
                                     {(result.rank * 100).toFixed(0)}%
@@ -453,7 +455,7 @@ export default function UniversalSearch({
                                   </span>
                                   {previewInfo.metadata.rating && (
                                     <span className="flex items-center gap-1">
-                                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                      <Star className="w-3 h-3 fill-yellow-500 text-yellow-500 dark:fill-yellow-400 dark:text-yellow-400" />
                                       {previewInfo.metadata.rating.toFixed(1)}
                                     </span>
                                   )}
@@ -461,7 +463,7 @@ export default function UniversalSearch({
 
                                 {/* Quick Preview Indicator */}
                                 {isHovered && (
-                                  <div className="flex items-center gap-1 text-blue-400 text-xs">
+                                  <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
                                     <ExternalLink className="w-3 h-3" />
                                     <span>Open</span>
                                   </div>
@@ -473,9 +475,9 @@ export default function UniversalSearch({
                                 <motion.div
                                   initial={{ opacity: 0, height: 0 }}
                                   animate={{ opacity: 1, height: 'auto' }}
-                                  className="mt-2 pt-2 border-t border-white/10"
+                                  className="mt-2 pt-2 border-t border-border"
                                 >
-                                  <div className="flex items-center gap-2 text-white/60 text-xs">
+                                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
                                     <Eye className="w-3 h-3" />
                                     <span>{previewInfo.tertiaryInfo}</span>
                                   </div>
@@ -498,10 +500,10 @@ export default function UniversalSearch({
 
                     {/* View All Results */}
                     {searchResults.data.results.length > 8 && (
-                      <div className="pt-2 border-t border-white/10">
+                      <div className="pt-2 border-t border-border">
                         <Button 
                           variant="ghost" 
-                          className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                          className="w-full text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
                           onClick={() => {
                             setShowResults(false);
                             // Navigate to full search results page

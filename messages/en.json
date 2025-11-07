@@ -273,16 +273,33 @@
     "keyboard_shortcuts": {
       "play_pause": "Play/Pause",
       "seek_backward_forward": "Seek backward/forward 10s",
+      "toggle_notes": "Toggle Notes Sidebar",
       "volume_up_down": "Volume up/down",
       "mute": "Mute",
       "fullscreen": "Fullscreen",
       "toggle_danmaku": "Toggle Danmaku",
       "toggle_comments": "Toggle Comments",
       "ask_ai": "Ask AI about video content",
-      "toggle_terms": "Toggle key terms"
+      "toggle_terms": "Toggle key terms",
+      "toggle_chapters": "Toggle Chapters"
     },
     "quality": "Quality",
     "auto": "Auto",
+    "normal": "Normal",
+    "quality_changed": "Quality Changed",
+    "auto_quality": "Auto (Adaptive Bitrate)",
+    "quality_not_available": "Quality selection not available",
+    "quality_requires_hls": "This video is in MP4 format. To enable quality switching, convert it to HLS format (.m3u8) with multiple bitrates.",
+    "learn_more": "Learn more about HLS",
+    "show_stats": "Show Stats",
+    "stats_title": "Video Statistics",
+    "current_quality": "Quality",
+    "bandwidth": "Bandwidth",
+    "buffer": "Buffer",
+    "dropped_frames": "Dropped",
+    "resolution": "Resolution",
+    "speed": "Speed",
+    "codec": "Codec",
     "danmaku_placeholder": "Add a bullet comment to witness this moment",
     "default_lesson_title": "Course Lesson",
     "edit": "Edit",
@@ -336,6 +353,19 @@
     "course_context": "Course Context",
     "ask_another_question": "Ask Another Question",
     "close": "Close",
+    "save_as_note": "Save as Note",
+    "saving_note": "Saving...",
+    "note_saved": "Note Saved",
+    "note_saved_description": "AI answer has been saved to your course notes",
+    "note_save_failed": "Failed to Save Note",
+    "note_save_failed_description": "Please try again later",
+    "show_notes": "Show Notes",
+    "hide_notes": "Hide Notes",
+    "notes_at_timestamp": "Notes at this timestamp",
+    "no_notes_at_timestamp": "No notes at this timestamp",
+    "jump_to_note": "Jump to Note",
+    "buffering": "Buffering...",
+    "buffered": "Buffered",
     "quick_questions": "Quick Questions",
     "explain_this_concept": "Can you explain this concept?",
     "what_is_key_point": "What is the key point here?",
@@ -348,6 +378,18 @@
     "terms_auto_detected": "Terms automatically detected from video content",
     "view_key_terms": "View key terms",
     "video_liked": "Video liked!",
+    "check_out_video": "Check out this video",
+    "link_copied": "Link Copied!",
+    "link_copied_desc": "Video link has been copied to clipboard",
+    "share_failed": "Share Failed",
+    "share_failed_desc": "Failed to share video link",
+    "download_started": "Download Started",
+    "download_started_desc": "Your video download has started",
+    "download_failed": "Download Failed",
+    "download_failed_desc": "Failed to download video",
+    "download_not_available": "Download Not Available",
+    "download_external_video": "This video is hosted externally and cannot be downloaded directly",
+    "posting": "Posting...",
     "video_disliked": "Video disliked!",
     "changed_to_like": "Changed to like!",
     "changed_to_dislike": "Changed to dislike!",
@@ -358,7 +400,33 @@
     "comment_posted": "Comment posted!",
     "comment_post_failed": "Failed to post comment",
     "comment_update_failed": "Failed to update comment",
-    "comment_delete_failed": "Failed to delete comment"
+    "comment_delete_failed": "Failed to delete comment",
+    "click_timestamp_to_jump": "Click on timestamps to jump to that moment in the video",
+    "no_video_segments_title": "No Video Segments Available",
+    "no_video_segments_message": "This video hasn't been processed for transcript segmentation yet. The AI has answered your question based on course content, but cannot provide precise video timestamp navigation.",
+    "chapters": "Chapters",
+    "show_chapters": "Show Chapters",
+    "hide_chapters": "Hide Chapters",
+    "chapter": "Chapter",
+    "current_chapter": "Current Chapter",
+    "jump_to_chapter": "Jump to Chapter",
+    "chapter_list": "Chapter List",
+    "no_chapters": "No chapters available for this video",
+    "video_error": "Video Error",
+    "video_error_desc": "Failed to load video. Please try again or contact support.",
+    "notes_sidebar_title": "Course Notes",
+    "nearby_notes": "nearby notes",
+    "total_notes": "total notes",
+    "no_notes_nearby": "No notes nearby",
+    "notes_will_appear_here": "Notes will automatically appear here when you reach a timestamp with notes",
+    "view_all_notes": "View All Notes",
+    "more_notes": "more",
+    "press_n_to_toggle": "Press",
+    "to_toggle_sidebar": "to toggle sidebar",
+    "now": "now",
+    "away": "away",
+    "active": "Active",
+    "summary": "Summary"
   },
   "LessonContent": {
     "content_coming_soon": "Content coming soon",
@@ -1552,7 +1620,6 @@
     "in_progress": "In Progress",
     "completed": "Completed",
     "graded": "Graded",
-    "view_only": "View Only",
     "can_attempt": "Can Attempt",
     "can_edit": "Can Edit",
     "no_expiry": "No expiry",
@@ -1594,7 +1661,23 @@
     "copy": "Copy",
     "copy_summary_glance": "Copy summary at a glance",
     "hide": "Hide",
-    "show": "Show"
+    "show": "Show",
+    "title": "AI Summary",
+    "auto_summarize": "Auto summarize",
+    "regenerate": "Regenerate",
+    "generate": "Generate",
+    "summary_at_glance": "Summary at a Glance",
+    "show_details": "Show Details",
+    "hide_details": "Hide Details",
+    "no_summary_yet": "No summary yet. Click Generate to create an AI summary for your search.",
+    "failed_to_generate": "Failed to generate summary. Please try again.",
+    "generate_concise_summary": "Generate a concise summary based on your top search results.",
+    "no_results_yet": "No results yet. Try adjusting your search to enable summarization.",
+    "type_query_to_enable": "Type a query to enable AI summary.",
+    "themes": "Themes",
+    "sources": "Sources",
+    "key_points": "Key Points",
+    "copied": "Copied!"
   },
   "CommunityHighlights": {
     "title": "Learning Community",
@@ -1981,16 +2064,16 @@
     "features": "Smart cache • Context-aware",
     "thinking": "Thinking...",
     "welcome": {
-      "title": "Start Learning Conversation",
-      "description": "Ask me any questions about this video, I will provide detailed answers based on course content",
-      "quick_start": "💡 Quick Start:",
+      "title": "AI Learning Assistant",
+      "description": "Ask me anything about this lesson",
+      "quick_start": "Quick Start Questions:",
       "preset_questions": {
-        "lesson_focus": "What are the key points of this lesson?",
-        "core_concepts": "What core concepts do I need to master?",
-        "practice_questions": "Are there any related practice questions?",
-        "practical_applications": "What are the practical applications of this knowledge?",
-        "explain_current": "I didn't understand what was just explained, can you explain in detail?",
-        "explain_selected": "Explain the content I selected"
+        "explain_current": "Explain what's happening at this moment",
+        "explain_selected": "Explain the selected text",
+        "lesson_focus": "What is the main focus of this lesson?",
+        "core_concepts": "What are the core concepts?",
+        "practice_questions": "Give me some practice questions",
+        "practical_applications": "What are the practical applications?"
       }
     },
     "confidence": {
@@ -1999,36 +2082,32 @@
       "low": "Low Confidence"
     },
     "sources": {
-      "title": "Reference Sources",
-      "count": "({count} sources)",
-      "click_to_jump": "Click to jump",
+      "title": "Sources",
+      "count": "{count} sources",
       "view": "View",
+      "click_to_jump": "Click to jump",
+      "click_timestamp_hint": "Click on timestamps to jump to that moment in the video",
       "types": {
-        "video_segment": "Video",
+        "video_segment": "Video Segment",
         "course_content": "Course Content",
         "lesson": "Lesson",
-        "note": "Notes",
-        "web": "Web Search",
+        "note": "Note",
+        "web": "Web",
         "metadata": "Metadata"
       }
     },
     "suggested_actions": {
-      "title": "Suggested Actions",
-      "title_colon": "Suggested Actions:",
-      "view_materials": "View related course materials",
-      "take_notes": "Take notes on key points",
-      "try_exercises": "Try related exercises"
+      "title_colon": "Suggested Actions:"
     },
     "related_concepts": {
       "title": "Related Concepts"
     },
     "input": {
-      "placeholder": "Ask any questions about this video...",
-      "context_info": "Current location: {timestamp}",
-      "selected_text": " | Selected: \"{text}...\"",
-      "selected_prefix": "Selected:",
-      "context_prefix": "📍",
-      "send_button": "Send"
+      "placeholder": "Ask a question about this lesson...",
+      "context_prefix": "Context:",
+      "context_info": "At {timestamp}",
+      "selected_text": "Selected: {text}",
+      "selected_prefix": "Selected"
     },
     "loading_stages": {
       "analyzing": "Analyzing your question...",
@@ -2046,7 +2125,7 @@
       },
       "jump_timestamp": {
         "title": "Jump to Timestamp",
-        "description": "Will jump to {timestamp} (feature in development)",
+        "description": "Click to jump to {timestamp}",
         "jumped_to": "Jumped to {timestamp}",
         "failed_to_jump": "Failed to jump to {timestamp}"
       }
@@ -2275,7 +2354,10 @@
     "course_under_review": "Course Under Review",
     "course_under_review_desc": "This course is currently being updated or is under review by our team. Please check back later for access to the course content.",
     "status": "Status",
-    "browse_other_courses": "Browse Other Courses"
+    "browse_other_courses": "Browse Other Courses",
+    "CourseDetail": {
+      "access_classroom_community": "You can now access your classroom and community resources"
+    }
   },
   "StudentEnrollmentFlow": {
     "auto_creation_starting": "Setting up your learning environment...",
@@ -2986,7 +3068,6 @@
       "in_progress": "In Progress",
       "completed": "Completed",
       "graded": "Graded",
-      "view_only": "View Only",
       "can_attempt": "Can Attempt",
       "can_edit": "Can Edit",
       "no_expiry": "No expiry",
@@ -4330,7 +4411,11 @@
     "eur": "EUR",
     "gbp": "GBP",
     "myr": "MYR",
-    "sgd": "SGD"
+    "sgd": "SGD",
+    "enable_point_redemption": "Enable Point Redemption",
+    "enable_point_redemption_description": "Allow students to redeem this course using points instead of paying with money",
+    "point_price": "Point Price",
+    "point_price_description": "Number of points required to redeem this course (e.g., 500 points)"
   },
   "CreateCourseLesson": {
     "loading_attachments": "Loading attachments...",
@@ -4364,11 +4449,15 @@
     "description_label": "Description",
     "video_url_label": "Video URL",
     "thumbnail_url_label": "Thumbnail URL",
-    "transcript_label": "Transcript",
-    "transcript_description": "Transcript of the video.",
+    "transcript_label": "Transcript / Subtitles",
+    "transcript_description": "Add subtitles with timestamps. Format: [MM:SS] Text or [HH:MM:SS] Text",
+    "transcript_placeholder": "Enter subtitles with timestamps, e.g.:\n[00:15] Welcome to this course\n[00:20] Today we will learn React\n[00:25] Let's start with components",
+    "transcript_section": "Subtitles & Transcript",
+    "generate_with_ai": "Generate with AI",
+    "generating": "Generating...",
+    "characters": "characters",
     "video_url_placeholder": "e.g., https://example.com/video.mp4",
     "thumbnail_url_placeholder": "e.g., https://example.com/thumbnail.jpg",
-    "transcript_placeholder": "e.g., https://example.com/transcript.txt",
     "slug_label": "Slug",
     "slug_placeholder": "e.g., lesson|slug",
     "position_label": "Position",
@@ -4793,7 +4882,11 @@
     "eur": "EUR",
     "gbp": "GBP",
     "myr": "MYR",
-    "sgd": "SGD"
+    "sgd": "SGD",
+    "enable_point_redemption": "Enable Point Redemption",
+    "enable_point_redemption_description": "Allow students to redeem this course using points instead of paying with money",
+    "point_price": "Point Price",
+    "point_price_description": "Number of points required to redeem this course (e.g., 500 points)"
   },
   "CourseModuleSchema": {
     "course_id_required": "Course selection is required.",
@@ -8212,10 +8305,13 @@
     "suggested_groups": "Suggested Groups",
     "create_group": "Create Group",
     "view_all": "View All",
+    "view_all_groups": "View All Groups",
     "join": "Join",
     "joining": "Joining...",
     "members": "members",
     "no_groups": "No groups yet",
+    "no_groups_joined": "You haven't joined any groups yet",
+    "no_suggestions": "No suggestions available",
     "join_groups": "Join some groups to get started!",
     "community_stats": "Community Stats",
     "total_groups": "Total Groups",
@@ -8260,7 +8356,16 @@
     "title": "All My Groups",
     "close": "Close",
     "no_groups": "You haven't joined any groups yet",
-    "explore_groups": "Explore groups to join!"
+    "explore_groups": "Explore groups to join!",
+    "private_groups": "Private Groups",
+    "private":"Private",
+    "public_groups":"Public Groups",
+    "public":"Public",
+    "posts":"posts",
+    "members": "members",
+    "joined":"Joined",
+    "view_group": "View Group",
+    "browse_groups": "Broswe Groups"
   },
   "QuizContent": {
     "title": "Community Quizzes",
@@ -8307,7 +8412,6 @@
       "title": "Shared with Me",
       "private_label": "Private",
       "permission": {
-        "view": "View Only",
         "attempt": "Can Attempt",
         "edit": "Can Edit"
       },
@@ -8403,6 +8507,8 @@
   },
   "QuizResultModal": {
     "quiz_completed": "Quiz Completed!",
+    "preview_completed": "Preview Completed!",
+    "preview_notice": "This was a preview - no data was saved.",
     "your_score": "Your Score",
     "correct_answers": "Correct Answers",
     "total_questions": "Total Questions",
@@ -8479,13 +8585,11 @@
     "start_quiz": "Start Quiz",
     "status": {
       "no_access": "No Access",
-      "view_only": "View Only",
       "completed": "Completed",
       "unavailable": "Unavailable"
     },
     "permission_badge": "{permission} Permission",
     "permissions": {
-      "view": "View",
       "attempt": "Attempt",
       "edit": "Edit",
       "owner": "Owner"

@@ -47,11 +47,11 @@ export default function QuizContent() {
   const loading = usingSearch ? isSearchLoading : isListLoading;
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-background">
       {/* Main content section */}
       <div className="flex-1 min-w-0 p-6 overflow-y-auto max-w-5xl mx-auto">
         <div className="max-w-full">
-          <h1 className="text-3xl font-bold mb-6">{t("title")}</h1>
+          <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">{t("title")}</h1>
           <QuizHeader
             search={search}
             setSearch={setSearch}
@@ -69,7 +69,7 @@ export default function QuizContent() {
             </div>
           ) : dataToShow && dataToShow.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-400">
+              <p className="text-muted-foreground">
                 {usingSearch
                   ? t("no_search_results")
                   : t("no_quizzes_available")}
@@ -82,7 +82,7 @@ export default function QuizContent() {
       </div>
 
       {/* Sidebar section */}
-      <div className="w-96 flex-shrink-0 p-6 border-l border-white/10 overflow-y-auto overflow-x-hidden">
+      <div className="w-96 flex-shrink-0 p-6 border-l border-border overflow-y-auto overflow-x-hidden bg-background">
         <QuizzesSidebar />
       </div>
     </div>

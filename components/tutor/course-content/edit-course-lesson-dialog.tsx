@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { 
   Edit, 
@@ -37,7 +38,9 @@ import {
   Eye,
   Circle,
   Star,
-  HardDrive
+  HardDrive,
+  Sparkles,
+  Loader2
 } from 'lucide-react'
 import { StorageDialog } from '@/components/tutor/storage/storage-dialog'
 import { useUser } from '@/hooks/profile/use-user'
@@ -70,8 +73,10 @@ export function EditCourseLessonDialog({
   const [manualUrl, setManualUrl] = useState('')
   const [selectedAttachments, setSelectedAttachments] = useState<number[]>([])
   const [durationSec, setDurationSec] = useState<number | undefined>()
+  const [transcript, setTranscript] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGeneratingSubtitles, setIsGeneratingSubtitles] = useState(false)
 
   // Hooks
   const updateLessonMutation = useUpdateLesson()
@@ -114,6 +119,7 @@ export function EditCourseLessonDialog({
       }
       
       setDurationSec(lesson.duration_sec)
+      setTranscript(lesson.transcript || '')
       setErrors({})
     }
   }, [lesson, attachments, storageAttachments])
@@ -174,7 +180,8 @@ export function EditCourseLessonDialog({
           kind: validatedData.kind,
           content_url: validatedData.content_url,
           attachments: validatedData.attachments,
-          duration_sec: validatedData.duration_sec
+          duration_sec: validatedData.duration_sec,
+          transcript: transcript.trim() || undefined
         }
       })
 
@@ -255,6 +262,79 @@ export function EditCourseLessonDialog({
         setSelectedAttachments([])
       }
     }
+  }
+
+  const handleGenerateSubtitles = async () => {
+    if (!lesson) return
+
+    setIsGeneratingSubtitles(true)
+
+    try {
+      // Call existing API to extract transcript from video using Whisper
+      const response = await fetch('/api/video/process-transcript', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lessonId: lesson.public_id,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate subtitles')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.transcript) {
+        // Format the transcript with timestamps for better readability
+        const formattedTranscript = formatTranscriptWithTimestamps(result.transcript)
+        setTranscript(formattedTranscript)
+
+        toast({
+          title: gridT('success'),
+          description: `Generated subtitles (${result.transcriptLength} characters)`,
+        })
+      } else {
+        throw new Error(result.error || 'No transcript returned')
+      }
+    } catch (error) {
+      console.error('Failed to generate subtitles:', error)
+      toast({
+        title: gridT('error'),
+        description: error instanceof Error ? error.message : 'Failed to generate subtitles',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsGeneratingSubtitles(false)
+    }
+  }
+
+  // Helper function to format transcript with simple timestamps
+  const formatTranscriptWithTimestamps = (text: string): string => {
+    // Split by sentences
+    const sentences = text
+      .split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10)
+
+    // Add timestamps (estimate 150 words per minute)
+    let currentTime = 0
+    const formatted = sentences.map(sentence => {
+      const wordCount = sentence.split(/\s+/).length
+      const duration = (wordCount / 150) * 60 // seconds
+      
+      const minutes = Math.floor(currentTime / 60)
+      const seconds = Math.floor(currentTime % 60)
+      const timestamp = `[${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}]`
+      
+      currentTime += duration
+      return `${timestamp} ${sentence}.`
+    })
+
+    return formatted.join('\n')
   }
 
   return (
@@ -342,6 +422,59 @@ export function EditCourseLessonDialog({
                   </div>
                 </div>
               </div>
+
+              {/* Transcript Section - Only show for video lessons */}
+              {kind === 'video' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1 w-8 bg-primary rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-foreground">{t('transcript_section')}</h3>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-transcript" className="text-sm font-medium flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        {t('transcript_label')}
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateSubtitles}
+                        disabled={isGeneratingSubtitles || !lesson}
+                        className="flex items-center gap-2"
+                      >
+                        {isGeneratingSubtitles ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t('generating')}
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            {t('generate_with_ai')}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="edit-transcript"
+                      placeholder={t('transcript_placeholder')}
+                      value={transcript}
+                      onChange={(e) => setTranscript(e.target.value)}
+                      rows={8}
+                      className="bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none font-mono text-sm"
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                      <p className="text-muted-foreground">{t('transcript_description')}</p>
+                      <span className="text-muted-foreground">
+                        {transcript.length} {t('characters')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Lesson Type & Content Section */}
               <div className="space-y-4">

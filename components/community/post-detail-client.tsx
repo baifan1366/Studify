@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, use } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import MegaImage from "@/components/attachment/mega-blob-image";
 import {
   Clock,
   MessageSquare,
@@ -293,10 +294,18 @@ const CommentItem = ({
     <div style={{ marginLeft }} className="space-y-3">
       <div className="flex items-start gap-3">
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage
-            src={comment.author?.avatar_url}
-            alt={comment.author?.display_name}
-          />
+          {comment.author?.avatar_url && comment.author.avatar_url.includes('mega.nz') ? (
+            <MegaImage
+              megaUrl={comment.author.avatar_url}
+              alt={comment.author.display_name || ''}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <AvatarImage
+              src={comment.author?.avatar_url}
+              alt={comment.author?.display_name}
+            />
+          )}
           <AvatarFallback>{comment.author?.display_name?.[0]}</AvatarFallback>
         </Avatar>
         <div className="flex-1 bg-black/20 p-3 rounded-lg">
@@ -874,10 +883,18 @@ const PostDetailContent = ({
             </CardTitle>
             <div className="flex items-center gap-2 mt-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src={post.author?.avatar_url}
-                  alt={post.author?.display_name}
-                />
+                {post.author?.avatar_url && post.author.avatar_url.includes('mega.nz') ? (
+                  <MegaImage
+                    megaUrl={post.author.avatar_url}
+                    alt={post.author.display_name || ''}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <AvatarImage
+                    src={post.author?.avatar_url}
+                    alt={post.author?.display_name}
+                  />
+                )}
                 <AvatarFallback>
                   {post.author?.display_name?.[0]}
                 </AvatarFallback>

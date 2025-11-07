@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePopularPosts, useSuggestedGroups } from '@/hooks/community/use-community';
+import MegaImage from '@/components/attachment/mega-blob-image';
 
 interface CommunityHighlightsProps {
   onCreatePost?: () => void;
@@ -69,7 +70,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
 
   return (
     <motion.section
-      className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8"
+      className="bg-white/5 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-200/20 dark:border-white/10 p-6 mb-8"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4, duration: 0.6 }}
@@ -81,8 +82,8 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
             <Users className="text-white" size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
-            <p className="text-white/70">{t('subtitle')}</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('title')}</h2>
+            <p className="text-gray-600 dark:text-gray-400">{t('subtitle')}</p>
           </div>
         </div>
         
@@ -104,12 +105,12 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Latest Posts */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white mb-4">{t('latest_posts_heading')}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('latest_posts_heading')}</h3>
           
           {postsLoading ? (
             // 加载状态
             [...Array(3)].map((_, index) => (
-              <div key={`loading-post-${index}`} className="bg-white/5 rounded-xl p-4 border border-white/10 animate-pulse">
+              <div key={`loading-post-${index}`} className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200/20 dark:border-white/10 animate-pulse">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 bg-white/20 rounded-full"></div>
                   <div className="flex-1">
@@ -127,8 +128,8 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
             ))
           ) : postsError || latestPosts.length === 0 ? (
             // 错误或无数据状态
-            <div className="bg-white/5 rounded-xl p-6 border border-white/10 text-center">
-              <p className="text-white/60 text-sm">
+            <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200/20 dark:border-white/10 text-center">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
                 {postsError ? t('posts_error') || 'Failed to load posts' : t('no_posts') || 'No recent posts available'}
               </p>
             </div>
@@ -137,7 +138,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
             latestPosts.map((post, index) => (
               <motion.div
                 key={post.public_id || post.id}
-                className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/8 transition-colors cursor-pointer"
+                className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200/20 dark:border-white/10 hover:bg-white/8 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -145,14 +146,22 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
               >
                 {/* Post Header */}
                 <div className="flex items-center gap-3 mb-3">
-                  <img 
-                    src={post.author?.avatar_url || '/api/placeholder/32/32'} 
-                    alt={post.author?.display_name || 'User'}
-                    className="w-8 h-8 rounded-full"
-                  />
+                  {post.author?.avatar_url && post.author.avatar_url.includes('mega.nz') ? (
+                    <MegaImage
+                      megaUrl={post.author.avatar_url}
+                      alt={post.author.display_name || 'User'}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <img 
+                      src={post.author?.avatar_url || '/api/placeholder/32/32'} 
+                      alt={post.author?.display_name || 'User'}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-white text-sm">
+                      <span className="font-medium text-gray-900 dark:text-white text-sm">
                         {post.author?.display_name || 'Anonymous'}
                       </span>
                       {post.hashtags && post.hashtags[0] && (
@@ -161,7 +170,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-white/50">
+                    <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-500">
                       <Clock size={12} />
                       {formatTimeAgo(post.created_at.toString())}
                     </div>
@@ -169,12 +178,12 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                 </div>
 
                 {/* Post Content */}
-                <p className="text-white/80 text-sm mb-3 line-clamp-2">
+                <p className="text-gray-700 dark:text-gray-300 text-sm mb-3 line-clamp-2">
                   {post.body && post.body.length > 150 ? `${post.body.substring(0, 150)}...` : post.body || ''}
                 </p>
 
                 {/* Post Stats */}
-                <div className="flex items-center gap-4 text-xs text-white/60">
+                <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
                   <div className="flex items-center gap-1">
                     <Heart size={12} />
                     {(post.reactions && Object.values(post.reactions).reduce((acc, count) => acc + count, 0)) || 0}
@@ -191,12 +200,12 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
 
         {/* Study Groups */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white mb-4">{t('recommended_groups_heading')}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('recommended_groups_heading')}</h3>
           
           {groupsLoading ? (
             // 加载状态
             [...Array(3)].map((_, index) => (
-              <div key={`loading-group-${index}`} className="bg-white/5 rounded-xl p-4 border border-white/10 animate-pulse">
+              <div key={`loading-group-${index}`} className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200/20 dark:border-white/10 animate-pulse">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/20 rounded-lg"></div>
@@ -215,8 +224,8 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
             ))
           ) : groupsError || studyGroups.length === 0 ? (
             // 错误或无数据状态
-            <div className="bg-white/5 rounded-xl p-6 border border-white/10 text-center">
-              <p className="text-white/60 text-sm">
+            <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200/20 dark:border-white/10 text-center">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
                 {groupsError ? t('groups_error') || 'Failed to load groups' : t('no_groups') || 'No study groups available'}
               </p>
             </div>
@@ -225,7 +234,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
             studyGroups.map((group, index) => (
               <motion.div
                 key={group.public_id || group.id}
-                className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/8 transition-colors"
+                className="bg-white/5 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200/20 dark:border-white/10 hover:bg-white/8 dark:hover:bg-gray-700/50 transition-colors"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + index * 0.1 }}
@@ -236,8 +245,8 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                       <Users size={20} className="text-white" />
                     </div>
                     <div>
-                      <h4 className="font-medium text-white text-sm">{group.name}</h4>
-                      <div className="flex items-center gap-2 text-xs text-white/60">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm">{group.name}</h4>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                         <span>{group.member_count || 0} {t('members_suffix')}</span>
                         <span>•</span>
                         <div className="flex items-center gap-1">
@@ -250,7 +259,7 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                   
                   <motion.button
                     onClick={onJoinGroup}
-                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                    className="bg-white/10 dark:bg-gray-700/50 hover:bg-white/20 dark:hover:bg-gray-600/50 text-gray-900 dark:text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -262,10 +271,10 @@ export default function CommunityHighlights({ onCreatePost, onJoinGroup }: Commu
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className="px-2 py-1 bg-white/10 text-white/70 text-xs rounded-full">
+                  <span className="px-2 py-1 bg-white/10 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-full">
                     {group.visibility === 'public' ? t('visibility_public') : t('visibility_private')}
                   </span>
-                  <span className="text-xs text-white/50">
+                  <span className="text-xs text-gray-500 dark:text-gray-500">
                     {Math.floor(Math.random() * 5) + 1} {t('new_posts_today_suffix')}
                   </span>
                 </div>

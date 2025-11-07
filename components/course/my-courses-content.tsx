@@ -15,10 +15,12 @@ import { Button } from '@/components/ui/button';
 import { useTranslations } from 'next-intl';
 import { ReportButton } from '@/components/ui/report-button';
 
-// The enriched enrollment type we expect from the API
-interface EnrichedEnrollment {
+// Enriched enrollment type with course data from API
+interface EnrollmentWithCourse {
   id: number;
   public_id: string;
+  course_id: number;
+  user_id: number;
   role: 'student' | 'tutor' | 'owner' | 'assistant';
   status: 'active' | 'completed' | 'dropped' | 'locked';
   started_at: string;
@@ -27,16 +29,19 @@ interface EnrichedEnrollment {
   updated_at: string;
   course: {
     id: number;
-    title: string;
-    slug: string;
-    total_duration_minutes?: number;
-    total_students?: number;
-    average_rating?: number;
-    thumbnail_url?: string | null;
-    level?: 'beginner' | 'intermediate' | 'advanced';
     public_id: string;
+    title: string;
+    description?: string;
+    slug: string;
+    thumbnail_url?: string | null;
+    price_cents?: number;
+    currency?: string;
+    level?: 'beginner' | 'intermediate' | 'advanced';
+    category?: string;
+    status?: string;
+    created_at: string;
+    updated_at: string;
   };
-  progress: number;
 }
 
 // UI course type for better type safety
@@ -64,50 +69,17 @@ interface UICourse {
   thumbnail: string | null;
 }
 
-// Type guard function to check if an enrollment is enriched
-function isEnrichedEnrollment(enrollment: any): enrollment is EnrichedEnrollment {
-  if (!enrollment) {
-    return false;
-  }
-  
-  if (!enrollment.course) {
-    return false;
-  }
-  
-  if (typeof enrollment.course !== 'object') {
-    return false;
-  }
-  
-  // Check for required course fields
-  const requiredCourseFields = ['title', 'public_id'];
-  const missingCourseFields = requiredCourseFields.filter(field => !(field in enrollment.course));
-  
-  if (missingCourseFields.length > 0) {
-    return false;
-  }
-  
-  // Check for required enrollment fields
-  const requiredEnrollmentFields = ['public_id', 'status', 'course'];
-  const missingEnrollmentFields = requiredEnrollmentFields.filter(field => !(field in enrollment));
-  
-  if (missingEnrollmentFields.length > 0) {
-    return false;
-  }
-  
-  return true;
-}
-
 // Custom hook to calculate course progress based on lesson completion
-function useCourseProgressCalculation(courseId: string | number) {
-  const { data: courseModules } = useModuleByCourseId(typeof courseId === 'string' ? parseInt(courseId) : courseId);
-  const { data: allLessons = [] } = useAllLessonsByCourseId(typeof courseId === 'string' ? parseInt(courseId) : courseId, courseModules || []);
-  const { data: progress } = useCourseProgress(courseId.toString());
+function useCourseProgressCalculation(courseId: number, coursePublicId: string) {
+  const { data: courseModules } = useModuleByCourseId(courseId);
+  const { data: allLessons = [] } = useAllLessonsByCourseId(courseId, courseModules || []);
+  const { data: progress } = useCourseProgress(coursePublicId);
 
   const calculatedProgress = React.useMemo(() => {
     if (!allLessons.length) return 0;
+    if (!progress || !Array.isArray(progress)) return 0;
     
-    const progressArray = Array.isArray(progress) ? progress : progress ? [progress] : [];
-    const completedCount = progressArray.filter((p: any) => p.state === 'completed').length;
+    const completedCount = progress.filter((p) => p.state === 'completed').length;
     return Math.round((completedCount / allLessons.length) * 100);
   }, [progress, allLessons]);
 
@@ -122,7 +94,7 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
   onContinueCourse: (courseSlug: string) => void;
   onCourseDetails: (courseSlug: string) => void;
 }) {
-  const calculatedProgress = useCourseProgressCalculation(course.courseId);
+  const calculatedProgress = useCourseProgressCalculation(course.course.id, course.course.public_id);
   
   return (
     <motion.div
@@ -149,8 +121,8 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-semibold text-lg truncate">{course?.title || t('untitled_course')}</h3>
-          <div className="text-sm text-white/60 capitalize">
+          <h3 className="text-gray-900 dark:text-white font-semibold text-lg truncate">{course?.title || t('untitled_course')}</h3>
+          <div className="text-sm text-gray-600 dark:text-white/60 capitalize">
             {course?.level ? t(course.level as 'beginner' | 'intermediate' | 'advanced') : t('beginner')}
           </div>
         </div>
@@ -163,44 +135,16 @@ function CourseCard({ course, index, t, onContinueCourse, onCourseDetails }: {
       </div>
 
       {/* Course Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <Clock size={16} className="text-white/60 flex-shrink-0" />
-          <span className="text-white/80 text-sm truncate">{course?.duration || t('self_paced')}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-white/60 flex-shrink-0" />
-          <span className="text-white/80 text-sm">{(course?.students || 0).toLocaleString()}</span>
-        </div>
+      <div className="flex items-center gap-2 mb-4">
+        <Clock size={16} className="text-gray-600 dark:text-white/60 flex-shrink-0" />
+        <span className="text-gray-700 dark:text-white/80 text-sm truncate">{t('self_paced')}</span>
       </div>
-
-      {/* Rating */}
-      {(course?.rating || 0) > 0 && (
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                size={14}
-                className={
-                  star <= Math.floor(course?.rating || 0)
-                    ? "text-yellow-400 fill-current"
-                    : "text-white/30"
-                }
-              />
-            ))}
-          </div>
-          <span className="text-white/80 text-sm">
-            {(course?.rating || 0).toFixed(1)}
-          </span>
-        </div>
-      )}
 
       {/* Progress with calculated percentage */}
       <div className="mt-auto">
         <div className="flex justify-between text-sm mb-1">
-          <span className="text-white/70">{t('progress')}</span>
-          <span className="text-white">{calculatedProgress}%</span>
+          <span className="text-gray-600 dark:text-white/70">{t('progress')}</span>
+          <span className="text-gray-900 dark:text-white">{calculatedProgress}%</span>
         </div>
         <div className="w-full bg-white/20 rounded-full h-1.5 mb-4">
           <motion.div
@@ -269,7 +213,7 @@ function ErrorState({ onRetry, t }: { onRetry: () => void; t: (key: string) => s
   return (
     <div className="text-center py-12">
       <h2 className="text-2xl font-bold text-red-500 mb-4">{t('error_loading')}</h2>
-      <p className="text-white/70 mb-6">{t('error_message')}</p>
+      <p className="text-gray-600 dark:text-white/70 mb-6">{t('error_message')}</p>
       <Button 
         onClick={onRetry}
         variant="outline"
@@ -285,8 +229,8 @@ function ErrorState({ onRetry, t }: { onRetry: () => void; t: (key: string) => s
 function EmptyState({ onBrowseCourses, t }: { onBrowseCourses: () => void; t: (key: string) => string }) {
   return (
     <div className="text-center py-12">
-      <h2 className="text-2xl font-bold text-white mb-4">{t('no_courses_title')}</h2>
-      <p className="text-white/70 mb-6">{t('no_courses_message')}</p>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t('no_courses_title')}</h2>
+      <p className="text-gray-600 dark:text-white/70 mb-6">{t('no_courses_message')}</p>
       <Button 
         onClick={onBrowseCourses}
         className="bg-blue-600 hover:bg-blue-700"
@@ -308,7 +252,12 @@ export default function MyCoursesContent() {
   const [uiCourses, setUiCourses] = useState<UICourse[]>([]);
   
   // Get enrolled courses for the current user
-  const { data: enrollments, isLoading, error, refetch } = useEnrolledCoursesByUserId(userId!);
+  const { data: enrollments, isLoading, error, refetch } = useEnrolledCoursesByUserId(userId!) as {
+    data: EnrollmentWithCourse[] | undefined;
+    isLoading: boolean;
+    error: any;
+    refetch: () => void;
+  };
 
   // Transform courses data when enrollments change
   useEffect(() => {
@@ -317,32 +266,31 @@ export default function MyCoursesContent() {
       return;
     }
     
-    // First filter valid enrollments
+    // First filter valid enrollments - check if enrollment has course data
     const validEnrollments = enrollments.filter(enrollment => {
-      const isValid = isEnrichedEnrollment(enrollment);
-      return isValid;
+      return enrollment && enrollment.course && typeof enrollment.course === 'object';
     });
     
     // Then map to UI format
-    const processed = validEnrollments.map((enrollment, idx) => {
+    const processed = validEnrollments.map((enrollment: EnrollmentWithCourse, idx) => {
       const course = enrollment.course;
-      const progress = Math.min(Math.max(enrollment.progress || 0, 0), 100);
 
       return {
         id: enrollment.id,
         courseId: course.id.toString(),
         course: { // Include the full course object for nested access
           ...course,
-          slug: course.slug || `course-${course.public_id}` // Ensure we always have a slug
+          slug: course.slug || `course-${course.public_id}`, // Ensure we always have a slug
+          total_duration_minutes: 0, // Will be calculated from lessons if needed
+          total_students: 0, // Not available in enrollment data
+          average_rating: 0, // Not available in enrollment data
         },
         title: course.title || 'Untitled Course',
-        duration: course.total_duration_minutes 
-          ? `${course.total_duration_minutes} min` 
-          : 'Self-paced',
-        students: course.total_students || 0,
-        rating: course.average_rating || 0,
+        duration: 'Self-paced', // Default since we don't have duration in enrollment
+        students: 0, // Not available in enrollment data
+        rating: 0, // Not available in enrollment data
         level: course.level || 'beginner',
-        progress,
+        progress: 0, // Will be calculated by the CourseCard component
         color: [
           'from-blue-500 to-cyan-500',
           'from-purple-500 to-pink-500',

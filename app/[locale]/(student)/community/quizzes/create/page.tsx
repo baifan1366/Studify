@@ -22,7 +22,7 @@ export default async function CreateQuizPage() {
   
   return (
     <div className="container mx-auto max-w-2xl py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">{t('page_title')}</h1>
+      <h1 className="text-3xl font-bold mb-6 text-foreground">{t('page_title')}</h1>
       <QuizForm />
     </div>
   );

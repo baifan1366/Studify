@@ -105,7 +105,7 @@ export interface AchievementsData {
 
 // 获取学习统计数据
 export function useLearningStats(period: "week" | "month" | "all" = "week") {
-  return useQuery<{ success: boolean; data: LearningStats }>({
+  return useQuery<LearningStats>({
     queryKey: ["learning-stats", period],
     queryFn: () => apiGet(`/api/profile/learning-stats?period=${period}`),
     staleTime: 5 * 60 * 1000, // 5分钟
@@ -115,7 +115,7 @@ export function useLearningStats(period: "week" | "month" | "all" = "week") {
 
 // 获取积分数据
 export function usePointsData(page = 1, limit = 10) {
-  return useQuery<{ success: boolean; data: PointsData }>({
+  return useQuery<PointsData>({
     queryKey: ["points-data", page, limit],
     queryFn: () => apiGet(`/api/profile/points?page=${page}&limit=${limit}`),
     staleTime: 2 * 60 * 1000, // 2分钟
@@ -125,7 +125,7 @@ export function usePointsData(page = 1, limit = 10) {
 
 // 获取成就数据
 export function useAchievements(category?: string) {
-  return useQuery<{ success: boolean; data: AchievementsData }>({
+  return useQuery<AchievementsData>({
     queryKey: ["achievements", category],
     queryFn: () => {
       const url = category

@@ -201,6 +201,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // If point_price is provided, create course_point_price entry
+    if (body.point_price && body.point_price > 0) {
+      const { error: pointPriceError } = await client
+        .from("course_point_price")
+        .insert([{
+          course_id: data.id,
+          point_price: parseInt(body.point_price),
+          is_active: true
+        }]);
+
+      if (pointPriceError) {
+        console.error('Failed to create point price:', pointPriceError);
+        // Don't fail the whole request, just log the error
+      }
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json(

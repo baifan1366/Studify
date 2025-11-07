@@ -95,16 +95,49 @@ async function searchVideoEmbeddings(
     
     console.log(`🎯 Two-stage search: E5 (${timeStart !== null ? 'time-focused' : 'whole video'}) → BGE-M3 (top ${maxResults})`);
     
-    // Stage 1: E5 粗筛 - 根据时间窗口搜索
-    // 返回 top 30 结果用于第二阶段重排
+    // 使用数据库的两阶段搜索函数（更高效）
     const e5CandidateCount = Math.max(30, maxResults * 3);
+    
+    const { data: twoStageResults, error: twoStageError } = await supabase.rpc('search_video_embeddings_two_stage', {
+      query_embedding_e5: `[${e5Embedding.join(',')}]`,
+      query_embedding_bge: `[${bgeEmbedding.join(',')}]`,
+      p_attachment_id: targetAttachmentId,
+      time_start: timeStart,
+      time_end: timeEnd,
+      e5_threshold: 0.5,
+      e5_candidate_count: e5CandidateCount,
+      final_count: maxResults,
+      weight_e5: 0.3,
+      weight_bge: 0.7
+    });
+    
+    // 如果两阶段搜索成功，直接返回结果
+    if (!twoStageError && twoStageResults && twoStageResults.length > 0) {
+      console.log(`✅ Two-stage search: Found ${twoStageResults.length} results`);
+      console.log(`📊 Score range: ${twoStageResults[0]?.combined_score?.toFixed(3)} - ${twoStageResults[twoStageResults.length - 1]?.combined_score?.toFixed(3)}`);
+      
+      return twoStageResults.map((r: any) => ({
+        id: r.id,
+        content_text: r.content_text,
+        segment_start_time: r.segment_start_time,
+        segment_end_time: r.segment_end_time,
+        section_title: r.section_title,
+        attachment_id: r.attachment_id,
+        similarity: r.combined_score,
+        e5_similarity: r.e5_similarity,
+        bge_similarity: r.bge_similarity
+      }));
+    }
+    
+    // 回退到单阶段 E5 搜索
+    console.log('⚠️ Two-stage search failed, falling back to E5-only search');
     
     const { data: e5Results, error: e5Error } = await supabase.rpc('search_video_embeddings_e5', {
       query_embedding: `[${e5Embedding.join(',')}]`,
       p_attachment_id: targetAttachmentId,
       time_start: timeStart,
       time_end: timeEnd,
-      match_threshold: 0.5,  // 降低阈值以获取更多候选
+      match_threshold: 0.5,
       match_count: e5CandidateCount
     });
     

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Users, Trophy, Target, TrendingUp, Eye, Calendar } from "lucide-react";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 type TranslateFn = ReturnType<typeof useTranslations>;
 
@@ -200,7 +201,15 @@ function AttemptsList({ attempts, role }: { attempts: AttemptData[]; role: "admi
               // Admin view: Show user info
               <>
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={attempt.profiles.avatar_url} />
+                  {attempt.profiles.avatar_url && attempt.profiles.avatar_url.includes('mega.nz') ? (
+                    <MegaImage
+                      megaUrl={attempt.profiles.avatar_url}
+                      alt={attempt.profiles.display_name || ''}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <AvatarImage src={attempt.profiles.avatar_url} />
+                  )}
                   <AvatarFallback>
                     {attempt.profiles.display_name?.charAt(0)?.toUpperCase() || "U"}
                   </AvatarFallback>

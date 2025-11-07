@@ -57,6 +57,8 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
     const [objectiveInput, setObjectiveInput] = useState('');
     const [totalLessons, setTotalLessons] = useState<number | undefined>();
     const [totalDurationMinutes, setTotalDurationMinutes] = useState<number | undefined>();
+    const [pointPrice, setPointPrice] = useState<number | undefined>();
+    const [enablePointRedemption, setEnablePointRedemption] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const t = useTranslations('EditCourse');
@@ -89,6 +91,8 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
             setTags(course.tags || []);
             setTotalLessons(course.total_lessons);
             setTotalDurationMinutes(course.total_duration_minutes);
+            setPointPrice((course as any).point_price || undefined);
+            setEnablePointRedemption(!!((course as any).point_price));
         }
     }, [course]);
 
@@ -160,7 +164,8 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
             // Update the course
             await updateCourseMutation.mutateAsync({
                 id: course.id,
-                ...formData
+                ...formData,
+                point_price: enablePointRedemption ? pointPrice : undefined
             });
             
             toast({
@@ -548,6 +553,45 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
                                         </div>
                                     </div>
                                 )}
+
+                                <Separator className="bg-border" />
+
+                                {/* Points Redemption Settings */}
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="enable_point_redemption"
+                                                checked={enablePointRedemption}
+                                                onChange={(e) => setEnablePointRedemption(e.target.checked)}
+                                                className="border-input"
+                                            />
+                                            <Label htmlFor="enable_point_redemption" className="text-foreground">{t('enable_point_redemption')}</Label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground ml-6">
+                                            {t('enable_point_redemption_description')}
+                                        </p>
+                                    </div>
+
+                                    {enablePointRedemption && (
+                                        <div className="grid w-full items-center gap-1.5 ml-6">
+                                            <Label htmlFor="point_price" className="text-foreground">{t('point_price')}</Label>
+                                            <Input
+                                                type="number"
+                                                id="point_price"
+                                                placeholder="500"
+                                                min="1"
+                                                value={pointPrice || ''}
+                                                onChange={(e) => setPointPrice(e.target.value ? parseInt(e.target.value) : undefined)}
+                                                className={`bg-background border-input text-foreground ${errors.point_price ? 'border-destructive' : ''}`}
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                {t('point_price_description')}
+                                            </p>
+                                            {errors.point_price && <span className="text-xs text-destructive">{errors.point_price}</span>}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <Separator className="bg-border" />
 

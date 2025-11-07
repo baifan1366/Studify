@@ -8,6 +8,7 @@ export interface Lesson {
   content_url?: string;
   attachments?: number[]; // Array of attachment IDs
   duration_sec?: number;
+  transcript?: string; // Video transcript/subtitles
   live_session_id?: number;
   is_deleted: boolean;
   created_at: string;

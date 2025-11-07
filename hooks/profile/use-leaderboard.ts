@@ -28,7 +28,7 @@ export interface LeaderboardData {
 
 // 获取周排行榜
 export function useWeeklyLeaderboard(limit = 10) {
-  return useQuery<{ success: boolean; data: LeaderboardData }>({
+  return useQuery<LeaderboardData>({
     queryKey: ['leaderboard', 'weekly', limit],
     queryFn: () => apiGet(`/api/leaderboard/weekly?limit=${limit}`),
     staleTime: 2 * 60 * 1000, // 2分钟
@@ -38,7 +38,7 @@ export function useWeeklyLeaderboard(limit = 10) {
 
 // 获取月排行榜
 export function useMonthlyLeaderboard(limit = 10) {
-  return useQuery<{ success: boolean; data: LeaderboardData }>({
+  return useQuery<LeaderboardData>({
     queryKey: ['leaderboard', 'monthly', limit],
     queryFn: () => apiGet(`/api/leaderboard/monthly?limit=${limit}`),
     staleTime: 5 * 60 * 1000, // 5分钟
@@ -48,7 +48,7 @@ export function useMonthlyLeaderboard(limit = 10) {
 
 // 获取全时排行榜
 export function useAllTimeLeaderboard(limit = 10) {
-  return useQuery<{ success: boolean; data: LeaderboardData }>({
+  return useQuery<LeaderboardData>({
     queryKey: ['leaderboard', 'all-time', limit],
     queryFn: () => apiGet(`/api/leaderboard/all-time?limit=${limit}`),
     staleTime: 10 * 60 * 1000, // 10分钟

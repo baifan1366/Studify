@@ -607,81 +607,245 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     analysis?: string;
     toolsUsed: string[];
     confidence: number;
+    timings?: Record<string, number>;
   }> {
-    console.log(`🎯 Direct tool calling: "${question.substring(0, 100)}..."`);
+    const startTime = Date.now();
+    const timings: Record<string, number> = {};
+    console.log(`🎯 [${Date.now()}] Starting educationalQA: "${question.substring(0, 100)}..."`);
     const toolsUsed: string[] = [];
 
     try {
       const videoContext = options.videoContext;
 
       if (videoContext) {
-        console.log("📹 Video context:", videoContext);
+        console.log(`📹 [${Date.now()}] Video context:`, videoContext);
       }
 
-      // Step 1: Search
+      // PARALLEL PROCESSING: Start both search and fallback answer simultaneously
+      console.log(`⚡ [${Date.now()}] Starting parallel processing...`);
+      
+      const searchStartTime = Date.now();
       let searchResults = "";
-      const searchTool = getToolByName("search");
+      let searchCompleted = false;
+      
+      // Promise 1: Search with timeout
+      const searchPromise = (async () => {
+        const searchTool = getToolByName("search");
+        if (!searchTool || (!videoContext && !options.contentTypes)) {
+          console.log(`⏭️ [${Date.now()}] Skipping search - no context`);
+          return "";
+        }
 
-      if (searchTool && (videoContext || options.contentTypes)) {
-        console.log("🔍 Step 1: Searching...");
+        console.log(`🔍 [${Date.now()}] Step 1: Starting search...`);
         const searchInput = {
           query: question,
-          contentTypes: options.contentTypes || [
-            "video_segment",
-            "lesson",
-            "note",
-          ],
+          contentTypes: options.contentTypes || ["video_segment", "lesson", "note"],
           videoContext: videoContext || undefined,
         };
 
         try {
-          searchResults = await (searchTool as any).call(searchInput);
+          const searchTimeout = new Promise<string>((_, reject) => 
+            setTimeout(() => reject(new Error('Search timeout after 60s')), 60000) // Reduced to 60s
+          );
+          
+          const result = await Promise.race([
+            (searchTool as any).call(searchInput),
+            searchTimeout
+          ]) as string;
+          
+          const searchTime = Date.now() - searchStartTime;
+          timings.search = searchTime;
+          console.log(`✅ [${Date.now()}] Search completed in ${searchTime}ms: ${result?.length || 0} chars`);
+          searchCompleted = true;
           toolsUsed.push("search");
-          console.log(`✅ Search: ${searchResults?.length || 0} chars`);
+          return result;
         } catch (e) {
-          console.error("❌ Search failed:", e);
+          const searchTime = Date.now() - searchStartTime;
+          timings.search = searchTime;
+          console.error(`❌ [${Date.now()}] Search failed after ${searchTime}ms:`, e);
+          return "";
+        }
+      })();
+
+      // Promise 2: Direct LLM answer (fallback) - starts immediately
+      const fallbackStartTime = Date.now();
+      const fallbackPromise = (async () => {
+        console.log(`🤖 [${Date.now()}] Step 2: Starting fallback LLM answer...`);
+        
+        try {
+          const llm = await getLLM({
+            model: options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+            temperature: 0.3,
+          });
+          
+          const llmStartTime = Date.now();
+          console.log(`📡 [${Date.now()}] LLM instance created, invoking...`);
+          
+          const fallbackPrompt = `You are an educational AI assistant. Answer this question clearly and helpfully:
+
+Question: ${question}
+
+${videoContext ? `Context: This is from a video lesson at ${videoContext.currentTime}s` : ''}
+
+Provide a clear, educational answer even without specific course materials.`;
+
+          const fallbackTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fallback LLM timeout after 90s')), 90000)
+          );
+          
+          const result: any = await Promise.race([
+            llm.invoke(fallbackPrompt),
+            fallbackTimeout
+          ]);
+          
+          const llmTime = Date.now() - llmStartTime;
+          const totalFallbackTime = Date.now() - fallbackStartTime;
+          timings.fallback_llm = llmTime;
+          timings.fallback_total = totalFallbackTime;
+          console.log(`✅ [${Date.now()}] Fallback answer completed in ${totalFallbackTime}ms (LLM: ${llmTime}ms)`);
+          
+          return result.content as string;
+        } catch (e) {
+          const fallbackTime = Date.now() - fallbackStartTime;
+          timings.fallback_total = fallbackTime;
+          console.error(`❌ [${Date.now()}] Fallback LLM failed after ${fallbackTime}ms:`, e);
+          throw e;
+        }
+      })();
+
+      // Wait for EITHER search to complete OR fallback to be ready (whichever is first)
+      console.log(`⏳ [${Date.now()}] Waiting for search or fallback...`);
+      
+      // Race: Get fallback answer first, then optionally enhance with search
+      const fallbackAnswer = await fallbackPromise;
+      console.log(`✅ [${Date.now()}] Got fallback answer: ${fallbackAnswer.length} chars`);
+      
+      // Try to get search results (with short timeout since we already have an answer)
+      const quickSearchTimeout = new Promise<string>((resolve) => 
+        setTimeout(() => {
+          console.log(`⏰ [${Date.now()}] Quick search timeout, using fallback only`);
+          resolve("");
+        }, 5000) // Only wait 5 more seconds for search
+      );
+      
+      searchResults = await Promise.race([searchPromise, quickSearchTimeout]);
+      
+      const totalTime = Date.now() - startTime;
+      timings.total = totalTime;
+      console.log(`🏁 [${Date.now()}] Total time: ${totalTime}ms`);
+      console.log(`📊 Timings:`, timings);
+
+      // If we have search results, enhance the answer
+      if (searchResults && !searchResults.includes("No relevant content found")) {
+        console.log(`🔄 [${Date.now()}] Enhancing answer with search results...`);
+        const enhanceStartTime = Date.now();
+        
+        try {
+          const qaTool = getToolByName("answer_question");
+          if (qaTool) {
+            const enhancedPrompt = `Based on these search results, provide a comprehensive answer to: "${question}"
+
+Search Results:
+${searchResults}
+
+Fallback Answer (for reference):
+${fallbackAnswer}
+
+Provide the best possible answer combining both sources.`;
+
+            const enhanceTimeout = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Enhancement timeout')), 30000)
+            );
+            
+            const enhanced = await Promise.race([
+              (qaTool as any).call({
+                question: enhancedPrompt,
+                contentTypes: options.contentTypes,
+                includeSourceReferences: true,
+              }),
+              enhanceTimeout
+            ]);
+            
+            const enhanceTime = Date.now() - enhanceStartTime;
+            timings.enhancement = enhanceTime;
+            console.log(`✅ [${Date.now()}] Enhanced answer in ${enhanceTime}ms`);
+            
+            toolsUsed.push("answer_question");
+            const enhancedAnswer = typeof enhanced === "string" ? enhanced : JSON.stringify(enhanced);
+            
+            return {
+              answer: enhancedAnswer,
+              sources: [],
+              analysis: options.includeAnalysis ? enhancedAnswer : undefined,
+              toolsUsed,
+              confidence: 0.95,
+              timings,
+            };
+          }
+        } catch (e) {
+          const enhanceTime = Date.now() - enhanceStartTime;
+          timings.enhancement = enhanceTime;
+          console.error(`❌ [${Date.now()}] Enhancement failed after ${enhanceTime}ms, using fallback:`, e);
         }
       }
 
-      // Step 2: Answer
-      const qaTool = getToolByName("answer_question");
-      if (!qaTool) throw new Error("answer_question tool not found");
-
-      console.log("💬 Step 2: Answering...");
-      let finalQ = question;
-      if (
-        searchResults &&
-        !searchResults.includes("No relevant content found")
-      ) {
-        finalQ = `Based on these search results, answer: "${question}"\n\nResults:\n${searchResults}`;
-      }
-
-      const qaResult = await (qaTool as any).call({
-        question: finalQ,
-        contentTypes: options.contentTypes,
-        includeSourceReferences: true,
-      });
-      toolsUsed.push("answer_question");
-
-      const answer =
-        typeof qaResult === "string" ? qaResult : JSON.stringify(qaResult);
-      console.log(`✅ Answer: ${answer.length} chars`);
-
+      // Return fallback answer (we always have this)
+      console.log(`✅ [${Date.now()}] Returning fallback answer`);
       return {
-        answer,
+        answer: fallbackAnswer,
         sources: [],
-        analysis: options.includeAnalysis ? answer : undefined,
-        toolsUsed,
-        confidence: searchResults ? 0.9 : 0.75,
+        analysis: options.includeAnalysis ? fallbackAnswer : undefined,
+        toolsUsed: searchCompleted ? [...toolsUsed, "direct_llm"] : ["direct_llm"],
+        confidence: searchCompleted ? 0.85 : 0.75,
+        timings,
       };
+
     } catch (error) {
-      console.error("❌ Direct tool calling failed:", error);
+      const totalTime = Date.now() - startTime;
+      timings.total = totalTime;
+      console.error(`❌ [${Date.now()}] educationalQA failed after ${totalTime}ms:`, error);
+      console.error(`📊 Final timings:`, timings);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Last resort: Simple direct answer
+      try {
+        console.log(`🆘 [${Date.now()}] Attempting emergency fallback...`);
+        const emergencyStartTime = Date.now();
+        
+        const llm = await getLLM({
+          model: "z-ai/glm-4.5-air:free", // Use fastest free model
+          temperature: 0.3,
+        });
+        
+        const emergencyAnswer = await llm.invoke(`Answer this question briefly: ${question}`);
+        const emergencyTime = Date.now() - emergencyStartTime;
+        timings.emergency = emergencyTime;
+        
+        console.log(`✅ [${Date.now()}] Emergency answer in ${emergencyTime}ms`);
+        
+        return {
+          answer: emergencyAnswer.content as string,
+          sources: [],
+          analysis: undefined,
+          toolsUsed: ["emergency_llm"],
+          confidence: 0.6,
+          timings,
+        };
+      } catch (emergencyError) {
+        console.error(`❌ [${Date.now()}] Emergency fallback also failed:`, emergencyError);
+      }
+      
+      // Absolute last resort
       return {
-        answer: "I apologize, but I encountered an error. Please try again.",
+        answer: errorMessage.includes('timeout') 
+          ? "I apologize, but I'm experiencing high load. Please try asking your question again in a moment."
+          : "I apologize, but I encountered an error. Please try rephrasing your question.",
         sources: [],
         analysis: undefined,
-        toolsUsed,
+        toolsUsed: [],
         confidence: 0.3,
+        timings,
       };
     }
   }
@@ -709,85 +873,142 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     content?: string;
     metadata?: any;
   }> {
-    console.log(`🎯 Streaming Q&A: "${question.substring(0, 100)}..."`);
+    const streamStartTime = Date.now();
+    console.log(`🎯 [${Date.now()}] Streaming Q&A START: "${question.substring(0, 100)}..."`);
+    console.log(`📊 [${Date.now()}] Options:`, {
+      userId: options.userId,
+      contentTypes: options.contentTypes,
+      hasVideoContext: !!options.videoContext,
+      model: options.model || 'default'
+    });
+    
     const toolsUsed: string[] = [];
+    const timings: Record<string, number> = {};
 
     try {
       const videoContext = options.videoContext;
 
       if (videoContext) {
-        console.log("📹 Video context:", videoContext);
+        console.log(`📹 [${Date.now()}] Video context:`, videoContext);
       }
 
       // OPTIMIZATION: Start answer generation immediately, search in background
       // This provides instant feedback to users
       
-      console.log("💬 Starting immediate answer generation...");
+      console.log(`💬 [${Date.now()}] Starting immediate answer generation...`);
       yield { type: 'answer_start', content: 'Generating answer...' };
       
       // Start search in background (don't await)
       let searchResults = "";
       const searchPromise = (async () => {
         const searchTool = getToolByName("search");
-        if (searchTool && (videoContext || options.contentTypes)) {
-          console.log("🔍 Background search started...");
-          const searchInput = {
-            query: question,
-            contentTypes: options.contentTypes || ["video_segment", "lesson", "note"],
-            videoContext: videoContext || undefined,
-          };
-
-          try {
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Search timeout')), 3000) // 3 second timeout
-            );
-            
-            const result = await Promise.race([
-              (searchTool as any).call(searchInput),
-              timeoutPromise
-            ]) as string;
-            
-            toolsUsed.push("search");
-            console.log(`✅ Background search completed: ${result?.length || 0} chars`);
-            return result;
-          } catch (e) {
-            console.error("❌ Background search failed:", e);
-            return "";
-          }
+        if (!searchTool) {
+          console.log(`⚠️ [${Date.now()}] Search tool not found, skipping search`);
+          return "";
         }
-        return "";
+        
+        if (!videoContext && !options.contentTypes) {
+          console.log(`⚠️ [${Date.now()}] No video context or content types, skipping search`);
+          return "";
+        }
+        
+        console.log(`🔍 [${Date.now()}] Background search STARTED`);
+        const searchStartTime = Date.now();
+        const searchInput = {
+          query: question,
+          contentTypes: options.contentTypes || ["video_segment", "lesson", "note"],
+          videoContext: videoContext || undefined,
+        };
+        
+        console.log(`📝 [${Date.now()}] Search input:`, {
+          queryLength: question.length,
+          contentTypes: searchInput.contentTypes,
+          hasVideoContext: !!searchInput.videoContext
+        });
+
+        try {
+          console.log(`⏱️ [${Date.now()}] Calling search tool with 60s timeout...`);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => {
+              console.error(`⏰ [${Date.now()}] Search timeout triggered after 60s`);
+              reject(new Error('Search timeout after 60s'));
+            }, 60000) // 60 second timeout
+          );
+          
+          const result = await Promise.race([
+            (searchTool as any).call(searchInput),
+            timeoutPromise
+          ]) as string;
+          
+          const searchTime = Date.now() - searchStartTime;
+          timings.search = searchTime;
+          toolsUsed.push("search");
+          console.log(`✅ [${Date.now()}] Background search COMPLETED in ${searchTime}ms`);
+          console.log(`📊 [${Date.now()}] Search result: ${result?.length || 0} chars`);
+          
+          if (result && result.length > 0) {
+            console.log(`📄 [${Date.now()}] Search preview: ${result.substring(0, 200)}...`);
+          }
+          
+          return result;
+        } catch (e) {
+          const searchTime = Date.now() - searchStartTime;
+          timings.search_failed = searchTime;
+          console.error(`❌ [${Date.now()}] Background search FAILED after ${searchTime}ms`);
+          console.error(`❌ [${Date.now()}] Error details:`, e);
+          return "";
+        }
       })();
 
-      // Wait briefly for search (max 1 second), then proceed with or without results
+      // Wait briefly for search (max 10 seconds), then proceed with or without results
+      // This gives search time to complete while still providing fast initial response
+      console.log(`⏳ [${Date.now()}] Waiting up to 10s for search results...`);
+      const quickWaitStartTime = Date.now();
+      
       const quickSearchPromise = Promise.race([
         searchPromise,
-        new Promise<string>((resolve) => setTimeout(() => resolve(""), 1000))
+        new Promise<string>((resolve) => setTimeout(() => {
+          const waitTime = Date.now() - quickWaitStartTime;
+          console.log(`⏰ [${Date.now()}] Quick search timeout after ${waitTime}ms, proceeding with LLM`);
+          resolve("");
+        }, 10000)) // Wait up to 10 seconds for search
       ]);
       
       searchResults = await quickSearchPromise;
+      const quickWaitTime = Date.now() - quickWaitStartTime;
+      timings.quick_wait = quickWaitTime;
       
       if (searchResults) {
-        console.log("✅ Quick search succeeded, using results");
+        console.log(`✅ [${Date.now()}] Quick search SUCCEEDED after ${quickWaitTime}ms`);
+        console.log(`📊 [${Date.now()}] Using search results: ${searchResults.length} chars`);
       } else {
-        console.log("⏭️ Proceeding without search results for faster response");
+        console.log(`⏭️ [${Date.now()}] Proceeding WITHOUT search results after ${quickWaitTime}ms`);
+        console.log(`💡 [${Date.now()}] Search may still be running in background`);
       }
 
       // Step 2: Stream answer from LLM
-      console.log("💬 Step 2: Starting LLM streaming...");
+      console.log(`💬 [${Date.now()}] Step 2: Starting LLM streaming...`);
+      const llmStartTime = Date.now();
       yield { type: 'answer_start', content: 'Generating answer...' };
       
+      const modelName = options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
+      console.log(`🤖 [${Date.now()}] Creating LLM instance with model: ${modelName}`);
+      
       const llm = await getLLM({
-        model: options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+        model: modelName,
         temperature: 0.3,
         streaming: true,
       });
-      console.log("✅ LLM instance created");
+      const llmCreateTime = Date.now() - llmStartTime;
+      timings.llm_create = llmCreateTime;
+      console.log(`✅ [${Date.now()}] LLM instance created in ${llmCreateTime}ms`);
 
       let finalQ = question;
       if (
         searchResults &&
         !searchResults.includes("No relevant content found")
       ) {
+        console.log(`🔄 [${Date.now()}] Enhancing prompt with search results`);
         finalQ = `Based on these search results, answer the question concisely and accurately.
 
 Question: "${question}"
@@ -800,7 +1021,9 @@ Instructions:
 - Reference specific information from the search results
 - If the results mention timestamps, include them in your answer
 - Keep the answer focused and relevant to the question`;
+        console.log(`📝 [${Date.now()}] Enhanced prompt length: ${finalQ.length} chars`);
       } else {
+        console.log(`📝 [${Date.now()}] Using basic prompt (no search results)`);
         finalQ = `Answer this educational question: "${question}"
 
 Provide a clear, helpful answer using your knowledge.`;
@@ -810,6 +1033,7 @@ Provide a clear, helpful answer using your knowledge.`;
       const messages: any[] = [];
       
       if (options.conversationContext && options.conversationContext.length > 0) {
+        console.log(`💬 [${Date.now()}] Adding ${options.conversationContext.length} conversation messages`);
         for (const msg of options.conversationContext.slice(-4)) {
           if (msg.role === 'user') {
             messages.push(new HumanMessage(msg.content));
@@ -820,25 +1044,55 @@ Provide a clear, helpful answer using your knowledge.`;
       }
       
       messages.push(new HumanMessage(finalQ));
-      console.log(`📝 Prepared ${messages.length} messages for LLM`);
+      console.log(`📝 [${Date.now()}] Prepared ${messages.length} messages for LLM`);
 
       // Stream the response
-      console.log("🌊 Starting stream...");
+      console.log(`🌊 [${Date.now()}] Starting stream...`);
+      const streamCallStartTime = Date.now();
       const stream = await llm.stream(messages);
-      console.log("✅ Stream started, waiting for chunks...");
+      const streamCallTime = Date.now() - streamCallStartTime;
+      timings.stream_call = streamCallTime;
+      console.log(`✅ [${Date.now()}] Stream started in ${streamCallTime}ms, waiting for chunks...`);
       
       let chunkCount = 0;
+      let totalContent = "";
+      const firstChunkTime = Date.now();
+      
       for await (const chunk of stream) {
         chunkCount++;
         const content = chunk.content as string;
         if (content) {
-          console.log(`📦 Chunk ${chunkCount}: ${content.substring(0, 20)}...`);
+          totalContent += content;
+          
+          // Log first chunk timing
+          if (chunkCount === 1) {
+            const timeToFirstChunk = Date.now() - firstChunkTime;
+            timings.first_chunk = timeToFirstChunk;
+            console.log(`⚡ [${Date.now()}] First chunk received in ${timeToFirstChunk}ms`);
+          }
+          
+          // Log every 50th chunk to avoid spam
+          if (chunkCount % 50 === 0) {
+            console.log(`📦 [${Date.now()}] Chunk ${chunkCount}: ${content.substring(0, 20)}... (total: ${totalContent.length} chars)`);
+          }
+          
           yield { type: 'token', content };
         }
       }
-      console.log(`✅ Stream completed with ${chunkCount} chunks`);
+      
+      const streamTime = Date.now() - streamCallStartTime;
+      timings.stream_total = streamTime;
+      console.log(`✅ [${Date.now()}] Stream COMPLETED with ${chunkCount} chunks in ${streamTime}ms`);
+      console.log(`📊 [${Date.now()}] Total content: ${totalContent.length} chars`);
 
       toolsUsed.push("answer_question");
+
+      const totalTime = Date.now() - streamStartTime;
+      timings.total = totalTime;
+      
+      console.log(`🏁 [${Date.now()}] Streaming Q&A COMPLETE in ${totalTime}ms`);
+      console.log(`📊 [${Date.now()}] Final timings:`, timings);
+      console.log(`🔧 [${Date.now()}] Tools used:`, toolsUsed);
 
       yield { 
         type: 'complete', 
@@ -846,16 +1100,27 @@ Provide a clear, helpful answer using your knowledge.`;
         metadata: {
           toolsUsed,
           confidence: searchResults ? 0.9 : 0.75,
-          sources: []
+          sources: [],
+          timings
         }
       };
 
     } catch (error) {
-      console.error("❌ Streaming Q&A failed:", error);
+      const totalTime = Date.now() - streamStartTime;
+      timings.total = totalTime;
+      console.error(`❌ [${Date.now()}] Streaming Q&A FAILED after ${totalTime}ms`);
+      console.error(`❌ [${Date.now()}] Error:`, error);
+      console.error(`📊 [${Date.now()}] Timings at failure:`, timings);
+      console.error(`🔧 [${Date.now()}] Tools used before failure:`, toolsUsed);
+      
       yield {
         type: 'error',
         content: "I apologize, but I encountered an error. Please try again.",
-        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+        metadata: { 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timings,
+          toolsUsed
+        }
       };
     }
   }

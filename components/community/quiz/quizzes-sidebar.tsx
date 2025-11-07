@@ -34,6 +34,7 @@ import {
 import AllAttemptsModal from "./all-attempts-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/profile/use-user";
+import MegaImage from "@/components/attachment/mega-blob-image";
 
 const AttemptCard = ({
   attempt,
@@ -54,20 +55,20 @@ const AttemptCard = ({
   const status = statusConfig[attempt.status as keyof typeof statusConfig] || statusConfig.not_started;
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="flex-shrink-0">
           {attempt.status === 'in_progress' ? (
-            <Clock className="w-4 h-4 text-blue-400" />
+            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           ) : attempt.status === 'submitted' || attempt.status === 'graded' ? (
-            <CheckCircle className="w-4 h-4 text-green-400" />
+            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
           ) : (
-            <FileText className="w-4 h-4 text-gray-400" />
+            <FileText className="w-4 h-4 text-muted-foreground" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <Link href={quizPath}>
-            <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
+            <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate hover:text-primary cursor-pointer">
               {attempt.quiz.title}
             </h4>
           </Link>
@@ -75,8 +76,8 @@ const AttemptCard = ({
             <span className={status.color}>{status.label}</span>
             {(attempt.status === 'submitted' || attempt.status === 'graded') && attempt.score > 0 && (
               <>
-                <span className="text-gray-500">•</span>
-                <span className="text-yellow-400">{t('points_abbrev', { points: attempt.score })}</span>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-yellow-600 dark:text-yellow-400">{t('points_abbrev', { points: attempt.score })}</span>
               </>
             )}
           </div>
@@ -96,7 +97,6 @@ const SharedPrivateQuizCard = ({
   const t = useTranslations('QuizzesSidebar');
   const quizPath = isTutor ? `/tutor/community/quizzes/${quiz.quiz_slug}` : `/community/quizzes/${quiz.quiz_slug}`;
   const permissionConfig = {
-    view: { icon: Eye, label: t('shared.permission.view'), color: "text-blue-400" },
     attempt: { icon: Target, label: t('shared.permission.attempt'), color: "text-green-400" },
     edit: { icon: Edit, label: t('shared.permission.edit'), color: "text-purple-400" },
   };
@@ -123,11 +123,11 @@ const SharedPrivateQuizCard = ({
     new Date(quiz.expires_at).getTime() - new Date().getTime() < 7 * 24 * 60 * 60 * 1000;
 
   return (
-    <div className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
+    <div className="p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors border border-border">
       {/* Header with title and permission badge */}
       <div className="flex items-start justify-between mb-2">
         <Link href={quizPath} className="flex-1 min-w-0">
-          <h4 className="font-medium text-white text-sm truncate hover:text-blue-300 cursor-pointer">
+          <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate hover:text-primary cursor-pointer">
             {quiz.title}
           </h4>
         </Link>
@@ -140,23 +140,31 @@ const SharedPrivateQuizCard = ({
       {/* Shared by info */}
       <div className="flex items-center gap-2 mb-2">
         <Avatar className="h-5 w-5">
-          <AvatarImage src={quiz.granted_by_avatar || undefined} />
+          {quiz.granted_by_avatar && quiz.granted_by_avatar.includes('mega.nz') ? (
+            <MegaImage
+              megaUrl={quiz.granted_by_avatar}
+              alt={quiz.granted_by_name || ''}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <AvatarImage src={quiz.granted_by_avatar || undefined} />
+          )}
           <AvatarFallback className="text-xs bg-white/10">
             {quiz.granted_by_name?.charAt(0)?.toUpperCase() || "U"}
           </AvatarFallback>
         </Avatar>
-        <span className="text-xs text-gray-400">
-          {t('shared.shared_by_prefix')} <span className="text-gray-300">{quiz.granted_by_name}</span>
+        <span className="text-xs text-muted-foreground">
+          {t('shared.shared_by_prefix')} <span className="text-foreground">{quiz.granted_by_name}</span>
         </span>
       </div>
 
       {/* Footer with expiry and lock icon */}
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
-          <Lock className="w-3 h-3 text-yellow-400" />
-          <span className="text-gray-400">{t('shared.private_quiz')}</span>
+          <Lock className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+          <span className="text-muted-foreground">{t('shared.private_quiz')}</span>
         </div>
-        <span className={`${isExpiringSoon ? 'text-orange-400' : 'text-gray-400'}`}>
+        <span className={`${isExpiringSoon ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
           {expiryText}
         </span>
       </div>
@@ -180,11 +188,11 @@ export default function QuizzesSidebar() {
     <>
       <div className="w-full max-w-full space-y-6">
         {/* My Attempts Section */}
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-lg">{t('my_attempts.title')}</CardTitle>
-              <Badge variant="outline" className="border-blue-400 text-blue-400">
+              <CardTitle className="text-gray-900 dark:text-white text-lg">{t('my_attempts.title')}</CardTitle>
+              <Badge variant="outline">
                 {stats?.total_attempts || 0}
               </Badge>
             </div>
@@ -203,7 +211,7 @@ export default function QuizzesSidebar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full text-blue-400 hover:bg-blue-400/10"
+                    className="w-full"
                     onClick={() => setShowAllAttemptsModal(true)}
                   >
                     {t('my_attempts.show_more')}
@@ -212,11 +220,11 @@ export default function QuizzesSidebar() {
               </>
             ) : (
               <div className="text-center py-6">
-                <p className="text-gray-400 text-sm mb-3">
+                <p className="text-muted-foreground text-sm mb-3">
                   {t('my_attempts.empty_message')}
                 </p>
                 <Link href={quizzesPath}>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                  <Button size="sm">
                     <FileText className="w-4 h-4 mr-1" />
                     {t('my_attempts.browse_button')}
                   </Button>
@@ -227,20 +235,20 @@ export default function QuizzesSidebar() {
         </Card>
 
         {/* Private Quizzes Shared with Me Section */}
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-lg">{t('shared.title')}</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white text-lg">{t('shared.title')}</CardTitle>
               <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-yellow-400" />
-                <span className="text-xs text-gray-400">{t('shared.private_label')}</span>
+                <Lock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                <span className="text-xs text-muted-foreground">{t('shared.private_label')}</span>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {loadingShared ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="p-3 rounded-lg bg-white/5">
+                <div key={i} className="p-3 rounded-lg bg-muted">
                   <AttemptItemSkeleton />
                 </div>
               ))
@@ -250,11 +258,11 @@ export default function QuizzesSidebar() {
               ))
             ) : (
               <div className="text-center py-6">
-                <Lock className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">
+                <Lock className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">
                   {t('shared.empty_message')}
                 </p>
-                <p className="text-gray-500 text-xs mt-1">
+                <p className="text-muted-foreground text-xs mt-1">
                   {t('shared.empty_subtitle')}
                 </p>
               </div>
@@ -263,32 +271,32 @@ export default function QuizzesSidebar() {
         </Card>
 
         {/* Quiz Stats */}
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-white text-lg">{t('stats.title')}</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-white text-lg">{t('stats.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingStats ? (
               <div className="space-y-3">
                 <>
                     <div className="flex justify-between items-center">
-                      <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
-                      <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                      <span className="h-4 w-24 rounded bg-muted animate-pulse" />
+                      <span className="h-4 w-10 rounded bg-muted animate-pulse" />
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="h-4 w-24 rounded bg-white/10 animate-pulse" />
-                      <span className="h-4 w-10 rounded bg-white/10 animate-pulse" />
+                      <span className="h-4 w-24 rounded bg-muted animate-pulse" />
+                      <span className="h-4 w-10 rounded bg-muted animate-pulse" />
                     </div>
                 </>
               </div>
             ) : stats ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-300 text-sm flex items-center gap-2">
+                  <span className="text-gray-900 dark:text-white text-sm flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
                     {t('stats.total_attempts')}
                   </span>
-                  <Badge variant="outline" className="border-blue-400 text-blue-400">
+                  <Badge variant="outline">
                     {stats.total_attempts}
                   </Badge>
                 </div>

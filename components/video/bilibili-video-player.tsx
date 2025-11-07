@@ -61,11 +61,13 @@ import {
   GraduationCap,
   BookOpen,
   Clock,
+  Eye,
+  Activity,
 } from "lucide-react";
 import MegaImage from "@/components/attachment/mega-blob-image";
 import { setGlobalVideoPlayer, clearGlobalVideoPlayer } from "@/hooks/video/use-video-player";
 import type { VideoPlayerAPI } from "@/interfaces/video-player-api";
-import Hls from 'hls.js';
+import Hls from "hls.js";
 
 interface DanmakuMessage {
   id: string;
@@ -198,6 +200,11 @@ export default function BilibiliVideoPlayer({
   const [bufferedRanges, setBufferedRanges] = useState<TimeRanges | null>(null);
   const [qualityLevels, setQualityLevels] = useState<Array<{index: number, height: number, bitrate: number}>>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1); // -1 = auto
+  const [hlsStats, setHlsStats] = useState<{
+    bandwidth: number;
+    droppedFrames: number;
+    bufferLength: number;
+  }>({ bandwidth: 0, droppedFrames: 0, bufferLength: 0 });
   
   // Subtitle state
   const [currentSubtitle, setCurrentSubtitle] = useState<string>("");
@@ -211,6 +218,7 @@ export default function BilibiliVideoPlayer({
   const [danmakuEnabled, setDanmakuEnabled] = useState(true);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(false);
+  const [showStats, setShowStats] = useState(false); // Advanced stats panel
 
   // Input state
   const [danmakuText, setDanmakuText] = useState("");
@@ -624,11 +632,20 @@ export default function BilibiliVideoPlayer({
   const videoSourceInfo = useMemo(() => {
     if (attachmentId) {
       const streamSrc = `/api/attachments/${attachmentId}/stream`;
-      console.log('📹 Video source:', { attachmentId, src: streamSrc, type: 'direct' });
+      // For attachments, we'll detect HLS format from the actual stream response
+      // For now, assume it's direct video (MP4) unless the URL contains .m3u8
+      const isHLS = streamSrc.includes('.m3u8');
+      console.log('📹 Video source:', { 
+        attachmentId, 
+        src: streamSrc, 
+        type: isHLS ? 'hls' : 'direct',
+        isHLS,
+      });
       return {
         src: streamSrc,
-        type: "direct",
+        type: isHLS ? "hls" : "direct",
         canPlay: true,
+        isHLS,
       };
     }
 
@@ -661,12 +678,23 @@ export default function BilibiliVideoPlayer({
       };
     }
 
+    // Check if it's an HLS stream
+    if (src.includes('.m3u8')) {
+      return {
+        src: src,
+        type: "hls",
+        canPlay: true,
+        isHLS: true,
+      };
+    }
+
     // Check if it's a direct video file
     if (src.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i)) {
       return {
         src: src,
         type: "direct",
         canPlay: true,
+        isHLS: false,
       };
     }
 
@@ -675,6 +703,7 @@ export default function BilibiliVideoPlayer({
       src: src,
       type: "direct",
       canPlay: true,
+      isHLS: false,
     };
   }, [attachmentId, src, getYouTubeEmbedUrl, getVimeoEmbedUrl]);
 
@@ -906,23 +935,58 @@ export default function BilibiliVideoPlayer({
     }
 
     // Check if it's an HLS stream
-    const isHLS = src.includes('.m3u8');
+    const isHLS = videoSourceInfo.isHLS || src.includes('.m3u8');
     
     if (isHLS && Hls.isSupported()) {
       console.log('🎬 Initializing HLS.js for:', src);
       setIsLoading(true);
       
-      // Create HLS instance
+      // Create HLS instance with optimized configuration
       const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 90,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 600,
-        maxBufferSize: 60 * 1000 * 1000, // 60MB
-        maxBufferHole: 0.5,
-        // Start with highest quality by default
-        startLevel: -1, // -1 = auto (ABR)
+        // Performance optimizations
+        enableWorker: true, // Use Web Worker for better performance
+        lowLatencyMode: false, // Set to true for live streams
+        
+        // Buffer management (optimized for VOD)
+        backBufferLength: 90, // Keep 90s of back buffer for seeking
+        maxBufferLength: 30, // Target buffer length (30s ahead)
+        maxMaxBufferLength: 600, // Max buffer length (10 minutes)
+        maxBufferSize: 60 * 1000 * 1000, // 60MB max buffer size
+        maxBufferHole: 0.5, // Max gap in buffer to skip
+        
+        // ABR (Adaptive Bitrate) configuration
+        startLevel: -1, // -1 = auto quality selection
+        abrEwmaDefaultEstimate: 500000, // Initial bandwidth estimate (500 kbps)
+        abrEwmaFastLive: 3.0, // Fast ABR for live
+        abrEwmaSlowLive: 9.0, // Slow ABR for live
+        abrEwmaFastVoD: 3.0, // Fast ABR for VOD
+        abrEwmaSlowVoD: 9.0, // Slow ABR for VOD
+        abrBandWidthFactor: 0.95, // Use 95% of estimated bandwidth
+        abrBandWidthUpFactor: 0.7, // Be conservative when upgrading quality
+        
+        // Fragment loading
+        maxLoadingDelay: 4, // Max delay before loading next fragment
+        maxFragLookUpTolerance: 0.25, // Fragment lookup tolerance
+        
+        // Retry configuration
+        manifestLoadingTimeOut: 10000, // 10s timeout for manifest
+        manifestLoadingMaxRetry: 3, // Retry manifest 3 times
+        manifestLoadingRetryDelay: 1000, // 1s delay between retries
+        levelLoadingTimeOut: 10000, // 10s timeout for level
+        levelLoadingMaxRetry: 4, // Retry level 4 times
+        fragLoadingTimeOut: 20000, // 20s timeout for fragments
+        fragLoadingMaxRetry: 6, // Retry fragments 6 times
+        
+        // Debugging (disable in production)
+        debug: process.env.NODE_ENV === 'development',
+        
+        // Capability detection
+        testBandwidth: true, // Test bandwidth on startup
+        progressive: true, // Enable progressive streaming
+        
+        // Stall detection
+        highBufferWatchdogPeriod: 2, // Check for stalls every 2s
+        nudgeMaxRetry: 3, // Max retries for nudging playback
       });
 
       hlsRef.current = hls;
@@ -983,17 +1047,78 @@ export default function BilibiliVideoPlayer({
         console.log('🎨 Quality switched to:', level.height + 'p');
         setCurrentQuality(data.level);
         
-        // Show toast notification
-        toast({
-          title: t("VideoPlayer.quality_changed") || "Quality Changed",
-          description: `${level.height}p (${(level.bitrate / 1000000).toFixed(1)} Mbps)`,
-          duration: 2000,
-        });
+        // Show toast notification (only for manual switches, not ABR)
+        if (hls.autoLevelEnabled) {
+          console.log('🔄 ABR switched to:', level.height + 'p');
+        }
+      });
+
+      // Monitor bandwidth and buffer health
+      hls.on(Hls.Events.FRAG_BUFFERED, (event, data) => {
+        if (videoRef.current) {
+          const buffered = videoRef.current.buffered;
+          const currentTime = videoRef.current.currentTime;
+          
+          // Calculate buffer length ahead of current time
+          let bufferLength = 0;
+          for (let i = 0; i < buffered.length; i++) {
+            if (buffered.start(i) <= currentTime && buffered.end(i) > currentTime) {
+              bufferLength = buffered.end(i) - currentTime;
+              break;
+            }
+          }
+          
+          // Get bandwidth from HLS instance
+          const bandwidth = hls.bandwidthEstimate || 0;
+          
+          setHlsStats(prev => ({
+            ...prev,
+            bufferLength,
+            bandwidth,
+          }));
+        }
+      });
+
+      // Track dropped frames for quality issues
+      const trackDroppedFrames = setInterval(() => {
+        if (videoRef.current) {
+          const quality = (videoRef.current as any).getVideoPlaybackQuality?.();
+          if (quality) {
+            setHlsStats(prev => ({
+              ...prev,
+              droppedFrames: quality.droppedVideoFrames,
+            }));
+          }
+        }
+      }, 5000);
+
+      // Handle buffer stalls
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.details === 'bufferStalledError') {
+          console.warn('⚠️ Buffer stalled, attempting recovery');
+          // HLS.js will automatically try to recover
+        }
+      });
+
+      // Handle ABR quality changes
+      hls.on(Hls.Events.LEVEL_SWITCHING, (event, data) => {
+        console.log('🔄 Switching to quality level:', data.level);
+      });
+
+      // Monitor fragment loading performance
+      hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+        // Update bandwidth estimate
+        const bandwidth = hls.bandwidthEstimate || 0;
+        setHlsStats(prev => ({
+          ...prev,
+          bandwidth,
+        }));
       });
 
       // Cleanup
       return () => {
         console.log('🧹 Cleaning up HLS instance');
+        clearInterval(trackDroppedFrames);
         if (hlsRef.current) {
           hlsRef.current.destroy();
           hlsRef.current = null;
@@ -1151,8 +1276,8 @@ export default function BilibiliVideoPlayer({
   const changeQuality = useCallback((qualityIndex: number) => {
     if (hlsRef.current) {
       if (qualityIndex === -1) {
-        // Auto quality (ABR)
-        hlsRef.current.currentLevel = -1;
+        // Auto quality (ABR) - enable adaptive bitrate
+        hlsRef.current.currentLevel = -1; // Setting to -1 enables ABR
         console.log('🎨 Quality set to: Auto (ABR)');
         toast({
           title: t("VideoPlayer.quality_changed") || "Quality Changed",
@@ -1160,10 +1285,15 @@ export default function BilibiliVideoPlayer({
           duration: 2000,
         });
       } else {
-        // Manual quality selection
+        // Manual quality selection - locks to specific level
         hlsRef.current.currentLevel = qualityIndex;
         const level = hlsRef.current.levels[qualityIndex];
         console.log('🎨 Quality set to:', level.height + 'p');
+        toast({
+          title: t("VideoPlayer.quality_changed") || "Quality Changed",
+          description: `${level.height}p (${(level.bitrate / 1000000).toFixed(1)} Mbps)`,
+          duration: 2000,
+        });
       }
       setCurrentQuality(qualityIndex);
     }
@@ -1244,6 +1374,12 @@ export default function BilibiliVideoPlayer({
           e.preventDefault();
           if (lessonId && courseNotes.length > 0) {
             setShowNotes(!showNotes);
+          }
+          break;
+        case "KeyS":
+          if (e.shiftKey) {
+            e.preventDefault();
+            setShowStats(!showStats);
           }
           break;
       }
@@ -1558,6 +1694,115 @@ export default function BilibiliVideoPlayer({
         >
           {renderDanmaku()}
         </div>
+
+        {/* Advanced Stats Panel - Top Right */}
+        <AnimatePresence>
+          {showStats && hlsRef.current && (
+            <motion.div
+              className="absolute top-16 right-4 bg-black/90 backdrop-blur-md text-white rounded-lg p-4 text-xs font-mono z-30 pointer-events-auto"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+            >
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/20">
+                <h3 className="font-bold text-sm flex items-center gap-2">
+                  <Eye size={14} />
+                  {t("VideoPlayer.stats_title") || "Video Stats"}
+                </h3>
+                <button
+                  onClick={() => setShowStats(false)}
+                  className="hover:text-red-400 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                {/* Current Quality */}
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-400">{t("VideoPlayer.current_quality") || "Quality"}:</span>
+                  <span className="text-green-400 font-semibold">
+                    {currentQuality === -1 
+                      ? `Auto (${qualityLevels.find(l => l.index === hlsRef.current?.currentLevel)?.height || '?'}p)`
+                      : `${qualityLevels.find(l => l.index === currentQuality)?.height || '?'}p`
+                    }
+                  </span>
+                </div>
+
+                {/* Bandwidth */}
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-400">{t("VideoPlayer.bandwidth") || "Bandwidth"}:</span>
+                  <span className="text-blue-400">
+                    {hlsStats.bandwidth > 0 
+                      ? `${(hlsStats.bandwidth / 1000000).toFixed(2)} Mbps`
+                      : 'Measuring...'
+                    }
+                  </span>
+                </div>
+
+                {/* Buffer Length */}
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-400">{t("VideoPlayer.buffer") || "Buffer"}:</span>
+                  <span className={`${
+                    hlsStats.bufferLength > 10 ? 'text-green-400' : 
+                    hlsStats.bufferLength > 5 ? 'text-yellow-400' : 
+                    'text-red-400'
+                  }`}>
+                    {hlsStats.bufferLength.toFixed(1)}s
+                  </span>
+                </div>
+
+                {/* Dropped Frames */}
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-400">{t("VideoPlayer.dropped_frames") || "Dropped"}:</span>
+                  <span className={`${
+                    hlsStats.droppedFrames > 50 ? 'text-red-400' : 
+                    hlsStats.droppedFrames > 10 ? 'text-yellow-400' : 
+                    'text-green-400'
+                  }`}>
+                    {hlsStats.droppedFrames} frames
+                  </span>
+                </div>
+
+                {/* Resolution */}
+                {videoRef.current && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">{t("VideoPlayer.resolution") || "Resolution"}:</span>
+                    <span className="text-purple-400">
+                      {videoRef.current.videoWidth} × {videoRef.current.videoHeight}
+                    </span>
+                  </div>
+                )}
+
+                {/* Playback Rate */}
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-400">{t("VideoPlayer.speed") || "Speed"}:</span>
+                  <span className="text-cyan-400">{playbackRate}x</span>
+                </div>
+
+                {/* Video Codec */}
+                {qualityLevels.length > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">{t("VideoPlayer.codec") || "Codec"}:</span>
+                    <span className="text-orange-400">
+                      {hlsRef.current?.levels[hlsRef.current.currentLevel]?.videoCodec?.split('.')[0] || 'H.264'}
+                    </span>
+                  </div>
+                )}
+
+                {/* HLS Version */}
+                <div className="flex justify-between gap-4 pt-2 border-t border-white/10">
+                  <span className="text-gray-400">HLS.js:</span>
+                  <span className="text-gray-500 text-[10px]">v{Hls.version}</span>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-white/10 text-[10px] text-gray-500 text-center">
+                Press Shift+S to toggle
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Subtitles Display */}
         {subtitlesEnabled && currentSubtitle && videoSourceInfo.type === "direct" && videoSourceInfo.canPlay && (
@@ -1927,6 +2172,19 @@ export default function BilibiliVideoPlayer({
                         <Send size={20} />
                       </button>
 
+                      {/* Stats Button - Only show for HLS videos */}
+                      {hlsRef.current && (
+                        <button
+                          onClick={() => setShowStats(!showStats)}
+                          className={`text-white hover:text-blue-400 transition-colors ${
+                            showStats ? 'text-blue-400' : ''
+                          }`}
+                          title={t("VideoPlayer.show_stats") || "Show Stats (Shift+S)"}
+                        >
+                          <Eye size={20} />
+                        </button>
+                      )}
+
                       <div className="relative">
                         <button
                           onClick={() => setShowSettings(!showSettings)}
@@ -1993,9 +2251,22 @@ export default function BilibiliVideoPlayer({
                                       ))}
                                   </select>
                                   {qualityLevels.length === 0 && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                      {t("VideoPlayer.quality_not_available") || "Quality selection not available for this video"}
-                                    </p>
+                                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs">
+                                      <p className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
+                                        ⚠️ {t("VideoPlayer.quality_not_available") || "Quality selection not available"}
+                                      </p>
+                                      <p className="text-yellow-700 dark:text-yellow-300 text-[10px] leading-relaxed">
+                                        {t("VideoPlayer.quality_requires_hls") || "This video is in MP4 format. To enable quality switching, convert it to HLS format (.m3u8) with multiple bitrates."}
+                                      </p>
+                                      <a 
+                                        href="https://github.com/video-dev/hls.js" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 dark:text-blue-400 hover:underline text-[10px] mt-1 inline-block"
+                                      >
+                                        {t("VideoPlayer.learn_more") || "Learn more about HLS →"}
+                                      </a>
+                                    </div>
                                   )}
                                 </div>
                               </div>

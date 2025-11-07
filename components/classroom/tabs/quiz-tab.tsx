@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Brain, Plus, Play, Clock, HelpCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ interface QuizTabProps {
 }
 
 export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, classroom }: QuizTabProps) {
+  const t = useTranslations('QuizTab');
   const router = useRouter();
   const { data: currentUser } = useUser();
   const { data: quizzesData, isLoading } = useClassroomQuizzes(classroomSlug);
@@ -72,19 +74,19 @@ export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, clas
     >
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Quizzes</CardTitle>
-          <CardDescription>Interactive quizzes and assessments</CardDescription>
+          <CardTitle>{t('quizzes')}</CardTitle>
+          <CardDescription>{t('quizzes_description')}</CardDescription>
         </div>
         <Button onClick={() => navigateToSection('quiz')}>
           {isOwnerOrTutor ? (
             <>
               <Plus className="h-4 w-4 mr-2" />
-              Manage Quizzes
+              {t('manage_quizzes')}
             </>
           ) : (
             <>
               <Brain className="h-4 w-4 mr-2" />
-              View All
+              {t('view_all')}
             </>
           )}
         </Button>
@@ -97,10 +99,10 @@ export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, clas
         ) : publishedQuizzes.length === 0 ? (
           <div className="text-center py-8">
             <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No quizzes available</p>
+            <p className="text-muted-foreground">{t('no_quizzes_available')}</p>
             {isOwnerOrTutor && (
               <p className="text-sm text-muted-foreground mt-2">
-                Create a quiz to test student knowledge
+                {t('create_quiz_test_knowledge')}
               </p>
             )}
           </div>
@@ -121,27 +123,27 @@ export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, clas
                       {hasSubmitted && (
                         <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Submitted
+                          {t('submitted')}
                         </Badge>
                       )}
                       {quiz.settings.allow_multiple_attempts && (
-                        <Badge variant="outline" className="text-xs">Multiple Attempts</Badge>
+                        <Badge variant="outline" className="text-xs">{t('multiple_attempts')}</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <HelpCircle className="h-3 w-3" />
-                        {quiz.total_questions} questions
+                        {t('questions', { count: quiz.total_questions })}
                       </span>
                       {quiz.settings.time_limit && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {quiz.settings.time_limit} min
+                          {t('time_limit', { minutes: quiz.settings.time_limit })}
                         </span>
                       )}
                       {hasSubmitted && studentSubmission && (
                         <span className="flex items-center gap-1 text-blue-600 font-medium">
-                          Score: {studentSubmission.score}/{studentSubmission.max_score}
+                          {t('score', { score: studentSubmission.score, maxScore: studentSubmission.max_score })}
                         </span>
                       )}
                     </div>
@@ -153,14 +155,14 @@ export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, clas
                       onClick={() => handleTakeQuiz(quiz.id)}
                     >
                       <Play className="h-4 w-4 mr-2" />
-                      Take Quiz
+                      {t('take_quiz')}
                     </Button>
                   )}
                   {!isOwnerOrTutor && hasSubmitted && (
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Your Score</p>
+                      <p className="text-xs text-muted-foreground">{t('your_score')}</p>
                       <p className="text-sm font-bold text-blue-600">
-                        {((studentSubmission.score / studentSubmission.max_score) * 100).toFixed(1)}%
+                        {t('score_percentage', { percentage: ((studentSubmission.score / studentSubmission.max_score) * 100).toFixed(1) })}
                       </p>
                     </div>
                   )}
@@ -173,7 +175,7 @@ export function QuizTab({ isOwnerOrTutor, classroomSlug, navigateToSection, clas
                 className="w-full"
                 onClick={() => navigateToSection('quiz')}
               >
-                View all {publishedQuizzes.length} quizzes
+                {t('view_all_quizzes', { count: publishedQuizzes.length })}
               </Button>
             )}
           </div>

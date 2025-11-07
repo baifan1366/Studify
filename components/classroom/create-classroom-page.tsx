@@ -41,8 +41,8 @@ export function CreateClassroomPage() {
 
     if (!formData.name.trim()) {
       toast({
-        title: "Error",
-        description: "Classroom name is required",
+        title: t('error'),
+        description: t('name_required'),
         variant: "destructive",
       });
       return;
@@ -50,8 +50,8 @@ export function CreateClassroomPage() {
 
     if (formData.visibility === 'private' && !formData.password.trim()) {
       toast({
-        title: "Error",
-        description: "Password is required for private classrooms",
+        title: t('error'),
+        description: t('password_required'),
         variant: "destructive",
       });
       return;
@@ -60,8 +60,8 @@ export function CreateClassroomPage() {
     try {
       const result = await createClassroomMutation.mutateAsync(formData);
       toast({
-        title: "Success",
-        description: `Classroom "${result.classroom.name}" created successfully!`,
+        title: t('success'),
+        description: t('classroom_created', { name: result.classroom.name }),
       });
       const isTutor = currentUser?.profile?.role === 'tutor';
       const route = isTutor 
@@ -71,8 +71,8 @@ export function CreateClassroomPage() {
     } catch (error: any) {
       console.error('Classroom creation error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create classroom. Please try again.",
+        title: t('error'),
+        description: error.message || t('failed_to_create'),
         variant: "destructive",
       });
     }
@@ -87,28 +87,28 @@ export function CreateClassroomPage() {
       <div className="mb-8">
         <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Classrooms
+          {t('back_to_classrooms')}
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Create New Classroom</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('page_title')}</h1>
         <p className="text-muted-foreground">
-          Set up a new classroom for your students
+          {t('page_subtitle')}
         </p>
       </div>
 
       <Card className="bg-transparent p-2">
         <CardHeader>
-          <CardTitle>Classroom Details</CardTitle>
+          <CardTitle>{t('classroom_details')}</CardTitle>
           <CardDescription>
-            Provide basic information about your classroom
+            {t('classroom_details_desc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="name">Classroom Name *</Label>
+              <Label htmlFor="name">{t('classroom_name_required')}</Label>
               <Input
                 id="name"
-                placeholder="Enter classroom name"
+                placeholder={t('classroom_name_placeholder')}
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 required
@@ -116,10 +116,10 @@ export function CreateClassroomPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('classroom_description')}</Label>
               <Textarea
                 id="description"
-                placeholder="Describe what this classroom is about (optional)"
+                placeholder={t('classroom_description_placeholder')}
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
@@ -127,28 +127,28 @@ export function CreateClassroomPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="visibility">Visibility</Label>
+              <Label htmlFor="visibility">{t('visibility')}</Label>
               <Select
                 value={formData.visibility}
                 onValueChange={(value) => handleInputChange('visibility', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select visibility" />
+                  <SelectValue placeholder={t('visibility')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="public">
                     <div className="flex flex-col">
-                      <span>Public</span>
+                      <span>{t('public')}</span>
                       <span className="text-xs text-muted-foreground">
-                        Anyone can see and join this classroom
+                        {t('public_desc')}
                       </span>
                     </div>
                   </SelectItem>
                   <SelectItem value="private">
                     <div className="flex flex-col">
-                      <span>Private</span>
+                      <span>{t('private')}</span>
                       <span className="text-xs text-muted-foreground">
-                        Only members can see this classroom
+                        {t('private_desc')}
                       </span>
                     </div>
                   </SelectItem>
@@ -159,13 +159,13 @@ export function CreateClassroomPage() {
             {formData.visibility === 'private' && (
               <div className="space-y-2">
                 <Label htmlFor="password">
-                  Classroom Password *
+                  {t('classroom_password')}
                 </Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter a password for this classroom"
+                    placeholder={t('classroom_password_placeholder')}
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     className="pl-10 pr-10"
@@ -184,25 +184,25 @@ export function CreateClassroomPage() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Students will need this password to join the classroom
+                  {t('password_help')}
                 </p>
               </div>
             )}
 
             <div className="flex justify-end space-x-4 pt-6">
               <Button type="button" variant="outline" onClick={handleBack}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button 
                 type="submit" 
                 disabled={createClassroomMutation.isPending || !formData.name.trim()}
               >
                 {createClassroomMutation.isPending ? (
-                  <>Creating...</>
+                  <>{t('creating')}</>
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Create Classroom
+                    {t('create_button')}
                   </>
                 )}
               </Button>
@@ -213,13 +213,13 @@ export function CreateClassroomPage() {
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-lg">What happens next?</CardTitle>
+          <CardTitle className="text-lg">{t('what_happens_next')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>• A unique class code will be generated for students to join</p>
-          <p>• You'll be automatically set as the classroom owner</p>
-          <p>• You can start creating assignments, quizzes, and live sessions</p>
-          <p>• Students can join using the class code you share with them</p>
+          <p>• {t('next_step_1')}</p>
+          <p>• {t('next_step_2')}</p>
+          <p>• {t('next_step_3')}</p>
+          <p>• {t('next_step_4')}</p>
         </CardContent>
       </Card>
     </div>

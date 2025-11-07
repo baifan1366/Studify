@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -60,13 +61,13 @@ interface SessionChatPanelProps {
   focusedParticipantIdentity?: string;
 }
 
-const REACTIONS = [
-  { emoji: '👍', icon: ThumbsUp, label: 'Like' },
-  { emoji: '❤️', icon: Heart, label: 'Heart' },
-  { emoji: '😊', icon: Smile, label: 'Smile' },
-  { emoji: '👏', label: 'Clap' },
-  { emoji: '🔥', label: 'Fire' },
-  { emoji: '💡', label: 'Idea' },
+const REACTIONS = (t: any) => [
+  { emoji: '👍', icon: ThumbsUp, label: t('like') },
+  { emoji: '❤️', icon: Heart, label: t('heart') },
+  { emoji: '😊', icon: Smile, label: t('smile') },
+  { emoji: '👏', label: t('clap') },
+  { emoji: '🔥', label: t('fire') },
+  { emoji: '💡', label: t('idea') },
 ];
 
 /**
@@ -78,6 +79,7 @@ function useSessionChat(
   sessionId: string,
   userInfo?: any
 ) {
+  const t = useTranslations('ChatPanel');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -265,7 +267,7 @@ function useSessionChat(
 
     if (!sendData) {
       console.error('❌ sendData function not available - DataChannel not ready');
-      setError('Chat not ready, please wait...');
+      setError(t('chat_not_ready'));
       setTimeout(() => setError(null), 3000);
       return;
     }
@@ -327,7 +329,7 @@ function useSessionChat(
       console.log('✅ Message sent successfully via DataChannel');
     } catch (error) {
       console.error('❌ Error sending message via DataChannel:', error);
-      setError('Message sending failed, please retry');
+      setError(t('message_sending_failed'));
       setTimeout(() => setError(null), 3000);
     }
   }, [userInfo, sendData, saveToLocalHistory]);
@@ -354,6 +356,7 @@ function useSessionChat(
  * Chat message list component
  */
 function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoading: boolean }) {
+  const t = useTranslations('ChatPanel');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -365,7 +368,7 @@ function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoad
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-slate-400">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto mb-2"></div>
-          <p>Loading chat history...</p>
+          <p>{t('loading_history')}</p>
         </div>
       </div>
     );
@@ -376,7 +379,7 @@ function ChatMessages({ messages, isLoading }: { messages: ChatMessage[], isLoad
       {messages.length === 0 ? (
         <div className="text-center text-slate-400 py-8">
           <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>No messages yet, start chatting!</p>
+          <p>{t('no_messages')}</p>
         </div>
       ) : (
         messages.map((message) => (
@@ -426,6 +429,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
   onSendMessage: (text: string) => void;
   onSendReaction: (emoji: string) => void;
 }) {
+  const t = useTranslations('ChatPanel');
   const [message, setMessage] = useState('');
   const [showReactions, setShowReactions] = useState(false);
 
@@ -454,7 +458,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
           className="mb-3 p-2 bg-slate-700/30 rounded-lg w-full"
         >
           <div className="flex gap-2 flex-wrap">
-            {REACTIONS.map((reaction, index) => (
+            {REACTIONS(t).map((reaction, index) => (
               <Button
                 key={index}
                 variant="ghost"
@@ -480,7 +484,7 @@ function ChatInput({ onSendMessage, onSendReaction }: {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Enter message..."
+            placeholder={t('enter_message')}
             onKeyDown={handleKeyDown}
             className="w-full pr-20 bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:ring-indigo-500"
             maxLength={500}
@@ -504,14 +508,14 @@ function ChatInput({ onSendMessage, onSendReaction }: {
           className="w-full text-slate-400 hover:text-white hover:bg-slate-600/50"
         >
           <Smile className="w-4 h-4 mr-2" />
-          <span className="text-xs">Add Reaction</span>
+          <span className="text-xs">{t('add_reaction')}</span>
         </Button>
       </div>
 
       {/* Character count */}
       {message.length > 0 && (
         <div className="text-xs text-slate-400 mt-1 text-right w-full">
-          {message.length}/500
+          {t('character_count', { count: message.length })}
         </div>
       )}
     </div>
@@ -540,11 +544,12 @@ function OnlineParticipants({
   }) => void;
   focusedParticipantIdentity?: string;
 }) {
+  const t = useTranslations('ChatPanel');
   return (
     <div className="p-4 border-b border-slate-700/50">
       <div className="flex items-center gap-2 mb-2">
         <Users className="w-4 h-4 text-slate-400" />
-        <span className="text-sm font-medium text-white">Online Participants ({participants.length})</span>
+        <span className="text-sm font-medium text-white">{t('online_participants', { count: participants.length })}</span>
       </div>
       <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50 hover:scrollbar-thumb-slate-500 pr-2">
         {participants.map((participant) => {
@@ -559,7 +564,7 @@ function OnlineParticipants({
                   : 'hover:bg-slate-700/30'
               }`}
               onClick={() => onParticipantClick?.(participant)}
-              title="Click to focus this participant"
+              title={t('click_to_focus')}
             >
               <Avatar className="w-5 h-5 flex-shrink-0">
                 <AvatarImage src={participant.avatarUrl} />
@@ -576,9 +581,9 @@ function OnlineParticipants({
                 variant={participant.role === 'owner' ? 'default' : participant.role === 'tutor' ? 'default' : 'secondary'}
                 className="text-xs flex-shrink-0"
               >
-                {participant.role === 'owner' ? 'Owner' : participant.role === 'tutor' ? 'Tutor' : 'Student'}
+                {participant.role === 'owner' ? t('owner') : participant.role === 'tutor' ? t('tutor') : t('student')}
               </Badge>
-              <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title="Online"></div>
+              <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" title={t('online')}></div>
             </div>
           );
         })}
@@ -603,6 +608,7 @@ export function SessionChatPanel({
   onParticipantClick,
   focusedParticipantIdentity
 }: SessionChatPanelProps) {
+  const t = useTranslations('ChatPanel');
   const {
     messages,
     isLoading,
@@ -632,7 +638,7 @@ export function SessionChatPanel({
           <div className="p-4 border-b border-slate-700/50 flex-shrink-0">
             <h3 className="text-lg font-medium text-white flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
-              Real-time Chat
+              {t('real_time_chat')}
             </h3>
           </div>
 

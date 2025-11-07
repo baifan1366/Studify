@@ -84,10 +84,10 @@ export function LiveSessionTab({
       const isLive = result?.session?.status === 'live';
       
       toast({
-        title: "Success",
+        title: t('success'),
         description: isLive 
-          ? "Live session created and started! Click 'Join Session' to enter." 
-          : "Live session scheduled successfully",
+          ? t('session_created_started')
+          : t('session_scheduled_successfully'),
       });
       
       setIsDialogOpen(false);
@@ -102,8 +102,8 @@ export function LiveSessionTab({
     } catch (error: any) {
       console.error('❌ [LiveSessionTab] Failed to create session:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create live session",
+        title: t('error'),
+        description: error.message || t('failed_to_create'),
         variant: "destructive",
       });
     }
@@ -120,8 +120,8 @@ export function LiveSessionTab({
       // Basic status validation
       if (session.status === 'cancelled') {
         toast({
-          title: "Session Cancelled",
-          description: "This session has been cancelled.",
+          title: t('session_cancelled'),
+          description: t('session_cancelled_desc'),
           variant: "destructive"
         });
         return;
@@ -129,8 +129,8 @@ export function LiveSessionTab({
 
       // Show joining toast
       toast({
-        title: "Joining Session",
-        description: `Redirecting to "${session.title}"...`,
+        title: t('joining_session'),
+        description: t('redirecting_to', { title: session.title }),
       });
 
       // Redirect to live session room URL with role-based routing
@@ -149,8 +149,8 @@ export function LiveSessionTab({
     } catch (error) {
       console.error('❌ [LiveSessionTab] Error in handleJoinSession:', error);
       toast({
-        title: "Failed to Join",
-        description: "Unable to join the session. Please try again.",
+        title: t('failed_to_join'),
+        description: t('failed_to_join_desc'),
         variant: "destructive"
       });
     }
@@ -159,8 +159,8 @@ export function LiveSessionTab({
   const handleLeaveSession = () => {
     setActiveSession(null);
     toast({
-      title: "Left Session",
-      description: "You have left the live session.",
+      title: t('left_session'),
+      description: t('left_session_desc'),
     });
   };
 
@@ -210,7 +210,7 @@ export function LiveSessionTab({
       }}
     >
       <CardHeader className="flex flex-row items-center justify-between">
-        <h2 className="text-2xl font-bold">Live Sessions</h2>
+        <h2 className="text-2xl font-bold">{t('live_sessions')}</h2>
         {isOwnerOrTutor && (
           <CreateLiveSessionDialog
             isOpen={isDialogOpen}
@@ -229,7 +229,7 @@ export function LiveSessionTab({
           <div className="mb-6">
             <h3 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
               <Video className="h-4 w-4" />
-              Live Now
+              {t('live_now')}
             </h3>
             <div className="space-y-3">
               {liveSessions.map((session: any) => (
@@ -237,7 +237,7 @@ export function LiveSessionTab({
                   <div>
                     <p className="font-medium text-green-800">{session.title}</p>
                     <p className="text-sm text-green-600">
-                      Started at {new Date(session.starts_at).toLocaleTimeString()}
+                      {t('started_at', { time: new Date(session.starts_at).toLocaleTimeString() })}
                     </p>
                   </div>
                   <Button 
@@ -246,7 +246,7 @@ export function LiveSessionTab({
                     disabled={false}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Join Session 
+                    {t('join_session')}
                   </Button>
                 </div>
               ))}
@@ -256,14 +256,14 @@ export function LiveSessionTab({
         
         {/* Upcoming Sessions */}
         <div>
-          <h3 className="font-semibold mb-3">Upcoming Sessions</h3>
+          <h3 className="font-semibold mb-3">{t('upcoming_sessions')}</h3>
           {upcomingSessions.length === 0 ? (
             <div className="text-center py-8 ">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No upcoming sessions</p>
+              <p className="text-muted-foreground">{t('no_upcoming_sessions')}</p>
               {isOwnerOrTutor && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Schedule a session to get started
+                  {t('schedule_session_hint')}
                 </p>
               )}
             </div>
@@ -274,11 +274,13 @@ export function LiveSessionTab({
                   <div>
                     <p className="font-medium">{session.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(session.starts_at).toLocaleDateString()} at{' '}
-                      {new Date(session.starts_at).toLocaleTimeString()}
+                      {t('scheduled_at', { 
+                        date: new Date(session.starts_at).toLocaleDateString(),
+                        time: new Date(session.starts_at).toLocaleTimeString()
+                      })}
                     </p>
                   </div>
-                  <Badge variant="outline">Scheduled</Badge>
+                  <Badge variant="outline">{t('scheduled')}</Badge>
                 </div>
               ))}
             </div>

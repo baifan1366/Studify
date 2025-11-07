@@ -7,7 +7,7 @@ export interface LiveSession {
   host_id: string;
   starts_at: string;
   ends_at?: string | null;
-  status: "scheduled" | "live" | "ended" | "cancelled" | "active";
+  status: "scheduled" | "live" | "ended" | "cancelled";
   slug?: string;
   is_deleted?: boolean;
   created_at?: string;

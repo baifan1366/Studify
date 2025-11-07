@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next") ||
     /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname);
   const isWellKnown = pathname.startsWith("/.well-known");
-  const isServiceWorker = pathname === "/sw.js";
+  const isServiceWorker = pathname === "/sw.js" || pathname === "/OneSignalSDKWorker.js";
 
   // Check if this is sign-in with mode=add (allow even for logged in users)
   const isAddAccountMode =
@@ -93,8 +93,8 @@ export async function middleware(request: NextRequest) {
     isAuthApi ||
     isAddAccountMode
   ) {
-    // For API routes, bypass intl middleware to avoid locale rewriting
-    return isApi ? NextResponse.next() : intlMiddleware(request);
+    // For service workers and API routes, bypass intl middleware to avoid locale rewriting
+    return isApi || isServiceWorker ? NextResponse.next() : intlMiddleware(request);
   }
 
   // For public paths, handle intl middleware but skip auth
@@ -266,6 +266,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|OneSignalSDKWorker.js|.*.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

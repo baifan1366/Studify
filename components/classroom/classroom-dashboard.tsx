@@ -713,7 +713,7 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
       <div className="mb-6 md:mb-8">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{classroom.name}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-black dark:text-white">{classroom.name}</h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
               {classroom.description || t('no_description')}
             </p>
@@ -723,8 +723,8 @@ export default function ClassroomDashboard({ classroomSlug }: ClassroomDashboard
               </Badge>
               <Badge variant="outline">{classroom.user_role}</Badge>
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span className="text-sm">{(() => {
+                <Users className="h-4 w-4 text-black dark:text-white" />
+                <span className="text-sm text-black dark:text-white">{(() => {
                   const members = Array.isArray(membersData) ? membersData : membersData?.members || [];
                   return members.length;
                 })() || 0} {t('members')}</span>

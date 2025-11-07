@@ -326,7 +326,7 @@ export async function GET(
 
     // If student, only show their own grade
     if (!isOwnerOrTutor) {
-      query = query.eq('user_id', profile.id);
+      query = query.eq('user_id', userId);
     }
 
     const { data: grades, error } = await query;

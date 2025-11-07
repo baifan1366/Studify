@@ -449,6 +449,33 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
     }
 
+    console.log('🔍 [PATCH] Current session data:', {
+      id: session.id,
+      status: session.status,
+      status_type: typeof session.status,
+      has_status: !!session.status
+    });
+
+    // Check if current status is invalid - this requires manual database fix
+    if (session.status && !['scheduled', 'live', 'ended', 'cancelled'].includes(session.status)) {
+      console.error(`❌ [PATCH] Session ${session_id} has invalid status: "${session.status}"`);
+      console.error('This session cannot be updated until the status is fixed in the database.');
+      console.error('Run this SQL in Supabase SQL Editor:');
+      console.error(`UPDATE classroom_live_session SET status = 'live', updated_at = NOW() WHERE id = ${session_id};`);
+      
+      return NextResponse.json(
+        { 
+          error: 'Session has invalid status',
+          details: `Current status "${session.status}" is not valid. Valid values are: scheduled, live, ended, cancelled`,
+          fix_instructions: 'Run the SQL script in db/fix-active-status.sql in your Supabase SQL Editor',
+          quick_fix_sql: `UPDATE classroom_live_session SET status = 'live', updated_at = NOW() WHERE id = ${session_id};`,
+          session_id: session_id,
+          current_status: session.status
+        },
+        { status: 400 }
+      );
+    }
+
     // 检查权限：只有主持人或课堂管理员可以更新
     const canUpdate = session.host_id === profile.id || ['owner', 'tutor'].includes(userRole);
     
@@ -462,7 +489,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // 构建更新数据
     const updateData: any = { updated_at: new Date().toISOString() };
     
-    if (status) updateData.status = status;
+    if (status) {
+      console.log('🔍 [PATCH] Status value received:', {
+        status,
+        type: typeof status,
+        isValid: ['scheduled', 'live', 'ended', 'cancelled'].includes(status),
+        lowercase: status.toLowerCase(),
+        uppercase: status.toUpperCase()
+      });
+      // Ensure status is lowercase to match database constraint
+      updateData.status = status.toLowerCase();
+    }
     if (title) updateData.title = title.trim();
     if (starts_at) {
       const startTime = new Date(starts_at);
@@ -485,6 +522,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updateData.ends_at = endTime.toISOString();
     }
 
+    // Log the update data before sending to database
+    console.log('📝 [PATCH] Update data being sent to database:', {
+      session_id,
+      updateData,
+      classroom_id: classroom.id
+    });
+
     // 更新直播课程
     const { data: updatedSession, error: updateError } = await supabase
       .from('classroom_live_session')
@@ -506,9 +550,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .single();
 
     if (updateError) {
-      console.error('Error updating live session:', updateError);
+      console.error('Error updating live session:', {
+        error: updateError,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        code: updateError.code,
+        session_id,
+        updateData
+      });
       return NextResponse.json(
-        { error: 'Failed to update live session' },
+        { 
+          error: 'Failed to update live session',
+          details: updateError.message,
+          code: updateError.code
+        },
         { status: 500 }
       );
     }

@@ -336,7 +336,7 @@ export function AssignmentSubmissions({
       <div className="space-y-4">
         {submissions.length === 0 ? (
           <Card 
-            className="border-l-4 hover:shadow-md transition-shadow"
+            className=" hover:shadow-md transition-shadow"
             style={{ 
               borderLeftColor: validColor,
               backgroundColor: cardStyling.backgroundColor,
@@ -360,7 +360,7 @@ export function AssignmentSubmissions({
             return (
               <Card 
                 key={submission.id} 
-                className="overflow-hidden border-l-4 hover:shadow-md transition-all duration-200"
+                className="overflow-hidden  hover:shadow-md transition-all duration-200"
                 style={{ 
                   borderLeftColor: validColor,
                   backgroundColor: cardStyling.backgroundColor,
@@ -368,7 +368,7 @@ export function AssignmentSubmissions({
                 }}
               >
                 <CardHeader 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="cursor-pointer hover:bg-gray-200/8"
                   onClick={() => setExpandedSubmission(isExpanded ? null : submission.id)}
                 >
                   <div className="flex items-center justify-between">
@@ -423,7 +423,6 @@ export function AssignmentSubmissions({
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <Separator />
                       <CardContent className="pt-6">
                         {/* Submission Content */}
                         <div className="space-y-6">
@@ -479,7 +478,6 @@ export function AssignmentSubmissions({
                           {/* Grading Section for Tutors */}
                           {isOwnerOrTutor && (
                             <div className="space-y-4">
-                              <Separator />
                               {isGrading ? (
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

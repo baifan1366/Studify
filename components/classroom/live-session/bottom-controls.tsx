@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import {
   MediaDeviceMenu,
   StartAudio,
@@ -37,6 +38,7 @@ export default function BottomControls({
   sessionId,
   onLeaveSession,
 }: BottomControlsProps) {
+  const t = useTranslations('BottomControls');
   const [isMuted, setIsMuted] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
@@ -63,7 +65,7 @@ export default function BottomControls({
       // 添加事件监听，阻止标签切换
       const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         e.preventDefault();
-        e.returnValue = '录制正在进行中，确定要离开吗？';
+        e.returnValue = t('recording_in_progress');
         return e.returnValue;
       };
 
@@ -163,11 +165,11 @@ export default function BottomControls({
               duration_sec: durationSec,
             });
 
-            alert('✅ Recording uploaded successfully!');
+            alert('✅ ' + t('recording_uploaded_successfully'));
           } catch (err) {
             console.error('❌ Upload failed:', err);
-            const message = err instanceof Error ? err.message : 'Unknown upload error';
-            alert(`Recording upload failed: ${message}`);
+            const message = err instanceof Error ? err.message : t('unknown_upload_error');
+            alert(`${t('recording_upload_failed')}: ${message}`);
           }
         } else {
           console.warn('Skipped upload: not tutor or missing info');
@@ -187,7 +189,7 @@ export default function BottomControls({
       console.log('🎥 Recording started, current tab locked');
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('Failed to start recording. Please allow screen sharing permissions.');
+      alert(t('failed_to_start_recording'));
       onStopRecording();
     }
   };
@@ -246,7 +248,7 @@ export default function BottomControls({
           <div className="flex flex-1 justify-center px-2 pointer-events-auto">
             <div className="lk-controls no-scrollbar w-full flex items-center justify-center gap-1 sm:gap-2 bg-transparent flex-nowrap overflow-x-auto">
               {/* Due to browser autoplay policy, need StartAudio to enable audio on first use */}
-              <StartAudio label="Enable Audio" className={`${pillBtn} text-sm md:text-base`} />
+              <StartAudio label={t('enable_audio')} className={`${pillBtn} text-sm md:text-base`} />
 
               {/* Audio control group - microphone toggle + audio device selection */}
               <div className="flex items-center bg-white/10 rounded-full">
@@ -285,7 +287,7 @@ export default function BottomControls({
                 }}
               >
                 <LogOut className="w-4 h-4" />
-                <span>Leave</span>
+                <span>{t('leave')}</span>
               </DisconnectButton>
             </div>
           </div>
@@ -297,12 +299,12 @@ export default function BottomControls({
               <button
                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                 className="h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center bg-red-600 text-white hover:bg-red-500 border-2 border-white"
-                title={isRecording ? 'Stop Recording' : 'Start Recording'}
+                title={isRecording ? t('stop_recording') : t('start_recording')}
                 disabled={createRecording?.isPending}
                 style={{ minWidth: '40px', minHeight: '40px' }}
               >
                 <span className={`text-xs font-bold ${isRecording ? 'animate-pulse' : ''}`}>
-                  {createRecording?.isPending ? 'SAVE' : (isRecording ? '● REC' : 'REC')}
+                  {createRecording?.isPending ? t('save') : (isRecording ? '● ' + t('rec') : t('rec'))}
                 </span>
               </button>
             )}
@@ -311,9 +313,9 @@ export default function BottomControls({
               <button
                 onClick={onEndSession}
                 className={`${pillBtn} bg-red-600 hover:bg-red-500 text-black`}
-                title="End Session"
+                title={t('end_session')}
               >
-                End
+                {t('end')}
               </button>
             )}
 

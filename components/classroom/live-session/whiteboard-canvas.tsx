@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@liveblocks/client';
 import { createRoomContext } from '@liveblocks/react';
 import { toast } from 'sonner';
@@ -154,6 +155,7 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
   width = 1280,
   height = 720,
 }, ref) => {
+  const t = useTranslations('WhiteboardPanel');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -763,7 +765,7 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
     clearCanvas: () => {
       console.log('🗑️ Clearing canvas');
       clearAllDrawings();
-      toast.success('Canvas cleared');
+      toast.success(t('canvas_cleared'));
     },
     undo: () => {
       console.log('↩️ Undo');
@@ -777,12 +779,12 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
     canRedo,
     saveCanvas: async () => {
       console.log('💾 Saving canvas (not implemented yet)');
-      toast.info('Save feature coming soon');
+      toast.info(t('save_feature_coming'));
     },
     downloadCanvas: () => {
       const canvas = canvasRef.current;
       if (!canvas) {
-        toast.error('Canvas not ready');
+        toast.error(t('canvas_not_ready'));
         return;
       }
 
@@ -794,7 +796,7 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
         const tempCtx = tempCanvas.getContext('2d');
         
         if (!tempCtx) {
-          toast.error('Failed to create download canvas');
+          toast.error(t('failed_to_generate_image'));
           return;
         }
 
@@ -808,7 +810,7 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
         // Convert to blob and download
         tempCanvas.toBlob((blob) => {
           if (!blob) {
-            toast.error('Failed to generate image');
+            toast.error(t('failed_to_generate_image'));
             return;
           }
 
@@ -821,14 +823,14 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
           URL.revokeObjectURL(url);
           
           console.log('✅ Canvas downloaded');
-          toast.success('Canvas downloaded');
+          toast.success(t('canvas_downloaded'));
         }, 'image/png');
       } catch (error) {
         console.error('❌ Download failed:', error);
-        toast.error('Failed to download canvas');
+        toast.error(t('failed_to_download'));
       }
     },
-  }), [canUndo, canRedo, undo, redo, clearAllDrawings]);
+  }), [canUndo, canRedo, undo, redo, clearAllDrawings, t]);
 
   // 🎯 Get custom cursor style based on current tool
   const getCustomCursorStyle = useCallback((): React.CSSProperties => {
@@ -927,7 +929,7 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
         <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
-            <p className="text-sm text-slate-600">Loading whiteboard...</p>
+            <p className="text-sm text-slate-600">{t('loading_whiteboard')}</p>
           </div>
         </div>
       )}

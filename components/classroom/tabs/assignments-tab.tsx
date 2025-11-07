@@ -239,8 +239,8 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
       >
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Assignments</CardTitle>
-            <CardDescription>View and manage classroom assignments</CardDescription>
+            <CardTitle>{t('assignments')}</CardTitle>
+            <CardDescription>{t('assignments_description')}</CardDescription>
           </div>
           {isOwnerOrTutor && (
             <CreateAssignmentDialog
@@ -256,15 +256,15 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
           {!Array.isArray(filteredAssignments) || filteredAssignments.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No active assignments</p>
+              <p className="text-muted-foreground">{t('no_active_assignments')}</p>
               {isOwnerOrTutor && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Create an assignment to get started
+                  {t('create_assignment_to_start')}
                 </p>
               )}
               {userRole === 'student' && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Assignments overdue by more than 3 days are hidden
+                  {t('assignments_overdue_hidden')}
                 </p>
               )}
             </div>
@@ -303,7 +303,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                           {showOverdue && (
                             <Badge variant="destructive" className="bg-red-600 dark:bg-red-700 text-white">
                               <AlertTriangle className="h-3 w-3 mr-1" />
-                              OVERDUE
+                              {t('overdue')}
                             </Badge>
                           )}
 
@@ -311,7 +311,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                           {!showOverdue && userRole === 'student' && isGraded && (
                             <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700">
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Graded
+                              {t('graded')}
                             </Badge>
                           )}
 
@@ -321,12 +321,12 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                               {isSubmitted ? (
                                 <Badge variant="outline" className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700">
                                   <CheckCircle className="h-3 w-3 mr-1" />
-                                  Submitted
+                                  {t('submitted')}
                                 </Badge>
                               ) : (
                                 <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700">
                                   <Clock className="h-3 w-3 mr-1" />
-                                  Pending
+                                  {t('pending')}
                                 </Badge>
                               )}
                             </>
@@ -338,19 +338,19 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                               {isGraded && (
                                 <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700">
                                   <CheckCircle className="h-3 w-3 mr-1" />
-                                  Graded
+                                  {t('graded')}
                                 </Badge>
                               )}
                               {!isGraded && isSubmitted && (
                                 <Badge variant="outline" className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700">
                                   <CheckCircle className="h-3 w-3 mr-1" />
-                                  Submitted Late
+                                  {t('submitted_late')}
                                 </Badge>
                               )}
                               {!isGraded && !isSubmitted && (
                                 <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600">
                                   <Clock className="h-3 w-3 mr-1" />
-                                  Not Submitted
+                                  {t('not_submitted')}
                                 </Badge>
                               )}
                             </>
@@ -360,10 +360,10 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                           ? 'text-red-600 dark:text-red-400 font-medium'
                           : 'text-muted-foreground'
                           }`}>
-                          Due: {(assignment.due_date || assignment.due_on) ? new Date(assignment.due_date || assignment.due_on).toLocaleDateString() : 'No due date'}
+                          {(assignment.due_date || assignment.due_on) ? `${t('due')}: ${new Date(assignment.due_date || assignment.due_on).toLocaleDateString()}` : t('no_due_date')}
                           {showOverdue && (
                             <span className="ml-2 text-red-700 dark:text-red-300">
-                              (Overdue by {Math.ceil((new Date().getTime() - new Date(assignment.due_date || assignment.due_on).getTime()) / (1000 * 60 * 60 * 24))} days)
+                              {t('overdue_by_days', { days: Math.ceil((new Date().getTime() - new Date(assignment.due_date || assignment.due_on).getTime()) / (1000 * 60 * 60 * 24)) })}
                             </span>
                           )}
                         </p>
@@ -380,7 +380,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                             className="flex items-center gap-1"
                           >
                             <Users className="h-3 w-3" />
-                            Submissions
+                            {t('submissions')}
                           </Button>
                           <Button
                             size="sm"
@@ -388,7 +388,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                             onClick={() => navigateToSection('assignment')}
                           >
                             <Eye className="h-3 w-3 mr-1" />
-                            View
+                            {t('view')}
                           </Button>
                         </>
                       )}
@@ -404,22 +404,22 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                             disabled={(showOverdue && !isSubmitted) || isGraded}
                             title={
                               isGraded
-                                ? "Assignment is already graded - cannot resubmit"
+                                ? t('assignment_graded_cannot_resubmit')
                                 : showOverdue && !isSubmitted
-                                  ? "Assignment is overdue - cannot submit"
+                                  ? t('assignment_overdue_cannot_submit')
                                   : ""
                             }
                           >
                             <FileText className="h-3 w-3" />
                             {isGraded
-                              ? 'Graded'
+                              ? t('graded')
                               : showOverdue && isSubmitted
-                                ? 'View Submission'
+                                ? t('view_submission')
                                 : isSubmitted
-                                  ? 'Resubmit'
+                                  ? t('resubmit')
                                   : showOverdue
-                                    ? 'Overdue'
-                                    : 'Submit'
+                                    ? t('overdue')
+                                    : t('submit_assignment')
                             }
                           </Button>
                           <Button
@@ -428,7 +428,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
                             onClick={() => navigateToSection('assignment')}
                           >
                             <Eye className="h-3 w-3 mr-1" />
-                            View
+                            {t('view')}
                           </Button>
                         </>
                       )}
@@ -450,7 +450,7 @@ export function AssignmentsTab({ assignmentsData, isOwnerOrTutor, classroomSlug,
               })}
               {filteredAssignments.length > 5 && (
                 <Button variant="outline" className="w-full" onClick={() => navigateToSection('assignment')}>
-                  View All Assignments ({filteredAssignments.length})
+                  {t('view_all_assignments', { count: filteredAssignments.length })}
                 </Button>
               )}
             </div>

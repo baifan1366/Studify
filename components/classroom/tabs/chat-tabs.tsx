@@ -167,10 +167,11 @@ function GeneralChatTab({
 }
 
 function ParticipantsTab({ participants }: { participants: any[] }) {
+  const t = useTranslations('ChatTabs');
   return (
     <div className="h-full overflow-y-auto">
       <h3 className="font-semibold mb-4">
-        Participants ({participants.length})
+        {t('participants_count', { count: participants.length })}
       </h3>
       <div className="space-y-2">
         {participants.map((participant, index) => (
@@ -185,10 +186,10 @@ function ParticipantsTab({ participants }: { participants: any[] }) {
             </div>
             <div className="flex-1">
               <div className="text-sm font-medium">
-                {participant.name || 'Unknown User'}
+                {participant.name || t('unknown_user')}
               </div>
               <div className="text-xs text-muted-foreground">
-                {participant.role || 'Student'}
+                {participant.role || t('student')}
               </div>
             </div>
             <div className="w-2 h-2 rounded-full bg-green-400"></div>
@@ -200,18 +201,19 @@ function ParticipantsTab({ participants }: { participants: any[] }) {
 }
 
 function AnnouncementsTab() {
+  const t = useTranslations('ChatTabs');
   const announcements = [
     {
       id: 1,
-      title: 'Welcome to the session',
-      content: 'Please keep your microphones muted when not speaking.',
+      title: t('welcome_to_session'),
+      content: t('keep_microphones_muted'),
       timestamp: new Date(),
       type: 'info'
     },
     {
       id: 2,
-      title: 'Assignment reminder',
-      content: 'Don\'t forget to submit your homework by Friday.',
+      title: t('assignment_reminder'),
+      content: t('dont_forget_submit_homework'),
       timestamp: new Date(Date.now() - 3600000),
       type: 'warning'
     }
@@ -220,7 +222,7 @@ function AnnouncementsTab() {
   return (
     <div className="h-full overflow-y-auto">
       <h3 className="font-semibold mb-4">
-        Announcements
+        {t('announcements')}
       </h3>
       <div className="space-y-3">
         {announcements.map((announcement) => (
@@ -249,6 +251,7 @@ function AnnouncementsTab() {
 }
 
 function SettingsTab() {
+  const t = useTranslations('ChatTabs');
   const { data: notificationSettings, isLoading } = useNotificationSettings();
   const { mutate: updateSettings } = useUpdateNotificationSettings();
 
@@ -284,17 +287,17 @@ function SettingsTab() {
   return (
     <div className="h-full overflow-y-auto">
       <h3 className="font-semibold mb-4">
-        Chat Settings
+        {t('chat_settings')}
       </h3>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-medium flex items-center gap-2">
               {notifications ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-              Chat Notifications
+              {t('chat_notifications')}
             </div>
             <div className="text-xs text-muted-foreground">
-              Get notified when new messages are posted
+              {t('get_notified_new_messages')}
             </div>
           </div>
           <button
@@ -314,10 +317,10 @@ function SettingsTab() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-medium">
-              Sound Effects
+              {t('sound_effects')}
             </div>
             <div className="text-xs text-muted-foreground">
-              Play sounds for new messages
+              {t('play_sounds_new_messages')}
             </div>
           </div>
           <button
@@ -337,10 +340,10 @@ function SettingsTab() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-medium">
-              Auto Scroll
+              {t('auto_scroll')}
             </div>
             <div className="text-xs text-muted-foreground">
-              Automatically scroll to new messages
+              {t('auto_scroll_new_messages')}
             </div>
           </div>
           <button
@@ -372,6 +375,7 @@ export function ChatTabs({
   className = '',
   classroom
 }: ChatTabsProps) {
+  const t = useTranslations('ChatTabs');
   const [activeTab, setActiveTab] = useState<ChatTabType>('general');
   const [forceUpdate, setForceUpdate] = useState(0);
   
@@ -398,13 +402,13 @@ export function ChatTabs({
   const tabs: ChatTab[] = [
     {
       id: 'general',
-      label: 'General',
+      label: t('general'),
       icon: <MessageCircle className="w-4 h-4" />,
       count: (unreadCount > 0 && activeTab !== 'general') ? unreadCount : undefined,
     },
     {
       id: 'settings',
-      label: 'Settings',
+      label: t('settings'),
       icon: <Settings className="w-4 h-4" />,
     },
   ];
@@ -440,9 +444,9 @@ export function ChatTabs({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" />
-          Classroom Chat
+          {t('classroom_chat')}
         </CardTitle>
-        <CardDescription>Communicate with classmates and instructors</CardDescription>
+        <CardDescription>{t('communicate_with_classmates')}</CardDescription>
       </CardHeader>
 
       <CardContent>

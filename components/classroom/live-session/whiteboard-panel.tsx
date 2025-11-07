@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,6 +78,7 @@ export function WhiteboardPanel({
   onSaveCanvas,
   onDownloadCanvas
 }: WhiteboardPanelProps) {
+  const t = useTranslations('WhiteboardPanel');
 
   return (
     <AnimatePresence>
@@ -98,7 +100,7 @@ export function WhiteboardPanel({
           <div className="p-2 sm:p-4 border-b border-slate-700/50">
             <h3 className="text-lg font-medium text-white flex items-center gap-2 mb-4">
               <PenTool className="w-5 h-5" />
-              Collaborative Whiteboard
+              {t('collaborative_whiteboard')}
             </h3>
 
             {/* Tool Selection */}
@@ -149,7 +151,7 @@ export function WhiteboardPanel({
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Palette className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-300">Color</span>
+                <span className="text-sm text-slate-300">{t('color')}</span>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-1">
                 {COLORS.map((color) => (
@@ -168,7 +170,7 @@ export function WhiteboardPanel({
             {currentTool !== 'text' && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-slate-300">Brush Size</span>
+                  <span className="text-sm text-slate-300">{t('brush_size')}</span>
                   <span className="text-xs text-slate-400">({currentBrushSize}px)</span>
                 </div>
                 <div className="flex gap-1">
@@ -192,12 +194,12 @@ export function WhiteboardPanel({
             {/* Text Tool Options */}
             {currentTool === 'text' && (
               <div className="mb-4 p-3 bg-slate-700/30 rounded-lg">
-                <h4 className="text-sm font-medium text-white mb-2">Text Options</h4>
+                <h4 className="text-sm font-medium text-white mb-2">{t('text_options')}</h4>
 
                 {/* Font Size */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-300">Font Size</span>
+                    <span className="text-sm text-slate-300">{t('font_size')}</span>
                     <span className="text-xs text-slate-400">({currentFontSize}px)</span>
                   </div>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
@@ -219,7 +221,7 @@ export function WhiteboardPanel({
                 {/* Text Alignment */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-300">Alignment</span>
+                    <span className="text-sm text-slate-300">{t('alignment')}</span>
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -228,7 +230,7 @@ export function WhiteboardPanel({
                           ? 'bg-indigo-500 text-white'
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                         }`}
-                      title="Left Align"
+                      title={t('left_align')}
                     >
                       <AlignLeft className="w-4 h-4" />
                     </button>
@@ -238,7 +240,7 @@ export function WhiteboardPanel({
                           ? 'bg-indigo-500 text-white'
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                         }`}
-                      title="Center Align"
+                      title={t('center_align')}
                     >
                       <AlignCenter className="w-4 h-4" />
                     </button>
@@ -248,7 +250,7 @@ export function WhiteboardPanel({
                           ? 'bg-indigo-500 text-white'
                           : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
                         }`}
-                      title="Right Align"
+                      title={t('right_align')}
                     >
                       <AlignRight className="w-4 h-4" />
                     </button>
@@ -256,8 +258,8 @@ export function WhiteboardPanel({
                 </div>
 
                 <div className="text-xs text-slate-400">
-                  💡 Click anywhere on the whiteboard to create a text box<br />
-                  Double-click to edit text, single-click to drag position
+                  {t('click_to_create')}<br />
+                  {t('edit_instructions')}
                 </div>
               </div>
             )}
@@ -267,11 +269,11 @@ export function WhiteboardPanel({
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" size="sm" onClick={onSaveCanvas}>
                   <Save className="w-4 h-4 mr-1" />
-                  Save to Cloud
+                  {t('save_to_cloud')}
                 </Button>
                 <Button variant="outline" size="sm" onClick={onDownloadCanvas}>
                   <Download className="w-4 h-4 mr-1" />
-                  Download Image
+                  {t('download_image')}
                 </Button>
               </div>
               <Button
@@ -281,7 +283,7 @@ export function WhiteboardPanel({
                 className="w-full"
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                Clear Canvas
+                {t('clear_canvas')}
               </Button>
             </div>
           </div>

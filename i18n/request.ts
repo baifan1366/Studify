@@ -8,5 +8,8 @@ export default getRequestConfig(async () => {
   return {
     locale,
     messages: (await import(`../messages/${locale}.json`)).default,
+    formats: {
+      // Enable ICU MessageFormat for plurals and other advanced features
+    },
   };
 });

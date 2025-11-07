@@ -25,7 +25,24 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      // Ensure OneSignal service worker is served correctly
+      // Ensure service workers are served correctly
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8',
+          },
+        ],
+      },
       {
         source: '/OneSignalSDKWorker.js',
         headers: [

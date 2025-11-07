@@ -77,8 +77,31 @@ export async function handleCourseApprovalAutoCreation(
     };
   }
 
-  const courseOwnerId = courseData.owner_id;
-  console.log("[AutoCreation] Course owner ID:", courseOwnerId);
+  const courseOwnerProfileId = courseData.owner_id;
+  console.log("[AutoCreation] Course owner profile ID:", courseOwnerProfileId);
+
+  // Get the user_id (UUID) from profiles table for classroom creation
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("id", courseOwnerProfileId)
+    .single();
+
+  if (profileError || !profileData) {
+    return {
+      success: false,
+      classroomCreated: false,
+      communityCreated: false,
+      errors: [
+        `Failed to get profile user_id: ${
+          profileError?.message || "Profile not found"
+        }`,
+      ],
+    };
+  }
+
+  const courseOwnerUserId = profileData.user_id;
+  console.log("[AutoCreation] Course owner user UUID:", courseOwnerUserId);
 
   // Auto-create classroom if requested
   if (autoCreateClassroom) {
@@ -87,7 +110,8 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerId
+        courseOwnerUserId,
+        courseOwnerProfileId
       );
 
       if (classroomResult.success) {
@@ -123,7 +147,7 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerId
+        courseOwnerProfileId
       );
 
       if (communityResult.success) {
@@ -165,7 +189,8 @@ async function createClassroomForCourse(
   supabase: any,
   courseName: string,
   courseSlug: string,
-  courseOwnerId: number
+  courseOwnerUserId: string,
+  courseOwnerProfileId: number
 ) {
   // Ensure courseName is not empty and provide fallback
   const safeCourseTitle = courseName?.trim() || "Course";
@@ -211,7 +236,7 @@ async function createClassroomForCourse(
       visibility: "public",
       class_code: classCode,
       slug: classroomSlug,
-      owner_id: courseOwnerId,
+      owner_id: courseOwnerUserId,
     })
     .select("id")
     .single();
@@ -224,12 +249,12 @@ async function createClassroomForCourse(
     };
   }
 
-  // Add course owner as classroom owner member (using profile ID, not UUID)
+  // Add course owner as classroom owner member (using profile ID)
   const { error: memberError } = await supabase
     .from("classroom_member")
     .insert({
       classroom_id: classroom.id,
-      user_id: courseOwnerId,
+      user_id: courseOwnerProfileId,
       role: "owner",
     });
 

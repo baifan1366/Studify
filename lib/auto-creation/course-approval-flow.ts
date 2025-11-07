@@ -81,6 +81,7 @@ export async function handleCourseApprovalAutoCreation(
   console.log("[AutoCreation] Course owner profile ID:", courseOwnerProfileId);
 
   // Get the user_id (UUID) from profiles table for classroom creation
+  // Note: classroom.owner_id expects UUID, while community_group.owner_id expects bigint
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select("user_id")
@@ -88,6 +89,7 @@ export async function handleCourseApprovalAutoCreation(
     .single();
 
   if (profileError || !profileData) {
+    console.error("[AutoCreation] Failed to get profile user_id:", profileError);
     return {
       success: false,
       classroomCreated: false,
@@ -110,8 +112,8 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerUserId,
-        courseOwnerProfileId
+        courseOwnerUserId, // UUID for classroom.owner_id
+        courseOwnerProfileId // bigint for classroom_member.user_id
       );
 
       if (classroomResult.success) {
@@ -147,7 +149,7 @@ export async function handleCourseApprovalAutoCreation(
         supabase,
         courseName,
         courseSlug,
-        courseOwnerProfileId
+        courseOwnerProfileId // bigint for community_group.owner_id
       );
 
       if (communityResult.success) {
@@ -189,8 +191,8 @@ async function createClassroomForCourse(
   supabase: any,
   courseName: string,
   courseSlug: string,
-  courseOwnerUserId: string,
-  courseOwnerProfileId: number
+  courseOwnerUserId: string, // UUID for classroom.owner_id
+  courseOwnerProfileId: number // bigint for classroom_member.user_id
 ) {
   // Ensure courseName is not empty and provide fallback
   const safeCourseTitle = courseName?.trim() || "Course";
@@ -228,6 +230,13 @@ async function createClassroomForCourse(
   // Create classroom with robust content for embedding - ensure no null values
   const classroomDescription = `Classroom for ${safeCourseTitle}. Join this classroom to participate in discussions, activities, and collaborative learning related to the course. This is an interactive learning environment where students can engage with course materials, ask questions, share insights, and connect with peers and instructors.`;
 
+  console.log("[AutoCreation] Creating classroom with data:", {
+    name: classroomName,
+    slug: classroomSlug,
+    owner_id: courseOwnerUserId,
+    owner_id_type: typeof courseOwnerUserId,
+  });
+
   const { data: classroom, error: classroomError } = await supabase
     .from("classroom")
     .insert({
@@ -236,37 +245,33 @@ async function createClassroomForCourse(
       visibility: "public",
       class_code: classCode,
       slug: classroomSlug,
-      owner_id: courseOwnerUserId,
+      owner_id: courseOwnerUserId, // UUID from profiles.user_id
     })
     .select("id")
     .single();
 
   if (classroomError) {
     console.error("[AutoCreation] Failed to create classroom:", classroomError);
+    console.error("[AutoCreation] Classroom error details:", JSON.stringify(classroomError, null, 2));
     return {
       success: false,
       error: `Failed to create classroom: ${classroomError.message}`,
     };
   }
 
-  // Add course owner as classroom owner member
+  // Add course owner as classroom owner member (using profile ID bigint)
   const { error: memberError } = await supabase
     .from("classroom_member")
     .insert({
       classroom_id: classroom.id,
-      user_id: courseOwnerUserId, // This is profiles.id (bigint)
+      user_id: courseOwnerProfileId, // bigint profile ID
       role: "owner",
     });
 
   if (memberError) {
     console.error(
       "[AutoCreation] Failed to add course owner as classroom member:",
-      {
-        error: memberError,
-        classroomId: classroom.id,
-        userId: courseOwnerUserId,
-        userIdType: typeof courseOwnerUserId,
-      }
+      memberError
     );
     // Don't fail the whole process for this
   }
@@ -365,24 +370,19 @@ async function createCommunityForCourse(
     };
   }
 
-  // Add course owner as community owner member
+  // Add course owner as community owner member (using profile ID, not UUID)
   const { error: memberError } = await supabase
     .from("community_group_member")
     .insert({
       group_id: community.id,
-      user_id: courseOwnerId, // This is profiles.id (bigint)
+      user_id: courseOwnerId,
       role: "owner",
     });
 
   if (memberError) {
     console.error(
       "[AutoCreation] Failed to add course owner as community member:",
-      {
-        error: memberError,
-        communityId: community.id,
-        userId: courseOwnerId,
-        userIdType: typeof courseOwnerId,
-      }
+      memberError
     );
     // Don't fail the whole process for this
   }

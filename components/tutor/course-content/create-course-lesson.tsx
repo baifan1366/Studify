@@ -76,6 +76,7 @@ export default function CreateCourseLesson({
   const [manualUrl, setManualUrl] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState<number[]>([]);
   const [durationSec, setDurationSec] = useState<number | undefined>();
+  const [transcript, setTranscript] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
@@ -148,6 +149,7 @@ export default function CreateCourseLesson({
         content_url: finalContentUrl,
         attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
         duration_sec: durationSec,
+        transcript: transcript.trim() || undefined,
       };
 
       const schema = courseLessonSchema(lessonT);
@@ -187,6 +189,7 @@ export default function CreateCourseLesson({
       setManualUrl("");
       setSelectedAttachments([]);
       setDurationSec(undefined);
+      setTranscript("");
       setIsOpen(false);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -333,6 +336,44 @@ export default function CreateCourseLesson({
                   </div>
                 </div>
               </div>
+
+              {/* Transcript Section - Only show for video lessons */}
+              {kind === "video" && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1 w-8 bg-primary rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {t("transcript_section")}
+                    </h3>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="transcript"
+                      className="text-sm font-medium flex items-center gap-2"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("transcript_label")}
+                    </Label>
+                    <Textarea
+                      id="transcript"
+                      placeholder={t("transcript_placeholder")}
+                      value={transcript}
+                      onChange={(e) => setTranscript(e.target.value)}
+                      rows={8}
+                      className="bg-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none font-mono text-sm"
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                      <p className="text-muted-foreground">
+                        {t("transcript_description")}
+                      </p>
+                      <span className="text-muted-foreground">
+                        {transcript.length} {t("characters")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Lesson Type & Content Section */}
               <div className="space-y-4">

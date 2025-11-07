@@ -98,6 +98,7 @@ interface VideoPlayerProps {
   poster?: string;
   initialTime?: number;
   videoDuration?: number; // Optional duration for YouTube/Vimeo videos
+  transcript?: string; // Video transcript/subtitles
   // Legacy props for backward compatibility - will be replaced by API data
   danmakuMessages?: DanmakuMessage[];
   comments?: Comment[];
@@ -169,6 +170,7 @@ export default function BilibiliVideoPlayer({
   poster,
   initialTime = 0,
   videoDuration,
+  transcript,
   danmakuMessages = [],
   comments = [],
   videoStats,
@@ -194,6 +196,10 @@ export default function BilibiliVideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [bufferedRanges, setBufferedRanges] = useState<TimeRanges | null>(null);
+  
+  // Subtitle state
+  const [currentSubtitle, setCurrentSubtitle] = useState<string>("");
+  const [parsedSubtitles, setParsedSubtitles] = useState<Array<{start: number, end: number, text: string}>>([]);
 
   // UI state
   const [showControls, setShowControls] = useState(true);
@@ -227,6 +233,72 @@ export default function BilibiliVideoPlayer({
 
   // Internationalization
   const t = useTranslations();
+
+  // Parse transcript into subtitle segments
+  useEffect(() => {
+    if (!transcript || !subtitlesEnabled) {
+      setParsedSubtitles([]);
+      setCurrentSubtitle("");
+      return;
+    }
+
+    // Simple parser: split by newlines and timestamps
+    // Format: [00:00:00] Text or just plain text
+    const lines = transcript.split('\n').filter(line => line.trim());
+    const subtitles: Array<{start: number, end: number, text: string}> = [];
+    
+    lines.forEach((line, index) => {
+      // Try to parse timestamp format [HH:MM:SS] or [MM:SS]
+      const timestampMatch = line.match(/^\[(\d{1,2}):(\d{2}):(\d{2})\](.+)$/) || 
+                            line.match(/^\[(\d{1,2}):(\d{2})\](.+)$/);
+      
+      if (timestampMatch) {
+        let start: number;
+        let text: string;
+        
+        if (timestampMatch.length === 5) {
+          // [HH:MM:SS] format
+          const hours = parseInt(timestampMatch[1]);
+          const minutes = parseInt(timestampMatch[2]);
+          const seconds = parseInt(timestampMatch[3]);
+          start = hours * 3600 + minutes * 60 + seconds;
+          text = timestampMatch[4].trim();
+        } else {
+          // [MM:SS] format
+          const minutes = parseInt(timestampMatch[1]);
+          const seconds = parseInt(timestampMatch[2]);
+          start = minutes * 60 + seconds;
+          text = timestampMatch[3].trim();
+        }
+        
+        // End time is the start of next subtitle or +5 seconds
+        const end = index < lines.length - 1 ? start + 5 : start + 10;
+        
+        subtitles.push({ start, end, text });
+      } else if (line.trim()) {
+        // Plain text without timestamp - show for 5 seconds from current position
+        const start = index * 5;
+        const end = start + 5;
+        subtitles.push({ start, end, text: line.trim() });
+      }
+    });
+    
+    setParsedSubtitles(subtitles);
+  }, [transcript, subtitlesEnabled]);
+
+  // Update current subtitle based on video time
+  useEffect(() => {
+    if (!subtitlesEnabled || parsedSubtitles.length === 0) {
+      setCurrentSubtitle("");
+      return;
+    }
+
+    const currentSub = parsedSubtitles.find(
+      sub => currentTime >= sub.start && currentTime <= sub.end
+    );
+    
+    setCurrentSubtitle(currentSub?.text || "");
+  }, [currentTime, parsedSubtitles, subtitlesEnabled]);
 
   // API hooks for real data
   const { data: likesData } = useVideoLikes(lessonId);
@@ -1442,58 +1514,74 @@ export default function BilibiliVideoPlayer({
           {renderDanmaku()}
         </div>
 
+        {/* Subtitles Display */}
+        {subtitlesEnabled && currentSubtitle && videoSourceInfo.type === "direct" && videoSourceInfo.canPlay && (
+          <div className="absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none z-30">
+            <div className="bg-black/80 backdrop-blur-sm px-6 py-3 rounded-lg max-w-4xl mx-4">
+              <p className="text-white text-center text-lg leading-relaxed font-medium shadow-lg">
+                {currentSubtitle}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Top Controls - Always visible for direct videos */}
+        {videoSourceInfo.type === "direct" && videoSourceInfo.canPlay && (
+          <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent pointer-events-none z-20">
+            <h2 className="text-white text-lg font-semibold truncate flex-1 mr-4 pointer-events-none">
+              {title}
+            </h2>
+            <div className="flex items-center gap-2 flex-shrink-0 pointer-events-auto">
+              <button
+                onClick={() => setDanmakuEnabled(!danmakuEnabled)}
+                className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                  danmakuEnabled
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
+                }`}
+                title={t("VideoPlayer.toggle_danmaku_shortcut")}
+              >
+                <MessageCircle size={20} />
+              </button>
+              <button
+                onClick={() => setSubtitlesEnabled(!subtitlesEnabled)}
+                className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                  subtitlesEnabled
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
+                }`}
+                title={t("VideoPlayer.toggle_subtitles")}
+              >
+                <Subtitles size={20} />
+              </button>
+              <button
+                onClick={() => setAutoTranslate(!autoTranslate)}
+                className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                  autoTranslate
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
+                }`}
+                title={t("VideoPlayer.auto_translate")}
+              >
+                <Languages size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Video Controls Overlay - Only show for direct video, not for YouTube/Vimeo */}
         <AnimatePresence>
           {showControls &&
             videoSourceInfo.type === "direct" &&
             videoSourceInfo.canPlay && (
               <motion.div
-                className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"
+                className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                {/* Top Controls */}
-                <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-                  <h2 className="text-white text-lg font-semibold truncate flex-1 mr-4">
-                    {title}
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setDanmakuEnabled(!danmakuEnabled)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        danmakuEnabled
-                          ? "bg-blue-600 text-white"
-                          : "bg-white/20 text-white/70"
-                      }`}
-                      title={t("VideoPlayer.toggle_danmaku_shortcut")}
-                    >
-                      <MessageCircle size={20} />
-                    </button>
-                    <button
-                      onClick={() => setSubtitlesEnabled(!subtitlesEnabled)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        subtitlesEnabled
-                          ? "bg-blue-600 text-white"
-                          : "bg-white/20 text-white/70"
-                      }`}
-                      title={t("VideoPlayer.toggle_subtitles")}
-                    >
-                      <Subtitles size={20} />
-                    </button>
-                    <button
-                      onClick={() => setAutoTranslate(!autoTranslate)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        autoTranslate
-                          ? "bg-blue-600 text-white"
-                          : "bg-white/20 text-white/70"
-                      }`}
-                      title={t("VideoPlayer.auto_translate")}
-                    >
-                      <Languages size={20} />
-                    </button>
-                  </div>
-                </div>
+                {/* Bottom gradient for controls */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
                 {/* Center Play Button */}
                 {!isPlaying && (
@@ -1512,7 +1600,7 @@ export default function BilibiliVideoPlayer({
                 )}
 
                 {/* Bottom Controls */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
+                <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-auto">
                   {/* Enhanced Progress Bar with Buffering Visualization */}
                   <div
                     ref={progressRef}
@@ -1807,14 +1895,14 @@ export default function BilibiliVideoPlayer({
                         <AnimatePresence>
                           {showSettings && (
                             <motion.div
-                              className="absolute bottom-full right-0 mb-2 bg-black/90 backdrop-blur-sm rounded-lg p-4 min-w-48"
+                              className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 min-w-48 z-50"
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: 10 }}
                             >
                               <div className="space-y-3">
                                 <div>
-                                  <label className="text-white text-sm block mb-1">
+                                  <label className="text-gray-900 dark:text-white text-sm font-medium block mb-2">
                                     {t("VideoPlayer.playback_speed")}
                                   </label>
                                   <select
@@ -1824,25 +1912,25 @@ export default function BilibiliVideoPlayer({
                                         parseFloat(e.target.value)
                                       )
                                     }
-                                    className="w-full bg-white/10 text-white rounded px-2 py-1 text-sm"
+                                    className="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
                                   >
-                                    <option value={0.5}>0.5x</option>
-                                    <option value={0.75}>0.75x</option>
-                                    <option value={1}>1x</option>
-                                    <option value={1.25}>1.25x</option>
-                                    <option value={1.5}>1.5x</option>
-                                    <option value={2}>2x</option>
+                                    <option value={0.5} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">0.5x</option>
+                                    <option value={0.75} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">0.75x</option>
+                                    <option value={1} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1x ({t("VideoPlayer.normal")})</option>
+                                    <option value={1.25} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1.25x</option>
+                                    <option value={1.5} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1.5x</option>
+                                    <option value={2} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">2x</option>
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="text-white text-sm block mb-1">
+                                  <label className="text-gray-900 dark:text-white text-sm font-medium block mb-2">
                                     {t("VideoPlayer.quality")}
                                   </label>
-                                  <select className="w-full bg-white/10 text-white rounded px-2 py-1 text-sm">
-                                    <option>{t("VideoPlayer.auto")}</option>
-                                    <option>1080P</option>
-                                    <option>720P</option>
-                                    <option>480P</option>
+                                  <select className="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer">
+                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{t("VideoPlayer.auto")}</option>
+                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1080P</option>
+                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">720P</option>
+                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">480P</option>
                                   </select>
                                 </div>
                               </div>

@@ -1108,6 +1108,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
@@ -1118,6 +1119,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
             videoDuration={currentLesson.duration_sec || undefined}
@@ -1142,6 +1144,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />
@@ -1151,6 +1154,7 @@ export default function CourseLearningContent({
             lessonId={currentLesson.public_id}
             title={currentLesson.title || t("VideoPlayer.default_lesson_title")}
             poster={course?.thumbnail_url || undefined}
+            transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
             initialTime={enhancedLessonProgress?.video_position_sec || 0}
           />

@@ -92,6 +92,14 @@ interface Comment {
   isLiked: boolean;
 }
 
+interface VideoChapter {
+  id: string;
+  title: string;
+  startTime: number; // in seconds
+  endTime?: number; // in seconds, optional (will be calculated from next chapter)
+  thumbnail?: string; // optional chapter thumbnail
+}
+
 interface VideoPlayerProps {
   src?: string;
   attachmentId?: number; // Support MEGA attachment streaming
@@ -101,6 +109,7 @@ interface VideoPlayerProps {
   initialTime?: number;
   videoDuration?: number; // Optional duration for YouTube/Vimeo videos
   transcript?: string; // Video transcript/subtitles
+  chapters?: VideoChapter[]; // Video chapters for navigation
   // Legacy props for backward compatibility - will be replaced by API data
   danmakuMessages?: DanmakuMessage[];
   comments?: Comment[];
@@ -173,6 +182,7 @@ export default function BilibiliVideoPlayer({
   initialTime = 0,
   videoDuration,
   transcript,
+  chapters = [],
   danmakuMessages = [],
   comments = [],
   videoStats,
@@ -219,6 +229,7 @@ export default function BilibiliVideoPlayer({
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(false);
   const [showStats, setShowStats] = useState(false); // Advanced stats panel
+  const [showChapters, setShowChapters] = useState(false); // Chapters panel
 
   // Input state
   const [danmakuText, setDanmakuText] = useState("");
@@ -228,6 +239,8 @@ export default function BilibiliVideoPlayer({
   const qaPanel = useVideoQAPanel();
   const termsTooltip = useVideoTermsTooltip();
   const [showNotes, setShowNotes] = useState(false);
+  const [showNotesSidebar, setShowNotesSidebar] = useState(false); // Auto-show sidebar when notes are nearby
+  const [autoShowNotesSidebar, setAutoShowNotesSidebar] = useState(true); // Auto-show preference
 
   // Fetch terms for current time (update every 15 seconds)
   const { data: termsData } = useVideoTerms(
@@ -240,6 +253,29 @@ export default function BilibiliVideoPlayer({
   const { data: courseNotes = [] } = useCourseNotes(
     lessonId ? parseInt(lessonId) : undefined
   );
+
+  // Get notes near current time (within 30 seconds)
+  const nearbyNotes = useMemo(() => {
+    if (!courseNotes || courseNotes.length === 0) return [];
+    
+    return courseNotes.filter(note => {
+      if (!note.timestampSec) return false;
+      const timeDiff = Math.abs(note.timestampSec - currentTime);
+      return timeDiff <= 30; // Show notes within 30 seconds
+    }).sort((a, b) => {
+      // Sort by proximity to current time
+      const diffA = Math.abs((a.timestampSec || 0) - currentTime);
+      const diffB = Math.abs((b.timestampSec || 0) - currentTime);
+      return diffA - diffB;
+    });
+  }, [courseNotes, currentTime]);
+
+  // Auto-show notes sidebar when notes are nearby
+  useEffect(() => {
+    if (autoShowNotesSidebar && nearbyNotes.length > 0 && !showNotesSidebar) {
+      setShowNotesSidebar(true);
+    }
+  }, [nearbyNotes.length, autoShowNotesSidebar, showNotesSidebar]);
 
   // Internationalization
   const t = useTranslations();
@@ -369,6 +405,36 @@ export default function BilibiliVideoPlayer({
   }, [danmakuData?.danmaku, danmakuMessages, duration]);
 
   const isLiked = likesData?.currentUserLiked ?? currentUserLiked;
+
+  // Process chapters - calculate end times if not provided
+  const processedChapters = useMemo(() => {
+    if (!chapters || chapters.length === 0) return [];
+    
+    return chapters.map((chapter, index) => {
+      const nextChapter = chapters[index + 1];
+      return {
+        ...chapter,
+        endTime: chapter.endTime || nextChapter?.startTime || duration || videoDuration || Infinity,
+      };
+    }).sort((a, b) => a.startTime - b.startTime);
+  }, [chapters, duration, videoDuration]);
+
+  // Get current chapter based on current time
+  const currentChapter = useMemo(() => {
+    if (processedChapters.length === 0) return null;
+    
+    return processedChapters.find(
+      chapter => currentTime >= chapter.startTime && currentTime < (chapter.endTime || Infinity)
+    ) || null;
+  }, [processedChapters, currentTime]);
+
+  // Jump to chapter
+  const jumpToChapter = useCallback((chapterStartTime: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = chapterStartTime;
+      setCurrentTime(chapterStartTime);
+    }
+  }, []);
 
   // Helper functions
   const formatViews = (views: number) => {
@@ -1373,7 +1439,13 @@ export default function BilibiliVideoPlayer({
         case "KeyN":
           e.preventDefault();
           if (lessonId && courseNotes.length > 0) {
-            setShowNotes(!showNotes);
+            setShowNotesSidebar(!showNotesSidebar);
+          }
+          break;
+        case "KeyH":
+          e.preventDefault();
+          if (processedChapters.length > 0) {
+            setShowChapters(!showChapters);
           }
           break;
         case "KeyS":
@@ -1502,17 +1574,23 @@ export default function BilibiliVideoPlayer({
 
   return (
     <div className="w-full bg-black">
-      {/* Video Player Container */}
-      <div
-        ref={containerRef}
-        className="relative w-full aspect-video bg-black group"
-        onMouseEnter={() => setShowControls(true)}
-        onMouseLeave={() => {
-          if (isPlaying) {
-            setShowControls(false);
-          }
-        }}
-      >
+      {/* Main Container with Video and Notes Sidebar */}
+      <div className={`flex transition-all duration-300 ${showNotesSidebar ? 'gap-4' : ''}`}>
+        {/* Video Player Container */}
+        <div
+          ref={containerRef}
+          className={`relative bg-black group transition-all duration-300 ${
+            showNotesSidebar 
+              ? 'w-[70%] aspect-video' 
+              : 'w-full aspect-video'
+          }`}
+          onMouseEnter={() => setShowControls(true)}
+          onMouseLeave={() => {
+            if (isPlaying) {
+              setShowControls(false);
+            }
+          }}
+        >
         {/* Video Content - Handle different video types */}
         {videoSourceInfo.type === "youtube" && videoSourceInfo.embedUrl ? (
           <iframe
@@ -1919,6 +1997,47 @@ export default function BilibiliVideoPlayer({
                       </>
                     )}
                     
+                    {/* Chapter Markers */}
+                    {processedChapters.length > 0 && duration > 0 && (
+                      <>
+                        {processedChapters.map((chapter) => {
+                          const position = (chapter.startTime / duration) * 100;
+                          const isCurrentChapter = currentChapter?.id === chapter.id;
+                          
+                          return (
+                            <div
+                              key={chapter.id}
+                              className="absolute top-0 bottom-0 z-20 group/chapter"
+                              style={{ left: `${position}%` }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                jumpToChapter(chapter.startTime);
+                              }}
+                            >
+                              {/* Chapter marker line */}
+                              <div className={`w-0.5 h-full transition-all ${
+                                isCurrentChapter 
+                                  ? 'bg-yellow-400 shadow-lg shadow-yellow-400/50' 
+                                  : 'bg-white/60 group-hover/chapter:bg-white'
+                              }`} />
+                              
+                              {/* Chapter tooltip on hover */}
+                              <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover/chapter:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
+                                <div className="bg-black/95 text-white text-xs px-3 py-2 rounded-lg shadow-xl border border-white/20">
+                                  <div className="font-semibold mb-0.5">{chapter.title}</div>
+                                  <div className="text-white/70">{formatTime(chapter.startTime)}</div>
+                                </div>
+                                {/* Arrow */}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+                                  <div className="w-2 h-2 bg-black/95 rotate-45 border-r border-b border-white/20" />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                    
                     {/* Current Progress */}
                     <div
                       className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full relative z-10 transition-all duration-200"
@@ -1991,9 +2110,16 @@ export default function BilibiliVideoPlayer({
                         />
                       </div>
 
-                      <span className="text-white text-sm">
-                        {formatTime(currentTime)} / {formatTime(duration)}
-                      </span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-white text-sm font-mono">
+                          {formatTime(currentTime)} / {formatTime(duration)}
+                        </span>
+                        {currentChapter && (
+                          <span className="text-yellow-400 text-xs truncate max-w-[200px]">
+                            {currentChapter.title}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -2172,6 +2298,143 @@ export default function BilibiliVideoPlayer({
                         <Send size={20} />
                       </button>
 
+                      {/* Chapters Button - Show if chapters exist */}
+                      {processedChapters.length > 0 && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowChapters(!showChapters)}
+                            className={`text-white hover:text-blue-400 transition-colors ${
+                              showChapters ? 'text-blue-400' : ''
+                            }`}
+                            title={t("VideoPlayer.show_chapters") || "Chapters"}
+                          >
+                            <BookOpen size={20} />
+                            {currentChapter && (
+                              <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+                            )}
+                          </button>
+
+                          {/* Chapters Panel */}
+                          <AnimatePresence>
+                            {showChapters && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute bottom-full right-0 mb-2 bg-black/95 backdrop-blur-md rounded-xl border border-white/20 shadow-2xl overflow-hidden z-50 w-80 max-h-96"
+                              >
+                                {/* Header */}
+                                <div className="flex items-center justify-between p-3 border-b border-white/20 bg-white/5">
+                                  <div className="flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4 text-blue-400" />
+                                    <h3 className="font-semibold text-white text-sm">
+                                      {t("VideoPlayer.chapters") || "Chapters"} ({processedChapters.length})
+                                    </h3>
+                                  </div>
+                                  <button
+                                    onClick={() => setShowChapters(false)}
+                                    className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                                  >
+                                    <X className="w-4 h-4 text-gray-300" />
+                                  </button>
+                                </div>
+
+                                {/* Chapters List */}
+                                <div className="overflow-y-auto max-h-80">
+                                  {processedChapters.map((chapter, index) => {
+                                    const isActive = currentChapter?.id === chapter.id;
+                                    const progress = isActive && chapter.endTime 
+                                      ? ((currentTime - chapter.startTime) / (chapter.endTime - chapter.startTime)) * 100
+                                      : 0;
+
+                                    return (
+                                      <button
+                                        key={chapter.id}
+                                        onClick={() => {
+                                          jumpToChapter(chapter.startTime);
+                                          setShowChapters(false);
+                                        }}
+                                        className={`w-full p-3 text-left transition-all duration-200 border-b border-white/10 hover:bg-white/10 ${
+                                          isActive ? 'bg-blue-500/20' : ''
+                                        }`}
+                                      >
+                                        <div className="flex items-start gap-3">
+                                          {/* Chapter Number */}
+                                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                            isActive 
+                                              ? 'bg-blue-500 text-white' 
+                                              : 'bg-white/10 text-white/70'
+                                          }`}>
+                                            {index + 1}
+                                          </div>
+
+                                          {/* Chapter Info */}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2 mb-1">
+                                              <h4 className={`text-sm font-medium truncate ${
+                                                isActive ? 'text-blue-400' : 'text-white'
+                                              }`}>
+                                                {chapter.title}
+                                              </h4>
+                                              {isActive && (
+                                                <span className="flex-shrink-0 text-xs text-blue-400 font-medium">
+                                                  Playing
+                                                </span>
+                                              )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                                              <Clock className="w-3 h-3" />
+                                              <span className="font-mono">
+                                                {formatTime(chapter.startTime)}
+                                              </span>
+                                              {chapter.endTime && chapter.endTime !== Infinity && (
+                                                <>
+                                                  <span>-</span>
+                                                  <span className="font-mono">
+                                                    {formatTime(chapter.endTime)}
+                                                  </span>
+                                                  <span className="text-white/50">
+                                                    ({formatTime(chapter.endTime - chapter.startTime)})
+                                                  </span>
+                                                </>
+                                              )}
+                                            </div>
+
+                                            {/* Progress bar for active chapter */}
+                                            {isActive && progress > 0 && (
+                                              <div className="mt-2 w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                                                <motion.div
+                                                  className="h-full bg-blue-400 rounded-full"
+                                                  initial={{ width: 0 }}
+                                                  animate={{ width: `${Math.min(progress, 100)}%` }}
+                                                  transition={{ duration: 0.3 }}
+                                                />
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Current Chapter Display at Bottom */}
+                                {currentChapter && (
+                                  <div className="p-3 border-t border-white/20 bg-blue-500/10">
+                                    <div className="flex items-center gap-2 text-xs text-blue-400">
+                                      <Activity className="w-3 h-3 animate-pulse" />
+                                      <span className="font-medium">Now Playing:</span>
+                                      <span className="truncate">{currentChapter.title}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+
                       {/* Stats Button - Only show for HLS videos */}
                       {hlsRef.current && (
                         <button
@@ -2331,6 +2594,185 @@ export default function BilibiliVideoPlayer({
                 >
                   {t("VideoPlayer.send_danmaku")}
                 </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </div>
+
+        {/* Notes Sidebar - Auto-show when notes are nearby */}
+        <AnimatePresence>
+          {showNotesSidebar && courseNotes.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: 50, width: 0 }}
+              animate={{ opacity: 1, x: 0, width: '30%' }}
+              exit={{ opacity: 0, x: 50, width: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="bg-slate-900 rounded-lg overflow-hidden shadow-2xl border border-slate-700"
+              style={{ height: 'fit-content', maxHeight: '90vh' }}
+            >
+              {/* Sidebar Header */}
+              <div className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-yellow-400" />
+                    <h3 className="font-semibold text-white text-lg">
+                      {t('notes_sidebar_title') || '课程笔记'}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Auto-show toggle */}
+                    <button
+                      onClick={() => setAutoShowNotesSidebar(!autoShowNotesSidebar)}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        autoShowNotesSidebar
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                      }`}
+                      title={autoShowNotesSidebar ? t('disable_auto_show') || '禁用自动显示' : t('enable_auto_show') || '启用自动显示'}
+                    >
+                      <Activity className="w-4 h-4" />
+                    </button>
+                    {/* Close button */}
+                    <button
+                      onClick={() => setShowNotesSidebar(false)}
+                      className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+                      title={t('close') || '关闭 (N)'}
+                    >
+                      <X className="w-4 h-4 text-gray-300" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4 text-xs text-gray-400">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>{formatTime(currentTime)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" />
+                    <span>{nearbyNotes.length} {t('nearby_notes') || '条附近笔记'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Eye className="w-3 h-3" />
+                    <span>{courseNotes.length} {t('total_notes') || '条总笔记'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes List */}
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+                {nearbyNotes.length > 0 ? (
+                  <div className="p-4 space-y-3">
+                    {nearbyNotes.map((note) => {
+                      const timeDiff = Math.abs((note.timestampSec || 0) - currentTime);
+                      const isVeryClose = timeDiff <= 5; // Within 5 seconds
+                      
+                      return (
+                        <motion.div
+                          key={note.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`bg-slate-800 rounded-lg p-4 border transition-all duration-200 hover:shadow-lg ${
+                            isVeryClose
+                              ? 'border-yellow-500 shadow-lg shadow-yellow-500/20'
+                              : 'border-slate-700 hover:border-slate-600'
+                          }`}
+                        >
+                          {/* Note Header */}
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <div className="flex-1 min-w-0">
+                              {note.title && (
+                                <h4 className="text-sm font-semibold text-white mb-1 truncate">
+                                  {note.title}
+                                </h4>
+                              )}
+                              <div className="flex items-center gap-2 text-xs text-gray-400">
+                                {note.timestampSec !== undefined && (
+                                  <button
+                                    onClick={() => {
+                                      if (videoRef.current) {
+                                        videoRef.current.currentTime = note.timestampSec!;
+                                      }
+                                    }}
+                                    className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    <span className="font-mono">
+                                      {formatTime(note.timestampSec)}
+                                    </span>
+                                  </button>
+                                )}
+                                <span className="text-gray-500">
+                                  {timeDiff < 1 
+                                    ? t('now') || '现在'
+                                    : timeDiff <= 5
+                                    ? `${Math.round(timeDiff)}s ${t('away') || '前后'}`
+                                    : `${Math.round(timeDiff)}s ${t('away') || '前后'}`
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                            {isVeryClose && (
+                              <div className="flex-shrink-0">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full">
+                                  <Activity className="w-3 h-3 animate-pulse" />
+                                  {t('active') || '当前'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Note Content */}
+                          <div className="text-sm text-gray-300 leading-relaxed">
+                            {note.aiSummary || note.content}
+                          </div>
+
+                          {/* Note Footer */}
+                          <div className="mt-3 pt-3 border-t border-slate-700 flex items-center justify-between text-xs text-gray-500">
+                            <span>
+                              {new Date(note.createdAt).toLocaleDateString()}
+                            </span>
+                            {note.aiSummary && (
+                              <span className="flex items-center gap-1 text-purple-400">
+                                <Bot className="w-3 h-3" />
+                                AI {t('summary') || '摘要'}
+                              </span>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-gray-400">
+                    <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg mb-2">{t('no_notes_nearby') || '附近没有笔记'}</p>
+                    <p className="text-sm text-gray-500">
+                      {t('notes_will_appear_here') || '当播放到有笔记的时间点时，笔记会自动显示在这里'}
+                    </p>
+                  </div>
+                )}
+
+                {/* All Notes Section */}
+                {nearbyNotes.length > 0 && courseNotes.length > nearbyNotes.length && (
+                  <div className="p-4 border-t border-slate-700 bg-slate-800/50">
+                    <button
+                      onClick={() => setShowNotes(true)}
+                      className="w-full text-center text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      {t('view_all_notes') || '查看全部笔记'} ({courseNotes.length - nearbyNotes.length} {t('more_notes') || '条'})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Keyboard Hint */}
+              <div className="sticky bottom-0 bg-slate-800 border-t border-slate-700 p-3 text-center">
+                <p className="text-xs text-gray-500">
+                  {t('press_n_to_toggle') || '按'} <kbd className="px-2 py-1 bg-slate-700 rounded text-xs font-mono">N</kbd> {t('to_toggle_sidebar') || '切换侧边栏'}
+                </p>
               </div>
             </motion.div>
           )}
@@ -2872,6 +3314,12 @@ export default function BilibiliVideoPlayer({
               N
             </kbd>{" "}
             {t("VideoPlayer.keyboard_shortcuts.toggle_notes")}
+          </span>
+          <span>
+            <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
+              H
+            </kbd>{" "}
+            {t("VideoPlayer.keyboard_shortcuts.toggle_chapters") || "Chapters"}
           </span>
         </div>
       </div>

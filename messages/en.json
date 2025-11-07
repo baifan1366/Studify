@@ -402,6 +402,8 @@
     "comment_update_failed": "Failed to update comment",
     "comment_delete_failed": "Failed to delete comment",
     "click_timestamp_to_jump": "Click on timestamps to jump to that moment in the video",
+    "no_video_segments_title": "No Video Segments Available",
+    "no_video_segments_message": "This video hasn't been processed for transcript segmentation yet. The AI has answered your question based on course content, but cannot provide precise video timestamp navigation.",
     "chapters": "Chapters",
     "show_chapters": "Show Chapters",
     "hide_chapters": "Hide Chapters",

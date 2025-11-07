@@ -1474,6 +1474,10 @@ export default function BilibiliVideoPlayer({
     termsTooltip,
     courseNotes,
     showNotes,
+    showNotesSidebar,
+    showChapters,
+    processedChapters,
+    showStats,
   ]);
 
   // Mouse movement handler

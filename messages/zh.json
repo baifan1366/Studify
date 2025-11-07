@@ -402,6 +402,8 @@
     "comment_update_failed": "更新评论失败",
     "comment_delete_failed": "删除评论失败",
     "click_timestamp_to_jump": "点击时间戳可跳转到视频中的对应时刻",
+    "no_video_segments_title": "暂无视频片段时间戳",
+    "no_video_segments_message": "此视频尚未处理转写分段。AI 已基于课程内容回答您的问题，但无法提供精确的视频时间戳跳转。",
     "chapters": "章节",
     "show_chapters": "显示章节",
     "hide_chapters": "隐藏章节",

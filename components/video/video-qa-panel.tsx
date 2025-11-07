@@ -251,7 +251,7 @@ export function VideoQAPanel({
               </div>
 
               {/* Related Segments */}
-              {answer.segments && answer.segments.length > 0 && (
+              {answer.segments && answer.segments.length > 0 ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-4 h-4 text-blue-400" />
@@ -302,7 +302,19 @@ export function VideoQAPanel({
                     💡 {t('click_timestamp_to_jump')}
                   </div>
                 </div>
-              )}
+              ) : answer.segments && answer.segments.length === 0 ? (
+                <div className="bg-yellow-800/30 border border-yellow-600/50 rounded-xl p-3">
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-yellow-200">
+                      <p className="font-medium mb-1">{t('no_video_segments_title')}</p>
+                      <p className="opacity-90">
+                        {t('no_video_segments_message')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Course Context */}
               {answer.courseInfo && (

@@ -250,15 +250,44 @@ ${question}
     });
 
     // 从 sources 中提取视频片段信息
+    // 优先使用 video_embeddings 中的 segment 数据
+    console.log(`📊 Processing ${sources.length} sources for video segments`);
+    
     const videoSegments = sources
-      .filter((source: any) => source.type === 'video_segment')
-      .map((source: any) => ({
-        startTime: source.startTime || source.timestamp || 0,
-        endTime: source.endTime || (source.startTime || source.timestamp || 0) + 30,
-        text: source.content || source.contentPreview || '',
-        relevantText: (source.content || source.contentPreview || '').substring(0, 300) + 
-                     ((source.content || source.contentPreview || '').length > 300 ? '...' : '')
-      }));
+      .filter((source: any) => {
+        const isVideoSegment = source.type === 'video_segment' || source.content_type === 'video_segment';
+        if (isVideoSegment) {
+          console.log(`✅ Found video segment:`, {
+            type: source.type || source.content_type,
+            startTime: source.segment_start_time,
+            endTime: source.segment_end_time,
+            hasText: !!source.content_text
+          });
+        }
+        return isVideoSegment;
+      })
+      .map((source: any) => {
+        // 从 source 中提取时间信息 - 支持多种字段名
+        const startTime = source.segment_start_time || source.startTime || source.timestamp || 0;
+        const endTime = source.segment_end_time || source.endTime || (startTime + 30);
+        const text = source.content_text || source.content || source.contentPreview || '';
+        
+        console.log(`📝 Mapped segment:`, {
+          startTime: Math.floor(startTime),
+          endTime: Math.floor(endTime),
+          textLength: text.length
+        });
+        
+        return {
+          startTime: Math.floor(startTime),
+          endTime: Math.floor(endTime),
+          text: text,
+          relevantText: text.substring(0, 300) + (text.length > 300 ? '...' : '')
+        };
+      })
+      .filter((seg: any) => seg.startTime >= 0 && seg.text.length > 0); // 过滤无效数据
+    
+    console.log(`✅ Extracted ${videoSegments.length} valid video segments`);
 
     // 5. 保存问答记录（可选）
     await supabase

@@ -478,6 +478,45 @@ export default function CourseLearningContent({
     }
   }, [firstLessonId, currentLessonId]);
 
+  // Navigation handlers with useCallback
+  const handlePreviousLesson = React.useCallback(() => {
+    if (!currentLessonId) return;
+
+    const currentIndex = allLessons.findIndex(
+      (l: any) => l.public_id === currentLessonId
+    );
+    if (currentIndex > 0) {
+      const previousLesson = allLessons[currentIndex - 1];
+      setCurrentLessonId(previousLesson.public_id);
+
+      // Show toast with lesson info
+      toast({
+        title: t("LessonNavigation.previous_lesson"),
+        description: `${previousLesson.moduleTitle} • ${previousLesson.title}`,
+        duration: 2000,
+      });
+    }
+  }, [currentLessonId, allLessons, toast, t]);
+
+  const handleNextLesson = React.useCallback(() => {
+    if (!currentLessonId) return;
+
+    const currentIndex = allLessons.findIndex(
+      (l: any) => l.public_id === currentLessonId
+    );
+    if (currentIndex < allLessons.length - 1) {
+      const nextLesson = allLessons[currentIndex + 1];
+      setCurrentLessonId(nextLesson.public_id);
+
+      // Show toast with lesson info
+      toast({
+        title: t("LessonNavigation.next_lesson"),
+        description: `${nextLesson.moduleTitle} • ${nextLesson.title}`,
+        duration: 2000,
+      });
+    }
+  }, [currentLessonId, allLessons, toast, t]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -529,7 +568,7 @@ export default function CourseLearningContent({
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [currentLessonId, isFullscreen]);
+  }, [currentLessonId, isFullscreen, handlePreviousLesson, handleNextLesson, currentLesson]);
 
   // Initialize progress when starting a lesson - triggered by user action, not useEffect
   const initializeProgress = () => {
@@ -760,44 +799,6 @@ export default function CourseLearningContent({
       toast({
         title: t("LessonNavigation.lesson_completed"),
         description: t("LessonNavigation.lesson_completed_desc"),
-      });
-    }
-  };
-
-  const handlePreviousLesson = () => {
-    if (!currentLessonId) return;
-
-    const currentIndex = allLessons.findIndex(
-      (l: any) => l.public_id === currentLessonId
-    );
-    if (currentIndex > 0) {
-      const previousLesson = allLessons[currentIndex - 1];
-      setCurrentLessonId(previousLesson.public_id);
-
-      // Show toast with lesson info
-      toast({
-        title: t("LessonNavigation.previous_lesson"),
-        description: `${previousLesson.moduleTitle} • ${previousLesson.title}`,
-        duration: 2000,
-      });
-    }
-  };
-
-  const handleNextLesson = () => {
-    if (!currentLessonId) return;
-
-    const currentIndex = allLessons.findIndex(
-      (l: any) => l.public_id === currentLessonId
-    );
-    if (currentIndex < allLessons.length - 1) {
-      const nextLesson = allLessons[currentIndex + 1];
-      setCurrentLessonId(nextLesson.public_id);
-
-      // Show toast with lesson info
-      toast({
-        title: t("LessonNavigation.next_lesson"),
-        description: `${nextLesson.moduleTitle} • ${nextLesson.title}`,
-        duration: 2000,
       });
     }
   };

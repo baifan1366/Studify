@@ -6142,6 +6142,125 @@ WHERE status = 'completed' AND has_e5_embedding = true;
 
 COMMENT ON FUNCTION search_video_embeddings_e5 IS 'Search video embeddings using E5 model with optional time range filtering';
 
+-- ============================================================================
+-- 视频搜索函数 - 两阶段搜索（E5 粗筛 + BGE-M3 精排）
+-- ============================================================================
+CREATE OR REPLACE FUNCTION search_video_embeddings_two_stage(
+  query_embedding_e5 vector(384),
+  query_embedding_bge vector(1024),
+  p_attachment_id integer,
+  time_start numeric DEFAULT NULL,
+  time_end numeric DEFAULT NULL,
+  e5_threshold numeric DEFAULT 0.5,
+  e5_candidate_count integer DEFAULT 30,
+  final_count integer DEFAULT 10,
+  weight_e5 numeric DEFAULT 0.3,
+  weight_bge numeric DEFAULT 0.7
+)
+RETURNS TABLE (
+  id integer,
+  content_text text,
+  segment_start_time numeric,
+  segment_end_time numeric,
+  segment_index integer,
+  section_title text,
+  attachment_id integer,
+  e5_similarity numeric,
+  bge_similarity numeric,
+  combined_score numeric
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH 
+  -- Stage 1: E5 粗筛 (384维) - 快速找到候选结果
+  e5_candidates AS (
+    SELECT 
+      ve.id,
+      ve.content_text,
+      ve.segment_start_time,
+      ve.segment_end_time,
+      ve.segment_index,
+      ve.section_title,
+      ve.attachment_id,
+      1 - (ve.embedding_e5_small <=> query_embedding_e5) as sim_e5
+    FROM video_embeddings ve
+    WHERE 
+      ve.status = 'completed'
+      AND ve.is_deleted = false
+      AND ve.chunk_type = 'segment'
+      AND ve.has_e5_embedding = true
+      AND ve.attachment_id = p_attachment_id
+      AND (time_start IS NULL OR ve.segment_start_time >= time_start)
+      AND (time_end IS NULL OR ve.segment_end_time <= time_end)
+      AND (1 - (ve.embedding_e5_small <=> query_embedding_e5)) >= e5_threshold
+    ORDER BY ve.embedding_e5_small <=> query_embedding_e5
+    LIMIT e5_candidate_count
+  ),
+  -- Stage 2: BGE-M3 精排 (1024维) - 对候选结果重新排序
+  bge_reranked AS (
+    SELECT 
+      ec.id,
+      ec.content_text,
+      ec.segment_start_time,
+      ec.segment_end_time,
+      ec.segment_index,
+      ec.section_title,
+      ec.attachment_id,
+      ec.sim_e5,
+      CASE 
+        WHEN ve.has_bge_embedding AND ve.embedding_bge_m3 IS NOT NULL
+        THEN 1 - (ve.embedding_bge_m3 <=> query_embedding_bge)
+        ELSE ec.sim_e5 * 0.8  -- 如果没有 BGE，降权使用 E5
+      END as sim_bge
+    FROM e5_candidates ec
+    JOIN video_embeddings ve ON ve.id = ec.id
+  )
+  -- 计算加权组合分数并返回最终结果
+  SELECT 
+    br.id,
+    br.content_text,
+    br.segment_start_time,
+    br.segment_end_time,
+    br.segment_index,
+    br.section_title,
+    br.attachment_id,
+    br.sim_e5,
+    br.sim_bge,
+    (weight_e5 * br.sim_e5 + weight_bge * br.sim_bge) as combined_score
+  FROM bge_reranked br
+  ORDER BY combined_score DESC
+  LIMIT final_count;
+END;
+$$;
+
+COMMENT ON FUNCTION search_video_embeddings_two_stage IS 
+'Two-stage video search: E5 (384-dim) for fast recall, BGE-M3 (1024-dim) for precise reranking. Optimized for accuracy with weighted combination (default: 30% E5 + 70% BGE).';
+
+-- ============================================================================
+-- 性能优化索引 - 两阶段搜索
+-- ============================================================================
+
+-- E5 向量索引 (384维) - 用于快速粗筛
+-- 使用较小的 lists 值以减少内存需求
+CREATE INDEX IF NOT EXISTS idx_video_embeddings_e5_cosine 
+ON video_embeddings USING ivfflat (embedding_e5_small vector_cosine_ops)
+WITH (lists = 50)
+WHERE status = 'completed' AND has_e5_embedding = true AND chunk_type = 'segment';
+
+-- BGE-M3 向量索引 (1024维) - 用于精确重排
+-- 使用较小的 lists 值以减少内存需求
+CREATE INDEX IF NOT EXISTS idx_video_embeddings_bge_cosine 
+ON video_embeddings USING ivfflat (embedding_bge_m3 vector_cosine_ops)
+WITH (lists = 50)
+WHERE status = 'completed' AND has_bge_embedding = true AND chunk_type = 'segment';
+
+-- 复合索引 - 用于时间窗口过滤
+CREATE INDEX IF NOT EXISTS idx_video_embeddings_attachment_time_status 
+ON video_embeddings(attachment_id, segment_start_time, segment_end_time, status)
+WHERE chunk_type = 'segment' AND is_deleted = false;
+
 
 -- ============================================================================
 -- Notification System Functions

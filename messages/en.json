@@ -716,6 +716,8 @@
     "community_updates_desc": "Receive notifications from study groups and forums",
     "marketing_emails": "Marketing Emails",
     "marketing_emails_desc": "Receive promotional emails and newsletters",
+    "auto_summarize": "Auto Summarize",
+    "auto_summarize_desc": "Automatically generate summaries for your search results",
     "privacy_settings": "Privacy Settings",
     "profile_visibility": "Profile Visibility",
     "public": "Public",

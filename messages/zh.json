@@ -716,6 +716,8 @@
     "community_updates_desc": "接收学习小组与论坛的通知",
     "marketing_emails": "营销邮件",
     "marketing_emails_desc": "接收促销邮件与新闻资讯",
+    "auto_summarize": "自动摘要",
+    "auto_summarize_desc": "自动为你的搜索结果生成摘要",
     "privacy_settings": "隐私设置",
     "profile_visibility": "资料可见性",
     "public": "公开",

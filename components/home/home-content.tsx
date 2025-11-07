@@ -14,6 +14,7 @@ import GamificationSection from "@/components/gamification-section";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/hooks/profile/use-user";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomeContent() {
   const t = useTranslations("HomeContent");
@@ -67,6 +68,47 @@ export default function HomeContent() {
     // Check-in is now handled by the GamificationSection component with modal
     // No navigation needed - modal will show rewards and streak
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        {/* Hero Skeleton */}
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-3/4 mx-auto" />
+          <Skeleton className="h-6 w-1/2 mx-auto" />
+          <div className="flex gap-4 justify-center mt-6">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+
+        {/* AI Assistant Skeleton */}
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+
+        {/* Community Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+
+        {/* Gamification Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+
+        {/* Learning Path Skeleton */}
+        <Skeleton className="h-64 w-full" />
+
+        {/* Learning Report Skeleton */}
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
 
   return (
     <>

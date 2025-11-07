@@ -419,8 +419,8 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                 </div>
               </div>
 
-              <div className="flex items-center flex-wrap gap-4">
-                <div className="text-2xl lg:text-3xl font-bold text-foreground">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
                   {price}
                 </div>
                 {!isEnrolled && (
@@ -428,20 +428,22 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                     onClick={handleEnrollNow}
                     disabled={purchaseCourse.isPending}
                     variant="default"
+                    size="default"
+                    className="w-full sm:w-auto text-sm sm:text-base"
                   >
                     {purchaseCourse.isPending ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         {t('processing')}
                       </>
                     ) : isFree ? (
                       <>
-                        <Play size={20} />
+                        <Play size={16} className="sm:w-5 sm:h-5" />
                         {t('enroll_free')}
                       </>
                     ) : (
                       <>
-                        <ShoppingCart size={20} />
+                        <ShoppingCart size={16} className="sm:w-5 sm:h-5" />
                         {t('buy_now')}
                       </>
                     )}
@@ -449,15 +451,16 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
                 )}
                 {isEnrolled && (
                   <>
-                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
-                      <CheckCircle size={20} />
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold text-sm sm:text-base">
+                      <CheckCircle size={18} className="sm:w-5 sm:h-5" />
                       {t('already_enrolled')}
                     </div>
                     <Button
                       onClick={() => router.push(`/courses/${courseSlug}/learn`)}
                       variant="default"
+                      className="w-full sm:w-auto text-sm sm:text-base"
                     >
-                      <Play size={20} />
+                      <Play size={16} className="sm:w-5 sm:h-5" />
                       {t('start_now')}
                     </Button>
                   </>
@@ -601,41 +604,41 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Course Stats */}
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg lg:text-xl font-semibold text-foreground mb-4">
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-sm">
+              <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">
                 {t('course_stats')}
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm lg:text-base">
+                  <span className="text-muted-foreground text-xs sm:text-sm lg:text-base">
                     {t('students')}
                   </span>
-                  <span className="text-foreground font-semibold">
+                  <span className="text-foreground font-semibold text-sm sm:text-base">
                     {actualStudentCount}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm lg:text-base">
+                  <span className="text-muted-foreground text-xs sm:text-sm lg:text-base">
                     {t('duration')}
                   </span>
-                  <span className="text-foreground font-semibold">
+                  <span className="text-foreground font-semibold text-sm sm:text-base">
                     {Math.floor((course.total_duration_minutes || 0) / 60)}h {(course.total_duration_minutes || 0) % 60}m
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm lg:text-base">
+                  <span className="text-muted-foreground text-xs sm:text-sm lg:text-base">
                     {t('level')}
                   </span>
-                  <span className="text-foreground font-semibold">
+                  <span className="text-foreground font-semibold text-sm sm:text-base">
                     {course.level || t('all_levels')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm lg:text-base flex items-center gap-2">
-                    <Globe size={16} />
+                  <span className="text-muted-foreground text-xs sm:text-sm lg:text-base flex items-center gap-2">
+                    <Globe size={14} className="sm:w-4 sm:h-4" />
                     {t('language')}
                   </span>
-                  <span className="text-foreground font-semibold">
+                  <span className="text-foreground font-semibold text-sm sm:text-base">
                     {t('english')}
                   </span>
                 </div>
@@ -643,44 +646,44 @@ export default function CourseDetailContent({ courseSlug }: CourseDetailContentP
             </div>
 
             {/* Certificate */}
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-sm">
               <div className="text-center">
-                <Award size={48} className="text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
+                <Award size={40} className="sm:w-12 sm:h-12 text-yellow-500 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
                   {t('certificate_completion')}
                 </h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-xs sm:text-sm">
                   {t('certificate_completion_desc')}
                 </p>
               </div>
             </div>
 
             {/* AI Features */}
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-sm">
               <div className="text-center">
-                <Brain size={48} className="text-purple-500 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
+                <Brain size={40} className="sm:w-12 sm:h-12 text-purple-500 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
                   {t('ai_powered_learning')}
                 </h3>
-                <p className="text-muted-foreground text-sm mb-4">
+                <p className="text-muted-foreground text-xs sm:text-sm mb-3 sm:mb-4">
                   {t('ai_powered_learning_desc')}
                 </p>
-                <div className="space-y-2 text-sm text-muted-foreground text-left">
+                <div className="space-y-2 text-xs sm:text-sm text-muted-foreground text-left">
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    {t('adaptive_learning_paths')}
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full flex-shrink-0" />
+                    <span>{t('adaptive_learning_paths')}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    {t('smart_note_taking')}
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full flex-shrink-0" />
+                    <span>{t('smart_note_taking')}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    {t('progress_analytics')}
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full flex-shrink-0" />
+                    <span>{t('progress_analytics')}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    {t('knowledge_graphs')}
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full flex-shrink-0" />
+                    <span>{t('knowledge_graphs')}</span>
                   </div>
                 </div>
               </div>

@@ -326,30 +326,31 @@ export default function SettingsContent() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
                   <motion.button
                     onClick={() => setShowChangePassword(true)}
-                    className="flex items-center justify-center gap-2 p-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-white font-medium transition-colors"
+                    className="flex items-center justify-center gap-2 p-3 sm:p-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-white text-sm sm:text-base font-medium transition-colors"
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >
-                    <Key size={16} />
+                    <Key size={14} className="sm:w-4 sm:h-4" />
                     {t('change_password')}
                   </motion.button>
 
                   <motion.button
                     onClick={handleForgotPassword}
                     disabled={requestPasswordReset.isPending}
-                    className="flex items-center justify-center gap-2 p-4 bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 rounded-lg text-white font-medium transition-colors disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 p-3 sm:p-4 bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 rounded-lg text-white text-sm sm:text-base font-medium transition-colors disabled:opacity-50"
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >
                     {requestPasswordReset.isPending ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <Mail size={16} />
+                      <Mail size={14} className="sm:w-4 sm:h-4" />
                     )}
-                    {t('forgot_password')}
+                    <span className="hidden sm:inline">{t('forgot_password')}</span>
+                    <span className="sm:hidden">{t('reset')}</span>
                   </motion.button>
                 </div>
               </div>
@@ -476,7 +477,7 @@ export default function SettingsContent() {
             <div className="space-y-6">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-600">
                 <div className="font-medium text-gray-900 dark:text-white mb-4">{t('theme')}</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {[
                     { value: 'light', label: t('light'), icon: Sun },
                     { value: 'dark', label: t('dark'), icon: Moon },
@@ -485,7 +486,7 @@ export default function SettingsContent() {
                     <motion.button
                       key={theme.value}
                       onClick={() => handleSettingChange('theme', theme.value)}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all duration-200 ${
+                      className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 ${
                         settings.theme === theme.value 
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
                           : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
@@ -493,8 +494,8 @@ export default function SettingsContent() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <theme.icon size={20} />
-                      <span className="text-sm font-medium">{theme.label}</span>
+                      <theme.icon size={18} className="sm:w-5 sm:h-5" />
+                      <span className="text-xs sm:text-sm font-medium">{theme.label}</span>
                     </motion.button>
                   ))}
                 </div>
@@ -502,7 +503,7 @@ export default function SettingsContent() {
 
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-600">
                 <div className="font-medium text-gray-900 dark:text-white mb-4">{t('font_size')}</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                   {[
                     { value: 'small', label: t('small'), preview: 'Aa' },
                     { value: 'medium', label: t('medium'), preview: 'Aa' },
@@ -518,7 +519,7 @@ export default function SettingsContent() {
                           description: t('font_size_updated_desc'),
                         });
                       }}
-                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 ${
                         fontSize === size.value 
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
                           : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
@@ -526,18 +527,18 @@ export default function SettingsContent() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center gap-0.5 sm:gap-1">
                         <span 
                           className="font-medium"
                           style={{ 
-                            fontSize: size.value === 'small' ? '0.75rem' : 
-                                      size.value === 'medium' ? '1rem' : 
-                                      size.value === 'large' ? '1.25rem' : '1.5rem' 
+                            fontSize: size.value === 'small' ? '0.625rem' : 
+                                      size.value === 'medium' ? '0.875rem' : 
+                                      size.value === 'large' ? '1.125rem' : '1.375rem' 
                           }}
                         >
                           {size.preview}
                         </span>
-                        <span className="text-xs opacity-70">{size.label}</span>
+                        <span className="text-[10px] sm:text-xs opacity-70">{size.label}</span>
                       </div>
                     </motion.button>
                   ))}
@@ -638,24 +639,24 @@ export default function SettingsContent() {
                 </div>
               ))}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
                 <motion.button
                   onClick={handleExportData}
-                  className="flex items-center justify-center gap-2 p-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-white font-medium transition-colors"
+                  className="flex items-center justify-center gap-2 p-3 sm:p-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg text-white text-sm sm:text-base font-medium transition-colors"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                 >
-                  <Download size={16} />
+                  <Download size={14} className="sm:w-4 sm:h-4" />
                   {t('export_data')}
                 </motion.button>
 
                 <motion.button
                   onClick={handleDeleteAccount}
-                  className="flex items-center justify-center gap-2 p-4 bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 rounded-lg text-white font-medium transition-colors"
+                  className="flex items-center justify-center gap-2 p-3 sm:p-4 bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 rounded-lg text-white text-sm sm:text-base font-medium transition-colors"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={14} className="sm:w-4 sm:h-4" />
                   {t('delete_account')}
                 </motion.button>
               </div>
@@ -669,11 +670,11 @@ export default function SettingsContent() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-transparent border-gray-400 dark:border-gray-600 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen w-full bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
-          className="mb-6 sm:mb-8"
+          className="mb-4 sm:mb-6 lg:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -686,7 +687,7 @@ export default function SettingsContent() {
           </p>
         </motion.div>
 
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
           {/* Settings Navigation */}
           <motion.div
             className="w-full lg:w-80 lg:flex-shrink-0"
@@ -694,29 +695,31 @@ export default function SettingsContent() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 sticky top-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Settings size={20} />
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 lg:sticky lg:top-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2">
+                <Settings size={18} className="sm:w-5 sm:h-5" />
                 {t('settings')}
               </h3>
               
-              <nav className="space-y-1">
-                {tabs.map((tab) => (
-                  <motion.button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
-                      activeTab === tab.id
-                        ? 'bg-blue-500 text-white shadow-md'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <tab.icon size={18} />
-                    <span className="text-sm font-medium">{tab.label}</span>
-                  </motion.button>
-                ))}
+              <nav className="space-y-1 overflow-x-auto lg:overflow-x-visible">
+                <div className="flex lg:flex-col gap-2 lg:gap-1 pb-2 lg:pb-0">
+                  {tabs.map((tab) => (
+                    <motion.button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 sm:gap-3 px-3 py-2 sm:py-2.5 rounded-lg text-left transition-all duration-200 whitespace-nowrap lg:w-full ${
+                        activeTab === tab.id
+                          ? 'bg-blue-500 text-white shadow-md'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <tab.icon size={16} className="sm:w-[18px] sm:h-[18px] flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium">{tab.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
               </nav>
             </div>
           </motion.div>
@@ -728,7 +731,7 @@ export default function SettingsContent() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 md:p-6 lg:p-8">
               {renderTabContent()}
             </div>
           </motion.div>

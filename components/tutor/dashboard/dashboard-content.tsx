@@ -208,18 +208,18 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* Welcome Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           {t('welcome_back')}, {profile?.full_name || profile?.display_name}!
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           {t('dashboard_subtitle')}
         </p>
       </motion.div>
@@ -229,54 +229,54 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
       >
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('total_courses')}</CardTitle>
-            <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('total_courses')}</CardTitle>
+            <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCourses}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{totalCourses}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {activeCourses} {t('active')}, {pendingCourses} {t('pending')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('total_students')}</CardTitle>
-            <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('total_students')}</CardTitle>
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{totalStudents}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {t('across_courses')} {studentsData?.total_courses || 0} {t('courses')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('classrooms')}</CardTitle>
-            <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('classrooms')}</CardTitle>
+            <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">0</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {t('active_classrooms')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('this_month')}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('this_month')}</CardTitle>
+            <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-600 dark:text-orange-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">
               {courses?.filter(course => {
                 const courseDate = new Date(course.created_at);
                 const thisMonth = new Date();
@@ -284,7 +284,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                        courseDate.getFullYear() === thisMonth.getFullYear();
               }).length || 0}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {t('new_courses_created')}
             </p>
           </CardContent>
@@ -297,34 +297,34 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-gray-100">
           {t('system_features')}
         </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {features.map((feature, index) => (
             <Card key={index} className="hover:shadow-md dark:hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-center space-x-3">
-                  <feature.icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  <div>
-                    <CardTitle className="text-lg">{feature.title}</CardTitle>
-                    <CardDescription className="mt-1">{feature.description}</CardDescription>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-start sm:items-center space-x-2 sm:space-x-3">
+                  <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base sm:text-lg">{feature.title}</CardTitle>
+                    <CardDescription className="mt-1 text-xs sm:text-sm">{feature.description}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="space-y-2 sm:space-y-3">
                   {feature.items.map((item, itemIndex) => (
-                    <div key={itemIndex} className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
+                    <div key={itemIndex} className="flex items-start space-x-2">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-600 dark:bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                      <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">{item}</span>
                     </div>
                   ))}
-                  <Separator className="my-3" />
+                  <Separator className="my-2 sm:my-3" />
                   <Link href={feature.href}>
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full text-xs sm:text-sm" size="sm">
                       <span>{t('explore_feature')}</span>
-                      <ChevronRight className="h-4 w-4 ml-2" />
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-2" />
                     </Button>
                   </Link>
                 </div>
@@ -339,7 +339,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
       >
         {/* Recent Courses */}
         <Card>

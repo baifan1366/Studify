@@ -381,11 +381,11 @@ export default function CoursesContent() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.6 }}
     >
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-black/90 mb-4 dark:text-white/90">
+      <div className="text-center mb-6 sm:mb-8 px-4">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-black/90 mb-3 sm:mb-4 dark:text-white/90">
           {t("explore_courses")}
         </h1>
-        <p className="text-lg text-black/70 mb-8 dark:text-white/70">
+        <p className="text-sm sm:text-base md:text-lg text-black/70 mb-6 sm:mb-8 dark:text-white/70">
           {t("find_your_next_learning_adventure_from_our_curated_collection")}
         </p>
       </div>
@@ -396,40 +396,41 @@ export default function CoursesContent() {
         onValueChange={setActiveFilter}
         className="mb-6"
       >
-        <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-sm">
-          <TabsTrigger value="all" className="data-[state=active]:bg-white/20">
-            {t("all_courses")}
-            <Badge variant="secondary" className="ml-2">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 bg-white/10 backdrop-blur-sm gap-1">
+          <TabsTrigger value="all" className="data-[state=active]:bg-white/20 text-xs sm:text-sm">
+            <span className="hidden sm:inline">{t("all_courses")}</span>
+            <span className="sm:hidden">{t("all")}</span>
+            <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
               {uiCourses.length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger
             value="enrolled"
-            className="data-[state=active]:bg-white/20"
+            className="data-[state=active]:bg-white/20 text-xs sm:text-sm"
           >
             {t("enrolled")}
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
               {enrolledCoursesData.length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger
             value="available"
-            className="data-[state=active]:bg-white/20"
+            className="data-[state=active]:bg-white/20 text-xs sm:text-sm"
           >
             {t("available")}
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
               {availableCourses.length}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="free" className="data-[state=active]:bg-white/20">
+          <TabsTrigger value="free" className="data-[state=active]:bg-white/20 text-xs sm:text-sm">
             {t("free")}
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
               {uiCourses.filter((c) => c.isFree).length}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="paid" className="data-[state=active]:bg-white/20">
+          <TabsTrigger value="paid" className="data-[state=active]:bg-white/20 text-xs sm:text-sm">
             {t("paid")}
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
               {uiCourses.filter((c) => !c.isFree).length}
             </Badge>
           </TabsTrigger>
@@ -437,32 +438,36 @@ export default function CoursesContent() {
       </Tabs>
 
       {/* Search and Advanced Filters */}
-      <div className="bg-white/5 backdrop-blur-md rounded-xl p-6 border border-white/20 mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Filter size={20} className="text-black/70 dark:text-white/70" />
-          <h3 className="text-lg font-semibold text-black dark:text-white">
-            Filters & Search
-          </h3>
-          <div className="ml-auto flex items-center gap-2">
+      <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Filter size={18} className="text-black/70 dark:text-white/70 flex-shrink-0" />
+            <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white">
+              Filters & Search
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm flex-1 sm:flex-initial"
             >
               {showAdvancedFilters ? (
                 <>
-                  <ChevronUp size={16} />
-                  {t("show_less")}
+                  <ChevronUp size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{t("show_less")}</span>
+                  <span className="sm:hidden">Less</span>
                 </>
               ) : (
                 <>
-                  <ChevronDown size={16} />
-                  {t("show_more")}
+                  <ChevronDown size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{t("show_more")}</span>
+                  <span className="sm:hidden">More</span>
                 </>
               )}
             </Button>
-            <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-xs sm:text-sm flex-1 sm:flex-initial">
               {t("reset_all")}
             </Button>
           </div>
@@ -470,14 +475,14 @@ export default function CoursesContent() {
 
         {/* Always visible: Search */}
         <div className="mb-4">
-          <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+          <label className="text-xs sm:text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
             {t("search_courses")}
           </label>
           <Input
             placeholder={t("search_courses")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-white/10 border-white/20 max-w-md"
+            className="bg-white/10 border-white/20 w-full sm:max-w-md text-sm"
           />
         </div>
 
@@ -494,11 +499,11 @@ export default function CoursesContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-4 border-t border-white/10">
             {/* Level Filter */}
             <div>
-              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+              <label className="text-xs sm:text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
                 {t("level")}
               </label>
               <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                <SelectTrigger className="bg-white/10 border-white/20">
+                <SelectTrigger className="bg-white/10 border-white/20 text-sm">
                   <SelectValue placeholder={t("select_level")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -514,14 +519,14 @@ export default function CoursesContent() {
 
             {/* Category Filter */}
             <div>
-              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+              <label className="text-xs sm:text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
                 {t("category")}
               </label>
               <Select
                 value={selectedCategory}
                 onValueChange={setSelectedCategory}
               >
-                <SelectTrigger className="bg-white/10 border-white/20">
+                <SelectTrigger className="bg-white/10 border-white/20 text-sm">
                   <SelectValue placeholder={t("select_category")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -537,11 +542,11 @@ export default function CoursesContent() {
 
             {/* Price Filter */}
             <div>
-              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+              <label className="text-xs sm:text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
                 {t("price_range")}
               </label>
               <Select value={priceFilter} onValueChange={setPriceFilter}>
-                <SelectTrigger className="bg-white/10 border-white/20">
+                <SelectTrigger className="bg-white/10 border-white/20 text-sm">
                   <SelectValue placeholder={t("select_price_range")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -555,11 +560,11 @@ export default function CoursesContent() {
 
             {/* Duration Filter */}
             <div>
-              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+              <label className="text-xs sm:text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
                 {t("duration")}
               </label>
               <Select value={durationFilter} onValueChange={setDurationFilter}>
-                <SelectTrigger className="bg-white/10 border-white/20">
+                <SelectTrigger className="bg-white/10 border-white/20 text-sm">
                   <SelectValue placeholder={t("select_duration")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -575,14 +580,14 @@ export default function CoursesContent() {
 
             {/* Instructor Filter */}
             <div>
-              <label className="text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
+              <label className="text-xs sm:text-sm font-medium text-black/70 dark:text-white/70 mb-2 block">
                 {t("instructor")}
               </label>
               <Select
                 value={instructorFilter}
                 onValueChange={setInstructorFilter}
               >
-                <SelectTrigger className="bg-white/10 border-white/20">
+                <SelectTrigger className="bg-white/10 border-white/20 text-sm">
                   <SelectValue placeholder={t("select_instructor")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -600,7 +605,7 @@ export default function CoursesContent() {
 
         {/* Results Count */}
         <div className="mt-4 text-center">
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-xs sm:text-sm text-black/60 dark:text-white/60">
             {t("showing_courses", {
               count: filteredCourses.length,
               total: uiCourses.length,
@@ -675,52 +680,52 @@ export default function CoursesContent() {
                   </div>
                 </div>
 
-                <div className="p-4 flex flex-col flex-grow">
-                  <h3 className="text-black dark:text-white font-bold text-lg mb-2 truncate">
+                <div className="p-3 sm:p-4 flex flex-col flex-grow">
+                  <h3 className="text-black dark:text-white font-bold text-base sm:text-lg mb-2 line-clamp-2">
                     {course.title}
                   </h3>
-                  <p className="text-black/60 dark:text-white/60 text-sm mb-3">
+                  <p className="text-black/60 dark:text-white/60 text-xs sm:text-sm mb-3 truncate">
                     {course.instructor}
                   </p>
 
-                  <div className="flex items-center gap-4 text-sm text-black/80 dark:text-white/80 mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={14} />
-                      <span>{course.duration}</span>
+                  <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-black/80 dark:text-white/80 mb-3">
+                    <div className="flex items-center gap-1 sm:gap-1.5">
+                      <Clock size={12} className="sm:w-3.5 sm:h-3.5" />
+                      <span className="truncate">{course.duration}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users size={14} />
+                    <div className="flex items-center gap-1 sm:gap-1.5">
+                      <Users size={12} className="sm:w-3.5 sm:h-3.5" />
                       <span>{course.students}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-yellow-400 font-bold text-sm">
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <span className="text-yellow-400 font-bold text-xs sm:text-sm">
                       {course.rating.toFixed(1)}
                     </span>
                     <div className="flex items-center">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          size={14}
-                          className={
+                          size={12}
+                          className={`sm:w-3.5 sm:h-3.5 ${
                             i < Math.round(course.rating)
                               ? "text-yellow-400 fill-current"
                               : "text-black/30 dark:text-white/30"
-                          }
+                          }`}
                         />
                       ))}
                     </div>
                   </div>
 
-                  <div className="mt-auto pt-4 border-t border-black/10 dark:border-white/10">
-                    <div className="flex justify-between items-center mb-4">
-                      <p className="text-xl font-bold text-black dark:text-white">
+                  <div className="mt-auto pt-3 sm:pt-4 border-t border-black/10 dark:border-white/10">
+                    <div className="flex justify-between items-center mb-3 sm:mb-4">
+                      <p className="text-lg sm:text-xl font-bold text-black dark:text-white truncate">
                         {course.price}
                       </p>
-                      <div className="flex items-center gap-1 text-yellow-400">
-                        <Zap size={16} />
-                        <span className="font-semibold">
+                      <div className="flex items-center gap-1 text-yellow-400 flex-shrink-0">
+                        <Zap size={14} className="sm:w-4 sm:h-4" />
+                        <span className="font-semibold text-xs sm:text-sm">
                           {course.points} pts
                         </span>
                       </div>
@@ -731,9 +736,10 @@ export default function CoursesContent() {
                         <Button
                           onClick={() => handleGoToCourse(course.slug)}
                           variant="default"
-                          className="w-full"
+                          className="w-full text-xs sm:text-sm"
+                          size="sm"
                         >
-                          <BookOpen size={16} className="mr-2" />
+                          <BookOpen size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
                           {t("go_to_course")}
                         </Button>
                       ) : (
@@ -742,18 +748,22 @@ export default function CoursesContent() {
                             <Button
                               onClick={() => handleGoToCourse(course.slug)}
                               variant="outline"
-                              className="flex-1"
+                              className="flex-1 text-xs sm:text-sm"
+                              size="sm"
                             >
-                              {t("view_details")}
+                              <span className="hidden sm:inline">{t("view_details")}</span>
+                              <span className="sm:hidden">View</span>
                             </Button>
                             <Button
                               onClick={() => handleBuyNow(course.id)}
                               variant="default"
-                              className="flex-1"
+                              className="flex-1 text-xs sm:text-sm"
+                              size="sm"
                               disabled={buyingCourseId === course.id}
                             >
-                              <CreditCard size={16} className="mr-1" />
-                              {buyingCourseId === course.id ? t("buying_now") : t("buy_now")}
+                              <CreditCard size={14} className="mr-1 sm:w-4 sm:h-4" />
+                              <span className="hidden sm:inline">{buyingCourseId === course.id ? t("buying_now") : t("buy_now")}</span>
+                              <span className="sm:hidden">Buy</span>
                             </Button>
                           </div>
 
@@ -764,27 +774,30 @@ export default function CoursesContent() {
                                 handleRedeemWithPoints(course.id, course.points)
                               }
                               variant="secondary"
-                              className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-semibold"
+                              size="sm"
+                              className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-semibold text-xs sm:text-sm"
                               disabled={
                                 redeemingCourseId === course.id ||
                                 (pointsData?.currentPoints || 0) <
                                   course.points
                               }
                             >
-                              <Coins size={16} className="mr-2" />
-                              {redeemingCourseId === course.id
-                                ? t("redeeming_now")
-                                : (pointsData?.currentPoints || 0) <
-                                  course.points
-                                ? t("insufficient_points_short")
-                                : t("redeem_with_points", {
-                                    points: course.points,
-                                  })}
+                              <Coins size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
+                              <span className="truncate">
+                                {redeemingCourseId === course.id
+                                  ? t("redeeming_now")
+                                  : (pointsData?.currentPoints || 0) <
+                                    course.points
+                                  ? t("insufficient_points_short")
+                                  : t("redeem_with_points", {
+                                      points: course.points,
+                                    })}
+                              </span>
                             </Button>
                           )}
 
                           {/* Points Status Display */}
-                          <div className="text-center text-xs text-black/60 dark:text-white/60">
+                          <div className="text-center text-[10px] sm:text-xs text-black/60 dark:text-white/60">
                             {t("your_points")}:{" "}
                             <span className="font-semibold text-yellow-500">
                               {pointsData?.currentPoints || 0}

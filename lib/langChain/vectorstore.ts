@@ -130,7 +130,8 @@ export const CONTENT_TYPES = {
   COURSE: 'course',
   LESSON: 'lesson',
   AUTH_USER: 'auth_user',
-  QUIZ_QUESTION: 'quiz_question'
+  QUIZ_QUESTION: 'quiz_question',
+  VIDEO_SEGMENT: 'video_segment'
 } as const;
 
 export type ContentType = typeof CONTENT_TYPES[keyof typeof CONTENT_TYPES];

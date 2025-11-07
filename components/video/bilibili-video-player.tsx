@@ -1584,18 +1584,18 @@ export default function BilibiliVideoPlayer({
           </div>
         )}
 
-        {/* Enhanced Loading Overlay with Progressive Loading Indicator */}
+        {/* Enhanced Loading Overlay with Progressive Loading Indicator - No black screen */}
         <AnimatePresence>
           {isLoading && (
             <motion.div
-              className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-10"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
               <motion.div
-                className="flex flex-col items-center gap-4 p-6 rounded-2xl bg-black/20 backdrop-blur-md border border-white/10"
+                className="flex flex-col items-center gap-4 p-6 rounded-2xl bg-black/70 backdrop-blur-md border border-white/20 shadow-2xl pointer-events-auto"
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
@@ -1603,8 +1603,8 @@ export default function BilibiliVideoPlayer({
               >
                 <div className="relative">
                   <motion.div
-                    className="absolute inset-0 w-16 h-16 rounded-full border-2 border-white/20"
-                    animate={{ scale: [1, 1.2, 1] }}
+                    className="absolute inset-0 w-16 h-16 rounded-full border-2 border-white/30"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
                     transition={{
                       duration: 2,
                       repeat: Infinity,
@@ -1613,18 +1613,18 @@ export default function BilibiliVideoPlayer({
                   />
                   <Loader2
                     size={48}
-                    className="text-white animate-spin relative z-10"
+                    className="text-white animate-spin relative z-10 drop-shadow-lg"
                   />
                 </div>
                 <div className="text-center">
-                  <p className="text-white text-sm font-medium mb-1">
+                  <p className="text-white text-sm font-medium mb-1 drop-shadow-md">
                     {loadingProgress > 0 && loadingProgress < 100
                       ? t("VideoPlayer.buffering") || "Buffering..."
                       : t("VideoPlayer.loading") || "Loading..."}
                   </p>
                   {(videoSourceInfo.type === "youtube" ||
                     videoSourceInfo.type === "vimeo") && (
-                    <p className="text-white/70 text-xs">
+                    <p className="text-white/80 text-xs drop-shadow-md">
                       {videoSourceInfo.type === "youtube"
                         ? t("VideoPlayer.loading_youtube") ||
                           "Loading YouTube video..."
@@ -1637,9 +1637,9 @@ export default function BilibiliVideoPlayer({
                   {videoSourceInfo.type === "direct" && (
                     <div className="mt-3 w-64">
                       {/* Progress Bar */}
-                      <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+                      <div className="w-full bg-white/30 rounded-full h-2 overflow-hidden shadow-inner">
                         <motion.div
-                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                          className="h-full bg-gradient-to-r from-blue-400 to-purple-400 rounded-full shadow-lg"
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.max(loadingProgress, 2)}%` }}
                           transition={{ duration: 0.3 }}
@@ -1648,13 +1648,13 @@ export default function BilibiliVideoPlayer({
                       
                       {/* Progress Text */}
                       <div className="flex justify-between items-center mt-2">
-                        <p className="text-white/60 text-xs">
+                        <p className="text-white/80 text-xs drop-shadow-md">
                           {loadingProgress > 0
                             ? `${Math.round(loadingProgress)}% loaded`
                             : "Initializing..."}
                         </p>
                         {duration > 0 && loadingProgress > 0 && (
-                          <p className="text-white/60 text-xs">
+                          <p className="text-white/80 text-xs drop-shadow-md">
                             {formatTime((duration * loadingProgress) / 100)} / {formatTime(duration)}
                           </p>
                         )}
@@ -1663,7 +1663,7 @@ export default function BilibiliVideoPlayer({
                       {/* Ready to play indicator */}
                       {loadingProgress >= 5 && (
                         <motion.p 
-                          className="text-green-400 text-xs mt-1 flex items-center justify-center gap-1"
+                          className="text-green-300 text-xs mt-1 flex items-center justify-center gap-1 drop-shadow-md"
                           initial={{ opacity: 0, y: -5 }}
                           animate={{ opacity: 1, y: 0 }}
                         >
@@ -1674,7 +1674,7 @@ export default function BilibiliVideoPlayer({
                       
                       {/* Preloading tip */}
                       {loadingProgress > 0 && loadingProgress < 100 && (
-                        <p className="text-white/40 text-xs mt-2">
+                        <p className="text-white/60 text-xs mt-2 drop-shadow-md">
                           Video is preloading in background...
                         </p>
                       )}

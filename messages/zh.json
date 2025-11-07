@@ -282,8 +282,12 @@
       "ask_ai": "向 AI 询问视频内容",
       "toggle_terms": "切换关键术语"
     },
-    "quality": "质量",
+    "quality": "画质",
     "auto": "自动",
+    "normal": "正常",
+    "quality_changed": "画质已切换",
+    "auto_quality": "自动（自适应码率）",
+    "quality_not_available": "此视频不支持画质选择",
     "danmaku_placeholder": "发一条弹幕来见证此刻",
     "default_lesson_title": "课程课时",
     "edit": "编辑",

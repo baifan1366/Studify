@@ -196,6 +196,8 @@ export default function BilibiliVideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [bufferedRanges, setBufferedRanges] = useState<TimeRanges | null>(null);
+  const [qualityLevels, setQualityLevels] = useState<Array<{index: number, height: number, bitrate: number}>>([]);
+  const [currentQuality, setCurrentQuality] = useState<number>(-1); // -1 = auto
   
   // Subtitle state
   const [currentSubtitle, setCurrentSubtitle] = useState<string>("");
@@ -919,6 +921,8 @@ export default function BilibiliVideoPlayer({
         maxMaxBufferLength: 600,
         maxBufferSize: 60 * 1000 * 1000, // 60MB
         maxBufferHole: 0.5,
+        // Start with highest quality by default
+        startLevel: -1, // -1 = auto (ABR)
       });
 
       hlsRef.current = hls;
@@ -930,6 +934,18 @@ export default function BilibiliVideoPlayer({
       // Handle manifest parsed
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         console.log('✅ HLS manifest loaded, found ' + data.levels.length + ' quality levels');
+        
+        // Extract quality levels
+        const levels = data.levels.map((level: any, index: number) => ({
+          index,
+          height: level.height,
+          bitrate: level.bitrate,
+        }));
+        setQualityLevels(levels);
+        
+        // Log available qualities
+        console.log('📊 Available qualities:', levels.map(l => `${l.height}p`).join(', '));
+        
         setIsLoading(false);
       });
 
@@ -965,6 +981,14 @@ export default function BilibiliVideoPlayer({
       hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
         const level = hls.levels[data.level];
         console.log('🎨 Quality switched to:', level.height + 'p');
+        setCurrentQuality(data.level);
+        
+        // Show toast notification
+        toast({
+          title: t("VideoPlayer.quality_changed") || "Quality Changed",
+          description: `${level.height}p (${(level.bitrate / 1000000).toFixed(1)} Mbps)`,
+          duration: 2000,
+        });
       });
 
       // Cleanup
@@ -1123,6 +1147,27 @@ export default function BilibiliVideoPlayer({
       setPlaybackRate(rate);
     }
   }, []);
+
+  const changeQuality = useCallback((qualityIndex: number) => {
+    if (hlsRef.current) {
+      if (qualityIndex === -1) {
+        // Auto quality (ABR)
+        hlsRef.current.currentLevel = -1;
+        console.log('🎨 Quality set to: Auto (ABR)');
+        toast({
+          title: t("VideoPlayer.quality_changed") || "Quality Changed",
+          description: t("VideoPlayer.auto_quality") || "Auto (Adaptive Bitrate)",
+          duration: 2000,
+        });
+      } else {
+        // Manual quality selection
+        hlsRef.current.currentLevel = qualityIndex;
+        const level = hlsRef.current.levels[qualityIndex];
+        console.log('🎨 Quality set to:', level.height + 'p');
+      }
+      setCurrentQuality(qualityIndex);
+    }
+  }, [toast, t]);
 
   const skipTime = useCallback(
     (seconds: number) => {
@@ -1926,12 +1971,32 @@ export default function BilibiliVideoPlayer({
                                   <label className="text-gray-900 dark:text-white text-sm font-medium block mb-2">
                                     {t("VideoPlayer.quality")}
                                   </label>
-                                  <select className="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer">
-                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{t("VideoPlayer.auto")}</option>
-                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1080P</option>
-                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">720P</option>
-                                    <option className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">480P</option>
+                                  <select 
+                                    value={currentQuality}
+                                    onChange={(e) => changeQuality(parseInt(e.target.value))}
+                                    className="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
+                                    disabled={qualityLevels.length === 0}
+                                  >
+                                    <option value={-1} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                      {t("VideoPlayer.auto")} {currentQuality === -1 && qualityLevels.length > 0 ? '✓' : ''}
+                                    </option>
+                                    {qualityLevels
+                                      .sort((a, b) => b.height - a.height) // Sort by quality (highest first)
+                                      .map((level) => (
+                                        <option 
+                                          key={level.index} 
+                                          value={level.index}
+                                          className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        >
+                                          {level.height}p ({(level.bitrate / 1000000).toFixed(1)} Mbps) {currentQuality === level.index ? '✓' : ''}
+                                        </option>
+                                      ))}
                                   </select>
+                                  {qualityLevels.length === 0 && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      {t("VideoPlayer.quality_not_available") || "Quality selection not available for this video"}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </motion.div>

@@ -1661,6 +1661,7 @@ export default function CourseLearningContent({
                 currentLessonId={currentLessonId}
                 currentTimestamp={currentVideoTimestamp}
                 selectedText={null} // TODO: 实现文本选择功能
+                onSeekTo={handleTimeUpdate}
               />
             )}
           </div>

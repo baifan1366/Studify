@@ -53,6 +53,7 @@ interface VideoAIAssistantProps {
   currentLessonId: string | null;
   currentTimestamp: number;
   selectedText?: string | null;
+  onSeekTo?: (time: number, duration?: number) => void;
 }
 
 export default function VideoAIAssistant({
@@ -60,6 +61,7 @@ export default function VideoAIAssistant({
   currentLessonId,
   currentTimestamp,
   selectedText,
+  onSeekTo,
 }: VideoAIAssistantProps) {
   const [question, setQuestion] = useState("");
   const [conversation, setConversation] = useState<AIMessage[]>([]);
@@ -277,8 +279,25 @@ export default function VideoAIAssistant({
   };
 
   const handleJumpToTimestamp = async (timestamp: number) => {
-    const videoPlayer = getGlobalVideoPlayer();
+    // Try parent component's onSeekTo first (preferred method)
+    if (onSeekTo) {
+      try {
+        onSeekTo(timestamp);
+        toast({
+          title: t("notifications.jump_timestamp.title"),
+          description: t("notifications.jump_timestamp.jumped_to", {
+            timestamp: formatTimestamp(timestamp),
+          }),
+          duration: 2000,
+        });
+        return;
+      } catch (error) {
+        console.error("Failed to seek via onSeekTo:", error);
+      }
+    }
 
+    // Fallback to global video player
+    const videoPlayer = getGlobalVideoPlayer();
     if (videoPlayer) {
       try {
         await videoPlayer.seekTo(timestamp);
@@ -300,7 +319,7 @@ export default function VideoAIAssistant({
         });
       }
     } else {
-      // Fallback when video player not available
+      // Last fallback when video player not available
       toast({
         title: t("notifications.jump_timestamp.title"),
         description: t("notifications.jump_timestamp.description", {

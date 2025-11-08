@@ -182,6 +182,37 @@ export default function AnimatedSidebar({
     return validConfig.sort((a, b) => b.pathFragment.length - a.pathFragment.length);
   }, [menuSections]);
 
+  const getLabelForItem = (id: string) => {
+    switch (id) {
+      case "dashboard":
+        return t("dashboard_label");
+      case "ban-list":
+        return t("ban_list_label");
+      case "announcements":
+        return t("announcements_label");
+      case "user-management":
+        return t("user_management_label");
+      case "all-users":
+        return t("all_users_label");
+      case "roles-permissions":
+        return t("roles_permissions_label");
+      case "content-management":
+        return t("content_management_label");
+      case "courses":
+        return t("courses_label");
+      case "community-posts":
+        return t("community_posts_label");
+      case "reports":
+        return t("reports_label");
+      case "user-reports":
+        return t("user_reports_label");
+      case "content-reports-detail":
+        return t("content_reports_label");
+      default:
+        return "";
+    }
+  };
+
   // Automatically determine active item based on current route
   useEffect(() => {
     const currentPath = pathname || '';
@@ -381,7 +412,7 @@ export default function AnimatedSidebar({
                                     exit="hidden"
                                     className="ml-4 font-medium whitespace-nowrap "
                                   >
-                                    {item.label}
+                                    {getLabelForItem(item.id)}
                                   </motion.span>
                                 )}
                               </AnimatePresence>
@@ -446,7 +477,7 @@ export default function AnimatedSidebar({
                                           <SubIconComponent size={18} />
                                         </div>
                                         <span className="ml-3 font-medium whitespace-nowrap">
-                                          {subItem.label}
+                                          {getLabelForItem(subItem.id)}
                                         </span>
                                         {isSubActive && (
                                           <motion.div
@@ -503,7 +534,7 @@ export default function AnimatedSidebar({
                                 exit="hidden"
                                 className="ml-4 font-medium whitespace-nowrap"
                               >
-                                {item.label}
+                                {getLabelForItem(item.id)}
                               </motion.span>
                             )}
                           </AnimatePresence>

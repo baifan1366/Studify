@@ -2210,7 +2210,22 @@
     "bookmarks_label": "书签",
     "recent_label": "最近",
     "settings_label": "设置",
-    "logout_button": "退出登录"
+    "logout_button": "退出登录",
+    "storage_label": "存储",
+    "teaching_label": "教学",
+    "quiz_content_label": "测验内容",
+    "course_content_label": "课程内容",
+    "students_label": "学生",
+    "ban_list_label": "封禁列表",
+    "announcements_label": "公告",
+    "user_management_label": "用户管理",
+    "all_users_label": "所有用户",
+    "roles_permissions_label": "角色与权限",
+    "content_management_label": "内容管理",
+    "community_posts_label": "社区帖子",
+    "reports_label": "举报",
+    "user_reports_label": "用户举报",
+    "content_reports_label": "内容举报"
   },
   "PricingContent": {
     "monthly": "月付",

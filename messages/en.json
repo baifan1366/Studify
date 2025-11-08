@@ -2210,7 +2210,22 @@
     "bookmarks_label": "Bookmarks",
     "recent_label": "Recent",
     "settings_label": "Settings",
-    "logout_button": "Logout"
+    "logout_button": "Logout",
+    "storage_label": "Storage",
+    "teaching_label": "Teaching",
+    "quiz_content_label": "Quiz Content",
+    "course_content_label": "Course Content",
+    "students_label": "Students",
+    "ban_list_label": "Ban List",
+    "announcements_label": "Announcements",
+    "user_management_label": "User Management",
+    "all_users_label": "All Users",
+    "roles_permissions_label": "Roles & Permissions",
+    "content_management_label": "Content Management",
+    "community_posts_label": "Community Posts",
+    "reports_label": "Reports",
+    "user_reports_label": "User Reports",
+    "content_reports_label": "Content Reports"
   },
   "PricingContent": {
     "monthly": "Monthly",

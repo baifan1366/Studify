@@ -38,12 +38,12 @@ export default function WhiteboardPage({ classroomSlug }: WhiteboardPageProps) {
     }
   }, [user]);
 
-  // Auto-select active session
+  // Auto-select live session
   useEffect(() => {
     if (sessions && sessions.length > 0 && !selectedSessionId) {
-      const activeSession = sessions.find((s: any) => s.status === 'active');
-      if (activeSession) {
-        setSelectedSessionId(activeSession.id.toString());
+      const liveSession = sessions.find((s: any) => s.status === 'live');
+      if (liveSession) {
+        setSelectedSessionId(liveSession.id.toString());
       } else {
         // Select most recent session
         const sortedSessions = [...sessions].sort((a: any, b: any) => 
@@ -83,7 +83,7 @@ export default function WhiteboardPage({ classroomSlug }: WhiteboardPageProps) {
   }
 
   const selectedSession = sessions?.find((s: any) => s.id.toString() === selectedSessionId);
-  const isSessionActive = selectedSession?.status === 'active';
+  const isSessionActive = selectedSession?.status === 'live';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -118,7 +118,7 @@ export default function WhiteboardPage({ classroomSlug }: WhiteboardPageProps) {
                       {sessions.map((session: any) => (
                         <SelectItem key={session.id} value={session.id.toString()}>
                           <div className="flex items-center gap-2">
-                            {session.status === 'active' && (
+                            {session.status === 'live' && (
                               <div className="w-2 h-2 bg-green-500 rounded-full" />
                             )}
                             <span className="truncate">{session.session_name}</span>

@@ -151,7 +151,8 @@ export default function CoursesContent() {
       // Get actual point price from database or fallback to calculated value
       const pointPrice =
         c.point_price || Math.max(100, Math.floor((c.price_cents || 0) / 10));
-      const hasPointPrice = !!c.point_price;
+      // Show points redemption for all paid courses (not just those with explicit point_price)
+      const hasPointPrice = !!(c.price_cents && c.price_cents > 0);
 
       return {
         id: c.public_id,
@@ -168,7 +169,7 @@ export default function CoursesContent() {
         sourceCurrency: courseCurrency, // Store original currency
         isFree: !c.price_cents || c.price_cents === 0,
         points: pointPrice,
-        pointsAvailable: hasPointPrice, // Only show points redemption if course has point price set
+        pointsAvailable: hasPointPrice, // Show points redemption for all paid courses
         thumbnailUrl: c.thumbnail_url,
         level: c.level || "beginner",
         category: c.category || "General",

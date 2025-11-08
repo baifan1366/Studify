@@ -76,6 +76,7 @@ export default function SettingsContent() {
     courseUpdates: true,
     communityUpdates: false,
     marketingEmails: false,
+    autoSummarize: true,
     
     // Privacy settings
     profileVisibility: 'public',
@@ -114,6 +115,7 @@ export default function SettingsContent() {
         courseUpdates: notificationSettings.course_updates ?? true,
         communityUpdates: notificationSettings.community_updates ?? false,
         marketingEmails: notificationSettings.marketing_emails ?? false,
+        autoSummarize: notificationSettings.auto_summarize ?? true,
         
         // Privacy settings
         profileVisibility: privacySettings.profile_visibility || 'public',
@@ -149,7 +151,7 @@ export default function SettingsContent() {
     }
     
     // Notification settings
-    if (['emailNotifications', 'pushNotifications', 'courseUpdates', 'communityUpdates', 'marketingEmails'].includes(key)) {
+    if (['emailNotifications', 'pushNotifications', 'courseUpdates', 'communityUpdates', 'marketingEmails', 'autoSummarize'].includes(key)) {
       const notificationKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
       updateData.notification_settings = {
         [notificationKey]: value
@@ -372,7 +374,8 @@ export default function SettingsContent() {
                 { key: 'pushNotifications', label: t('push_notifications'), desc: t('push_notifications_desc'), icon: Smartphone },
                 { key: 'courseUpdates', label: t('course_updates'), desc: t('course_updates_desc'), icon: Bell },
                 { key: 'communityUpdates', label: t('community_updates'), desc: t('community_updates_desc'), icon: Bell },
-                { key: 'marketingEmails', label: t('marketing_emails'), desc: t('marketing_emails_desc'), icon: Mail }
+                { key: 'marketingEmails', label: t('marketing_emails'), desc: t('marketing_emails_desc'), icon: Mail },
+                { key: 'autoSummarize', label: t('auto_summarize'), desc: t('auto_summarize_desc'), icon: Zap }
               ].map((item) => (
                 <div key={item.key} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-600">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -383,21 +386,26 @@ export default function SettingsContent() {
                         <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.desc}</div>
                       </div>
                     </div>
-                    <motion.button
-                      onClick={() => handleSettingChange(item.key, !settings[item.key as keyof typeof settings])}
-                      className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
-                        settings[item.key as keyof typeof settings] 
-                          ? 'bg-green-500 dark:bg-green-600' 
-                          : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <motion.div
-                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
-                        animate={{ x: settings[item.key as keyof typeof settings] ? 26 : 2 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    </motion.button>
+                    {profileLoading ? (
+                      <div className="w-12 h-6 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse flex-shrink-0" />
+                    ) : (
+                      <motion.button
+                        onClick={() => handleSettingChange(item.key, !settings[item.key as keyof typeof settings])}
+                        disabled={updateSettingsMutation.isPending}
+                        className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
+                          settings[item.key as keyof typeof settings] 
+                            ? 'bg-green-500 dark:bg-green-600' 
+                            : 'bg-gray-300 dark:bg-gray-600'
+                        } ${updateSettingsMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        whileTap={{ scale: updateSettingsMutation.isPending ? 1 : 0.95 }}
+                      >
+                        <motion.div
+                          className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                          animate={{ x: settings[item.key as keyof typeof settings] ? 26 : 2 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      </motion.button>
+                    )}
                   </div>
                 </div>
               ))}

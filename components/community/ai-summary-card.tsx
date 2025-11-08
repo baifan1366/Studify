@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAICommunitySummary, useSummaryFormatter } from "@/hooks/ai/use-ai-community-summary";
 import { useUser } from "@/hooks/profile/use-user";
+import { useCurrentUserProfile, useUpdateCurrentUserSettings } from "@/hooks/profile/use-profile";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/utils/styles";
 import { FileText, RefreshCw, Copy, List, Link as LinkIcon, ChevronDown, ChevronUp, Check } from "lucide-react";
 
@@ -58,6 +60,9 @@ interface AISummaryCardProps {
 export default function AISummaryCard({ query, resultIds, locale = "en", className }: AISummaryCardProps) {
   const t = useTranslations('AISummaryCard');
   const { data: userData } = useUser();
+  const { data: profileData } = useCurrentUserProfile();
+  const updateSettingsMutation = useUpdateCurrentUserSettings();
+  const { toast } = useToast();
 
   // Get user's preferred language from profile, fallback to locale prop
   const userLanguage = userData?.profile?.language || locale;
@@ -80,18 +85,63 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
 
   // Local state for showing/hiding detailed content
   const [showDetails, setShowDetails] = useState(false);
-  // Auto summarize toggle (non-persistent)
+  // Auto summarize toggle (persistent to database)
   const [autoEnabled, setAutoEnabled] = useState(true);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   // Copy button feedback state
   const [copied, setCopied] = useState(false);
   const [copiedTldr, setCopiedTldr] = useState(false);
+
+  // Load auto_summarize setting from profile
+  useEffect(() => {
+    if (profileData?.profile?.notification_settings) {
+      const setting = profileData.profile.notification_settings.auto_summarize ?? true;
+      setAutoEnabled(setting);
+      setIsLoadingSettings(false);
+    } else if (profileData?.profile) {
+      // Profile loaded but no notification_settings, use default
+      setAutoEnabled(true);
+      setIsLoadingSettings(false);
+    }
+  }, [profileData]);
 
   const hasQuery = query.trim().length > 0;
   const hasResults = resultIds && resultIds.length > 0;
   const disabled = !hasQuery || !hasResults || isSearching;
 
+  // Handle toggle and update database
+  const handleToggleAutoSummarize = async (checked: boolean) => {
+    setAutoEnabled(checked);
+
+    try {
+      await updateSettingsMutation.mutateAsync({
+        notification_settings: {
+          auto_summarize: checked
+        }
+      });
+
+      toast({
+        title: checked ? t('auto_enabled') || 'Auto summarize enabled' : t('auto_disabled') || 'Auto summarize disabled',
+        description: checked 
+          ? t('auto_enabled_desc') || 'Summaries will be generated automatically'
+          : t('auto_disabled_desc') || 'You can still generate summaries manually',
+      });
+    } catch (error) {
+      // Revert on error
+      setAutoEnabled(!checked);
+      toast({
+        title: t('error') || 'Error',
+        description: t('update_failed') || 'Failed to update setting',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Auto-generate when enabled and there is no cached result
   useEffect(() => {
+    // Don't auto-generate while loading settings
+    if (isLoadingSettings) return;
+    // Don't auto-generate if disabled
     if (!autoEnabled) return;
     if (!hasQuery || !hasResults) return;
     if (isSearching) return;
@@ -111,7 +161,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, effectiveLocale]);
+  }, [isLoadingSettings, autoEnabled, hasQuery, hasResults, isSearching, summaryKey, savedResultForKey, query, resultIds, effectiveLocale]);
 
   const handleGenerate = () => {
     if (disabled) return;
@@ -170,11 +220,16 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-xs text-gray-300">
               <span>{t('auto_summarize')}</span>
-              <Switch
-                checked={autoEnabled}
-                onCheckedChange={(v) => setAutoEnabled(!!v)}
-                className="scale-90"
-              />
+              {isLoadingSettings ? (
+                <div className="w-11 h-6 bg-gray-600/50 rounded-full animate-pulse" />
+              ) : (
+                <Switch
+                  checked={autoEnabled}
+                  onCheckedChange={handleToggleAutoSummarize}
+                  className="scale-90"
+                  disabled={updateSettingsMutation.isPending}
+                />
+              )}
             </div>
             <Button
               size="sm"

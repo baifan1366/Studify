@@ -174,8 +174,8 @@ async function generateToken(
     );
   }
 
-  // 检查会话状态 - Allow 'live' status as well for debugging
-  if (liveSession.status !== 'active' && liveSession.status !== 'scheduled' && liveSession.status !== 'live') {
+  // 检查会话状态
+  if (liveSession.status !== 'live' && liveSession.status !== 'scheduled') {
     return NextResponse.json(
       { message: 'Live session is not available' },
       { status: 400 }
@@ -241,12 +241,12 @@ async function generateToken(
     // 缓存 Token（50 分钟，比实际过期时间短一点）
     await redis.set(tokenCacheKey, token, { ex: 3000 });
 
-    // 更新会话状态为 active（如果还是 scheduled）
+    // 更新会话状态为 live（如果还是 scheduled）
     if (liveSession.status === 'scheduled') {
       await supabase
         .from('classroom_live_session')
         .update({ 
-          status: 'active',
+          status: 'live',
           starts_at: new Date().toISOString()
         })
         .eq('id', sessionId);

@@ -16,7 +16,7 @@ interface CreateSessionData {
 interface UpdateSessionData {
   title?: string;
   description?: string;
-  status?: 'scheduled' | 'active' | 'ended';
+  status?: 'scheduled' | 'live' | 'ended' | 'cancelled';
   starts_at?: string;
   ends_at?: string;
 }
@@ -92,7 +92,7 @@ export function useClassroomLiveSessions(classroomSlug: string) {
         },
         body: JSON.stringify({
           ...updateData,
-          sendNotification: updateData.status === 'active', // Notify when session goes live
+          sendNotification: updateData.status === 'live', // Notify when session goes live
         }),
       });
 
@@ -146,7 +146,7 @@ export function useClassroomLiveSessions(classroomSlug: string) {
   };
 
   const getActiveSession = (): LiveSession | null => {
-    return data?.find(session => session.status === 'active') || null;
+    return data?.find(session => session.status === 'live') || null;
   };
 
   const getScheduledSessions = (): LiveSession[] => {

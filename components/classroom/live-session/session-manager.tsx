@@ -89,8 +89,8 @@ export default function SessionManager({
           }
         }
         
-        // Check active sessions for end time
-        if (session.status === 'active' && session.ends_at) {
+        // Check live sessions for end time
+        if (session.status === 'live' && session.ends_at) {
           const endTime = new Date(session.ends_at).getTime();
           const timeToEnd = endTime - now;
           
@@ -144,9 +144,9 @@ export default function SessionManager({
 
     // Only students auto-join
     if (userRole === 'student') {
-      const activeSessions = sessions.filter(session => session.status === 'active');
-      if (activeSessions.length > 0) {
-        setJoinedSessionId(activeSessions[0].id);
+      const liveSessions = sessions.filter(session => session.status === 'live');
+      if (liveSessions.length > 0) {
+        setJoinedSessionId(liveSessions[0].id);
         hasAutoJoinedRef.current = true;
       }
     }
@@ -178,7 +178,7 @@ export default function SessionManager({
 
   const handleStartSession = async (session: LiveSession) => {
     try {
-      await updateSession(session.id, { status: 'active' });
+      await updateSession(session.id, { status: 'live' });
       setJoinedSessionId(session.id);  // 🎯 Use new state
       toast.success('Classroom has started');
       invalidateQueries();
@@ -377,9 +377,9 @@ interface SessionCardProps {
 }
 
 function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCardProps) {
-  // Calculate time until end for active sessions
+  // Calculate time until end for live sessions
   const timeUntilEnd = React.useMemo(() => {
-    if (session.status !== 'active' || !session.ends_at) return null;
+    if (session.status !== 'live' || !session.ends_at) return null;
     
     const now = Date.now();
     const endTime = new Date(session.ends_at).getTime();
@@ -396,7 +396,7 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
   }, [session.status, session.ends_at]);
 
   const isEndingSoon = React.useMemo(() => {
-    if (session.status !== 'active' || !session.ends_at) return false;
+    if (session.status !== 'live' || !session.ends_at) return false;
     
     const now = Date.now();
     const endTime = new Date(session.ends_at).getTime();
@@ -409,7 +409,7 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
     switch (status) {
       case 'scheduled':
         return <Badge variant="secondary">Scheduled</Badge>;
-      case 'active':
+      case 'live':
         return (
           <div className="flex items-center gap-2">
             <Badge variant="default" className="animate-pulse">In Progress</Badge>
@@ -422,6 +422,8 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
         );
       case 'ended':
         return <Badge variant="outline">Ended</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline">Cancelled</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -438,8 +440,8 @@ function SessionCard({ session, userRole, onStart, onJoin, onDelete }: SessionCa
   };
 
   const canStart = (userRole === 'tutor' || userRole === 'owner') && session.status === 'scheduled';
-  const canJoin = session.status === 'active';
-  const canDelete = (userRole === 'tutor' || userRole === 'owner') && session.status !== 'active';
+  const canJoin = session.status === 'live';
+  const canDelete = (userRole === 'tutor' || userRole === 'owner') && session.status !== 'live';
 
   return (
     <Card className="bg-transparent p-2">

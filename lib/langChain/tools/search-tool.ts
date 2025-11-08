@@ -319,10 +319,25 @@ const SearchSchema = z.object({
   }).optional().describe("Video context for searching specific video segments")
 });
 
+// Export the raw search function for direct access to structured results
+export async function searchVideoSegments(
+  query: string,
+  options: {
+    lessonId?: string;
+    attachmentId?: number;
+    currentTime?: number;
+    timeWindow?: number;
+    maxResults?: number;
+  } = {}
+): Promise<any[]> {
+  return searchVideoEmbeddings(query, options);
+}
+
 export const searchTool = new DynamicStructuredTool({
   name: "search",
   description: `Search for relevant content in the knowledge base, including video transcripts. 
-  Provide a query and optionally specify content types and video context for more targeted results.`,
+  Provide a query and optionally specify content types and video context for more targeted results.
+  Returns both formatted text AND structured data for video segments.`,
   schema: SearchSchema,
   func: async (input) => {
     try {
@@ -333,6 +348,7 @@ export const searchTool = new DynamicStructuredTool({
       const needsVideoSearch = contentTypes.includes('video_segment');
       
       let allResults: any[] = [];
+      let rawVideoResults: any[] = []; // Store raw video results for structured access
       
       // 1. 搜索视频 embeddings
       if (needsVideoSearch && videoContext?.lessonId) {
@@ -345,13 +361,21 @@ export const searchTool = new DynamicStructuredTool({
           maxResults: 5
         });
         
+        rawVideoResults = videoResults; // Store raw results
+        
         allResults.push(...videoResults.map((r: any) => ({
           type: 'video_segment',
+          content_type: 'video_segment', // Add both fields for compatibility
           content: r.content_text,
+          content_text: r.content_text,
           startTime: r.segment_start_time,
           endTime: r.segment_end_time,
+          segment_start_time: r.segment_start_time, // Add both field names
+          segment_end_time: r.segment_end_time,
           title: r.section_title || `Video Segment ${Math.floor(r.segment_start_time)}s`,
-          similarity: r.similarity
+          section_title: r.section_title,
+          similarity: r.similarity,
+          attachment_id: r.attachment_id
         })));
         
         console.log(`✅ Found ${videoResults.length} video segments`);
@@ -373,9 +397,13 @@ export const searchTool = new DynamicStructuredTool({
         })));
       }
       
-      // 3. 格式化结果
+      // 3. 格式化结果 - Return JSON string with structured data
       if (allResults.length === 0) {
-        return 'No relevant content found. Try rephrasing your question or ask about general concepts.';
+        return JSON.stringify({
+          message: 'No relevant content found. Try rephrasing your question or ask about general concepts.',
+          results: [],
+          count: 0
+        });
       }
       
       const formattedResults = allResults.map((result, index) => {
@@ -392,11 +420,22 @@ export const searchTool = new DynamicStructuredTool({
         return resultText;
       }).join('\n\n');
       
-      return `Found ${allResults.length} relevant results:\n\n${formattedResults}`;
+      // Return JSON with both formatted text and structured data
+      return JSON.stringify({
+        message: `Found ${allResults.length} relevant results:\n\n${formattedResults}`,
+        results: allResults, // Include structured results
+        count: allResults.length,
+        hasVideoSegments: rawVideoResults.length > 0
+      });
       
     } catch (error) {
       console.error('Search tool error:', error);
-      return `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return JSON.stringify({
+        message: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        results: [],
+        count: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 });

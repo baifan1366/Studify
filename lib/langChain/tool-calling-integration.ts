@@ -735,6 +735,20 @@ Provide a clear, educational answer even without specific course materials.`;
       console.log(`🏁 [${Date.now()}] Total time: ${totalTime}ms`);
       console.log(`📊 Timings:`, timings);
 
+      // Parse search results to extract structured sources
+      let structuredSources: any[] = [];
+      try {
+        if (searchResults && searchResults.trim().startsWith('{')) {
+          const parsed = JSON.parse(searchResults);
+          if (parsed.results && Array.isArray(parsed.results)) {
+            structuredSources = parsed.results;
+            console.log(`✅ [${Date.now()}] Extracted ${structuredSources.length} structured sources from search`);
+          }
+        }
+      } catch (e) {
+        console.warn(`⚠️ [${Date.now()}] Failed to parse search results as JSON:`, e);
+      }
+
       // If we have search results, enhance the answer
       if (searchResults && !searchResults.includes("No relevant content found")) {
         console.log(`🔄 [${Date.now()}] Enhancing answer with search results...`);
@@ -753,7 +767,7 @@ ${fallbackAnswer}
 
 Provide the best possible answer combining both sources.`;
 
-            const enhanceTimeout = new Promise((_, reject) => 
+            const enhanceTimeout = new Promise ((_, reject) => 
               setTimeout(() => reject(new Error('Enhancement timeout')), 30000)
             );
             
@@ -775,7 +789,7 @@ Provide the best possible answer combining both sources.`;
             
             return {
               answer: enhancedAnswer,
-              sources: [],
+              sources: structuredSources, // Return structured sources
               analysis: options.includeAnalysis ? enhancedAnswer : undefined,
               toolsUsed,
               confidence: 0.95,
@@ -790,10 +804,10 @@ Provide the best possible answer combining both sources.`;
       }
 
       // Return fallback answer (we always have this)
-      console.log(`✅ [${Date.now()}] Returning fallback answer`);
+      console.log(`✅ [${Date.now()}] Returning fallback answer with ${structuredSources.length} sources`);
       return {
         answer: fallbackAnswer,
-        sources: [],
+        sources: structuredSources, // Return structured sources even with fallback
         analysis: options.includeAnalysis ? fallbackAnswer : undefined,
         toolsUsed: searchCompleted ? [...toolsUsed, "direct_llm"] : ["direct_llm"],
         confidence: searchCompleted ? 0.85 : 0.75,

@@ -2340,6 +2340,7 @@
     "enroll_free": "立即购买",
     "buy_now": "立即购买",
     "already_enrolled": "已报名",
+    "already_enrolled_desc": "您已经注册了这门课程。正在跳转到课程页面...",
     "course_preview": "课程预览",
     "what_youll_learn": "你将学到什么",
     "learning_objectives_soon": "学习目标即将推出。",

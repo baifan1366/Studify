@@ -47,8 +47,21 @@ export function usePurchaseCourse() {
     onSuccess: (data) => {
       // Invalidate course-related queries
       queryClient.invalidateQueries({ queryKey: ['courses'] });
-      queryClient.invalidateQueries({ queryKey: ['course-enrollment'] });
+      queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] }); // Fixed: match the actual query key
+      queryClient.invalidateQueries({ queryKey: ['enrolledCourse'] }); // Also invalidate individual enrollment checks
       queryClient.invalidateQueries({ queryKey: ['course-by-slug'] });
+      
+      // Handle already enrolled case
+      if (data.alreadyEnrolled && data.courseSlug) {
+        toast({
+          title: t('already_enrolled'),
+          description: t('already_enrolled_desc'),
+          variant: 'default',
+        });
+        
+        router.push(`/${locale}/courses/${data.courseSlug}`);
+        return;
+      }
       
       // If it's a free course and user is enrolled, redirect to course with success
       if (data.enrolled && data.courseSlug) {

@@ -2340,6 +2340,7 @@
     "enroll_free": "Buy Now",
     "buy_now": "Buy Now",
     "already_enrolled": "Already Enrolled",
+    "already_enrolled_desc": "You are already enrolled in this course. Redirecting to course page...",
     "course_preview": "Course Preview",
     "what_youll_learn": "What You'll Learn",
     "learning_objectives_soon": "Learning objectives will be available soon.",

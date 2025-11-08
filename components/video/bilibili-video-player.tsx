@@ -881,9 +881,20 @@ export default function BilibiliVideoPlayer({
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current && duration > 0) {
       const newTime = videoRef.current.currentTime;
+      
+      // Prevent time jumps - only update if the difference is reasonable (< 2 seconds or forward progress)
+      const timeDiff = Math.abs(newTime - currentTime);
+      if (timeDiff > 2 && newTime < currentTime) {
+        // Unexpected backward jump detected - this might be a bug, log it
+        console.warn('[VideoPlayer] Unexpected time jump detected:', { from: currentTime, to: newTime, diff: timeDiff });
+        // Don't update state to prevent UI flicker
+        return;
+      }
+      
       setCurrentTime(newTime);
 
       // Call parent onTimeUpdate if provided (parent handles all progress saving)
+      // Throttle this to avoid excessive calls
       if (onTimeUpdate) {
         onTimeUpdate(newTime, duration);
       }
@@ -901,7 +912,7 @@ export default function BilibiliVideoPlayer({
         hasTrackedViewStart.current = true;
       }
     }
-  }, [duration, onTimeUpdate, lessonId, attachmentId, trackViewMutation]);
+  }, [duration, currentTime, onTimeUpdate, lessonId, attachmentId, trackViewMutation]);
 
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
@@ -929,19 +940,20 @@ export default function BilibiliVideoPlayer({
   const handleWaiting = useCallback(() => {
     // Only show loading if we're actually waiting for data
     if (videoRef.current) {
-      const currentTime = videoRef.current.currentTime;
+      const videoCurrentTime = videoRef.current.currentTime;
       const buffered = videoRef.current.buffered;
       
       // Check if current time is beyond buffered range
       let isBuffering = true;
       for (let i = 0; i < buffered.length; i++) {
-        if (currentTime >= buffered.start(i) && currentTime <= buffered.end(i)) {
+        if (videoCurrentTime >= buffered.start(i) && videoCurrentTime <= buffered.end(i)) {
           isBuffering = false;
           break;
         }
       }
       
       if (isBuffering) {
+        console.log('[VideoPlayer] Buffering at:', videoCurrentTime);
         setIsLoading(true);
       }
     }
@@ -957,15 +969,15 @@ export default function BilibiliVideoPlayer({
       
       // Calculate loading progress based on buffered data
       const buffered = videoRef.current.buffered;
-      const duration = videoRef.current.duration;
+      const videoDuration = videoRef.current.duration;
       
-      if (duration > 0) {
+      if (videoDuration > 0) {
         // Calculate total buffered amount
         let totalBuffered = 0;
         for (let i = 0; i < buffered.length; i++) {
           totalBuffered += buffered.end(i) - buffered.start(i);
         }
-        const progress = (totalBuffered / duration) * 100;
+        const progress = (totalBuffered / videoDuration) * 100;
         setLoadingProgress(Math.min(progress, 100));
         
         // Auto-hide loading indicator if enough is buffered (at least 5 seconds)
@@ -975,13 +987,15 @@ export default function BilibiliVideoPlayer({
         }
       }
     }
-  }, [currentTime, isLoading]);
+  }, [isLoading]);
 
-  // Handle initialTime when video metadata is loaded
+  // Handle initialTime when video metadata is loaded (only once)
+  const hasSetInitialTime = useRef(false);
   useEffect(() => {
-    if (videoRef.current && duration > 0 && initialTime > 0) {
+    if (videoRef.current && duration > 0 && initialTime > 0 && !hasSetInitialTime.current) {
       videoRef.current.currentTime = initialTime;
       setCurrentTime(initialTime);
+      hasSetInitialTime.current = true;
 
       // Track view with initial time if provided
       if (onTimeUpdate) {
@@ -1087,11 +1101,24 @@ export default function BilibiliVideoPlayer({
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.error('🔄 Fatal network error, trying to recover');
-              hls.startLoad();
+              // Don't immediately reload - wait a bit to avoid loops
+              setTimeout(() => {
+                if (hlsRef.current) {
+                  hls.startLoad();
+                }
+              }, 1000);
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.error('🔄 Fatal media error, trying to recover');
+              // Save current time before recovery
+              const savedTime = videoRef.current?.currentTime || 0;
               hls.recoverMediaError();
+              // Restore time after recovery
+              setTimeout(() => {
+                if (videoRef.current && savedTime > 0) {
+                  videoRef.current.currentTime = savedTime;
+                }
+              }, 100);
               break;
             default:
               console.error('💥 Fatal error, cannot recover');
@@ -1632,14 +1659,24 @@ export default function BilibiliVideoPlayer({
             onPlaying={handlePlaying}
             onProgress={handleProgress}
             onError={(e) => {
-              console.error('Video error:', e);
-              setIsLoading(false);
-              toast({
-                title: t("VideoPlayer.video_error") || "Video Error",
-                description: t("VideoPlayer.video_error_desc") || "Failed to load video. Please try again or contact support.",
-                variant: "destructive",
-                duration: 10000,
+              const videoElement = e.currentTarget;
+              const error = videoElement.error;
+              console.error('Video error:', {
+                code: error?.code,
+                message: error?.message,
+                src: videoSourceInfo.src,
               });
+              setIsLoading(false);
+              
+              // Only show toast for actual errors, not for aborted loads
+              if (error && error.code !== MediaError.MEDIA_ERR_ABORTED) {
+                toast({
+                  title: t("VideoPlayer.video_error") || "Video Error",
+                  description: t("VideoPlayer.video_error_desc") || "Failed to load video. Please try again or contact support.",
+                  variant: "destructive",
+                  duration: 10000,
+                });
+              }
             }}
             onClick={togglePlay}
           />

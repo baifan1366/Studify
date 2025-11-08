@@ -119,6 +119,8 @@ async function searchVideoEmbeddings(
       return twoStageResults.map((r: any) => ({
         id: r.id,
         content_text: r.content_text,
+        content_type: 'video_segment',  // 添加 content_type
+        type: 'video_segment',          // 添加 type
         segment_start_time: r.segment_start_time,
         segment_end_time: r.segment_end_time,
         section_title: r.section_title,
@@ -180,7 +182,11 @@ async function searchVideoEmbeddings(
         
         if (bgeError || !bgeResults || bgeResults.length === 0) {
           console.log('⚠️ BGE embeddings not available, using E5 results');
-          return finalE5Results.slice(0, maxResults);
+          return finalE5Results.slice(0, maxResults).map((r: any) => ({
+            ...r,
+            content_type: 'video_segment',
+            type: 'video_segment'
+          }));
         }
         
         // BGE 重排逻辑（与下面相同）
@@ -245,7 +251,11 @@ async function searchVideoEmbeddings(
     
     if (bgeError || !bgeResults || bgeResults.length === 0) {
       console.log('⚠️ BGE embeddings not available, using E5 results');
-      return e5Results.slice(0, maxResults);
+      return e5Results.slice(0, maxResults).map((r: any) => ({
+        ...r,
+        content_type: 'video_segment',
+        type: 'video_segment'
+      }));
     }
     
     // 计算 BGE 相似度并重新排序
@@ -272,6 +282,8 @@ async function searchVideoEmbeddings(
       return {
         id: result.id,
         content_text: result.content_text,
+        content_type: 'video_segment',  // 添加 content_type
+        type: 'video_segment',          // 添加 type
         segment_start_time: result.segment_start_time,
         segment_end_time: result.segment_end_time,
         section_title: result.section_title,

@@ -8,7 +8,14 @@ const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV !== "production",
-  exclude: [/OneSignalSDKWorker\.js$/], // Exclude OneSignal service worker from Serwist
+  exclude: [
+    /OneSignalSDKWorker\.js$/,
+    /notification-sound\.mp3$/,
+    /manifest\.json$/,
+  ], // Exclude files that should be runtime cached instead
+  additionalPrecacheEntries: [
+    // Explicitly add critical files if needed
+  ],
 });
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");

@@ -278,7 +278,7 @@ export default function BilibiliVideoPlayer({
   }, [nearbyNotes.length, autoShowNotesSidebar, showNotesSidebar]);
 
   // Internationalization
-  const t = useTranslations();
+  const t = useTranslations('VideoPlayer');
 
   // Parse transcript into subtitle segments
   useEffect(() => {
@@ -450,7 +450,7 @@ export default function BilibiliVideoPlayer({
     const diffInDays = Math.floor(
       (now.getTime() - published.getTime()) / (1000 * 60 * 60 * 24)
     );
-    return `${diffInDays}${t("VideoPlayer.days_ago")}`;
+    return `${diffInDays}${t("days_ago")}`;
   };
 
   // API-based action handlers
@@ -511,7 +511,7 @@ export default function BilibiliVideoPlayer({
   };
 
   const handleDeleteComment = (commentId: string) => {
-    if (window.confirm(t("VideoPlayer.confirm_delete"))) {
+    if (window.confirm(t("confirm_delete"))) {
       deleteCommentMutation.mutate(commentId);
     }
   };
@@ -554,7 +554,7 @@ export default function BilibiliVideoPlayer({
   // Share functionality
   const handleShare = async () => {
     const shareUrl = window.location.href;
-    const shareText = `${title} - ${t("VideoPlayer.check_out_video")}`;
+    const shareText = `${title} - ${t("check_out_video")}`;
 
     // Try native share API first (mobile devices)
     if (navigator.share) {
@@ -573,15 +573,15 @@ export default function BilibiliVideoPlayer({
       try {
         await navigator.clipboard.writeText(shareUrl);
         toast({
-          title: t("VideoPlayer.link_copied"),
-          description: t("VideoPlayer.link_copied_desc"),
+          title: t("link_copied"),
+          description: t("link_copied_desc"),
           duration: 2000,
         });
       } catch (error) {
         console.error("Failed to copy link:", error);
         toast({
-          title: t("VideoPlayer.share_failed"),
-          description: t("VideoPlayer.share_failed_desc"),
+          title: t("share_failed"),
+          description: t("share_failed_desc"),
           variant: "destructive",
         });
       }
@@ -606,15 +606,15 @@ export default function BilibiliVideoPlayer({
         document.body.removeChild(link);
 
         toast({
-          title: t("VideoPlayer.download_started"),
-          description: t("VideoPlayer.download_started_desc"),
+          title: t("download_started"),
+          description: t("download_started_desc"),
           duration: 3000,
         });
       } catch (error) {
         console.error("Download failed:", error);
         toast({
-          title: t("VideoPlayer.download_failed"),
-          description: t("VideoPlayer.download_failed_desc"),
+          title: t("download_failed"),
+          description: t("download_failed_desc"),
           variant: "destructive",
         });
       }
@@ -639,8 +639,8 @@ export default function BilibiliVideoPlayer({
         setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
         toast({
-          title: t("VideoPlayer.download_started"),
-          description: t("VideoPlayer.download_started_desc"),
+          title: t("download_started"),
+          description: t("download_started_desc"),
           duration: 3000,
         });
       } catch (error) {
@@ -656,14 +656,14 @@ export default function BilibiliVideoPlayer({
           document.body.removeChild(link);
           
           toast({
-            title: t("VideoPlayer.download_started"),
-            description: t("VideoPlayer.download_started_desc"),
+            title: t("download_started"),
+            description: t("download_started_desc"),
             duration: 3000,
           });
         } catch (fallbackError) {
           toast({
-            title: t("VideoPlayer.download_failed"),
-            description: t("VideoPlayer.download_failed_desc"),
+            title: t("download_failed"),
+            description: t("download_failed_desc"),
             variant: "destructive",
           });
         }
@@ -671,8 +671,8 @@ export default function BilibiliVideoPlayer({
     } else {
       // For YouTube/Vimeo videos, show a message
       toast({
-        title: t("VideoPlayer.download_not_available"),
-        description: t("VideoPlayer.download_external_video"),
+        title: t("download_not_available"),
+        description: t("download_external_video"),
         variant: "destructive",
       });
     }
@@ -1373,8 +1373,8 @@ export default function BilibiliVideoPlayer({
         hlsRef.current.currentLevel = -1; // Setting to -1 enables ABR
         console.log('🎨 Quality set to: Auto (ABR)');
         toast({
-          title: t("VideoPlayer.quality_changed") || "Quality Changed",
-          description: t("VideoPlayer.auto_quality") || "Auto (Adaptive Bitrate)",
+          title: t("quality_changed") || "Quality Changed",
+          description: t("auto_quality") || "Auto (Adaptive Bitrate)",
           duration: 2000,
         });
       } else {
@@ -1383,7 +1383,7 @@ export default function BilibiliVideoPlayer({
         const level = hlsRef.current.levels[qualityIndex];
         console.log('🎨 Quality set to:', level.height + 'p');
         toast({
-          title: t("VideoPlayer.quality_changed") || "Quality Changed",
+          title: t("quality_changed") || "Quality Changed",
           description: `${level.height}p (${(level.bitrate / 1000000).toFixed(1)} Mbps)`,
           duration: 2000,
         });
@@ -1671,8 +1671,8 @@ export default function BilibiliVideoPlayer({
               // Only show toast for actual errors, not for aborted loads
               if (error && error.code !== MediaError.MEDIA_ERR_ABORTED) {
                 toast({
-                  title: t("VideoPlayer.video_error") || "Video Error",
-                  description: t("VideoPlayer.video_error_desc") || "Failed to load video. Please try again or contact support.",
+                  title: t("video_error") || "Video Error",
+                  description: t("video_error_desc") || "Failed to load video. Please try again or contact support.",
                   variant: "destructive",
                   duration: 10000,
                 });
@@ -1686,17 +1686,17 @@ export default function BilibiliVideoPlayer({
             <div className="text-center text-white/60">
               <Play size={64} className="mx-auto mb-4" />
               <p className="text-xl mb-2">
-                {t("VideoPlayer.no_video_content")}
+                {t("no_video_content")}
               </p>
               <p className="text-sm">{title}</p>
               {src && (
                 <p className="text-xs mt-2 opacity-60">
-                  {t("VideoPlayer.source")}:{" "}
+                  {t("source")}:{" "}
                   {videoSourceInfo.type === "youtube"
-                    ? t("VideoPlayer.youtube")
+                    ? t("youtube")
                     : videoSourceInfo.type === "vimeo"
-                    ? t("VideoPlayer.vimeo")
-                    : t("VideoPlayer.unknown_format")}
+                    ? t("vimeo")
+                    : t("unknown_format")}
                 </p>
               )}
             </div>
@@ -1738,16 +1738,16 @@ export default function BilibiliVideoPlayer({
                 <div className="text-center">
                   <p className="text-white text-sm font-medium mb-1 drop-shadow-md">
                     {loadingProgress > 0 && loadingProgress < 100
-                      ? t("VideoPlayer.buffering") || "Buffering..."
-                      : t("VideoPlayer.loading") || "Loading..."}
+                      ? t("buffering") || "Buffering..."
+                      : t("loading") || "Loading..."}
                   </p>
                   {(videoSourceInfo.type === "youtube" ||
                     videoSourceInfo.type === "vimeo") && (
                     <p className="text-white/80 text-xs drop-shadow-md">
                       {videoSourceInfo.type === "youtube"
-                        ? t("VideoPlayer.loading_youtube") ||
+                        ? t("loading_youtube") ||
                           "Loading YouTube video..."
-                        : t("VideoPlayer.loading_vimeo") ||
+                        : t("loading_vimeo") ||
                           "Loading Vimeo video..."}
                     </p>
                   )}
@@ -1826,7 +1826,7 @@ export default function BilibiliVideoPlayer({
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/20">
                 <h3 className="font-bold text-sm flex items-center gap-2">
                   <Eye size={14} />
-                  {t("VideoPlayer.stats_title") || "Video Stats"}
+                  {t("stats_title") || "Video Stats"}
                 </h3>
                 <button
                   onClick={() => setShowStats(false)}
@@ -1839,7 +1839,7 @@ export default function BilibiliVideoPlayer({
               <div className="space-y-2">
                 {/* Current Quality */}
                 <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">{t("VideoPlayer.current_quality") || "Quality"}:</span>
+                  <span className="text-gray-400">{t("current_quality") || "Quality"}:</span>
                   <span className="text-green-400 font-semibold">
                     {currentQuality === -1 
                       ? `Auto (${qualityLevels.find(l => l.index === hlsRef.current?.currentLevel)?.height || '?'}p)`
@@ -1850,7 +1850,7 @@ export default function BilibiliVideoPlayer({
 
                 {/* Bandwidth */}
                 <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">{t("VideoPlayer.bandwidth") || "Bandwidth"}:</span>
+                  <span className="text-gray-400">{t("bandwidth") || "Bandwidth"}:</span>
                   <span className="text-blue-400">
                     {hlsStats.bandwidth > 0 
                       ? `${(hlsStats.bandwidth / 1000000).toFixed(2)} Mbps`
@@ -1861,7 +1861,7 @@ export default function BilibiliVideoPlayer({
 
                 {/* Buffer Length */}
                 <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">{t("VideoPlayer.buffer") || "Buffer"}:</span>
+                  <span className="text-gray-400">{t("buffer") || "Buffer"}:</span>
                   <span className={`${
                     hlsStats.bufferLength > 10 ? 'text-green-400' : 
                     hlsStats.bufferLength > 5 ? 'text-yellow-400' : 
@@ -1873,7 +1873,7 @@ export default function BilibiliVideoPlayer({
 
                 {/* Dropped Frames */}
                 <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">{t("VideoPlayer.dropped_frames") || "Dropped"}:</span>
+                  <span className="text-gray-400">{t("dropped_frames") || "Dropped"}:</span>
                   <span className={`${
                     hlsStats.droppedFrames > 50 ? 'text-red-400' : 
                     hlsStats.droppedFrames > 10 ? 'text-yellow-400' : 
@@ -1886,7 +1886,7 @@ export default function BilibiliVideoPlayer({
                 {/* Resolution */}
                 {videoRef.current && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">{t("VideoPlayer.resolution") || "Resolution"}:</span>
+                    <span className="text-gray-400">{t("resolution") || "Resolution"}:</span>
                     <span className="text-purple-400">
                       {videoRef.current.videoWidth} × {videoRef.current.videoHeight}
                     </span>
@@ -1895,14 +1895,14 @@ export default function BilibiliVideoPlayer({
 
                 {/* Playback Rate */}
                 <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">{t("VideoPlayer.speed") || "Speed"}:</span>
+                  <span className="text-gray-400">{t("speed") || "Speed"}:</span>
                   <span className="text-cyan-400">{playbackRate}x</span>
                 </div>
 
                 {/* Video Codec */}
                 {qualityLevels.length > 0 && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">{t("VideoPlayer.codec") || "Codec"}:</span>
+                    <span className="text-gray-400">{t("codec") || "Codec"}:</span>
                     <span className="text-orange-400">
                       {hlsRef.current?.levels[hlsRef.current.currentLevel]?.videoCodec?.split('.')[0] || 'H.264'}
                     </span>
@@ -1948,7 +1948,7 @@ export default function BilibiliVideoPlayer({
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
                 }`}
-                title={t("VideoPlayer.toggle_danmaku_shortcut")}
+                title={t("toggle_danmaku_shortcut")}
               >
                 <MessageCircle size={20} />
               </button>
@@ -1959,7 +1959,7 @@ export default function BilibiliVideoPlayer({
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
                 }`}
-                title={t("VideoPlayer.toggle_subtitles")}
+                title={t("toggle_subtitles")}
               >
                 <Subtitles size={20} />
               </button>
@@ -1970,7 +1970,7 @@ export default function BilibiliVideoPlayer({
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
                 }`}
-                title={t("VideoPlayer.auto_translate")}
+                title={t("auto_translate")}
               >
                 <Languages size={20} />
               </button>
@@ -2105,7 +2105,7 @@ export default function BilibiliVideoPlayer({
                       <button
                         onClick={() => skipTime(-10)}
                         className="text-white hover:text-blue-400 transition-colors"
-                        title={t("VideoPlayer.backward_10s")}
+                        title={t("backward_10s")}
                       >
                         <SkipBack size={24} />
                       </button>
@@ -2113,7 +2113,7 @@ export default function BilibiliVideoPlayer({
                       <button
                         onClick={togglePlay}
                         className="text-white hover:text-blue-400 transition-colors"
-                        title={t("VideoPlayer.play_pause_space")}
+                        title={t("play_pause_space")}
                       >
                         {isPlaying ? <Pause size={32} /> : <Play size={32} />}
                       </button>
@@ -2121,7 +2121,7 @@ export default function BilibiliVideoPlayer({
                       <button
                         onClick={() => skipTime(10)}
                         className="text-white hover:text-blue-400 transition-colors"
-                        title={t("VideoPlayer.forward_10s")}
+                        title={t("forward_10s")}
                       >
                         <SkipForward size={24} />
                       </button>
@@ -2130,7 +2130,7 @@ export default function BilibiliVideoPlayer({
                         <button
                           onClick={toggleMute}
                           className="text-white hover:text-blue-400 transition-colors"
-                          title={t("VideoPlayer.mute_shortcut")}
+                          title={t("mute_shortcut")}
                         >
                           {isMuted ? (
                             <VolumeX size={24} />
@@ -2171,7 +2171,7 @@ export default function BilibiliVideoPlayer({
                           className={`text-white hover:text-purple-400 transition-colors ${
                             qaPanel.isOpen ? "text-purple-400" : ""
                           }`}
-                          title={t("VideoPlayer.ask_ai")}
+                          title={t("ask_ai")}
                         >
                           <Bot size={20} />
                         </button>
@@ -2334,7 +2334,7 @@ export default function BilibiliVideoPlayer({
                       <button
                         onClick={() => setShowDanmakuInput(!showDanmakuInput)}
                         className="text-white hover:text-blue-400 transition-colors"
-                        title={t("VideoPlayer.send_danmaku")}
+                        title={t("send_danmaku")}
                       >
                         <Send size={20} />
                       </button>
@@ -2347,7 +2347,7 @@ export default function BilibiliVideoPlayer({
                             className={`text-white hover:text-blue-400 transition-colors ${
                               showChapters ? 'text-blue-400' : ''
                             }`}
-                            title={t("VideoPlayer.show_chapters") || "Chapters"}
+                            title={t("show_chapters") || "Chapters"}
                           >
                             <BookOpen size={20} />
                             {currentChapter && (
@@ -2369,7 +2369,7 @@ export default function BilibiliVideoPlayer({
                                   <div className="flex items-center gap-2">
                                     <BookOpen className="w-4 h-4 text-blue-400" />
                                     <h3 className="font-semibold text-white text-sm">
-                                      {t("VideoPlayer.chapters") || "Chapters"} ({processedChapters.length})
+                                      {t("chapters") || "Chapters"} ({processedChapters.length})
                                     </h3>
                                   </div>
                                   <button
@@ -2483,7 +2483,7 @@ export default function BilibiliVideoPlayer({
                           className={`text-white hover:text-blue-400 transition-colors ${
                             showStats ? 'text-blue-400' : ''
                           }`}
-                          title={t("VideoPlayer.show_stats") || "Show Stats (Shift+S)"}
+                          title={t("show_stats") || "Show Stats (Shift+S)"}
                         >
                           <Eye size={20} />
                         </button>
@@ -2493,7 +2493,7 @@ export default function BilibiliVideoPlayer({
                         <button
                           onClick={() => setShowSettings(!showSettings)}
                           className="text-white hover:text-blue-400 transition-colors"
-                          title={t("VideoPlayer.settings")}
+                          title={t("settings")}
                         >
                           <Settings size={20} />
                         </button>
@@ -2510,7 +2510,7 @@ export default function BilibiliVideoPlayer({
                               <div className="space-y-3">
                                 <div>
                                   <label className="text-gray-900 dark:text-white text-sm font-medium block mb-2">
-                                    {t("VideoPlayer.playback_speed")}
+                                    {t("playback_speed")}
                                   </label>
                                   <select
                                     value={playbackRate}
@@ -2523,7 +2523,7 @@ export default function BilibiliVideoPlayer({
                                   >
                                     <option value={0.5} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">0.5x</option>
                                     <option value={0.75} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">0.75x</option>
-                                    <option value={1} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1x ({t("VideoPlayer.normal")})</option>
+                                    <option value={1} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1x ({t("normal")})</option>
                                     <option value={1.25} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1.25x</option>
                                     <option value={1.5} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">1.5x</option>
                                     <option value={2} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">2x</option>
@@ -2531,7 +2531,7 @@ export default function BilibiliVideoPlayer({
                                 </div>
                                 <div>
                                   <label className="text-gray-900 dark:text-white text-sm font-medium block mb-2">
-                                    {t("VideoPlayer.quality")}
+                                    {t("quality")}
                                   </label>
                                   <select 
                                     value={currentQuality}
@@ -2540,7 +2540,7 @@ export default function BilibiliVideoPlayer({
                                     disabled={qualityLevels.length === 0}
                                   >
                                     <option value={-1} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                                      {t("VideoPlayer.auto")} {currentQuality === -1 && qualityLevels.length > 0 ? '✓' : ''}
+                                      {t("auto")} {currentQuality === -1 && qualityLevels.length > 0 ? '✓' : ''}
                                     </option>
                                     {qualityLevels
                                       .sort((a, b) => b.height - a.height) // Sort by quality (highest first)
@@ -2557,10 +2557,10 @@ export default function BilibiliVideoPlayer({
                                   {qualityLevels.length === 0 && (
                                     <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs">
                                       <p className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
-                                        ⚠️ {t("VideoPlayer.quality_not_available") || "Quality selection not available"}
+                                        ⚠️ {t("quality_not_available") || "Quality selection not available"}
                                       </p>
                                       <p className="text-yellow-700 dark:text-yellow-300 text-[10px] leading-relaxed">
-                                        {t("VideoPlayer.quality_requires_hls") || "This video is in MP4 format. To enable quality switching, convert it to HLS format (.m3u8) with multiple bitrates."}
+                                        {t("quality_requires_hls") || "This video is in MP4 format. To enable quality switching, convert it to HLS format (.m3u8) with multiple bitrates."}
                                       </p>
                                       <a 
                                         href="https://github.com/video-dev/hls.js" 
@@ -2568,7 +2568,7 @@ export default function BilibiliVideoPlayer({
                                         rel="noopener noreferrer"
                                         className="text-blue-600 dark:text-blue-400 hover:underline text-[10px] mt-1 inline-block"
                                       >
-                                        {t("VideoPlayer.learn_more") || "Learn more about HLS →"}
+                                        {t("learn_more") || "Learn more about HLS →"}
                                       </a>
                                     </div>
                                   )}
@@ -2624,7 +2624,7 @@ export default function BilibiliVideoPlayer({
                   type="text"
                   value={danmakuText}
                   onChange={(e) => setDanmakuText(e.target.value)}
-                  placeholder={t("VideoPlayer.danmaku_placeholder")}
+                  placeholder={t("danmaku_placeholder")}
                   className="flex-1 bg-white/10 text-white placeholder-white/50 rounded px-3 py-2 outline-none focus:bg-white/20"
                   onKeyPress={(e) => e.key === "Enter" && handleSendDanmaku()}
                   autoFocus
@@ -2633,7 +2633,7 @@ export default function BilibiliVideoPlayer({
                   onClick={handleSendDanmaku}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
                 >
-                  {t("VideoPlayer.send_danmaku")}
+                  {t("send_danmaku")}
                 </button>
               </div>
             </motion.div>
@@ -2832,7 +2832,7 @@ export default function BilibiliVideoPlayer({
                 <>
                   <span>
                     {formatViews(videoStats.views)}{" "}
-                    {t("VideoPlayer.views_count")}
+                    {t("views_count")}
                   </span>
                   <span>{formatTimeAgo(videoStats.publishedAt)}</span>
                   {attachmentId && <span>ID: {attachmentId}</span>}
@@ -2854,7 +2854,7 @@ export default function BilibiliVideoPlayer({
                 className={isLiked || currentUserLiked ? "fill-current" : ""}
               />
               <span>
-                {t("VideoPlayer.like")}{" "}
+                {t("like")}{" "}
                 {videoStats?.likes ? `(${videoStats.likes})` : ""}
               </span>
             </button>
@@ -2863,14 +2863,14 @@ export default function BilibiliVideoPlayer({
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
             >
               <Share2 size={16} />
-              <span>{t("VideoPlayer.share")}</span>
+              <span>{t("share")}</span>
             </button>
             <button
               onClick={handleDownload}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
             >
               <Download size={16} />
-              <span>{t("VideoPlayer.download")}</span>
+              <span>{t("download")}</span>
             </button>
             <button className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors">
               <MoreHorizontal size={16} />
@@ -2891,10 +2891,10 @@ export default function BilibiliVideoPlayer({
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {t("VideoPlayer.comments")}{" "}
+                  {t("comments")}{" "}
                   {videoSourceInfo.type === "youtube" ||
                   videoSourceInfo.type === "vimeo"
-                    ? t("VideoPlayer.external_video")
+                    ? t("external_video")
                     : comments.length}
                 </h3>
                 <button
@@ -2935,7 +2935,7 @@ export default function BilibiliVideoPlayer({
                     <textarea
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
-                      placeholder={t("VideoPlayer.comment_placeholder")}
+                      placeholder={t("comment_placeholder")}
                       className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                       rows={3}
                       disabled={!currentUser || createCommentMutation.isPending}
@@ -2953,10 +2953,10 @@ export default function BilibiliVideoPlayer({
                         {createCommentMutation.isPending ? (
                           <>
                             <Loader2 size={16} className="animate-spin" />
-                            {t("VideoPlayer.posting")}
+                            {t("posting")}
                           </>
                         ) : (
-                          t("VideoPlayer.publish")
+                          t("publish")
                         )}
                       </button>
                     </div>
@@ -2965,7 +2965,7 @@ export default function BilibiliVideoPlayer({
               ) : (
                 <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center">
                   <p className="text-gray-600 dark:text-gray-400">
-                    {t("VideoPlayer.external_video_notice", {
+                    {t("external_video_notice", {
                       platform:
                         videoSourceInfo.type === "youtube"
                           ? "YouTube"
@@ -2979,7 +2979,7 @@ export default function BilibiliVideoPlayer({
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 underline mt-2 inline-block"
                     >
-                      {t("VideoPlayer.watch_on_platform", {
+                      {t("watch_on_platform", {
                         platform:
                           videoSourceInfo.type === "youtube"
                             ? "YouTube"
@@ -3000,10 +3000,10 @@ export default function BilibiliVideoPlayer({
                         className="mx-auto mb-4 opacity-50"
                       />
                       <p className="text-lg mb-2">
-                        {t("VideoPlayer.no_comments")}
+                        {t("no_comments")}
                       </p>
                       <p className="text-sm">
-                        {t("VideoPlayer.be_first_comment")}
+                        {t("be_first_comment")}
                       </p>
                     </div>
                   ) : (
@@ -3075,13 +3075,13 @@ export default function BilibiliVideoPlayer({
                                     onClick={handleSaveEdit}
                                     className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
                                   >
-                                    {t("VideoPlayer.save")}
+                                    {t("save")}
                                   </button>
                                   <button
                                     onClick={handleCancelEdit}
                                     className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors"
                                   >
-                                    {t("VideoPlayer.cancel")}
+                                    {t("cancel")}
                                   </button>
                                 </div>
                               </div>
@@ -3115,7 +3115,7 @@ export default function BilibiliVideoPlayer({
                                 className="hover:text-blue-600 flex items-center gap-1"
                               >
                                 <MessageCircle size={14} />
-                                {t("VideoPlayer.reply")}
+                                {t("reply")}
                                 {repliesCount > 0 && (
                                   <span className="text-xs">
                                     ({repliesCount})
@@ -3134,7 +3134,7 @@ export default function BilibiliVideoPlayer({
                                     className="hover:text-blue-600 flex items-center gap-1"
                                   >
                                     <Edit size={12} />
-                                    {t("VideoPlayer.edit")}
+                                    {t("edit")}
                                   </button>
                                   <button
                                     onClick={() =>
@@ -3143,13 +3143,13 @@ export default function BilibiliVideoPlayer({
                                     className="hover:text-red-600 flex items-center gap-1"
                                   >
                                     <Trash2 size={12} />
-                                    {t("VideoPlayer.delete")}
+                                    {t("delete")}
                                   </button>
                                 </>
                               )}
                               <button className="hover:text-red-600 flex items-center gap-1">
                                 <Flag size={12} />
-                                {t("VideoPlayer.report")}
+                                {t("report")}
                               </button>
                             </div>
 
@@ -3192,7 +3192,7 @@ export default function BilibiliVideoPlayer({
                                   </div>
                                   <div className="flex-1">
                                     <div className="text-xs text-blue-600 mb-1">
-                                      {t("VideoPlayer.replying_to", {
+                                      {t("replying_to", {
                                         username,
                                       })}
                                     </div>
@@ -3212,13 +3212,13 @@ export default function BilibiliVideoPlayer({
                                         onClick={handleSendReply}
                                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
                                       >
-                                        {t("VideoPlayer.send_reply")}
+                                        {t("send_reply")}
                                       </button>
                                       <button
                                         onClick={handleCancelReply}
                                         className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors"
                                       >
-                                        {t("VideoPlayer.cancel_reply")}
+                                        {t("cancel_reply")}
                                       </button>
                                     </div>
                                   </div>
@@ -3300,67 +3300,67 @@ export default function BilibiliVideoPlayer({
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               Space
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.play_pause")}
+            {t("keyboard_shortcuts.play_pause")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               ←/→
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.seek_backward_forward")}
+            {t("keyboard_shortcuts.seek_backward_forward")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               ↑/↓
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.volume_up_down")}
+            {t("keyboard_shortcuts.volume_up_down")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               M
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.mute")}
+            {t("keyboard_shortcuts.mute")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               F
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.fullscreen")}
+            {t("keyboard_shortcuts.fullscreen")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               D
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.toggle_danmaku")}
+            {t("keyboard_shortcuts.toggle_danmaku")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               C
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.toggle_comments")}
+            {t("keyboard_shortcuts.toggle_comments")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               Q
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.ask_ai")}
+            {t("keyboard_shortcuts.ask_ai")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               T
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.toggle_terms")}
+            {t("keyboard_shortcuts.toggle_terms")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               N
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.toggle_notes")}
+            {t("keyboard_shortcuts.toggle_notes")}
           </span>
           <span>
             <kbd className="bg-white dark:bg-gray-700 dark:text-white px-2 py-1 rounded border dark:border-gray-600">
               H
             </kbd>{" "}
-            {t("VideoPlayer.keyboard_shortcuts.toggle_chapters") || "Chapters"}
+            {t("keyboard_shortcuts.toggle_chapters") || "Chapters"}
           </span>
         </div>
       </div>
@@ -3399,3 +3399,4 @@ export default function BilibiliVideoPlayer({
     </div>
   );
 }
+

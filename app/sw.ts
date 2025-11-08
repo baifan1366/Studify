@@ -10,9 +10,16 @@ interface PrecacheEntry {
   revision?: string;
 }
 
+// Filter out files that might not exist in production or cause 404 errors
+const filteredManifest = self.__SW_MANIFEST.filter((entry) => {
+  const url = typeof entry === 'string' ? entry : entry.url;
+  // Skip notification sound and manifest - they'll be handled by runtime caching
+  return !url.includes('notification-sound.mp3') && !url.includes('manifest.json');
+});
+
 // 创建 Serwist 实例
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  precacheEntries: filteredManifest,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,

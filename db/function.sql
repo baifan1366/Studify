@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.trigger_ai_agent_embedding()
+﻿CREATE OR REPLACE FUNCTION public.trigger_ai_agent_embedding()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -6088,22 +6088,22 @@ COMMENT ON FUNCTION public.universal_search_enhanced IS 'Enhanced universal sear
 DROP FUNCTION IF EXISTS search_video_embeddings_e5;
 
 -- 创建视频 embedding 搜索函数（使用 E5 模型）
-CREATE FUNCTION search_video_embeddings_e5(
+CREATE OR REPLACE FUNCTION search_video_embeddings_e5(
   query_embedding vector(384),
-  p_attachment_id integer,
-  time_start numeric DEFAULT NULL,
-  time_end numeric DEFAULT NULL,
-  match_threshold numeric DEFAULT 0.7,
+  p_attachment_id bigint,  -- Changed from integer to bigint
+  time_start double precision DEFAULT NULL,  -- Changed from numeric to double precision
+  time_end double precision DEFAULT NULL,    -- Changed from numeric to double precision
+  match_threshold double precision DEFAULT 0.7,  -- Changed from numeric to double precision
   match_count integer DEFAULT 10
 )
 RETURNS TABLE (
-  id integer,
+  id bigint,  -- Changed from integer to bigint
   content_text text,
-  segment_start_time numeric,
-  segment_end_time numeric,
+  segment_start_time double precision,  -- Changed from numeric to double precision
+  segment_end_time double precision,    -- Changed from numeric to double precision
   section_title text,
-  similarity numeric,
-  attachment_id integer
+  similarity double precision,          -- Changed from numeric to double precision
+  attachment_id bigint  -- Changed from integer to bigint
 )
 LANGUAGE plpgsql
 AS $$
@@ -6148,26 +6148,26 @@ COMMENT ON FUNCTION search_video_embeddings_e5 IS 'Search video embeddings using
 CREATE OR REPLACE FUNCTION search_video_embeddings_two_stage(
   query_embedding_e5 vector(384),
   query_embedding_bge vector(1024),
-  p_attachment_id integer,
-  time_start numeric DEFAULT NULL,
-  time_end numeric DEFAULT NULL,
-  e5_threshold numeric DEFAULT 0.5,
+  p_attachment_id bigint,  -- Changed from integer to bigint
+  time_start double precision DEFAULT NULL,      -- Changed from numeric to double precision
+  time_end double precision DEFAULT NULL,        -- Changed from numeric to double precision
+  e5_threshold double precision DEFAULT 0.5,     -- Changed from numeric to double precision
   e5_candidate_count integer DEFAULT 30,
   final_count integer DEFAULT 10,
-  weight_e5 numeric DEFAULT 0.3,
-  weight_bge numeric DEFAULT 0.7
+  weight_e5 double precision DEFAULT 0.3,        -- Changed from numeric to double precision
+  weight_bge double precision DEFAULT 0.7        -- Changed from numeric to double precision
 )
 RETURNS TABLE (
-  id integer,
+  id bigint,  -- Changed from integer to bigint
   content_text text,
-  segment_start_time numeric,
-  segment_end_time numeric,
+  segment_start_time double precision,  -- Changed from numeric to double precision
+  segment_end_time double precision,    -- Changed from numeric to double precision
   segment_index integer,
   section_title text,
-  attachment_id integer,
-  e5_similarity numeric,
-  bge_similarity numeric,
-  combined_score numeric
+  attachment_id bigint,  -- Changed from integer to bigint
+  e5_similarity double precision,       -- Changed from numeric to double precision
+  bge_similarity double precision,      -- Changed from numeric to double precision
+  combined_score double precision       -- Changed from numeric to double precision
 )
 LANGUAGE plpgsql
 AS $$

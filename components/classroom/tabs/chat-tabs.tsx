@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle, Users, Settings, Hash, Bell, BellOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { ChatPanel } from '../chat-panel';
 import { useClassroomChat } from '@/hooks/classroom/use-classroom-chat';
 import { HookChatMessage } from '@/interface/classroom/chat-message-interface';

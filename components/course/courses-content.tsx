@@ -190,18 +190,14 @@ export default function CoursesContent() {
   const handleBuyNow = async (courseId: string | number) => {
     setBuyingCourseId(courseId);
     try {
-      const result = await purchaseCourse.mutateAsync({
+      await purchaseCourse.mutateAsync({
         courseId: String(courseId),
       });
-
       // The purchaseCourse hook now handles all navigation and enrollment
       // No need for manual enrollment creation here as the API handles it
-    } catch (error) {
-      toast({
-        title: t("purchase_failed"),
-        description: t("error_processing_purchase"),
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      // Error toast is now handled in the usePurchaseCourse hook
     } finally {
       setBuyingCourseId(null);
     }

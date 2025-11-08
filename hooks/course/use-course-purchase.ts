@@ -45,13 +45,7 @@ export function usePurchaseCourse() {
       });
     },
     onSuccess: (data) => {
-      // Invalidate course-related queries
-      queryClient.invalidateQueries({ queryKey: ['courses'] });
-      queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] }); // Fixed: match the actual query key
-      queryClient.invalidateQueries({ queryKey: ['enrolledCourse'] }); // Also invalidate individual enrollment checks
-      queryClient.invalidateQueries({ queryKey: ['course-by-slug'] });
-      
-      // Handle already enrolled case
+      // Handle already enrolled case FIRST before invalidating queries
       if (data.alreadyEnrolled && data.courseSlug) {
         toast({
           title: t('already_enrolled'),
@@ -63,8 +57,20 @@ export function usePurchaseCourse() {
         return;
       }
       
-      // If it's a free course and user is enrolled, redirect to course with success
+      // For paid courses, redirect to Stripe checkout immediately
+      // Don't invalidate queries yet - they'll be invalidated after payment success
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      
+      // If it's a free course and user is enrolled, invalidate queries and redirect
       if (data.enrolled && data.courseSlug) {
+        // Invalidate course-related queries for free courses only
+        queryClient.invalidateQueries({ queryKey: ['courses'] });
+        queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] });
+        queryClient.invalidateQueries({ queryKey: ['course-by-slug'] });
+        
         // Show immediate success message for free courses
         toast({
           title: t('enrollment_successful'),
@@ -75,14 +81,14 @@ export function usePurchaseCourse() {
         router.push(`/${locale}/courses/${data.courseSlug}?success=true`);
         return;
       }
-      
-      // For paid courses, redirect to Stripe checkout
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
     },
     onError: (error) => {
       console.error('Course purchase failed:', error);
+      toast({
+        title: t('purchase_failed'),
+        description: error.message || t('error_processing_purchase'),
+        variant: 'destructive',
+      });
     },
   });
 }

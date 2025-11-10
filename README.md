@@ -40,19 +40,10 @@
 
 Studify is a modern, AI-powered platform that unifies Courses, Classrooms, and Community with built-in Payments, Push Notifications, and an advanced AI layer (semantic search, learning paths, video transcription + Q&A, recommendations). Built with Next.js 15, Supabase, Redis, Stripe, OneSignal, QStash, LangChain, and HuggingFace.
 
-## **1. Track & Problem Statement**
-
-### Competition:
-**Codenection 2025 Hackathon**
-
-### Track:
-**Student Lifestyle** → *Tutoring for Students*
-
-### Problem Statement:
-Many students struggle with academic challenges, including difficulty understanding course material, limited access to personalized help, and inefficient study habits. Traditional tutoring services are often expensive, inconvenient, or unavailable outside fixed hours, leaving students without adequate support when they need it most.
+## Student Lifestyle 
 
 ### Goal:
-Develop a **tutoring platform** that provides **on-demand, affordable, and personalized academic assistance**. The platform connects students with tutors, offers interactive learning tools, and provides curated study resources to improve academic outcomes and boost student confidence.
+Many students struggle with academic challenges, including difficulty understanding course material, limited access to personalized help, and inefficient study habits. Traditional tutoring services are often expensive, inconvenient, or unavailable outside fixed hours, leaving students without adequate support when they need it most. Develop a **tutoring platform** that provides **on-demand, affordable, and personalized academic assistance**. The platform connects students with tutors, offers interactive learning tools, and provides curated study resources to improve academic outcomes and boost student confidence.
 
 <p>
   <a href="#features">Features</a> ·

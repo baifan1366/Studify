@@ -89,14 +89,14 @@ Many students struggle with academic challenges, including difficulty understand
 - **Notifications**: OneSignal
 - **i18n**: next-intl
 
-## Screenshots / Demo
+## Screenshots
 
 <p>
   <img src="./public/homepagess.png" alt="Dashboard" />
 </p>
-[![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Video-red?logo=youtube)](https://www.youtube.com/watch?v=gbdpsgFKaUI)
 
-
+### 🎥 Video Demo
+https://www.youtube.com/watch?v=gbdpsgFKaUI
 
 ## Modules Overview
 

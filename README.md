@@ -94,7 +94,8 @@ Many students struggle with academic challenges, including difficulty understand
 <p>
   <img src="./public/homepagess.png" alt="Dashboard" />
 </p>
-[![Watch the video](https://img.youtube.com/vi/gbdpsgFKaUI/0.jpg)](https://www.youtube.com/watch?v=gbdpsgFKaUI)
+[![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Video-red?logo=youtube)](https://www.youtube.com/watch?v=gbdpsgFKaUI)
+
 
 
 ## Modules Overview

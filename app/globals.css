@@ -150,44 +150,45 @@ body {
 /* 5. Light / Dark Themes    */
 /* ========================= */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  /* Light Theme Colors */
-  --background: #FDF5E6; 
-  --foreground: #222222;
+  /* Light Theme Colors - 优化的白天模式 */
+  --background: #FAFAFA; 
+  --foreground: #1A1A1A;
   --card: #FFFFFF;
-  --card-foreground: #222222;
+  --card-foreground: #1A1A1A;
   --popover: #FFFFFF;
-  --popover-foreground: #222222;
+  --popover-foreground: #1A1A1A;
   --primary: #FF6B00;
   --primary-foreground: #FFFFFF;
-  --secondary: #FDF5E6;
-  --secondary-foreground: #064E3B;
-  --muted: #FAF3E0;
-  --muted-foreground: #666666;
-  --accent: #FAF3E0;
-  --accent-foreground: #222222;
-  --destructive: #DC2626;
-  --border: #E5E7EB;
-  --input: #E5E7EB;
+  --secondary: #F5F5F5;
+  --secondary-foreground: #1A1A1A;
+  --muted: #F5F5F5;
+  --muted-foreground: #737373;
+  --accent: #FFF7ED;
+  --accent-foreground: #1A1A1A;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E5E5;
+  --input: #F5F5F5;
   --ring: #FF6B00;
 
-  /* Sidebar */
-  --sidebar: #FAF3E0;
-  --sidebar-foreground: #222222;
+  /* Sidebar - 更清爽的侧边栏 */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1A1A;
   --sidebar-primary: #FF6B00;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #E5E7EB;
-  --sidebar-accent-foreground: #222222;
-  --sidebar-border: #E5E7EB;
+  --sidebar-accent: #F5F5F5;
+  --sidebar-accent-foreground: #1A1A1A;
+  --sidebar-border: #E5E5E5;
   --sidebar-ring: #FF6B00;
 
-  /* Charts */
+  /* Charts - 更鲜明的图表颜色 */
   --chart-1: #FF6B00;
-  --chart-2: #064E3B;
-  --chart-3: #1F2937;
-  --chart-4: #FDF5E6;
-  --chart-5: #FAF3E0;
+  --chart-2: #3B82F6;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #8B5CF6;
 }
 
 .dark {
@@ -296,34 +297,149 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
-.scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
-  background-color: rgb(71 85 105);
-  border-radius: 3px;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #D4D4D4;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-.scrollbar-track-slate-800\/50::-webkit-scrollbar-track {
-  background-color: rgb(30 41 59 / 0.5);
+.scrollbar-thin::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
 .scrollbar-thin:hover::-webkit-scrollbar-thumb {
-  background-color: rgb(100 116 139);
+  background-color: #A3A3A3;
 }
 
 /* Firefox scrollbar styling */
 .scrollbar-thin {
-  scrollbar-color: rgb(71 85 105) rgb(30 41 59 / 0.5);
+  scrollbar-color: #D4D4D4 transparent;
 }
 
 .scrollbar-thin:hover {
-  scrollbar-color: rgb(100 116 139) rgb(30 41 59 / 0.5);
+  scrollbar-color: #A3A3A3 transparent;
+}
+
+/* Dark mode scrollbar */
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgb(71 85 105);
+}
+
+.dark .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(100 116 139);
+}
+
+.dark .scrollbar-thin {
+  scrollbar-color: rgb(71 85 105) transparent;
+}
+
+.dark .scrollbar-thin:hover {
+  scrollbar-color: rgb(100 116 139) transparent;
 }
 
 /* ========================= */
-/* 9. Base Layer            */
+/* 9. Custom Animations     */
+/* ========================= */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out;
+}
+
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+/* ========================= */
+/* 10. Light Mode Enhancements */
+/* ========================= */
+:root {
+  /* 白天模式下的阴影系统 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  
+  /* 白天模式下的渐变 */
+  --gradient-primary: linear-gradient(135deg, #FF6B00 0%, #FF8533 100%);
+  --gradient-secondary: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 100%);
+  --gradient-accent: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+}
+
+.dark {
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+}
+
+/* 白天模式下的卡片样式增强 */
+:root .card-enhanced {
+  background: linear-gradient(to bottom, #FFFFFF, #FAFAFA);
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:root .card-enhanced:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(255, 107, 0, 0.2);
+}
+
+/* 白天模式下的按钮增强 */
+:root .btn-primary-enhanced {
+  background: var(--gradient-primary);
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.3);
+}
+
+:root .btn-primary-enhanced:hover {
+  box-shadow: 0 8px 20px rgba(255, 107, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+/* 白天模式下的文字对比度优化 */
+:root {
+  --text-primary: #1A1A1A;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-disabled: #A3A3A3;
+}
+
+/* 白天模式下的背景层次 */
+:root {
+  --bg-elevated: #FFFFFF;
+  --bg-base: #FAFAFA;
+  --bg-sunken: #F5F5F5;
+}
+
+/* ========================= */
+/* 11. Base Layer           */
 /* ========================= */
 @layer base {
   * {
@@ -331,6 +447,19 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-      font-family: var(--font-geist-sans, "Geist"), sans-serif;
+    font-family: var(--font-geist-sans, "Geist"), sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* 白天模式下的选中文本样式 */
+  ::selection {
+    background-color: rgba(255, 107, 0, 0.2);
+    color: inherit;
+  }
+  
+  ::-moz-selection {
+    background-color: rgba(255, 107, 0, 0.2);
+    color: inherit;
   }
 }

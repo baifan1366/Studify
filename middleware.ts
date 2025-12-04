@@ -268,6 +268,32 @@ export async function middleware(request: NextRequest) {
             });
             return NextResponse.redirect(url);
           }
+
+          // Redirect to appropriate dashboard after login
+          // Check if user is on locale root (e.g., /en, /zh) or role root path (e.g., /en/student, /en/tutor, /en/admin)
+          const isLocaleRoot = /^\/[a-z]{2}\/?$/.test(pathname);
+          const isRoleRootPath = new RegExp(`^/[a-z]{2}/${userRole}/?$`).test(pathname);
+          if (isLocaleRoot || isRoleRootPath) {
+            const url = request.nextUrl.clone();
+            const locale = request.cookies.get("next-intl-locale")?.value || "en";
+            
+            // Redirect based on role
+            if (userRole === "student") {
+              url.pathname = `/${locale}/home`;
+            } else if (userRole === "tutor") {
+              url.pathname = `/${locale}/tutor/dashboard`;
+            } else if (userRole === "admin") {
+              url.pathname = `/${locale}/admin/dashboard`;
+            }
+
+            debugLog("redirecting to dashboard", {
+              userId,
+              role: userRole,
+              from: pathname,
+              to: url.pathname,
+            });
+            return NextResponse.redirect(url);
+          }
         }
       } catch (error) {
         console.error("[middleware] failed to check onboarding status:", error);

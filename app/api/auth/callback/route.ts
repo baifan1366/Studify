@@ -398,9 +398,33 @@ export async function GET(request: NextRequest) {
         } else if (!profile.onboarded) {
           // New user needs onboarding
           const locale = next.split("/")[1] || "en";
-          redirectPath = `/${locale}/onboarding`;
+          // Use role to determine onboarding path
+          if (role === "tutor") {
+            redirectPath = `/${locale}/tutor/step1`;
+          } else if (role === "admin") {
+            redirectPath = `/${locale}/admin/dashboard`;
+          } else {
+            redirectPath = `/${locale}/student`;
+          }
           console.log("[AUTH CALLBACK] New user, redirecting to onboarding:", {
             userId,
+            role,
+            onboarded: profile.onboarded,
+            redirectPath,
+          });
+        } else {
+          // User has completed onboarding - redirect to appropriate dashboard
+          const locale = next.split("/")[1] || "en";
+          if (role === "student") {
+            redirectPath = `/${locale}/home`;
+          } else if (role === "tutor") {
+            redirectPath = `/${locale}/tutor/dashboard`;
+          } else if (role === "admin") {
+            redirectPath = `/${locale}/admin/dashboard`;
+          }
+          console.log("[AUTH CALLBACK] Existing user, redirecting to dashboard:", {
+            userId,
+            role,
             onboarded: profile.onboarded,
             redirectPath,
           });

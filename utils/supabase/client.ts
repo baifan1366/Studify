@@ -9,6 +9,8 @@ export const supabase = createBrowserClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
       persistSession: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storageKey: 'supabase.auth.token',
     },
   }
 );

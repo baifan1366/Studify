@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, Users, Brain, Sparkles, Video, MessageSquare, Awa
 import { useLocale } from "next-intl";
 import { HomeHeader } from "@/components/home/home-header";
 import { HomeFooter } from "@/components/home/home-footer";
+import { OAuthCallbackRedirect } from "../../components/auth/oauth-callback-redirect";
 
 export const metadata: Metadata = {
   title: "Studify - Your Tutor, Anytime. Anywhere",
@@ -15,6 +16,7 @@ export default function Home() {
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+      <OAuthCallbackRedirect />
       <HomeHeader />
       
       {/* Video Showcase Section */}

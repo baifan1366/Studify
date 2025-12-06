@@ -354,6 +354,13 @@ export async function GET(request: NextRequest) {
         // Determine redirect based on the type of auth flow and onboarding status
         let redirectPath = next;
 
+        console.log("[AUTH CALLBACK] Starting redirect determination:", {
+          flowType,
+          onboarded: profile.onboarded,
+          role,
+          next,
+        });
+
         if (flowType === "recovery") {
           // Password reset flow - use the next parameter which contains the locale
           // If next parameter is provided (e.g., /en/reset-password), use it
@@ -369,14 +376,15 @@ export async function GET(request: NextRequest) {
           // Email verification flow - check onboarding status
           if (!profile.onboarded) {
             // New user needs onboarding - extract locale from next param
-            const locale = next.split("/")[1] || "en";
+            const localeParts = next.split("/").filter(Boolean);
+            const locale = localeParts[0] || "en";
             // Use role to determine onboarding path
             if (role === "tutor") {
-              redirectPath = `/${locale}/onboarding/tutor/step1`;
+              redirectPath = `/${locale}/tutor/step1`;
             } else if (role === "admin") {
               redirectPath = `/${locale}/admin/dashboard`;
             } else {
-              redirectPath = `/${locale}/onboarding/student/step1`;
+              redirectPath = `/${locale}/student`;
             }
             console.log(
               "[AUTH CALLBACK] New user from email verification, redirecting to onboarding:",
@@ -395,39 +403,59 @@ export async function GET(request: NextRequest) {
               redirectPath
             );
           }
-        } else if (!profile.onboarded) {
-          // New user needs onboarding
-          const locale = next.split("/")[1] || "en";
-          // Use role to determine onboarding path
-          if (role === "tutor") {
-            redirectPath = `/${locale}/tutor/step1`;
-          } else if (role === "admin") {
-            redirectPath = `/${locale}/admin/dashboard`;
-          } else {
-            redirectPath = `/${locale}/student`;
-          }
-          console.log("[AUTH CALLBACK] New user, redirecting to onboarding:", {
-            userId,
-            role,
-            onboarded: profile.onboarded,
-            redirectPath,
-          });
         } else {
-          // User has completed onboarding - redirect to appropriate dashboard
-          const locale = next.split("/")[1] || "en";
-          if (role === "student") {
-            redirectPath = `/${locale}/home`;
-          } else if (role === "tutor") {
-            redirectPath = `/${locale}/tutor/dashboard`;
-          } else if (role === "admin") {
-            redirectPath = `/${locale}/admin/dashboard`;
+          // OAuth flow or other flows
+          const localeParts = next.split("/").filter(Boolean);
+          const locale = localeParts[0] || "en";
+          
+          // Check if next is just a locale root (e.g., "/en") - if so, ignore it
+          const isLocaleRoot = localeParts.length === 1 && /^[a-z]{2}$/.test(localeParts[0]);
+          
+          if (!profile.onboarded) {
+            // New user needs onboarding
+            if (role === "tutor") {
+              redirectPath = `/${locale}/tutor/step1`;
+            } else if (role === "admin") {
+              redirectPath = `/${locale}/admin/dashboard`;
+            } else {
+              redirectPath = `/${locale}/student`;
+            }
+            console.log("[AUTH CALLBACK] New user, redirecting to onboarding:", {
+              userId,
+              role,
+              onboarded: profile.onboarded,
+              redirectPath,
+              isLocaleRoot,
+            });
+          } else {
+            // User has completed onboarding
+            // If next is a specific path (not just locale root), use it
+            // Otherwise, redirect to appropriate dashboard
+            if (!isLocaleRoot && next !== "/") {
+              redirectPath = next;
+              console.log("[AUTH CALLBACK] Using next parameter:", {
+                userId,
+                role,
+                onboarded: profile.onboarded,
+                redirectPath,
+              });
+            } else {
+              // Redirect to appropriate dashboard
+              if (role === "student") {
+                redirectPath = `/${locale}/home`;
+              } else if (role === "tutor") {
+                redirectPath = `/${locale}/tutor/dashboard`;
+              } else if (role === "admin") {
+                redirectPath = `/${locale}/admin/dashboard`;
+              }
+              console.log("[AUTH CALLBACK] Existing user, redirecting to dashboard:", {
+                userId,
+                role,
+                onboarded: profile.onboarded,
+                redirectPath,
+              });
+            }
           }
-          console.log("[AUTH CALLBACK] Existing user, redirecting to dashboard:", {
-            userId,
-            role,
-            onboarded: profile.onboarded,
-            redirectPath,
-          });
         }
 
         console.log(

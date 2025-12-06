@@ -165,14 +165,21 @@ export function AuthForm({
       // Detect if running in Capacitor (mobile app)
       const isMobile = isCapacitor();
 
-      // Get the appropriate callback URL for the platform
-      const baseCallbackUrl = getOAuthCallbackUrl();
-      const callbackUrl = new URL(baseCallbackUrl);
+      // Build the callback URL - always use /api/auth/callback
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      console.log('[GOOGLE LOGIN] Site URL:', siteUrl);
+      console.log('[GOOGLE LOGIN] process.env.NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);
+      console.log('[GOOGLE LOGIN] window.location.origin:', window.location.origin);
+      
+      const callbackUrl = new URL(`${siteUrl}/api/auth/callback`);
 
       console.log(
+        '[GOOGLE LOGIN]',
         isMobile
           ? "Using mobile deep link callback"
-          : "Using web HTTPS callback"
+          : "Using web HTTPS callback",
+        "Callback URL:",
+        callbackUrl.toString()
       );
 
       // Add role parameter to callback URL
@@ -188,18 +195,12 @@ export function AuthForm({
         }
       }
 
-      // Set the next redirect path based on role
-      const nextPath =
-        role === "tutor"
-          ? `/${locale}/tutor/dashboard`
-          : role === "admin"
-          ? `/${locale}/admin/dashboard`
-          : `/${locale}/home`;
-
-      callbackUrl.searchParams.set("next", nextPath);
+      // Set the next redirect path - use locale for callback to extract
+      // The callback will determine the correct path based on user's profile
+      callbackUrl.searchParams.set("next", `/${locale}`);
 
       console.log(
-        "OAuth callback URL:",
+        "[GOOGLE LOGIN] Final OAuth callback URL:",
         callbackUrl.toString(),
         "with role:",
         role,
@@ -207,18 +208,24 @@ export function AuthForm({
         isMobile
       );
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: callbackUrl.toString(),
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-            // Pass role as a query parameter that will be in the callback URL
-            role: role || "student",
-          },
+      const oauthOptions = {
+        redirectTo: callbackUrl.toString(),
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+          // Pass role as a query parameter that will be in the callback URL
+          role: role || "student",
         },
+      };
+      
+      console.log("[GOOGLE LOGIN] OAuth options:", JSON.stringify(oauthOptions, null, 2));
+
+      const { error, data } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: oauthOptions,
       });
+      
+      console.log("[GOOGLE LOGIN] OAuth response:", { error, data });
 
       if (error) {
         console.error("OAuth error:", error);

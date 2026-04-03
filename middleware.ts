@@ -10,7 +10,7 @@ import { createServerClient } from "@/utils/supabase/server";
 // Centralized public path patterns for better performance and maintainability
 const PUBLIC_PATHS = [
   /^\/$/, // root
-  /^\/(?:en|zh|my)\/?$/, // localized home pages (e.g., /en, /zh, /my)
+  /^\/(?:en|zh|ms)\/?$/, // localized home pages (e.g., /en, /zh, /ms)
   /\/about$/, // about us page
   /\/pricing$/, // pricing page
   /\/contact$/, // contact page

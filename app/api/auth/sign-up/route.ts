@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/utils/supabase/server'
+import { createServerClient, createAdminClient } from '@/utils/supabase/server'
 import redis from '@/utils/redis/redis'
 import { signAppJwt, generateJti } from '@/utils/auth/jwt'
 
@@ -72,22 +72,51 @@ export async function POST(req: NextRequest) {
 
     const name = fullName || data.user.email?.split('@')[0] || undefined
 
-    // Manually create profile since we removed the database trigger
-    const { error: profileError } = await client
+    // Use admin client to create profile (bypasses RLS and has better reliability)
+    const adminClient = await createAdminClient()
+    
+    console.log('[SIGNUP] Creating profile for user:', {
+      userId: data.user.id,
+      email: data.user.email,
+      role,
+      fullName
+    })
+    
+    // Create profile - user_id references auth.users.id directly
+    const { data: profileData, error: profileError } = await adminClient
       .from('profiles')
       .insert({
         user_id: data.user.id,
         role: role,
         full_name: fullName,
         email: data.user.email,
-        display_name: fullName || data.user.email?.split('@')[0]
+        display_name: fullName || data.user.email?.split('@')[0],
+        onboarded: false,
+        email_verified: false
       })
       .select()
       .single()
 
     if (profileError) {
-      console.error('Failed to create profile:', profileError)
-      // Don't fail the signup, just log the error
+      console.error('[SIGNUP] Failed to create profile:', {
+        error: profileError,
+        code: profileError.code,
+        message: profileError.message,
+        details: profileError.details,
+        hint: profileError.hint
+      })
+      // If it's a unique constraint violation, profile might already exist
+      if (profileError.code !== '23505') {
+        return NextResponse.json({ 
+          error: 'Failed to create user profile', 
+          details: profileError.message 
+        }, { status: 500 })
+      }
+    } else {
+      console.log('[SIGNUP] Profile created successfully:', {
+        profileId: profileData?.id,
+        userId: data.user.id
+      })
     }
 
     // If email confirmation is required, Supabase will not create a session

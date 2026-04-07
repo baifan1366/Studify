@@ -195,6 +195,7 @@ export async function GET(request: NextRequest) {
           });
 
           // Create profile using admin client with timeout
+          // user_id references auth.users.id directly (no separate users table needed)
           try {
             const { data: newProfile, error: createError } =
               (await Promise.race([

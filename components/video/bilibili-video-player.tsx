@@ -1605,13 +1605,15 @@ export default function BilibiliVideoPlayer({
 
   return (
     <div className="w-full bg-black">
-      {/* Main Container with Video and Notes Sidebar */}
-      <div className={`flex transition-all duration-300 ${showNotesSidebar ? 'gap-4' : ''}`}>
+      {/* Main Container with Video, Notes Sidebar, and QA Panel */}
+      <div className="flex w-full items-start transition-all duration-300">
         {/* Video Player Container */}
         <div
           ref={containerRef}
-          className={`relative bg-black group transition-all duration-300 ${
-            showNotesSidebar 
+          className={`relative bg-black group transition-all duration-300 flex-shrink-0 ${
+            showNotesSidebar && qaPanel.isOpen
+              ? 'w-[50%] aspect-video'
+              : showNotesSidebar || qaPanel.isOpen
               ? 'w-[70%] aspect-video' 
               : 'w-full aspect-video'
           }`}
@@ -2646,11 +2648,11 @@ export default function BilibiliVideoPlayer({
           {showNotesSidebar && courseNotes.length > 0 && (
             <motion.div
               initial={{ opacity: 0, x: 50, width: 0 }}
-              animate={{ opacity: 1, x: 0, width: '30%' }}
+              animate={{ opacity: 1, x: 0, width: qaPanel.isOpen ? '25%' : '30%' }}
               exit={{ opacity: 0, x: 50, width: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="bg-slate-900 rounded-lg overflow-hidden shadow-2xl border border-slate-700"
-              style={{ height: 'fit-content', maxHeight: '90vh' }}
+              className="bg-slate-900 border-l border-slate-700 flex-shrink-0 flex flex-col overflow-y-auto"
+              style={{ maxHeight: 'calc(100vh - 200px)' }}
             >
               {/* Sidebar Header */}
               <div className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700 p-4">
@@ -2815,6 +2817,32 @@ export default function BilibiliVideoPlayer({
                   {t('press_n_to_toggle') || '按'} <kbd className="px-2 py-1 bg-slate-700 rounded text-xs font-mono">N</kbd> {t('to_toggle_sidebar') || '切换侧边栏'}
                 </p>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* AI QA Panel Sidebar */}
+        <AnimatePresence>
+          {lessonId && qaPanel.isOpen && (
+            <motion.div
+              initial={{ opacity: 0, x: 50, width: 0 }}
+              animate={{ opacity: 1, x: 0, width: showNotesSidebar ? '25%' : '30%' }}
+              exit={{ opacity: 0, x: 50, width: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="bg-slate-900 border-l border-slate-700 flex-shrink-0 flex flex-col overflow-hidden"
+              style={{ height: 'calc(100vh - 310px)' }}
+            >
+              <VideoQAPanel
+                lessonId={lessonId}
+                currentTime={currentTime}
+                isOpen={qaPanel.isOpen}
+                onClose={qaPanel.closePanel}
+                onSeekTo={(time) => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = time;
+                  }
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -3364,21 +3392,6 @@ export default function BilibiliVideoPlayer({
           </span>
         </div>
       </div>
-
-      {/* AI QA Panel */}
-      {lessonId && (
-        <VideoQAPanel
-          lessonId={lessonId}
-          currentTime={currentTime}
-          isOpen={qaPanel.isOpen}
-          onClose={qaPanel.closePanel}
-          onSeekTo={(time) => {
-            if (videoRef.current) {
-              videoRef.current.currentTime = time;
-            }
-          }}
-        />
-      )}
 
       {/* Video Terms Tooltip */}
       {lessonId && termsData?.terms && (

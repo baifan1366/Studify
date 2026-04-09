@@ -94,10 +94,12 @@ Student Lifestyle → Tutoring for Students（学生辅导）
 
 - **前端**：Next.js 15、React 19、TypeScript、TailwindCSS、shadcn/ui、Framer Motion
 - **后端**：Supabase（Auth/DB/Storage）、Upstash Redis、QStash 队列
-- **AI**：LangChain、OpenRouter、HuggingFace Whisper、Mermaid 可视化
+- **AI**：LangChain、OpenRouter、HuggingFace Whisper、Mermaid 可视化、Google Custom Search API
 - **支付**：Stripe（Checkout、Connect、Webhook）
 - **通知**：OneSignal Web Push
 - **i18n**：next-intl
+
+> **注意**：Google Custom Search API 配置请参考 [documentation/GOOGLE_SEARCH_SETUP.md](./documentation/GOOGLE_SEARCH_SETUP.md)
 
 ## 截图/演示
 

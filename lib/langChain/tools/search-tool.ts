@@ -335,9 +335,12 @@ export async function searchVideoSegments(
 
 export const searchTool = new DynamicStructuredTool({
   name: "search",
-  description: `Search for relevant content in the knowledge base, including video transcripts. 
+  description: `Search for relevant content in the INTERNAL knowledge base (course content, lessons, video transcripts, and notes).
+  This tool is ONLY for searching internal course materials and should be your PRIMARY search tool.
+  Use this for: course content, lesson explanations, video segments, student notes, and any course-related queries.
+  DO NOT use this for: latest news, current events, external information, or general web knowledge.
   Provide a query and optionally specify content types and video context for more targeted results.
-  Returns both formatted text AND structured data for video segments.`,
+  Returns JSON with: message, results array, result_count, confidence score (0-1), and hasVideoSegments flag.`,
   schema: SearchSchema,
   func: async (input) => {
     try {
@@ -397,12 +400,48 @@ export const searchTool = new DynamicStructuredTool({
         })));
       }
       
-      // 3. 格式化结果 - Return JSON string with structured data
+      // 3. Calculate confidence score based on similarity scores
+      // Confidence score helps the agent decide whether to use web search as fallback
+      let confidenceScore = 0;
+      if (allResults.length > 0) {
+        // Calculate weighted average similarity score from all results
+        const similarityScores = allResults
+          .filter(r => r.similarity !== undefined)
+          .map(r => r.similarity);
+        
+        if (similarityScores.length > 0) {
+          // Use weighted average: top result has more weight
+          const weights = similarityScores.map((_, idx) => 1 / (idx + 1));
+          const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+          const weightedSum = similarityScores.reduce((sum, score, idx) => sum + score * weights[idx], 0);
+          const weightedAvg = weightedSum / totalWeight;
+          
+          // Normalize to 0-1 range (similarity scores are typically 0-1 already)
+          confidenceScore = Math.min(1, Math.max(0, weightedAvg));
+          
+          // Apply penalty if result count is low
+          if (allResults.length < 2) {
+            confidenceScore *= 0.7; // Reduce confidence if only 1 result
+          }
+        } else {
+          // If no similarity scores available, use moderate confidence based on result count
+          // This ensures low confidence triggers web search fallback
+          confidenceScore = allResults.length >= 3 ? 0.6 : (allResults.length >= 2 ? 0.5 : 0.4);
+        }
+      }
+      
+      console.log(`📊 Search confidence: ${confidenceScore.toFixed(2)} (${allResults.length} results)`);
+      
+      
+      // 4. Format results - Return JSON string with structured data
       if (allResults.length === 0) {
         return JSON.stringify({
           message: 'No relevant content found. Try rephrasing your question or ask about general concepts.',
           results: [],
-          count: 0
+          count: 0,
+          result_count: 0,
+          confidence: 0,
+          hasVideoSegments: false
         });
       }
       
@@ -425,6 +464,8 @@ export const searchTool = new DynamicStructuredTool({
         message: `Found ${allResults.length} relevant results:\n\n${formattedResults}`,
         results: allResults, // Include structured results
         count: allResults.length,
+        result_count: allResults.length, // Add result_count field for agent decision-making
+        confidence: confidenceScore, // Add confidence score (0-1) for agent decision-making
         hasVideoSegments: rawVideoResults.length > 0
       });
       
@@ -434,6 +475,8 @@ export const searchTool = new DynamicStructuredTool({
         message: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         results: [],
         count: 0,
+        result_count: 0,
+        confidence: 0,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }

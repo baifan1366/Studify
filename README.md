@@ -84,10 +84,12 @@ Many students struggle with academic challenges, including difficulty understand
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript, TailwindCSS, shadcn/ui, Framer Motion
 - **Backend**: Supabase (Auth/DB/Storage), Upstash Redis, QStash
-- **AI**: LangChain, OpenRouter, HuggingFace Whisper, Mermaid
+- **AI**: LangChain, OpenRouter, HuggingFace Whisper, Mermaid, Google Custom Search API
 - **Payments**: Stripe (Checkout, Connect, Webhooks)
 - **Notifications**: OneSignal
 - **i18n**: next-intl
+
+> **Note**: For Google Custom Search API setup, see [documentation/GOOGLE_SEARCH_SETUP.md](./documentation/GOOGLE_SEARCH_SETUP.md)
 
 ## Screenshots
 

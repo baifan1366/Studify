@@ -3,11 +3,19 @@ import { authorize } from '@/utils/auth/server-guard';
 import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { z } from 'zod';
 
+// Get model based on user preference (fast or thinking mode)
+function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
+  return mode === 'thinking' 
+    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
+    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+}
+
 // Request validation schema for content analysis
 const analysisRequestSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   analysisType: z.enum(['summary', 'topics', 'questions', 'notes', 'problem_solving', 'learning_path']).default('summary'),
   includeRecommendations: z.boolean().default(false),
+  aiMode: z.enum(['fast', 'thinking']).default('fast'), // New: AI mode selection
   // 新增支持图片上传的情况
   imageUrl: z.string().optional(),
   // 学习路径特定参数
@@ -35,6 +43,7 @@ export async function POST(request: NextRequest) {
       const content = formData.get('content') as string || '';
       const analysisTypeRaw = formData.get('analysisType') as string || 'problem_solving';
       const includeRecommendations = formData.get('includeRecommendations') === 'true';
+      const aiModeRaw = formData.get('aiMode') as string || 'fast';
       const imageFile = formData.get('image') as File;
       
       // Validate analysisType
@@ -42,6 +51,9 @@ export async function POST(request: NextRequest) {
       const analysisType = validAnalysisTypes.includes(analysisTypeRaw as any) 
         ? analysisTypeRaw as typeof validAnalysisTypes[number]
         : 'problem_solving';
+      
+      // Validate aiMode
+      const aiMode = (aiModeRaw === 'thinking' ? 'thinking' : 'fast') as 'fast' | 'thinking';
       
       let imageData = null;
       if (imageFile) {
@@ -58,6 +70,7 @@ export async function POST(request: NextRequest) {
         content: imageData || content, // Use image data as content for AI analysis
         analysisType,
         includeRecommendations,
+        aiMode,
         imageUrl: imageFile ? `uploaded_${imageFile.name}` : undefined
       };
     } else {
@@ -66,9 +79,10 @@ export async function POST(request: NextRequest) {
       validatedData = analysisRequestSchema.parse(body);
     }
 
-    const { content, analysisType, includeRecommendations, imageUrl, learningGoal, currentLevel, timeConstraint } = validatedData;
+    const { content, analysisType, includeRecommendations, aiMode, imageUrl, learningGoal, currentLevel, timeConstraint } = validatedData;
 
-    console.log(`📊 Content analysis request from user ${authResult.payload.sub}: ${analysisType} analysis for content (${content.length} chars)`);
+    const selectedModel = getModel(aiMode);
+    console.log(`📊 Content analysis request from user ${authResult.payload.sub}: ${analysisType} analysis using ${selectedModel} (${aiMode} mode)`);
 
     // Execute course analysis with tools
     const startTime = Date.now();
@@ -81,13 +95,15 @@ export async function POST(request: NextRequest) {
         imageUrl,
         learningGoal,
         currentLevel,
-        timeConstraint
+        timeConstraint,
+        model: selectedModel,
+        enableThinking: aiMode === 'thinking'
       }
     );
 
     const processingTime = Date.now() - startTime;
 
-    console.log(`✅ Course analysis completed in ${processingTime}ms using tools: ${result.toolsUsed.join(', ')}`);
+    console.log(`✅ Course analysis completed in ${processingTime}ms using ${selectedModel} (${aiMode} mode), tools: ${result.toolsUsed.join(', ')}`);
 
     return NextResponse.json({
       success: true,

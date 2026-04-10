@@ -4,6 +4,13 @@ import { enhancedAIExecutor } from "@/lib/langChain/tool-calling-integration";
 import { createRateLimitCheck, rateLimitResponse } from "@/lib/ratelimit";
 import { z } from "zod";
 
+// Get model based on user preference (fast or thinking mode)
+function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
+  return mode === 'thinking' 
+    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
+    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+}
+
 // Request validation schema for video AI assistant
 const videoAssistantRequestSchema = z.object({
   question: z.string().min(1, "Question is required"),
@@ -21,6 +28,7 @@ const videoAssistantRequestSchema = z.object({
       })
     )
     .optional(),
+  aiMode: z.enum(['fast', 'thinking']).default('fast'), // New: AI mode selection
 });
 
 export async function POST(request: NextRequest) {
@@ -54,7 +62,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = videoAssistantRequestSchema.parse(body);
 
-    const { question, videoContext, conversationHistory } = validatedData;
+    const { question, videoContext, conversationHistory, aiMode } = validatedData;
+
+    // Select model based on aiMode
+    const selectedModel = getModel(aiMode);
+    console.log(`🤖 Video AI Assistant using ${selectedModel} (${aiMode} mode)`);
 
     // Check if streaming is requested
     const isStreaming = request.headers.get("accept") === "text/event-stream";
@@ -126,11 +138,10 @@ export async function POST(request: NextRequest) {
     // ✅ Use unified Tool Calling Agent instead of manual orchestration
     const startTime = Date.now();
 
-    // Select appropriate model based on lesson type
-    const modelToUse = useDocumentModel
-      ? process.env.OPEN_ROUTER_DOCUMENT_MODEL ||
-        "nvidia/nemotron-nano-12b-v2-vl:free"
-      : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
+    // Use selected model based on aiMode (no longer need document model distinction)
+    const modelToUse = selectedModel;
+
+    console.log(`📹 Video type: ${isExternalVideo ? 'External' : 'Internal'}, Lesson kind: ${lessonKind}, Model: ${modelToUse}`);
 
     // Specify content types to search - prioritize video_segment for video lessons
     const contentTypes = isExternalVideo
@@ -163,6 +174,7 @@ export async function POST(request: NextRequest) {
               conversationContext: conversationHistory,
               contentTypes,
               model: modelToUse,
+              enableThinking: aiMode === 'thinking',
               // Pass video context separately so the tool can use it properly
               videoContext: videoContext.currentLessonId
                 ? {
@@ -182,6 +194,14 @@ export async function POST(request: NextRequest) {
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({
                     type: "token",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'thinking' && chunk.content) {
+                // Send thinking process (only in thinking mode)
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "thinking",
                     content: chunk.content
                   })}\n\n`)
                 );
@@ -271,6 +291,7 @@ export async function POST(request: NextRequest) {
       conversationContext: conversationHistory,
       contentTypes,
       model: modelToUse,
+      enableThinking: aiMode === 'thinking',
       // Pass video context separately so the tool can use it properly
       videoContext: videoContext.currentLessonId
         ? {
@@ -298,6 +319,7 @@ export async function POST(request: NextRequest) {
         success: true,
         question,
         answer: result.answer,
+        thinking: result.thinking, // Include thinking process if available
         sources: formattedSources,
         confidence: result.confidence || 0.85,
         webSearchUsed: result.toolsUsed?.includes("search") || false,
@@ -313,6 +335,8 @@ export async function POST(request: NextRequest) {
           videoContext,
           sourcesCount: formattedSources.length,
           toolsUsed: result.toolsUsed || [],
+          model: modelToUse,
+          aiMode,
           timestamp: new Date().toISOString(),
           userId: authResult.payload.sub,
           conversationHistoryLength: conversationHistory?.length || 0,

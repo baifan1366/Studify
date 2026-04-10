@@ -4,6 +4,13 @@ import { StudifyToolCallingAgent } from '@/lib/langChain/tool-calling-integratio
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 import { z } from 'zod';
 
+// Get model based on user preference (fast or thinking mode)
+function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
+  return mode === 'thinking' 
+    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
+    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+}
+
 export interface GenerateQuizRequest {
   topic: string;
   num_questions?: number;
@@ -14,6 +21,7 @@ export interface GenerateQuizRequest {
   lesson_content?: string;
   custom_instructions?: string;
   lessonId?: string;
+  aiMode?: 'fast' | 'thinking'; // New: AI mode selection
 }
 
 export interface GenerateQuizResponse {
@@ -93,12 +101,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
       }, { status: 400 });
     }
 
+    const aiMode = body.aiMode || 'fast';
+    const selectedModel = getModel(aiMode);
+
     console.log(`🎯 AI Quiz Generation Request from user ${userId}:`, {
       topic: body.topic,
       num_questions: body.num_questions,
       difficulty: body.difficulty,
       question_types: body.question_types,
-      lessonId: body.lessonId
+      lessonId: body.lessonId,
+      model: selectedModel,
+      aiMode
     });
 
     // ✅ Generate quiz using real AI with Tool Calling
@@ -112,10 +125,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
         include_explanations: body.include_explanations ?? true,
         lesson_content: body.lesson_content,
         custom_instructions: body.custom_instructions
-      }, userId);
+      }, userId, selectedModel, aiMode === 'thinking');
 
       const processingTime = Date.now() - startTime;
-      console.log(`✅ Quiz generated successfully in ${processingTime}ms with ${generatedQuiz.quiz.questions.length} questions`);
+      console.log(`✅ Quiz generated successfully in ${processingTime}ms with ${generatedQuiz.quiz.questions.length} questions using ${selectedModel}`);
 
       // Return successful response
       return NextResponse.json({
@@ -174,7 +187,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
 }
 
 /**
- * Generate quiz using real AI with Tool Calling
+ * Generate quiz using real AI with Tool Calling and Structured Output
  */
 async function generateQuizWithAI(params: {
   topic: string;
@@ -185,8 +198,8 @@ async function generateQuizWithAI(params: {
   include_explanations: boolean;
   lesson_content?: string;
   custom_instructions?: string;
-}, userId: number) {
-  console.log('🤖 Starting AI quiz generation with Tool Calling Agent...');
+}, userId: number, model: string, enableThinking: boolean = false) {
+  console.log(`🤖 Starting AI quiz generation with ${model} (thinking: ${enableThinking})...`);
   
   const difficultyLabels: Record<number, string> = {
     1: 'Beginner (Easy)',
@@ -250,11 +263,41 @@ IMPORTANT RULES:
    
 5. Return ONLY the JSON object, no markdown formatting, no \`\`\`json code blocks.`;
 
-  // Create Tool Calling Agent
+  // Create Tool Calling Agent with structured output
   const agent = new StudifyToolCallingAgent({
     enabledTools: ['get_course_data', 'search'],
     temperature: 0.8, // Higher creativity for quiz generation
-    model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+    model,
+    enableThinking,
+    useStructuredOutput: true, // Enable structured output for reliable JSON
+    responseSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Quiz title' },
+        description: { type: 'string', description: 'Quiz description' },
+        total_points: { type: 'number', description: 'Total points' },
+        estimated_time_minutes: { type: 'number', description: 'Estimated time in minutes' },
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              question_text: { type: 'string' },
+              question_type: { type: 'string' },
+              options: { type: 'array', items: { type: 'string' } },
+              correct_answer: { type: ['string', 'boolean'] },
+              explanation: { type: 'string' },
+              points: { type: 'number' },
+              difficulty: { type: 'number' },
+              position: { type: 'number' }
+            },
+            required: ['id', 'question_text', 'question_type', 'correct_answer', 'points', 'difficulty', 'position']
+          }
+        }
+      },
+      required: ['title', 'description', 'total_points', 'estimated_time_minutes', 'questions']
+    }
   });
 
   await agent.initialize();

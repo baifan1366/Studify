@@ -8,6 +8,13 @@ import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 // Set max duration to 5 minutes (300 seconds) - Vercel's maximum
 export const maxDuration = 300;
 
+// Get model based on user preference (fast or thinking mode)
+function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
+  return mode === 'thinking' 
+    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
+    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+}
+
 // 视频时间轴智能问答API
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +50,8 @@ export async function POST(request: NextRequest) {
       lessonId,
       question,
       currentTime, // 当前播放时间（秒）
-      timeWindow = 30 // 时间窗口（秒）
+      timeWindow = 30, // 时间窗口（秒）
+      aiMode = 'fast' // AI 模式选择 (fast 或 thinking)
     } = body;
 
     if (!lessonId || !question?.trim()) {
@@ -52,6 +60,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const selectedModel = getModel(aiMode as 'fast' | 'thinking');
+    console.log(`🤖 Video QA using ${selectedModel} (${aiMode} mode)`);
 
     const supabase = await createAdminClient();
 
@@ -114,7 +125,9 @@ export async function POST(request: NextRequest) {
 
       const result = await enhancedAIExecutor.educationalQA(directQuestion, {
         userId,
-        includeAnalysis: true
+        includeAnalysis: true,
+        model: selectedModel,
+        enableThinking: aiMode === 'thinking'
       });
 
       const answer = result.answer;
@@ -136,6 +149,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         answer: answer.trim(),
+        thinking: result.thinking, // Include thinking process if available
         isExternalVideo: true,
         segments: [],
         timeContext: {
@@ -148,6 +162,10 @@ export async function POST(request: NextRequest) {
           courseName: courseTitle,
           moduleName: moduleTitle,
           lessonName: lessonTitle
+        },
+        metadata: {
+          model: selectedModel,
+          aiMode
         },
         note: "This is an external video (YouTube/Vimeo). The AI assistant provides general guidance based on course context."
       }, {
@@ -224,6 +242,8 @@ ${question}
         userId,
         includeAnalysis: true,
         contentTypes: ['video_segment', 'lesson', 'note'], // 优先搜索视频片段
+        model: selectedModel,
+        enableThinking: aiMode === 'thinking',
         videoContext: {
           lessonId,
           attachmentId,
@@ -308,6 +328,7 @@ ${question}
     return NextResponse.json({
       success: true,
       answer: answer.trim(),
+      thinking: result.thinking, // Include thinking process if available
       segments: videoSegments,
       timeContext: {
         currentTime,
@@ -324,6 +345,8 @@ ${question}
         toolsUsed,
         sourcesCount: sources.length,
         videoSegmentsCount: videoSegments.length,
+        model: selectedModel,
+        aiMode,
         timings: {
           database: dbTime,
           qa_total: qaTime,
@@ -417,12 +440,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 使用AI提取关键术语 (升级版：可选择使用 tool calling)
+    // 使用AI提取关键术语 (使用 Gemma 4 Fast 模式)
     const contextText = segments.map(s => s.text).join(' ');
     
-    // 简单的术语提取仍然可以使用直接 LLM 调用（快速且成本低）
-    // 对于复杂分析可以切换到 tool calling
-    const model = await getLLM({ model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free' });
+    // 使用 Gemma 4 Fast 模式进行快速术语提取
+    const model = await getLLM({ 
+      model: getModel('fast') // 使用 Fast 模式
+    });
 
     const prompt = `Extract 3-5 of the most important academic terms or concepts from the following video content and provide brief explanations:
 

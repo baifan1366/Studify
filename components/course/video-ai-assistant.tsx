@@ -22,6 +22,7 @@ interface AIMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  thinking?: string; // New: thinking process
   sources?: AISource[];
   confidence?: number;
   suggestedActions?: string[];
@@ -66,6 +67,7 @@ export default function VideoAIAssistant({
   const [question, setQuestion] = useState("");
   const [conversation, setConversation] = useState<AIMessage[]>([]);
   const [contextInfo, setContextInfo] = useState<string>("");
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // New: AI mode state
   const { toast } = useToast();
   const t = useTranslations("VideoAIAssistant");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -141,6 +143,7 @@ export default function VideoAIAssistant({
 
     try {
       let accumulatedContent = "";
+      let accumulatedThinking = ""; // New: accumulate thinking content
 
       await askStreaming(
         currentQuestion,
@@ -168,6 +171,7 @@ export default function VideoAIAssistant({
             newConv[lastIdx] = {
               ...newConv[lastIdx],
               content: accumulatedContent,
+              thinking: data.thinking || accumulatedThinking || undefined, // Include thinking
               sources: data.sources || [],
               confidence: data.confidence || 0.85,
               suggestedActions: [
@@ -219,7 +223,22 @@ export default function VideoAIAssistant({
             };
             return newConv;
           });
-        }
+        },
+        // onThinking callback - handle thinking tokens (new)
+        (thinkingToken: string) => {
+          accumulatedThinking += thinkingToken;
+          setConversation((prev) => {
+            const newConv = [...prev];
+            const lastIdx = newConv.length - 1;
+            newConv[lastIdx] = {
+              ...newConv[lastIdx],
+              thinking: accumulatedThinking,
+              isPartial: true,
+            };
+            return newConv;
+          });
+        },
+        aiMode // Pass AI mode to hook
       );
     } catch (error) {
       const errorMessage: AIMessage = {
@@ -373,8 +392,32 @@ export default function VideoAIAssistant({
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {t("features")}
+          {/* AI Mode Selector */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setAIMode('fast')}
+              disabled={isLoading}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'fast'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+              title="Fast Mode - Quick responses"
+            >
+              ⚡ Fast
+            </button>
+            <button
+              onClick={() => setAIMode('thinking')}
+              disabled={isLoading}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'thinking'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+              title="Thinking Mode - Shows reasoning process"
+            >
+              🧠 Thinking
+            </button>
           </div>
         </div>
       </div>
@@ -482,6 +525,22 @@ export default function VideoAIAssistant({
                 {/* AI Response Enhancements */}
                 {msg.role === "assistant" && !msg.isPartial && (
                   <div className="mt-3 space-y-2">
+                    {/* Thinking Process Display (New) */}
+                    {msg.thinking && (
+                      <details className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg overflow-hidden">
+                        <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors flex items-center gap-2">
+                          <Brain size={14} />
+                          <span>🧠 Thinking Process</span>
+                          <span className="text-xs opacity-60">(Click to expand)</span>
+                        </summary>
+                        <div className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-t border-purple-200 dark:border-purple-700">
+                          <pre className="whitespace-pre-wrap font-mono leading-relaxed">
+                            {msg.thinking}
+                          </pre>
+                        </div>
+                      </details>
+                    )}
+
                     {/* Confidence Indicator */}
                     <div className="flex items-center justify-between text-xs">
                       <span

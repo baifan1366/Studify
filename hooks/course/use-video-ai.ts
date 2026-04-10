@@ -13,12 +13,14 @@ interface AIAssistantRequest {
   question: string;
   videoContext: VideoContext;
   conversationHistory?: Array<{role: 'user' | 'assistant'; content: string}>;
+  aiMode?: 'fast' | 'thinking'; // New: AI mode selection
 }
 
 interface AIAssistantResponse {
   success: boolean;
   question: string;
   answer: string;
+  thinking?: string; // New: thinking process (only in thinking mode)
   sources: any[];
   confidence: number;
   webSearchUsed: boolean;
@@ -116,8 +118,10 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
     question: string,
     conversationHistory?: Array<{role: 'user' | 'assistant'; content: string}>,
     onToken?: (token: string) => void,
-    onComplete?: (data: { sources: any[]; confidence: number; toolsUsed: string[] }) => void,
-    onStatus?: (status: string) => void
+    onComplete?: (data: { sources: any[]; confidence: number; toolsUsed: string[]; thinking?: string }) => void,
+    onStatus?: (status: string) => void,
+    onThinking?: (thinking: string) => void, // New: callback for thinking tokens
+    aiMode: 'fast' | 'thinking' = 'fast' // New: AI mode selection
   ) => {
     setIsLoading(true);
     setError(null);
@@ -133,6 +137,7 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
           question,
           videoContext,
           conversationHistory,
+          aiMode, // Pass AI mode to backend
         }),
       });
 
@@ -149,6 +154,7 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
 
       let buffer = '';
       let finalData: any = null;
+      let thinkingContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -165,6 +171,10 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
 
             if (data.type === 'token' && onToken) {
               onToken(data.content);
+            } else if (data.type === 'thinking' && onThinking) {
+              // New: handle thinking tokens
+              thinkingContent += data.content;
+              onThinking(data.content);
             } else if (data.type === 'status' && onStatus) {
               onStatus(data.content);
             } else if (data.type === 'final') {
@@ -181,6 +191,7 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
           sources: finalData.sources || [],
           confidence: finalData.confidence || 0.85,
           toolsUsed: finalData.toolsUsed || [],
+          thinking: thinkingContent || undefined, // Include thinking content
         });
       }
 

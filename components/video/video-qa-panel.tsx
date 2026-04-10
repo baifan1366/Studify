@@ -11,7 +11,8 @@ import {
   Loader2,
   ChevronRight,
   Save,
-  Check
+  Check,
+  Brain
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideoQA, type VideoQAResponse } from '@/hooks/video/use-video-qa';
@@ -38,6 +39,7 @@ export function VideoQAPanel({
   const [answer, setAnswer] = useState<VideoQAResponse | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // New: AI mode state
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const videoQA = useVideoQA();
@@ -58,7 +60,8 @@ export function VideoQAPanel({
         lessonId,
         question: question.trim(),
         currentTime,
-        timeWindow: 30
+        timeWindow: 30,
+        aiMode // Pass AI mode to backend
       });
       setAnswer(result);
     } catch (error) {
@@ -135,13 +138,42 @@ export function VideoQAPanel({
             {t('ask_ai_about_video')}
           </h3>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-slate-700 rounded-full transition-colors"
-          aria-label="Close AI panel"
-        >
-          <X className="w-4 h-4 text-gray-300" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* AI Mode Selector */}
+          <div className="flex items-center gap-1 bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setAIMode('fast')}
+              disabled={videoQA.isPending}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'fast'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              title="Fast Mode"
+            >
+              ⚡
+            </button>
+            <button
+              onClick={() => setAIMode('thinking')}
+              disabled={videoQA.isPending}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'thinking'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              title="Thinking Mode"
+            >
+              🧠
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-700 rounded-full transition-colors"
+            aria-label="Close AI panel"
+          >
+            <X className="w-4 h-4 text-gray-300" />
+          </button>
+        </div>
       </div>
 
       {/* Current Time Context */}
@@ -234,7 +266,28 @@ export function VideoQAPanel({
                 <div className="text-sm font-medium text-green-300">
                   AI {t('answer')}:
                 </div>
+                {answer.metadata?.aiMode && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-green-700 text-green-200">
+                    {answer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : '⚡ Fast'}
+                  </span>
+                )}
               </div>
+              
+              {/* Thinking Process (New) */}
+              {answer.thinking && (
+                <details className="mb-3 bg-purple-900/30 border border-purple-600/50 rounded-lg overflow-hidden">
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-300 hover:bg-purple-900/50 transition-colors flex items-center gap-2">
+                    <Brain className="w-3 h-3" />
+                    <span>🧠 Thinking Process</span>
+                  </summary>
+                  <div className="px-3 py-2 text-xs text-gray-300 bg-slate-900/50 border-t border-purple-600/50">
+                    <pre className="whitespace-pre-wrap font-mono leading-relaxed">
+                      {answer.thinking}
+                    </pre>
+                  </div>
+                </details>
+              )}
+              
               <div className="text-sm text-white whitespace-pre-wrap break-words overflow-wrap-anywhere">
                 {answer.answer}
               </div>

@@ -6,12 +6,20 @@ import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { contextManager } from '@/lib/langChain/context-manager';
 import { z } from 'zod';
 
+// Get model based on user preference (fast or thinking mode)
+function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
+  return mode === 'thinking' 
+    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
+    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+}
+
 // Request validation schema
 const summaryRequestSchema = z.object({
   mode: z.enum(['search', 'post']),
   locale: z.enum(['en', 'zh']).default('en'),
   includeCitations: z.boolean().default(true),
   stream: z.boolean().default(false),
+  aiMode: z.enum(['fast', 'thinking']).default('fast'), // New: AI mode selection
   // Search mode specific
   query: z.string().optional(),
   resultIds: z.array(z.union([z.string(), z.number()])).optional(),
@@ -87,6 +95,7 @@ export async function POST(request: NextRequest) {
       mode,
       includeCitations,
       stream,
+      aiMode,
       query,
       resultIds,
       maxItems,
@@ -95,6 +104,9 @@ export async function POST(request: NextRequest) {
       includeComments,
       includeRelatedContext
     } = validatedData;
+
+    const selectedModel = getModel(aiMode);
+    console.log(`🤖 Using model: ${selectedModel} (${aiMode} mode)`);
 
     const supabase = await createClient();
     const startTime = Date.now();
@@ -221,7 +233,9 @@ export async function POST(request: NextRequest) {
       result = await aiSummarySystem.summarizeSearch(posts, query, {
         locale,
         includeCitations,
-        userId
+        userId,
+        model: selectedModel,
+        enableThinking: aiMode === 'thinking'
       });
 
       // Save to history
@@ -325,7 +339,9 @@ export async function POST(request: NextRequest) {
         includeComments,
         includeRelatedContext,
         comments,
-        userId
+        userId,
+        model: selectedModel,
+        enableThinking: aiMode === 'thinking'
       });
 
       // Save to history

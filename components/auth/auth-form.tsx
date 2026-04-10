@@ -166,9 +166,9 @@ export function AuthForm({
       const isMobile = isCapacitor();
 
       // Build the callback URL - always use /api/auth/callback
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      // IMPORTANT: Use window.location.origin for development to ensure correct URL
+      const siteUrl = window.location.origin;
       console.log('[GOOGLE LOGIN] Site URL:', siteUrl);
-      console.log('[GOOGLE LOGIN] process.env.NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);
       console.log('[GOOGLE LOGIN] window.location.origin:', window.location.origin);
       
       const callbackUrl = new URL(`${siteUrl}/api/auth/callback`);

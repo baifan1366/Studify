@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 export interface VideoQAResponse {
   success: boolean;
   answer: string;
+  thinking?: string; // New: thinking process (only in thinking mode)
   segments: Array<{
     startTime: number;
     endTime: number;
@@ -22,6 +23,10 @@ export interface VideoQAResponse {
     courseName?: string;
     moduleName?: string;
     lessonName?: string;
+  };
+  metadata?: {
+    model?: string;
+    aiMode?: string;
   };
 }
 
@@ -52,6 +57,7 @@ export interface VideoQARequest {
   question: string;
   currentTime: number;
   timeWindow?: number;
+  aiMode?: 'fast' | 'thinking'; // New: AI mode selection
 }
 
 // Hook for asking questions about video content

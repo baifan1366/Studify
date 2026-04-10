@@ -93,29 +93,31 @@ export function useAIQuickQAStream() {
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            let data;
             try {
-              const data = JSON.parse(line.slice(6));
-              
-              switch (data.type) {
-                case 'thinking':
-                case 'thinking_start':
-                  callbacks.onThinking?.(data.content);
-                  break;
-                case 'answer':
-                case 'answer_start':
-                  callbacks.onAnswer?.(data.content);
-                  break;
-                case 'reasoning_details':
-                  callbacks.onReasoningDetails?.(data.content);
-                  break;
-                case 'error':
-                  throw new Error(data.content);
-                case 'done':
-                  callbacks.onComplete?.();
-                  break;
-              }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e);
+              data = JSON.parse(line.slice(6));
+            } catch (parseError) {
+              console.warn('Failed to parse SSE JSON:', line.substring(0, 100));
+              continue;
+            }
+            
+            switch (data.type) {
+              case 'thinking':
+              case 'thinking_start':
+                callbacks.onThinking?.(data.content);
+                break;
+              case 'answer':
+              case 'answer_start':
+                callbacks.onAnswer?.(data.content);
+                break;
+              case 'reasoning_details':
+                callbacks.onReasoningDetails?.(data.content);
+                break;
+              case 'error':
+                throw new Error(data.content);
+              case 'done':
+                callbacks.onComplete?.();
+                break;
             }
           }
         }
@@ -272,29 +274,31 @@ export function useAISolveProblemStream() {
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            let data;
             try {
-              const data = JSON.parse(line.slice(6));
-              
-              switch (data.type) {
-                case 'thinking':
-                case 'thinking_start':
-                  callbacks.onThinking?.(data.content);
-                  break;
-                case 'answer':
-                case 'answer_start':
-                  callbacks.onAnswer?.(data.content);
-                  break;
-                case 'reasoning_details':
-                  callbacks.onReasoningDetails?.(data.content);
-                  break;
-                case 'error':
-                  throw new Error(data.content);
-                case 'done':
-                  callbacks.onComplete?.();
-                  break;
-              }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e);
+              data = JSON.parse(line.slice(6));
+            } catch (parseError) {
+              console.warn('Failed to parse SSE JSON:', line.substring(0, 100));
+              continue;
+            }
+            
+            switch (data.type) {
+              case 'thinking':
+              case 'thinking_start':
+                callbacks.onThinking?.(data.content);
+                break;
+              case 'answer':
+              case 'answer_start':
+                callbacks.onAnswer?.(data.content);
+                break;
+              case 'reasoning_details':
+                callbacks.onReasoningDetails?.(data.content);
+                break;
+              case 'error':
+                throw new Error(data.content);
+              case 'done':
+                callbacks.onComplete?.();
+                break;
             }
           }
         }
@@ -598,3 +602,6 @@ export function useAIState() {
     getResult: (feature: string) => results[feature]
   };
 }
+
+
+

@@ -104,201 +104,276 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Handle streaming response
+// Handle streaming response with retry logic
 async function handleStreamingResponse(
   question: string,
   context: Array<{role: 'user' | 'assistant'; content: string; reasoning_details?: any}> | undefined,
   aiMode: 'fast' | 'thinking',
   selectedModel: string
 ) {
-  try {
-    // Get API key
-    const { key: apiKey } = await apiKeyManager.getAvailableKey();
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-    // Build messages array
-    const messages: any[] = [];
+  // Try up to maxRetries times with different keys
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    let keyName: string | null = null;
     
-    // Add conversation history if available
-    if (context && context.length > 0) {
-      messages.push(...context.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        ...(msg.reasoning_details ? { reasoning_details: msg.reasoning_details } : {})
-      })));
-    }
-    
-    // Add current question
-    messages.push({
-      role: 'user',
-      content: question
-    });
+    try {
+      // Get API key
+      const { key: apiKey, name } = await apiKeyManager.getAvailableKey();
+      keyName = name;
+      
+      console.log(`🔑 Attempt ${attempt + 1}/${maxRetries} using key: ${keyName}`);
 
-    // Create a TransformStream for streaming response
-    const encoder = new TextEncoder();
-    const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+      // Build messages array
+      const messages: any[] = [];
+      
+      // Add conversation history if available
+      if (context && context.length > 0) {
+        messages.push(...context.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          ...(msg.reasoning_details ? { reasoning_details: msg.reasoning_details } : {})
+        })));
+      }
+      
+      // Add current question
+      messages.push({
+        role: 'user',
+        content: question
+      });
 
-    // Start streaming in background
-    (async () => {
-      try {
-        // Call OpenRouter API with streaming
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-            'X-Title': 'Studify'
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            messages: messages,
-            stream: true,
-            reasoning: aiMode === 'thinking' ? { enabled: true } : undefined,
-            temperature: aiMode === 'thinking' ? 0.3 : 0.5,
-          })
-        });
+      // Create a TransformStream for streaming response
+      const encoder = new TextEncoder();
+      const stream = new TransformStream();
+      const writer = stream.writable.getWriter();
 
-        if (!response.ok) {
-          throw new Error(`OpenRouter API error: ${response.status}`);
-        }
+      // Start streaming in background
+      (async () => {
+        try {
+          // Call OpenRouter API with streaming
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+              'X-Title': 'Studify'
+            },
+            body: JSON.stringify({
+              model: selectedModel,
+              messages: messages,
+              stream: true,
+              reasoning: aiMode === 'thinking' ? { enabled: true } : undefined,
+              temperature: aiMode === 'thinking' ? 0.3 : 0.5,
+            })
+          });
 
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-
-        if (!reader) {
-          throw new Error('No reader available');
-        }
-
-        let thinkingContent = '';
-        let answerContent = '';
-        let isInThinking = false;
-        let reasoningDetails: any = null;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) {
-            break;
-          }
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
-
-          for (const line of lines) {
-            const data = line.replace('data: ', '').trim();
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `OpenRouter API error: ${response.status}`;
             
-            if (data === '[DONE]') {
-              continue;
+            // Parse error details if available
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error?.message || errorMessage;
+            } catch (e) {
+              errorMessage = `${errorMessage} - ${response.statusText}`;
+            }
+            
+            // Add specific messages for common errors
+            if (response.status === 429) {
+              errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+            } else if (response.status === 401) {
+              errorMessage = 'API authentication failed. Please check your API key.';
+            } else if (response.status === 402) {
+              errorMessage = 'Insufficient credits. Please check your OpenRouter account.';
+            }
+            
+            const error = new Error(errorMessage);
+            
+            // Record failure
+            if (keyName) {
+              await apiKeyManager.recordUsage(keyName, false, error);
+            }
+            
+            throw error;
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+
+          if (!reader) {
+            throw new Error('No reader available');
+          }
+
+          let thinkingContent = '';
+          let answerContent = '';
+          let isInThinking = false;
+          let reasoningDetails: any = null;
+          let hasContent = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              break;
             }
 
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
 
-              if (!delta) continue;
+            for (const line of lines) {
+              const data = line.replace('data: ', '').trim();
+              
+              if (data === '[DONE]') {
+                continue;
+              }
 
-              // Handle reasoning content (thinking mode)
-              if (delta.reasoning_content) {
-                if (!isInThinking) {
-                  isInThinking = true;
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta;
+
+                if (!delta) continue;
+
+                hasContent = true;
+
+                // Handle reasoning content (thinking mode)
+                if (delta.reasoning_content) {
+                  if (!isInThinking) {
+                    isInThinking = true;
+                    await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+                      type: 'thinking_start',
+                      content: ''
+                    })}\n\n`));
+                  }
+                  
+                  thinkingContent += delta.reasoning_content;
                   await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-                    type: 'thinking_start',
-                    content: ''
+                    type: 'thinking',
+                    content: delta.reasoning_content
                   })}\n\n`));
                 }
-                
-                thinkingContent += delta.reasoning_content;
-                await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-                  type: 'thinking',
-                  content: delta.reasoning_content
-                })}\n\n`));
-              }
 
-              // Handle regular content (answer)
-              if (delta.content) {
-                if (isInThinking) {
-                  isInThinking = false;
+                // Handle regular content (answer)
+                if (delta.content) {
+                  if (isInThinking) {
+                    isInThinking = false;
+                    await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+                      type: 'answer_start',
+                      content: ''
+                    })}\n\n`));
+                  }
+                  
+                  answerContent += delta.content;
                   await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-                    type: 'answer_start',
-                    content: ''
+                    type: 'answer',
+                    content: delta.content
                   })}\n\n`));
                 }
-                
-                answerContent += delta.content;
-                await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-                  type: 'answer',
-                  content: delta.content
-                })}\n\n`));
-              }
 
-              // Capture reasoning_details for preserving in conversation
-              if (parsed.choices?.[0]?.message?.reasoning_details) {
-                reasoningDetails = parsed.choices[0].message.reasoning_details;
-              }
+                // Capture reasoning_details for preserving in conversation
+                if (parsed.choices?.[0]?.message?.reasoning_details) {
+                  reasoningDetails = parsed.choices[0].message.reasoning_details;
+                }
 
-            } catch (e) {
-              console.error('Failed to parse SSE chunk:', e);
+              } catch (e) {
+                console.error('Failed to parse SSE chunk:', e);
+              }
             }
           }
-        }
 
-        // Send reasoning_details if available (for conversation preservation)
-        if (reasoningDetails) {
+          // Send reasoning_details if available (for conversation preservation)
+          if (reasoningDetails) {
+            await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+              type: 'reasoning_details',
+              content: reasoningDetails
+            })}\n\n`));
+          }
+
+          // Send completion marker
           await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-            type: 'reasoning_details',
-            content: reasoningDetails
+            type: 'done',
+            content: '',
+            metadata: {
+              thinkingLength: thinkingContent.length,
+              answerLength: answerContent.length,
+              hasReasoningDetails: !!reasoningDetails
+            }
           })}\n\n`));
-        }
 
-        // Send completion marker
-        await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-          type: 'done',
-          content: '',
-          metadata: {
+          console.log('✅ Streaming completed', {
             thinkingLength: thinkingContent.length,
             answerLength: answerContent.length,
-            hasReasoningDetails: !!reasoningDetails
+            hasReasoningDetails: !!reasoningDetails,
+            keyUsed: keyName
+          });
+
+          // Record success
+          if (keyName && hasContent) {
+            await apiKeyManager.recordUsage(keyName, true);
           }
-        })}\n\n`));
 
-        console.log('✅ Streaming completed', {
-          thinkingLength: thinkingContent.length,
-          answerLength: answerContent.length,
-          hasReasoningDetails: !!reasoningDetails
-        });
+        } catch (error) {
+          console.error('❌ Streaming error:', error);
+          
+          // Record failure
+          if (keyName) {
+            await apiKeyManager.recordUsage(keyName, false, error instanceof Error ? error : new Error(String(error)));
+          }
+          
+          await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+            type: 'error',
+            content: error instanceof Error ? error.message : 'Unknown error'
+          })}\n\n`));
+        } finally {
+          await writer.close();
+        }
+      })();
 
-      } catch (error) {
-        console.error('❌ Streaming error:', error);
-        await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-          type: 'error',
-          content: error instanceof Error ? error.message : 'Unknown error'
-        })}\n\n`));
-      } finally {
-        await writer.close();
+      // Return streaming response
+      return new Response(stream.readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`❌ Attempt ${attempt + 1} failed with key ${keyName}:`, lastError.message);
+      
+      // Record failure
+      if (keyName) {
+        await apiKeyManager.recordUsage(keyName, false, lastError);
       }
-    })();
-
-    // Return streaming response
-    return new Response(stream.readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
-
-  } catch (error) {
-    console.error('❌ Stream setup error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Stream setup failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
+      
+      // If this is a rate limit error and we have more retries, continue
+      if (lastError.message.includes('Rate limit') && attempt < maxRetries - 1) {
+        console.log(`🔄 Retrying with different key...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        continue;
       }
-    );
+      
+      // For other errors or last attempt, throw
+      if (attempt === maxRetries - 1) {
+        break;
+      }
+    }
   }
+
+  // All retries failed
+  console.error(`❌ All ${maxRetries} attempts failed. Last error:`, lastError?.message);
+  return new Response(
+    JSON.stringify({ 
+      error: 'Stream setup failed after multiple retries',
+      message: lastError?.message || 'Unknown error',
+      attempts: maxRetries
+    }),
+    { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
 }

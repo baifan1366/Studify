@@ -436,6 +436,7 @@ Please format your response as JSON:
       maxContext?: number;
       includeSourceReferences?: boolean;
       confidenceThreshold?: number;
+      model?: string;
     } = {}
   ): Promise<{
     answer: string;
@@ -447,7 +448,8 @@ Please format your response as JSON:
       contentTypes, 
       maxContext = 5, 
       includeSourceReferences = true,
-      confidenceThreshold = 0.7 
+      confidenceThreshold = 0.7,
+      model
     } = options;
 
     // Retrieve relevant context
@@ -475,9 +477,12 @@ Please format your response as JSON:
 }`;
 
       try {
+        const selectedModel = model || process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free';
+        console.log(`🎯 answerQuestion using model: ${selectedModel}`);
+        
         const llm = await getAnalyticalLLM({
           temperature: 0.3,
-          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+          model: selectedModel
         });
         
         const response = await llm.invoke([new HumanMessage(fallbackPrompt)]);
@@ -526,9 +531,11 @@ Please respond with JSON:
 }`;
 
     try {
+      const selectedModel = model || process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free';
+      
       const llm = await getAnalyticalLLM({
         temperature: 0.2,
-        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+        model: selectedModel
       });
       
       const relevanceResponse = await llm.invoke([new HumanMessage(relevanceCheckPrompt)]);
@@ -700,6 +707,7 @@ export async function answerQuestion(question: string, options?: {
   contentTypes?: string[];
   maxContext?: number;
   includeSourceReferences?: boolean;
+  model?: string;
 }) {
   return langchain.answerQuestion(question, options);
 }

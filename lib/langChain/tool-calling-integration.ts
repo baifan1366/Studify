@@ -697,8 +697,11 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         console.log(`🤖 [${Date.now()}] Step 2: Starting fallback LLM answer...`);
         
         try {
+          const selectedModel = options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
+          console.log(`🎯 [${Date.now()}] Using model for fallback: ${selectedModel}`);
+          
           const llm = await getLLM({
-            model: options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+            model: selectedModel,
             temperature: 0.3,
           });
           
@@ -800,6 +803,7 @@ Provide the best possible answer combining both sources.`;
                 question: enhancedPrompt,
                 contentTypes: options.contentTypes,
                 includeSourceReferences: true,
+                model: options.model // Pass the model parameter
               }),
               enhanceTimeout
             ]);
@@ -827,14 +831,14 @@ Provide the best possible answer combining both sources.`;
         }
       }
 
-      // Return fallback answer (we always have this)
+      // Return fallback answer with search sources
       console.log(`✅ [${Date.now()}] Returning fallback answer with ${structuredSources.length} sources`);
       return {
         answer: fallbackAnswer,
         sources: structuredSources, // Return structured sources even with fallback
         analysis: options.includeAnalysis ? fallbackAnswer : undefined,
         toolsUsed: searchCompleted ? [...toolsUsed, "direct_llm"] : ["direct_llm"],
-        confidence: searchCompleted ? 0.85 : 0.75,
+        confidence: searchCompleted && structuredSources.length > 0 ? 0.85 : 0.75,
         timings,
       };
 

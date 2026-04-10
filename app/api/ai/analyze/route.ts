@@ -95,9 +95,7 @@ export async function POST(request: NextRequest) {
         imageUrl,
         learningGoal,
         currentLevel,
-        timeConstraint,
-        model: selectedModel,
-        enableThinking: aiMode === 'thinking'
+        timeConstraint
       }
     );
 

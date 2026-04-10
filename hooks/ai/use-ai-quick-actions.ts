@@ -35,6 +35,107 @@ async function saveToHistory({
   }
 }
 
+// AI即问即答 Hook with streaming support
+export function useAIQuickQAStream() {
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const streamQA = async (
+    params: {
+      question: string;
+      context?: Array<{role: string; content: string; reasoning_details?: any}>;
+      aiMode?: 'fast' | 'thinking';
+    },
+    callbacks: {
+      onThinking?: (chunk: string) => void;
+      onAnswer?: (chunk: string) => void;
+      onReasoningDetails?: (details: any) => void;
+      onComplete?: () => void;
+      onError?: (error: Error) => void;
+    }
+  ) => {
+    setIsStreaming(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/ai/qa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: params.question,
+          context: params.context,
+          aiMode: params.aiMode || 'fast',
+          stream: true, // Enable streaming
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Stream request failed');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          callbacks.onComplete?.();
+          break;
+        }
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (data.type) {
+                case 'thinking':
+                case 'thinking_start':
+                  callbacks.onThinking?.(data.content);
+                  break;
+                case 'answer':
+                case 'answer_start':
+                  callbacks.onAnswer?.(data.content);
+                  break;
+                case 'reasoning_details':
+                  callbacks.onReasoningDetails?.(data.content);
+                  break;
+                case 'error':
+                  throw new Error(data.content);
+                case 'done':
+                  callbacks.onComplete?.();
+                  break;
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      setError(error);
+      callbacks.onError?.(error);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  return {
+    streamQA,
+    isStreaming,
+    error,
+  };
+}
+
 // AI即问即答 Hook
 export function useAIQuickQA() {
   const { toast } = useToast();
@@ -114,7 +215,107 @@ export function useAIQuickQA() {
   });
 }
 
-// 上传题目解题 Hook
+// 上传题目解题 Hook with streaming support
+export function useAISolveProblemStream() {
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const streamSolveProblem = async (
+    params: {
+      file: File;
+      aiMode?: 'fast' | 'thinking';
+    },
+    callbacks: {
+      onThinking?: (chunk: string) => void;
+      onAnswer?: (chunk: string) => void;
+      onReasoningDetails?: (details: any) => void;
+      onComplete?: () => void;
+      onError?: (error: Error) => void;
+    }
+  ) => {
+    setIsStreaming(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', params.file);
+      formData.append('analysisType', 'problem_solving');
+      formData.append('aiMode', params.aiMode || 'fast');
+      formData.append('stream', 'true'); // Enable streaming
+
+      const response = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Stream request failed');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          callbacks.onComplete?.();
+          break;
+        }
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (data.type) {
+                case 'thinking':
+                case 'thinking_start':
+                  callbacks.onThinking?.(data.content);
+                  break;
+                case 'answer':
+                case 'answer_start':
+                  callbacks.onAnswer?.(data.content);
+                  break;
+                case 'reasoning_details':
+                  callbacks.onReasoningDetails?.(data.content);
+                  break;
+                case 'error':
+                  throw new Error(data.content);
+                case 'done':
+                  callbacks.onComplete?.();
+                  break;
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      setError(error);
+      callbacks.onError?.(error);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  return {
+    streamSolveProblem,
+    isStreaming,
+    error,
+  };
+}
+
+// 上传题目解题 Hook (non-streaming, for backward compatibility)
 export function useAISolveProblem() {
   const { toast } = useToast();
   const t = useTranslations('AIAssistant.toast');

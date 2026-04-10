@@ -3,7 +3,9 @@ import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 import crypto from 'crypto';
 import { authenticator } from 'otplib';
-import * as QRCode from 'qrcode';
+
+// Use require for qrcode to avoid type resolution issues during build
+const QRCode = require('qrcode');
 
 // Generate TOTP secret using otplib
 function generateSecret(): string {
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate QR code
-    const qrCodeDataUrl = await QRCode.toDataURL(totpUrl);
+    const qrCodeDataUrl = await QRCode.toDataURL(totpUrl) as string;
 
     return NextResponse.json({
       secret,

@@ -1186,6 +1186,7 @@ Provide a clear, helpful answer using your knowledge.`;
       learningGoal?: string;
       currentLevel?: string;
       timeConstraint?: string;
+      model?: string; // Allow custom model selection
     } = {}
   ): Promise<{
     analysis: any;
@@ -1197,14 +1198,19 @@ Provide a clear, helpful answer using your knowledge.`;
     const isImageAnalysis =
       analysisType === "problem_solving" && content.startsWith("data:image/");
 
+    // Use custom model if provided, otherwise use default logic
+    const selectedModel = options.model || (
+      isImageAnalysis
+        ? process.env.OPEN_ROUTER_IMAGE_MODEL ||
+          "moonshotai/kimi-vl-a3b-thinking:free"
+        : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free"
+    );
+
     const config: ToolCallingConfig = {
       toolCategories: ["CONTENT_ANALYSIS", "RECOMMENDATIONS"],
       userId: options.userId,
       verbose: true, // Enable verbose logging
-      model: isImageAnalysis
-        ? process.env.OPEN_ROUTER_IMAGE_MODEL ||
-          "moonshotai/kimi-vl-a3b-thinking:free"
-        : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free", // 图片分析使用Kimi VL，其他使用DeepSeek
+      model: selectedModel,
       systemPrompt: `${DEFAULT_SYSTEM_PROMPT}
 
 For course content analysis:

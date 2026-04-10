@@ -45,6 +45,7 @@ export function useAIQuickQA() {
       question: string;
       context?: Array<{role: string; content: string}>;
       conversationId?: string;
+      aiMode?: 'fast' | 'thinking';
     }) => {
       const startTime = Date.now();
       
@@ -59,6 +60,7 @@ export function useAIQuickQA() {
             question: params.question,
             context: params.context,
             conversationId: params.conversationId,
+            aiMode: params.aiMode || 'fast',
             contentTypes: ['course', 'lesson', 'post', 'profile'],
             includeAnalysis: true
           };
@@ -118,12 +120,17 @@ export function useAISolveProblem() {
   const t = useTranslations('AIAssistant.toast');
 
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (params: File | { file: File; aiMode?: 'fast' | 'thinking' }) => {
       const startTime = Date.now();
+      
+      // Support both File and object parameters
+      const file = params instanceof File ? params : params.file;
+      const aiMode = params instanceof File ? 'fast' : (params.aiMode || 'fast');
       
       const formData = new FormData();
       formData.append('image', file);
       formData.append('analysisType', 'problem_solving');
+      formData.append('aiMode', aiMode);
 
       const response = await fetch('/api/ai/analyze', {
         method: 'POST',
@@ -140,10 +147,10 @@ export function useAISolveProblem() {
       // Save to history
       await saveToHistory({
         featureType: 'solve_problem',
-        inputData: { fileName: file.name, fileSize: file.size, problemType: 'image_upload' },
+        inputData: { fileName: file.name, fileSize: file.size, problemType: 'image_upload', aiMode },
         result,
         executionTimeMs: executionTime,
-        metadata: { imageAnalysis: true }
+        metadata: { imageAnalysis: true, aiMode }
       });
 
       return result;
@@ -178,8 +185,12 @@ export function useAISmartNotes() {
   const t = useTranslations('AIAssistant.toast');
 
   return useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async (params: string | { content: string; aiMode?: 'fast' | 'thinking' }) => {
       const startTime = Date.now();
+      
+      // Support both string and object parameters
+      const content = typeof params === 'string' ? params : params.content;
+      const aiMode = typeof params === 'string' ? 'fast' : (params.aiMode || 'fast');
       
       const response = await fetch('/api/ai/analyze', {
         method: 'POST',
@@ -187,7 +198,8 @@ export function useAISmartNotes() {
         body: JSON.stringify({
           content,
           analysisType: 'notes',
-          includeRecommendations: true
+          includeRecommendations: true,
+          aiMode
         })
       });
 
@@ -201,9 +213,10 @@ export function useAISmartNotes() {
       // Save to history
       await saveToHistory({
         featureType: 'smart_notes',
-        inputData: { content: content.substring(0, 200) + '...', contentLength: content.length },
+        inputData: { content: content.substring(0, 200) + '...', contentLength: content.length, aiMode },
         result,
-        executionTimeMs: executionTime
+        executionTimeMs: executionTime,
+        metadata: { aiMode }
       });
 
       return result;
@@ -245,8 +258,11 @@ export function useAILearningPath() {
       learning_goal: string;
       current_level?: string;
       time_constraint?: string;
+      aiMode?: 'fast' | 'thinking';
     }) => {
       const startTime = Date.now();
+      
+      const aiMode = params.aiMode || 'fast';
       
       // 构建详细的学习路径生成内容
       const learningPathContent = `Learning Goal: ${params.learning_goal}
@@ -264,7 +280,8 @@ Please create a comprehensive personalized learning roadmap.`;
           includeRecommendations: true,
           learningGoal: params.learning_goal,
           currentLevel: params.current_level,
-          timeConstraint: params.time_constraint
+          timeConstraint: params.time_constraint,
+          aiMode
         })
       });
 
@@ -281,7 +298,7 @@ Please create a comprehensive personalized learning roadmap.`;
         inputData: params,
         result,
         executionTimeMs: executionTime,
-        metadata: { personalized: true }
+        metadata: { personalized: true, aiMode }
       });
 
       return result;

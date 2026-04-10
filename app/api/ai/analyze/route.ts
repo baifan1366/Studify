@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
         imageUrl,
         learningGoal,
         currentLevel,
-        timeConstraint
+        timeConstraint,
+        model: selectedModel // Pass the selected model based on aiMode
       }
     );
 
@@ -122,6 +123,8 @@ export async function POST(request: NextRequest) {
       metadata: {
         processingTimeMs: processingTime,
         includeRecommendations,
+        aiMode,
+        model: selectedModel,
         timestamp: new Date().toISOString(),
         userId: authResult.payload.sub,
         imageProcessed: !!imageUrl

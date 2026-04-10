@@ -630,6 +630,7 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
   const quickQAMutation = useAIQuickQA();
   const t = useTranslations('AIAssistant');
   const { toast } = useToast();
@@ -719,7 +720,8 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
       const response = await quickQAMutation.mutateAsync({
         question: userMessage.content,
         context: conversationContext, // 传递上下文
-        conversationId: messages.length > 0 ? `chat_${Date.now()}` : undefined
+        conversationId: messages.length > 0 ? `chat_${Date.now()}` : undefined,
+        aiMode // Pass AI mode to backend
       });
       
       // 模拟流式输出
@@ -872,6 +874,35 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
 
       {/* 输入区域 */}
       <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700/30 p-3">
+        {/* AI Mode Toggle */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-slate-600 dark:text-slate-400">AI Mode:</span>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setAIMode('fast')}
+              disabled={isTyping}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'fast'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              ⚡ Fast
+            </button>
+            <button
+              onClick={() => setAIMode('thinking')}
+              disabled={isTyping}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'thinking'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              🧠 Thinking
+            </button>
+          </div>
+        </div>
+        
         <div className="flex items-end space-x-2">
           <div className="flex-1">
             <Textarea
@@ -909,6 +940,7 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
   const solveProblemMutation = useAISolveProblem();
   const t = useTranslations('AIAssistant');
   const { toast } = useToast();
@@ -1070,8 +1102,8 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
     setUploadError(null);
     
     try {
-      console.log('🔄 Starting problem solving for file:', file.name);
-      const response = await solveProblemMutation.mutateAsync(file);
+      console.log('🔄 Starting problem solving for file:', file.name, `[${aiMode} mode]`);
+      const response = await solveProblemMutation.mutateAsync({ file, aiMode });
       console.log('✅ Problem solving response:', response);
       
       console.log('📋 Full Problem Solving API response:', response);
@@ -1227,6 +1259,35 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
           </div>
         )}
 
+        {/* AI Mode Toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-600 dark:text-slate-400">AI Mode:</span>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setAIMode('fast')}
+              disabled={solveProblemMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                aiMode === 'fast'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              ⚡ Fast
+            </button>
+            <button
+              onClick={() => setAIMode('thinking')}
+              disabled={solveProblemMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                aiMode === 'thinking'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              🧠 Thinking
+            </button>
+          </div>
+        </div>
+
         {/* 按钮组 */}
         <div className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -1248,6 +1309,7 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
 
 function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: (data: any) => void }) {
   const [content, setContent] = useState('');
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
   const smartNotesMutation = useAISmartNotes();
   const t = useTranslations('AIAssistant');
 
@@ -1255,8 +1317,8 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
     if (!content.trim()) return;
     
     try {
-      console.log('🔄 Starting smart notes generation for content length:', content.length);
-      const response = await smartNotesMutation.mutateAsync(content);
+      console.log('🔄 Starting smart notes generation for content length:', content.length, `[${aiMode} mode]`);
+      const response = await smartNotesMutation.mutateAsync({ content, aiMode });
       console.log('✅ Smart notes response:', response);
       
       console.log('📋 Full API response:', response);
@@ -1332,6 +1394,35 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
           <Badge variant="secondary" className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">{t('features.smart_notes.language_support')}</Badge>
         </div>
         
+        {/* AI Mode Toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-600 dark:text-slate-400">AI Mode:</span>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setAIMode('fast')}
+              disabled={smartNotesMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                aiMode === 'fast'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              ⚡ Fast
+            </button>
+            <button
+              onClick={() => setAIMode('thinking')}
+              disabled={smartNotesMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                aiMode === 'thinking'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              🧠 Thinking
+            </button>
+          </div>
+        </div>
+        
         <div className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">{t('common.cancel')}</Button>
           <Button 
@@ -1353,6 +1444,7 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
   const [level, setLevel] = useState('');
   const [timeConstraint, setTimeConstraint] = useState('');
   const [submittedParams, setSubmittedParams] = useState<{goal: string; level: string; timeConstraint: string} | null>(null);
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
   const learningPathMutation = useAILearningPath();
   const t = useTranslations('AIAssistant');
 
@@ -1367,11 +1459,12 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
     });
     
     try {
-      console.log('🔄 Starting learning path generation for goal:', goal);
+      console.log('🔄 Starting learning path generation for goal:', goal, `[${aiMode} mode]`);
       const response = await learningPathMutation.mutateAsync({
         learning_goal: goal,
         current_level: level,
-        time_constraint: timeConstraint
+        time_constraint: timeConstraint,
+        aiMode
       });
       console.log('✅ Learning path response:', response);
       
@@ -1475,6 +1568,35 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
             <option value="3months" className="bg-slate-50 dark:bg-slate-800">{t('features.learning_path.timeframes.three_months')}</option>
             <option value="flexible" className="bg-slate-50 dark:bg-slate-800">{t('features.learning_path.timeframes.flexible')}</option>
           </select>
+        </div>
+        
+        {/* AI Mode Toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-600 dark:text-slate-400">AI Mode:</span>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setAIMode('fast')}
+              disabled={learningPathMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                aiMode === 'fast'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              ⚡ Fast
+            </button>
+            <button
+              onClick={() => setAIMode('thinking')}
+              disabled={learningPathMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
+                aiMode === 'thinking'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              🧠 Thinking
+            </button>
+          </div>
         </div>
         
         <div className="flex justify-end space-x-3">

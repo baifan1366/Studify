@@ -9,6 +9,7 @@ const qaRequestSchema = z.object({
   contentTypes: z.array(z.string()).optional(),
   includeAnalysis: z.boolean().default(false),
   maxContext: z.number().min(1).max(20).default(5),
+  aiMode: z.enum(['fast', 'thinking']).default('fast'),
   // Support for conversation context
   context: z.array(z.object({
     role: z.enum(['user', 'assistant']),
@@ -30,9 +31,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = qaRequestSchema.parse(body);
 
-    const { question, contentTypes, includeAnalysis, maxContext, context, conversationId } = validatedData;
+    const { question, contentTypes, includeAnalysis, maxContext, context, conversationId, aiMode } = validatedData;
 
-    console.log(`❓ Educational Q&A request from user ${authResult.payload.sub}: "${question.substring(0, 100)}..." ${context ? `(with ${context.length} context messages)` : '(no context)'}`);
+    // Get model based on AI mode
+    const selectedModel = aiMode === 'thinking'
+      ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
+      : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+
+    console.log(`❓ Educational Q&A request from user ${authResult.payload.sub}: "${question.substring(0, 100)}..." ${context ? `(with ${context.length} context messages)` : '(no context)'} [${aiMode} mode - ${selectedModel}]`);
 
     // Execute educational Q&A with tools
     const startTime = Date.now();
@@ -41,7 +47,8 @@ export async function POST(request: NextRequest) {
       contentTypes,
       includeAnalysis,
       conversationContext: context,
-      conversationId
+      conversationId,
+      model: selectedModel
     });
 
     const processingTime = Date.now() - startTime;
@@ -60,6 +67,8 @@ export async function POST(request: NextRequest) {
         processingTimeMs: processingTime,
         contentTypes: contentTypes || ['all'],
         includeAnalysis,
+        aiMode,
+        model: selectedModel,
         timestamp: new Date().toISOString(),
         userId: authResult.payload.sub
       }

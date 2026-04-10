@@ -3,7 +3,7 @@ import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 import crypto from 'crypto';
 import { authenticator } from 'otplib';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 
 // Generate TOTP secret using otplib
 function generateSecret(): string {

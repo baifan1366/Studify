@@ -268,36 +268,8 @@ IMPORTANT RULES:
     enabledTools: ['get_course_data', 'search'],
     temperature: 0.8, // Higher creativity for quiz generation
     model,
-    enableThinking,
-    useStructuredOutput: true, // Enable structured output for reliable JSON
-    responseSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Quiz title' },
-        description: { type: 'string', description: 'Quiz description' },
-        total_points: { type: 'number', description: 'Total points' },
-        estimated_time_minutes: { type: 'number', description: 'Estimated time in minutes' },
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              question_text: { type: 'string' },
-              question_type: { type: 'string' },
-              options: { type: 'array', items: { type: 'string' } },
-              correct_answer: { type: ['string', 'boolean'] },
-              explanation: { type: 'string' },
-              points: { type: 'number' },
-              difficulty: { type: 'number' },
-              position: { type: 'number' }
-            },
-            required: ['id', 'question_text', 'question_type', 'correct_answer', 'points', 'difficulty', 'position']
-          }
-        }
-      },
-      required: ['title', 'description', 'total_points', 'estimated_time_minutes', 'questions']
-    }
+    enableReasoning: enableThinking,
+    userId
   });
 
   await agent.initialize();

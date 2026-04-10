@@ -126,8 +126,7 @@ export async function POST(request: NextRequest) {
       const result = await enhancedAIExecutor.educationalQA(directQuestion, {
         userId,
         includeAnalysis: true,
-        model: selectedModel,
-        enableThinking: aiMode === 'thinking'
+        model: selectedModel
       });
 
       const answer = result.answer;
@@ -149,7 +148,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         answer: answer.trim(),
-        thinking: result.thinking, // Include thinking process if available
         isExternalVideo: true,
         segments: [],
         timeContext: {
@@ -243,7 +241,6 @@ ${question}
         includeAnalysis: true,
         contentTypes: ['video_segment', 'lesson', 'note'], // 优先搜索视频片段
         model: selectedModel,
-        enableThinking: aiMode === 'thinking',
         videoContext: {
           lessonId,
           attachmentId,

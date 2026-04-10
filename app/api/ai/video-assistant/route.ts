@@ -174,7 +174,6 @@ export async function POST(request: NextRequest) {
               conversationContext: conversationHistory,
               contentTypes,
               model: modelToUse,
-              enableThinking: aiMode === 'thinking',
               // Pass video context separately so the tool can use it properly
               videoContext: videoContext.currentLessonId
                 ? {
@@ -194,14 +193,6 @@ export async function POST(request: NextRequest) {
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({
                     type: "token",
-                    content: chunk.content
-                  })}\n\n`)
-                );
-              } else if (chunk.type === 'thinking' && chunk.content) {
-                // Send thinking process (only in thinking mode)
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({
-                    type: "thinking",
                     content: chunk.content
                   })}\n\n`)
                 );
@@ -291,7 +282,6 @@ export async function POST(request: NextRequest) {
       conversationContext: conversationHistory,
       contentTypes,
       model: modelToUse,
-      enableThinking: aiMode === 'thinking',
       // Pass video context separately so the tool can use it properly
       videoContext: videoContext.currentLessonId
         ? {
@@ -319,7 +309,6 @@ export async function POST(request: NextRequest) {
         success: true,
         question,
         answer: result.answer,
-        thinking: result.thinking, // Include thinking process if available
         sources: formattedSources,
         confidence: result.confidence || 0.85,
         webSearchUsed: result.toolsUsed?.includes("search") || false,

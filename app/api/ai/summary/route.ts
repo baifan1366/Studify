@@ -233,9 +233,7 @@ export async function POST(request: NextRequest) {
       result = await aiSummarySystem.summarizeSearch(posts, query, {
         locale,
         includeCitations,
-        userId,
-        model: selectedModel,
-        enableThinking: aiMode === 'thinking'
+        userId
       });
 
       // Save to history
@@ -339,9 +337,7 @@ export async function POST(request: NextRequest) {
         includeComments,
         includeRelatedContext,
         comments,
-        userId,
-        model: selectedModel,
-        enableThinking: aiMode === 'thinking'
+        userId
       });
 
       // Save to history

@@ -172,6 +172,63 @@ async function handleStreamingAnalysis(
   const maxRetries = 3;
   let lastError: Error | null = null;
 
+  // Build prompt based on analysis type (once, outside retry loop)
+  let prompt = '';
+  const isImageAnalysis = content.startsWith('data:image');
+
+  switch (analysisType) {
+    case 'problem_solving':
+      prompt = isImageAnalysis
+        ? 'Analyze this image and solve the problem shown. Provide a step-by-step solution with clear explanations.'
+        : `Solve this problem step by step:\n\n${content}`;
+      break;
+    case 'summary':
+      prompt = `Provide a concise summary of the following content:\n\n${content}`;
+      break;
+    case 'topics':
+      prompt = `Extract the main topics from the following content:\n\n${content}`;
+      break;
+    case 'questions':
+      prompt = `Generate relevant questions based on the following content:\n\n${content}`;
+      break;
+    case 'notes':
+      prompt = `Create structured notes from the following content:\n\n${content}`;
+      break;
+    case 'learning_path':
+      prompt = `Create a learning path based on the following content:\n\n${content}`;
+      break;
+    default:
+      prompt = content;
+  }
+
+  // Build messages array once (outside retry loop)
+  const messages: any[] = [];
+  
+  if (isImageAnalysis) {
+    // For image analysis, use vision model format
+    messages.push({
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: prompt
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: content
+          }
+        }
+      ]
+    });
+  } else {
+    // For text analysis
+    messages.push({
+      role: 'user',
+      content: prompt
+    });
+  }
+
   // Try up to maxRetries times with different keys
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     let keyName: string | null = null;
@@ -183,62 +240,54 @@ async function handleStreamingAnalysis(
       
       console.log(`🔑 Attempt ${attempt + 1}/${maxRetries} using key: ${keyName}`);
 
-      // Build prompt based on analysis type
-      let prompt = '';
-      const isImageAnalysis = content.startsWith('data:image');
-    
-      switch (analysisType) {
-        case 'problem_solving':
-          prompt = isImageAnalysis
-            ? 'Analyze this image and solve the problem shown. Provide a step-by-step solution with clear explanations.'
-            : `Solve this problem step by step:\n\n${content}`;
-          break;
-        case 'summary':
-          prompt = `Provide a concise summary of the following content:\n\n${content}`;
-          break;
-        case 'topics':
-          prompt = `Extract the main topics from the following content:\n\n${content}`;
-          break;
-        case 'questions':
-          prompt = `Generate relevant questions based on the following content:\n\n${content}`;
-          break;
-        case 'notes':
-          prompt = `Create structured notes from the following content:\n\n${content}`;
-          break;
-        case 'learning_path':
-          prompt = `Create a learning path based on the following content:\n\n${content}`;
-          break;
-        default:
-          prompt = content;
+      // Test the API key with a preflight request (non-streaming)
+      const preflightResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'Studify'
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1,
+          stream: false
+        })
+      });
+
+      if (!preflightResponse.ok) {
+        const errorText = await preflightResponse.text();
+        let errorMessage = `OpenRouter API error: ${preflightResponse.status}`;
+        
+        // Parse error details if available
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error?.message || errorMessage;
+        } catch (e) {
+          errorMessage = `${errorMessage} - ${preflightResponse.statusText}`;
+        }
+        
+        // Add specific messages for common errors
+        if (preflightResponse.status === 429) {
+          errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (preflightResponse.status === 401) {
+          errorMessage = 'API authentication failed. Please check your API key.';
+        } else if (preflightResponse.status === 402) {
+          errorMessage = 'Insufficient credits. Please check your OpenRouter account.';
+        }
+        
+        const error = new Error(errorMessage);
+        
+        // Record failure
+        await apiKeyManager.recordUsage(keyName, false, error);
+        
+        throw error;
       }
 
-      // Build messages array
-      const messages: any[] = [];
-      
-      if (isImageAnalysis) {
-        // For image analysis, use vision model format
-        messages.push({
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: prompt
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: content
-              }
-            }
-          ]
-        });
-      } else {
-        // For text analysis
-        messages.push({
-          role: 'user',
-          content: prompt
-        });
-      }
+      // Preflight succeeded, now start actual streaming
+      console.log(`✅ Preflight check passed for key ${keyName}, starting stream...`);
 
       // Create a TransformStream for streaming response
       const encoder = new TextEncoder();
@@ -454,7 +503,7 @@ async function handleStreamingAnalysis(
         continue;
       }
       
-      // For other errors or last attempt, throw
+      // For other errors or last attempt, break
       if (attempt === maxRetries - 1) {
         break;
       }

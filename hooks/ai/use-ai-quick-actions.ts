@@ -35,6 +35,57 @@ async function saveToHistory({
   }
 }
 
+// Helper function to process SSE messages
+function processSSELine(
+  line: string,
+  callbacks: {
+    onThinking?: (chunk: string) => void;
+    onAnswer?: (chunk: string) => void;
+    onReasoningDetails?: (details: any) => void;
+    onComplete?: () => void;
+  }
+): boolean {
+  // Skip empty lines and SSE comments (used for flushing)
+  if (!line.trim() || line.startsWith(':')) return false;
+  
+  if (line.startsWith('data: ')) {
+    const dataStr = line.slice(6).trim();
+    
+    if (dataStr === '[DONE]') {
+      return false;
+    }
+    
+    try {
+      const data = JSON.parse(dataStr);
+      
+      switch (data.type) {
+        case 'thinking':
+        case 'thinking_start':
+          callbacks.onThinking?.(data.content);
+          break;
+        case 'answer':
+        case 'answer_start':
+          callbacks.onAnswer?.(data.content);
+          break;
+        case 'reasoning_details':
+          callbacks.onReasoningDetails?.(data.content);
+          break;
+        case 'error':
+          throw new Error(data.content);
+        case 'done':
+          callbacks.onComplete?.();
+          break;
+      }
+      return true;
+    } catch (parseError) {
+      // Skip malformed JSON (likely incomplete)
+      console.debug('Skipping incomplete SSE data');
+      return false;
+    }
+  }
+  return false;
+}
+
 // AI即问即答 Hook with streaming support
 export function useAIQuickQAStream() {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -60,7 +111,11 @@ export function useAIQuickQAStream() {
     try {
       const response = await fetch('/api/ai/qa', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify({
           question: params.question,
           context: params.context,
@@ -80,6 +135,8 @@ export function useAIQuickQAStream() {
         throw new Error('No reader available');
       }
 
+      let buffer = ''; // Buffer for incomplete SSE data
+
       while (true) {
         const { done, value } = await reader.read();
         
@@ -88,36 +145,57 @@ export function useAIQuickQAStream() {
           break;
         }
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        // Decode chunk and add to buffer
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            let data;
-            try {
-              data = JSON.parse(line.slice(6));
-            } catch (parseError) {
-              console.warn('Failed to parse SSE JSON:', line.substring(0, 100));
-              continue;
-            }
+        // Split by double newlines (SSE message separator)
+        const messages = buffer.split('\n\n');
+        
+        // Keep the last incomplete message in buffer
+        buffer = messages.pop() || '';
+
+        // Process complete messages
+        for (const message of messages) {
+          const lines = message.split('\n');
+          
+          for (const line of lines) {
+            // Skip empty lines and SSE comments (used for flushing)
+            if (!line.trim() || line.startsWith(':')) continue;
             
-            switch (data.type) {
-              case 'thinking':
-              case 'thinking_start':
-                callbacks.onThinking?.(data.content);
-                break;
-              case 'answer':
-              case 'answer_start':
-                callbacks.onAnswer?.(data.content);
-                break;
-              case 'reasoning_details':
-                callbacks.onReasoningDetails?.(data.content);
-                break;
-              case 'error':
-                throw new Error(data.content);
-              case 'done':
-                callbacks.onComplete?.();
-                break;
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              
+              if (dataStr === '[DONE]') {
+                continue;
+              }
+              
+              try {
+                const data = JSON.parse(dataStr);
+                
+                switch (data.type) {
+                  case 'thinking':
+                  case 'thinking_start':
+                    callbacks.onThinking?.(data.content);
+                    break;
+                  case 'answer':
+                  case 'answer_start':
+                    callbacks.onAnswer?.(data.content);
+                    break;
+                  case 'reasoning_details':
+                    callbacks.onReasoningDetails?.(data.content);
+                    break;
+                  case 'error':
+                    throw new Error(data.content);
+                  case 'done':
+                    callbacks.onComplete?.();
+                    break;
+                }
+              } catch (parseError) {
+                // Skip malformed JSON (likely incomplete)
+                console.debug('Skipping incomplete SSE data');
+                continue;
+              }
             }
           }
         }
@@ -261,6 +339,8 @@ export function useAISolveProblemStream() {
         throw new Error('No reader available');
       }
 
+      let buffer = ''; // Buffer for incomplete SSE data
+
       while (true) {
         const { done, value } = await reader.read();
         
@@ -269,36 +349,57 @@ export function useAISolveProblemStream() {
           break;
         }
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        // Decode chunk and add to buffer
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            let data;
-            try {
-              data = JSON.parse(line.slice(6));
-            } catch (parseError) {
-              console.warn('Failed to parse SSE JSON:', line.substring(0, 100));
-              continue;
-            }
+        // Split by double newlines (SSE message separator)
+        const messages = buffer.split('\n\n');
+        
+        // Keep the last incomplete message in buffer
+        buffer = messages.pop() || '';
+
+        // Process complete messages
+        for (const message of messages) {
+          const lines = message.split('\n');
+          
+          for (const line of lines) {
+            // Skip empty lines and SSE comments (used for flushing)
+            if (!line.trim() || line.startsWith(':')) continue;
             
-            switch (data.type) {
-              case 'thinking':
-              case 'thinking_start':
-                callbacks.onThinking?.(data.content);
-                break;
-              case 'answer':
-              case 'answer_start':
-                callbacks.onAnswer?.(data.content);
-                break;
-              case 'reasoning_details':
-                callbacks.onReasoningDetails?.(data.content);
-                break;
-              case 'error':
-                throw new Error(data.content);
-              case 'done':
-                callbacks.onComplete?.();
-                break;
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              
+              if (dataStr === '[DONE]') {
+                continue;
+              }
+              
+              try {
+                const data = JSON.parse(dataStr);
+                
+                switch (data.type) {
+                  case 'thinking':
+                  case 'thinking_start':
+                    callbacks.onThinking?.(data.content);
+                    break;
+                  case 'answer':
+                  case 'answer_start':
+                    callbacks.onAnswer?.(data.content);
+                    break;
+                  case 'reasoning_details':
+                    callbacks.onReasoningDetails?.(data.content);
+                    break;
+                  case 'error':
+                    throw new Error(data.content);
+                  case 'done':
+                    callbacks.onComplete?.();
+                    break;
+                }
+              } catch (parseError) {
+                // Skip malformed JSON (likely incomplete)
+                console.debug('Skipping incomplete SSE data');
+                continue;
+              }
             }
           }
         }

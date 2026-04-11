@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import './ai-assistant-preview.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -727,21 +728,27 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
         },
         {
           onThinking: (chunk: string) => {
-            // Update thinking content in real-time
-            setMessages(prev => prev.map(msg => 
-              msg.id === aiMessageId 
-                ? { ...msg, thinking: (msg.thinking || '') + chunk }
-                : msg
-            ));
+            console.log('🧠 Thinking chunk received:', chunk.substring(0, 50));
+            // Use flushSync to force immediate rendering
+            flushSync(() => {
+              setMessages(prev => prev.map(msg => 
+                msg.id === aiMessageId 
+                  ? { ...msg, thinking: (msg.thinking || '') + chunk }
+                  : msg
+              ));
+            });
             scrollToBottom();
           },
           onAnswer: (chunk: string) => {
-            // Update answer content in real-time
-            setMessages(prev => prev.map(msg => 
-              msg.id === aiMessageId 
-                ? { ...msg, content: (msg.content || '') + chunk }
-                : msg
-            ));
+            console.log('💬 Answer chunk received:', chunk.substring(0, 50));
+            // Use flushSync to force immediate rendering
+            flushSync(() => {
+              setMessages(prev => prev.map(msg => 
+                msg.id === aiMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk }
+                  : msg
+              ));
+            });
             scrollToBottom();
           },
           onReasoningDetails: (details: any) => {

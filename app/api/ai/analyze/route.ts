@@ -204,6 +204,14 @@ async function handleStreamingAnalysis(
   // Build messages array once (outside retry loop)
   const messages: any[] = [];
   
+  // Add system prompt for thinking mode (helps some models generate better reasoning)
+  if (aiMode === 'thinking') {
+    messages.push({
+      role: 'system',
+      content: 'You are a helpful AI assistant. When analyzing content, think through your reasoning step-by-step before providing the final analysis.'
+    });
+  }
+  
   if (isImageAnalysis) {
     // For image analysis, use vision model format
     messages.push({
@@ -358,6 +366,7 @@ async function handleStreamingAnalysis(
           let isInThinking = false;
           let reasoningDetails: any = null;
           let hasContent = false;
+          let buffer = ''; // Buffer for incomplete JSON chunks
 
           while (true) {
             const { done, value } = await reader.read();
@@ -366,10 +375,16 @@ async function handleStreamingAnalysis(
               break;
             }
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+            
+            // Split by newlines but keep incomplete lines in buffer
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
 
             for (const line of lines) {
+              if (!line.trim().startsWith('data: ')) continue;
+              
               const data = line.replace('data: ', '').trim();
               
               if (data === '[DONE]') {
@@ -392,6 +407,8 @@ async function handleStreamingAnalysis(
                       type: 'thinking_start',
                       content: ''
                     })}\n\n`));
+                    // Force flush by writing empty comment
+                    await writer.write(encoder.encode(': ping\n\n'));
                   }
                   
                   thinkingContent += delta.reasoning_content;
@@ -399,6 +416,8 @@ async function handleStreamingAnalysis(
                     type: 'thinking',
                     content: delta.reasoning_content
                   })}\n\n`));
+                  // Force flush after each chunk
+                  await writer.write(encoder.encode(': ping\n\n'));
                 }
 
                 // Handle regular content (answer)
@@ -409,6 +428,8 @@ async function handleStreamingAnalysis(
                       type: 'answer_start',
                       content: ''
                     })}\n\n`));
+                    // Force flush
+                    await writer.write(encoder.encode(': ping\n\n'));
                   }
                   
                   answerContent += delta.content;
@@ -416,6 +437,8 @@ async function handleStreamingAnalysis(
                     type: 'answer',
                     content: delta.content
                   })}\n\n`));
+                  // Force flush after each chunk
+                  await writer.write(encoder.encode(': ping\n\n'));
                 }
 
                 // Capture reasoning_details
@@ -424,7 +447,9 @@ async function handleStreamingAnalysis(
                 }
 
               } catch (e) {
-                console.error('Failed to parse SSE chunk:', e);
+                // Silently skip malformed JSON chunks (likely incomplete)
+                // This is normal for SSE streaming
+                continue;
               }
             }
           }
@@ -478,12 +503,17 @@ async function handleStreamingAnalysis(
         }
       })();
 
-      // Return streaming response
+      // Return streaming response with aggressive anti-buffering headers
       return new Response(stream.readable, {
         headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, no-transform',
           'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no', // Disable nginx buffering
+          'X-Content-Type-Options': 'nosniff',
+          'Transfer-Encoding': 'chunked',
+          // Vercel-specific headers to prevent buffering
+          'x-vercel-no-cache': '1',
         },
       });
 

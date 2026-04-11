@@ -729,6 +729,7 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
         {
           onThinking: (chunk: string) => {
             console.log('🧠 Thinking chunk received:', chunk.substring(0, 50));
+            console.log('⏰ Timestamp:', new Date().toISOString());
             // Use flushSync to force immediate rendering
             flushSync(() => {
               setMessages(prev => prev.map(msg => 
@@ -741,6 +742,7 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
           },
           onAnswer: (chunk: string) => {
             console.log('💬 Answer chunk received:', chunk.substring(0, 50));
+            console.log('⏰ Timestamp:', new Date().toISOString());
             // Use flushSync to force immediate rendering
             flushSync(() => {
               setMessages(prev => prev.map(msg => 

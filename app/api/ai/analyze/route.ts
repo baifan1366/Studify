@@ -4,6 +4,10 @@ import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { z } from 'zod';
 
+// Force Node.js runtime for streaming support (not Edge)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Get model based on user preference (fast or thinking mode)
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
   return mode === 'thinking' 

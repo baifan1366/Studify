@@ -4,6 +4,10 @@ import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { z } from 'zod';
 
+// Force Node.js runtime for streaming support (not Edge)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Request validation schema for educational Q&A
 const qaRequestSchema = z.object({
   question: z.string().min(1, 'Question is required'),

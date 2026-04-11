@@ -168,7 +168,21 @@ async function downloadAudioFile(audioUrl: string): Promise<Blob> {
     isValidSignature: isValidAudioFile,
   });
 
-  return new Blob([arrayBuffer], { type: contentType });
+  // Create blob and verify it was created correctly
+  const blob = new Blob([arrayBuffer], { type: contentType });
+  
+  if (blob.size !== arrayBuffer.byteLength) {
+    throw new Error(
+      `Blob creation failed: expected ${arrayBuffer.byteLength} bytes but got ${blob.size} bytes`
+    );
+  }
+  
+  console.log("✅ Blob created successfully:", {
+    size: blob.size,
+    type: blob.type,
+  });
+
+  return blob;
 }
 
 /**
@@ -342,8 +356,22 @@ async function transcribeWithWhisper(
       requestBody = formData;
     } else {
       // For file-based requests, use FormData
+      const audioBlob = audioSource as Blob;
+      
+      // Validate blob size before sending
+      if (audioBlob.size < 1000) {
+        throw new Error(
+          `Audio blob is too small (${audioBlob.size} bytes). This indicates a corrupted or empty file.`
+        );
+      }
+      
+      console.log("📤 Preparing file upload:", {
+        size: audioBlob.size,
+        type: audioBlob.type,
+      });
+      
       const formData = new FormData();
-      const blobType = (audioSource as Blob).type || "audio/mpeg";
+      const blobType = audioBlob.type || "audio/mpeg";
       const mimeToExtension: Record<string, string> = {
         "audio/wav": ".wav",
         "audio/wave": ".wav",
@@ -365,7 +393,17 @@ async function transcribeWithWhisper(
       };
       const extension = mimeToExtension[blobType] || ".mp3";
       const filename = `media_file${extension}`;
-      formData.append("file", audioSource as Blob, filename);
+      
+      // Convert Blob to File for better compatibility
+      const file = new File([audioBlob], filename, { type: blobType });
+      formData.append("file", file);
+      
+      console.log("📤 File prepared for upload:", {
+        filename,
+        size: file.size,
+        type: file.type,
+      });
+      
       requestBody = formData;
     }
 
@@ -678,6 +716,18 @@ async function handler(req: Request) {
       try {
         console.log("📥 Downloading audio file for file-based transcription");
         audioSource = await downloadAudioFile(audio_url);
+        
+        // Validate the downloaded blob
+        if (audioSource.size < 1000) {
+          throw new Error(
+            `Downloaded audio file is too small (${audioSource.size} bytes). This indicates a corrupted or empty file.`
+          );
+        }
+        
+        console.log("✅ Audio file downloaded and ready:", {
+          size: audioSource.size,
+          type: audioSource.type,
+        });
       } catch (downloadError: any) {
         console.error("Audio download failed:", downloadError.message);
 
@@ -747,9 +797,11 @@ async function handler(req: Request) {
             .eq("id", queue_id);
 
           return NextResponse.json({
-            message: "Warming up Whisper server, will retry in 15 seconds",
+            message: "Warming up Whisper server, will retry in 10 seconds",
             retry_count: 1,
             is_warmup_retry: true,
+            queue_id,
+            attachment_id,
           });
         }
 

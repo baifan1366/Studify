@@ -300,25 +300,52 @@ async function handleStreamingResponse(
 
                 hasContent = true;
 
-                // Handle reasoning content (thinking mode)
-                if (delta.reasoning_content) {
-                  if (!isInThinking) {
-                    isInThinking = true;
-                    await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-                      type: 'thinking_start',
-                      content: ''
-                    })}\n\n`));
-                    // Force flush by writing empty comment
-                    await writer.write(encoder.encode(': ping\n\n'));
+                // Debug: Log the delta structure to understand what OpenRouter is sending
+                if (delta.reasoning_details || delta.content) {
+                  console.log('📦 Delta received:', JSON.stringify({
+                    hasReasoningDetails: !!delta.reasoning_details,
+                    reasoningDetailsCount: delta.reasoning_details?.length || 0,
+                    hasContent: !!delta.content,
+                    contentPreview: delta.content?.substring(0, 50)
+                  }));
+                }
+
+                // Handle reasoning_details (thinking mode) - OpenRouter format
+                if (delta.reasoning_details && Array.isArray(delta.reasoning_details)) {
+                  for (const reasoningDetail of delta.reasoning_details) {
+                    // Extract text from reasoning detail based on type
+                    let reasoningText = '';
+                    
+                    // According to OpenRouter docs:
+                    // - reasoning.text has "text" field
+                    // - reasoning.summary has "summary" field
+                    // - reasoning.encrypted has "data" field
+                    if (reasoningDetail.type === 'reasoning.text' && reasoningDetail.text) {
+                      reasoningText = reasoningDetail.text;
+                    } else if (reasoningDetail.type === 'reasoning.summary' && reasoningDetail.summary) {
+                      reasoningText = reasoningDetail.summary;
+                    }
+                    
+                    if (reasoningText) {
+                      if (!isInThinking) {
+                        isInThinking = true;
+                        await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+                          type: 'thinking_start',
+                          content: ''
+                        })}\n\n`));
+                        // Force flush by writing empty comment
+                        await writer.write(encoder.encode(': ping\n\n'));
+                      }
+                      
+                      thinkingContent += reasoningText;
+                      await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+                        type: 'thinking',
+                        content: reasoningText
+                      })}\n\n`));
+                      // Force flush after each chunk
+                      await writer.write(encoder.encode(': ping\n\n'));
+                    }
                   }
-                  
-                  thinkingContent += delta.reasoning_content;
-                  await writer.write(encoder.encode(`data: ${JSON.stringify({ 
-                    type: 'thinking',
-                    content: delta.reasoning_content
-                  })}\n\n`));
-                  // Force flush after each chunk
-                  await writer.write(encoder.encode(': ping\n\n'));
                 }
 
                 // Handle regular content (answer)
@@ -342,7 +369,7 @@ async function handleStreamingResponse(
                   await writer.write(encoder.encode(': ping\n\n'));
                 }
 
-                // Capture reasoning_details for preserving in conversation
+                // Capture reasoning_details from message for preserving in conversation
                 if (parsed.choices?.[0]?.message?.reasoning_details) {
                   reasoningDetails = parsed.choices[0].message.reasoning_details;
                 }

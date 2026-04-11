@@ -4,11 +4,9 @@ import { enhancedAIExecutor } from "@/lib/langChain/tool-calling-integration";
 import { createRateLimitCheck, rateLimitResponse } from "@/lib/ratelimit";
 import { z } from "zod";
 
-// Get model based on user preference (fast or thinking mode)
+// Get model - using NVIDIA Nemotron 3 Super (same model for both fast and thinking modes)
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return mode === 'thinking' 
-    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
-    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+  return process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
 }
 
 // Request validation schema for video AI assistant

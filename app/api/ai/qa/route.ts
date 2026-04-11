@@ -35,10 +35,8 @@ export async function POST(request: NextRequest) {
 
     const { question, contentTypes, includeAnalysis, context, conversationId, aiMode, stream } = validatedData;
 
-    // Get model based on AI mode
-    const selectedModel = aiMode === 'thinking'
-      ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
-      : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+    // Get model based on AI mode - using NVIDIA Nemotron 3 Super for both modes
+    const selectedModel = process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
 
     console.log(`❓ Educational Q&A request from user ${authResult.payload.sub}: "${question.substring(0, 100)}..." ${context ? `(with ${context.length} context messages)` : '(no context)'} [${aiMode} mode - ${selectedModel}] [stream: ${stream}]`);
 

@@ -187,13 +187,48 @@ async function warmupWhisperServer(): Promise<boolean> {
   console.log("🔥 Warming up Whisper server...");
 
   try {
-    // Create a tiny audio blob for warmup (1 second of silence)
-    const silentAudioBase64 =
-      "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
-    const silentAudioBytes = Uint8Array.from(atob(silentAudioBase64), (c) =>
-      c.charCodeAt(0)
-    );
-    const warmupBlob = new Blob([silentAudioBytes], { type: "audio/wav" });
+    // Create a valid 1-second silent WAV file (16kHz, mono, 16-bit PCM)
+    // This is large enough to pass server validation (>10KB requirement)
+    const sampleRate = 16000;
+    const numSamples = sampleRate; // 1 second
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const bytesPerSample = bitsPerSample / 8;
+    const dataSize = numSamples * numChannels * bytesPerSample;
+    const fileSize = 44 + dataSize; // WAV header is 44 bytes
+
+    const buffer = new ArrayBuffer(fileSize);
+    const view = new DataView(buffer);
+
+    // WAV file header
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, "RIFF");
+    view.setUint32(4, fileSize - 8, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * bytesPerSample, true); // byte rate
+    view.setUint16(32, numChannels * bytesPerSample, true); // block align
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    // Fill with silence (all zeros)
+    for (let i = 44; i < fileSize; i++) {
+      view.setUint8(i, 0);
+    }
+
+    const warmupBlob = new Blob([buffer], { type: "audio/wav" });
+
+    console.log(`📊 Warmup audio created: ${warmupBlob.size} bytes`);
 
     const formData = new FormData();
     formData.append("file", warmupBlob, "warmup.wav");

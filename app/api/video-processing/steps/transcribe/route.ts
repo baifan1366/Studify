@@ -241,12 +241,10 @@ async function transcribeWithWhisper(
   const isUrl = typeof audioSource === "string";
 
   // Build the transcribe endpoint with query parameters
-  let transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
+  const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
 
-  // If audioSource is a URL, add it as a query parameter
+  // Log the request type
   if (isUrl) {
-    transcribeEndpoint += `&url=${encodeURIComponent(audioSource)}`;
-
     console.log(
       `🎯 Sending URL-based request to Whisper API (attempt ${
         retryCount + 1
@@ -303,8 +301,10 @@ async function transcribeWithWhisper(
     let requestBody;
 
     if (isUrl) {
-      // For URL-based requests, send empty body (URL is in query params)
-      requestBody = undefined;
+      // For URL-based requests, send URL in FormData
+      const formData = new FormData();
+      formData.append("url", audioSource as string);
+      requestBody = formData;
     } else {
       // For file-based requests, use FormData
       const formData = new FormData();

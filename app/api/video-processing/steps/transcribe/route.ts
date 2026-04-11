@@ -648,18 +648,20 @@ async function handler(req: Request) {
       .eq("id", queue_id);
 
     // 4. Determine if we should use URL-based or file-based transcription
-    // The Whisper server supports direct URL processing for MEGA.nz and other HTTP(S) URLs
-    // This is more efficient as it avoids downloading to Vercel and re-uploading
+    // The Whisper server only supports direct URL processing for MEGA.nz URLs
+    // For other URLs, we need to download and send as file
     const isHttpUrl =
       audio_url.startsWith("http://") || audio_url.startsWith("https://");
-    const shouldUseUrlMode = isHttpUrl; // Use URL mode for all HTTP(S) URLs (MEGA.nz, Cloudinary, etc.)
+    const isMegaUrl = audio_url.includes("mega.nz") || audio_url.includes("mega.co.nz");
+    const shouldUseUrlMode = isMegaUrl; // Only use URL mode for MEGA.nz URLs
 
     console.log("🔍 Transcription mode detection:", {
       audio_url,
       isHttpUrl,
+      isMegaUrl,
       shouldUseUrlMode,
       mode: shouldUseUrlMode
-        ? "URL-based (direct to Whisper)"
+        ? "URL-based (MEGA.nz direct to Whisper)"
         : "File-based (download first)",
     });
 

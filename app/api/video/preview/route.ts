@@ -29,7 +29,7 @@ const PROCESSING_LOCK_DURATION = 30 * 60; // 30 minutes in seconds
  */
 let globalMegaStorage: Storage | null = null;
 let megaAuthTime: number = 0;
-const MEGA_AUTH_TIMEOUT = 15000; // 15 seconds
+const MEGA_AUTH_TIMEOUT = 30000; // 30 seconds
 const MEGA_REUSE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 

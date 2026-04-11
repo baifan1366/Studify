@@ -213,13 +213,13 @@ export async function GET(
         // Set timeout for authentication with enhanced error handling
         const authTimeout = new Promise((_, reject) => {
           setTimeout(() => {
-            const error = new Error('MEGA authentication timeout after 15s')
+            const error = new Error('MEGA authentication timeout after 30s')
             logError('MEGA_AUTH_TIMEOUT', error, {
               requestId,
               duration: Date.now() - authStartTime
             })
             reject(error)
-          }, 15000)
+          }, 30000)
         })
         
         try {

@@ -40,7 +40,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
 import { 
-  useAIQuickQA, 
+  useAIQuickQA,
+  useAIQuickQAStream, 
   useAISolveProblem, 
   useAISmartNotes, 
   useAILearningPath 
@@ -502,6 +503,8 @@ interface ChatMessage {
   timestamp: Date;
   isStreaming?: boolean;
   error?: string;
+  thinking?: string; // Thinking content for thinking mode
+  reasoning_details?: any; // Reasoning details for conversation preservation
 }
 
 // Typing Indicator 组件
@@ -631,7 +634,7 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   const [currentInput, setCurrentInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
-  const quickQAMutation = useAIQuickQA();
+  const { streamQA, isStreaming } = useAIQuickQAStream(); // Use streaming hook
   const t = useTranslations('AIAssistant');
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -679,7 +682,7 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   }, []);
 
   const handleSend = async () => {
-    if (!currentInput.trim() || isTyping) return;
+    if (!currentInput.trim() || isTyping || isStreaming) return;
     
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -699,51 +702,86 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
       type: 'ai',
       content: '',
       timestamp: new Date(),
-      isStreaming: true
+      isStreaming: true,
+      thinking: aiMode === 'thinking' ? '' : undefined
     };
     
     setMessages(prev => [...prev, aiMessage]);
 
     try {
-      // 构建上下文 - 包含之前的聊天历史
-      const conversationContext = messages.map(msg => ({
-        role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      }));
+      // 构建上下文 - 包含之前的聊天历史（包括 reasoning_details）
+      const conversationContext = messages
+        .filter(msg => msg.type === 'ai' || msg.type === 'user')
+        .map(msg => ({
+          role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+          content: msg.content,
+          ...(msg.reasoning_details ? { reasoning_details: msg.reasoning_details } : {})
+        }));
 
-      // 添加当前用户消息到上下文
-      conversationContext.push({
-        role: 'user', 
-        content: userMessage.content
-      });
-
-      const response = await quickQAMutation.mutateAsync({
-        question: userMessage.content,
-        context: conversationContext, // 传递上下文
-        conversationId: messages.length > 0 ? `chat_${Date.now()}` : undefined,
-        aiMode // Pass AI mode to backend
-      });
-      
-      // 模拟流式输出
-      const fullText = response.answer || response.result || '';
-      let currentIndex = 0;
-      const chars = fullText.split('');
-      
-      for (const char of chars) {
-        currentIndex++;
-        const partialText = chars.slice(0, currentIndex).join('');
-        
-        setMessages(prev => prev.map(msg => 
-          msg.id === aiMessageId 
-            ? { ...msg, content: partialText, isStreaming: currentIndex < chars.length }
-            : msg
-        ));
-        
-        await new Promise(resolve => setTimeout(resolve, 15)); // 稍微快一点
-      }
-      
-      // 不调用onResult，让对话继续在聊天室中进行
-      setIsTyping(false);
+      // Real-time streaming
+      await streamQA(
+        {
+          question: userMessage.content,
+          context: conversationContext,
+          aiMode
+        },
+        {
+          onThinking: (chunk: string) => {
+            // Update thinking content in real-time
+            setMessages(prev => prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, thinking: (msg.thinking || '') + chunk }
+                : msg
+            ));
+            scrollToBottom();
+          },
+          onAnswer: (chunk: string) => {
+            // Update answer content in real-time
+            setMessages(prev => prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, content: (msg.content || '') + chunk }
+                : msg
+            ));
+            scrollToBottom();
+          },
+          onReasoningDetails: (details: any) => {
+            // Save reasoning_details for conversation preservation
+            setMessages(prev => prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, reasoning_details: details }
+                : msg
+            ));
+          },
+          onComplete: () => {
+            // Mark streaming as complete
+            setMessages(prev => prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, isStreaming: false }
+                : msg
+            ));
+            setIsTyping(false);
+          },
+          onError: (error: Error) => {
+            console.error('Stream error:', error);
+            setMessages(prev => prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { 
+                    ...msg, 
+                    content: t('chat.error.network_error'), 
+                    isStreaming: false,
+                    error: error.message
+                  }
+                : msg
+            ));
+            toast({
+              title: t('chat.error.title'),
+              description: error.message,
+              variant: "destructive"
+            });
+            setIsTyping(false);
+          }
+        }
+      );
     } catch (error) {
       console.error('Quick QA error:', error);
       const errorMessage = error instanceof Error ? error.message : t('chat.error.unknown');

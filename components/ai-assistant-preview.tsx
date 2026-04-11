@@ -862,9 +862,26 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
                   <Bot className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex-1">
+                  {/* Thinking Process (only in thinking mode) */}
+                  {message.thinking && (
+                    <div className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30 rounded-2xl rounded-tl-md px-4 py-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                          {t('chat.thinking_process')}
+                        </span>
+                      </div>
+                      <div className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap break-words">
+                        {message.thinking}
+                        {message.isStreaming && <span className="animate-pulse ml-1">▋</span>}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Answer */}
                   <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
                     {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
-                    {message.isStreaming && !message.content ? (
+                    {message.isStreaming && !message.content && !message.thinking ? (
                       <TypingIndicator />
                     ) : (
                       <div className="ai-message-content">

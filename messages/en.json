@@ -1898,6 +1898,7 @@
       "features": "Features"
     },
     "chat": {
+      "thinking_process": "Thinking Process",
       "input": {
         "placeholder": "Enter your question... (Press Enter to send)",
         "aria_label": "Enter message"

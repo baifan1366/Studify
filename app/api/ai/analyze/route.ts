@@ -7,8 +7,8 @@ import { z } from 'zod';
 // Get model based on user preference (fast or thinking mode)
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
   return mode === 'thinking' 
-    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
-    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'nvidia/nemotron-3-super-120b-a12b:free'
+    : process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
 }
 
 // Request validation schema for content analysis

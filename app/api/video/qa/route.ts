@@ -8,11 +8,9 @@ import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 // Set max duration to 5 minutes (300 seconds) - Vercel's maximum
 export const maxDuration = 300;
 
-// Get model based on user preference (fast or thinking mode)
+// Get model - using NVIDIA Nemotron 3 Super (same model for both fast and thinking modes)
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return mode === 'thinking' 
-    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'google/gemma-4-31b-it:free'
-    : process.env.OPEN_ROUTER_MODEL_FAST || 'google/gemma-4-26b-a4b-it:free';
+  return process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
 }
 
 // 视频时间轴智能问答API

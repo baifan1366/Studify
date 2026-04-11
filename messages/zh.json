@@ -1898,6 +1898,7 @@
       "features": "功能列表"
     },
     "chat": {
+      "thinking_process": "思考过程",
       "input": {
         "placeholder": "输入你的问题... (Press Enter 到发送)",
         "aria_label": "输入消息"

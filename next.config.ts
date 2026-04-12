@@ -21,6 +21,10 @@ const withSerwist = withSerwistInit({
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Enable experimental features for better performance
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
+  },
   async rewrites() {
     return [
       // Rewrite font requests to bypass locale routing
@@ -88,6 +92,10 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
           },
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
         ],
       },
     ];
@@ -101,6 +109,12 @@ const nextConfig: NextConfig = {
       "graph.facebook.com", // Facebook profile images alternative
     ],
     unoptimized: true,
+  },
+  // Reduce bundle size
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
   },
 };
 

@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "analyze": "node scripts/analyze-bundle.js",
+    "perf": "npm run build && npm run analyze"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
@@ -89,7 +91,8 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.7",
     "use-debounce": "^10.0.6",
-    "use-sidecar": "^1.1.3"
+    "use-sidecar": "^1.1.3",
+    "web-vitals": "^5.2.0"
   },
   "devDependencies": {
     "@google/gemini-cli": "^0.2.2",

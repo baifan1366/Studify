@@ -4,12 +4,32 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PWAProvider } from "@/components/providers/pwa-provider";
 import "./globals.css";
 import "@livekit/components-styles";
-import { setupNotification } from "@/utils/notification/notifications-setup";
 import { useEffect } from "react";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    setupNotification();
+    // Initialize Web Vitals monitoring
+    if (typeof window !== 'undefined') {
+      import('@/utils/performance/web-vitals').then(({ initWebVitals, observeLongTasks }) => {
+        initWebVitals();
+        if (process.env.NODE_ENV === 'development') {
+          observeLongTasks();
+        }
+      });
+    }
+
+    // Defer notification setup to idle time
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(async () => {
+        const { setupNotification } = await import("@/utils/notification/notifications-setup");
+        setupNotification();
+      });
+    } else {
+      setTimeout(async () => {
+        const { setupNotification } = await import("@/utils/notification/notifications-setup");
+        setupNotification();
+      }, 2000);
+    }
   }, []);
 
   return (
@@ -21,6 +41,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Studify" />
         <link rel="apple-touch-icon" href="/favicon.png" />
+        <link rel="preload" href="/fonts/geist/Geist-Regular.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/geist/Geist-Medium.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
       </head>
       <body className="antialiased min-h-screen bg-background" data-lk-theme="default">
         <ThemeProvider>

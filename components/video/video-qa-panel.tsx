@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl';
 import { useVideoQA, type VideoQAResponse } from '@/hooks/video/use-video-qa';
 import { useCreateNote } from '@/hooks/course/use-course-notes';
 import { useToast } from '@/hooks/use-toast';
+import AIContentRecommendations from '@/components/ai/ai-content-recommendations';
 
 interface VideoQAPanelProps {
   lessonId: string;
@@ -56,6 +57,10 @@ export function VideoQAPanel({
     if (!question.trim() || videoQA.isPending) return;
 
     try {
+      // Clear previous answer before fetching new one to prevent flashing
+      setAnswer(null);
+      setNoteSaved(false);
+      
       const result = await videoQA.mutateAsync({
         lessonId,
         question: question.trim(),
@@ -186,7 +191,28 @@ export function VideoQAPanel({
 
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {!answer ? (
+        {videoQA.isPending ? (
+          /* Loading State */
+          <div className="p-4 space-y-4">
+            <div className="bg-slate-700 p-3 rounded-xl border border-slate-600 animate-pulse">
+              <div className="h-4 bg-slate-600 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-slate-600 rounded w-full"></div>
+            </div>
+            <div className="bg-green-800 p-3 rounded-xl border border-green-600">
+              <div className="flex items-center gap-2 mb-3">
+                <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
+                <div className="text-sm font-medium text-green-300">
+                  AI {aiMode === 'thinking' ? 'is thinking deeply...' : 'is processing...'}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-green-700 rounded w-full animate-pulse"></div>
+                <div className="h-3 bg-green-700 rounded w-5/6 animate-pulse"></div>
+                <div className="h-3 bg-green-700 rounded w-4/6 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        ) : !answer ? (
           /* Question Input */
           <div className="p-4 space-y-4">
             <div>
@@ -432,6 +458,17 @@ export function VideoQAPanel({
                 </button>
               </div>
             </div>
+
+            {/* AI Content Recommendations */}
+            {answer.answer && answer.answer.length > 50 && (
+              <div className="mt-4 pt-4 border-t border-slate-600">
+                <AIContentRecommendations
+                  aiResponse={answer.answer}
+                  questionContext={question}
+                  className="bg-slate-700/50 rounded-xl p-3"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

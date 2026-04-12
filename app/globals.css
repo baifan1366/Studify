@@ -290,56 +290,96 @@ body {
 }
 
 /* ========================= */
-/* 8. Custom Scrollbar      */
+/* 8. Perfect Scrollbar     */
 /* ========================= */
+
+/* 全局滚动条样式 - 适用于所有元素 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.5);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.8);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(100, 116, 139, 0.9);
+}
+
+/* 深色模式滚动条 */
+.dark * {
+  scrollbar-color: rgba(71, 85, 105, 0.5) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.5);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+.dark *::-webkit-scrollbar-thumb:active {
+  background: rgba(148, 163, 184, 0.9);
+}
+
+/* 特殊场景：更细的滚动条 */
 .scrollbar-thin {
   scrollbar-width: thin;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
 }
 
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: #D4D4D4;
-  border-radius: 4px;
+/* 特殊场景：隐藏滚动条但保持滚动功能 */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* 特殊场景：更宽的滚动条（用于需要更明显滚动提示的区域） */
+.scrollbar-wide {
+  scrollbar-width: auto;
+}
+
+.scrollbar-wide::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar-wide::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.6);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
-.scrollbar-thin::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
-.scrollbar-thin:hover::-webkit-scrollbar-thumb {
-  background-color: #A3A3A3;
-}
-
-/* Firefox scrollbar styling */
-.scrollbar-thin {
-  scrollbar-color: #D4D4D4 transparent;
-}
-
-.scrollbar-thin:hover {
-  scrollbar-color: #A3A3A3 transparent;
-}
-
-/* Dark mode scrollbar */
-.dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgb(71 85 105);
-}
-
-.dark .scrollbar-thin:hover::-webkit-scrollbar-thumb {
-  background-color: rgb(100 116 139);
-}
-
-.dark .scrollbar-thin {
-  scrollbar-color: rgb(71 85 105) transparent;
-}
-
-.dark .scrollbar-thin:hover {
-  scrollbar-color: rgb(100 116 139) transparent;
+.dark .scrollbar-wide::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.6);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* ========================= */

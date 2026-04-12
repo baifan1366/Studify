@@ -866,54 +866,59 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
               </div>
             ) : (
               // AI消息：左对齐，带AI头像
-              <div className="flex items-start space-x-3 max-w-[85%]">
-                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Bot className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                </div>
-                <div className="flex-1">
-                  {/* Thinking Process (only in thinking mode) */}
-                  {message.thinking && (
-                    <div className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30 rounded-2xl rounded-tl-md px-4 py-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                        <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                          {t('chat.thinking_process')}
-                        </span>
-                      </div>
-                      <div className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap break-words">
-                        {message.thinking}
-                        {message.isStreaming && <span className="animate-pulse ml-1">▋</span>}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Answer */}
-                  <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
-                    {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
-                    {message.isStreaming && !message.content && !message.thinking ? (
-                      <TypingIndicator />
-                    ) : (
-                      <div className="ai-message-content">
-                        <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
-                          <MarkdownContent 
-                            content={message.content} 
-                            isStreaming={message.isStreaming} 
-                          />
+              <div className="w-full">
+                <div className="flex items-start space-x-3 max-w-[85%]">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
+                    <Bot className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                  </div>
+                  <div className="flex-1">
+                    {/* Thinking Process (only in thinking mode) */}
+                    {message.thinking && (
+                      <div className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30 rounded-2xl rounded-tl-md px-4 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                          <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                            {t('chat.thinking_process')}
+                          </span>
                         </div>
-                        {message.isStreaming && <span className="animate-pulse ml-1 text-slate-400">▋</span>}
+                        <div className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap break-words">
+                          {message.thinking}
+                          {message.isStreaming && <span className="animate-pulse ml-1">▋</span>}
+                        </div>
                       </div>
                     )}
+                    
+                    {/* Answer */}
+                    <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
+                      {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
+                      {message.isStreaming && !message.content && !message.thinking ? (
+                        <TypingIndicator />
+                      ) : (
+                        <div className="ai-message-content">
+                          <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
+                            <MarkdownContent 
+                              content={message.content} 
+                              isStreaming={message.isStreaming} 
+                            />
+                          </div>
+                          {message.isStreaming && <span className="animate-pulse ml-1 text-slate-400">▋</span>}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {/* 显示推荐内容 - 只在AI回复完成且内容足够长时显示 */}
-                  {!message.isStreaming && message.content.length > 50 && (
+                </div>
+                
+                {/* 显示推荐内容 - 移到外层，全宽显示 */}
+                {!message.isStreaming && message.content.length > 50 && (
+                  <div className="mt-4 w-full">
                     <AIContentRecommendations 
                       aiResponse={message.content}
                       userId={currentUserId || undefined}
                       questionContext={messages.find(m => m.type === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content}
-                      className="ml-0 mt-4"
+                      className="w-full"
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1443,7 +1448,6 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
         />
         <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
           <span>{content.length} {t('common.characters')}</span>
-          <Badge variant="secondary" className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">{t('features.smart_notes.language_support')}</Badge>
         </div>
         
         {/* AI Mode Toggle */}

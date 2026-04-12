@@ -139,8 +139,15 @@ async function handleStreamingResponse(
         try {
           const streamStartTime = Date.now();
           console.log(`🚀 Starting OpenRouter streaming with ${aiMode} mode...`);
+          console.log(`📡 Request config:`, {
+            model: selectedModel,
+            messageCount: messages.length,
+            hasReasoning: aiMode === 'thinking',
+            temperature: aiMode === 'thinking' ? 0.3 : 0.5
+          });
           
           // Call OpenRouter API directly with fetch
+          const fetchStartTime = Date.now();
           const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -163,6 +170,14 @@ async function handleStreamingResponse(
             })
           });
 
+          const fetchEndTime = Date.now();
+          console.log(`⏱️ Fetch completed in ${fetchEndTime - fetchStartTime}ms, status: ${response.status}`);
+          console.log(`📋 Response headers:`, {
+            contentType: response.headers.get('content-type'),
+            transferEncoding: response.headers.get('transfer-encoding'),
+            cacheControl: response.headers.get('cache-control')
+          });
+
           if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
@@ -175,6 +190,8 @@ async function handleStreamingResponse(
             throw new Error('No reader available');
           }
 
+          console.log(`📖 Reader obtained, starting to read chunks...`);
+
           let thinkingContent = '';
           let answerContent = '';
           let isInThinking = false;
@@ -182,14 +199,33 @@ async function handleStreamingResponse(
           let hasContent = false;
           let chunkCount = 0;
           let buffer = ''; // Buffer for incomplete SSE data
+          let firstChunkTime: number | null = null;
+          let lastChunkTime = Date.now();
 
           while (true) {
+            const readStartTime = Date.now();
             const { done, value } = await reader.read();
+            const readEndTime = Date.now();
             
-            if (done) break;
+            if (!firstChunkTime && value) {
+              firstChunkTime = readEndTime;
+              console.log(`🎯 First chunk received after ${firstChunkTime - streamStartTime}ms`);
+            }
+            
+            if (done) {
+              console.log(`✅ Stream done, total time: ${Date.now() - streamStartTime}ms`);
+              break;
+            }
+
+            const timeSinceLastChunk = readEndTime - lastChunkTime;
+            lastChunkTime = readEndTime;
+            
+            console.log(`📦 Raw chunk received: ${value?.length || 0} bytes, read took ${readEndTime - readStartTime}ms, gap: ${timeSinceLastChunk}ms`);
 
             const chunk = decoder.decode(value, { stream: true });
             buffer += chunk;
+            
+            console.log(`📝 Buffer size: ${buffer.length} chars`);
             
             // Split by newlines
             const lines = buffer.split('\n');
@@ -220,13 +256,16 @@ async function handleStreamingResponse(
                     // OpenRouter API format: reasoning.text, reasoning.summary
                     if (reasoningDetail.type === 'reasoning.text' && reasoningDetail.text) {
                       reasoningText = reasoningDetail.text;
+                      console.log(`  📄 reasoning.text: ${reasoningText.length} chars`);
                     } else if (reasoningDetail.type === 'reasoning.summary' && reasoningDetail.summary) {
                       reasoningText = reasoningDetail.summary;
+                      console.log(`  📝 reasoning.summary: ${reasoningText.length} chars`);
                     }
                     
                     if (reasoningText) {
                       if (!isInThinking) {
                         isInThinking = true;
+                        console.log(`🟣 Thinking phase started`);
                         await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'thinking_start', content: '' })}\n\n`));
                       }
                       
@@ -240,10 +279,11 @@ async function handleStreamingResponse(
 
                 // Handle content
                 if (delta.content) {
-                  console.log(`💬 Content chunk #${chunkCount} at ${chunkTime}ms: "${delta.content.substring(0, 50)}..."`);
+                  console.log(`💬 Content chunk #${chunkCount} at ${chunkTime}ms: "${delta.content.substring(0, 50)}..." (${delta.content.length} chars)`);
                   
                   if (isInThinking) {
                     isInThinking = false;
+                    console.log(`⚪ Answer phase started`);
                     await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'answer_start', content: '' })}\n\n`));
                   }
                   
@@ -254,9 +294,11 @@ async function handleStreamingResponse(
                 // Capture reasoning_details from final message
                 if (parsed.choices?.[0]?.message?.reasoning_details) {
                   reasoningDetails = parsed.choices[0].message.reasoning_details;
+                  console.log(`📋 Final reasoning_details captured`);
                 }
 
               } catch (e) {
+                console.warn(`⚠️ Failed to parse SSE line, skipping:`, e);
                 // Skip malformed JSON
                 continue;
               }

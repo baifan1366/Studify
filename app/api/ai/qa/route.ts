@@ -291,7 +291,16 @@ async function handleStreamingResponse(
                   }
                   
                   answerContent += delta.content;
-                  await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'answer', content: delta.content })}\n\n`));
+                  
+                  // 将大块内容拆分成单个字符，实现流畅的打字效果
+                  // Split content into individual characters for smooth typing effect
+                  const content = delta.content;
+                  
+                  // 逐字符发送，实现真正的打字机效果
+                  for (let i = 0; i < content.length; i++) {
+                    const char = content[i];
+                    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'answer', content: char })}\n\n`));
+                  }
                 }
 
                 // Capture reasoning_details from final message

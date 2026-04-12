@@ -194,45 +194,19 @@ function extractKeywords(aiResponse: string, questionContext?: string): string {
   }
 }
 
-// 查找相似课程
+// 查找相似课程 - 使用 tsvector 全文搜索
 async function findSimilarCourses(supabase: any, searchQuery: string, limit: number) {
   try {
-    // 首先尝试基于标题和描述的文本搜索
-    const { data: courses } = await supabase
-      .from('course')
-      .select(`
-        id,
-        public_id,
-        title,
-        description,
-        slug,
-        difficulty_level,
-        category,
-        tags,
-        thumbnail_url,
-        student_count
-      `)
-      .or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,tags.cs.{${searchQuery.split(' ').join(',')}}`)
-      .eq('status', 'active')
-      .eq('is_deleted', false)
-      .limit(limit);
+    // 清理搜索查询
+    const cleanQuery = searchQuery
+      .replace(/[^\w\s\u4e00-\u9fa5]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(word => word.length > 1)
+      .join(' & ');
 
-    const results = courses?.map((course: any) => ({
-      id: course.public_id,
-      title: course.title,
-      description: course.description?.substring(0, 120) + '...',
-      type: 'course' as const,
-      difficulty: course.difficulty_level,
-      thumbnail: course.thumbnail_url,
-      slug: course.slug,
-      stats: {
-        students: course.student_count
-      }
-    })) || [];
-    
-    // 如果没有找到结果，尝试降级策略
-    if (results.length === 0 && limit > 0) {
-      console.log('⚠️ No matching courses found, trying popular courses');
+    if (!cleanQuery) {
+      console.log('⚠️ Empty course search query, using popular courses');
       const { data: popularCourses } = await supabase
         .from('course')
         .select(`
@@ -241,73 +215,215 @@ async function findSimilarCourses(supabase: any, searchQuery: string, limit: num
           title,
           description,
           slug,
-          difficulty_level,
+          level,
+          category,
           thumbnail_url,
-          student_count
+          total_students,
+          average_rating
         `)
         .eq('status', 'active')
         .eq('is_deleted', false)
-        .eq('visibility', 'public')
-        .order('student_count', { ascending: false })
-        .limit(Math.min(limit, 3));
-      
+        .order('total_students', { ascending: false })
+        .limit(limit);
+
       return popularCourses?.map((course: any) => ({
         id: course.public_id,
         title: course.title,
-        description: course.description?.substring(0, 120) + '...',
+        description: course.description?.substring(0, 120) + '...' || '',
         type: 'course' as const,
-        difficulty: course.difficulty_level,
+        difficulty: course.level,
         thumbnail: course.thumbnail_url,
         slug: course.slug,
         stats: {
-          students: course.student_count
+          students: course.total_students,
+          rating: course.average_rating
         }
       })) || [];
     }
-    
-    return results;
+
+    console.log(`🔍 Searching courses with tsvector query: "${cleanQuery}"`);
+
+    // 使用 tsvector 全文搜索
+    const { data: courses, error } = await supabase.rpc('search_courses', {
+      search_query: cleanQuery,
+      result_limit: limit
+    });
+
+    if (error) {
+      console.error('Course tsvector search error:', error);
+      // 降级到 ILIKE 搜索
+      console.log('⚠️ Falling back to ILIKE search for courses');
+      const keywords = searchQuery.split(' ').filter(k => k.length > 1);
+      const searchConditions = keywords.map(keyword => 
+        `title.ilike.%${keyword}%,description.ilike.%${keyword}%`
+      ).join(',');
+      
+      const { data: fallbackCourses } = await supabase
+        .from('course')
+        .select(`
+          id,
+          public_id,
+          title,
+          description,
+          slug,
+          level,
+          thumbnail_url,
+          total_students,
+          average_rating
+        `)
+        .or(searchConditions)
+        .eq('status', 'active')
+        .eq('is_deleted', false)
+        .order('total_students', { ascending: false })
+        .limit(limit);
+
+      return fallbackCourses?.map((course: any) => ({
+        id: course.public_id,
+        title: course.title,
+        description: course.description?.substring(0, 120) + '...' || '',
+        type: 'course' as const,
+        difficulty: course.level,
+        thumbnail: course.thumbnail_url,
+        slug: course.slug,
+        stats: {
+          students: course.total_students,
+          rating: course.average_rating
+        }
+      })) || [];
+    }
+
+    console.log(`✅ Found ${courses?.length || 0} courses using tsvector search`);
+
+    return courses?.map((course: any) => ({
+      id: course.public_id,
+      title: course.title,
+      description: course.description?.substring(0, 120) + '...' || '',
+      type: 'course' as const,
+      difficulty: course.level,
+      thumbnail: course.thumbnail_url,
+      slug: course.slug,
+      stats: {
+        students: course.total_students,
+        rating: course.average_rating
+      },
+      relevance: course.rank // tsvector 相关性分数
+    })) || [];
   } catch (error) {
     console.error('Error finding similar courses:', error);
     return [];
   }
 }
 
-// 查找相似帖子
+// 查找相似帖子 - 使用 tsvector 全文搜索
 async function findSimilarPosts(supabase: any, searchQuery: string, limit: number) {
   try {
-    const { data: posts } = await supabase
-      .from('community_post')
-      .select(`
-        id,
-        public_id,
-        title,
-        content,
-        slug,
-        view_count,
-        like_count,
-        comment_count,
-        tags,
-        author:profiles(display_name),
-        group:community_group(slug)
-      `)
-      .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%,tags.cs.{${searchQuery.split(' ').join(',')}}`)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // 清理搜索查询，移除特殊字符
+    const cleanQuery = searchQuery
+      .replace(/[^\w\s\u4e00-\u9fa5]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(word => word.length > 1)
+      .join(' & '); // 使用 & 连接词，表示 AND 搜索
+
+    if (!cleanQuery) {
+      console.log('⚠️ Empty search query after cleaning, using fallback');
+      // 如果查询为空，返回最新的热门帖子
+      const { data: recentPosts } = await supabase
+        .from('community_post')
+        .select(`
+          id,
+          public_id,
+          title,
+          body,
+          slug,
+          created_at,
+          author:profiles!community_post_author_id_fkey(display_name),
+          group:community_group!community_post_group_id_fkey(slug, name)
+        `)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      return recentPosts?.map((post: any) => ({
+        id: post.public_id,
+        title: post.title || 'Untitled Post',
+        description: post.body?.substring(0, 120) + '...' || '',
+        type: 'post' as const,
+        author: post.author?.display_name,
+        slug: post.group?.slug ? `${post.group.slug}/${post.slug}` : post.slug,
+        stats: {
+          views: 0,
+          likes: 0,
+          comments: 0
+        }
+      })) || [];
+    }
+
+    console.log(`🔍 Searching posts with tsvector query: "${cleanQuery}"`);
+
+    // 使用 tsvector 全文搜索
+    // ts_rank 会根据相关性排序结果
+    const { data: posts, error } = await supabase.rpc('search_community_posts', {
+      search_query: cleanQuery,
+      result_limit: limit
+    });
+
+    if (error) {
+      console.error('tsvector search error:', error);
+      // 降级到 ILIKE 搜索
+      console.log('⚠️ Falling back to ILIKE search');
+      const keywords = searchQuery.split(' ').filter(k => k.length > 1);
+      const searchConditions = keywords.map(keyword => 
+        `title.ilike.%${keyword}%,body.ilike.%${keyword}%`
+      ).join(',');
+      
+      const { data: fallbackPosts } = await supabase
+        .from('community_post')
+        .select(`
+          id,
+          public_id,
+          title,
+          body,
+          slug,
+          created_at,
+          author:profiles!community_post_author_id_fkey(display_name),
+          group:community_group!community_post_group_id_fkey(slug, name)
+        `)
+        .or(searchConditions)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      return fallbackPosts?.map((post: any) => ({
+        id: post.public_id,
+        title: post.title || 'Untitled Post',
+        description: post.body?.substring(0, 120) + '...' || '',
+        type: 'post' as const,
+        author: post.author?.display_name,
+        slug: post.group?.slug ? `${post.group.slug}/${post.slug}` : post.slug,
+        stats: {
+          views: 0,
+          likes: 0,
+          comments: 0
+        }
+      })) || [];
+    }
+
+    console.log(`✅ Found ${posts?.length || 0} posts using tsvector search`);
 
     return posts?.map((post: any) => ({
       id: post.public_id,
-      title: post.title,
-      description: post.content?.substring(0, 120) + '...',
+      title: post.title || 'Untitled Post',
+      description: post.body?.substring(0, 120) + '...' || '',
       type: 'post' as const,
-      author: post.author?.display_name,
-      slug: `${post.group?.slug}/${post.slug}`,
+      author: post.author_name,
+      slug: post.group_slug ? `${post.group_slug}/${post.slug}` : post.slug,
       stats: {
-        views: post.view_count,
-        likes: post.like_count,
-        comments: post.comment_count
+        views: 0,
+        likes: 0,
+        comments: 0
       },
-      tags: post.tags
+      relevance: post.rank // tsvector 相关性分数
     })) || [];
   } catch (error) {
     console.error('Error finding similar posts:', error);

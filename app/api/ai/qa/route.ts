@@ -35,7 +35,10 @@ export async function POST(request: NextRequest) {
     const validatedData = qaRequestSchema.parse(body);
     const { question, contentTypes, includeAnalysis, context, conversationId, aiMode, stream } = validatedData;
 
-    const selectedModel = process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
+    // Select model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
+    const selectedModel = aiMode === 'thinking' 
+      ? (process.env.OPEN_ROUTER_MODEL_THINKING || 'deepseek/deepseek-r1')
+      : (process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free');
 
     console.log(`❓ Q&A request: "${question.substring(0, 100)}..." [${aiMode} mode] [stream: ${stream}]`);
 

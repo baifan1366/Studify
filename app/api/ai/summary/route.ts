@@ -6,9 +6,11 @@ import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { contextManager } from '@/lib/langChain/context-manager';
 import { z } from 'zod';
 
-// Get model - using NVIDIA Nemotron 3 Super (same model for both fast and thinking modes)
+// Get model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
+  return mode === 'thinking'
+    ? (process.env.OPEN_ROUTER_MODEL_THINKING || 'deepseek/deepseek-r1')
+    : (process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free');
 }
 
 // Request validation schema
@@ -221,7 +223,7 @@ export async function POST(request: NextRequest) {
             mode: 'search',
             itemCount: 0,
             processingTimeMs: Date.now() - startTime,
-            model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free',
+            model: selectedModel,
             locale
           }
         });

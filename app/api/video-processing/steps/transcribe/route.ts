@@ -347,13 +347,21 @@ async function transcribeWithWhisper(
       ? RETRY_CONFIG.WARMUP_TIMEOUT
       : RETRY_CONFIG.PROCESSING_TIMEOUT;
 
-    let requestBody;
+    // Prepare request based on source type (URL or File)
+    let response: Response;
 
     if (isUrl) {
-      // For URL-based requests, send URL in FormData
-      const formData = new FormData();
-      formData.append("url", audioSource as string);
-      requestBody = formData;
+      // For URL-based requests, send URL as query parameter (not FormData)
+      // The Whisper server expects url as Query parameter, not FormData
+      const urlWithParam = `${transcribeEndpoint}&url=${encodeURIComponent(audioSource as string)}`;
+      
+      console.log("📤 Sending URL-based request to Whisper:", urlWithParam);
+      
+      // Send POST request with URL in query parameter, no body needed
+      response = await fetch(urlWithParam, {
+        method: "POST",
+        signal: AbortSignal.timeout(timeout),
+      });
     } else {
       // For file-based requests, use FormData
       const audioBlob = audioSource as Blob;
@@ -404,14 +412,13 @@ async function transcribeWithWhisper(
         type: file.type,
       });
       
-      requestBody = formData;
+      // Send POST request with FormData body
+      response = await fetch(transcribeEndpoint, {
+        method: "POST",
+        body: formData,
+        signal: AbortSignal.timeout(timeout),
+      });
     }
-
-    const response = await fetch(transcribeEndpoint, {
-      method: "POST",
-      body: requestBody,
-      signal: AbortSignal.timeout(timeout),
-    });
 
     console.log("📨 Whisper API response status:", response.status);
 

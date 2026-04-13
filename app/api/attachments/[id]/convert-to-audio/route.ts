@@ -115,6 +115,7 @@ export async function POST(
       const storage = new Storage({
         email,
         password,
+        userAgent: 'Studify/1.0 (+https://studify.vercel.app)',
         keepalive: true,
         autologin: true
       })

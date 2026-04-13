@@ -104,6 +104,7 @@ async function getMegaStorage(): Promise<Storage> {
   const storage = new Storage({
     email,
     password,
+    userAgent: 'Studify/1.0 (+https://studify.vercel.app)',
     keepalive: false,
     autologin: true
   });

@@ -40,6 +40,7 @@ async function createMegaStorage(email: string, password: string, retryCount = 0
     const storage = new Storage({
       email,
       password,
+      userAgent: 'Studify/1.0 (+https://studify.vercel.app)',
       keepalive: false,
       autologin: true
     })

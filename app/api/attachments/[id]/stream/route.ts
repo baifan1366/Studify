@@ -201,6 +201,7 @@ export async function GET(
         storage = new Storage({
           email,
           password,
+          userAgent: 'Studify/1.0 (+https://studify.app)',
           keepalive: true,
           autologin: true
         })

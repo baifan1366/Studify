@@ -18,11 +18,12 @@ const TranscribeJobSchema = z.object({
 
 // Configuration for retries and timeouts
 const RETRY_CONFIG = {
-  MAX_RETRIES: 3, // Limited to 3 by QStash quota
-  WARMUP_TIMEOUT: 45000, // 增加到45秒预热超时
-  PROCESSING_TIMEOUT: 600000, // 10分钟处理超时
-  COLD_START_WAIT: 2000, // 减少到2秒等待时间
-  RETRY_DELAYS: [15, 30, 60], // 更快的重试: 15s, 30s, 1m
+  MAX_RETRIES: 2, // Reduced to 2 retries (total 3 attempts: initial + 2 retries)
+  WARMUP_TIMEOUT: 45000, // 45 second warmup timeout
+  PROCESSING_TIMEOUT: 600000, // 10 minute processing timeout
+  COLD_START_WAIT: 2000, // 2 second wait for cold start
+  RETRY_DELAYS: [30, 90], // Slower retries to give server time: 30s, 90s (no warmup retry)
+  SKIP_WARMUP_RETRY: true, // Skip warmup retry - just wait longer on first attempt
 };
 
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {
@@ -305,7 +306,7 @@ async function transcribeWithWhisper(
   const isUrl = typeof audioSource === "string";
 
   // Build the transcribe endpoint with query parameters
-  const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=5`;
+  const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=1`;
 
   // Log the request type
   if (isUrl) {
@@ -907,17 +908,17 @@ async function handler(req: Request) {
     
     let transcriptionResult: { text: string; language?: string };
     try {
-      // If this is the first attempt and not a warmup retry, try to warmup the server first
-      if (retry_count === 0 && !is_warmup_retry) {
-        console.log(`[${requestId}] 🔥 WHISPER: First attempt - starting server warmup...`);
+      // If this is the first attempt, give the server more time to wake up
+      if (retry_count === 0) {
+        console.log(`[${requestId}] 🔥 WHISPER: First attempt - giving server time to wake up...`);
         const warmupStart = Date.now();
 
-        // 并行执行预热，不等待结果
+        // Start warmup in parallel but don't wait for it
         const warmupPromise = warmupWhisperServer().catch(() => false);
 
-        // 给服务器一些时间启动，但不要等太久
+        // Wait longer for server to wake up (10 seconds instead of 2)
         await new Promise((resolve) =>
-          setTimeout(resolve, RETRY_CONFIG.COLD_START_WAIT)
+          setTimeout(resolve, 10000) // Increased from 2s to 10s
         );
 
         const warmupSuccess = await warmupPromise;
@@ -926,54 +927,16 @@ async function handler(req: Request) {
         performanceMetrics.whisper.totalTime += warmupDuration;
         
         console.log(`[${requestId}] ⏱️  WHISPER: Warmup took ${warmupDuration}ms`);
-        console.log(`[${requestId}] ${warmupSuccess ? '✅' : '❌'} WHISPER: Warmup ${warmupSuccess ? 'SUCCESS' : 'FAILED (server sleeping)'}`);
+        console.log(`[${requestId}] ${warmupSuccess ? '✅' : '⚠️'} WHISPER: Warmup ${warmupSuccess ? 'SUCCESS' : 'FAILED (will proceed anyway)'}`);
         
         if (!warmupSuccess) {
           performanceMetrics.whisper.serverStatus = 'sleeping';
+          console.log(`[${requestId}] 💤 WHISPER: Server appears to be sleeping, but proceeding with request...`);
         } else {
           performanceMetrics.whisper.serverStatus = 'active';
         }
         
         console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
-
-        if (!warmupSuccess) {
-          console.log(`[${requestId}] 💤 WHISPER: Server is sleeping, scheduling quick retry...`);
-
-          // Schedule a quick retry after warmup
-          const retryMessageId = await scheduleRetry(
-            queue_id,
-            attachment_id,
-            user_id,
-            audio_url,
-            1,
-            true // This is a warmup retry
-          );
-
-          await client
-            .from("video_processing_queue")
-            .update({
-              qstash_message_id: retryMessageId,
-              status: "retrying",
-              error_message: "Warming up Whisper server...",
-              retry_count: 1,
-            })
-            .eq("id", queue_id);
-
-          console.log(`[${requestId}] ✅ Warmup retry scheduled: ${retryMessageId}`);
-          console.log(`[${requestId}] ⏰ Total execution time: ${Date.now() - startTime}ms`);
-
-          return NextResponse.json({
-            message: "Warming up Whisper server, will retry in 10 seconds",
-            retry_count: 1,
-            is_warmup_retry: true,
-            queue_id,
-            attachment_id,
-            service: 'whisper',
-            issue: 'server_sleeping',
-          });
-        }
-
-        console.log(`[${requestId}] ✅ WHISPER: Server warmup successful, proceeding with transcription`);
       }
 
       // Try transcription (supports both URL and Blob)
@@ -1026,15 +989,48 @@ async function handler(req: Request) {
       // Check error type and determine if we should retry
       const isServerSleeping = whisperError.message.includes("SERVER_SLEEPING");
       const isRateLimit = whisperError.message.includes("RATE_LIMIT");
+      const isTimeout = whisperError.name === "TimeoutError" || whisperError.name === "AbortError";
       const canRetry = retry_count < RETRY_CONFIG.MAX_RETRIES;
 
       console.log(`[${requestId}] 🔍 Error analysis:`, {
         isServerSleeping,
         isRateLimit,
+        isTimeout,
         canRetry,
         retry_count,
         max_retries: RETRY_CONFIG.MAX_RETRIES,
       });
+
+      // ⚠️ CRITICAL: Don't retry on timeout - Whisper is still processing!
+      // Only retry on actual server errors (503, 502) or rate limits
+      if (isTimeout) {
+        console.error(`[${requestId}] ⚠️ TIMEOUT: Whisper is too slow. Not retrying to avoid duplicate processing.`);
+        console.error(`[${requestId}] 💡 RECOMMENDATION: Switch to async processing or faster transcription service`);
+        
+        // Mark as failed without retry
+        await client.rpc("update_video_processing_step", {
+          queue_id_param: queue_id,
+          step_name_param: "transcribe",
+          status_param: "failed",
+          error_message_param: `Transcription timeout - Whisper server is too slow (took > 10 minutes)`,
+          error_details_param: {
+            error: whisperError.message,
+            retry_count,
+            recommendation: "Use faster transcription service or implement async processing",
+          },
+        });
+
+        return NextResponse.json(
+          {
+            error: "Transcription timeout - Whisper server is too slow",
+            queue_id,
+            attachment_id,
+            retry_count,
+            recommendation: "The Whisper server takes 5-13 minutes to process videos. Consider using OpenAI Whisper API or AssemblyAI instead.",
+          },
+          { status: 504 }
+        );
+      }
 
       if ((isServerSleeping || isRateLimit) && canRetry) {
         const nextRetryCount = retry_count + 1;

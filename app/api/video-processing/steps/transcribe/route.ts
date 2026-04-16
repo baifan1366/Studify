@@ -1043,10 +1043,21 @@ async function handler(req: Request) {
           ? "Whisper server is sleeping, retrying..."
           : "Rate limited by Whisper API, retrying with delay...";
 
-        console.log(`[${requestId}] 🔄 Scheduling retry ${nextRetryCount}/${RETRY_CONFIG.MAX_RETRIES}`);
-        console.log(`[${requestId}] 📝 Reason: ${retryReason}`);
+        console.log(`\n${'~'.repeat(80)}`);
+        console.log(`[${requestId}] 🔄 RETRY SCHEDULING`);
+        console.log(`${'~'.repeat(80)}`);
+        console.log(`[${requestId}] 📊 Retry Details:`);
+        console.log(`[${requestId}]    Current retry: ${retry_count}`);
+        console.log(`[${requestId}]    Next retry: ${nextRetryCount}/${RETRY_CONFIG.MAX_RETRIES}`);
+        console.log(`[${requestId}]    Reason: ${retryReason}`);
+        console.log(`[${requestId}]    Error type: ${whisperError.name}`);
+        console.log(`[${requestId}]    Error message: ${whisperError.message}`);
+        console.log(`[${requestId}]    Is server sleeping: ${isServerSleeping}`);
+        console.log(`[${requestId}]    Is rate limit: ${isRateLimit}`);
+        console.log(`${'~'.repeat(80)}\n`);
 
         // Update queue retry count
+        console.log(`[${requestId}] 🗄️  Updating queue status to 'retrying'...`);
         await client
           .from("video_processing_queue")
           .update({
@@ -1056,9 +1067,16 @@ async function handler(req: Request) {
             last_error_at: new Date().toISOString(),
           })
           .eq("id", queue_id);
+        console.log(`[${requestId}] ✅ Queue status updated`);
 
         // Schedule retry with appropriate delay
         try {
+          const delaySeconds =
+            RETRY_CONFIG.RETRY_DELAYS[nextRetryCount - 1] ||
+            RETRY_CONFIG.RETRY_DELAYS[RETRY_CONFIG.RETRY_DELAYS.length - 1];
+
+          console.log(`[${requestId}] ⏰ Scheduling retry with ${delaySeconds}s delay...`);
+          
           const retryMessageId = await scheduleRetry(
             queue_id,
             attachment_id,
@@ -1068,23 +1086,41 @@ async function handler(req: Request) {
             false
           );
 
+          console.log(`[${requestId}] ✅ Retry scheduled successfully`);
+          console.log(`[${requestId}] 📨 QStash message ID: ${retryMessageId}`);
+
           await client
             .from("video_processing_queue")
             .update({ qstash_message_id: retryMessageId })
             .eq("id", queue_id);
 
-          const delaySeconds =
-            RETRY_CONFIG.RETRY_DELAYS[nextRetryCount - 1] ||
-            RETRY_CONFIG.RETRY_DELAYS[RETRY_CONFIG.RETRY_DELAYS.length - 1];
+          console.log(`[${requestId}] ✅ Queue updated with new message ID`);
+          console.log(`\n${'~'.repeat(80)}`);
+          console.log(`[${requestId}] ✅ RETRY SCHEDULED SUCCESSFULLY`);
+          console.log(`[${requestId}] ⏰ Next attempt in ${delaySeconds} seconds`);
+          console.log(`${'~'.repeat(80)}\n`);
 
           return NextResponse.json({
             message: retryReason,
             retry_count: nextRetryCount,
             max_retries: RETRY_CONFIG.MAX_RETRIES,
             next_retry_in_seconds: delaySeconds,
+            error_details: {
+              error_type: whisperError.name,
+              error_message: whisperError.message,
+              is_server_sleeping: isServerSleeping,
+              is_rate_limit: isRateLimit,
+            },
           });
         } catch (retryError: any) {
-          console.error("❌ Failed to schedule retry:", retryError);
+          console.error(`\n${'!'.repeat(80)}`);
+          console.error(`[${requestId}] ❌ FAILED TO SCHEDULE RETRY`);
+          console.error(`${'!'.repeat(80)}`);
+          console.error(`[${requestId}] Retry error type: ${retryError.name}`);
+          console.error(`[${requestId}] Retry error message: ${retryError.message}`);
+          console.error(`[${requestId}] Retry error stack:`, retryError.stack);
+          console.error(`[${requestId}] Original error: ${whisperError.message}`);
+          console.error(`${'!'.repeat(80)}\n`);
 
           // Mark step as failed if we can't schedule retry
           await client.rpc("update_video_processing_step", {
@@ -1103,14 +1139,23 @@ async function handler(req: Request) {
         }
       } else {
         // Max retries reached or non-retryable error
-        console.error(`❌ Max retries reached or non-retryable error:`, {
-          queue_id,
-          attachment_id,
-          retry_count,
-          max_retries: RETRY_CONFIG.MAX_RETRIES,
-        });
+        console.error(`\n${'!'.repeat(80)}`);
+        console.error(`[${requestId}] ❌ MAX RETRIES REACHED OR NON-RETRYABLE ERROR`);
+        console.error(`${'!'.repeat(80)}`);
+        console.error(`[${requestId}] 📊 Final Status:`);
+        console.error(`[${requestId}]    Queue ID: ${queue_id}`);
+        console.error(`[${requestId}]    Attachment ID: ${attachment_id}`);
+        console.error(`[${requestId}]    Retry count: ${retry_count}`);
+        console.error(`[${requestId}]    Max retries: ${RETRY_CONFIG.MAX_RETRIES}`);
+        console.error(`[${requestId}]    Can retry: ${canRetry}`);
+        console.error(`[${requestId}]    Is server sleeping: ${isServerSleeping}`);
+        console.error(`[${requestId}]    Is rate limit: ${isRateLimit}`);
+        console.error(`[${requestId}]    Error type: ${whisperError.name}`);
+        console.error(`[${requestId}]    Error message: ${whisperError.message}`);
+        console.error(`${'!'.repeat(80)}\n`);
 
         // Mark step as failed
+        console.log(`[${requestId}] 🗄️  Marking step as failed in database...`);
         await client.rpc("update_video_processing_step", {
           queue_id_param: queue_id,
           step_name_param: "transcribe",
@@ -1120,18 +1165,33 @@ async function handler(req: Request) {
             last_error: whisperError.message,
             retry_count,
             max_retries: RETRY_CONFIG.MAX_RETRIES,
+            error_type: whisperError.name,
+            is_server_sleeping: isServerSleeping,
+            is_rate_limit: isRateLimit,
           },
         });
+        console.log(`[${requestId}] ✅ Step marked as failed`);
 
         // Send failure notification
-        await sendVideoProcessingNotification(user_id, {
-          attachment_id,
-          queue_id,
-          attachment_title: `Video ${attachment_id}`,
-          status: "failed",
-          current_step: "transcribe",
-          error_message: `Transcription failed after ${retry_count} attempts`,
-        });
+        console.log(`[${requestId}] 📧 Sending failure notification to user...`);
+        try {
+          await sendVideoProcessingNotification(user_id, {
+            attachment_id,
+            queue_id,
+            attachment_title: `Video ${attachment_id}`,
+            status: "failed",
+            current_step: "transcribe",
+            error_message: `Transcription failed after ${retry_count} attempts`,
+          });
+          console.log(`[${requestId}] ✅ Notification sent successfully`);
+        } catch (notificationError: any) {
+          console.error(`[${requestId}] ⚠️  Failed to send notification:`, notificationError.message);
+        }
+
+        console.log(`\n${'!'.repeat(80)}`);
+        console.log(`[${requestId}] ❌ TRANSCRIPTION PERMANENTLY FAILED`);
+        console.log(`[${requestId}] Returning 500 error to client`);
+        console.log(`${'!'.repeat(80)}\n`);
 
         return NextResponse.json(
           {
@@ -1141,6 +1201,12 @@ async function handler(req: Request) {
             retry_count,
             max_retries: RETRY_CONFIG.MAX_RETRIES,
             last_error: whisperError.message,
+            error_type: whisperError.name,
+            error_details: {
+              is_server_sleeping: isServerSleeping,
+              is_rate_limit: isRateLimit,
+              can_retry: canRetry,
+            },
           },
           { status: 500 }
         );

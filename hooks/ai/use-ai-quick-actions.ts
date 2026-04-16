@@ -96,6 +96,7 @@ export function useAIQuickQAStream() {
       question: string;
       context?: Array<{role: string; content: string; reasoning_details?: any}>;
       aiMode?: 'fast' | 'thinking';
+      sessionId?: string;
     },
     callbacks: {
       onThinking?: (chunk: string) => void;
@@ -121,6 +122,7 @@ export function useAIQuickQAStream() {
           context: params.context,
           aiMode: params.aiMode || 'fast',
           stream: true, // Enable streaming
+          sessionId: params.sessionId,
         })
       });
 
@@ -706,3 +708,151 @@ export function useAIState() {
 
 
 
+
+// ============================================
+// Session Management Hooks
+// ============================================
+
+// Fetch all QA sessions
+export function useQASessions() {
+  return useQuery({
+    queryKey: ['qa-sessions'],
+    queryFn: async () => {
+      const response = await fetch('/api/ai/qa/sessions');
+      if (!response.ok) {
+        throw new Error('Failed to fetch sessions');
+      }
+      const data = await response.json();
+      return data.sessions;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Create a new QA session
+export function useCreateQASession() {
+  const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
+
+  return useMutation({
+    mutationFn: async (params?: { title?: string }) => {
+      const response = await fetch('/api/ai/qa/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params || {})
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create session');
+      }
+
+      const data = await response.json();
+      return data.session;
+    },
+    onSuccess: () => {
+      // Invalidate sessions list to refetch
+      // Note: queryClient.invalidateQueries would be called by the component
+    },
+    onError: (error) => {
+      console.error('❌ Create session error:', error);
+      toast({
+        title: '❌ Failed to create session',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive"
+      });
+    }
+  });
+}
+
+// Fetch a single session with messages
+export function useQASessionMessages(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['qa-session-messages', sessionId],
+    queryFn: async () => {
+      if (!sessionId) return null;
+      
+      const response = await fetch(`/api/ai/qa/sessions/${sessionId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch session messages');
+      }
+      
+      const data = await response.json();
+      return {
+        session: data.session,
+        messages: data.messages
+      };
+    },
+    enabled: !!sessionId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+}
+
+// Update session title
+export function useUpdateQASessionTitle() {
+  const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
+
+  return useMutation({
+    mutationFn: async (params: { id: string; title: string }) => {
+      const response = await fetch(`/api/ai/qa/sessions/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: params.title })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update session title');
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate both sessions list and specific session messages
+      // Note: queryClient.invalidateQueries would be called by the component
+    },
+    onError: (error) => {
+      console.error('❌ Update session title error:', error);
+      toast({
+        title: '❌ Failed to update title',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive"
+      });
+    }
+  });
+}
+
+// Delete a session
+export function useDeleteQASession() {
+  const { toast } = useToast();
+  const t = useTranslations('AIAssistant.toast');
+
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const response = await fetch(`/api/ai/qa/sessions/${sessionId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete session');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate sessions list to refetch
+      // Note: queryClient.invalidateQueries would be called by the component
+      toast({
+        title: '✅ Session deleted',
+        description: 'The session has been deleted successfully',
+      });
+    },
+    onError: (error) => {
+      console.error('❌ Delete session error:', error);
+      toast({
+        title: '❌ Failed to delete session',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive"
+      });
+    }
+  });
+}

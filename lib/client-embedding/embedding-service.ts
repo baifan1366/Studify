@@ -74,15 +74,16 @@ export async function initializeModel(
   isInitializing = true;
   const startTime = Date.now();
 
+  // Destructure config outside try block so onProgress is accessible in catch
+  const {
+    modelName = DEFAULT_MODEL,
+    backend,
+    quantization = DEFAULT_QUANTIZATION,
+    onProgress,
+  } = config;
+
   initializationPromise = (async () => {
     try {
-      const {
-        modelName = DEFAULT_MODEL,
-        backend,
-        quantization = DEFAULT_QUANTIZATION,
-        onProgress,
-      } = config;
-
       // Notify start
       onProgress?.({
         status: 'downloading',

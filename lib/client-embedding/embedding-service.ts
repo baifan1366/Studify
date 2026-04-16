@@ -260,7 +260,7 @@ export async function generateClientEmbeddingBatch(
     // Extract embeddings
     const embeddings: number[][] = [];
     for (let i = 0; i < texts.length; i++) {
-      const embedding = Array.from(output[i].data);
+      const embedding = Array.from(output[i].data) as number[];
       
       if (embedding.length !== EMBEDDING_DIMENSION) {
         throw new Error(

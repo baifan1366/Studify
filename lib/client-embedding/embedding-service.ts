@@ -133,7 +133,8 @@ export async function initializeModel(
       });
     } catch (error) {
       console.error('[EmbeddingService] Model initialization failed:', error);
-      onProgress?.({
+      // Use config.onProgress directly since onProgress is out of scope here
+      config.onProgress?.({
         status: 'error',
         progress: 0,
         error: error instanceof Error ? error.message : 'Unknown error',

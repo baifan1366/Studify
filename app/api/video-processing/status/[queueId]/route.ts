@@ -5,13 +5,17 @@ import { sendVideoProcessingNotification } from "@/lib/video-processing/notifica
 
 export async function GET(_: Request, { params }: { params: Promise<{ queueId: string }> }) {
   try {
+    const { queueId } = await params;
+    console.log(`[video-processing] GET /api/video-processing/status/${queueId} - Request received`);
+    
     // Authorize the request
     const authResult = await authorize('tutor');
     if (authResult instanceof NextResponse) {
+      console.log(`[video-processing] Authorization failed for queue ${queueId}`);
       return authResult;
     }
 
-    const { queueId } = await params;
+    console.log(`[video-processing] User ${authResult.payload.sub} authorized for queue ${queueId}`);
     const client = await createServerClient();
 
     // Get user's profile ID
@@ -34,9 +38,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ queueId: s
       .single();
 
     if (queueError || !queueStatus) {
+      console.log(`[video-processing] Queue ${queueId} not found or access denied`);
       return NextResponse.json({ error: "Queue not found or access denied" }, { status: 404 });
     }
 
+    console.log(`[video-processing] Queue ${queueId} status: ${queueStatus.status}, step: ${queueStatus.current_step}, progress: ${queueStatus.progress_percentage}%`);
+    
     return NextResponse.json({
       queue_id: queueStatus.public_id,
       attachment_id: queueStatus.attachment_id,

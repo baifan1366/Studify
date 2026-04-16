@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl';
 import { useVideoQA, type VideoQAResponse } from '@/hooks/video/use-video-qa';
 import { useCreateNote } from '@/hooks/course/use-course-notes';
 import { useToast } from '@/hooks/use-toast';
+import { useEmbeddingPreloadSimple } from '@/hooks/video/use-embedding-preload';
 import AIContentRecommendations from '@/components/ai/ai-content-recommendations';
 
 interface VideoQAPanelProps {
@@ -40,12 +41,15 @@ export function VideoQAPanel({
   const [answer, setAnswer] = useState<VideoQAResponse | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
-  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // New: AI mode state
+  const [aiMode, setAIMode] = useState<'fast' | 'normal' | 'thinking'>('fast'); // AI mode state: fast, normal, thinking
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const videoQA = useVideoQA();
   const createNote = useCreateNote();
   const { toast } = useToast();
+
+  // Preload embedding model in background when component mounts
+  useEmbeddingPreloadSimple(true);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -154,9 +158,21 @@ export function VideoQAPanel({
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'text-gray-400 hover:text-white'
               }`}
-              title="Fast Mode"
+              title="Fast Mode - Quick responses using client-side embedding"
             >
               ⚡
+            </button>
+            <button
+              onClick={() => setAIMode('normal')}
+              disabled={videoQA.isPending}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'normal'
+                  ? 'bg-green-500 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              title="Normal Mode - Balanced quality with dual embedding"
+            >
+              ⚙️
             </button>
             <button
               onClick={() => setAIMode('thinking')}
@@ -166,7 +182,7 @@ export function VideoQAPanel({
                   ? 'bg-purple-500 text-white shadow-sm'
                   : 'text-gray-400 hover:text-white'
               }`}
-              title="Thinking Mode"
+              title="Thinking Mode - Shows AI reasoning process"
             >
               🧠
             </button>
@@ -202,7 +218,7 @@ export function VideoQAPanel({
               <div className="flex items-center gap-2 mb-3">
                 <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
                 <div className="text-sm font-medium text-green-300">
-                  AI {aiMode === 'thinking' ? 'is thinking deeply...' : 'is processing...'}
+                  AI {aiMode === 'thinking' ? 'is thinking deeply...' : aiMode === 'normal' ? 'is analyzing...' : 'is processing...'}
                 </div>
               </div>
               <div className="space-y-2">
@@ -294,7 +310,7 @@ export function VideoQAPanel({
                 </div>
                 {answer.metadata?.aiMode && (
                   <span className="text-xs px-2 py-0.5 rounded bg-green-700 text-green-200">
-                    {answer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : '⚡ Fast'}
+                    {answer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : answer.metadata.aiMode === 'normal' ? '⚙️ Normal' : '⚡ Fast'}
                   </span>
                 )}
               </div>

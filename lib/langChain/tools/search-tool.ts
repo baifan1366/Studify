@@ -5,9 +5,10 @@ import { smartSearch } from '../langchain-integration';
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from '../embedding';
 
-// 搜索视频 embeddings - 两阶段搜索策略
-// Stage 1: E5 粗筛（搜索整个视频，返回 top 30）
-// Stage 2: BGE-M3 精排（对 top 30 重新排序，返回 top 10）
+// 搜索视频 embeddings - 支持三种模式
+// Fast Mode: 使用客户端 E5 embedding，仅 E5 搜索（无 BGE reranking）
+// Normal Mode: 服务器端双重 embedding，两阶段搜索（E5 粗筛 + BGE 精排）
+// Thinking Mode: 混合策略（客户端 E5 + 服务器端 BGE）
 async function searchVideoEmbeddings(
   query: string,
   options: {
@@ -16,6 +17,8 @@ async function searchVideoEmbeddings(
     currentTime?: number;
     timeWindow?: number;
     maxResults?: number;
+    clientEmbedding?: number[]; // Client-generated E5 embedding for Fast/Thinking mode
+    searchMode?: 'fast' | 'normal' | 'thinking'; // Search mode
   } = {}
 ): Promise<any[]> {
   const {
@@ -23,13 +26,37 @@ async function searchVideoEmbeddings(
     attachmentId,
     currentTime,
     timeWindow = 60,
-    maxResults = 10
+    maxResults = 10,
+    clientEmbedding,
+    searchMode = 'normal'
   } = options;
   
   try {
-    // 生成两种 embeddings
-    const { embedding: e5Embedding } = await generateEmbedding(query, 'e5');
-    const { embedding: bgeEmbedding } = await generateEmbedding(query, 'bge');
+    let e5Embedding: number[];
+    let bgeEmbedding: number[] | null = null;
+    
+    // Determine embedding generation strategy based on mode
+    if (searchMode === 'fast' && clientEmbedding) {
+      // Fast Mode: Use client E5 embedding only, skip BGE
+      console.log(`⚡ Fast Mode: Using client E5 embedding (${clientEmbedding.length} dims)`);
+      e5Embedding = clientEmbedding;
+      // No BGE embedding in Fast mode
+    } else if (searchMode === 'thinking' && clientEmbedding) {
+      // Thinking Mode: Use client E5 + server BGE
+      console.log(`🧠 Thinking Mode: Using client E5 + server BGE`);
+      e5Embedding = clientEmbedding;
+      const bgeResult = await generateEmbedding(query, 'bge');
+      bgeEmbedding = bgeResult.embedding;
+      console.log(`✅ Thinking Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
+    } else {
+      // Normal Mode: Generate both embeddings on server
+      console.log(`⚙️ Normal Mode: Generating both E5 and BGE embeddings on server`);
+      const e5Result = await generateEmbedding(query, 'e5');
+      const bgeResult = await generateEmbedding(query, 'bge');
+      e5Embedding = e5Result.embedding;
+      bgeEmbedding = bgeResult.embedding;
+      console.log(`✅ Normal Mode: Server-side dual embedding complete - E5 (${e5Embedding.length}D), BGE (${bgeEmbedding.length}D)`);
+    }
     
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,10 +120,86 @@ async function searchVideoEmbeddings(
       console.log(`🎯 Full video search (no time constraint)`);
     }
     
-    console.log(`🎯 Two-stage search: E5 (${timeStart !== null ? 'time-focused' : 'whole video'}) → BGE-M3 (top ${maxResults})`);
+    console.log(`🎯 Search mode: ${searchMode}, E5 (${timeStart !== null ? 'time-focused' : 'whole video'})${bgeEmbedding ? ' → BGE-M3 reranking' : ' (E5-only)'}`);
     
+    // Adjust parameters based on search mode
+    const e5Threshold = searchMode === 'fast' ? 0.45 : 0.5; // Lower threshold for Fast mode
+    const e5CandidateCount = searchMode === 'fast' ? Math.max(15, maxResults) : Math.max(30, maxResults * 3);
+    const finalCount = searchMode === 'fast' ? 15 : maxResults; // Return more results in Fast mode
+    
+    // Fast Mode: E5-only search (no BGE reranking)
+    if (searchMode === 'fast' || !bgeEmbedding) {
+      console.log(`⚡ Fast Mode: E5-only search (threshold: ${e5Threshold}, count: ${finalCount})`);
+      
+      const { data: e5Results, error: e5Error } = await supabase.rpc('search_video_embeddings_e5', {
+        query_embedding: `[${e5Embedding.join(',')}]`,
+        p_attachment_id: targetAttachmentId,
+        time_start: timeStart,
+        time_end: timeEnd,
+        match_threshold: e5Threshold,
+        match_count: finalCount
+      });
+      
+      if (e5Error) {
+        console.error('❌ E5 search error:', e5Error);
+        return [];
+      }
+      
+      // If time window search has insufficient results, fallback to full video
+      if ((!e5Results || e5Results.length < 5) && timeStart !== null) {
+        console.log(`⚠️ Insufficient results (${e5Results?.length || 0}) in time window, expanding to full video`);
+        
+        const { data: fullResults, error: fullError } = await supabase.rpc('search_video_embeddings_e5', {
+          query_embedding: `[${e5Embedding.join(',')}]`,
+          p_attachment_id: targetAttachmentId,
+          time_start: null,
+          time_end: null,
+          match_threshold: e5Threshold,
+          match_count: finalCount
+        });
+        
+        if (!fullError && fullResults && fullResults.length > 0) {
+          console.log(`✅ Fast Mode: Found ${fullResults.length} results from full video`);
+          return fullResults.map((r: any) => ({
+            id: r.id,
+            content_text: r.content_text,
+            content_type: 'video_segment',
+            type: 'video_segment',
+            segment_start_time: r.segment_start_time,
+            segment_end_time: r.segment_end_time,
+            section_title: r.section_title,
+            attachment_id: r.attachment_id,
+            similarity: r.similarity,
+            fromTimeWindow: false
+          }));
+        }
+      }
+      
+      if (!e5Results || e5Results.length === 0) {
+        console.log('⚠️ No results from Fast Mode E5 search');
+        return [];
+      }
+      
+      console.log(`✅ Fast Mode: Found ${e5Results.length} results`);
+      return e5Results.map((r: any) => ({
+        id: r.id,
+        content_text: r.content_text,
+        content_type: 'video_segment',
+        type: 'video_segment',
+        segment_start_time: r.segment_start_time,
+        segment_end_time: r.segment_end_time,
+        section_title: r.section_title,
+        attachment_id: r.attachment_id,
+        similarity: r.similarity,
+        fromTimeWindow: timeStart !== null
+      }));
+    }
+    
+    // Normal/Thinking Mode: Two-stage search with BGE reranking
     // 使用数据库的两阶段搜索函数（更高效）
-    const e5CandidateCount = Math.max(30, maxResults * 3);
+    console.log(`🔍 ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode: Executing two-stage search (E5 粗筛 + BGE 精排)`);
+    console.log(`  ↳ E5 threshold: ${e5Threshold}, candidates: ${e5CandidateCount}, final: ${finalCount}`);
+    console.log(`  ↳ Weights: E5 (0.3) + BGE (0.7)`);
     
     const { data: twoStageResults, error: twoStageError } = await supabase.rpc('search_video_embeddings_two_stage', {
       query_embedding_e5: `[${e5Embedding.join(',')}]`,
@@ -104,17 +207,18 @@ async function searchVideoEmbeddings(
       p_attachment_id: targetAttachmentId,
       time_start: timeStart,
       time_end: timeEnd,
-      e5_threshold: 0.5,
+      e5_threshold: e5Threshold,
       e5_candidate_count: e5CandidateCount,
-      final_count: maxResults,
+      final_count: finalCount,
       weight_e5: 0.3,
       weight_bge: 0.7
     });
     
     // 如果两阶段搜索成功，直接返回结果
     if (!twoStageError && twoStageResults && twoStageResults.length > 0) {
-      console.log(`✅ Two-stage search: Found ${twoStageResults.length} results`);
-      console.log(`📊 Score range: ${twoStageResults[0]?.combined_score?.toFixed(3)} - ${twoStageResults[twoStageResults.length - 1]?.combined_score?.toFixed(3)}`);
+      console.log(`✅ ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode: Two-stage search completed successfully`);
+      console.log(`  ↳ Found ${twoStageResults.length} results after E5 粗筛 + BGE 精排`);
+      console.log(`  ↳ Score range: ${twoStageResults[0]?.combined_score?.toFixed(3)} - ${twoStageResults[twoStageResults.length - 1]?.combined_score?.toFixed(3)}`);
       
       return twoStageResults.map((r: any) => ({
         id: r.id,
@@ -129,6 +233,11 @@ async function searchVideoEmbeddings(
         e5_similarity: r.e5_similarity,
         bge_similarity: r.bge_similarity
       }));
+    }
+    
+    console.log(`⚠️ Two-stage search failed or returned no results, falling back to manual E5+BGE search`);
+    if (twoStageError) {
+      console.log(`  ↳ Error: ${twoStageError.message}`);
     }
     
     // 回退到单阶段 E5 搜索
@@ -316,7 +425,9 @@ const SearchSchema = z.object({
     lessonId: z.string().optional(),
     attachmentId: z.number().nullable().optional(),
     currentTime: z.number().optional()
-  }).optional().describe("Video context for searching specific video segments")
+  }).optional().describe("Video context for searching specific video segments"),
+  clientEmbedding: z.array(z.number()).length(384).optional().describe("Client-generated E5 embedding for Fast/Thinking mode"),
+  searchMode: z.enum(['fast', 'normal', 'thinking']).optional().describe("Search mode: fast (E5-only), normal (E5+BGE), thinking (hybrid)")
 });
 
 // Export the raw search function for direct access to structured results
@@ -328,6 +439,8 @@ export async function searchVideoSegments(
     currentTime?: number;
     timeWindow?: number;
     maxResults?: number;
+    clientEmbedding?: number[];
+    searchMode?: 'fast' | 'normal' | 'thinking';
   } = {}
 ): Promise<any[]> {
   return searchVideoEmbeddings(query, options);
@@ -344,7 +457,7 @@ export const searchTool = new DynamicStructuredTool({
   schema: SearchSchema,
   func: async (input) => {
     try {
-      const { query, contentTypes = [], videoContext } = input;
+      const { query, contentTypes = [], videoContext, clientEmbedding, searchMode = 'normal' } = input;
       const searchQuery = query;
       
       // 检查是否需要搜索视频内容
@@ -355,13 +468,15 @@ export const searchTool = new DynamicStructuredTool({
       
       // 1. 搜索视频 embeddings
       if (needsVideoSearch && videoContext?.lessonId) {
-        console.log(`🎬 Searching video embeddings for lesson: ${videoContext.lessonId}`);
+        console.log(`🎬 Searching video embeddings for lesson: ${videoContext.lessonId} (mode: ${searchMode})`);
         
         const videoResults = await searchVideoEmbeddings(searchQuery, {
           lessonId: videoContext.lessonId,
           attachmentId: videoContext.attachmentId ?? undefined,
           currentTime: videoContext.currentTime,
-          maxResults: 5
+          maxResults: searchMode === 'fast' ? 15 : 5,
+          clientEmbedding,
+          searchMode
         });
         
         rawVideoResults = videoResults; // Store raw results

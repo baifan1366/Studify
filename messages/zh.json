@@ -9298,5 +9298,65 @@
     "grade": "等级:",
     "calculating_score": "正在计算测验分数...",
     "failed_to_get_score": "获取测验分数信息失败"
+  },
+  "ai": {
+    "modes": {
+      "fast": "快速模式",
+      "normal": "标准模式",
+      "thinking": "思考模式",
+      "fastDescription": "使用客户端处理快速获得答案",
+      "normalDescription": "平衡质量和速度的服务器处理",
+      "thinkingDescription": "详细推理过程和逐步解释"
+    },
+    "modelLoading": {
+      "downloading": "正在下载 AI 模型...",
+      "initializing": "正在初始化模型...",
+      "ready": "模型就绪",
+      "error": "模型加载失败",
+      "downloadHint": "首次下载约 25MB，模型将被缓存以供将来使用。",
+      "initializeHint": "正在准备模型...",
+      "errorHint": "请检查网络连接后重试，或切换到标准模式。",
+      "cancel": "取消下载"
+    },
+    "errors": {
+      "modelLoadFailed": "AI 模型加载失败",
+      "embeddingFailed": "生成向量失败",
+      "searchFailed": "搜索失败",
+      "serverError": "服务器错误",
+      "networkError": "网络连接错误",
+      "switchToNormalMode": "切换到标准模式",
+      "retry": "重试",
+      "refresh": "刷新页面",
+      "consecutiveFailuresHint": "检测到多次失败，请尝试切换模式或刷新页面。"
+    },
+    "status": {
+      "generating": "正在生成答案...",
+      "searching": "正在搜索内容...",
+      "thinking": "正在思考...",
+      "complete": "完成"
+    },
+    "thinkingProcess": {
+      "title": "思考过程",
+      "duration": "思考时长：{duration}毫秒",
+      "expand": "显示思考过程",
+      "collapse": "隐藏思考过程"
+    },
+    "performance": {
+      "responseTime": "响应时间",
+      "embeddingTime": "向量生成时间",
+      "searchTime": "搜索时间",
+      "aiTime": "AI 生成时间",
+      "cached": "已缓存",
+      "backend": "后端：{backend}"
+    },
+    "capabilities": {
+      "webgpuSupported": "支持 WebGPU",
+      "webgpuNotSupported": "不支持 WebGPU",
+      "wasmSupported": "支持 WebAssembly",
+      "wasmNotSupported": "不支持 WebAssembly",
+      "fastModeAvailable": "快速模式可用",
+      "fastModeUnavailable": "此设备不支持快速模式",
+      "recommendedMode": "推荐模式：{mode}"
+    }
   }
 }

@@ -8,11 +8,16 @@ import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 // Set max duration to 5 minutes (300 seconds) - Vercel's maximum
 export const maxDuration = 300;
 
-// Get model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
-function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return mode === 'thinking'
-    ? (process.env.OPEN_ROUTER_MODEL_THINKING || 'deepseek/deepseek-r1')
-    : (process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free');
+// Get model based on AI mode
+function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
+  if (mode === 'thinking') {
+    return process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
+  } else if (mode === 'fast') {
+    return process.env.OPENROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
+  } else {
+    // Normal mode: use THINKING model but without thinking process display
+    return process.env.OPENROUTER_MODEL_NORMAL || process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
+  }
 }
 
 // 视频时间轴智能问答API
@@ -51,7 +56,8 @@ export async function POST(request: NextRequest) {
       question,
       currentTime, // 当前播放时间（秒）
       timeWindow = 30, // 时间窗口（秒）
-      aiMode = 'fast' // AI 模式选择 (fast 或 thinking)
+      aiMode = 'normal', // AI 模式选择 (fast, normal, thinking)
+      clientEmbedding // 客户端生成的 embedding (仅 Fast 模式)
     } = body;
 
     if (!lessonId || !question?.trim()) {
@@ -61,8 +67,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const selectedModel = getModel(aiMode as 'fast' | 'thinking');
-    console.log(`🤖 Video QA using ${selectedModel} (${aiMode} mode)`);
+    const selectedModel = getModel(aiMode as 'fast' | 'normal' | 'thinking');
+    console.log(`🤖 Video QA using ${selectedModel} (${aiMode} mode)${clientEmbedding ? ' with client embedding' : ''}`);
 
     const supabase = await createAdminClient();
 
@@ -245,7 +251,9 @@ ${question}
           lessonId,
           attachmentId,
           currentTime
-        }
+        },
+        clientEmbedding, // Pass client embedding for Fast/Thinking mode
+        aiMode: aiMode as 'fast' | 'normal' | 'thinking', // Pass AI mode for search strategy
       }),
       timeoutPromise
     ]) as any;

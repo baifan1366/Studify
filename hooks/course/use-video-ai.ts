@@ -13,7 +13,7 @@ interface AIAssistantRequest {
   question: string;
   videoContext: VideoContext;
   conversationHistory?: Array<{role: 'user' | 'assistant'; content: string}>;
-  aiMode?: 'fast' | 'thinking'; // New: AI mode selection
+  aiMode?: 'fast' | 'normal' | 'thinking'; // AI mode selection: fast, normal, thinking
 }
 
 interface AIAssistantResponse {
@@ -120,13 +120,33 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
     onToken?: (token: string) => void,
     onComplete?: (data: { sources: any[]; confidence: number; toolsUsed: string[]; thinking?: string }) => void,
     onStatus?: (status: string) => void,
-    onThinking?: (thinking: string) => void, // New: callback for thinking tokens
-    aiMode: 'fast' | 'thinking' = 'fast' // New: AI mode selection
+    onThinking?: (thinking: string) => void, // Callback for thinking tokens
+    aiMode: 'fast' | 'normal' | 'thinking' = 'normal' // AI mode selection: fast, normal, thinking
   ) => {
     setIsLoading(true);
     setError(null);
 
     try {
+      let clientEmbedding: number[] | undefined;
+
+      // Generate client-side embedding for Fast mode
+      if (aiMode === 'fast') {
+        try {
+          onStatus?.('Generating embedding...');
+          const { generateClientEmbedding } = await import('@/lib/client-embedding');
+          const result = await generateClientEmbedding(question, {
+            enableCache: true,
+          });
+          
+          console.log(`[VideoAI] Generated client embedding in ${result.generationTimeMs}ms (${result.backend}, cached: ${result.cached})`);
+          clientEmbedding = result.embedding;
+        } catch (error) {
+          console.error('[VideoAI] Failed to generate client embedding:', error);
+          // Don't throw - let the server handle it without client embedding
+          onStatus?.('Client embedding failed, using server-side processing...');
+        }
+      }
+
       const response = await fetch('/api/ai/video-assistant', {
         method: 'POST',
         headers: {
@@ -137,7 +157,8 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
           question,
           videoContext,
           conversationHistory,
-          aiMode, // Pass AI mode to backend
+          aiMode,
+          clientEmbedding, // Include client embedding if available
         }),
       });
 

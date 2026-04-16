@@ -25,6 +25,33 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
   },
+  // Transformers.js configuration for WASM and ONNX files
+  webpack: (config, { isServer }) => {
+    // Handle WASM files
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+      layers: true,
+    };
+
+    // Handle ONNX model files
+    config.module.rules.push({
+      test: /\.onnx$/,
+      type: 'asset/resource',
+    });
+
+    // Ignore node-specific modules in client bundle
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+
+    return config;
+  },
   async rewrites() {
     return [
       // Rewrite font requests to bypass locale routing

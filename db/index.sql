@@ -42,6 +42,9 @@ CREATE INDEX idx_ai_workflow_executions_workflow_id ON public.ai_workflow_execut
 CREATE INDEX idx_ai_workflow_executions_status ON public.ai_workflow_executions USING btree (status);
 
 CREATE INDEX idx_ai_workflow_executions_created_at ON public.ai_workflow_executions USING btree (created_at);
+  
+CREATE INDEX ON ai_quick_qa_sessions(user_id, updated_at DESC);  
+CREATE INDEX ON ai_quick_qa_messages(session_id, created_at ASC);
 
 CREATE UNIQUE INDEX ai_agent_pkey ON public.ai_agent USING btree (id);
 

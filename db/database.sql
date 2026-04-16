@@ -98,6 +98,27 @@ CREATE TABLE public.ai_workflow_executions (
     deleted_at timestamp with time zone
 );
 
+ 
+CREATE TABLE ai_quick_qa_sessions (  
+  id          bigserial PRIMARY KEY,  
+  public_id   uuid DEFAULT uuid_generate_v4() UNIQUE,  
+  user_id     bigint NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,  
+  title       text,
+  created_at  timestamptz DEFAULT now(),  
+  updated_at  timestamptz DEFAULT now()  
+);  
+  
+CREATE TABLE ai_quick_qa_messages (  
+  id               bigserial PRIMARY KEY,  
+  session_id       bigint NOT NULL REFERENCES ai_quick_qa_sessions(id) ON DELETE CASCADE,  
+  role             text NOT NULL CHECK (role IN ('user', 'assistant')),  
+  content          text NOT NULL,  
+  thinking         text,
+  reasoning_details jsonb,
+  ai_mode          text DEFAULT 'fast',  
+  created_at       timestamptz DEFAULT now()  
+);  
+
 
 CREATE TABLE public.ai_workflow_templates (
     id bigint DEFAULT nextval('ai_workflow_templates_id_seq'::regclass) NOT NULL,

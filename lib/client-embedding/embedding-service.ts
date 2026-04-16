@@ -196,7 +196,7 @@ export async function generateClientEmbedding(
     });
 
     // Extract the embedding array
-    const embedding: number[] = Array.from(output.data);
+    const embedding: number[] = Array.from(output.data as ArrayLike<number>);
 
     // Validate dimension
     if (embedding.length !== EMBEDDING_DIMENSION) {
@@ -260,7 +260,8 @@ export async function generateClientEmbeddingBatch(
     // Extract embeddings
     const embeddings: number[][] = [];
     for (let i = 0; i < texts.length; i++) {
-      const embedding = Array.from(output[i].data);
+      const embeddingData = output[i].data;
+      const embedding: number[] = Array.from(embeddingData as ArrayLike<number>);
       
       if (embedding.length !== EMBEDDING_DIMENSION) {
         throw new Error(

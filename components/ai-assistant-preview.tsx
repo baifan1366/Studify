@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import './ai-assistant-preview.css';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   MessageCircle, 
   Calculator, 
@@ -29,7 +30,9 @@ import {
   Brain,
   Upload,
   Clock,
-  Maximize2
+  Maximize2,
+  Trash2,
+  Plus
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +48,12 @@ import {
   useAIQuickQAStream, 
   useAISolveProblem, 
   useAISmartNotes, 
-  useAILearningPath 
+  useAILearningPath,
+  useQASessions,
+  useCreateQASession,
+  useDeleteQASession,
+  useQASessionMessages,
+  useUpdateQASessionTitle
 } from '@/hooks/ai/use-ai-quick-actions';
 import { useSaveLearningPath } from '@/hooks/dashboard/use-learning-paths';
 import { useSaveAINote } from '@/hooks/dashboard/use-ai-notes';
@@ -629,13 +637,35 @@ function MarkdownContent({ content, isStreaming }: { content: string; isStreamin
   );
 }
 
+// Helper function to format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  return date.toLocaleDateString();
+}
+
 // 聊天室风格的 QuickQA 卡片
 function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (data: any) => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
-  const { streamQA, isStreaming } = useAIQuickQAStream(); // Use streaming hook
+  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast');
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(true);
+  
+  const queryClient = useQueryClient();
+  const { streamQA, isStreaming } = useAIQuickQAStream();
+  const { data: sessionsData } = useQASessions();
+  const createSession = useCreateQASession();
+  const deleteSession = useDeleteQASession();
+  const { data: sessionData } = useQASessionMessages(currentSessionId);
+  
   const t = useTranslations('AIAssistant');
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -645,6 +675,22 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   // ✅ Use the centralized useUser hook instead of direct API call
   const { data: user } = useUser();
   const currentUserId = user?.profile?.id ? parseInt(user.profile.id) : null;
+  
+  // Load session messages when session changes
+  useEffect(() => {
+    if (sessionData?.messages) {
+      const loadedMessages: ChatMessage[] = sessionData.messages.map((msg: any) => ({
+        id: msg.id.toString(),
+        type: msg.role === 'user' ? 'user' : 'ai',
+        content: msg.content,
+        timestamp: new Date(msg.createdAt),
+        thinking: msg.thinking,
+        reasoning_details: msg.reasoning_details,
+        isStreaming: false
+      }));
+      setMessages(loadedMessages);
+    }
+  }, [sessionData]);
 
   // 改进的滚动逻辑
   const scrollToBottom = () => {
@@ -710,6 +756,18 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
     setMessages(prev => [...prev, aiMessage]);
 
     try {
+      // Auto-create session on first message
+      let activeSessionId = currentSessionId;
+      if (!currentSessionId) {
+        const newSession = await createSession.mutateAsync({ 
+          title: userMessage.content.substring(0, 50) 
+        });
+        activeSessionId = newSession.id;
+        setCurrentSessionId(activeSessionId);
+        // Invalidate sessions list to show new session
+        queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
+      }
+
       // 构建上下文 - 包含之前的聊天历史（包括 reasoning_details）
       const conversationContext = messages
         .filter(msg => msg.type === 'ai' || msg.type === 'user')
@@ -719,12 +777,13 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
           ...(msg.reasoning_details ? { reasoning_details: msg.reasoning_details } : {})
         }));
 
-      // Real-time streaming
+      // Real-time streaming with sessionId
       await streamQA(
         {
           question: userMessage.content,
           context: conversationContext,
-          aiMode
+          aiMode,
+          sessionId: activeSessionId || undefined
         },
         {
           onThinking: (chunk: string) => {
@@ -769,6 +828,11 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
                 : msg
             ));
             setIsTyping(false);
+            // Invalidate queries to refresh session list with updated timestamp
+            queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
+            if (activeSessionId) {
+              queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
+            }
           },
           onError: (error: Error) => {
             console.error('Stream error:', error);
@@ -823,168 +887,251 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
     }
   };
 
-  return (
-    <Card className="w-full h-[500px] border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60 flex flex-col">
-      {/* 聊天头部 */}
-      <CardHeader className="pb-3 flex-shrink-0 border-b border-slate-200 dark:border-slate-700/30">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <MessageCircle className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <CardTitle className="text-slate-900 dark:text-white text-sm font-medium">{t('chat.quickqa.title')}</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400 text-xs">{t('chat.quickqa.description')}</CardDescription>
-            </div>
-          </div>
-          <Button variant="ghost" onClick={onClose} className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0">
-            <ArrowLeft className="h-3 w-3" />
-          </Button>
-        </div>
-      </CardHeader>
+  const handleNewChat = () => {
+    setCurrentSessionId(null);
+    setMessages([]);
+  };
 
-      {/* 聊天消息区域 */}
-      <CardContent ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-3">
-              <MessageCircle className="h-6 w-6 text-blue-500 dark:text-blue-400" />
-            </div>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">{t('chat.welcome.title')}</p>
-            <p className="text-slate-500 dark:text-slate-500 text-xs">{t('chat.welcome.subtitle')}</p>
+  const handleSessionClick = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+  };
+
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteSession.mutateAsync(sessionId);
+      // Invalidate sessions list
+      queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
+      if (currentSessionId === sessionId) {
+        handleNewChat();
+      }
+    } catch (error) {
+      console.error('Delete session error:', error);
+    }
+  };
+
+  return (
+    <Card className="w-full h-[500px] border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60 flex flex-row overflow-hidden">
+      {/* Sidebar */}
+      {showSidebar && (
+        <div className="w-48 border-r border-slate-200 dark:border-slate-700/30 flex flex-col bg-slate-50 dark:bg-slate-800/40">
+          {/* New Chat Button */}
+          <div className="p-2 border-b border-slate-200 dark:border-slate-700/30">
+            <Button
+              onClick={handleNewChat}
+              className="w-full justify-start gap-2 bg-blue-500 hover:bg-blue-600 text-white text-xs h-8"
+              size="sm"
+            >
+              <Plus className="h-3 w-3" />
+              New Chat
+            </Button>
           </div>
-        )}
-        
-        {messages.map((message) => (
-          <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-            {message.type === 'user' ? (
-              // 用户消息：右对齐，无头像
-              <div className="max-w-[80%] px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-tr-md">
-                <div className="text-sm whitespace-pre-wrap break-words">
-                  {message.content}
+
+          {/* Sessions List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {sessionsData?.map((session: any) => (
+              <div
+                key={session.id}
+                onClick={() => handleSessionClick(session.id)}
+                className={`group relative p-2 rounded-lg cursor-pointer transition-colors ${
+                  currentSessionId === session.id
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-1">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-900 dark:text-white truncate">
+                      {session.title || 'New Chat'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {formatRelativeTime(session.updatedAt)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleDeleteSession(session.id, e)}
+                    className="opacity-0 group-hover:opacity-100 h-5 w-5 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
-            ) : (
-              // AI消息：左对齐，带AI头像
-              <div className="w-full">
-                <div className="flex items-start space-x-3 max-w-[85%]">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
-                    <Bot className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* 聊天头部 */}
+        <CardHeader className="pb-3 flex-shrink-0 border-b border-slate-200 dark:border-slate-700/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="h-7 w-7 p-0"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <MessageCircle className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-slate-900 dark:text-white text-sm font-medium">{t('chat.quickqa.title')}</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-400 text-xs">{t('chat.quickqa.description')}</CardDescription>
+              </div>
+            </div>
+            <Button variant="ghost" onClick={onClose} className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0">
+              <ArrowLeft className="h-3 w-3" />
+            </Button>
+          </div>
+        </CardHeader>
+
+        {/* 聊天消息区域 */}
+        <CardContent ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-3">
+                <MessageCircle className="h-6 w-6 text-blue-500 dark:text-blue-400" />
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">{t('chat.welcome.title')}</p>
+              <p className="text-slate-500 dark:text-slate-500 text-xs">{t('chat.welcome.subtitle')}</p>
+            </div>
+          )}
+          
+          {messages.map((message) => (
+            <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+              {message.type === 'user' ? (
+                // 用户消息：右对齐，无头像
+                <div className="max-w-[80%] px-4 py-2 bg-blue-500 text-white rounded-2xl rounded-tr-md">
+                  <div className="text-sm whitespace-pre-wrap break-words">
+                    {message.content}
                   </div>
-                  <div className="flex-1">
-                    {/* Thinking Process (only in thinking mode) */}
-                    {message.thinking && (
-                      <div className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30 rounded-2xl rounded-tl-md px-4 py-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                          <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                            {t('chat.thinking_process')}
-                          </span>
-                        </div>
-                        <div className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap break-words">
-                          {message.thinking}
-                          {message.isStreaming && <span className="animate-pulse ml-1">▋</span>}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Answer */}
-                    <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
-                      {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
-                      {message.isStreaming && !message.content && !message.thinking ? (
-                        <TypingIndicator />
-                      ) : (
-                        <div className="ai-message-content">
-                          <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
-                            <MarkdownContent 
-                              content={message.content} 
-                              isStreaming={message.isStreaming} 
-                            />
+                </div>
+              ) : (
+                // AI消息：左对齐，带AI头像
+                <div className="w-full">
+                  <div className="flex items-start space-x-3 max-w-[85%]">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Bot className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                    </div>
+                    <div className="flex-1">
+                      {/* Thinking Process (only in thinking mode) */}
+                      {message.thinking && (
+                        <div className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/30 rounded-2xl rounded-tl-md px-4 py-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                            <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                              {t('chat.thinking_process')}
+                            </span>
                           </div>
-                          {message.isStreaming && <span className="animate-pulse ml-1 text-slate-400">▋</span>}
+                          <div className="text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap break-words">
+                            {message.thinking}
+                            {message.isStreaming && <span className="animate-pulse ml-1">▋</span>}
+                          </div>
                         </div>
                       )}
+                      
+                      {/* Answer */}
+                      <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
+                        {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
+                        {message.isStreaming && !message.content && !message.thinking ? (
+                          <TypingIndicator />
+                        ) : (
+                          <div className="ai-message-content">
+                            <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
+                              <MarkdownContent 
+                                content={message.content} 
+                                isStreaming={message.isStreaming} 
+                              />
+                            </div>
+                            {message.isStreaming && <span className="animate-pulse ml-1 text-slate-400">▋</span>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* 显示推荐内容 - 移到外层，全宽显示 */}
+                  {!message.isStreaming && message.content.length > 50 && (
+                    <div className="mt-4 w-full">
+                      <AIContentRecommendations 
+                        aiResponse={message.content}
+                        userId={currentUserId || undefined}
+                        questionContext={messages.find(m => m.type === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
                 </div>
-                
-                {/* 显示推荐内容 - 移到外层，全宽显示 */}
-                {!message.isStreaming && message.content.length > 50 && (
-                  <div className="mt-4 w-full">
-                    <AIContentRecommendations 
-                      aiResponse={message.content}
-                      userId={currentUserId || undefined}
-                      questionContext={messages.find(m => m.type === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-        
-        {/* Typing Indicator removed - streaming handles loading state */}
-        
-        <div ref={messagesEndRef} />
-      </CardContent>
+              )}
+            </div>
+          ))}
+          
+          <div ref={messagesEndRef} />
+        </CardContent>
 
-      {/* 输入区域 */}
-      <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700/30 p-3">
-        {/* AI Mode Toggle */}
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-slate-600 dark:text-slate-400">AI Mode:</span>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-            <button
-              onClick={() => setAIMode('fast')}
-              disabled={isTyping}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'fast'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              ⚡ Fast
-            </button>
-            <button
-              onClick={() => setAIMode('thinking')}
-              disabled={isTyping}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'thinking'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              🧠 Thinking
-            </button>
+        {/* 输入区域 */}
+        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700/30 p-3">
+          {/* AI Mode Toggle */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-600 dark:text-slate-400">AI Mode:</span>
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+              <button
+                onClick={() => setAIMode('fast')}
+                disabled={isTyping}
+                className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                  aiMode === 'fast'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                ⚡ Fast
+              </button>
+              <button
+                onClick={() => setAIMode('thinking')}
+                disabled={isTyping}
+                className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                  aiMode === 'thinking'
+                    ? 'bg-purple-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                🧠 Thinking
+              </button>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-end space-x-2">
-          <div className="flex-1">
-            <Textarea
-              ref={inputRef}
-              value={currentInput}
-              onChange={(e) => setCurrentInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={t('chat.input.placeholder')}
-              className="min-h-[36px] max-h-[120px] resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
-              disabled={isTyping}
-              aria-label={t('chat.input.aria_label')}
-            />
+          
+          <div className="flex items-end space-x-2">
+            <div className="flex-1">
+              <Textarea
+                ref={inputRef}
+                value={currentInput}
+                onChange={(e) => setCurrentInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={t('chat.input.placeholder')}
+                className="min-h-[36px] max-h-[120px] resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
+                disabled={isTyping}
+                aria-label={t('chat.input.aria_label')}
+              />
+            </div>
+            <Button
+              onClick={handleSend}
+              disabled={!currentInput.trim() || isTyping}
+              size="sm"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2"
+            >
+              {isTyping ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-          <Button
-            onClick={handleSend}
-            disabled={!currentInput.trim() || isTyping}
-            size="sm"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2"
-          >
-            {isTyping ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
         </div>
       </div>
     </Card>

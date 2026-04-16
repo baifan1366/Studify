@@ -277,15 +277,30 @@ async function warmupWhisperServer(): Promise<boolean> {
 async function transcribeWithWhisper(
   audioSource: Blob | string, // Can be a Blob (file) or string (URL)
   retryCount: number = 0,
-  isWarmupRetry: boolean = false
+  isWarmupRetry: boolean = false,
+  requestId: string = 'unknown',
+  performanceMetrics?: any
 ): Promise<{ text: string; language?: string }> {
+  const functionStartTime = Date.now();
   const whisperUrl = process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL;
+
+  console.log(`\n${'~'.repeat(80)}`);
+  console.log(`[${requestId}] [WHISPER] 🎯 Function called at: ${new Date().toISOString()}`);
+  console.log(`[${requestId}] [WHISPER] 📊 Parameters:`, {
+    audioSourceType: typeof audioSource === 'string' ? 'URL' : 'Blob',
+    audioSourceSize: typeof audioSource === 'string' ? 'N/A' : `${audioSource.size} bytes`,
+    retryCount,
+    isWarmupRetry,
+  });
+  console.log(`${'~'.repeat(80)}\n`);
 
   if (!whisperUrl) {
     throw new Error(
       "WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL environment variable not set"
     );
   }
+
+  console.log(`[${requestId}] [WHISPER] 🌐 Whisper API URL: ${whisperUrl}`);
 
   const isUrl = typeof audioSource === "string";
 
@@ -294,13 +309,8 @@ async function transcribeWithWhisper(
 
   // Log the request type
   if (isUrl) {
-    console.log(
-      `🎯 Sending URL-based request to Whisper API (attempt ${
-        retryCount + 1
-      }, warmup: ${isWarmupRetry}):`,
-      transcribeEndpoint
-    );
-    console.log("📊 Audio URL:", audioSource);
+    console.log(`[${requestId}] [WHISPER] 🔗 URL-based request (attempt ${retryCount + 1}, warmup: ${isWarmupRetry})`);
+    console.log(`[${requestId}] [WHISPER] 📍 Audio URL: ${(audioSource as string).substring(0, 100)}...`);
   } else {
     // Map MIME types to file extensions for proper type detection
     const mimeToExtension: Record<string, string> = {
@@ -328,13 +338,8 @@ async function transcribeWithWhisper(
     const extension = mimeToExtension[blobType] || ".mp3"; // Default to .mp3 if unknown
     const filename = `media_file${extension}`;
 
-    console.log(
-      `🎯 Sending file-based request to Whisper API (attempt ${
-        retryCount + 1
-      }, warmup: ${isWarmupRetry}):`,
-      transcribeEndpoint
-    );
-    console.log("📊 Audio blob details:", {
+    console.log(`[${requestId}] [WHISPER] 📁 File-based request (attempt ${retryCount + 1}, warmup: ${isWarmupRetry})`);
+    console.log(`[${requestId}] [WHISPER] 📊 Audio blob details:`, {
       size: audioSource.size,
       type: blobType,
       filename: filename,
@@ -347,6 +352,9 @@ async function transcribeWithWhisper(
       ? RETRY_CONFIG.WARMUP_TIMEOUT
       : RETRY_CONFIG.PROCESSING_TIMEOUT;
 
+    console.log(`[${requestId}] [WHISPER] ⏱️  Timeout configured: ${timeout}ms (${(timeout / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}] [WHISPER] 🚀 Preparing to send request to Whisper API...`);
+
     // Prepare request based on source type (URL or File)
     let response: Response;
 
@@ -355,13 +363,21 @@ async function transcribeWithWhisper(
       // The Whisper server expects url as Query parameter, not FormData
       const urlWithParam = `${transcribeEndpoint}&url=${encodeURIComponent(audioSource as string)}`;
       
-      console.log("📤 Sending URL-based request to Whisper:", urlWithParam);
+      console.log(`[${requestId}] [WHISPER] 📤 Sending URL-based POST request...`);
+      console.log(`[${requestId}] [WHISPER] 🌐 Full endpoint: ${urlWithParam.substring(0, 150)}...`);
+      
+      const fetchStart = Date.now();
       
       // Send POST request with URL in query parameter, no body needed
       response = await fetch(urlWithParam, {
         method: "POST",
         signal: AbortSignal.timeout(timeout),
       });
+      
+      const fetchDuration = Date.now() - fetchStart;
+      console.log(`[${requestId}] [WHISPER] ⏱️  ⚠️  CRITICAL: HTTP Request completed in ${fetchDuration}ms (${(fetchDuration / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}] [WHISPER] 📨 Response status: ${response.status} ${response.statusText}`);
+      console.log(`[${requestId}] [WHISPER] ${response.ok ? '✅' : '❌'} HTTP Request: ${response.ok ? 'SUCCESS' : 'FAILED'}`);
     } else {
       // For file-based requests, use FormData
       const audioBlob = audioSource as Blob;
@@ -373,7 +389,7 @@ async function transcribeWithWhisper(
         );
       }
       
-      console.log("📤 Preparing file upload:", {
+      console.log(`[transcribeWithWhisper] 📤 Preparing file upload:`, {
         size: audioBlob.size,
         type: audioBlob.type,
       });
@@ -406,11 +422,13 @@ async function transcribeWithWhisper(
       const file = new File([audioBlob], filename, { type: blobType });
       formData.append("file", file);
       
-      console.log("📤 File prepared for upload:", {
+      console.log(`[transcribeWithWhisper] 📤 File prepared for upload:`, {
         filename,
         size: file.size,
         type: file.type,
       });
+      
+      const fetchStart = Date.now();
       
       // Send POST request with FormData body
       response = await fetch(transcribeEndpoint, {
@@ -418,12 +436,19 @@ async function transcribeWithWhisper(
         body: formData,
         signal: AbortSignal.timeout(timeout),
       });
+      
+      const fetchDuration = Date.now() - fetchStart;
+      console.log(`[transcribeWithWhisper] ⏱️ ⚠️ CRITICAL: Fetch completed in ${fetchDuration}ms (${(fetchDuration / 1000).toFixed(2)}s)`);
+      console.log(`[transcribeWithWhisper] 📨 Response status: ${response.status} ${response.statusText}`);
     }
 
-    console.log("📨 Whisper API response status:", response.status);
+    console.log(`[transcribeWithWhisper] 📨 Whisper API response status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
+      
+      console.error(`[transcribeWithWhisper] ❌ Whisper API returned error status: ${response.status}`);
+      console.error(`[transcribeWithWhisper] ❌ Error response: ${errorText.substring(0, 500)}`);
 
       // Check if it's a server wake-up issue (503, 502, 504 or connection errors)
       if (
@@ -448,12 +473,22 @@ async function transcribeWithWhisper(
       );
     }
 
+    console.log(`[transcribeWithWhisper] 📥 Parsing JSON response...`);
+    const parseStart = Date.now();
+    
     const result = await response.json();
-    console.log("✅ Whisper API response received:", {
+    
+    const parseDuration = Date.now() - parseStart;
+    console.log(`[transcribeWithWhisper] ⏱️ JSON parsing took: ${parseDuration}ms`);
+    console.log(`[transcribeWithWhisper] ✅ Whisper API response received:`, {
       hasText: !!result.text,
       textLength: result.text?.length || 0,
       language: result.language,
     });
+    
+    const totalDuration = Date.now() - functionStartTime;
+    console.log(`[transcribeWithWhisper] ⏱️ ⚠️ CRITICAL: Total function execution time: ${totalDuration}ms (${(totalDuration / 1000).toFixed(2)}s)`);
+    console.log(`[transcribeWithWhisper] ========================================`);
 
     if (!result.text) {
       throw new Error("No transcription text received from Whisper API");
@@ -464,7 +499,10 @@ async function transcribeWithWhisper(
       language: result.language,
     };
   } catch (error: any) {
-    console.error("❌ Whisper API error:", error.message);
+    const errorDuration = Date.now() - functionStartTime;
+    console.error(`[transcribeWithWhisper] ❌ Whisper API error after ${errorDuration}ms:`, error.message);
+    console.error(`[transcribeWithWhisper] ❌ Error name: ${error.name}`);
+    console.error(`[transcribeWithWhisper] ❌ Error stack:`, error.stack);
 
     // Check for timeout or connection errors (server sleeping)
     if (
@@ -596,15 +634,56 @@ async function scheduleRetry(
 }
 
 async function handler(req: Request) {
+  const startTime = Date.now();
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Performance tracking object
+  const performanceMetrics = {
+    requestId,
+    startTime: new Date().toISOString(),
+    vercel: {
+      region: process.env.VERCEL_REGION || 'unknown',
+      environment: process.env.NODE_ENV,
+      totalExecutionTime: 0,
+    },
+    supabase: {
+      operations: [] as Array<{name: string, duration: number, success: boolean}>,
+      totalTime: 0,
+      errorCount: 0,
+    },
+    whisper: {
+      serverUrl: process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL || 'not_set',
+      warmupTime: 0,
+      processingTime: 0,
+      totalTime: 0,
+      errorCount: 0,
+      serverStatus: 'unknown' as 'sleeping' | 'active' | 'error' | 'unknown',
+    },
+    network: {
+      downloadTime: 0,
+      downloadSize: 0,
+      uploadTime: 0,
+    },
+    breakdown: [] as Array<{step: string, duration: number, percentage: number}>,
+  };
+  
   try {
-    console.log("Processing transcription job...");
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[${requestId}] 🎬 TRANSCRIPTION REQUEST STARTED`);
+    console.log(`[${requestId}] ⏰ Start Time: ${performanceMetrics.startTime}`);
+    console.log(`[${requestId}] 🌍 Environment: ${performanceMetrics.vercel.environment}`);
+    console.log(`[${requestId}] 🔧 Vercel Region: ${performanceMetrics.vercel.region}`);
+    console.log(`[${requestId}] 🌐 Whisper Server: ${performanceMetrics.whisper.serverUrl}`);
+    console.log(`${'='.repeat(80)}\n`);
 
     // Parse and validate the QStash job payload
     const body = await req.json();
+    console.log(`[${requestId}] 📦 Request body received:`, JSON.stringify(body, null, 2));
+    
     const validation = TranscribeJobSchema.safeParse(body);
 
     if (!validation.success) {
-      console.error("Invalid job payload:", validation.error.errors);
+      console.error(`[${requestId}] ❌ VALIDATION FAILED:`, validation.error.errors);
       return NextResponse.json(
         {
           error: "Invalid job payload",
@@ -623,32 +702,52 @@ async function handler(req: Request) {
       retry_count,
       is_warmup_retry,
     } = validation.data;
-    const client = await createServerClient();
-
-    console.log("🎬 Processing transcription for:", {
+    
+    console.log(`[${requestId}] ✅ Validation passed`);
+    console.log(`[${requestId}] 📋 Job Details:`, {
       queue_id,
       attachment_id,
       user_id,
-      audio_url,
+      audio_url_length: audio_url.length,
+      audio_url_preview: audio_url.substring(0, 100) + '...',
       timestamp,
       retry_count,
       is_warmup_retry,
     });
+    
+    const client = await createServerClient();
+    console.log(`[${requestId}] 🔌 Supabase client created`);
 
     // 1. Get current queue status and retry count
+    console.log(`[${requestId}] 🗄️  SUPABASE: Fetching queue record...`);
+    const dbQueryStart = Date.now();
+    
     const { data: queueData, error: queueError } = await client
       .from("video_processing_queue")
       .select("retry_count, max_retries, status")
       .eq("id", queue_id);
 
+    const dbQueryDuration = Date.now() - dbQueryStart;
+    performanceMetrics.supabase.operations.push({
+      name: 'fetch_queue_record',
+      duration: dbQueryDuration,
+      success: !queueError,
+    });
+    performanceMetrics.supabase.totalTime += dbQueryDuration;
+    
+    console.log(`[${requestId}] ⏱️  SUPABASE: Query completed in ${dbQueryDuration}ms`);
+    console.log(`[${requestId}] ${queueError ? '❌' : '✅'} SUPABASE: ${queueError ? 'FAILED' : 'SUCCESS'}`);
+
     if (queueError) {
+      performanceMetrics.supabase.errorCount++;
+      console.error(`[${requestId}] ❌ SUPABASE ERROR:`, queueError);
       throw new Error(`Database error fetching queue: ${queueError.message}`);
     }
 
     if (!queueData || queueData.length === 0) {
-      console.warn(
-        `⚠️ Queue not found with ID: ${queue_id}. This may be an orphaned QStash message. Skipping processing.`
-      );
+      console.warn(`[${requestId}] ⚠️ ORPHANED MESSAGE DETECTED`);
+      console.warn(`[${requestId}] Queue ID ${queue_id} not found in database`);
+      console.warn(`[${requestId}] This is likely a QStash message for a deleted queue`);
 
       // Return success to prevent QStash from retrying this orphaned message
       return NextResponse.json(
@@ -662,15 +761,18 @@ async function handler(req: Request) {
       );
     }
 
+    console.log(`[${requestId}] ✅ Queue record found:`, queueData[0]);
+
     if (queueData.length > 1) {
-      console.warn(
-        `Multiple queue entries found for ID: ${queue_id}, using first one`
-      );
+      console.warn(`[${requestId}] ⚠️ Multiple queue entries found (${queueData.length}), using first one`);
     }
 
     const queueRecord = Array.isArray(queueData) ? queueData[0] : queueData;
 
     // 2. Update step status to processing
+    console.log(`[${requestId}] 🗄️  SUPABASE: Updating step status...`);
+    const updateStepStart = Date.now();
+    
     await client
       .from("video_processing_steps")
       .update({
@@ -681,7 +783,20 @@ async function handler(req: Request) {
       .eq("queue_id", queue_id)
       .eq("step_name", "transcribe");
 
+    const updateStepDuration = Date.now() - updateStepStart;
+    performanceMetrics.supabase.operations.push({
+      name: 'update_step_status',
+      duration: updateStepDuration,
+      success: true,
+    });
+    performanceMetrics.supabase.totalTime += updateStepDuration;
+    
+    console.log(`[${requestId}] ⏱️  SUPABASE: Step update took ${updateStepDuration}ms`);
+
     // Update queue status
+    console.log(`[${requestId}] 🗄️  SUPABASE: Updating queue status...`);
+    const updateQueueStart = Date.now();
+    
     await client
       .from("video_processing_queue")
       .update({
@@ -692,6 +807,18 @@ async function handler(req: Request) {
       })
       .eq("id", queue_id);
 
+    const updateQueueDuration = Date.now() - updateQueueStart;
+    performanceMetrics.supabase.operations.push({
+      name: 'update_queue_status',
+      duration: updateQueueDuration,
+      success: true,
+    });
+    performanceMetrics.supabase.totalTime += updateQueueDuration;
+    
+    console.log(`[${requestId}] ⏱️  SUPABASE: Queue update took ${updateQueueDuration}ms`);
+    console.log(`[${requestId}] 📊 SUPABASE TOTAL: ${performanceMetrics.supabase.totalTime}ms (${performanceMetrics.supabase.operations.length} operations)`);
+    console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
+
     // 4. Determine if we should use URL-based or file-based transcription
     // The Whisper server only supports direct URL processing for MEGA.nz URLs
     // For other URLs, we need to download and send as file
@@ -700,8 +827,8 @@ async function handler(req: Request) {
     const isMegaUrl = audio_url.includes("mega.nz") || audio_url.includes("mega.co.nz");
     const shouldUseUrlMode = isMegaUrl; // Only use URL mode for MEGA.nz URLs
 
-    console.log("🔍 Transcription mode detection:", {
-      audio_url,
+    console.log(`[${requestId}] 🔍 Transcription mode detection:`, {
+      audio_url_preview: audio_url.substring(0, 100),
       isHttpUrl,
       isMegaUrl,
       shouldUseUrlMode,
@@ -713,16 +840,27 @@ async function handler(req: Request) {
     let audioSource: Blob | string;
 
     if (shouldUseUrlMode) {
-      console.log(
-        "🔗 Using URL-based transcription - Whisper will download directly from:",
-        audio_url
-      );
+      console.log(`[${requestId}] 🔗 Using URL-based transcription`);
+      console.log(`[${requestId}] 📍 Whisper will download directly from: ${audio_url.substring(0, 100)}...`);
       audioSource = audio_url;
     } else {
       // Download audio file for non-HTTP URLs (edge case, probably won't happen)
       try {
-        console.log("📥 Downloading audio file for file-based transcription");
+        console.log(`[${requestId}] 🌐 NETWORK: Starting audio file download...`);
+        console.log(`[${requestId}] 🌐 Download URL: ${audio_url.substring(0, 100)}...`);
+        const downloadStart = Date.now();
+        
         audioSource = await downloadAudioFile(audio_url);
+        
+        const downloadDuration = Date.now() - downloadStart;
+        performanceMetrics.network.downloadTime = downloadDuration;
+        performanceMetrics.network.downloadSize = audioSource.size;
+        
+        console.log(`[${requestId}] ⏱️  NETWORK: Download completed in ${downloadDuration}ms`);
+        console.log(`[${requestId}] 📊 NETWORK: File size ${audioSource.size} bytes (${(audioSource.size / 1024 / 1024).toFixed(2)} MB)`);
+        console.log(`[${requestId}] 📊 NETWORK: Download speed ${((audioSource.size / 1024 / 1024) / (downloadDuration / 1000)).toFixed(2)} MB/s`);
+        console.log(`[${requestId}] ${downloadDuration > 60000 ? '❌' : downloadDuration > 30000 ? '⚠️' : '✅'} NETWORK: ${downloadDuration > 60000 ? 'TOO SLOW' : downloadDuration > 30000 ? 'SLOW' : 'GOOD SPEED'}`);
+        console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
         
         // Validate the downloaded blob
         if (audioSource.size < 1000) {
@@ -731,12 +869,11 @@ async function handler(req: Request) {
           );
         }
         
-        console.log("✅ Audio file downloaded and ready:", {
-          size: audioSource.size,
-          type: audioSource.type,
-        });
+        console.log(`[${requestId}] ✅ NETWORK: Audio file validated`);
       } catch (downloadError: any) {
-        console.error("Audio download failed:", downloadError.message);
+        console.error(`[${requestId}] ❌ NETWORK DOWNLOAD FAILED`);
+        console.error(`[${requestId}] Error: ${downloadError.message}`);
+        console.error(`[${requestId}] Stack:`, downloadError.stack);
 
         await client.rpc("handle_step_failure", {
           queue_id_param: queue_id,
@@ -745,6 +882,8 @@ async function handler(req: Request) {
           error_details_param: {
             step: "download",
             error: downloadError.message,
+            elapsed_time_ms: Date.now() - startTime,
+            service: 'network',
           },
         });
 
@@ -753,6 +892,7 @@ async function handler(req: Request) {
             error: "Failed to download audio file",
             details: downloadError.message,
             retryable: true,
+            service: 'network',
           },
           { status: 500 }
         );
@@ -760,13 +900,17 @@ async function handler(req: Request) {
     }
 
     // 5. Transcribe with Whisper API (with intelligent retry logic)
+    console.log(`\n${'-'.repeat(80)}`);
+    console.log(`[${requestId}] 🎤 WHISPER: Starting transcription...`);
+    console.log(`[${requestId}] 🔧 Retry count: ${retry_count}, Is warmup retry: ${is_warmup_retry}`);
+    console.log(`${'-'.repeat(80)}\n`);
+    
     let transcriptionResult: { text: string; language?: string };
     try {
       // If this is the first attempt and not a warmup retry, try to warmup the server first
       if (retry_count === 0 && !is_warmup_retry) {
-        console.log(
-          "🔥 Starting server warmup in parallel with audio processing..."
-        );
+        console.log(`[${requestId}] 🔥 WHISPER: First attempt - starting server warmup...`);
+        const warmupStart = Date.now();
 
         // 并行执行预热，不等待结果
         const warmupPromise = warmupWhisperServer().catch(() => false);
@@ -777,11 +921,23 @@ async function handler(req: Request) {
         );
 
         const warmupSuccess = await warmupPromise;
+        const warmupDuration = Date.now() - warmupStart;
+        performanceMetrics.whisper.warmupTime = warmupDuration;
+        performanceMetrics.whisper.totalTime += warmupDuration;
+        
+        console.log(`[${requestId}] ⏱️  WHISPER: Warmup took ${warmupDuration}ms`);
+        console.log(`[${requestId}] ${warmupSuccess ? '✅' : '❌'} WHISPER: Warmup ${warmupSuccess ? 'SUCCESS' : 'FAILED (server sleeping)'}`);
+        
+        if (!warmupSuccess) {
+          performanceMetrics.whisper.serverStatus = 'sleeping';
+        } else {
+          performanceMetrics.whisper.serverStatus = 'active';
+        }
+        
+        console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
 
         if (!warmupSuccess) {
-          console.log(
-            "🔥 Server appears to be sleeping, scheduling quick retry..."
-          );
+          console.log(`[${requestId}] 💤 WHISPER: Server is sleeping, scheduling quick retry...`);
 
           // Schedule a quick retry after warmup
           const retryMessageId = await scheduleRetry(
@@ -803,33 +959,82 @@ async function handler(req: Request) {
             })
             .eq("id", queue_id);
 
+          console.log(`[${requestId}] ✅ Warmup retry scheduled: ${retryMessageId}`);
+          console.log(`[${requestId}] ⏰ Total execution time: ${Date.now() - startTime}ms`);
+
           return NextResponse.json({
             message: "Warming up Whisper server, will retry in 10 seconds",
             retry_count: 1,
             is_warmup_retry: true,
             queue_id,
             attachment_id,
+            service: 'whisper',
+            issue: 'server_sleeping',
           });
         }
 
-        console.log(
-          "✅ Server warmup successful, proceeding with transcription"
-        );
+        console.log(`[${requestId}] ✅ WHISPER: Server warmup successful, proceeding with transcription`);
       }
 
       // Try transcription (supports both URL and Blob)
+      console.log(`[${requestId}] 🎯 WHISPER: Calling Whisper API...`);
+      console.log(`[${requestId}] 📊 Audio source type: ${typeof audioSource === 'string' ? 'URL' : 'Blob'}`);
+      const transcriptionStart = Date.now();
+      
       transcriptionResult = await transcribeWithWhisper(
         audioSource,
         retry_count,
-        is_warmup_retry
+        is_warmup_retry,
+        requestId,
+        performanceMetrics
       );
+      
+      const transcriptionDuration = Date.now() - transcriptionStart;
+      performanceMetrics.whisper.processingTime = transcriptionDuration;
+      performanceMetrics.whisper.totalTime += transcriptionDuration;
+      
+      console.log(`\n${'-'.repeat(80)}`);
+      console.log(`[${requestId}] ⏱️  ⚠️  CRITICAL: WHISPER API call took ${transcriptionDuration}ms (${(transcriptionDuration / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}] ⏱️  ⚠️  CRITICAL: WHISPER TOTAL (warmup + processing): ${performanceMetrics.whisper.totalTime}ms (${(performanceMetrics.whisper.totalTime / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}] ${transcriptionDuration > 240000 ? '❌' : transcriptionDuration > 180000 ? '⚠️' : '✅'} WHISPER: ${transcriptionDuration > 240000 ? 'TOO SLOW - WILL CAUSE TIMEOUT' : transcriptionDuration > 180000 ? 'SLOW - APPROACHING TIMEOUT' : 'GOOD SPEED'}`);
+      console.log(`${'-'.repeat(80)}\n`);
+      
+      console.log(`[${requestId}] 📝 Transcription result:`, {
+        text_length: transcriptionResult.text.length,
+        language: transcriptionResult.language,
+        text_preview: transcriptionResult.text.substring(0, 100) + '...',
+      });
+      
+      // Check if we're approaching Vercel timeout (300 seconds)
+      const elapsedSeconds = (Date.now() - startTime) / 1000;
+      if (elapsedSeconds > 240) {
+        console.warn(`[${requestId}] ⚠️  WARNING: Approaching Vercel timeout! Elapsed: ${elapsedSeconds.toFixed(2)}s / 300s`);
+      }
+      
     } catch (whisperError: any) {
-      console.error("❌ Whisper API failed:", whisperError.message);
+      const errorTime = Date.now() - startTime;
+      performanceMetrics.whisper.errorCount++;
+      
+      console.error(`\n${'='.repeat(80)}`);
+      console.error(`[${requestId}] ❌ WHISPER API FAILED`);
+      console.error(`[${requestId}] ⏰ Failed after: ${errorTime}ms (${(errorTime / 1000).toFixed(2)}s)`);
+      console.error(`[${requestId}] Error type: ${whisperError.name}`);
+      console.error(`[${requestId}] Error message: ${whisperError.message}`);
+      console.error(`[${requestId}] Stack:`, whisperError.stack);
+      console.error(`${'='.repeat(80)}\n`);
 
       // Check error type and determine if we should retry
       const isServerSleeping = whisperError.message.includes("SERVER_SLEEPING");
       const isRateLimit = whisperError.message.includes("RATE_LIMIT");
       const canRetry = retry_count < RETRY_CONFIG.MAX_RETRIES;
+
+      console.log(`[${requestId}] 🔍 Error analysis:`, {
+        isServerSleeping,
+        isRateLimit,
+        canRetry,
+        retry_count,
+        max_retries: RETRY_CONFIG.MAX_RETRIES,
+      });
 
       if ((isServerSleeping || isRateLimit) && canRetry) {
         const nextRetryCount = retry_count + 1;
@@ -837,9 +1042,8 @@ async function handler(req: Request) {
           ? "Whisper server is sleeping, retrying..."
           : "Rate limited by Whisper API, retrying with delay...";
 
-        console.log(
-          `🔄 ${retryReason} (${nextRetryCount}/${RETRY_CONFIG.MAX_RETRIES})`
-        );
+        console.log(`[${requestId}] 🔄 Scheduling retry ${nextRetryCount}/${RETRY_CONFIG.MAX_RETRIES}`);
+        console.log(`[${requestId}] 📝 Reason: ${retryReason}`);
 
         // Update queue retry count
         await client
@@ -1005,6 +1209,81 @@ async function handler(req: Request) {
       retry_count,
     });
 
+    const totalExecutionTime = Date.now() - startTime;
+    performanceMetrics.vercel.totalExecutionTime = totalExecutionTime;
+    
+    // Calculate breakdown percentages
+    performanceMetrics.breakdown = [
+      { step: 'Supabase Operations', duration: performanceMetrics.supabase.totalTime, percentage: (performanceMetrics.supabase.totalTime / totalExecutionTime * 100) },
+      { step: 'Network Download', duration: performanceMetrics.network.downloadTime, percentage: (performanceMetrics.network.downloadTime / totalExecutionTime * 100) },
+      { step: 'Whisper Warmup', duration: performanceMetrics.whisper.warmupTime, percentage: (performanceMetrics.whisper.warmupTime / totalExecutionTime * 100) },
+      { step: 'Whisper Processing', duration: performanceMetrics.whisper.processingTime, percentage: (performanceMetrics.whisper.processingTime / totalExecutionTime * 100) },
+    ].filter(item => item.duration > 0).sort((a, b) => b.duration - a.duration);
+    
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[${requestId}] ✅ TRANSCRIPTION COMPLETED SUCCESSFULLY`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(`[${requestId}] ⏰ VERCEL: Total execution time: ${totalExecutionTime}ms (${(totalExecutionTime / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}] 📊 VERCEL: Timeout limit: 300s`);
+    console.log(`[${requestId}] 📊 VERCEL: Time remaining: ${((300000 - totalExecutionTime) / 1000).toFixed(2)}s`);
+    console.log(`[${requestId}] 📊 VERCEL: Usage: ${(totalExecutionTime / 300000 * 100).toFixed(1)}%`);
+    console.log(`[${requestId}] ${totalExecutionTime > 300000 ? '❌ TIMEOUT' : totalExecutionTime > 270000 ? '🚨 DANGER' : totalExecutionTime > 240000 ? '⚠️  WARNING' : '✅ SAFE'}`);
+    console.log(`${'-'.repeat(80)}`);
+    console.log(`[${requestId}] 🗄️  SUPABASE SUMMARY:`);
+    console.log(`[${requestId}]    Total time: ${performanceMetrics.supabase.totalTime}ms (${(performanceMetrics.supabase.totalTime / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}]    Operations: ${performanceMetrics.supabase.operations.length}`);
+    console.log(`[${requestId}]    Errors: ${performanceMetrics.supabase.errorCount}`);
+    console.log(`[${requestId}]    Percentage of total: ${(performanceMetrics.supabase.totalTime / totalExecutionTime * 100).toFixed(1)}%`);
+    console.log(`[${requestId}]    ${performanceMetrics.supabase.totalTime > 5000 ? '⚠️  SLOW' : '✅ GOOD'}`);
+    console.log(`${'-'.repeat(80)}`);
+    if (performanceMetrics.network.downloadTime > 0) {
+      console.log(`[${requestId}] 🌐 NETWORK SUMMARY:`);
+      console.log(`[${requestId}]    Download time: ${performanceMetrics.network.downloadTime}ms (${(performanceMetrics.network.downloadTime / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}]    Download size: ${(performanceMetrics.network.downloadSize / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`[${requestId}]    Download speed: ${((performanceMetrics.network.downloadSize / 1024 / 1024) / (performanceMetrics.network.downloadTime / 1000)).toFixed(2)} MB/s`);
+      console.log(`[${requestId}]    Percentage of total: ${(performanceMetrics.network.downloadTime / totalExecutionTime * 100).toFixed(1)}%`);
+      console.log(`[${requestId}]    ${performanceMetrics.network.downloadTime > 60000 ? '❌ TOO SLOW' : performanceMetrics.network.downloadTime > 30000 ? '⚠️  SLOW' : '✅ GOOD'}`);
+      console.log(`${'-'.repeat(80)}`);
+    }
+    console.log(`[${requestId}] 🎤 WHISPER SUMMARY:`);
+    console.log(`[${requestId}]    Server status: ${performanceMetrics.whisper.serverStatus}`);
+    console.log(`[${requestId}]    Warmup time: ${performanceMetrics.whisper.warmupTime}ms (${(performanceMetrics.whisper.warmupTime / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}]    Processing time: ${performanceMetrics.whisper.processingTime}ms (${(performanceMetrics.whisper.processingTime / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}]    Total Whisper time: ${performanceMetrics.whisper.totalTime}ms (${(performanceMetrics.whisper.totalTime / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}]    Errors: ${performanceMetrics.whisper.errorCount}`);
+    console.log(`[${requestId}]    Percentage of total: ${(performanceMetrics.whisper.totalTime / totalExecutionTime * 100).toFixed(1)}%`);
+    console.log(`[${requestId}]    ${performanceMetrics.whisper.processingTime > 240000 ? '❌ TOO SLOW - CAUSING TIMEOUT' : performanceMetrics.whisper.processingTime > 180000 ? '⚠️  SLOW' : '✅ GOOD'}`);
+    console.log(`${'-'.repeat(80)}`);
+    console.log(`[${requestId}] 📊 TIME BREAKDOWN (sorted by duration):`);
+    performanceMetrics.breakdown.forEach((item: any, index: number) => {
+      const bar = '█'.repeat(Math.floor(item.percentage / 2));
+      console.log(`[${requestId}]    ${index + 1}. ${item.step}: ${item.duration}ms (${(item.duration / 1000).toFixed(2)}s) - ${item.percentage.toFixed(1)}%`);
+      console.log(`[${requestId}]       ${bar}`);
+    });
+    console.log(`${'-'.repeat(80)}`);
+    console.log(`[${requestId}] 🎯 ROOT CAUSE ANALYSIS:`);
+    
+    const bottleneck = performanceMetrics.breakdown[0];
+    if (bottleneck.step.includes('Whisper')) {
+      console.log(`[${requestId}]    ❌ PRIMARY ISSUE: Whisper API is the bottleneck (${bottleneck.percentage.toFixed(1)}% of total time)`);
+      console.log(`[${requestId}]    💡 RECOMMENDATION: Consider switching to faster transcription service (OpenAI/AssemblyAI) or implement async processing`);
+    } else if (bottleneck.step.includes('Network')) {
+      console.log(`[${requestId}]    ❌ PRIMARY ISSUE: Network download is the bottleneck (${bottleneck.percentage.toFixed(1)}% of total time)`);
+      console.log(`[${requestId}]    💡 RECOMMENDATION: Use MEGA.nz URL mode or optimize file storage location`);
+    } else if (bottleneck.step.includes('Supabase')) {
+      console.log(`[${requestId}]    ❌ PRIMARY ISSUE: Database operations are the bottleneck (${bottleneck.percentage.toFixed(1)}% of total time)`);
+      console.log(`[${requestId}]    💡 RECOMMENDATION: Optimize database queries or use connection pooling`);
+    } else {
+      console.log(`[${requestId}]    ✅ No single bottleneck identified - multiple factors contributing`);
+    }
+    
+    console.log(`${'-'.repeat(80)}`);
+    console.log(`[${requestId}] 📝 Transcription: ${transcriptionResult.text.length} characters`);
+    console.log(`[${requestId}] 🌍 Language: ${transcriptionResult.language}`);
+    console.log(`[${requestId}] 🔄 Retry count: ${retry_count}`);
+    console.log(`[${requestId}] ⏰ Completed at: ${new Date().toISOString()}`);
+    console.log(`${'='.repeat(80)}\n`);
+
     return NextResponse.json(
       {
         message: "Transcription completed successfully",
@@ -1026,13 +1305,37 @@ async function handler(req: Request) {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error("Unexpected error in transcription processing:", error);
+    const errorExecutionTime = Date.now() - startTime;
+    performanceMetrics.vercel.totalExecutionTime = errorExecutionTime;
+    
+    console.error(`\n${'='.repeat(80)}`);
+    console.error(`[${requestId}] ❌ UNEXPECTED ERROR IN TRANSCRIPTION`);
+    console.error(`${'='.repeat(80)}`);
+    console.error(`[${requestId}] ⏰ VERCEL: Failed after ${errorExecutionTime}ms (${(errorExecutionTime / 1000).toFixed(2)}s)`);
+    console.error(`[${requestId}] Error name: ${error.name}`);
+    console.error(`[${requestId}] Error message: ${error.message}`);
+    console.error(`${'-'.repeat(80)}`);
+    console.error(`[${requestId}] 📊 PERFORMANCE SUMMARY AT FAILURE:`);
+    console.error(`[${requestId}]    Supabase: ${performanceMetrics.supabase.totalTime}ms (${performanceMetrics.supabase.errorCount} errors)`);
+    console.error(`[${requestId}]    Network: ${performanceMetrics.network.downloadTime}ms`);
+    console.error(`[${requestId}]    Whisper: ${performanceMetrics.whisper.totalTime}ms (${performanceMetrics.whisper.errorCount} errors)`);
+    console.error(`${'-'.repeat(80)}`);
+    console.error(`[${requestId}] Stack trace:`, error.stack);
+    console.error(`${'='.repeat(80)}\n`);
 
     return NextResponse.json(
       {
         error: "Internal server error",
         details: error.message,
         retryable: true,
+        execution_time_ms: errorExecutionTime,
+        performance_metrics: {
+          supabase_time: performanceMetrics.supabase.totalTime,
+          network_time: performanceMetrics.network.downloadTime,
+          whisper_time: performanceMetrics.whisper.totalTime,
+          supabase_errors: performanceMetrics.supabase.errorCount,
+          whisper_errors: performanceMetrics.whisper.errorCount,
+        },
       },
       { status: 500 }
     );

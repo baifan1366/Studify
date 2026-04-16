@@ -245,8 +245,13 @@ async function warmupWhisperServer(): Promise<boolean> {
 
     console.log(`📊 Warmup audio created: ${warmupBlob.size} bytes`);
 
+    // Convert Blob to File for proper FormData serialization
+    const warmupFile = new File([warmupBlob], "warmup.wav", { type: "audio/wav" });
+    
+    console.log(`📊 Warmup file created: ${warmupFile.size} bytes, name: ${warmupFile.name}`);
+
     const formData = new FormData();
-    formData.append("file", warmupBlob, "warmup.wav");
+    formData.append("file", warmupFile);
 
     const response = await fetch(
       `${whisperUrl}/transcribe?task=transcribe&beam_size=1`,

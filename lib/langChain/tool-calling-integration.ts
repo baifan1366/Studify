@@ -1112,7 +1112,7 @@ Provide a clear, helpful answer using your knowledge.`;
         console.log(`🧠 [${Date.now()}] Using OpenRouter SDK for thinking mode`);
         
         // Import OpenRouter SDK
-        const { default: OpenRouter } = await import('@openrouter/sdk');
+        const { OpenRouter } = await import('@openrouter/sdk');
         const { apiKeyManager } = await import('./api-key-manager');
         
         // Get API key
@@ -1120,21 +1120,21 @@ Provide a clear, helpful answer using your knowledge.`;
         
         const openrouter = new OpenRouter({
           apiKey,
-          defaultHeaders: {
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-            'X-Title': process.env.NEXT_PUBLIC_SITE_NAME || 'Studify',
-          },
+          httpReferer: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          appTitle: process.env.NEXT_PUBLIC_SITE_NAME || 'Studify',
         });
         
         try {
-          const stream = await openrouter.chat.completions.create({
-            model: modelName,
-            messages: messages.map((msg: any) => ({
-              role: msg._getType() === 'human' ? 'user' : 'assistant',
-              content: msg.content,
-            })),
-            stream: true,
-            temperature: 0.3,
+          const stream = await openrouter.chat.send({
+            chatRequest: {
+              model: modelName,
+              messages: messages.map((msg: any) => ({
+                role: msg._getType() === 'human' ? 'user' : 'assistant',
+                content: msg.content,
+              })),
+              stream: true,
+              temperature: 0.3,
+            },
           });
           
           let isInThinking = false;
@@ -1146,8 +1146,8 @@ Provide a clear, helpful answer using your knowledge.`;
             if (!delta) continue;
             
             // Handle reasoning_details (thinking tokens)
-            if (delta.reasoning_details && Array.isArray(delta.reasoning_details)) {
-              for (const reasoningDetail of delta.reasoning_details) {
+            if (delta.reasoningDetails && Array.isArray(delta.reasoningDetails)) {
+              for (const reasoningDetail of delta.reasoningDetails) {
                 let reasoningText = '';
                 
                 if (reasoningDetail.type === 'reasoning.text' && reasoningDetail.text) {

@@ -26,6 +26,31 @@ const RETRY_CONFIG = {
   SKIP_WARMUP_RETRY: true, // Skip warmup retry - just wait longer on first attempt
 };
 
+// Timeout threshold for early response prioritization (270 seconds = 4.5 minutes)
+// This gives us 30 seconds buffer before Vercel's 300-second timeout
+const TIMEOUT_THRESHOLD = 270000; // 270 seconds in milliseconds
+
+/**
+ * Calculate time remaining before Vercel timeout (300 seconds)
+ * @param startTime - Request start time in milliseconds
+ * @returns Milliseconds remaining before timeout
+ */
+function getRemainingTime(startTime: number): number {
+  const elapsed = Date.now() - startTime;
+  const VERCEL_TIMEOUT = 300000; // 300 seconds
+  return VERCEL_TIMEOUT - elapsed;
+}
+
+/**
+ * Check if we're approaching the timeout threshold
+ * @param startTime - Request start time in milliseconds
+ * @returns True if elapsed time exceeds TIMEOUT_THRESHOLD
+ */
+function isApproachingTimeout(startTime: number): boolean {
+  const elapsed = Date.now() - startTime;
+  return elapsed > TIMEOUT_THRESHOLD;
+}
+
 async function downloadAudioFile(audioUrl: string): Promise<Blob> {
   console.log("Downloading audio file from:", audioUrl);
 
@@ -643,6 +668,10 @@ async function handler(req: Request) {
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
+  // Declare variables outside try block for catch block access
+  let queue_id: number | undefined;
+  let attachment_id: number | undefined;
+  
   // Performance tracking object
   const performanceMetrics = {
     requestId,
@@ -671,7 +700,22 @@ async function handler(req: Request) {
       uploadTime: 0,
     },
     breakdown: [] as Array<{step: string, duration: number, percentage: number}>,
+    // TASK 3.7: Timeout tracking metrics
+    timeout: {
+      timeoutRisk: false,
+      timeRemaining: 0,
+      earlyResponseTriggered: false,
+      duplicateDetected: false,
+      timeoutRecoveryAttempted: false,
+    },
   };
+  
+  // TASK 3.6: Database Optimization Strategy
+  // - Batch updates using Promise.all to reduce round trips
+  // - Add timing logs for all database operations
+  // - Log warnings for slow queries (>1000ms)
+  // - Use RPC functions for complex operations (already implemented)
+  // - Track all operations in performanceMetrics for analysis
   
   try {
     console.log(`\n${'='.repeat(80)}`);
@@ -700,14 +744,18 @@ async function handler(req: Request) {
     }
 
     const {
-      queue_id,
-      attachment_id,
+      queue_id: queueIdValue,
+      attachment_id: attachmentIdValue,
       user_id,
       audio_url,
       timestamp,
       retry_count,
       is_warmup_retry,
     } = validation.data;
+    
+    // Assign to outer scope variables for catch block access
+    queue_id = queueIdValue;
+    attachment_id = attachmentIdValue;
     
     console.log(`[${requestId}] ✅ Validation passed`);
     console.log(`[${requestId}] 📋 Job Details:`, {
@@ -742,6 +790,9 @@ async function handler(req: Request) {
     performanceMetrics.supabase.totalTime += dbQueryDuration;
     
     console.log(`[${requestId}] ⏱️  SUPABASE: Query completed in ${dbQueryDuration}ms`);
+    if (dbQueryDuration > 1000) {
+      console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Queue fetch took ${dbQueryDuration}ms (>1000ms threshold)`);
+    }
     console.log(`[${requestId}] ${queueError ? '❌' : '✅'} SUPABASE: ${queueError ? 'FAILED' : 'SUCCESS'}`);
 
     if (queueError) {
@@ -775,54 +826,155 @@ async function handler(req: Request) {
 
     const queueRecord = Array.isArray(queueData) ? queueData[0] : queueData;
 
-    // 2. Update step status to processing
-    console.log(`[${requestId}] 🗄️  SUPABASE: Updating step status...`);
-    const updateStepStart = Date.now();
-    
-    await client
-      .from("video_processing_steps")
-      .update({
-        status: "processing",
-        started_at: new Date().toISOString(),
-        retry_count: retry_count,
-      })
-      .eq("queue_id", queue_id)
-      .eq("step_name", "transcribe");
+    // TASK 3.3: Check for existing transcription on retry requests
+    if (retry_count > 0) {
+      console.log(`\n${'-'.repeat(80)}`);
+      console.log(`[${requestId}] 🔍 DUPLICATE DETECTION: Retry request detected (retry_count: ${retry_count})`);
+      console.log(`[${requestId}] 🔍 Checking for existing completed transcription...`);
+      console.log(`${'-'.repeat(80)}`);
+      
+      const duplicateCheckStart = Date.now();
+      
+      const { data: existingStep, error: stepError } = await client
+        .from("video_processing_steps")
+        .select("output_data")
+        .eq("queue_id", queue_id)
+        .eq("step_name", "transcribe")
+        .eq("status", "completed")
+        .single();
+      
+      const duplicateCheckDuration = Date.now() - duplicateCheckStart;
+      performanceMetrics.supabase.operations.push({
+        name: 'duplicate_detection_check',
+        duration: duplicateCheckDuration,
+        success: !stepError,
+      });
+      performanceMetrics.supabase.totalTime += duplicateCheckDuration;
+      
+      console.log(`[${requestId}] ⏱️  DUPLICATE CHECK: Query completed in ${duplicateCheckDuration}ms`);
+      if (duplicateCheckDuration > 1000) {
+        console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Duplicate check took ${duplicateCheckDuration}ms (>1000ms threshold)`);
+      }
+      
+      if (existingStep && existingStep.output_data) {
+        const transcriptionText = existingStep.output_data.transcription_text;
+        const language = existingStep.output_data.language;
+        
+        // TASK 3.7: Mark duplicate detection in metrics
+        performanceMetrics.timeout.duplicateDetected = true;
+        
+        console.log(`[${requestId}] ✅ DUPLICATE DETECTED: Existing transcription found!`);
+        console.log(`[${requestId}] 📝 Transcription details:`, {
+          text_length: transcriptionText?.length || 0,
+          language: language,
+          queue_id,
+          retry_count,
+        });
+        console.log(`[${requestId}] 💡 Skipping Whisper API call - returning existing transcription`);
+        console.log(`[${requestId}] 🚀 Avoiding duplicate processing and saving resources`);
+        console.log(`${'-'.repeat(80)}\n`);
+        
+        const totalExecutionTime = Date.now() - startTime;
+        performanceMetrics.vercel.totalExecutionTime = totalExecutionTime;
+        performanceMetrics.timeout.timeRemaining = getRemainingTime(startTime);
+        
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`[${requestId}] ✅ DUPLICATE DETECTION SUCCESS - RETURNING EXISTING TRANSCRIPTION`);
+        console.log(`${'='.repeat(80)}`);
+        console.log(`[${requestId}] ⏰ Total execution time: ${totalExecutionTime}ms (${(totalExecutionTime / 1000).toFixed(2)}s)`);
+        console.log(`[${requestId}] 📝 Transcription: ${transcriptionText?.length || 0} characters`);
+        console.log(`[${requestId}] 🌍 Language: ${language}`);
+        console.log(`[${requestId}] 🔄 Retry count: ${retry_count}`);
+        console.log(`[${requestId}] 💰 Resources saved: Avoided duplicate Whisper API call (~90s processing time)`);
+        console.log(`[${requestId}] 📊 TIMEOUT METRICS:`);
+        console.log(`[${requestId}]    Duplicate detected: ${performanceMetrics.timeout.duplicateDetected}`);
+        console.log(`[${requestId}]    Time remaining: ${(performanceMetrics.timeout.timeRemaining / 1000).toFixed(2)}s`);
+        console.log(`${'='.repeat(80)}\n`);
+        
+        // Return HTTP 200 immediately with existing transcription
+        return NextResponse.json(
+          {
+            message: "Transcription already completed (duplicate retry avoided)",
+            data: {
+              queue_id,
+              attachment_id,
+              step: "transcribe",
+              status: "completed",
+              output: {
+                text: transcriptionText,
+                language: language,
+                text_length: transcriptionText?.length || 0,
+              },
+              retry_count,
+              duplicate_detected: true,
+              completedAt: new Date().toISOString(),
+            },
+            performance_metrics: {
+              total_execution_time_ms: totalExecutionTime,
+              timeout_metrics: performanceMetrics.timeout,
+            },
+          },
+          { status: 200 }
+        );
+      } else {
+        console.log(`[${requestId}] ℹ️  DUPLICATE CHECK: No existing transcription found`);
+        console.log(`[${requestId}] 💡 This is a legitimate retry - proceeding with transcription`);
+        console.log(`${'-'.repeat(80)}\n`);
+      }
+    }
 
-    const updateStepDuration = Date.now() - updateStepStart;
+    // 2. Update step status and queue status (OPTIMIZED: Batched updates using Promise.all)
+    console.log(`[${requestId}] 🗄️  SUPABASE: Updating step and queue status (batched)...`);
+    const batchUpdateStart = Date.now();
+    
+    // Execute both updates in parallel to reduce round trips
+    const [stepUpdateResult, queueUpdateResult] = await Promise.all([
+      client
+        .from("video_processing_steps")
+        .update({
+          status: "processing",
+          started_at: new Date().toISOString(),
+          retry_count: retry_count,
+        })
+        .eq("queue_id", queue_id)
+        .eq("step_name", "transcribe"),
+      
+      client
+        .from("video_processing_queue")
+        .update({
+          status: "processing",
+          current_step: "transcribe",
+          progress_percentage: 65,
+          retry_count: retry_count,
+        })
+        .eq("id", queue_id)
+    ]);
+
+    const batchUpdateDuration = Date.now() - batchUpdateStart;
     performanceMetrics.supabase.operations.push({
-      name: 'update_step_status',
-      duration: updateStepDuration,
-      success: true,
+      name: 'batch_update_step_and_queue',
+      duration: batchUpdateDuration,
+      success: !stepUpdateResult.error && !queueUpdateResult.error,
     });
-    performanceMetrics.supabase.totalTime += updateStepDuration;
+    performanceMetrics.supabase.totalTime += batchUpdateDuration;
     
-    console.log(`[${requestId}] ⏱️  SUPABASE: Step update took ${updateStepDuration}ms`);
-
-    // Update queue status
-    console.log(`[${requestId}] 🗄️  SUPABASE: Updating queue status...`);
-    const updateQueueStart = Date.now();
-    
-    await client
-      .from("video_processing_queue")
-      .update({
-        status: "processing",
-        current_step: "transcribe",
-        progress_percentage: 65,
-        retry_count: retry_count,
-      })
-      .eq("id", queue_id);
-
-    const updateQueueDuration = Date.now() - updateQueueStart;
-    performanceMetrics.supabase.operations.push({
-      name: 'update_queue_status',
-      duration: updateQueueDuration,
-      success: true,
-    });
-    performanceMetrics.supabase.totalTime += updateQueueDuration;
-    
-    console.log(`[${requestId}] ⏱️  SUPABASE: Queue update took ${updateQueueDuration}ms`);
+    console.log(`[${requestId}] ⏱️  SUPABASE: Batch update took ${batchUpdateDuration}ms`);
+    if (batchUpdateDuration > 1000) {
+      console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Batch update took ${batchUpdateDuration}ms (>1000ms threshold)`);
+    }
     console.log(`[${requestId}] 📊 SUPABASE TOTAL: ${performanceMetrics.supabase.totalTime}ms (${performanceMetrics.supabase.operations.length} operations)`);
+    
+    // Track timeout status after initial database operations
+    const elapsedAfterDb = Date.now() - startTime;
+    const remainingAfterDb = getRemainingTime(startTime);
+    console.log(`[${requestId}] ⏰ Elapsed time after DB operations: ${elapsedAfterDb}ms (${(elapsedAfterDb / 1000).toFixed(2)}s)`);
+    console.log(`[${requestId}] ⏰ Remaining time: ${remainingAfterDb}ms (${(remainingAfterDb / 1000).toFixed(2)}s)`);
+    
+    if (isApproachingTimeout(startTime)) {
+      console.warn(`[${requestId}] 🚨 WARNING: Already approaching timeout before Whisper call!`);
+      console.warn(`[${requestId}] ⏰ Elapsed: ${(elapsedAfterDb / 1000).toFixed(2)}s / ${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s threshold`);
+    }
+    
     console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
 
     // 4. Determine if we should use URL-based or file-based transcription
@@ -866,6 +1018,18 @@ async function handler(req: Request) {
         console.log(`[${requestId}] 📊 NETWORK: File size ${audioSource.size} bytes (${(audioSource.size / 1024 / 1024).toFixed(2)} MB)`);
         console.log(`[${requestId}] 📊 NETWORK: Download speed ${((audioSource.size / 1024 / 1024) / (downloadDuration / 1000)).toFixed(2)} MB/s`);
         console.log(`[${requestId}] ${downloadDuration > 60000 ? '❌' : downloadDuration > 30000 ? '⚠️' : '✅'} NETWORK: ${downloadDuration > 60000 ? 'TOO SLOW' : downloadDuration > 30000 ? 'SLOW' : 'GOOD SPEED'}`);
+        
+        // Track timeout status after download
+        const elapsedAfterDownload = Date.now() - startTime;
+        const remainingAfterDownload = getRemainingTime(startTime);
+        console.log(`[${requestId}] ⏰ Elapsed time after download: ${elapsedAfterDownload}ms (${(elapsedAfterDownload / 1000).toFixed(2)}s)`);
+        console.log(`[${requestId}] ⏰ Remaining time: ${remainingAfterDownload}ms (${(remainingAfterDownload / 1000).toFixed(2)}s)`);
+        
+        if (isApproachingTimeout(startTime)) {
+          console.warn(`[${requestId}] 🚨 WARNING: Approaching timeout after download!`);
+          console.warn(`[${requestId}] ⏰ Elapsed: ${(elapsedAfterDownload / 1000).toFixed(2)}s / ${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s threshold`);
+        }
+        
         console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
         
         // Validate the downloaded blob
@@ -881,6 +1045,8 @@ async function handler(req: Request) {
         console.error(`[${requestId}] Error: ${downloadError.message}`);
         console.error(`[${requestId}] Stack:`, downloadError.stack);
 
+        const failureRpcStart = Date.now();
+        
         await client.rpc("handle_step_failure", {
           queue_id_param: queue_id,
           step_name_param: "transcribe",
@@ -892,6 +1058,19 @@ async function handler(req: Request) {
             service: 'network',
           },
         });
+        
+        const failureRpcDuration = Date.now() - failureRpcStart;
+        performanceMetrics.supabase.operations.push({
+          name: 'handle_step_failure_download',
+          duration: failureRpcDuration,
+          success: true,
+        });
+        performanceMetrics.supabase.totalTime += failureRpcDuration;
+        
+        console.log(`[${requestId}] ⏱️  Failure RPC took ${failureRpcDuration}ms`);
+        if (failureRpcDuration > 1000) {
+          console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Failure RPC took ${failureRpcDuration}ms (>1000ms threshold)`);
+        }
 
         return NextResponse.json(
           {
@@ -941,6 +1120,17 @@ async function handler(req: Request) {
           performanceMetrics.whisper.serverStatus = 'active';
         }
         
+        // Track timeout status after warmup
+        const elapsedAfterWarmup = Date.now() - startTime;
+        const remainingAfterWarmup = getRemainingTime(startTime);
+        console.log(`[${requestId}] ⏰ Elapsed time after warmup: ${elapsedAfterWarmup}ms (${(elapsedAfterWarmup / 1000).toFixed(2)}s)`);
+        console.log(`[${requestId}] ⏰ Remaining time: ${remainingAfterWarmup}ms (${(remainingAfterWarmup / 1000).toFixed(2)}s)`);
+        
+        if (isApproachingTimeout(startTime)) {
+          console.warn(`[${requestId}] 🚨 WARNING: Approaching timeout after warmup!`);
+          console.warn(`[${requestId}] ⏰ Elapsed: ${(elapsedAfterWarmup / 1000).toFixed(2)}s / ${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s threshold`);
+        }
+        
         console.log(`[${requestId}] ⏰ Elapsed time so far: ${Date.now() - startTime}ms`);
       }
 
@@ -975,9 +1165,278 @@ async function handler(req: Request) {
       
       // Check if we're approaching Vercel timeout (300 seconds)
       const elapsedSeconds = (Date.now() - startTime) / 1000;
-      if (elapsedSeconds > 240) {
+      const remainingTime = getRemainingTime(startTime);
+      const approachingTimeout = isApproachingTimeout(startTime);
+      
+      console.log(`[${requestId}] ⏱️  TIMEOUT TRACKING:`, {
+        elapsed_ms: Date.now() - startTime,
+        elapsed_seconds: elapsedSeconds.toFixed(2),
+        remaining_ms: remainingTime,
+        remaining_seconds: (remainingTime / 1000).toFixed(2),
+        threshold_ms: TIMEOUT_THRESHOLD,
+        threshold_seconds: (TIMEOUT_THRESHOLD / 1000).toFixed(2),
+        approaching_timeout: approachingTimeout,
+      });
+      
+      if (approachingTimeout) {
+        console.warn(`[${requestId}] 🚨 WARNING: APPROACHING TIMEOUT THRESHOLD!`);
+        console.warn(`[${requestId}] ⏰ Elapsed: ${elapsedSeconds.toFixed(2)}s / ${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s threshold`);
+        console.warn(`[${requestId}] ⏰ Remaining before Vercel timeout: ${(remainingTime / 1000).toFixed(2)}s`);
+        console.warn(`[${requestId}] 💡 Will prioritize returning HTTP 200 response over non-critical operations`);
+      } else if (elapsedSeconds > 240) {
         console.warn(`[${requestId}] ⚠️  WARNING: Approaching Vercel timeout! Elapsed: ${elapsedSeconds.toFixed(2)}s / 300s`);
       }
+      
+      // TASK 3.2: Persist transcription immediately after Whisper completes
+      // This ensures the transcription is saved even if subsequent operations fail or timeout
+      console.log(`\n${'-'.repeat(80)}`);
+      console.log(`[${requestId}] 💾 EARLY PERSISTENCE: Saving transcription to database...`);
+      console.log(`${'-'.repeat(80)}`);
+      
+      try {
+        const persistStart = Date.now();
+        
+        await client.rpc("complete_processing_step", {
+          queue_id_param: queue_id,
+          step_name_param: "transcribe",
+          output_data_param: {
+            transcription_text: transcriptionResult.text,
+            language: transcriptionResult.language,
+            text_length: transcriptionResult.text.length,
+            audio_url: audio_url,
+            retry_count,
+            was_warmup_retry: is_warmup_retry,
+          },
+        });
+        
+        const persistDuration = Date.now() - persistStart;
+        performanceMetrics.supabase.operations.push({
+          name: 'early_persistence_complete_step',
+          duration: persistDuration,
+          success: true,
+        });
+        performanceMetrics.supabase.totalTime += persistDuration;
+        
+        console.log(`[${requestId}] ⏱️  EARLY PERSISTENCE: Completed in ${persistDuration}ms`);
+        if (persistDuration > 1000) {
+          console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Early persistence took ${persistDuration}ms (>1000ms threshold)`);
+        }
+        console.log(`[${requestId}] ✅ EARLY PERSISTENCE: Transcription saved successfully`);
+        console.log(`[${requestId}] 📊 Transcription details:`, {
+          text_length: transcriptionResult.text.length,
+          language: transcriptionResult.language,
+          queue_id,
+          step: 'transcribe',
+        });
+        console.log(`${'-'.repeat(80)}\n`);
+      } catch (persistError: any) {
+        performanceMetrics.supabase.errorCount++;
+        performanceMetrics.supabase.operations.push({
+          name: 'early_persistence_complete_step',
+          duration: Date.now() - Date.now(),
+          success: false,
+        });
+        
+        console.error(`\n${'!'.repeat(80)}`);
+        console.error(`[${requestId}] ❌ EARLY PERSISTENCE FAILED`);
+        console.error(`${'!'.repeat(80)}`);
+        console.error(`[${requestId}] Error type: ${persistError.name}`);
+        console.error(`[${requestId}] Error message: ${persistError.message}`);
+        console.error(`[${requestId}] Stack:`, persistError.stack);
+        console.error(`[${requestId}] 💡 Transcription was successful but could not be saved to database`);
+        console.error(`[${requestId}] 📝 Transcription text (first 200 chars): ${transcriptionResult.text.substring(0, 200)}...`);
+        console.error(`${'!'.repeat(80)}\n`);
+        
+        // Mark step as failed with error details
+        const failureRpcStart = Date.now();
+        
+        await client.rpc("handle_step_failure", {
+          queue_id_param: queue_id,
+          step_name_param: "transcribe",
+          error_message_param: `Failed to persist transcription: ${persistError.message}`,
+          error_details_param: {
+            step: "early_persistence",
+            error: persistError.message,
+            transcription_length: transcriptionResult.text.length,
+            language: transcriptionResult.language,
+            elapsed_time_ms: Date.now() - startTime,
+          },
+        });
+        
+        const failureRpcDuration = Date.now() - failureRpcStart;
+        performanceMetrics.supabase.operations.push({
+          name: 'handle_step_failure_persistence',
+          duration: failureRpcDuration,
+          success: true,
+        });
+        performanceMetrics.supabase.totalTime += failureRpcDuration;
+        
+        console.log(`[${requestId}] ⏱️  Failure RPC took ${failureRpcDuration}ms`);
+        if (failureRpcDuration > 1000) {
+          console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Failure RPC took ${failureRpcDuration}ms (>1000ms threshold)`);
+        }
+        
+        // Return error but include transcription text so it's not lost
+        return NextResponse.json(
+          {
+            error: "Failed to persist transcription to database",
+            details: persistError.message,
+            transcription_text: transcriptionResult.text,
+            language: transcriptionResult.language,
+            retryable: true,
+            queue_id,
+            attachment_id,
+          },
+          { status: 500 }
+        );
+      }
+      
+      // TASK 3.4: Check if we're approaching timeout after early persistence
+      const elapsedAfterPersistence = Date.now() - startTime;
+      const remainingAfterPersistence = getRemainingTime(startTime);
+      const approachingTimeoutAfterPersistence = isApproachingTimeout(startTime);
+      
+      console.log(`\n${'-'.repeat(80)}`);
+      console.log(`[${requestId}] ⏰ TIMEOUT CHECK AFTER PERSISTENCE:`);
+      console.log(`[${requestId}]    Elapsed: ${elapsedAfterPersistence}ms (${(elapsedAfterPersistence / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}]    Remaining: ${remainingAfterPersistence}ms (${(remainingAfterPersistence / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}]    Threshold: ${TIMEOUT_THRESHOLD}ms (${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s)`);
+      console.log(`[${requestId}]    Approaching timeout: ${approachingTimeoutAfterPersistence}`);
+      console.log(`${'-'.repeat(80)}\n`);
+      
+      if (approachingTimeoutAfterPersistence) {
+        // TASK 3.7: Mark timeout risk and early response in metrics
+        performanceMetrics.timeout.timeoutRisk = true;
+        performanceMetrics.timeout.timeRemaining = remainingAfterPersistence;
+        performanceMetrics.timeout.earlyResponseTriggered = true;
+        
+        console.warn(`\n${'!'.repeat(80)}`);
+        console.warn(`[${requestId}] 🚨 TIMEOUT-AWARE RESPONSE: APPROACHING TIMEOUT!`);
+        console.warn(`${'!'.repeat(80)}`);
+        console.warn(`[${requestId}] ⏰ Elapsed time: ${(elapsedAfterPersistence / 1000).toFixed(2)}s exceeds threshold of ${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s`);
+        console.warn(`[${requestId}] ⏰ Remaining time: ${(remainingAfterPersistence / 1000).toFixed(2)}s before Vercel timeout`);
+        console.warn(`[${requestId}] 💡 DECISION: Prioritizing HTTP 200 response over next step queueing`);
+        console.warn(`[${requestId}] 📝 Transcription has been persisted successfully`);
+        console.warn(`[${requestId}] 🔄 Next step (embed) will be handled by retry or manual intervention`);
+        console.warn(`${'!'.repeat(80)}\n`);
+        
+        // Update queue status to indicate partial completion
+        try {
+          console.log(`[${requestId}] 🗄️  Updating queue status to 'partial_completion'...`);
+          const updateQueueStart = Date.now();
+          
+          await client
+            .from("video_processing_queue")
+            .update({
+              status: "partial_completion",
+              current_step: "transcribe",
+              progress_percentage: 75,
+              error_message: "Transcription completed but next step not queued due to timeout risk",
+              last_error_at: new Date().toISOString(),
+            })
+            .eq("id", queue_id);
+          
+          const updateQueueDuration = Date.now() - updateQueueStart;
+          performanceMetrics.supabase.operations.push({
+            name: 'update_queue_partial_completion',
+            duration: updateQueueDuration,
+            success: true,
+          });
+          performanceMetrics.supabase.totalTime += updateQueueDuration;
+          
+          console.log(`[${requestId}] ⏱️  Queue update took ${updateQueueDuration}ms`);
+          if (updateQueueDuration > 1000) {
+            console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Queue update took ${updateQueueDuration}ms (>1000ms threshold)`);
+          }
+          console.log(`[${requestId}] ✅ Queue status updated to 'partial_completion'`);
+        } catch (updateError: any) {
+          performanceMetrics.supabase.errorCount++;
+          console.error(`[${requestId}] ⚠️  Failed to update queue status:`, updateError.message);
+          // Don't throw - we still want to return HTTP 200 with transcription
+        }
+        
+        const totalExecutionTime = Date.now() - startTime;
+        performanceMetrics.vercel.totalExecutionTime = totalExecutionTime;
+        
+        // Calculate breakdown percentages
+        performanceMetrics.breakdown = [
+          { step: 'Supabase Operations', duration: performanceMetrics.supabase.totalTime, percentage: (performanceMetrics.supabase.totalTime / totalExecutionTime * 100) },
+          { step: 'Network Download', duration: performanceMetrics.network.downloadTime, percentage: (performanceMetrics.network.downloadTime / totalExecutionTime * 100) },
+          { step: 'Whisper Warmup', duration: performanceMetrics.whisper.warmupTime, percentage: (performanceMetrics.whisper.warmupTime / totalExecutionTime * 100) },
+          { step: 'Whisper Processing', duration: performanceMetrics.whisper.processingTime, percentage: (performanceMetrics.whisper.processingTime / totalExecutionTime * 100) },
+        ].filter(item => item.duration > 0).sort((a, b) => b.duration - a.duration);
+        
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`[${requestId}] ✅ EARLY RESPONSE - TRANSCRIPTION COMPLETED (TIMEOUT RISK AVOIDED)`);
+        console.log(`${'='.repeat(80)}`);
+        console.log(`[${requestId}] ⏰ Total execution time: ${totalExecutionTime}ms (${(totalExecutionTime / 1000).toFixed(2)}s)`);
+        console.log(`[${requestId}] 📊 Timeout threshold: ${(TIMEOUT_THRESHOLD / 1000).toFixed(2)}s`);
+        console.log(`[${requestId}] 📊 Time remaining: ${(remainingAfterPersistence / 1000).toFixed(2)}s`);
+        console.log(`[${requestId}] 🚨 Status: APPROACHING TIMEOUT - EARLY RESPONSE TRIGGERED`);
+        console.log(`${'-'.repeat(80)}`);
+        console.log(`[${requestId}] 📝 Transcription: ${transcriptionResult.text.length} characters`);
+        console.log(`[${requestId}] 🌍 Language: ${transcriptionResult.language}`);
+        console.log(`[${requestId}] 💾 Persistence: SUCCESS (saved to database)`);
+        console.log(`[${requestId}] 🔄 Next step: SKIPPED (will be handled separately)`);
+        console.log(`[${requestId}] 💡 Reason: Prioritized HTTP 200 response to avoid timeout`);
+        console.log(`${'-'.repeat(80)}`);
+        console.log(`[${requestId}] 📊 PERFORMANCE METRICS:`);
+        console.log(`[${requestId}]    Supabase: ${performanceMetrics.supabase.totalTime}ms (${(performanceMetrics.supabase.totalTime / 1000).toFixed(2)}s)`);
+        console.log(`[${requestId}]    Whisper: ${performanceMetrics.whisper.totalTime}ms (${(performanceMetrics.whisper.totalTime / 1000).toFixed(2)}s)`);
+        if (performanceMetrics.network.downloadTime > 0) {
+          console.log(`[${requestId}]    Network: ${performanceMetrics.network.downloadTime}ms (${(performanceMetrics.network.downloadTime / 1000).toFixed(2)}s)`);
+        }
+        console.log(`${'-'.repeat(80)}`);
+        console.log(`[${requestId}] 📊 TIMEOUT METRICS:`);
+        console.log(`[${requestId}]    Timeout risk: ${performanceMetrics.timeout.timeoutRisk}`);
+        console.log(`[${requestId}]    Time remaining: ${(performanceMetrics.timeout.timeRemaining / 1000).toFixed(2)}s`);
+        console.log(`[${requestId}]    Early response triggered: ${performanceMetrics.timeout.earlyResponseTriggered}`);
+        console.log(`[${requestId}]    Duplicate detected: ${performanceMetrics.timeout.duplicateDetected}`);
+        console.log(`${'='.repeat(80)}\n`);
+        
+        // Return HTTP 200 immediately with transcription result
+        return NextResponse.json(
+          {
+            message: "Transcription completed successfully (early response due to timeout risk)",
+            data: {
+              queue_id,
+              attachment_id,
+              step: "transcribe",
+              status: "completed",
+              output: {
+                text: transcriptionResult.text,
+                language: transcriptionResult.language,
+                text_length: transcriptionResult.text.length,
+              },
+              next_step: "pending",
+              next_step_status: "not_queued_due_to_timeout_risk",
+              retry_count,
+              early_response_triggered: true,
+              timeout_risk_avoided: true,
+              completedAt: new Date().toISOString(),
+            },
+            performance_metrics: {
+              total_execution_time_ms: totalExecutionTime,
+              total_execution_time_s: (totalExecutionTime / 1000).toFixed(2),
+              timeout_threshold_ms: TIMEOUT_THRESHOLD,
+              timeout_threshold_s: (TIMEOUT_THRESHOLD / 1000).toFixed(2),
+              time_remaining_ms: remainingAfterPersistence,
+              time_remaining_s: (remainingAfterPersistence / 1000).toFixed(2),
+              approaching_timeout: true,
+              early_response_triggered: true,
+              supabase_time_ms: performanceMetrics.supabase.totalTime,
+              whisper_time_ms: performanceMetrics.whisper.totalTime,
+              network_time_ms: performanceMetrics.network.downloadTime,
+              breakdown: performanceMetrics.breakdown,
+              timeout_metrics: performanceMetrics.timeout,
+            },
+          },
+          { status: 200 }
+        );
+      }
+      
+      // If not approaching timeout, continue with normal flow (queue next step)
+      console.log(`[${requestId}] ✅ TIMEOUT CHECK: Sufficient time remaining, proceeding with next step queueing`);
       
     } catch (whisperError: any) {
       const errorTime = Date.now() - startTime;
@@ -1213,22 +1672,11 @@ async function handler(req: Request) {
       }
     }
 
-    // 6. Complete the transcription step
-    await client.rpc("complete_processing_step", {
-      queue_id_param: queue_id,
-      step_name_param: "transcribe",
-      output_data_param: {
-        transcription_text: transcriptionResult!.text,
-        language: transcriptionResult!.language,
-        text_length: transcriptionResult!.text.length,
-        audio_url: audio_url,
-        retry_count,
-        was_warmup_retry: is_warmup_retry,
-      },
-    });
-
-    // 7. Queue the next step (embedding generation)
+    // 6. Queue the next step (embedding generation)
+    // Note: Transcription was already persisted immediately after Whisper completed (early persistence)
     try {
+      const queueNextStepStart = Date.now();
+      
       const nextQstashMessageId = await queueNextStep(
         queue_id,
         attachment_id,
@@ -1236,7 +1684,15 @@ async function handler(req: Request) {
         transcriptionResult!.text
       );
 
+      const queueNextStepDuration = Date.now() - queueNextStepStart;
+      console.log(`[${requestId}] ⏱️  Queue next step took ${queueNextStepDuration}ms`);
+      if (queueNextStepDuration > 1000) {
+        console.warn(`[${requestId}] 🚨 SLOW OPERATION WARNING: Queue next step took ${queueNextStepDuration}ms (>1000ms threshold)`);
+      }
+
       // Update queue with next step's QStash message ID
+      const updateQueueStart = Date.now();
+      
       await client
         .from("video_processing_queue")
         .update({
@@ -1246,16 +1702,44 @@ async function handler(req: Request) {
           retry_count: 0, // Reset retry count for next step
         })
         .eq("id", queue_id);
+      
+      const updateQueueDuration = Date.now() - updateQueueStart;
+      performanceMetrics.supabase.operations.push({
+        name: 'update_queue_next_step',
+        duration: updateQueueDuration,
+        success: true,
+      });
+      performanceMetrics.supabase.totalTime += updateQueueDuration;
+      
+      console.log(`[${requestId}] ⏱️  Queue update took ${updateQueueDuration}ms`);
+      if (updateQueueDuration > 1000) {
+        console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Queue update took ${updateQueueDuration}ms (>1000ms threshold)`);
+      }
     } catch (queueError: any) {
       console.error("Failed to queue next step:", queueError);
 
       // Mark as failed but keep transcription result
+      const failureRpcStart = Date.now();
+      
       await client.rpc("handle_step_failure", {
         queue_id_param: queue_id,
         step_name_param: "embed",
         error_message_param: "Failed to queue embedding step",
         error_details_param: { step: "queue_next", error: queueError.message },
       });
+      
+      const failureRpcDuration = Date.now() - failureRpcStart;
+      performanceMetrics.supabase.operations.push({
+        name: 'handle_step_failure_queue_next',
+        duration: failureRpcDuration,
+        success: true,
+      });
+      performanceMetrics.supabase.totalTime += failureRpcDuration;
+      
+      console.log(`[${requestId}] ⏱️  Failure RPC took ${failureRpcDuration}ms`);
+      if (failureRpcDuration > 1000) {
+        console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Failure RPC took ${failureRpcDuration}ms (>1000ms threshold)`);
+      }
 
       return NextResponse.json(
         {
@@ -1278,6 +1762,10 @@ async function handler(req: Request) {
 
     const totalExecutionTime = Date.now() - startTime;
     performanceMetrics.vercel.totalExecutionTime = totalExecutionTime;
+    
+    // TASK 3.7: Update timeout metrics for successful completion
+    performanceMetrics.timeout.timeRemaining = getRemainingTime(startTime);
+    performanceMetrics.timeout.timeoutRisk = isApproachingTimeout(startTime);
     
     // Calculate breakdown percentages
     performanceMetrics.breakdown = [
@@ -1349,6 +1837,12 @@ async function handler(req: Request) {
     console.log(`[${requestId}] 🌍 Language: ${transcriptionResult.language}`);
     console.log(`[${requestId}] 🔄 Retry count: ${retry_count}`);
     console.log(`[${requestId}] ⏰ Completed at: ${new Date().toISOString()}`);
+    console.log(`${'-'.repeat(80)}`);
+    console.log(`[${requestId}] 📊 TIMEOUT METRICS:`);
+    console.log(`[${requestId}]    Timeout risk: ${performanceMetrics.timeout.timeoutRisk}`);
+    console.log(`[${requestId}]    Time remaining: ${(performanceMetrics.timeout.timeRemaining / 1000).toFixed(2)}s`);
+    console.log(`[${requestId}]    Early response triggered: ${performanceMetrics.timeout.earlyResponseTriggered}`);
+    console.log(`[${requestId}]    Duplicate detected: ${performanceMetrics.timeout.duplicateDetected}`);
     console.log(`${'='.repeat(80)}\n`);
 
     return NextResponse.json(
@@ -1367,6 +1861,10 @@ async function handler(req: Request) {
           next_step: "embed",
           retry_count,
           completedAt: new Date().toISOString(),
+        },
+        performance_metrics: {
+          total_execution_time_ms: totalExecutionTime,
+          timeout_metrics: performanceMetrics.timeout,
         },
       },
       { status: 200 }
@@ -1390,6 +1888,122 @@ async function handler(req: Request) {
     console.error(`[${requestId}] Stack trace:`, error.stack);
     console.error(`${'='.repeat(80)}\n`);
 
+    // TASK 3.5: Timeout recovery logic
+    // Check if error is timeout-related
+    const isTimeoutError = 
+      error.name === "TimeoutError" ||
+      error.name === "AbortError" ||
+      (error.message && error.message.toLowerCase().includes("timeout"));
+    
+    if (isTimeoutError) {
+      // TASK 3.7: Mark timeout recovery attempt in metrics
+      performanceMetrics.timeout.timeoutRecoveryAttempted = true;
+      
+      console.log(`\n${'-'.repeat(80)}`);
+      console.log(`[${requestId}] 🔍 TIMEOUT RECOVERY: Timeout error detected`);
+      console.log(`[${requestId}] 💡 Attempting to retrieve completed transcription from database...`);
+      console.log(`${'-'.repeat(80)}`);
+      
+      try {
+        const client = await createServerClient();
+        
+        // Attempt to retrieve completed transcription from database
+        const recoveryStart = Date.now();
+        const { data: existingStep, error: stepError } = await client
+          .from("video_processing_steps")
+          .select("output_data")
+          .eq("queue_id", queue_id)
+          .eq("step_name", "transcribe")
+          .eq("status", "completed")
+          .single();
+        
+        const recoveryDuration = Date.now() - recoveryStart;
+        
+        console.log(`[${requestId}] ⏱️  Timeout recovery query took ${recoveryDuration}ms`);
+        if (recoveryDuration > 1000) {
+          console.warn(`[${requestId}] 🚨 SLOW QUERY WARNING: Timeout recovery took ${recoveryDuration}ms (>1000ms threshold)`);
+        }
+        
+        if (existingStep && existingStep.output_data && !stepError) {
+          const transcriptionText = existingStep.output_data.transcription_text;
+          const language = existingStep.output_data.language;
+          
+          console.log(`[${requestId}] ✅ TIMEOUT RECOVERY SUCCESS: Found completed transcription!`);
+          console.log(`[${requestId}] 📝 Transcription details:`, {
+            text_length: transcriptionText?.length || 0,
+            language: language,
+            queue_id,
+            recovery_time_ms: recoveryDuration,
+          });
+          console.log(`[${requestId}] 💡 Returning HTTP 200 with recovered transcription`);
+          console.log(`${'-'.repeat(80)}\n`);
+          
+          // Return HTTP 200 with recovered transcription
+          return NextResponse.json(
+            {
+              message: "Transcription recovered after timeout",
+              data: {
+                queue_id,
+                attachment_id,
+                step: "transcribe",
+                status: "completed",
+                output: {
+                  text: transcriptionText,
+                  language: language,
+                  text_length: transcriptionText?.length || 0,
+                },
+                timeout_recovery: true,
+                recovery_time_ms: recoveryDuration,
+                completedAt: new Date().toISOString(),
+              },
+              performance_metrics: {
+                total_execution_time_ms: errorExecutionTime,
+                recovery_time_ms: recoveryDuration,
+                timeout_recovery_attempted: true,
+                timeout_recovery_successful: true,
+                timeout_metrics: performanceMetrics.timeout,
+              },
+            },
+            { status: 200 }
+          );
+        } else {
+          console.log(`[${requestId}] ⚠️  TIMEOUT RECOVERY: No completed transcription found in database`);
+          console.log(`[${requestId}] 💡 Transcription may not have completed before timeout`);
+          console.log(`[${requestId}] 📊 Recovery query took: ${recoveryDuration}ms`);
+          if (stepError) {
+            console.error(`[${requestId}] ❌ Database error during recovery:`, stepError);
+          }
+          console.log(`${'-'.repeat(80)}\n`);
+        }
+      } catch (recoveryError: any) {
+        console.error(`[${requestId}] ❌ TIMEOUT RECOVERY FAILED: Error during database query`);
+        console.error(`[${requestId}] Recovery error:`, recoveryError.message);
+        console.error(`${'-'.repeat(80)}\n`);
+      }
+      
+      // If recovery failed or no transcription found, return HTTP 504
+      console.error(`[${requestId}] ❌ TIMEOUT: Returning HTTP 504 (Gateway Timeout)`);
+      return NextResponse.json(
+        {
+          error: "Gateway Timeout",
+          details: "Request timed out and no completed transcription was found",
+          timeout_recovery_attempted: true,
+          timeout_recovery_successful: false,
+          execution_time_ms: errorExecutionTime,
+          performance_metrics: {
+            supabase_time: performanceMetrics.supabase.totalTime,
+            network_time: performanceMetrics.network.downloadTime,
+            whisper_time: performanceMetrics.whisper.totalTime,
+            supabase_errors: performanceMetrics.supabase.errorCount,
+            whisper_errors: performanceMetrics.whisper.errorCount,
+            timeout_metrics: performanceMetrics.timeout,
+          },
+        },
+        { status: 504 }
+      );
+    }
+
+    // Non-timeout errors: return HTTP 500 as before
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -1402,6 +2016,7 @@ async function handler(req: Request) {
           whisper_time: performanceMetrics.whisper.totalTime,
           supabase_errors: performanceMetrics.supabase.errorCount,
           whisper_errors: performanceMetrics.whisper.errorCount,
+          timeout_metrics: performanceMetrics.timeout,
         },
       },
       { status: 500 }

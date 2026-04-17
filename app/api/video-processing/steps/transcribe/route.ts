@@ -507,14 +507,36 @@ async function transcribeWithWhisper(
     console.log(`[transcribeWithWhisper] 📥 Parsing JSON response...`);
     const parseStart = Date.now();
     
-    const result = await response.json();
+    // Get response text first to check if it's empty
+    const responseText = await response.text();
+    console.log(`[transcribeWithWhisper] 📋 Raw response length: ${responseText.length} bytes`);
+    console.log(`[transcribeWithWhisper] 📋 Raw response preview (first 500 chars):`, responseText.substring(0, 500));
+    
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error("Whisper API returned empty response body");
+    }
+    
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError: any) {
+      console.error(`[transcribeWithWhisper] ❌ Failed to parse JSON response`);
+      console.error(`[transcribeWithWhisper] 📋 Response text:`, responseText.substring(0, 1000));
+      throw new Error(`Invalid JSON response from Whisper API: ${parseError.message}`);
+    }
     
     const parseDuration = Date.now() - parseStart;
     console.log(`[transcribeWithWhisper] ⏱️ JSON parsing took: ${parseDuration}ms`);
+    
+    // Log the full response structure for debugging
+    console.log(`[transcribeWithWhisper] 📋 Full API response structure:`, JSON.stringify(result, null, 2));
+    console.log(`[transcribeWithWhisper] 🔍 Response keys:`, Object.keys(result));
+    
     console.log(`[transcribeWithWhisper] ✅ Whisper API response received:`, {
       hasText: !!result.text,
       textLength: result.text?.length || 0,
       language: result.language,
+      responseKeys: Object.keys(result),
     });
     
     const totalDuration = Date.now() - functionStartTime;
@@ -522,7 +544,31 @@ async function transcribeWithWhisper(
     console.log(`[transcribeWithWhisper] ========================================`);
 
     if (!result.text) {
-      throw new Error("No transcription text received from Whisper API");
+      console.error(`[transcribeWithWhisper] ❌ MISSING TEXT FIELD in response`);
+      console.error(`[transcribeWithWhisper] 📋 Available fields:`, Object.keys(result));
+      console.error(`[transcribeWithWhisper] 📋 Full response:`, JSON.stringify(result, null, 2));
+      
+      // Check for alternative field names that might contain the transcription
+      const possibleTextFields = ['text', 'transcription', 'transcript', 'result', 'output'];
+      let foundText = null;
+      
+      for (const field of possibleTextFields) {
+        if (result[field] && typeof result[field] === 'string' && result[field].length > 0) {
+          console.log(`[transcribeWithWhisper] 💡 Found transcription in alternative field: ${field}`);
+          foundText = result[field];
+          break;
+        }
+      }
+      
+      if (foundText) {
+        console.log(`[transcribeWithWhisper] ✅ Using alternative field for transcription`);
+        return {
+          text: foundText,
+          language: result.language,
+        };
+      }
+      
+      throw new Error(`No transcription text received from Whisper API. Response keys: ${Object.keys(result).join(', ')}`);
     }
 
     return {

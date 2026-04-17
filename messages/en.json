@@ -9309,5 +9309,65 @@
     "grade": "Grade:",
     "calculating_score": "Calculating quiz score...",
     "failed_to_get_score": "Failed to get quiz score information"
+  },
+  "ai": {
+    "modes": {
+      "fast": "Fast",
+      "normal": "Normal",
+      "thinking": "Thinking",
+      "fastDescription": "Quick answers using client-side processing",
+      "normalDescription": "Balanced quality and speed with server processing",
+      "thinkingDescription": "Detailed reasoning with step-by-step explanation"
+    },
+    "modelLoading": {
+      "downloading": "Downloading AI model...",
+      "initializing": "Initializing model...",
+      "ready": "Model ready",
+      "error": "Failed to load model",
+      "downloadHint": "First-time download (~25MB). Model will be cached for future use.",
+      "initializeHint": "Preparing model for use...",
+      "errorHint": "Please check your internet connection and try again, or switch to Normal mode.",
+      "cancel": "Cancel download"
+    },
+    "errors": {
+      "modelLoadFailed": "Failed to load AI model",
+      "embeddingFailed": "Failed to generate embedding",
+      "searchFailed": "Search failed",
+      "serverError": "Server error occurred",
+      "networkError": "Network connection error",
+      "switchToNormalMode": "Switch to Normal mode",
+      "retry": "Retry",
+      "refresh": "Refresh page",
+      "consecutiveFailuresHint": "Multiple failures detected. Try switching modes or refreshing the page."
+    },
+    "status": {
+      "generating": "Generating answer...",
+      "searching": "Searching content...",
+      "thinking": "Thinking...",
+      "complete": "Complete"
+    },
+    "thinkingProcess": {
+      "title": "Thinking Process",
+      "duration": "Thinking duration: {duration}ms",
+      "expand": "Show thinking process",
+      "collapse": "Hide thinking process"
+    },
+    "performance": {
+      "responseTime": "Response time",
+      "embeddingTime": "Embedding generation",
+      "searchTime": "Search time",
+      "aiTime": "AI generation time",
+      "cached": "Cached",
+      "backend": "Backend: {backend}"
+    },
+    "capabilities": {
+      "webgpuSupported": "WebGPU supported",
+      "webgpuNotSupported": "WebGPU not supported",
+      "wasmSupported": "WebAssembly supported",
+      "wasmNotSupported": "WebAssembly not supported",
+      "fastModeAvailable": "Fast mode available",
+      "fastModeUnavailable": "Fast mode unavailable on this device",
+      "recommendedMode": "Recommended mode: {mode}"
+    }
   }
 }

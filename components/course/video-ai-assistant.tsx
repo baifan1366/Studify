@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 import { useStreamingVideoAI } from "@/hooks/course/use-video-ai";
 import { getGlobalVideoPlayer } from "@/hooks/video/use-video-player";
+import { useEmbeddingPreloadSimple } from "@/hooks/video/use-embedding-preload";
 
 interface AIMessage {
   role: "user" | "assistant";
@@ -67,7 +68,7 @@ export default function VideoAIAssistant({
   const [question, setQuestion] = useState("");
   const [conversation, setConversation] = useState<AIMessage[]>([]);
   const [contextInfo, setContextInfo] = useState<string>("");
-  const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // New: AI mode state
+  const [aiMode, setAIMode] = useState<'fast' | 'normal' | 'thinking'>('fast'); // AI mode state: fast, normal, thinking
   const { toast } = useToast();
   const t = useTranslations("VideoAIAssistant");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -80,6 +81,9 @@ export default function VideoAIAssistant({
   };
 
   const { askStreaming, isLoading, error } = useStreamingVideoAI(videoContext);
+
+  // Preload embedding model in background when component mounts
+  useEmbeddingPreloadSimple(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -405,6 +409,18 @@ export default function VideoAIAssistant({
               title="Fast Mode - Quick responses"
             >
               ⚡ Fast
+            </button>
+            <button
+              onClick={() => setAIMode('normal')}
+              disabled={isLoading}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                aiMode === 'normal'
+                  ? 'bg-green-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+              title="Normal Mode - Balanced quality"
+            >
+              ⚙️ Normal
             </button>
             <button
               onClick={() => setAIMode('thinking')}

@@ -57,7 +57,7 @@ export interface VideoQARequest {
   question: string;
   currentTime: number;
   timeWindow?: number;
-  aiMode?: 'fast' | 'thinking'; // New: AI mode selection
+  aiMode?: 'fast' | 'normal' | 'thinking'; // AI mode selection: fast, normal, thinking
 }
 
 // Hook for asking questions about video content
@@ -66,7 +66,36 @@ export function useVideoQA() {
 
   return useMutation({
     mutationFn: async (request: VideoQARequest): Promise<VideoQAResponse> => {
-      const response = await api.post('/api/video/qa', request);
+      let finalRequest = { ...request };
+
+      // Generate client-side embedding for Fast mode
+      if (request.aiMode === 'fast') {
+        try {
+          const { generateClientEmbedding } = await import('@/lib/client-embedding');
+          const result = await generateClientEmbedding(request.question, {
+            enableCache: true,
+          });
+          
+          console.log(`[VideoQA] Generated client embedding in ${result.generationTimeMs}ms (${result.backend}, cached: ${result.cached})`);
+          
+          // Add client embedding to request
+          finalRequest = {
+            ...request,
+            clientEmbedding: result.embedding,
+          } as any;
+        } catch (error) {
+          console.error('[VideoQA] Failed to generate client embedding, falling back to Normal mode:', error);
+          // Fallback to Normal mode if client embedding fails
+          finalRequest.aiMode = 'normal';
+          toast({
+            title: 'Switched to Normal Mode',
+            description: 'Client embedding generation failed, using server-side processing',
+            duration: 3000,
+          });
+        }
+      }
+
+      const response = await api.post('/api/video/qa', finalRequest);
       return response.data;
     },
     onError: (error: any) => {

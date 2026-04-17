@@ -4,11 +4,26 @@ import { enhancedAIExecutor } from "@/lib/langChain/tool-calling-integration";
 import { createRateLimitCheck, rateLimitResponse } from "@/lib/ratelimit";
 import { z } from "zod";
 
-// Get model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
-function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return mode === 'thinking'
-    ? (process.env.OPEN_ROUTER_MODEL_THINKING || 'deepseek/deepseek-r1')
-    : (process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free');
+// Get model based on AI mode
+function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
+  let selectedModel: string;
+  
+  if (mode === 'thinking') {
+    selectedModel = process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
+    console.log(`🧠 Thinking Mode: Using model ${selectedModel}${process.env.OPENROUTER_MODEL_THINKING ? ' (from env)' : ' (default)'}`);
+  } else if (mode === 'fast') {
+    selectedModel = process.env.OPENROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
+    console.log(`⚡ Fast Mode: Using model ${selectedModel}${process.env.OPENROUTER_MODEL_FAST ? ' (from env)' : ' (default)'}`);
+  } else {
+    // Normal mode: use THINKING model but without thinking process display
+    selectedModel = process.env.OPENROUTER_MODEL_NORMAL || process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
+    const source = process.env.OPENROUTER_MODEL_NORMAL ? 'NORMAL env' : 
+                   process.env.OPENROUTER_MODEL_THINKING ? 'THINKING env' : 
+                   'default';
+    console.log(`⚙️ Normal Mode: Using model ${selectedModel} (from ${source})`);
+  }
+  
+  return selectedModel;
 }
 
 // Request validation schema for video AI assistant
@@ -28,7 +43,8 @@ const videoAssistantRequestSchema = z.object({
       })
     )
     .optional(),
-  aiMode: z.enum(['fast', 'thinking']).default('fast'), // New: AI mode selection
+  aiMode: z.enum(['fast', 'normal', 'thinking']).default('normal'), // AI mode selection: fast, normal, thinking
+  clientEmbedding: z.array(z.number()).length(384).optional(), // Client-generated embedding for Fast mode
 });
 
 export async function POST(request: NextRequest) {
@@ -62,11 +78,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = videoAssistantRequestSchema.parse(body);
 
-    const { question, videoContext, conversationHistory, aiMode } = validatedData;
+    const { question, videoContext, conversationHistory, aiMode, clientEmbedding } = validatedData;
 
     // Select model based on aiMode
     const selectedModel = getModel(aiMode);
-    console.log(`🤖 Video AI Assistant using ${selectedModel} (${aiMode} mode)`);
+    console.log(`🤖 Video AI Assistant using ${selectedModel} (${aiMode} mode)${clientEmbedding ? ' with client embedding' : ''}`);
 
     // Check if streaming is requested
     const isStreaming = request.headers.get("accept") === "text/event-stream";
@@ -182,6 +198,8 @@ export async function POST(request: NextRequest) {
                     currentTime: videoContext.currentTimestamp || 0,
                   }
                 : undefined,
+              clientEmbedding, // Pass client embedding for Fast/Thinking mode
+              aiMode, // Pass AI mode for search strategy
             });
 
             let finalMetadata: any = null;
@@ -193,6 +211,22 @@ export async function POST(request: NextRequest) {
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({
                     type: "token",
+                    content: chunk.content
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'thinking_start') {
+                // Send thinking start
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "thinking_start",
+                    content: ""
+                  })}\n\n`)
+                );
+              } else if (chunk.type === 'thinking' && chunk.content) {
+                // Send thinking token
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: "thinking",
                     content: chunk.content
                   })}\n\n`)
                 );
@@ -290,6 +324,8 @@ export async function POST(request: NextRequest) {
             currentTime: videoContext.currentTimestamp || 0,
           }
         : undefined,
+      clientEmbedding, // Pass client embedding for Fast/Thinking mode
+      aiMode, // Pass AI mode for search strategy
     });
 
     const totalProcessingTime = Date.now() - startTime;

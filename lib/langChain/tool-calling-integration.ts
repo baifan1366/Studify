@@ -624,6 +624,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         attachmentId?: number | null;
         currentTime?: number;
       };
+      clientEmbedding?: number[]; // Client-generated E5 embedding for Fast/Thinking mode
+      aiMode?: 'fast' | 'normal' | 'thinking'; // AI mode for search strategy
     } = {}
   ): Promise<{
     answer: string;
@@ -665,6 +667,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
           query: question,
           contentTypes: options.contentTypes || ["video_segment", "lesson", "note"],
           videoContext: videoContext || undefined,
+          clientEmbedding: options.clientEmbedding, // Pass client embedding
+          searchMode: options.aiMode || 'normal', // Pass search mode
         };
 
         try {
@@ -909,9 +913,11 @@ Provide the best possible answer combining both sources.`;
         attachmentId?: number | null;
         currentTime?: number;
       };
+      clientEmbedding?: number[]; // Client-generated E5 embedding for Fast/Thinking mode
+      aiMode?: 'fast' | 'normal' | 'thinking'; // AI mode for search strategy
     } = {}
   ): AsyncGenerator<{
-    type: 'search_start' | 'search_complete' | 'answer_start' | 'token' | 'complete' | 'error';
+    type: 'search_start' | 'search_complete' | 'answer_start' | 'token' | 'thinking_start' | 'thinking' | 'complete' | 'error';
     content?: string;
     metadata?: any;
   }> {
@@ -960,6 +966,8 @@ Provide the best possible answer combining both sources.`;
           query: question,
           contentTypes: options.contentTypes || ["video_segment", "lesson", "note"],
           videoContext: videoContext || undefined,
+          clientEmbedding: options.clientEmbedding, // Pass client embedding
+          searchMode: options.aiMode || 'normal', // Pass search mode
         };
         
         console.log(`📝 [${Date.now()}] Search input:`, {
@@ -1033,13 +1041,16 @@ Provide the best possible answer combining both sources.`;
       const llmStartTime = Date.now();
       yield { type: 'answer_start', content: 'Generating answer...' };
       
+      // Use reasoning model for thinking mode
+      const isThinkingMode = options.aiMode === 'thinking';
       const modelName = options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
-      console.log(`🤖 [${Date.now()}] Creating LLM instance with model: ${modelName}`);
+      console.log(`🤖 [${Date.now()}] Creating LLM instance with model: ${modelName}${isThinkingMode ? ' (thinking mode)' : ''}`);
       
       const llm = await getLLM({
         model: modelName,
         temperature: 0.3,
         streaming: true,
+        enableReasoning: isThinkingMode, // Enable reasoning for thinking mode
       });
       const llmCreateTime = Date.now() - llmStartTime;
       timings.llm_create = llmCreateTime;
@@ -1091,34 +1102,123 @@ Provide a clear, helpful answer using your knowledge.`;
       // Stream the response
       console.log(`🌊 [${Date.now()}] Starting stream...`);
       const streamCallStartTime = Date.now();
-      const stream = await llm.stream(messages);
-      const streamCallTime = Date.now() - streamCallStartTime;
-      timings.stream_call = streamCallTime;
-      console.log(`✅ [${Date.now()}] Stream started in ${streamCallTime}ms, waiting for chunks...`);
       
       let chunkCount = 0;
       let totalContent = "";
       const firstChunkTime = Date.now();
       
-      for await (const chunk of stream) {
-        chunkCount++;
-        const content = chunk.content as string;
-        if (content) {
-          totalContent += content;
+      // For thinking mode, we need to use OpenRouter SDK directly to access reasoning_details
+      if (isThinkingMode) {
+        console.log(`🧠 [${Date.now()}] Using OpenRouter SDK for thinking mode`);
+        
+        // Import OpenRouter SDK
+        const { OpenRouter } = await import('@openrouter/sdk');
+        const { apiKeyManager } = await import('./api-key-manager');
+        
+        // Get API key
+        const { key: apiKey, name: keyName } = await apiKeyManager.getAvailableKey('round_robin');
+        
+        const openrouter = new OpenRouter({
+          apiKey,
+          httpReferer: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          appTitle: process.env.NEXT_PUBLIC_SITE_NAME || 'Studify',
+        });
+        
+        try {
+          const stream = await openrouter.chat.send({
+            chatRequest: {
+              model: modelName,
+              messages: messages.map((msg: any) => ({
+                role: msg._getType() === 'human' ? 'user' : 'assistant',
+                content: msg.content,
+              })),
+              stream: true,
+              temperature: 0.3,
+            },
+          });
           
-          // Log first chunk timing
-          if (chunkCount === 1) {
-            const timeToFirstChunk = Date.now() - firstChunkTime;
-            timings.first_chunk = timeToFirstChunk;
-            console.log(`⚡ [${Date.now()}] First chunk received in ${timeToFirstChunk}ms`);
+          let isInThinking = false;
+          
+          for await (const chunk of stream) {
+            chunkCount++;
+            const delta = chunk.choices?.[0]?.delta;
+            
+            if (!delta) continue;
+            
+            // Handle reasoning_details (thinking tokens)
+            if (delta.reasoningDetails && Array.isArray(delta.reasoningDetails)) {
+              for (const reasoningDetail of delta.reasoningDetails) {
+                let reasoningText = '';
+                
+                if (reasoningDetail.type === 'reasoning.text' && reasoningDetail.text) {
+                  reasoningText = reasoningDetail.text;
+                } else if (reasoningDetail.type === 'reasoning.summary' && reasoningDetail.summary) {
+                  reasoningText = reasoningDetail.summary;
+                }
+                
+                if (reasoningText) {
+                  if (!isInThinking) {
+                    isInThinking = true;
+                    console.log(`🟣 [${Date.now()}] Thinking phase started`);
+                    yield { type: 'thinking_start', content: '' };
+                  }
+                  
+                  yield { type: 'thinking', content: reasoningText };
+                }
+              }
+            }
+            
+            // Handle content (answer tokens)
+            if (delta.content) {
+              if (isInThinking) {
+                isInThinking = false;
+                console.log(`⚪ [${Date.now()}] Answer phase started`);
+              }
+              
+              totalContent += delta.content;
+              
+              if (chunkCount === 1) {
+                const timeToFirstChunk = Date.now() - firstChunkTime;
+                timings.first_chunk = timeToFirstChunk;
+                console.log(`⚡ [${Date.now()}] First chunk received in ${timeToFirstChunk}ms`);
+              }
+              
+              yield { type: 'token', content: delta.content };
+            }
           }
           
-          // Log every 50th chunk to avoid spam
-          if (chunkCount % 50 === 0) {
-            console.log(`📦 [${Date.now()}] Chunk ${chunkCount}: ${content.substring(0, 20)}... (total: ${totalContent.length} chars)`);
+          await apiKeyManager.recordUsage(keyName, true);
+        } catch (error) {
+          console.error(`❌ [${Date.now()}] OpenRouter streaming error:`, error);
+          throw error;
+        }
+      } else {
+        // Normal/Fast mode: use LangChain streaming (no thinking tokens)
+        const stream = await llm.stream(messages);
+        const streamCallTime = Date.now() - streamCallStartTime;
+        timings.stream_call = streamCallTime;
+        console.log(`✅ [${Date.now()}] Stream started in ${streamCallTime}ms, waiting for chunks...`);
+        
+        for await (const chunk of stream) {
+          chunkCount++;
+          const content = chunk.content as string;
+          if (content) {
+            totalContent += content;
+            
+            // Log first chunk timing
+            if (chunkCount === 1) {
+              const timeToFirstChunk = Date.now() - firstChunkTime;
+              timings.first_chunk = timeToFirstChunk;
+              console.log(`⚡ [${Date.now()}] First chunk received in ${timeToFirstChunk}ms`);
+            }
+            
+            // Log every 50th chunk to avoid spam
+            if (chunkCount % 50 === 0) {
+              console.log(`📦 [${Date.now()}] Chunk ${chunkCount}: ${content.substring(0, 20)}... (total: ${totalContent.length} chars)`);
+            }
+            
+            yield { type: 'token', content };
           }
-          
-          yield { type: 'token', content };
         }
       }
       

@@ -600,6 +600,235 @@ def process_job_sync(job_id, input_path, task, beam_size, callback_url, lesson_i
 
 
 # =========================
+# ASYNC WRAPPER WITH EMBEDDINGS
+# =========================
+async def run_job_with_embeddings(job_id, input_path, task, beam_size, callback_url, queue_id, attachment_id):
+    """Run transcription job with embedding generation and database save"""
+    try:
+        logging.debug(f"[job {job_id}] 🚀 run_job_with_embeddings started")
+        logging.debug(f"[job {job_id}] Acquiring semaphore...")
+        
+        async with semaphore:
+            logging.debug(f"[job {job_id}] ✅ Semaphore acquired")
+            
+            # Step 1: Run transcription
+            logging.debug(f"[job {job_id}] Step 1: Starting transcription in thread...")
+            result = await asyncio.to_thread(
+                process_job_sync,
+                job_id,
+                input_path,
+                task,
+                beam_size,
+                callback_url,
+                None  # No lesson_id needed
+            )
+            logging.debug(f"[job {job_id}] ✅ Transcription completed")
+            logging.info(f"[job {job_id}] Transcript: {len(result['text'])} characters")
+        
+        logging.debug(f"[job {job_id}] Semaphore released")
+        
+        # Step 2: Create segments from transcript
+        logging.debug(f"[job {job_id}] Step 2: Creating segments...")
+        with jobs_lock:
+            jobs[job_id]["progress"] = "creating_segments"
+        
+        segments = segment_transcript(result["text"], result["duration"])
+        logging.info(f"[job {job_id}] Created {len(segments)} segments")
+        
+        if not segments:
+            logging.warning(f"[job {job_id}] No segments created (transcript too short)")
+            with jobs_lock:
+                jobs[job_id]["segments_created"] = 0
+                jobs[job_id]["status"] = "completed"
+                jobs[job_id]["completed_at"] = time.time()
+            
+            # Send callback with no segments
+            if callback_url:
+                await send_callback(callback_url, {
+                    "job_id": job_id,
+                    "status": "completed",
+                    "result": result,
+                    "segments": 0,
+                    "embeddings_generated": False,
+                    "timestamp": time.time()
+                })
+            return
+        
+        # Step 3: Generate embeddings for all segments
+        logging.debug(f"[job {job_id}] Step 3: Generating embeddings...")
+        with jobs_lock:
+            jobs[job_id]["progress"] = "generating_embeddings"
+        
+        segment_texts = [seg.text for seg in segments]
+        
+        # Call BGE embedding server
+        bge_embeddings = []
+        bge_dimension = 0
+        
+        try:
+            if httpx:
+                logging.info(f"[job {job_id}] Calling BGE embedding server...")
+                async with httpx.AsyncClient(timeout=EMBEDDING_REQUEST_TIMEOUT) as client:
+                    response = await client.post(
+                        f"{BGE_HG_EMBEDDING_SERVER_API_URL}/embed/batch",
+                        json={"inputs": segment_texts}
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    bge_embeddings = data.get("embeddings", [])
+                    bge_dimension = data.get("dim", 0)
+                    logging.info(f"[job {job_id}] ✅ BGE embeddings: {len(bge_embeddings)} (dim: {bge_dimension})")
+        except Exception as e:
+            logging.error(f"[job {job_id}] ❌ BGE embedding failed: {e}")
+        
+        # Call E5 embedding server
+        e5_embeddings = []
+        e5_dimension = 0
+        
+        try:
+            if httpx:
+                logging.info(f"[job {job_id}] Calling E5 embedding server...")
+                async with httpx.AsyncClient(timeout=EMBEDDING_REQUEST_TIMEOUT) as client:
+                    response = await client.post(
+                        f"{E5_HG_EMBEDDING_SERVER_API_URL}/embed/batch",
+                        json={"inputs": segment_texts}
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    e5_embeddings = data.get("embeddings", [])
+                    e5_dimension = data.get("dim", 0)
+                    logging.info(f"[job {job_id}] ✅ E5 embeddings: {len(e5_embeddings)} (dim: {e5_dimension})")
+        except Exception as e:
+            logging.error(f"[job {job_id}] ❌ E5 embedding failed: {e}")
+        
+        # Step 4: Save to database (if Supabase is configured)
+        if supabase_client and queue_id and attachment_id:
+            logging.debug(f"[job {job_id}] Step 4: Saving to database...")
+            with jobs_lock:
+                jobs[job_id]["progress"] = "saving_to_database"
+            
+            try:
+                # Save video embeddings to database
+                logging.info(f"[job {job_id}] Saving {len(segments)} embeddings to database...")
+                
+                def _save_embeddings():
+                    records = []
+                    for i, seg in enumerate(segments):
+                        bge_emb = bge_embeddings[i] if i < len(bge_embeddings) else None
+                        e5_emb = e5_embeddings[i] if i < len(e5_embeddings) else None
+                        
+                        record = {
+                            "attachment_id": attachment_id,
+                            "text": seg.text,
+                            "start_time": seg.start_time,
+                            "end_time": seg.end_time,
+                            "position": seg.position,
+                            "metadata": {
+                                "duration": seg.end_time - seg.start_time,
+                                "word_count": len(seg.text.split())
+                            }
+                        }
+                        
+                        # Add embeddings if available
+                        if bge_emb:
+                            record["bge_embedding"] = bge_emb
+                        if e5_emb:
+                            record["e5_embedding"] = e5_emb
+                        
+                        records.append(record)
+                    
+                    # Insert all records
+                    result = supabase_client.table("video_embeddings").insert(records).execute()
+                    return [row["id"] for row in result.data]
+                
+                embedding_ids = await retry_with_backoff(_save_embeddings)
+                logging.info(f"[job {job_id}] ✅ Saved {len(embedding_ids)} embeddings to database")
+                
+                with jobs_lock:
+                    jobs[job_id]["database_saved"] = True
+                    jobs[job_id]["segments_created"] = len(segments)
+                    jobs[job_id]["embedding_ids"] = embedding_ids
+                    jobs[job_id]["embeddings_generated"] = True
+                
+                # Update queue status to completed
+                def _update_queue():
+                    supabase_client.table("video_processing_queue").update({
+                        "status": "completed",
+                        "progress_percentage": 100,
+                        "completed_at": time.time()
+                    }).eq("id", queue_id).execute()
+                
+                await retry_with_backoff(_update_queue)
+                logging.info(f"[job {job_id}] ✅ Queue {queue_id} marked as completed")
+                
+            except Exception as db_error:
+                logging.error(f"[job {job_id}] ❌ Database save failed: {db_error}")
+                with jobs_lock:
+                    jobs[job_id]["database_error"] = str(db_error)
+        
+        # Mark as completed
+        with jobs_lock:
+            jobs[job_id]["status"] = "completed"
+            jobs[job_id]["completed_at"] = time.time()
+            jobs[job_id]["segments"] = [
+                {
+                    "text": seg.text,
+                    "start_time": seg.start_time,
+                    "end_time": seg.end_time,
+                    "position": seg.position
+                }
+                for seg in segments
+            ]
+        
+        logging.info(f"[job {job_id}] ✅ Job completed successfully")
+        
+        # Send success callback
+        if callback_url:
+            logging.debug(f"[job {job_id}] Sending success callback...")
+            try:
+                await send_callback(callback_url, {
+                    "job_id": job_id,
+                    "status": "completed",
+                    "result": result,
+                    "segments": len(segments),
+                    "embeddings_generated": len(bge_embeddings) > 0 or len(e5_embeddings) > 0,
+                    "timestamp": time.time()
+                })
+                logging.debug(f"[job {job_id}] ✅ Success callback sent")
+            except Exception as e:
+                logging.error(f"[callback] failed {e}")
+    
+    except Exception as e:
+        logging.exception(f"[job {job_id}] Job failed")
+        logging.error(f"[job {job_id}] ❌ Exception type: {type(e).__name__}")
+        logging.error(f"[job {job_id}] ❌ Exception message: {str(e)}")
+        with jobs_lock:
+            jobs[job_id]["status"] = "failed"
+            jobs[job_id]["error"] = str(e)
+            jobs[job_id]["failed_at"] = time.time()
+        
+        # Send failure callback
+        if callback_url:
+            logging.debug(f"[job {job_id}] Sending failure callback...")
+            try:
+                await send_callback(callback_url, {
+                    "job_id": job_id,
+                    "status": "failed",
+                    "error": str(e),
+                    "timestamp": time.time()
+                })
+                logging.debug(f"[job {job_id}] ✅ Failure callback sent")
+            except Exception as cb_error:
+                logging.error(f"[callback] failed {cb_error}")
+    
+    finally:
+        # Prevent task memory leak
+        logging.debug(f"[job {job_id}] Removing task from tasks dict")
+        tasks.pop(job_id, None)
+        logging.debug(f"[job {job_id}] 🏁 run_job_with_embeddings finished")
+
+
+# =========================
 # ASYNC WRAPPER
 # =========================
 async def run_job(job_id, input_path, task, beam_size, callback_url, lesson_id):
@@ -725,7 +954,8 @@ async def transcribe(
     task: str = "transcribe",
     beam_size: int = 5,
     callback_url: str = None,
-    lesson_id: str = Query(None),  # NEW: Optional lesson ID for database save
+    queue_id: int = Query(None),  # NEW: Queue ID for tracking
+    attachment_id: int = Query(None),  # NEW: Attachment ID for tracking
 ):
     job_id = str(uuid.uuid4())
     
@@ -733,7 +963,8 @@ async def transcribe(
     logging.debug(f"[transcribe] Parameters - task: {task}, beam_size: {beam_size}")
     logging.debug(f"[transcribe] File provided: {file is not None}")
     logging.debug(f"[transcribe] URL provided: {url}")
-    logging.debug(f"[transcribe] Lesson ID: {lesson_id}")
+    logging.debug(f"[transcribe] Queue ID: {queue_id}")
+    logging.debug(f"[transcribe] Attachment ID: {attachment_id}")
     logging.debug(f"[transcribe] Callback URL: {callback_url}")
 
     with jobs_lock:
@@ -741,10 +972,12 @@ async def transcribe(
             "status": "queued",
             "progress": "init",
             "created_at": time.time(),
-            "lesson_id": lesson_id,
+            "queue_id": queue_id,
+            "attachment_id": attachment_id,
             "database_saved": False,
             "segments_created": 0,
-            "segment_ids": []
+            "segment_ids": [],
+            "embeddings_generated": False
         }
 
     try:
@@ -782,7 +1015,7 @@ async def transcribe(
         
         # Create background task
         task_obj = asyncio.create_task(
-            run_job(job_id, input_path, task, beam_size, callback_url, lesson_id)
+            run_job_with_embeddings(job_id, input_path, task, beam_size, callback_url, queue_id, attachment_id)
         )
 
         tasks[job_id] = task_obj

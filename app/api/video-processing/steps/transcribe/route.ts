@@ -1130,15 +1130,14 @@ async function handler(req: Request) {
       }
     }
 
-    // 5. Trigger Whisper API (fire-and-forget - Whisper will handle embedding directly)
+    // 5. Send audio to Whisper server (Whisper will handle transcription + embedding + database save)
     console.log(`\n${'-'.repeat(80)}`);
-    console.log(`[${requestId}] 🎤 WHISPER: Triggering transcription (async mode)...`);
+    console.log(`[${requestId}] 🎤 WHISPER: Sending audio for processing...`);
     console.log(`[${requestId}] 🔧 Retry count: ${retry_count}, Is warmup retry: ${is_warmup_retry}`);
-    console.log(`[${requestId}] 💡 NOTE: Whisper will process and send to embedding server directly`);
+    console.log(`[${requestId}] 💡 NOTE: Whisper will handle transcription, embedding, and database save`);
     console.log(`${'-'.repeat(80)}\n`);
     
     try {
-      // Trigger Whisper API without waiting for response
       const whisperUrl = process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL;
       
       if (!whisperUrl) {
@@ -1151,7 +1150,9 @@ async function handler(req: Request) {
       console.log(`[${requestId}] 📊 Audio source type: ${typeof audioSource === 'string' ? 'URL' : 'Blob'}`);
       
       const isUrl = typeof audioSource === "string";
-      const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=1`;
+      
+      // Build transcribe endpoint with queue_id and attachment_id for callback
+      const transcribeEndpoint = `${whisperUrl}/transcribe?task=transcribe&beam_size=1&queue_id=${queue_id}&attachment_id=${attachment_id}`;
       
       // Prepare the request based on source type
       let fetchPromise: Promise<Response>;
@@ -1160,7 +1161,7 @@ async function handler(req: Request) {
         // For URL-based requests, send URL as query parameter
         const urlWithParam = `${transcribeEndpoint}&url=${encodeURIComponent(audioSource as string)}`;
         
-        console.log(`[${requestId}] 📤 Triggering URL-based transcription...`);
+        console.log(`[${requestId}] 📤 Sending URL-based request to Whisper...`);
         console.log(`[${requestId}] 🌐 Audio URL: ${(audioSource as string).substring(0, 100)}...`);
         
         // Fire-and-forget: trigger the request but don't wait for response
@@ -1172,7 +1173,7 @@ async function handler(req: Request) {
         // For file-based requests, use FormData
         const audioBlob = audioSource as Blob;
         
-        console.log(`[${requestId}] 📤 Triggering file-based transcription...`);
+        console.log(`[${requestId}] 📤 Sending file-based request to Whisper...`);
         console.log(`[${requestId}] 📊 File size: ${audioBlob.size} bytes`);
         
         const formData = new FormData();
@@ -1222,8 +1223,8 @@ async function handler(req: Request) {
           console.error(`[${requestId}] ❌ WHISPER: Request failed:`, error.message);
         });
       
-      console.log(`[${requestId}] ✅ WHISPER: Transcription request triggered successfully`);
-      console.log(`[${requestId}] 💡 Whisper will process and send results to embedding server directly`);
+      console.log(`[${requestId}] ✅ WHISPER: Request sent successfully`);
+      console.log(`[${requestId}] 💡 Whisper will handle transcription, embedding, and database save`);
       console.log(`[${requestId}] 🚀 Returning HTTP 200 immediately to QStash`);
       
       
@@ -1244,8 +1245,8 @@ async function handler(req: Request) {
       console.log(`[${requestId}] ✅ TRANSCRIPTION REQUEST ACCEPTED`);
       console.log(`${'='.repeat(80)}`);
       console.log(`[${requestId}] ⏰ Total execution time: ${totalExecutionTime}ms (${(totalExecutionTime / 1000).toFixed(2)}s)`);
-      console.log(`[${requestId}] 🎤 Whisper: Processing in background (async mode)`);
-      console.log(`[${requestId}] 💡 Whisper will send results to embedding server directly`);
+      console.log(`[${requestId}] 🎤 Whisper: Processing in background`);
+      console.log(`[${requestId}] 💡 Whisper will handle transcription, embedding, and database save`);
       console.log(`[${requestId}] 🚀 Returning HTTP 200 to QStash immediately`);
       console.log(`${'-'.repeat(80)}`);
       console.log(`[${requestId}] 📊 PERFORMANCE METRICS:`);
@@ -1267,7 +1268,7 @@ async function handler(req: Request) {
             status: "processing",
             mode: "async",
             retry_count,
-            note: "Whisper will process and send results to embedding server directly",
+            note: "Whisper will handle transcription, embedding, and database save",
             acceptedAt: new Date().toISOString(),
           },
           performance_metrics: {

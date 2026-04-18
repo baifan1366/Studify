@@ -1228,9 +1228,10 @@ async function handler(req: Request) {
       
       
       const totalExecutionTime = Date.now() - startTime;
+      const whisperTriggerDuration = Date.now() - startTime; // Time to trigger Whisper
       performanceMetrics.vercel.totalExecutionTime = totalExecutionTime;
-      performanceMetrics.whisper.processingTime = transcriptionDuration;
-      performanceMetrics.whisper.totalTime = transcriptionDuration;
+      performanceMetrics.whisper.processingTime = whisperTriggerDuration;
+      performanceMetrics.whisper.totalTime = whisperTriggerDuration;
       
       // Calculate breakdown percentages
       performanceMetrics.breakdown = [

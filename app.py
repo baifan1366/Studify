@@ -7,6 +7,7 @@ import asyncio
 import time
 import re
 import hashlib
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from threading import Lock
 from dataclasses import dataclass
@@ -719,21 +720,25 @@ async def run_job_with_embeddings(job_id, input_path, task, beam_size, callback_
                         
                         record = {
                             "attachment_id": attachment_id,
-                            "text": seg.text,
-                            "start_time": seg.start_time,
-                            "end_time": seg.end_time,
-                            "position": seg.position,
-                            "metadata": {
-                                "duration": seg.end_time - seg.start_time,
-                                "word_count": len(seg.text.split())
-                            }
+                            "content_type": "lesson",  # Required field
+                            "content_text": seg.text,
+                            "chunk_type": "segment",
+                            "segment_start_time": seg.start_time,
+                            "segment_end_time": seg.end_time,
+                            "segment_index": seg.position,
+                            "total_segments": len(segments),
+                            "word_count": len(seg.text.split()),
+                            "sentence_count": len([s for s in seg.text.split('.') if s.strip()]),
+                            "status": "completed"
                         }
                         
-                        # Add embeddings if available
+                        # Add embeddings if available (using correct column names)
                         if bge_emb:
-                            record["bge_embedding"] = bge_emb
+                            record["embedding_bge_m3"] = bge_emb
+                            record["has_bge_embedding"] = True
                         if e5_emb:
-                            record["e5_embedding"] = e5_emb
+                            record["embedding_e5_small"] = e5_emb
+                            record["has_e5_embedding"] = True
                         
                         records.append(record)
                     
@@ -755,7 +760,7 @@ async def run_job_with_embeddings(job_id, input_path, task, beam_size, callback_
                     supabase_client.table("video_processing_queue").update({
                         "status": "completed",
                         "progress_percentage": 100,
-                        "completed_at": time.time()
+                        "completed_at": datetime.now().isoformat()
                     }).eq("id", queue_id).execute()
                 
                 await retry_with_backoff(_update_queue)

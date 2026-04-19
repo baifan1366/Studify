@@ -58,6 +58,7 @@ export interface VideoQARequest {
   currentTime: number;
   timeWindow?: number;
   aiMode?: 'fast' | 'normal' | 'thinking'; // AI mode selection: fast, normal, thinking
+  clientEmbedding?: number[]; // Client-generated E5 embedding for Fast/Thinking mode (384 dimensions)
 }
 
 // Hook for asking questions about video content

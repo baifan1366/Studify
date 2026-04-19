@@ -1,14 +1,14 @@
-// Search Tool - 语义搜索工具（支持视频 embeddings）
+// Search Tool - Semantic search tool (supports video embeddings)
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from 'zod';
 import { smartSearch } from '../langchain-integration';
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from '../embedding';
 
-// 搜索视频 embeddings - 支持三种模式
-// Fast Mode: 使用客户端 E5 embedding，仅 E5 搜索（无 BGE reranking）
-// Normal Mode: 服务器端双重 embedding，两阶段搜索（E5 粗筛 + BGE 精排）
-// Thinking Mode: 混合策略（客户端 E5 + 服务器端 BGE）
+// Search video embeddings - supports three modes
+// Fast Mode: Uses client E5 embedding, E5 search only (no BGE reranking)
+// Normal Mode: Server-side dual embedding, two-stage search (E5 coarse + BGE rerank)
+// Thinking Mode: Hybrid strategy (client E5 + server BGE)
 async function searchVideoEmbeddings(
   query: string,
   options: {
@@ -63,7 +63,7 @@ async function searchVideoEmbeddings(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     
-    // 如果有 lessonId，先获取 attachmentId
+    // If lessonId is provided, first get attachmentId
     let targetAttachmentId = attachmentId;
     if (!targetAttachmentId && lessonId) {
       console.log(`🔍 Looking up attachment for lesson: ${lessonId}`);
@@ -106,13 +106,13 @@ async function searchVideoEmbeddings(
       return [];
     }
     
-    // 计算时间窗口 - 如果提供了 currentTime，则搜索前后各 timeWindow 秒
+    // Calculate time window - if currentTime is provided, search within timeWindow seconds before and after
     let timeStart: number | null = null;
     let timeEnd: number | null = null;
     
     if (currentTime !== undefined && currentTime > 0) {
-      // 扩大时间窗口以获取更多上下文
-      const expandedWindow = timeWindow * 3; // 默认前后各 180 秒（3分钟）
+      // Expand time window to get more context
+      const expandedWindow = timeWindow * 3; // Default ±180 seconds (3 minutes)
       timeStart = Math.max(0, currentTime - expandedWindow);
       timeEnd = currentTime + expandedWindow;
       console.log(`⏱️ Time-focused search: ${timeStart}s - ${timeEnd}s (current: ${currentTime}s, window: ±${expandedWindow}s)`);
@@ -196,8 +196,8 @@ async function searchVideoEmbeddings(
     }
     
     // Normal/Thinking Mode: Two-stage search with BGE reranking
-    // 使用数据库的两阶段搜索函数（更高效）
-    console.log(`🔍 ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode: Executing two-stage search (E5 粗筛 + BGE 精排)`);
+    // Use database's two-stage search function (more efficient)
+    console.log(`🔍 ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode: Executing two-stage search (E5 coarse + BGE rerank)`);
     console.log(`  ↳ E5 threshold: ${e5Threshold}, candidates: ${e5CandidateCount}, final: ${finalCount}`);
     console.log(`  ↳ Weights: E5 (0.3) + BGE (0.7)`);
     
@@ -214,10 +214,10 @@ async function searchVideoEmbeddings(
       weight_bge: 0.7
     });
     
-    // 如果两阶段搜索成功，直接返回结果
+    // If two-stage search succeeds, return results directly
     if (!twoStageError && twoStageResults && twoStageResults.length > 0) {
       console.log(`✅ ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode: Two-stage search completed successfully`);
-      console.log(`  ↳ Found ${twoStageResults.length} results after E5 粗筛 + BGE 精排`);
+      console.log(`  ↳ Found ${twoStageResults.length} results after E5 coarse + BGE rerank`);
       console.log(`  ↳ Score range: ${twoStageResults[0]?.combined_score?.toFixed(3)} - ${twoStageResults[twoStageResults.length - 1]?.combined_score?.toFixed(3)}`);
       
       return twoStageResults.map((r: any) => ({
@@ -240,7 +240,7 @@ async function searchVideoEmbeddings(
       console.log(`  ↳ Error: ${twoStageError.message}`);
     }
     
-    // 回退到单阶段 E5 搜索
+    // Fallback to single-stage E5 search
     console.log('⚠️ Two-stage search failed, falling back to E5-only search');
     
     const { data: e5Results, error: e5Error } = await supabase.rpc('search_video_embeddings_e5', {
@@ -257,7 +257,7 @@ async function searchVideoEmbeddings(
       return [];
     }
     
-    // 如果时间窗口搜索结果不足，回退到全视频搜索
+    // If time window search has insufficient results, fallback to full video search
     if ((!e5Results || e5Results.length < 5) && timeStart !== null) {
       console.log(`⚠️ Insufficient results (${e5Results?.length || 0}) in time window, expanding to full video search`);
       
@@ -277,10 +277,10 @@ async function searchVideoEmbeddings(
       
       if (fullResults && fullResults.length > 0) {
         console.log(`✅ Fallback: Found ${fullResults.length} candidates from full video`);
-        // 使用全视频搜索结果
+        // Use full video search results
         const finalE5Results = fullResults;
         
-        // 继续使用 finalE5Results 进行 BGE 重排
+        // Continue using finalE5Results for BGE reranking
         const candidateIds = finalE5Results.map((r: any) => r.id);
         
         const { data: bgeResults, error: bgeError } = await supabase
@@ -298,7 +298,7 @@ async function searchVideoEmbeddings(
           }));
         }
         
-        // BGE 重排逻辑（与下面相同）
+        // BGE reranking logic (same as below)
         const rerankedResults = bgeResults.map((result: any) => {
           const bgeVec = result.embedding_bge_m3;
           let similarity = 0;
@@ -348,8 +348,8 @@ async function searchVideoEmbeddings(
       : 'whole video';
     console.log(`✅ E5 Stage: Found ${e5Results.length} candidates from ${searchScope}`);
     
-    // Stage 2: BGE-M3 精排 - 对候选结果重新排序
-    // 获取这些候选的 BGE embeddings 并计算相似度
+    // Stage 2: BGE-M3 reranking - reorder candidate results
+    // Get BGE embeddings for these candidates and calculate similarity
     const candidateIds = e5Results.map((r: any) => r.id);
     
     const { data: bgeResults, error: bgeError } = await supabase
@@ -367,14 +367,14 @@ async function searchVideoEmbeddings(
       }));
     }
     
-    // 计算 BGE 相似度并重新排序
+    // Calculate BGE similarity and reorder
     const rerankedResults = bgeResults.map((result: any) => {
-      // 计算余弦相似度
+      // Calculate cosine similarity
       const bgeVec = result.embedding_bge_m3;
       let similarity = 0;
       
       if (bgeVec && bgeEmbedding) {
-        // 计算点积
+        // Calculate dot product
         let dotProduct = 0;
         let normA = 0;
         let normB = 0;
@@ -391,8 +391,8 @@ async function searchVideoEmbeddings(
       return {
         id: result.id,
         content_text: result.content_text,
-        content_type: 'video_segment',  // 添加 content_type
-        type: 'video_segment',          // 添加 type
+        content_type: 'video_segment',  // Add content_type
+        type: 'video_segment',          // Add type
         segment_start_time: result.segment_start_time,
         segment_end_time: result.segment_end_time,
         section_title: result.section_title,
@@ -401,7 +401,7 @@ async function searchVideoEmbeddings(
       };
     });
     
-    // 按 BGE 相似度排序
+    // Sort by BGE similarity
     rerankedResults.sort((a, b) => b.similarity - a.similarity);
     
     const finalResults = rerankedResults.slice(0, maxResults);
@@ -460,13 +460,13 @@ export const searchTool = new DynamicStructuredTool({
       const { query, contentTypes = [], videoContext, clientEmbedding, searchMode = 'normal' } = input;
       const searchQuery = query;
       
-      // 检查是否需要搜索视频内容
+      // Check if video content search is needed
       const needsVideoSearch = contentTypes.includes('video_segment');
       
       let allResults: any[] = [];
       let rawVideoResults: any[] = []; // Store raw video results for structured access
       
-      // 1. 搜索视频 embeddings
+      // 1. Search video embeddings
       if (needsVideoSearch && videoContext?.lessonId) {
         console.log(`🎬 Searching video embeddings for lesson: ${videoContext.lessonId} (mode: ${searchMode})`);
         
@@ -499,7 +499,7 @@ export const searchTool = new DynamicStructuredTool({
         console.log(`✅ Found ${videoResults.length} video segments`);
       }
       
-      // 2. 搜索通用内容
+      // 2. Search general content
       const generalContentTypes = contentTypes.filter((t: string) => t !== 'video_segment');
       if (generalContentTypes.length > 0 || contentTypes.length === 0) {
         const generalResults = await smartSearch(searchQuery, {

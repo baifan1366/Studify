@@ -1,4 +1,4 @@
-// Content Analysis Tool - 课程内容分析工具
+// Content Analysis Tool - Course content analysis tool
 import { DynamicTool } from "@langchain/core/tools";
 import { analyzeDocument } from '@/lib/langChain/langchain-integration';
 

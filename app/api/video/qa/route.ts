@@ -32,7 +32,7 @@ function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
   }
 }
 
-// 视频时间轴智能问答API
+// Video Timeline Intelligent Q&A API
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);
   debugLog(`📥 Incoming request`, { requestId });
@@ -76,10 +76,10 @@ export async function POST(request: NextRequest) {
     const {
       lessonId,
       question,
-      currentTime, // 当前播放时间（秒）
-      timeWindow = 30, // 时间窗口（秒）
-      aiMode = 'normal', // AI 模式选择 (fast, normal, thinking)
-      clientEmbedding // 客户端生成的 embedding (仅 Fast 模式)
+      currentTime, // Current playback time (seconds)
+      timeWindow = 30, // Time window (seconds)
+      aiMode = 'normal', // AI mode selection (fast, normal, thinking)
+      clientEmbedding // Client-generated embedding (Fast mode only)
     } = body;
 
     debugLog(`📝 Request parameters`, { 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createAdminClient();
 
-    // 1. 获取课程信息用于上下文
+    // 1. Fetch course information for context
     debugLog(`🔍 Fetching lesson data`, { requestId, lessonId });
     const lessonQueryStart = Date.now();
     
@@ -166,22 +166,22 @@ export async function POST(request: NextRequest) {
     if (isExternalVideo) {
       debugLog(`🎬 External video detected`, { requestId, contentUrl: lesson.content_url });
       
-      const courseContext = `课程：${courseTitle}
-章节：${moduleTitle}  
-课时：${lessonTitle}
-视频类型：外部视频 (YouTube/Vimeo)
-当前时间：${currentTime}秒`;
+      const courseContext = `Course: ${courseTitle}
+Module: ${moduleTitle}  
+Lesson: ${lessonTitle}
+Video Type: External Video (YouTube/Vimeo)
+Current Time: ${currentTime} seconds`;
 
       const directQuestion = `${courseContext}
 
-这是一个外部视频课程（YouTube/Vimeo），没有可用的字幕或转写文本。请基于课程标题和上下文，尽力回答学生的问题。
+This is an external video course (YouTube/Vimeo) without available subtitles or transcripts. Please answer the student's question based on the course title and context to the best of your ability.
 
-学生问题：${question}
+Student Question: ${question}
 
-请提供：
-1. 基于课程主题的相关解答
-2. 如果无法确定具体内容，建议学生查看视频的特定时间段
-3. 提供相关的学习建议和资源`;
+Please provide:
+1. Relevant answers based on the course topic
+2. If specific content cannot be determined, suggest the student review specific time segments of the video
+3. Provide relevant learning suggestions and resources`;
 
       debugLog(`🚀 Starting direct AI for external video`, { requestId });
       const aiStart = Date.now();
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
     debugLog(`🔍 Fetching attachment data`, { requestId });
     const dbStartTime = Date.now();
     
-    // 2. 获取 attachment ID 用于视频搜索
+    // 2. Get attachment ID for video search
     const { data: lessonWithAttachment } = await supabase
       .from('course_lesson')
       .select(`
@@ -275,18 +275,18 @@ export async function POST(request: NextRequest) {
       hasAttachment: !!attachmentId 
     });
     
-    const courseContext = `课程：${courseTitle}
-章节：${moduleTitle}  
-课时：${lessonTitle}
-当前播放时间：${currentTime}秒`;
+    const courseContext = `Course: ${courseTitle}
+Module: ${moduleTitle}  
+Lesson: ${lessonTitle}
+Current Playback Time: ${currentTime} seconds`;
 
-    // 构建增强的问题，包含 JSON 格式的搜索参数
+    // Build enhanced question with JSON-formatted search parameters
     const enhancedQuestion = `${courseContext}
 
-学生在观看视频时提出了以下问题：
+The student asked the following question while watching the video:
 ${question}
 
-请使用 search tool 查找相关内容。搜索时使用以下参数：
+Please use the search tool to find relevant content. Use the following parameters when searching:
 {
   "query": "${question.replace(/"/g, '\\"')}",
   "contentTypes": ["video_segment", "lesson", "note"],
@@ -297,11 +297,11 @@ ${question}
   }
 }
 
-请基于搜索结果（特别是视频片段）提供详细的回答。如果找到相关的视频片段，请引用它们的时间点。`;
+Please provide a detailed answer based on the search results (especially video segments). If relevant video segments are found, cite their timestamps.`;
 
-    // 使用 Tool Calling 系统，它会自动：
-    // 1. 使用 search tool 进行语义搜索（包括 video_segment 类型）
-    // 2. 使用 answer_question tool 生成答案
+    // Using Tool Calling system, which will automatically:
+    // 1. Use search tool for semantic search (including video_segment type)
+    // 2. Use answer_question tool to generate answer
     // Add timeout to prevent long-running requests (4.5 minutes to stay under 5 min limit)
     debugLog(`🚀 Starting educationalQA with 270s timeout`, { requestId });
     const qaStartTime = Date.now();
@@ -317,7 +317,7 @@ ${question}
       enhancedAIExecutor.educationalQA(enhancedQuestion, {
         userId,
         includeAnalysis: true,
-        contentTypes: ['video_segment', 'lesson', 'note'], // 优先搜索视频片段
+        contentTypes: ['video_segment', 'lesson', 'note'], // Prioritize video segments
         model: selectedModel,
         videoContext: {
           lessonId,
@@ -346,8 +346,8 @@ ${question}
       hasThinking: !!result.thinking
     });
 
-    // 从 sources 中提取视频片段信息
-    // 优先使用 video_embeddings 中的 segment 数据
+    // Extract video segment information from sources
+    // Prioritize segment data from video_embeddings
     debugLog(`📊 Processing sources for video segments`, { requestId, sourcesCount: sources.length });
     
     const videoSegments = sources
@@ -365,7 +365,7 @@ ${question}
         return isVideoSegment;
       })
       .map((source: any) => {
-        // 从 source 中提取时间信息 - 支持多种字段名
+        // Extract time information from source - supports multiple field names
         const startTime = source.segment_start_time || source.startTime || source.timestamp || 0;
         const endTime = source.segment_end_time || source.endTime || (startTime + 30);
         const text = source.content_text || source.content || source.contentPreview || '';
@@ -384,11 +384,11 @@ ${question}
           relevantText: text.substring(0, 300) + (text.length > 300 ? '...' : '')
         };
       })
-      .filter((seg: any) => seg.startTime >= 0 && seg.text.length > 0); // 过滤无效数据
+      .filter((seg: any) => seg.startTime >= 0 && seg.text.length > 0); // Filter invalid data
     
     debugLog(`✅ Extracted video segments`, { requestId, count: videoSegments.length });
 
-    // 5. 保存问答记录（可选）
+    // 5. Save Q&A history (optional)
     await supabase
       .from('video_qa_history')
       .insert({
@@ -482,7 +482,7 @@ ${question}
   }
 }
 
-// 获取视频术语解释API
+// Get Video Term Explanation API
 export async function GET(request: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);
   debugLog(`📥 GET request for video terms`, { requestId });
@@ -512,7 +512,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createAdminClient();
 
-    // 获取当前时间窗口的视频片段
+    // Get video segments within current time window
     debugLog(`🔍 Fetching lesson`, { requestId, lessonId });
     const { data: lesson } = await supabase
       .from('course_lesson')
@@ -557,7 +557,7 @@ export async function GET(request: NextRequest) {
 
     debugLog(`✅ Found segments`, { requestId, count: segments.length });
 
-    // 使用AI提取关键术语 (使用 Gemma 4 Fast 模式)
+    // Use AI to extract key terms (using Gemma 4 Fast mode)
     const contextText = segments.map(s => s.text).join(' ');
     
     debugLog(`🤖 Extracting terms with Fast mode`, { 
@@ -565,9 +565,9 @@ export async function GET(request: NextRequest) {
       contextLength: contextText.length 
     });
     
-    // 使用 Gemma 4 Fast 模式进行快速术语提取
+    // Use Gemma 4 Fast mode for quick term extraction
     const model = await getLLM({ 
-      model: getModel('fast') // 使用 Fast 模式
+      model: getModel('fast') // Use Fast mode
     });
 
     const prompt = `Extract 3-5 of the most important academic terms or concepts from the following video content and provide brief explanations:
@@ -610,17 +610,17 @@ Return the JSON array directly without additional formatting:`;
       terms = [];
     }
 
-    // 生成学习建议
+    // Generate learning suggestions
     const suggestions = [
       {
         type: 'pause_tip',
-        title: '暂停学习小贴士',
-        content: '可以暂停视频，记录关键概念到笔记中'
+        title: 'Pause Learning Tip',
+        content: 'You can pause the video and record key concepts in your notes'
       },
       {
         type: 'related_exercise',
-        title: '相关练习',
-        content: '建议完成本章节的配套练习题'
+        title: 'Related Exercises',
+        content: 'It is recommended to complete the supporting exercises for this chapter'
       }
     ];
 

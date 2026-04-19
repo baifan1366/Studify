@@ -756,7 +756,7 @@ Provide a clear, educational answer even without specific course materials.`;
         setTimeout(() => {
           console.log(`⏰ [${Date.now()}] Quick search timeout, using fallback only`);
           resolve("");
-        }, 5000) // Only wait 5 more seconds for search
+        }, 15000) // Increased to 15 seconds for search (was 5 seconds)
       );
       
       searchResults = await Promise.race([searchPromise, quickSearchTimeout]);
@@ -799,7 +799,7 @@ ${fallbackAnswer}
 Provide the best possible answer combining both sources.`;
 
             const enhanceTimeout = new Promise ((_, reject) => 
-              setTimeout(() => reject(new Error('Enhancement timeout')), 30000)
+              setTimeout(() => reject(new Error('Enhancement timeout')), 120000) // Increased to 120 seconds (2 minutes)
             );
             
             const enhanced = await Promise.race([

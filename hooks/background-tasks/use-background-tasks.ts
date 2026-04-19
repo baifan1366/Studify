@@ -57,7 +57,7 @@ export const useBackgroundTasks = () => {
 
 // Monitor video processing progress with real-time toast updates
 const monitorVideoProcessing = async (taskId: string, queueId: string, title: string) => {
-  const maxAttempts = 120 // 2 minutes with 1-second intervals  
+  const maxAttempts = 120 // 4 minutes with 2-second intervals  
   let attempts = 0
   
   const checkProgress = async () => {
@@ -69,25 +69,25 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
         throw new Error(data.error || 'Failed to check status')
       }
       
-      // Use real progress from queue status
-      const progress = data.progress_percentage || 0
-      const currentStep = data.current_step || 'starting'
+      // Show simple processing message without progress percentage
+      // since Whisper and embedding servers process independently
+      const currentStep = data.current_step || 'processing'
       
       // Map step names to user-friendly labels
       const stepLabels = {
-        'transcribe': '📝 Generating transcript',
-        'embed': '🧠 Creating AI embeddings',
+        'transcribe': '🎤 Transcribing audio',
+        'embed': '🧠 Generating AI embeddings',
         'completed': '✅ Finalizing'
       };
       
       const stepLabel = stepLabels[currentStep as keyof typeof stepLabels] || '⚙️ Processing'
       
-      // Update toast with real progress and current step
+      // Update toast with current step (no progress percentage)
       toast.loading(
-        `${stepLabel}: ${title} (${progress}%)`,
+        `${stepLabel}: ${title}`,
         {
           id: taskId,
-          description: `Queue progress - you can continue working`,
+          description: `AI video analysis in progress - you can continue working`,
           action: {
             label: 'Cancel',
             onClick: () => cancelVideoProcessing(taskId, queueId, title)
@@ -126,7 +126,7 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
       
       attempts++
       if (attempts < maxAttempts) {
-        setTimeout(checkProgress, 2000) // Check every 2 seconds for better UX
+        setTimeout(checkProgress, 2000) // Check every 2 seconds
       } else {
         throw new Error('Processing timeout - please try again later')
       }
@@ -152,7 +152,7 @@ const monitorVideoProcessing = async (taskId: string, queueId: string, title: st
 
 // Monitor embedding generation progress with real-time toast updates
 const monitorEmbeddingGeneration = async (taskId: string, attachmentId: number, title: string) => {
-  const maxAttempts = 60 // 1 minute with 2-second intervals
+  const maxAttempts = 60 // 2 minutes with 2-second intervals
   let attempts = 0
   
   const checkProgress = async () => {
@@ -160,12 +160,9 @@ const monitorEmbeddingGeneration = async (taskId: string, attachmentId: number, 
       const response = await fetch(`/api/embeddings/video-embeddings/attachment/${attachmentId}`)
       const data = await response.json()
       
-      // Calculate estimated progress based on time elapsed
-      const progress = Math.min((attempts / maxAttempts) * 95, 95)
-      
-      // Update toast with progress
+      // Show simple processing message without progress percentage
       toast.loading(
-        `🧠 Generating AI embeddings: ${title} (${progress.toFixed(0)}%)`,
+        `🧠 Generating AI embeddings: ${title}`,
         {
           id: taskId,
           description: 'Preparing for AI search - you can continue working'

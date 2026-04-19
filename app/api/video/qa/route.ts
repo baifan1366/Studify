@@ -8,6 +8,18 @@ import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 // Set max duration to 5 minutes (300 seconds) - Vercel's maximum
 export const maxDuration = 300;
 
+// Debug logger - works in both development and production
+const debugLog = (message: string, data?: any) => {
+  const timestamp = new Date().toISOString();
+  const prefix = `[video-qa][${timestamp}]`;
+  
+  if (data !== undefined) {
+    console.log(`${prefix} ${message}`, JSON.stringify(data, null, 2));
+  } else {
+    console.log(`${prefix} ${message}`);
+  }
+};
+
 // Get model based on AI mode
 function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
   if (mode === 'thinking') {
@@ -22,23 +34,33 @@ function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
 
 // 视频时间轴智能问答API
 export async function POST(request: NextRequest) {
+  const requestId = Math.random().toString(36).substring(7);
+  debugLog(`📥 Incoming request`, { requestId });
+  
   try {
+    debugLog(`🔐 Starting authorization`, { requestId });
     const authResult = await authorize('student');
-    if (authResult instanceof NextResponse) return authResult;
+    if (authResult instanceof NextResponse) {
+      debugLog(`❌ Authorization failed`, { requestId });
+      return authResult;
+    }
     
-    const { payload, user } = authResult;
+    const { user } = authResult;
     const userId = user.profile?.id;
     
     if (!userId) {
+      debugLog(`❌ Profile not found`, { requestId });
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
+
+    debugLog(`✅ User authorized`, { requestId, userId });
 
     // Rate limiting check
     const checkLimit = createRateLimitCheck('videoQA');
     const { allowed, remaining, resetTime, limit } = checkLimit(userId.toString());
     
     if (!allowed) {
-      console.log(`⚠️ Rate limit exceeded for user ${userId}`);
+      debugLog(`⚠️ Rate limit exceeded`, { requestId, userId, limit, resetTime });
       return NextResponse.json(
         rateLimitResponse(resetTime, limit),
         { 
@@ -48,7 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log(`✅ Rate limit OK: ${remaining}/${limit} remaining for user ${userId}`);
+    debugLog(`✅ Rate limit OK`, { requestId, remaining, limit });
 
     const body = await request.json();
     const {
@@ -60,7 +82,18 @@ export async function POST(request: NextRequest) {
       clientEmbedding // 客户端生成的 embedding (仅 Fast 模式)
     } = body;
 
+    debugLog(`📝 Request parameters`, { 
+      requestId, 
+      lessonId, 
+      questionLength: question?.length,
+      currentTime, 
+      timeWindow, 
+      aiMode,
+      hasClientEmbedding: !!clientEmbedding 
+    });
+
     if (!lessonId || !question?.trim()) {
+      debugLog(`❌ Missing required fields`, { requestId, lessonId, hasQuestion: !!question });
       return NextResponse.json(
         { error: 'Missing required fields: lessonId, question' },
         { status: 400 }
@@ -68,11 +101,19 @@ export async function POST(request: NextRequest) {
     }
 
     const selectedModel = getModel(aiMode as 'fast' | 'normal' | 'thinking');
-    console.log(`🤖 Video QA using ${selectedModel} (${aiMode} mode)${clientEmbedding ? ' with client embedding' : ''}`);
+    debugLog(`🤖 Model selection`, { 
+      requestId, 
+      selectedModel, 
+      aiMode, 
+      hasClientEmbedding: !!clientEmbedding 
+    });
 
     const supabase = await createAdminClient();
 
     // 1. 获取课程信息用于上下文
+    debugLog(`🔍 Fetching lesson data`, { requestId, lessonId });
+    const lessonQueryStart = Date.now();
+    
     const { data: lesson, error: lessonError } = await supabase
       .from('course_lesson')
       .select(`
@@ -91,7 +132,11 @@ export async function POST(request: NextRequest) {
       .eq('public_id', lessonId)
       .single();
 
+    const lessonQueryTime = Date.now() - lessonQueryStart;
+    debugLog(`⏱️ Lesson query completed`, { requestId, duration: lessonQueryTime });
+
     if (lessonError || !lesson) {
+      debugLog(`❌ Lesson not found`, { requestId, lessonId, error: lessonError });
       return NextResponse.json(
         { error: 'Lesson not found' },
         { status: 404 }
@@ -102,6 +147,15 @@ export async function POST(request: NextRequest) {
     const moduleTitle = (lesson.course_module as any)?.title || 'Unknown Module';
     const lessonTitle = lesson.title || 'Unknown Lesson';
 
+    debugLog(`📚 Course context`, { 
+      requestId, 
+      courseTitle, 
+      moduleTitle, 
+      lessonTitle,
+      hasTranscript: !!lesson.transcript,
+      contentUrl: lesson.content_url 
+    });
+
     // Check if this is a YouTube/Vimeo video (external video)
     const isExternalVideo = lesson.content_url && 
       (lesson.content_url.includes('youtube.com') || 
@@ -110,7 +164,7 @@ export async function POST(request: NextRequest) {
 
     // For YouTube/Vimeo videos, use direct AI without embeddings
     if (isExternalVideo) {
-      console.log(`🎬 YouTube/Vimeo video detected - using direct AI without embeddings`);
+      debugLog(`🎬 External video detected`, { requestId, contentUrl: lesson.content_url });
       
       const courseContext = `课程：${courseTitle}
 章节：${moduleTitle}  
@@ -129,15 +183,23 @@ export async function POST(request: NextRequest) {
 2. 如果无法确定具体内容，建议学生查看视频的特定时间段
 3. 提供相关的学习建议和资源`;
 
+      debugLog(`🚀 Starting direct AI for external video`, { requestId });
+      const aiStart = Date.now();
+      
       const result = await enhancedAIExecutor.educationalQA(directQuestion, {
         userId,
         includeAnalysis: true,
         model: selectedModel
       });
 
+      const aiTime = Date.now() - aiStart;
       const answer = result.answer;
       
-      console.log(`✅ Direct AI answer for external video completed`);
+      debugLog(`✅ Direct AI completed`, { 
+        requestId, 
+        duration: aiTime,
+        answerLength: answer.length 
+      });
 
       // Save QA history
       await supabase
@@ -150,6 +212,8 @@ export async function POST(request: NextRequest) {
           video_time: currentTime,
           context_segments: null // No segments for external videos
         });
+
+      debugLog(`💾 QA history saved`, { requestId });
 
       return NextResponse.json({
         success: true,
@@ -169,7 +233,12 @@ export async function POST(request: NextRequest) {
         },
         metadata: {
           model: selectedModel,
-          aiMode
+          aiMode,
+          timings: {
+            lessonQuery: lessonQueryTime,
+            ai: aiTime,
+            total: Date.now() - lessonQueryStart
+          }
         },
         note: "This is an external video (YouTube/Vimeo). The AI assistant provides general guidance based on course context."
       }, {
@@ -182,8 +251,8 @@ export async function POST(request: NextRequest) {
     }
 
     // For regular videos with embeddings/transcripts
+    debugLog(`🔍 Fetching attachment data`, { requestId });
     const dbStartTime = Date.now();
-    console.log(`🔍 [${Date.now()}] Fetching attachment data...`);
     
     // 2. 获取 attachment ID 用于视频搜索
     const { data: lessonWithAttachment } = await supabase
@@ -199,9 +268,12 @@ export async function POST(request: NextRequest) {
     const attachmentId = lessonWithAttachment?.course_attachments?.[0]?.id;
     const dbTime = Date.now() - dbStartTime;
     
-    console.log(`✅ [${Date.now()}] DB query completed in ${dbTime}ms`);
-    console.log(`🎓 Video QA with embeddings and tool calling: "${question.substring(0, 50)}..."`);
-    console.log(`📎 Attachment ID: ${attachmentId}, Current time: ${currentTime}s`);
+    debugLog(`✅ Attachment query completed`, { 
+      requestId, 
+      duration: dbTime,
+      attachmentId,
+      hasAttachment: !!attachmentId 
+    });
     
     const courseContext = `课程：${courseTitle}
 章节：${moduleTitle}  
@@ -231,12 +303,12 @@ ${question}
     // 1. 使用 search tool 进行语义搜索（包括 video_segment 类型）
     // 2. 使用 answer_question tool 生成答案
     // Add timeout to prevent long-running requests (4.5 minutes to stay under 5 min limit)
-    console.log(`🚀 [${Date.now()}] Starting educationalQA with 270s timeout...`);
+    debugLog(`🚀 Starting educationalQA with 270s timeout`, { requestId });
     const qaStartTime = Date.now();
     
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => {
-        console.error(`⏰ [${Date.now()}] Video QA timeout after 270 seconds!`);
+        debugLog(`⏰ Video QA timeout`, { requestId, duration: 270000 });
         reject(new Error('Video QA timeout after 270 seconds'));
       }, 270000)
     );
@@ -259,30 +331,31 @@ ${question}
     ]) as any;
 
     const qaTime = Date.now() - qaStartTime;
-    console.log(`✅ [${Date.now()}] educationalQA completed in ${qaTime}ms`);
+    debugLog(`✅ educationalQA completed`, { requestId, duration: qaTime });
 
     const answer = result.answer;
     const toolsUsed = result.toolsUsed || [];
     const sources = result.sources || [];
     const timings = result.timings || {};
     
-    console.log(`✅ Video QA completed using tools: ${toolsUsed.join(', ')}`);
-    console.log(`📊 Found ${sources.length} sources from embeddings`);
-    console.log(`⏱️ Detailed timings:`, {
-      database: dbTime,
-      qa_total: qaTime,
-      ...timings
+    debugLog(`📊 QA results`, { 
+      requestId,
+      toolsUsed,
+      sourcesCount: sources.length,
+      answerLength: answer.length,
+      hasThinking: !!result.thinking
     });
 
     // 从 sources 中提取视频片段信息
     // 优先使用 video_embeddings 中的 segment 数据
-    console.log(`📊 Processing ${sources.length} sources for video segments`);
+    debugLog(`📊 Processing sources for video segments`, { requestId, sourcesCount: sources.length });
     
     const videoSegments = sources
       .filter((source: any) => {
         const isVideoSegment = source.type === 'video_segment' || source.content_type === 'video_segment';
         if (isVideoSegment) {
-          console.log(`✅ Found video segment:`, {
+          debugLog(`✅ Found video segment`, {
+            requestId,
             type: source.type || source.content_type,
             startTime: source.segment_start_time,
             endTime: source.segment_end_time,
@@ -297,7 +370,8 @@ ${question}
         const endTime = source.segment_end_time || source.endTime || (startTime + 30);
         const text = source.content_text || source.content || source.contentPreview || '';
         
-        console.log(`📝 Mapped segment:`, {
+        debugLog(`📝 Mapped segment`, {
+          requestId,
           startTime: Math.floor(startTime),
           endTime: Math.floor(endTime),
           textLength: text.length
@@ -312,7 +386,7 @@ ${question}
       })
       .filter((seg: any) => seg.startTime >= 0 && seg.text.length > 0); // 过滤无效数据
     
-    console.log(`✅ Extracted ${videoSegments.length} valid video segments`);
+    debugLog(`✅ Extracted video segments`, { requestId, count: videoSegments.length });
 
     // 5. 保存问答记录（可选）
     await supabase
@@ -329,6 +403,20 @@ ${question}
           text: s.text.substring(0, 200)
         }))
       });
+
+    debugLog(`💾 QA history saved`, { requestId });
+
+    const totalTime = Date.now() - lessonQueryStart;
+    debugLog(`✅ Request completed successfully`, { 
+      requestId, 
+      totalDuration: totalTime,
+      breakdown: {
+        lessonQuery: lessonQueryTime,
+        attachmentQuery: dbTime,
+        qa: qaTime,
+        ...timings
+      }
+    });
 
     return NextResponse.json({
       success: true,
@@ -353,8 +441,10 @@ ${question}
         model: selectedModel,
         aiMode,
         timings: {
-          database: dbTime,
-          qa_total: qaTime,
+          lessonQuery: lessonQueryTime,
+          attachmentQuery: dbTime,
+          qa: qaTime,
+          total: totalTime,
           ...timings
         }
       }
@@ -367,6 +457,7 @@ ${question}
     });
 
   } catch (error) {
+    debugLog(`❌ Video QA error`, { requestId, error: error instanceof Error ? error.message : 'Unknown error' });
     console.error('Video QA error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
@@ -393,16 +484,26 @@ ${question}
 
 // 获取视频术语解释API
 export async function GET(request: NextRequest) {
+  const requestId = Math.random().toString(36).substring(7);
+  debugLog(`📥 GET request for video terms`, { requestId });
+  
   try {
+    debugLog(`🔐 Starting authorization`, { requestId });
     const authResult = await authorize('student');
-    if (authResult instanceof NextResponse) return authResult;
+    if (authResult instanceof NextResponse) {
+      debugLog(`❌ Authorization failed`, { requestId });
+      return authResult;
+    }
 
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('lessonId');
     const currentTime = parseFloat(searchParams.get('currentTime') || '0');
     const timeWindow = parseInt(searchParams.get('timeWindow') || '15');
 
+    debugLog(`📝 GET parameters`, { requestId, lessonId, currentTime, timeWindow });
+
     if (!lessonId) {
+      debugLog(`❌ Missing lessonId`, { requestId });
       return NextResponse.json(
         { error: 'Missing lessonId parameter' },
         { status: 400 }
@@ -412,6 +513,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createAdminClient();
 
     // 获取当前时间窗口的视频片段
+    debugLog(`🔍 Fetching lesson`, { requestId, lessonId });
     const { data: lesson } = await supabase
       .from('course_lesson')
       .select('id, title')
@@ -419,6 +521,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (!lesson) {
+      debugLog(`❌ Lesson not found`, { requestId, lessonId });
       return NextResponse.json(
         { error: 'Lesson not found' },
         { status: 404 }
@@ -427,6 +530,12 @@ export async function GET(request: NextRequest) {
 
     const startTime = Math.max(0, currentTime - timeWindow);
     const endTime = currentTime + timeWindow;
+
+    debugLog(`🔍 Fetching video segments`, { 
+      requestId, 
+      lessonId: lesson.id, 
+      timeRange: { startTime, endTime } 
+    });
 
     const { data: segments } = await supabase
       .from('video_segments')
@@ -438,6 +547,7 @@ export async function GET(request: NextRequest) {
       .limit(3);
 
     if (!segments || segments.length === 0) {
+      debugLog(`⚠️ No segments found`, { requestId, timeRange: { startTime, endTime } });
       return NextResponse.json({
         success: true,
         terms: [],
@@ -445,8 +555,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    debugLog(`✅ Found segments`, { requestId, count: segments.length });
+
     // 使用AI提取关键术语 (使用 Gemma 4 Fast 模式)
     const contextText = segments.map(s => s.text).join(' ');
+    
+    debugLog(`🤖 Extracting terms with Fast mode`, { 
+      requestId, 
+      contextLength: contextText.length 
+    });
     
     // 使用 Gemma 4 Fast 模式进行快速术语提取
     const model = await getLLM({ 
@@ -466,8 +583,12 @@ Requirements:
 Return the JSON array directly without additional formatting:`;
 
     // Add timeout for LLM call (60 seconds)
+    const llmStart = Date.now();
     const llmTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('LLM timeout')), 60000)
+      setTimeout(() => {
+        debugLog(`⏰ LLM timeout`, { requestId, duration: 60000 });
+        reject(new Error('LLM timeout'));
+      }, 60000)
     );
     
     const completion = await Promise.race([
@@ -475,13 +596,17 @@ Return the JSON array directly without additional formatting:`;
       llmTimeout
     ]) as any;
     
+    const llmTime = Date.now() - llmStart;
+    debugLog(`✅ LLM completed`, { requestId, duration: llmTime });
+    
     let terms = [];
     
     try {
       const result = JSON.parse(completion.content as string);
       terms = Array.isArray(result) ? result.slice(0, 5) : [];
+      debugLog(`✅ Parsed terms`, { requestId, count: terms.length });
     } catch (e) {
-      console.error('Failed to parse terms:', e);
+      debugLog(`❌ Failed to parse terms`, { requestId, error: e instanceof Error ? e.message : 'Unknown' });
       terms = [];
     }
 
@@ -499,6 +624,8 @@ Return the JSON array directly without additional formatting:`;
       }
     ];
 
+    debugLog(`✅ GET request completed`, { requestId, termsCount: terms.length });
+
     return NextResponse.json({
       success: true,
       terms: terms.map(term => ({
@@ -515,6 +642,10 @@ Return the JSON array directly without additional formatting:`;
     });
 
   } catch (error) {
+    debugLog(`❌ Video terms extraction error`, { 
+      requestId, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     console.error('Video terms extraction error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     

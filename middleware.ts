@@ -20,6 +20,8 @@ const PUBLIC_PATHS = [
   /^\/api\/video-processing\/warmup/, // warmup endpoints
   /^\/api\/video-processing\/steps\//, // QStash video processing steps
   /^\/api\/video-processing\/local-processor/, // local video processor
+  /^\/api\/video\/qa/, // video QA API (debug endpoint)
+  /^\/api\/debug\//, // debug endpoints
   /\/sign-in$/, // sign-in pages
   /\/forgot-password$/, // forgot-password pages
   /\/reset-password$/, // reset-password pages

@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { generateEmbedding } from '@/lib/langChain/embedding';
-import { 
-  CommunityRecommendations, 
-  RecommendedPost, 
-  UserActivitySignals, 
+import redis from '@/utils/redis/redis';
+import {
+  CommunityRecommendations,
+  RecommendedPost,
+  UserActivitySignals,
   PostScoringFactors,
-  RecommendationFilters 
+  RecommendationFilters
 } from '@/interface/community/recommendation-interface';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   console.log('🚀 [Community Recommendations API] Starting hybrid recommendation generation');
-  
+
   try {
     // Authorize using app JWT and role guard
     const authResult = await authorize(['student', 'tutor']);
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     const supabase = await createServerClient();
-    
+
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const hashtagsParam = searchParams.get('hashtags');
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       q: searchParams.get('q') || undefined,
       hashtags: hashtagsParam ? hashtagsParam.split(',').map(h => h.trim()).filter(Boolean) : undefined
     };
-    
+
     console.log('📋 [Community Recommendations API] Filters:', filters);
 
     // Get user profile
@@ -192,13 +193,13 @@ export async function GET(request: NextRequest) {
 
     // HYBRID SCORING: Calculate both rules-based and embedding-based scores
     const hybridResults = await calculateHybridRecommendations(
-      supabase, 
-      candidatePosts, 
-      userSignals, 
+      supabase,
+      candidatePosts,
+      userSignals,
       filters,
       profile.id
     );
-    
+
     // Generate category recommendations
     const categories = generateCategoryRecommendations(candidatePosts, userSignals, hybridResults.recommendations);
 
@@ -229,7 +230,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('❌ [Community Recommendations API] Error:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch community recommendations',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -241,7 +242,7 @@ export async function GET(request: NextRequest) {
 // Helper function to collect user activity signals
 
 async function collectUserActivitySignals(
-  supabase: any, 
+  supabase: any,
   profileId: number
 ): Promise<UserActivitySignals> {
   console.log('🔍 [collectUserActivitySignals] Collecting signals for profile:', profileId);
@@ -281,6 +282,9 @@ async function collectUserActivitySignals(
     .eq('id', profileId)
     .single();
 
+  //AI activity vector
+  const aiActivityVector = await createUserAIActivityVector(supabase, profileId);
+
   // Get hashtags from user's posts (only if there are posts)
   let userHashtags: any[] = [];
   const authoredPublicIds = (authoredPosts || []).map((p: any) => p.public_id).filter(Boolean);
@@ -312,7 +316,8 @@ async function collectUserActivitySignals(
     frequent_authors: frequentAuthors,
     joined_groups: (groupMemberships || []).map((m: any) => m.group_id),
     used_hashtags: (userHashtags || []).map((h: any) => h.hashtags.name),
-    interests: parsedInterests
+    interests: parsedInterests,
+    aiActivityVector: aiActivityVector
   };
 
   console.log('📈 [collectUserActivitySignals] Collected signals:', {
@@ -412,7 +417,7 @@ async function getFrequentAuthors(supabase: any, profileId: number): Promise<num
 
   const postIds = Array.from(new Set([...
     (reactionRows || []).map((r: any) => r.target_id),
-    (commentRows || []).map((c: any) => c.post_id),
+  (commentRows || []).map((c: any) => c.post_id),
   ].filter(Boolean)));
 
   if (postIds.length === 0) return [];
@@ -434,8 +439,8 @@ async function getFrequentAuthors(supabase: any, profileId: number): Promise<num
 }
 
 async function getCandidatePosts(
-  supabase: any, 
-  profileId: number, 
+  supabase: any,
+  profileId: number,
   userSignals: UserActivitySignals,
   filters: RecommendationFilters
 ): Promise<any[]> {
@@ -564,7 +569,7 @@ async function getCandidatePosts(
 
   // If groups_only filter is enabled, only return posts from user's groups
   if (filters.groups_only) {
-    return visiblePosts.filter((post: any) => 
+    return visiblePosts.filter((post: any) =>
       post.group_id && userSignals.joined_groups.includes(post.group_id)
     );
   }
@@ -699,7 +704,7 @@ function calculateRecommendations(
   });
 
   // Filter by minimum score
-  const filteredPosts = scoredPosts.filter(post => 
+  const filteredPosts = scoredPosts.filter(post =>
     post.recommendation_score >= (filters.min_score || 0)
   );
 
@@ -746,6 +751,18 @@ function calculateScoringFactors(post: any, userSignals: UserActivitySignals, fi
     }
   }
 
+  //AI activities similarity calculation
+  let aiActivitySimilarity = 0;
+  if (userSignals.aiActivityVector) {
+    // Get post embedding - placeholder for now
+    // TODO: Implement getPostEmbedding function
+    const postEmbedding = null; // getPostEmbedding(post.id);  
+    if (postEmbedding) {
+      // TODO: Implement cosineSimilarity function
+      // aiActivitySimilarity = cosineSimilarity(userSignals.aiActivityVector, postEmbedding);  
+    }
+  }
+
   return {
     interest_overlap: interestOverlap,
     group_membership: groupMembership,
@@ -753,14 +770,15 @@ function calculateScoringFactors(post: any, userSignals: UserActivitySignals, fi
     hashtag_relevance: hashtagRelevance,
     interaction_count: interactionCount,
     freshness_factor: freshnessFactor,
-    semantic_similarity: Math.min(1, semanticSimilarity)
+    semantic_similarity: Math.min(1, semanticSimilarity),
+    ai_activity_similarity: aiActivitySimilarity
   };
 }
 
 function calculateInterestOverlap(
-  postHashtags: string[], 
-  postBody: string, 
-  userInterests: string[], 
+  postHashtags: string[],
+  postBody: string,
+  userInterests: string[],
   userHashtags: string[]
 ): number {
   if (!userInterests.length && !userHashtags.length) return 0;
@@ -770,8 +788,8 @@ function calculateInterestOverlap(
 
   // Check hashtag matches
   postHashtags.forEach(tag => {
-    if (userHashtags.some(userTag => 
-      userTag.toLowerCase().includes(tag.toLowerCase()) || 
+    if (userHashtags.some(userTag =>
+      userTag.toLowerCase().includes(tag.toLowerCase()) ||
       tag.toLowerCase().includes(userTag.toLowerCase())
     )) {
       matches++;
@@ -781,8 +799,8 @@ function calculateInterestOverlap(
   // Check interest matches in content
   userInterests.forEach(interest => {
     const interestLower = interest.toLowerCase();
-    if (postBody?.toLowerCase().includes(interestLower) || 
-        postHashtags.some(tag => tag.toLowerCase().includes(interestLower))) {
+    if (postBody?.toLowerCase().includes(interestLower) ||
+      postHashtags.some(tag => tag.toLowerCase().includes(interestLower))) {
       matches++;
     }
   });
@@ -793,8 +811,8 @@ function calculateInterestOverlap(
 function calculateHashtagRelevance(postHashtags: string[], userHashtags: string[]): number {
   if (!postHashtags.length || !userHashtags.length) return 0;
 
-  const matches = postHashtags.filter(tag => 
-    userHashtags.some(userTag => 
+  const matches = postHashtags.filter(tag =>
+    userHashtags.some(userTag =>
       userTag.toLowerCase() === tag.toLowerCase()
     )
   ).length;
@@ -805,12 +823,13 @@ function calculateHashtagRelevance(postHashtags: string[], userHashtags: string[
 function calculateFinalScore(factors: PostScoringFactors): number {
   // Weighted scoring formula
   const weights = {
-    interest_overlap: 25,
-    group_membership: 20,
-    author_affinity: 15,
-    hashtag_relevance: 15,
-    freshness_factor: 10,
-    semantic_similarity: 15
+    interest_overlap: 20,
+    group_membership: 15,
+    author_affinity: 12,
+    hashtag_relevance: 12,
+    freshness_factor: 8,
+    semantic_similarity: 12,
+    ai_activity_similarity: 21
   };
 
   let score = 0;
@@ -822,6 +841,9 @@ function calculateFinalScore(factors: PostScoringFactors): number {
   if (typeof factors.semantic_similarity === 'number') {
     score += factors.semantic_similarity * weights.semantic_similarity;
   }
+  if (typeof factors.ai_activity_similarity === 'number') {
+    score += factors.ai_activity_similarity * weights.ai_activity_similarity;
+  }
 
   // Add interaction boost (normalized)
   score += Math.min(factors.interaction_count / 10, 1) * 10;
@@ -830,8 +852,8 @@ function calculateFinalScore(factors: PostScoringFactors): number {
 }
 
 function generateRecommendationReasons(
-  post: any, 
-  factors: PostScoringFactors, 
+  post: any,
+  factors: PostScoringFactors,
   userSignals: UserActivitySignals,
   filters: RecommendationFilters
 ): string[] {
@@ -857,12 +879,16 @@ function generateRecommendationReasons(
 
   if (factors.hashtag_relevance > 0.5) {
     const postHashtags = (post.post_hashtags || []).map((ph: any) => ph.hashtags?.name).filter(Boolean);
-    const matchingTags = postHashtags.filter((tag: any) => 
+    const matchingTags = postHashtags.filter((tag: any) =>
       userSignals.used_hashtags.some(userTag => userTag.toLowerCase() === tag.toLowerCase())
     );
     if (matchingTags.length > 0) {
       reasons.push(`Hashtags match：#${matchingTags.slice(0, 2).join(' #')}`);
     }
+  }
+
+  if (factors.ai_activity_similarity > 0.7) {  
+  reasons.unshift('Based on your AI learning activities');  
   }
 
   // Explicit keyword query reason
@@ -1019,19 +1045,19 @@ async function calculateHybridRecommendations(
   // Step 6: Calculate hybrid scores (60% rules + 40% embedding)
   const RULES_WEIGHT = 0.6;
   const EMBEDDING_WEIGHT = 0.4;
-  
+
   const hybridRecommendations = rulesBasedScores.map(({ post, score, factors }) => {
     // Normalize rules score to 0-1
     const normalizedRulesScore = (score - minRulesScore) / rulesScoreRange;
-    
+
     // Get embedding score from taste and intent (choose max by default)
     const taste = tasteScores.get(post.id) || 0;
     const intent = intentScores.get(post.id) || 0;
     const embeddingScore = Math.max(taste, intent);
-    
+
     // Calculate hybrid score
     const hybridScore = (normalizedRulesScore * RULES_WEIGHT) + (embeddingScore * EMBEDDING_WEIGHT);
-    
+
     // Update factors with hybrid components
     const enhancedFactors = {
       ...factors,
@@ -1127,7 +1153,7 @@ async function createUserTasteVector(supabase: any, likedPostIds: number[]): Pro
 
   // Take the most recent 5-10 liked posts for taste vector
   const recentLikedPosts = likedPostIds.slice(0, Math.min(10, likedPostIds.length));
-  
+
   try {
     // Get embeddings for liked posts
     const { data: embeddings, error } = await supabase
@@ -1178,8 +1204,8 @@ async function createUserTasteVector(supabase: any, likedPostIds: number[]): Pro
 
 // Perform semantic search using taste vector
 async function performSemanticSearch(
-  supabase: any, 
-  tasteVector: number[], 
+  supabase: any,
+  tasteVector: number[],
   maxResults: number = 50
 ): Promise<Array<{ content_id: number; similarity: number }>> {
   try {
@@ -1205,4 +1231,131 @@ async function performSemanticSearch(
     console.error('❌ [Semantic Search] Error performing search:', error);
     return [];
   }
+
+
+}
+
+// Create user AI activity vector with Redis caching
+async function createUserAIActivityVector(supabase: any, userId: number): Promise<number[] | null> {
+  // Redis cache logic
+  const cacheKey = `user_ai_activity_vector:${userId}`;
+
+  try {
+    const cachedVector = await redis.get(cacheKey);
+    if (cachedVector) {
+      console.log(`✅ [AI Activity Vector] Cache hit for user ${userId}`);
+      const parsed = typeof cachedVector === 'string' ? JSON.parse(cachedVector) : cachedVector;
+      // Validate it's an array
+      if (Array.isArray(parsed)) {
+        return parsed as number[];
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ [AI Activity Vector] Redis cache read failed:', error);
+    // Continue to calculate if cache fails
+  }
+
+  console.log(`🔄 [AI Activity Vector] Cache miss, calculating for user ${userId}`);
+
+  // Calculate vector
+  const vector = await calculateAIActivityVector(supabase, userId);
+
+  // Cache result with 1 hour TTL
+  if (vector) {
+    try {
+      await redis.set(cacheKey, JSON.stringify(vector), { ex: 3600 });
+      console.log(`💾 [AI Activity Vector] Cached for user ${userId}`);
+    } catch (error) {
+      console.warn('⚠️ [AI Activity Vector] Redis cache write failed:', error);
+      // Continue even if caching fails
+    }
+  }
+
+  return vector;
+}
+
+// Extract original calculation logic to separate function
+async function calculateAIActivityVector(supabase: any, userId: number): Promise<number[] | null> {
+  // 1. 获取用户在四个AI功能中的最新活动  
+  const [qaSessions, mistakeBooks, courseNotes, workflowTemplates] = await Promise.all([
+    // AI Quick Q&A sessions  
+    supabase.from('ai_quick_qa_sessions')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+
+    // Upload & Solve mistakes    
+    supabase.from('mistake_book')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+
+    // Smart Notes  
+    supabase.from('course_note')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+
+    // Learning Path templates  
+    supabase.from('ai_workflow_templates')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(3)
+  ]);
+
+  // 2. 获取对应的embeddings  
+  const allIds = [
+    ...(qaSessions.data?.map((s: any) => s.id) || []),
+    ...(mistakeBooks.data?.map((m: any) => m.id) || []),
+    ...(courseNotes.data?.map((n: any) => n.id) || []),
+    ...(workflowTemplates.data?.map((w: any) => w.id) || [])
+  ];
+
+  if (allIds.length === 0) return null;
+
+  // 3. 聚合embedding向量  
+  const { data: embeddings } = await supabase
+    .from('embeddings')
+    .select('embedding_e5_small')
+    .or(`content_type.eq.ai_quick_qa_session,content_type.eq.mistake_book,content_type.eq.course_note,content_type.eq.ai_workflow_template`)
+    .in('content_id', allIds)
+    .eq('has_e5_embedding', true)
+    .eq('status', 'completed');
+
+  // 4. 计算平均向量  
+  return calculateAverageEmbedding(embeddings);
+}
+
+function calculateAverageEmbedding(embeddings: any[]): number[] | null {
+  if (!embeddings || embeddings.length === 0) {
+    return null;
+  }
+
+  // 提取有效的embedding向量  
+  const validEmbeddings = embeddings
+    .map((e: any) => e.embedding_e5_small)
+    .filter((emb: any) => emb && Array.isArray(emb) && emb.length === 384);
+
+  if (validEmbeddings.length === 0) {
+    return null;
+  }
+
+  // 计算平均向量  
+  const averageVector = new Array(384).fill(0);
+  validEmbeddings.forEach((embedding: any) => {
+    embedding.forEach((val: number, idx: number) => {
+      averageVector[idx] += val;
+    });
+  });
+
+  // 标准化：除以向量数量  
+  averageVector.forEach((val, idx) => {
+    averageVector[idx] = val / validEmbeddings.length;
+  });
+
+  return averageVector;
 }

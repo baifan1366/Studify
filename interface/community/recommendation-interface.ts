@@ -60,6 +60,7 @@ export interface UserActivitySignals {
   joined_groups: number[];            // 加入的群组 ID
   used_hashtags: string[];           // 使用过的标签
   interests: string[];               // 个人兴趣
+  aiActivityVector?: number[] | null; // AI活动向量 (384维 E5 embedding)
 }
 
 export interface PostScoringFactors {
@@ -75,6 +76,7 @@ export interface PostScoringFactors {
   rules_based_score?: number;       // 规则基础分数 (0-1, 归一化后)
   embedding_score?: number;         // 嵌入相似度分数 (0-1)
   hybrid_score?: number;            // 混合分数 (0-1)
+  ai_activity_similarity: number;
 }
 
 export interface RecommendationFilters {

@@ -901,3 +901,9 @@ WHERE status = 'active' AND ends_at IS NOT NULL AND is_deleted = FALSE;
 CREATE INDEX idx_quiz_session_quiz ON classroom_quiz_session(quiz_id);
 CREATE INDEX idx_quiz_session_student ON classroom_quiz_session(student_id);
 CREATE INDEX idx_quiz_session_active ON classroom_quiz_session(is_active) WHERE is_active = true;
+
+
+-- Add composite indexes for AI-enabled content types
+CREATE INDEX embeddings_ai_content_types_idx ON embeddings   
+(content_type, content_id, has_e5_embedding, status)   
+WHERE content_type IN ('ai_quick_qa_session', 'mistake_book', 'course_note', 'ai_workflow_template');

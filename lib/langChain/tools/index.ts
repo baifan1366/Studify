@@ -1,4 +1,4 @@
-// Tool Index - 统一导出所有工具
+// Tool Index - Unified export of all tools
 import { searchTool } from './search-tool';
 import { courseDataTool } from './course-data-tool';
 import { qaTool } from './qa-tool';

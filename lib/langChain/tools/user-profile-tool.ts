@@ -1,4 +1,4 @@
-// User Profile Tool - 用户档案工具
+// User Profile Tool - User profile tool
 import { DynamicTool } from "@langchain/core/tools";
 import { createClient } from '@supabase/supabase-js';
 

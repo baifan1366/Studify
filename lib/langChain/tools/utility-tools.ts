@@ -1,4 +1,4 @@
-// Utility Tools - 实用工具集合
+// Utility Tools - Collection of utility tools
 import { DynamicTool } from "@langchain/core/tools";
 
 // Math Calculator Tool

@@ -1,4 +1,4 @@
-// Q&A Tool - 问答工具
+// Q&A Tool - Question answering tool
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from 'zod';
 import { answerQuestion } from '../langchain-integration';

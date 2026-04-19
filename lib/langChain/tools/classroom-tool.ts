@@ -1,4 +1,4 @@
-// Classroom Tool - 调用内部API获取教室和学习相关数据
+// Classroom Tool - Call internal API to get classroom and learning-related data
 import { DynamicTool } from "@langchain/core/tools";
 import { createClient } from '@supabase/supabase-js';
 

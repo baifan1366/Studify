@@ -1,4 +1,4 @@
-// Course Data Tool - 调用内部API获取课程相关数据
+// Course Data Tool - Call internal API to get course-related data
 import { DynamicTool } from "@langchain/core/tools";
 import { createClient } from '@supabase/supabase-js';
 

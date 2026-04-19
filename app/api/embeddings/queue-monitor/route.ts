@@ -194,8 +194,9 @@ async function handler(_request: NextRequest) {
           .update({
             retry_count: newRetryCount,
             status: newRetryCount >= maxRetries ? "failed" : "queued",
-            error_message:
-              error instanceof Error ? error.message : "Unknown error",
+            error_message: error instanceof Error
+              ? error.message   
+              : (error as any)?.message || JSON.stringify(error) || "Unknown error",
             updated_at: new Date().toISOString(),
             scheduled_at:
               newRetryCount >= maxRetries

@@ -66,6 +66,9 @@ DECLARE
   community_group_data record;
   ai_agent_data record;
   notification_data record;
+  ai_qa_session_data record;
+  ai_workflow_data record;
+  qa_messages_text text;
 BEGIN
   CASE p_content_type
     WHEN 'profile' THEN
@@ -334,6 +337,52 @@ BEGIN
         END IF;
       END;
       
+    WHEN 'ai_quick_qa_session' THEN
+      -- 获取 session 标题
+      SELECT s.title
+      INTO ai_qa_session_data
+      FROM ai_quick_qa_sessions s
+      WHERE s.id = p_content_id;
+      
+      IF FOUND THEN
+        result_text := COALESCE(ai_qa_session_data.title, '');
+      END IF;
+      
+      -- 联表获取该 session 下最近 10 条用户消息（role = 'user'）
+      SELECT string_agg(m.content, ' ' ORDER BY m.created_at DESC)
+      INTO qa_messages_text
+      FROM (
+        SELECT content, created_at
+        FROM ai_quick_qa_messages
+        WHERE session_id = p_content_id AND role = 'user'
+        ORDER BY created_at DESC
+        LIMIT 10
+      ) m;
+      
+      IF qa_messages_text IS NOT NULL THEN
+        result_text := result_text || ' ' || qa_messages_text;
+      END IF;
+      
+    WHEN 'ai_workflow_template' THEN
+      SELECT wt.name, wt.description, wt.category, wt.tags, wt.workflow_definition
+      INTO ai_workflow_data
+      FROM ai_workflow_templates wt
+      WHERE wt.id = p_content_id AND wt.is_deleted = false;
+      
+      IF FOUND THEN
+        result_text := COALESCE(ai_workflow_data.name, '') || ' ' ||
+                      COALESCE(ai_workflow_data.description, '') || ' ' ||
+                      COALESCE(ai_workflow_data.category, '') || ' ' ||
+                      COALESCE(array_to_string(ai_workflow_data.tags, ' '), '');
+        
+        -- 提取 workflow_definition JSONB 中的 description 和 purpose
+        IF ai_workflow_data.workflow_definition IS NOT NULL THEN
+          result_text := result_text || ' ' ||
+                        COALESCE(ai_workflow_data.workflow_definition->>'description', '') || ' ' ||
+                        COALESCE(ai_workflow_data.workflow_definition->>'purpose', '');
+        END IF;
+      END IF;
+      
     ELSE
       RAISE NOTICE 'Unknown content type: %', p_content_type;
       RETURN NULL;
@@ -349,39 +398,6 @@ EXCEPTION WHEN OTHERS THEN
   RETURN NULL;
 END;
 $function$;;
-
-
-CREATE OR REPLACE FUNCTION public.update_classroom_live_session_search_vector()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-      BEGIN
-        NEW.search_vector := 
-          setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
-          setweight(to_tsvector('english', coalesce(NEW.status, '')), 'C');
-        RETURN NEW;
-      END;
-      $function$;
-
-
-CREATE OR REPLACE FUNCTION public.trigger_live_session_embedding()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-    BEGIN
-      -- Check if relevant fields have changed (without description)
-      IF TG_OP = 'INSERT' OR 
-         (TG_OP = 'UPDATE' AND (
-           NEW.title IS DISTINCT FROM OLD.title
-         )) THEN
-        
-        -- Queue for embedding
-        PERFORM queue_for_embedding('live_session', NEW.id, 4);
-      END IF;
-      
-      RETURN COALESCE(NEW, OLD);
-    END;
-    $function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_ai_workflow_templates_search_vector()
@@ -2901,7 +2917,7 @@ BEGIN
   IF p_content_type NOT IN ('profile', 'course', 'post', 'lesson', 'comment', 'auth_user', 
                              'classroom', 'live_session', 'assignment', 'quiz_question', 
                              'course_note', 'course_review', 'community_group', 'ai_agent', 
-                             'notification', 'community_post') THEN
+                             'notification', 'community_post','ai_quick_qa_session', 'mistake_book', 'ai_workflow_template') THEN
     RAISE NOTICE 'Invalid content type for embedding: %', p_content_type;
     RETURN false;
   END IF;
@@ -4944,6 +4960,41 @@ BEGIN
 END;
 $function$;
 
+-- P2: AI Quick QA Sessions Embedding
+CREATE OR REPLACE FUNCTION public.trigger_ai_quick_qa_sessions_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR 
+     (TG_OP = 'UPDATE' AND (
+       NEW.title IS DISTINCT FROM OLD.title
+     )) THEN
+    
+    -- 队列embedding，低优先级
+    PERFORM queue_for_embedding('ai_quick_qa_session', NEW.id, 6);
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$function$;
+
+
+-- P2: AI Quick QA Messages Embedding (trigger on user messages)
+CREATE OR REPLACE FUNCTION public.trigger_ai_quick_qa_messages_embedding()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  -- 只处理用户消息（role = 'user'），AI 回答不单独触发
+  IF NEW.role = 'user' THEN
+    PERFORM queue_for_embedding('ai_quick_qa_session', NEW.session_id, 6);
+  END IF;
+  
+  RETURN NEW;
+END;
+$function$;
+
 
 DROP TRIGGER IF EXISTS community_quiz_question_search_vector_trigger ON community_quiz_question;
 CREATE TRIGGER community_quiz_question_search_vector_trigger BEFORE INSERT OR UPDATE ON community_quiz_question FOR EACH ROW EXECUTE FUNCTION update_community_quiz_question_search_vector();
@@ -6568,3 +6619,11 @@ EXECUTE FUNCTION sync_profile_points_on_ledger_change();
 COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_insert ON community_points_ledger IS 'Syncs profile points when new ledger entry is inserted';
 COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_update ON community_points_ledger IS 'Syncs profile points when ledger entry is updated';
 COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_delete ON community_points_ledger IS 'Syncs profile points when ledger entry is deleted';
+
+-- AI Quick QA Sessions
+DROP TRIGGER IF EXISTS ai_quick_qa_sessions_embedding_trigger ON ai_quick_qa_sessions;
+CREATE TRIGGER ai_quick_qa_sessions_embedding_trigger AFTER INSERT OR UPDATE ON ai_quick_qa_sessions FOR EACH ROW EXECUTE FUNCTION trigger_ai_quick_qa_sessions_embedding();
+
+-- AI Quick QA Messages (trigger session embedding on user messages)
+DROP TRIGGER IF EXISTS ai_quick_qa_messages_embedding_trigger ON ai_quick_qa_messages;
+CREATE TRIGGER ai_quick_qa_messages_embedding_trigger AFTER INSERT ON ai_quick_qa_messages FOR EACH ROW EXECUTE FUNCTION trigger_ai_quick_qa_messages_embedding();

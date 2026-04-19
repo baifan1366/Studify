@@ -887,8 +887,8 @@ function generateRecommendationReasons(
     }
   }
 
-  if (factors.ai_activity_similarity > 0.7) {  
-  reasons.unshift('Based on your AI learning activities');  
+  if (factors.ai_activity_similarity > 0.7) {
+    reasons.unshift('Based on your AI learning activities');
   }
 
   // Explicit keyword query reason
@@ -999,6 +999,10 @@ async function calculateHybridRecommendations(
   // Step 2: Create user taste vector from liked (and later: commented/authored) posts
   const tasteVector = await createUserTasteVector(supabase, userSignals.liked_posts);
 
+  // Step 2b: Create AI activity vector from user's AI interactions
+  const aiActivityVector = await createUserAIActivityVector(supabase, userId);
+  console.log('🤖 [Hybrid Recommendations] AI activity vector:', aiActivityVector ? 'available' : 'not available');
+
   // Step 3: Build intent vector from current query/hashtags as fallback or complement
   let intentVector: number[] | null = null;
   if ((filters.q && filters.q.trim().length > 0) || (filters.hashtags && filters.hashtags.length > 0)) {
@@ -1018,14 +1022,27 @@ async function calculateHybridRecommendations(
     }
   }
 
+  // Merge taste vector and AI activity vector
+  // Weights: 60% taste (liked posts), 40% AI activity (Q&A, notes, mistakes, workflows)
+  let combinedVector: number[] | null = null;
+  if (tasteVector && aiActivityVector) {
+    combinedVector = tasteVector.map((val, idx) =>
+      val * 0.6 + aiActivityVector[idx] * 0.4
+    );
+    console.log('🔀 [Hybrid Recommendations] Combined taste + AI activity vectors (60/40)');
+  } else {
+    combinedVector = tasteVector || aiActivityVector;
+    console.log('🔀 [Hybrid Recommendations] Using single vector:', tasteVector ? 'taste only' : 'AI activity only');
+  }
+
   // Step 4: Get embedding-based scores from taste and/or intent vectors
   const tasteScores: Map<number, number> = new Map();
   const intentScores: Map<number, number> = new Map();
   let embeddingSearchResults = 0;
 
-  if (tasteVector) {
-    console.log('🧠 [Hybrid Recommendations] Using taste vector for semantic search');
-    const tasteResults = await performSemanticSearch(supabase, tasteVector, candidatePosts.length * 2);
+  if (combinedVector) {
+    console.log('🧠 [Hybrid Recommendations] Using combined vector for semantic search');
+    const tasteResults = await performSemanticSearch(supabase, combinedVector, candidatePosts.length * 2);
     embeddingSearchResults += tasteResults.length;
     tasteResults.forEach(r => tasteScores.set(r.content_id, r.similarity));
   }
@@ -1122,6 +1139,8 @@ async function calculateHybridRecommendations(
     avg_hybrid_score: hybridRecommendations.reduce((sum, r) => sum + r.relevance_score!, 0) / hybridRecommendations.length,
     intent_embedding_used: !!intentVector,
     taste_embedding_used: !!tasteVector,
+    ai_activity_vector_available: aiActivityVector !== null,
+    taste_vector_available: tasteVector !== null,
     // Legacy stats for compatibility
     interest_matches: rulesBasedScores.filter(r => r.factors.interest_overlap > 0.3).length,
     group_matches: rulesBasedScores.filter(r => r.factors.group_membership).length,

@@ -14,6 +14,7 @@ interface UseCommunityRecommendationsOptions extends RecommendationFilters {
 export function useCommunityRecommendations(options: UseCommunityRecommendationsOptions = {}) {
   const {
     limit = 20,
+    offset = 0,
     since,
     groups_only = false,
     exclude_own_posts = true,
@@ -27,6 +28,7 @@ export function useCommunityRecommendations(options: UseCommunityRecommendations
 
   console.log('🎣 [useCommunityRecommendations] Initializing hook with options:', {
     limit,
+    offset,
     since,
     groups_only,
     exclude_own_posts,
@@ -36,11 +38,12 @@ export function useCommunityRecommendations(options: UseCommunityRecommendations
     enabled
   });
 
-  const query = useQuery<CommunityRecommendations>({
+  const query = useQuery<CommunityRecommendations & { has_more?: boolean; total_count?: number }>({
     queryKey: [
       'community_recommendations', 
       { 
         limit, 
+        offset,
         since, 
         groups_only, 
         exclude_own_posts, 
@@ -58,6 +61,7 @@ export function useCommunityRecommendations(options: UseCommunityRecommendations
         // Build query parameters
         const params = new URLSearchParams();
         params.append('limit', limit.toString());
+        params.append('offset', offset.toString());
         if (since) params.append('since', since);
         if (groups_only) params.append('groupsOnly', 'true');
         if (!exclude_own_posts) params.append('excludeOwnPosts', 'false');

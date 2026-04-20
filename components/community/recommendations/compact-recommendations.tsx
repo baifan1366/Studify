@@ -14,11 +14,14 @@ import {
   MessageCircle,
   Heart,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { RecommendedPost } from '@/interface/community/recommendation-interface';
+import { useRef, useState, useEffect } from 'react';
 
 interface CompactRecommendationsProps {
   limit?: number;
@@ -32,22 +35,90 @@ export default function CompactRecommendations({
   hashtags
 }: CompactRecommendationsProps) {
   const t = useTranslations('CompactRecommendations');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [currentOffset, setCurrentOffset] = useState(0);
+  const [allRecommendations, setAllRecommendations] = useState<RecommendedPost[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const {
     data: recommendations,
     isLoading,
-    error
+    error,
+    refetch
   } = useCommunityRecommendations({
     limit,
+    offset: currentOffset,
     q,
     hashtags,
     enabled: true
   });
 
-  if (isLoading) {
+  // Update all recommendations when new data arrives
+  useEffect(() => {
+    if (recommendations?.recommendations) {
+      if (currentOffset === 0) {
+        // Initial load
+        setAllRecommendations(recommendations.recommendations);
+      } else {
+        // Append new recommendations
+        setAllRecommendations(prev => [...prev, ...recommendations.recommendations]);
+      }
+      setIsLoadingMore(false);
+    }
+  }, [recommendations, currentOffset]);
+
+  // Check scroll position
+  const checkScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+
+      // Check if we can scroll right or need to load more
+      const isAtEnd = scrollLeft >= scrollWidth - clientWidth - 10;
+      const hasMore = recommendations?.has_more || false;
+      setCanScrollRight(!isAtEnd || hasMore);
+    }
+  };
+
+  // Initialize scroll state
+  useEffect(() => {
+    if (allRecommendations.length > 0) {
+      setTimeout(checkScroll, 100);
+    }
+  }, [allRecommendations, recommendations]);
+
+  // Scroll functions
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -400, behavior: 'smooth' });
+      setTimeout(checkScroll, 300);
+    }
+  };
+
+  const scrollRight = async () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      const isNearEnd = scrollLeft >= scrollWidth - clientWidth - 400;
+
+      // If near the end and has more data, load more
+      if (isNearEnd && recommendations?.has_more && !isLoadingMore) {
+        setIsLoadingMore(true);
+        setCurrentOffset(prev => prev + limit);
+        // refetch will be triggered by the offset change
+      }
+
+      scrollContainerRef.current.scrollBy({ left: 400, behavior: 'smooth' });
+      setTimeout(checkScroll, 300);
+    }
+  };
+
+  if (isLoading && currentOffset === 0) {
     return <RecommendationsLoading />;
   }
 
-  if (error || !recommendations?.recommendations?.length) {
+  if (error || (!isLoading && allRecommendations.length === 0)) {
     return null; // Don't show anything if there's an error or no recommendations
   }
 
@@ -60,7 +131,8 @@ export default function CompactRecommendations({
           {t('recommend_for_you')}
         </h2>
         <Badge variant="outline" className="text-xs">
-          {recommendations.recommendations.length} {t('items_count')}
+          {allRecommendations.length} {t('items_count')}
+          {recommendations?.has_more && ' +'}
         </Badge>
       </div>
 
@@ -79,18 +151,73 @@ export default function CompactRecommendations({
         </div>
       )}
 
-      {/* Recommendations Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-hidden break-words w-full">
-        {recommendations.recommendations.slice(0, limit).map((post, index) => (
-          <motion.div
-            key={post.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <CompactRecommendationCard post={post} />
-          </motion.div>
-        ))}
+      {/* Recommendations Carousel with Arrows */}
+      <div className="relative group">
+        {/* Left Arrow */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm border border-border shadow-lg hover:bg-background/90 transition-all"
+          onClick={scrollLeft}
+          disabled={!canScrollLeft}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+
+        {/* Scrollable Container */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={checkScroll}
+          onLoad={checkScroll}
+          className="flex gap-4 overflow-x-auto px-12"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          {allRecommendations.map((post, index) => (
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="flex-shrink-0 w-80"
+            >
+              <CompactRecommendationCard post={post} />
+            </motion.div>
+          ))}
+
+          {/* Loading indicator */}
+          {isLoadingMore && (
+            <div className="flex-shrink-0 w-80">
+              <Card className="bg-card border-border h-full">
+                <CardContent className="p-4 flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading more...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        {/* Right Arrow */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm border border-border shadow-lg hover:bg-background/90 transition-all"
+          onClick={scrollRight}
+          disabled={!canScrollRight && !recommendations?.has_more}
+        >
+          <ChevronRight className="w-5 h-5" />
+        </Button>
       </div>
     </div>
   );
@@ -98,6 +225,15 @@ export default function CompactRecommendations({
 
 function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
   const t = useTranslations('CompactRecommendations');
+
+  // Debug: 打印 post 数据
+  console.log('🔍 [CompactRecommendationCard] Post data:', {
+    id: post.id,
+    title: post.title,
+    has_details: !!post.recommendation_details,
+    details: post.recommendation_details,
+    ai_keywords: post.recommendation_details?.ai_keywords
+  });
 
   return (
     <Card className="bg-card border-border hover:bg-muted/50 transition-all duration-200 group h-full w-full max-w-full overflow-hidden">
@@ -144,14 +280,147 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
         {/* Recommendation Reason */}
         {post.recommendation_reasons && post.recommendation_reasons.length > 0 && (
-          <div className="mb-3 space-y-1">
-            {post.recommendation_reasons.slice(0, 2).map((reason, idx) => (
-              <p key={idx} className="text-xs text-primary">
-                💡 {reason}
-              </p>
-            ))}
+          <div className="mb-3">
+            {/* 简要理由 */}
+            <div className="space-y-1">
+              {post.recommendation_reasons.slice(0, 3).map((reason, idx) => (
+                <p key={idx} className="text-xs text-primary">
+                  💡 {reason}
+                </p>
+              ))}
+            </div>
           </div>
         )}
+
+        {/* 详细信息按钮 - 始终显示 */}
+        <div className="mb-3">
+          <details className="group">
+            <summary className="text-xs font-medium text-primary cursor-pointer hover:text-primary/80 transition-colors list-none flex items-center gap-1 py-1 px-2 bg-primary/10 rounded-md hover:bg-primary/20">
+              <span className="group-open:rotate-90 transition-transform">▶</span>
+              <span>查看详细匹配分数</span>
+            </summary>
+            {post.recommendation_details ? (
+              <div className="mt-2 p-3 bg-muted/30 rounded-md space-y-2 text-xs">
+                <div className="font-medium text-foreground mb-2">匹配准确度：</div>
+
+                {/* AI Keywords Section - 显示在最前面 */}
+                {post.recommendation_details.ai_keywords && post.recommendation_details.ai_keywords.length > 0 && (
+                  <div className="mb-3 p-2 bg-primary/5 rounded border border-primary/20">
+                    <div className="flex items-start gap-2">
+                      <span className="text-primary font-medium">🤖</span>
+                      <div className="flex-1">
+                        <div className="text-muted-foreground mb-1">你曾问过关于：</div>
+                        <div className="flex flex-wrap gap-1">
+                          {post.recommendation_details.ai_keywords.map((keyword, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs bg-primary/20 text-primary border-primary/30">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {post.recommendation_details.ai_similarity !== undefined && post.recommendation_details.ai_similarity > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">AI学习匹配：</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all"
+                          style={{ width: `${post.recommendation_details.ai_similarity * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-medium text-primary w-12 text-right">
+                        {Math.round(post.recommendation_details.ai_similarity * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {post.recommendation_details.interest_overlap !== undefined && post.recommendation_details.interest_overlap > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">兴趣匹配：</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 transition-all"
+                          style={{ width: `${post.recommendation_details.interest_overlap * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-medium w-12 text-right">
+                        {Math.round(post.recommendation_details.interest_overlap * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {post.recommendation_details.hashtag_relevance !== undefined && post.recommendation_details.hashtag_relevance > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">标签匹配：</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-green-500 transition-all"
+                          style={{ width: `${post.recommendation_details.hashtag_relevance * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-medium w-12 text-right">
+                        {Math.round(post.recommendation_details.hashtag_relevance * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {post.recommendation_details.semantic_similarity !== undefined && post.recommendation_details.semantic_similarity > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">内容相似度：</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-purple-500 transition-all"
+                          style={{ width: `${post.recommendation_details.semantic_similarity * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-medium w-12 text-right">
+                        {Math.round(post.recommendation_details.semantic_similarity * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {post.recommendation_details.freshness !== undefined && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">新鲜度：</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-orange-500 transition-all"
+                          style={{ width: `${post.recommendation_details.freshness * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-medium w-12 text-right">
+                        {Math.round(post.recommendation_details.freshness * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 mt-2 border-t border-border">
+                  <div className="flex items-center justify-between font-medium">
+                    <span className="text-foreground">总分：</span>
+                    <span className="text-primary text-sm">{post.recommendation_score}%</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 p-3 bg-muted/30 rounded-md text-xs text-muted-foreground">
+                暂无详细匹配数据
+              </div>
+            )}
+          </details>
+        </div>
 
         {/* Post Meta */}
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">

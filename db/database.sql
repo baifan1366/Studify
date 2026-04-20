@@ -1485,7 +1485,8 @@ CREATE TABLE public.embeddings (
     embedding_e5_small vector(384),
     embedding_bge_m3 vector(1024),
     has_e5_embedding boolean DEFAULT false,
-    has_bge_embedding boolean DEFAULT false
+    has_bge_embedding boolean DEFAULT false,
+    importance_score double precision DEFAULT 1.0
 );
 
 

@@ -337,6 +337,7 @@ BEGIN
         END IF;
       END;
       
+    -- ✨ IMPROVED: ai_quick_qa_session now includes BOTH questions AND answers
     WHEN 'ai_quick_qa_session' THEN
       -- 获取 session 标题
       SELECT s.title
@@ -348,20 +349,60 @@ BEGIN
         result_text := COALESCE(ai_qa_session_data.title, '');
       END IF;
       
-      -- 联表获取该 session 下最近 10 条用户消息（role = 'user'）
-      SELECT string_agg(m.content, ' ' ORDER BY m.created_at DESC)
+      -- ✨ NEW: 获取最近20条消息，包含用户问题和AI回答
+      -- Format: "Q: user question A: ai answer Q: another question A: another answer"
+      SELECT string_agg(
+        CASE 
+          WHEN m.role = 'user' THEN 'Q: ' || m.content
+          WHEN m.role = 'assistant' THEN 'A: ' || m.content
+          ELSE m.content
+        END, 
+        ' ' 
+        ORDER BY m.created_at DESC
+      )
       INTO qa_messages_text
       FROM (
-        SELECT content, created_at
+        SELECT content, role, created_at
         FROM ai_quick_qa_messages
-        WHERE session_id = p_content_id AND role = 'user'
+        WHERE session_id = p_content_id
         ORDER BY created_at DESC
-        LIMIT 10
+        LIMIT 20  -- ✨ Increased from 10 to 20
       ) m;
       
       IF qa_messages_text IS NOT NULL THEN
         result_text := result_text || ' ' || qa_messages_text;
       END IF;
+      
+    -- ✨ NEW: Support for individual Q&A message pairs
+    WHEN 'ai_qa_message' THEN
+      -- This content_type represents a single Q&A pair
+      -- p_content_id is the message ID
+      DECLARE
+        qa_message_data record;
+      BEGIN
+        SELECT m.content, m.role, m.session_id
+        INTO qa_message_data
+        FROM ai_quick_qa_messages m
+        WHERE m.id = p_content_id;
+        
+        IF FOUND AND qa_message_data.role = 'user' THEN
+          -- Get the user question
+          result_text := 'Q: ' || COALESCE(qa_message_data.content, '');
+          
+          -- Get the corresponding AI answer (next assistant message in the same session)
+          SELECT 'A: ' || content INTO temp_text
+          FROM ai_quick_qa_messages
+          WHERE session_id = qa_message_data.session_id
+            AND role = 'assistant'
+            AND created_at > (SELECT created_at FROM ai_quick_qa_messages WHERE id = p_content_id)
+          ORDER BY created_at ASC
+          LIMIT 1;
+          
+          IF temp_text IS NOT NULL THEN
+            result_text := result_text || ' ' || temp_text;
+          END IF;
+        END IF;
+      END;
       
     WHEN 'ai_workflow_template' THEN
       SELECT wt.name, wt.description, wt.category, wt.tags, wt.workflow_definition
@@ -4981,19 +5022,34 @@ $function$;
 
 
 -- P2: AI Quick QA Messages Embedding (trigger on user messages)
+-- ✨ UPDATED: Now creates individual message embeddings + updates session embedding
 CREATE OR REPLACE FUNCTION public.trigger_ai_quick_qa_messages_embedding()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 BEGIN
-  -- 只处理用户消息（role = 'user'），AI 回答不单独触发
-  IF NEW.role = 'user' THEN
-    PERFORM queue_for_embedding('ai_quick_qa_session', NEW.session_id, 6);
+  -- Only process user messages (questions)
+  -- The extract_content_text function will pair them with AI answers
+  IF NEW.role = 'user' AND LENGTH(TRIM(NEW.content)) > 10 THEN
+    -- ✨ NEW: Queue this individual message for embedding with high priority
+    -- Priority 4 = higher than session-level embeddings (priority 5)
+    PERFORM queue_for_embedding('ai_qa_message', NEW.id, 4);
+    
+    -- Also update the session-level embedding to keep it current
+    PERFORM queue_for_embedding('ai_quick_qa_session', NEW.session_id, 5);
   END IF;
   
   RETURN NEW;
 END;
 $function$;
+
+-- 添加 UPDATE 触发器（当消息内容被编辑时也触发）
+DROP TRIGGER IF EXISTS ai_quick_qa_messages_update_embedding_trigger ON ai_quick_qa_messages;
+CREATE TRIGGER ai_quick_qa_messages_update_embedding_trigger 
+  AFTER UPDATE OF content ON ai_quick_qa_messages 
+  FOR EACH ROW 
+  WHEN (OLD.content IS DISTINCT FROM NEW.content)
+  EXECUTE FUNCTION trigger_ai_quick_qa_messages_embedding();
 
 
 DROP TRIGGER IF EXISTS community_quiz_question_search_vector_trigger ON community_quiz_question;
@@ -6624,6 +6680,17 @@ COMMENT ON TRIGGER trg_sync_profile_points_on_ledger_delete ON community_points_
 DROP TRIGGER IF EXISTS ai_quick_qa_sessions_embedding_trigger ON ai_quick_qa_sessions;
 CREATE TRIGGER ai_quick_qa_sessions_embedding_trigger AFTER INSERT OR UPDATE ON ai_quick_qa_sessions FOR EACH ROW EXECUTE FUNCTION trigger_ai_quick_qa_sessions_embedding();
 
--- AI Quick QA Messages (trigger session embedding on user messages)
+-- ✨ UPDATED: AI Quick QA Messages (now creates individual message embeddings + updates session)
 DROP TRIGGER IF EXISTS ai_quick_qa_messages_embedding_trigger ON ai_quick_qa_messages;
-CREATE TRIGGER ai_quick_qa_messages_embedding_trigger AFTER INSERT ON ai_quick_qa_messages FOR EACH ROW EXECUTE FUNCTION trigger_ai_quick_qa_messages_embedding();
+CREATE TRIGGER ai_quick_qa_messages_embedding_trigger 
+  AFTER INSERT ON ai_quick_qa_messages 
+  FOR EACH ROW 
+  EXECUTE FUNCTION trigger_ai_quick_qa_messages_embedding();
+
+-- ✨ NEW: Also trigger on UPDATE (in case content is edited)
+DROP TRIGGER IF EXISTS ai_quick_qa_messages_update_embedding_trigger ON ai_quick_qa_messages;
+CREATE TRIGGER ai_quick_qa_messages_update_embedding_trigger 
+  AFTER UPDATE OF content ON ai_quick_qa_messages 
+  FOR EACH ROW 
+  WHEN (OLD.content IS DISTINCT FROM NEW.content)
+  EXECUTE FUNCTION trigger_ai_quick_qa_messages_embedding();

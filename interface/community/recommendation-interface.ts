@@ -7,12 +7,22 @@ export interface RecommendedPost extends Omit<Post, 'comments'> {
   // Recommendation specific fields
   recommendation_score: number;       // 0-100 综合推荐分数
   recommendation_reasons: string[];   // 推荐理由，最多 2-3 条
-  
+  recommendation_details?: {          // 详细的推荐信息（可展开查看）
+    ai_similarity?: number;           // AI 活动相似度 (0-1)
+    ai_keywords?: string[];           // 匹配的 AI 关键词
+    interest_overlap?: number;        // 兴趣重叠度 (0-1)
+    hashtag_relevance?: number;       // 标签相关性 (0-1)
+    group_relevance?: number;         // 群组相关性 (0-1)
+    author_affinity?: number;         // 作者亲和度 (0-1)
+    freshness?: number;               // 新鲜度 (0-1)
+    semantic_similarity?: number;     // 语义相似度 (0-1)
+  };
+
   // Enhanced metadata for recommendations
   interaction_score?: number;         // 互动热度分数
   freshness_score?: number;          // 新鲜度分数
   relevance_score?: number;          // 相关性分数
-  
+
   // Additional computed fields
   total_reactions?: number;           // 总反应数
   recent_activity?: boolean;          // 是否为近期活跃内容
@@ -20,6 +30,8 @@ export interface RecommendedPost extends Omit<Post, 'comments'> {
 
 export interface CommunityRecommendations {
   recommendations: RecommendedPost[];
+  has_more?: boolean;                      // 是否还有更多推荐
+  total_count?: number;                    // 总推荐数量
   categories: {
     from_groups: RecommendedPost[];      // 来自用户加入的群组
     authors_you_like: RecommendedPost[]; // 用户喜欢的作者
@@ -61,6 +73,7 @@ export interface UserActivitySignals {
   used_hashtags: string[];           // 使用过的标签
   interests: string[];               // 个人兴趣
   aiActivityVector?: number[] | null; // AI活动向量 (384维 E5 embedding)
+  aiActivityKeywords?: string[];     // AI活动关键词 (从问题、笔记等提取)
 }
 
 export interface PostScoringFactors {
@@ -77,10 +90,14 @@ export interface PostScoringFactors {
   embedding_score?: number;         // 嵌入相似度分数 (0-1)
   hybrid_score?: number;            // 混合分数 (0-1)
   ai_activity_similarity: number;
+  // Group relevance factors
+  group_activity_score?: number;    // 群组活跃度分数 (0-1)
+  group_content_relevance?: number; // 群组内容相关性 (0-1)
 }
 
 export interface RecommendationFilters {
   limit?: number;                    // 返回数量限制，默认 20
+  offset?: number;                   // 分页偏移量，默认 0
   since?: string;                    // 时间筛选，ISO 字符串
   groups_only?: boolean;             // 仅推荐所在群组内容
   exclude_own_posts?: boolean;       // 排除自己的帖子

@@ -173,6 +173,17 @@ function UserAvatar({
   );
 }
 
+// Performance logging utility
+const logPerformance = (step: string, data: any = {}) => {
+  const timestamp = performance.now();
+  const logData = {
+    timestamp: timestamp.toFixed(2) + 'ms',
+    step,
+    ...data,
+  };
+  console.log(`🎬 [VIDEO_PLAYER_PERF] ${step}`, logData);
+};
+
 export default function BilibiliVideoPlayer({
   src,
   attachmentId,
@@ -196,6 +207,27 @@ export default function BilibiliVideoPlayer({
   const progressRef = useRef<HTMLDivElement>(null);
   const danmakuContainerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  
+  // Performance tracking
+  const perfTimings = useRef({
+    componentMount: performance.now(),
+    videoSourceDetected: 0,
+    hlsInitStart: 0,
+    hlsManifestLoaded: 0,
+    firstByteReceived: 0,
+    canPlayThrough: 0,
+    firstFrameRendered: 0,
+    playbackStarted: 0,
+  });
+  
+  useEffect(() => {
+    logPerformance('COMPONENT_MOUNTED', {
+      attachmentId,
+      lessonId,
+      hasDirectSrc: !!src,
+      initialTime,
+    });
+  }, []);
 
   // Video state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -696,17 +728,24 @@ export default function BilibiliVideoPlayer({
 
   // Detect video source type and calculate appropriate source
   const videoSourceInfo = useMemo(() => {
+    const detectionStart = performance.now();
+    
     if (attachmentId) {
       const streamSrc = `/api/attachments/${attachmentId}/stream`;
       // For attachments, we'll detect HLS format from the actual stream response
       // For now, assume it's direct video (MP4) unless the URL contains .m3u8
       const isHLS = streamSrc.includes('.m3u8');
-      console.log('📹 Video source:', { 
+      
+      perfTimings.current.videoSourceDetected = performance.now();
+      logPerformance('VIDEO_SOURCE_DETECTED', { 
         attachmentId, 
         src: streamSrc, 
         type: isHLS ? 'hls' : 'direct',
         isHLS,
+        detectionTime: (performance.now() - detectionStart).toFixed(2) + 'ms',
+        timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
       });
+      
       return {
         src: streamSrc,
         type: isHLS ? "hls" : "direct",
@@ -716,7 +755,10 @@ export default function BilibiliVideoPlayer({
     }
 
     if (!src) {
-      console.log('📹 No video source provided');
+      perfTimings.current.videoSourceDetected = performance.now();
+      logPerformance('NO_VIDEO_SOURCE', {
+        timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       return {
         src: null,
         type: "none",
@@ -726,26 +768,38 @@ export default function BilibiliVideoPlayer({
 
     // Check if it's a YouTube URL
     if (src.includes("youtube.com") || src.includes("youtu.be")) {
+      perfTimings.current.videoSourceDetected = performance.now();
+      logPerformance('YOUTUBE_VIDEO_DETECTED', {
+        timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       return {
         src: src,
         type: "youtube",
-        canPlay: false, // HTML video can't play YouTube directly
+        canPlay: false,
         embedUrl: getYouTubeEmbedUrl(src),
       };
     }
 
     // Check if it's a Vimeo URL
     if (src.includes("vimeo.com")) {
+      perfTimings.current.videoSourceDetected = performance.now();
+      logPerformance('VIMEO_VIDEO_DETECTED', {
+        timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       return {
         src: src,
         type: "vimeo",
-        canPlay: false, // HTML video can't play Vimeo directly
+        canPlay: false,
         embedUrl: getVimeoEmbedUrl(src),
       };
     }
 
     // Check if it's an HLS stream
     if (src.includes('.m3u8')) {
+      perfTimings.current.videoSourceDetected = performance.now();
+      logPerformance('HLS_STREAM_DETECTED', {
+        timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       return {
         src: src,
         type: "hls",
@@ -756,6 +810,11 @@ export default function BilibiliVideoPlayer({
 
     // Check if it's a direct video file
     if (src.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i)) {
+      perfTimings.current.videoSourceDetected = performance.now();
+      logPerformance('DIRECT_VIDEO_DETECTED', {
+        format: src.split('.').pop(),
+        timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       return {
         src: src,
         type: "direct",
@@ -765,6 +824,11 @@ export default function BilibiliVideoPlayer({
     }
 
     // Default: assume it's a direct URL and try to play
+    perfTimings.current.videoSourceDetected = performance.now();
+    logPerformance('UNKNOWN_VIDEO_TYPE', {
+      src: src.substring(0, 100),
+      timeSinceMount: (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms',
+    });
     return {
       src: src,
       type: "direct",
@@ -922,10 +986,15 @@ export default function BilibiliVideoPlayer({
 
   const handleLoadStart = useCallback(() => {
     setIsLoading(true);
+    logPerformance('VIDEO_LOAD_START', {
+      timeSinceMount: (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+    });
   }, []);
 
   const handleCanPlay = useCallback(() => {
     setIsLoading(false);
+    perfTimings.current.canPlayThrough = performance.now();
+    
     // Mark that we have enough data to start playing
     if (videoRef.current) {
       const buffered = videoRef.current.buffered;
@@ -933,6 +1002,15 @@ export default function BilibiliVideoPlayer({
         const bufferedEnd = buffered.end(buffered.length - 1);
         const progress = (bufferedEnd / videoRef.current.duration) * 100;
         setLoadingProgress(Math.min(progress, 100));
+        
+        logPerformance('VIDEO_CAN_PLAY', {
+          bufferedSeconds: bufferedEnd.toFixed(2),
+          bufferedPercent: progress.toFixed(2) + '%',
+          timeSinceMount: (perfTimings.current.canPlayThrough - perfTimings.current.componentMount).toFixed(2) + 'ms',
+          timeSinceLoadStart: perfTimings.current.hlsInitStart > 0 
+            ? (perfTimings.current.canPlayThrough - perfTimings.current.hlsInitStart).toFixed(2) + 'ms'
+            : 'N/A',
+        });
       }
     }
   }, []);
@@ -953,7 +1031,10 @@ export default function BilibiliVideoPlayer({
       }
       
       if (isBuffering) {
-        console.log('[VideoPlayer] Buffering at:', videoCurrentTime);
+        logPerformance('VIDEO_BUFFERING', {
+          currentTime: videoCurrentTime.toFixed(2),
+          timeSinceMount: (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+        });
         setIsLoading(true);
       }
     }
@@ -961,6 +1042,29 @@ export default function BilibiliVideoPlayer({
 
   const handlePlaying = useCallback(() => {
     setIsLoading(false);
+    
+    if (perfTimings.current.playbackStarted === 0) {
+      perfTimings.current.playbackStarted = performance.now();
+      const totalTime = perfTimings.current.playbackStarted - perfTimings.current.componentMount;
+      
+      logPerformance('🎉 PLAYBACK_STARTED', {
+        totalLoadTime: totalTime.toFixed(2) + 'ms',
+        breakdown: {
+          sourceDetection: perfTimings.current.videoSourceDetected > 0 
+            ? (perfTimings.current.videoSourceDetected - perfTimings.current.componentMount).toFixed(2) + 'ms'
+            : 'N/A',
+          hlsInit: perfTimings.current.hlsInitStart > 0 && perfTimings.current.hlsManifestLoaded > 0
+            ? (perfTimings.current.hlsManifestLoaded - perfTimings.current.hlsInitStart).toFixed(2) + 'ms'
+            : 'N/A',
+          firstByte: perfTimings.current.firstByteReceived > 0
+            ? (perfTimings.current.firstByteReceived - perfTimings.current.componentMount).toFixed(2) + 'ms'
+            : 'N/A',
+          canPlay: perfTimings.current.canPlayThrough > 0
+            ? (perfTimings.current.canPlayThrough - perfTimings.current.componentMount).toFixed(2) + 'ms'
+            : 'N/A',
+        },
+      });
+    }
   }, []);
 
   const handleProgress = useCallback(() => {
@@ -1018,24 +1122,29 @@ export default function BilibiliVideoPlayer({
     const isHLS = videoSourceInfo.isHLS || src.includes('.m3u8');
     
     if (isHLS && Hls.isSupported()) {
-      console.log('🎬 Initializing HLS.js for:', src);
+      perfTimings.current.hlsInitStart = performance.now();
+      logPerformance('HLS_INIT_START', {
+        src: src.substring(0, 100),
+        timeSinceMount: (perfTimings.current.hlsInitStart - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       setIsLoading(true);
       
-      // Create HLS instance with optimized configuration
+      // Create HLS instance with optimized configuration for faster startup
       const hls = new Hls({
-        // Performance optimizations
+        // Performance optimizations - FASTER STARTUP
         enableWorker: true, // Use Web Worker for better performance
         lowLatencyMode: false, // Set to true for live streams
         
-        // Buffer management (optimized for VOD)
+        // Buffer management (optimized for FAST startup and smooth playback)
         backBufferLength: 90, // Keep 90s of back buffer for seeking
-        maxBufferLength: 30, // Target buffer length (30s ahead)
+        maxBufferLength: 20, // Target buffer length (20s ahead - REDUCED for faster startup)
         maxMaxBufferLength: 600, // Max buffer length (10 minutes)
-        maxBufferSize: 60 * 1000 * 1000, // 60MB max buffer size
+        maxBufferSize: 30 * 1000 * 1000, // 30MB max buffer size (reduced from 60MB for faster startup)
         maxBufferHole: 0.5, // Max gap in buffer to skip
+        maxFragLookUpTolerance: 0.25, // Fragment lookup tolerance
         
-        // ABR (Adaptive Bitrate) configuration
-        startLevel: -1, // -1 = auto quality selection
+        // ABR (Adaptive Bitrate) configuration - START WITH LOWER QUALITY
+        startLevel: 0, // Start with LOWEST quality for instant playback (changed from -1)
         abrEwmaDefaultEstimate: 500000, // Initial bandwidth estimate (500 kbps)
         abrEwmaFastLive: 3.0, // Fast ABR for live
         abrEwmaSlowLive: 9.0, // Slow ABR for live
@@ -1044,14 +1153,13 @@ export default function BilibiliVideoPlayer({
         abrBandWidthFactor: 0.95, // Use 95% of estimated bandwidth
         abrBandWidthUpFactor: 0.7, // Be conservative when upgrading quality
         
-        // Fragment loading
-        maxLoadingDelay: 4, // Max delay before loading next fragment
-        maxFragLookUpTolerance: 0.25, // Fragment lookup tolerance
+        // Fragment loading - AGGRESSIVE PRELOADING
+        maxLoadingDelay: 2, // Max delay before loading next fragment (reduced from 4)
         
-        // Retry configuration
+        // Retry configuration - FASTER RETRIES
         manifestLoadingTimeOut: 10000, // 10s timeout for manifest
         manifestLoadingMaxRetry: 3, // Retry manifest 3 times
-        manifestLoadingRetryDelay: 1000, // 1s delay between retries
+        manifestLoadingRetryDelay: 500, // 0.5s delay between retries (reduced from 1s)
         levelLoadingTimeOut: 10000, // 10s timeout for level
         levelLoadingMaxRetry: 4, // Retry level 4 times
         fragLoadingTimeOut: 20000, // 20s timeout for fragments
@@ -1067,6 +1175,9 @@ export default function BilibiliVideoPlayer({
         // Stall detection
         highBufferWatchdogPeriod: 2, // Check for stalls every 2s
         nudgeMaxRetry: 3, // Max retries for nudging playback
+        
+        // CRITICAL: Auto-start playback as soon as possible
+        startPosition: initialTime || 0, // Start from saved position
       });
 
       hlsRef.current = hls;
@@ -1077,7 +1188,7 @@ export default function BilibiliVideoPlayer({
 
       // Handle manifest parsed
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        console.log('✅ HLS manifest loaded, found ' + data.levels.length + ' quality levels');
+        perfTimings.current.hlsManifestLoaded = performance.now();
         
         // Extract quality levels
         const levels = data.levels.map((level: any, index: number) => ({
@@ -1087,8 +1198,12 @@ export default function BilibiliVideoPlayer({
         }));
         setQualityLevels(levels);
         
-        // Log available qualities
-        console.log('📊 Available qualities:', levels.map(l => `${l.height}p`).join(', '));
+        logPerformance('HLS_MANIFEST_PARSED', {
+          qualityLevels: data.levels.length,
+          qualities: levels.map(l => `${l.height}p`).join(', '),
+          timeSinceHlsInit: (perfTimings.current.hlsManifestLoaded - perfTimings.current.hlsInitStart).toFixed(2) + 'ms',
+          timeSinceMount: (perfTimings.current.hlsManifestLoaded - perfTimings.current.componentMount).toFixed(2) + 'ms',
+        });
         
         setIsLoading(false);
       });
@@ -1200,6 +1315,18 @@ export default function BilibiliVideoPlayer({
 
       // Monitor fragment loading performance
       hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+        // Track first byte received
+        if (perfTimings.current.firstByteReceived === 0) {
+          perfTimings.current.firstByteReceived = performance.now();
+          logPerformance('FIRST_FRAGMENT_LOADED', {
+            fragmentDuration: data.frag.duration.toFixed(2) + 's',
+            fragmentSize: (data.frag.stats.total / 1024).toFixed(2) + 'KB',
+            loadTime: (data.frag.stats.loading.end - data.frag.stats.loading.start).toFixed(2) + 'ms',
+            timeSinceManifest: (perfTimings.current.firstByteReceived - perfTimings.current.hlsManifestLoaded).toFixed(2) + 'ms',
+            timeSinceMount: (perfTimings.current.firstByteReceived - perfTimings.current.componentMount).toFixed(2) + 'ms',
+          });
+        }
+        
         // Update bandwidth estimate
         const bandwidth = hls.bandwidthEstimate || 0;
         setHlsStats(prev => ({
@@ -1210,7 +1337,11 @@ export default function BilibiliVideoPlayer({
 
       // Cleanup
       return () => {
-        console.log('🧹 Cleaning up HLS instance');
+        logPerformance('HLS_CLEANUP', {
+          totalPlaybackTime: perfTimings.current.playbackStarted > 0 
+            ? (performance.now() - perfTimings.current.playbackStarted).toFixed(2) + 'ms'
+            : 'N/A',
+        });
         clearInterval(trackDroppedFrames);
         if (hlsRef.current) {
           hlsRef.current.destroy();
@@ -1219,13 +1350,23 @@ export default function BilibiliVideoPlayer({
       };
     } else if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native HLS support (Safari)
-      console.log('🍎 Using native HLS support (Safari)');
+      logPerformance('NATIVE_HLS_SUPPORT', {
+        browser: 'Safari',
+        timeSinceMount: (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       setIsLoading(true);
       video.src = src;
     } else if (videoSourceInfo.src || videoSourceInfo.embedUrl) {
       // Regular video
+      logPerformance('REGULAR_VIDEO_LOADING', {
+        type: videoSourceInfo.type,
+        timeSinceMount: (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       setIsLoading(true);
     } else {
+      logPerformance('NO_PLAYABLE_SOURCE', {
+        timeSinceMount: (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
       setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1649,8 +1790,9 @@ export default function BilibiliVideoPlayer({
             {...(!videoSourceInfo.src.includes('.m3u8') && { src: videoSourceInfo.src })}
             poster={poster}
             className="w-full h-full object-contain"
-            preload="auto"
+            preload="metadata" // Changed from "auto" to "metadata" for faster initial load
             crossOrigin="anonymous"
+            playsInline // Important for mobile devices
             onPlay={handlePlay}
             onPause={handlePause}
             onTimeUpdate={handleTimeUpdate}

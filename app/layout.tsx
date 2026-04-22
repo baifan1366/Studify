@@ -41,8 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Studify" />
         <link rel="apple-touch-icon" href="/favicon.png" />
-        <link rel="preload" href="/fonts/geist/Geist-Regular.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/geist/Geist-Medium.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        {/* Font preloading removed - fonts will load naturally via CSS @font-face with font-display: optional */}
       </head>
       <body className="antialiased min-h-screen bg-background" data-lk-theme="default">
         <ThemeProvider>

@@ -1129,22 +1129,22 @@ export default function BilibiliVideoPlayer({
       });
       setIsLoading(true);
       
-      // Create HLS instance with optimized configuration for faster startup
+      // Create HLS instance with ULTRA-FAST startup configuration
       const hls = new Hls({
-        // Performance optimizations - FASTER STARTUP
+        // Performance optimizations - MAXIMUM SPEED
         enableWorker: true, // Use Web Worker for better performance
         lowLatencyMode: false, // Set to true for live streams
         
-        // Buffer management (optimized for FAST startup and smooth playback)
-        backBufferLength: 90, // Keep 90s of back buffer for seeking
-        maxBufferLength: 20, // Target buffer length (20s ahead - REDUCED for faster startup)
-        maxMaxBufferLength: 600, // Max buffer length (10 minutes)
-        maxBufferSize: 30 * 1000 * 1000, // 30MB max buffer size (reduced from 60MB for faster startup)
+        // Buffer management (AGGRESSIVE for instant startup)
+        backBufferLength: 30, // Reduced from 90s - less memory, faster startup
+        maxBufferLength: 10, // REDUCED from 20s - start playing ASAP
+        maxMaxBufferLength: 300, // Reduced from 600s
+        maxBufferSize: 15 * 1000 * 1000, // 15MB (reduced from 30MB for faster startup)
         maxBufferHole: 0.5, // Max gap in buffer to skip
         maxFragLookUpTolerance: 0.25, // Fragment lookup tolerance
         
         // ABR (Adaptive Bitrate) configuration - START WITH LOWER QUALITY
-        startLevel: 0, // Start with LOWEST quality for instant playback (changed from -1)
+        startLevel: 0, // Start with LOWEST quality for instant playback
         abrEwmaDefaultEstimate: 500000, // Initial bandwidth estimate (500 kbps)
         abrEwmaFastLive: 3.0, // Fast ABR for live
         abrEwmaSlowLive: 9.0, // Slow ABR for live
@@ -1153,17 +1153,17 @@ export default function BilibiliVideoPlayer({
         abrBandWidthFactor: 0.95, // Use 95% of estimated bandwidth
         abrBandWidthUpFactor: 0.7, // Be conservative when upgrading quality
         
-        // Fragment loading - AGGRESSIVE PRELOADING
-        maxLoadingDelay: 2, // Max delay before loading next fragment (reduced from 4)
+        // Fragment loading - ULTRA AGGRESSIVE
+        maxLoadingDelay: 1, // REDUCED from 2s - load next fragment immediately
         
-        // Retry configuration - FASTER RETRIES
-        manifestLoadingTimeOut: 10000, // 10s timeout for manifest
-        manifestLoadingMaxRetry: 3, // Retry manifest 3 times
-        manifestLoadingRetryDelay: 500, // 0.5s delay between retries (reduced from 1s)
-        levelLoadingTimeOut: 10000, // 10s timeout for level
-        levelLoadingMaxRetry: 4, // Retry level 4 times
-        fragLoadingTimeOut: 20000, // 20s timeout for fragments
-        fragLoadingMaxRetry: 6, // Retry fragments 6 times
+        // Retry configuration - FASTER TIMEOUTS
+        manifestLoadingTimeOut: 5000, // REDUCED from 10s - fail fast
+        manifestLoadingMaxRetry: 2, // REDUCED from 3 - fail faster
+        manifestLoadingRetryDelay: 300, // REDUCED from 500ms
+        levelLoadingTimeOut: 5000, // REDUCED from 10s
+        levelLoadingMaxRetry: 2, // REDUCED from 4
+        fragLoadingTimeOut: 10000, // REDUCED from 20s - fail fast
+        fragLoadingMaxRetry: 3, // REDUCED from 6 - fail faster
         
         // Debugging (disable in production)
         debug: process.env.NODE_ENV === 'development',
@@ -1188,6 +1188,9 @@ export default function BilibiliVideoPlayer({
 
       // Handle manifest parsed
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        hasManifestLoaded = true; // Mark manifest as loaded
+        clearTimeout(initTimeoutId); // Clear timeout
+        
         perfTimings.current.hlsManifestLoaded = performance.now();
         
         // Extract quality levels
@@ -1206,28 +1209,86 @@ export default function BilibiliVideoPlayer({
         });
         
         setIsLoading(false);
+        
+        // Auto-play if user expects it (optional)
+        // Uncomment to enable auto-play after manifest loads
+        // if (videoRef.current) {
+        //   videoRef.current.play().catch(err => {
+        //     console.log('Auto-play prevented:', err);
+        //   });
+        // }
       });
 
-      // Handle errors
+      // Handle errors with timeout detection
+      let manifestLoadStartTime = performance.now();
+      let hasManifestLoaded = false;
+      
+      // Add timeout detection for stuck initialization
+      const initTimeoutId = setTimeout(() => {
+        if (!hasManifestLoaded) {
+          console.error('⏱️ HLS initialization timeout (30s) - manifest not loaded');
+          logPerformance('HLS_INIT_TIMEOUT', {
+            timeSinceStart: (performance.now() - manifestLoadStartTime).toFixed(2) + 'ms',
+            src: src.substring(0, 100),
+          });
+          
+          setIsLoading(false);
+          toast({
+            title: t("video_timeout") || "Video Loading Timeout",
+            description: t("video_timeout_desc") || "The video is taking too long to load. Please check your connection or try again later.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          
+          // Try to destroy and cleanup
+          if (hlsRef.current) {
+            hlsRef.current.destroy();
+            hlsRef.current = null;
+          }
+        }
+      }, 30000); // 30 second timeout
+      
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error('❌ HLS error:', data);
+        logPerformance('HLS_ERROR', {
+          type: data.type,
+          details: data.details,
+          fatal: data.fatal,
+          timeSinceInit: (performance.now() - perfTimings.current.hlsInitStart).toFixed(2) + 'ms',
+        });
         
         if (data.fatal) {
+          clearTimeout(initTimeoutId); // Clear timeout on fatal error
+          
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.error('🔄 Fatal network error, trying to recover');
-              // Don't immediately reload - wait a bit to avoid loops
+              logPerformance('HLS_NETWORK_ERROR_RECOVERY');
+              
+              // Show user-friendly error
+              toast({
+                title: t("network_error") || "Network Error",
+                description: t("network_error_desc") || "Failed to load video due to network issues. Retrying...",
+                variant: "destructive",
+                duration: 3000,
+              });
+              
+              // Try to recover with shorter delay
               setTimeout(() => {
                 if (hlsRef.current) {
                   hls.startLoad();
                 }
-              }, 1000);
+              }, 500); // Reduced from 1000ms
               break;
+              
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.error('🔄 Fatal media error, trying to recover');
+              logPerformance('HLS_MEDIA_ERROR_RECOVERY');
+              
               // Save current time before recovery
               const savedTime = videoRef.current?.currentTime || 0;
               hls.recoverMediaError();
+              
               // Restore time after recovery
               setTimeout(() => {
                 if (videoRef.current && savedTime > 0) {
@@ -1235,13 +1296,17 @@ export default function BilibiliVideoPlayer({
                 }
               }, 100);
               break;
+              
             default:
               console.error('💥 Fatal error, cannot recover');
+              logPerformance('HLS_FATAL_ERROR', { errorType: data.type });
+              
               setIsLoading(false);
               toast({
-                title: "HLS Error",
-                description: "Failed to load HLS stream",
+                title: t("video_error") || "Video Error",
+                description: t("video_error_fatal") || "Failed to load video. Please try refreshing the page.",
                 variant: "destructive",
+                duration: 10000,
               });
               hls.destroy();
               break;
@@ -1337,6 +1402,7 @@ export default function BilibiliVideoPlayer({
 
       // Cleanup
       return () => {
+        clearTimeout(initTimeoutId); // Clear timeout on cleanup
         logPerformance('HLS_CLEANUP', {
           totalPlaybackTime: perfTimings.current.playbackStarted > 0 
             ? (performance.now() - perfTimings.current.playbackStarted).toFixed(2) + 'ms'
@@ -1790,7 +1856,7 @@ export default function BilibiliVideoPlayer({
             {...(!videoSourceInfo.src.includes('.m3u8') && { src: videoSourceInfo.src })}
             poster={poster}
             className="w-full h-full object-contain"
-            preload="metadata" // Changed from "auto" to "metadata" for faster initial load
+            preload="auto" // Changed to "auto" for better streaming - browser will preload video
             crossOrigin="anonymous"
             playsInline // Important for mobile devices
             onPlay={handlePlay}

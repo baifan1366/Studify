@@ -466,16 +466,11 @@ export async function GET(
                 end: end + 1
               })
               
-              // Use optimized download options for faster streaming
+              // mega.js download() only accepts { start, end } options
+              // Other options like maxConnections are NOT supported
               const downloadStream = file.download({ 
                 start, 
-                end: end + 1,
-                // Parallel connections for faster download (MEGA.js feature)
-                maxConnections: 4, // Use 4 parallel connections (default, but explicit)
-                initialChunkSize: 256 * 1024, // Start with 256KB chunks (increased from default 128KB)
-                chunkSizeIncrement: 256 * 1024, // Increment by 256KB (increased from default 128KB)
-                maxChunkSize: 1024 * 1024, // Max 1MB chunks
-                forceHttps: false, // Use HTTP for faster downloads in Node.js (default for Node)
+                end: end + 1
               })
               
               // Listen to progress events for better monitoring
@@ -628,15 +623,8 @@ export async function GET(
                 requestId
               })
               
-              // Use optimized download options for faster full-file streaming
-              const downloadStream = file.download({
-                // Parallel connections for faster download (MEGA.js feature)
-                maxConnections: 4, // Use 4 parallel connections
-                initialChunkSize: 256 * 1024, // Start with 256KB chunks (increased from default 128KB)
-                chunkSizeIncrement: 256 * 1024, // Increment by 256KB (increased from default 128KB)
-                maxChunkSize: 1024 * 1024, // Max 1MB chunks
-                forceHttps: false, // Use HTTP for faster downloads in Node.js
-              })
+              // mega.js download() requires at least an empty options object
+              const downloadStream = file.download({})
               
               // Listen to progress events for better monitoring
               downloadStream.on('progress', (info: any) => {

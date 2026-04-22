@@ -159,12 +159,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`📹 Video type: ${isExternalVideo ? 'External' : 'Internal'}, Lesson kind: ${lessonKind}, Model: ${modelToUse}`);
 
-    // Specify content types to search - prioritize video_segment for video lessons
+    // Specify content types to search - prioritize video_segment for video lessons, document_segment for PDF lessons
     const contentTypes = isExternalVideo
       ? ["course_content", "lesson", "note"] // External videos don't have segments
+      : lessonKind === "document"
+      ? ["document_segment", "lesson", "note"] // Prioritize document segments for PDF lessons
       : videoContext.currentLessonId
       ? ["video_segment", "lesson", "note"] // Prioritize video segments for video lessons
-      : ["course_content", "lesson", "note"]; // General content for non-video
+      : ["course_content", "lesson", "note"]; // General content for non-video/non-document
 
     // If streaming is requested, use Server-Sent Events
     if (isStreaming) {

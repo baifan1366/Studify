@@ -236,7 +236,7 @@ export async function GET(
             storage = await Promise.race([
               storagePreloadPromise,
               new Promise<Storage>((_, reject) => 
-                setTimeout(() => reject(new Error('Preload timeout')), 5000)
+                setTimeout(() => reject(new Error('Preload timeout')), 30000) // Increased to 10s
               )
             ])
             
@@ -248,8 +248,11 @@ export async function GET(
             // Clear preload promise after use
             storagePreloadPromise = null
           } catch (preloadError) {
-            logError('MEGA_STORAGE_PRELOAD_FAILED', preloadError, {
-              requestId
+            // Log as info, not error - this is expected fallback behavior
+            logStep('MEGA_STORAGE_PRELOAD_TIMEOUT', {
+              requestId,
+              message: 'Preload timed out, creating new storage instance',
+              duration: Date.now() - authStartTime + 'ms'
             })
             // Fall through to create new storage
             storage = null

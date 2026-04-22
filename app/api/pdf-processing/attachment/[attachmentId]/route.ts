@@ -6,7 +6,7 @@ import { retryFailedChunks } from '@/lib/pdf-processing/pdf-embedding-generator'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { attachmentId: string } }
+  { params }: { params: Promise<{ attachmentId: string }> }
 ) {
   try {
     // Authorize user
@@ -15,7 +15,8 @@ export async function GET(
       return authResult;
     }
 
-    const attachmentId = parseInt(params.attachmentId);
+    const { attachmentId: attachmentIdStr } = await params;
+    const attachmentId = parseInt(attachmentIdStr);
 
     if (isNaN(attachmentId)) {
       return NextResponse.json(
@@ -60,7 +61,7 @@ export async function GET(
 // POST endpoint to retry failed chunks
 export async function POST(
   request: NextRequest,
-  { params }: { params: { attachmentId: string } }
+  { params }: { params: Promise<{ attachmentId: string }> }
 ) {
   try {
     // Authorize user (require tutor role)
@@ -69,7 +70,8 @@ export async function POST(
       return authResult;
     }
 
-    const attachmentId = parseInt(params.attachmentId);
+    const { attachmentId: attachmentIdStr } = await params;
+    const attachmentId = parseInt(attachmentIdStr);
 
     if (isNaN(attachmentId)) {
       return NextResponse.json(

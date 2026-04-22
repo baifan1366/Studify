@@ -1,7 +1,7 @@
 // PDF Text Extraction Service
 // Extracts text content from PDF files and splits into chunks
 
-import pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 
 export interface PDFChunk {
   content: string;
@@ -51,20 +51,24 @@ export async function extractPDFText(
     
     console.log('📄 Starting PDF text extraction...');
     
-    // Parse PDF
-    const data = await pdf(pdfBuffer, {
-      max: 0, // Extract all pages
-    });
+    // Parse PDF using PDFParse class with buffer data
+    const pdfParse = new PDFParse({ data: pdfBuffer });
     
-    console.log(`📊 PDF parsed: ${data.numpages} pages, ${data.text.length} characters`);
+    // Get text and info
+    const [textResult, infoResult] = await Promise.all([
+      pdfParse.getText(),
+      pdfParse.getInfo()
+    ]);
+    
+    console.log(`📊 PDF parsed: ${textResult.total} pages, ${textResult.text.length} characters`);
     
     // Extract metadata
     const metadata = {
-      totalPages: data.numpages,
-      totalWords: countWords(data.text),
-      title: data.info?.Title,
-      author: data.info?.Author,
-      creationDate: data.info?.CreationDate ? new Date(data.info.CreationDate) : undefined,
+      totalPages: textResult.total,
+      totalWords: countWords(textResult.text),
+      title: infoResult.info?.title,
+      author: infoResult.info?.author,
+      creationDate: infoResult.info?.creationDate ? new Date(infoResult.info.creationDate) : undefined,
     };
     
     console.log(`📝 Metadata: ${metadata.totalWords} words, ${metadata.totalPages} pages`);
@@ -73,14 +77,17 @@ export async function extractPDFText(
     let chunks: PDFChunk[];
     
     if (opts.extractByPage) {
-      // Extract by page
-      chunks = await extractByPage(pdfBuffer, opts);
+      // Extract by page using page-wise text
+      chunks = extractByPageFromTextResult(textResult, opts);
     } else {
       // Extract by semantic chunks (paragraphs)
-      chunks = extractByParagraphs(data.text, data.numpages, opts);
+      chunks = extractByParagraphs(textResult.text, textResult.total, opts);
     }
     
     console.log(`✅ Extracted ${chunks.length} chunks from PDF`);
+    
+    // Clean up
+    await pdfParse.destroy();
     
     return {
       chunks,
@@ -103,40 +110,29 @@ export async function extractPDFText(
 }
 
 /**
- * Extract text by page
+ * Extract text by page from TextResult
  */
-async function extractByPage(
-  pdfBuffer: Buffer,
+function extractByPageFromTextResult(
+  textResult: any,
   options: Required<PDFExtractionOptions>
-): Promise<PDFChunk[]> {
+): PDFChunk[] {
   const chunks: PDFChunk[] = [];
   
-  // Parse PDF with page-by-page extraction
-  const data = await pdf(pdfBuffer, {
-    max: 0,
-    pagerender: async (pageData: any) => {
-      const pageNum = pageData.pageIndex + 1;
-      const text = await pageData.getTextContent();
-      
-      // Combine text items
-      const pageText = text.items
-        .map((item: any) => item.str)
-        .join(' ')
-        .trim();
-      
-      if (pageText.length > 0) {
+  // Extract text from each page
+  if (textResult.pages && Array.isArray(textResult.pages)) {
+    textResult.pages.forEach((page: { num: number; text: string }) => {
+      const trimmedText = page.text.trim();
+      if (trimmedText.length > 0) {
         chunks.push({
-          content: pageText,
-          pageNumber: pageNum,
+          content: trimmedText,
+          pageNumber: page.num,
           chunkIndex: chunks.length,
           chunkType: 'page',
-          wordCount: countWords(pageText),
+          wordCount: countWords(trimmedText),
         });
       }
-      
-      return pageData;
-    },
-  });
+    });
+  }
   
   return chunks;
 }

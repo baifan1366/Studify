@@ -236,7 +236,13 @@ export async function getProcessingStatus(attachmentId: number): Promise<{
   
   const { data, error } = await supabase
     .rpc('get_document_processing_status', { p_attachment_id: attachmentId })
-    .single();
+    .single<{
+      total_chunks: number;
+      completed_chunks: number;
+      failed_chunks: number;
+      processing_chunks: number;
+      overall_status: 'pending' | 'processing' | 'completed' | 'failed';
+    }>();
   
   if (error || !data) {
     console.error('❌ Failed to get processing status:', error);

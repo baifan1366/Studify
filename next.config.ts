@@ -7,6 +7,7 @@ const withSerwist = withSerwistInit({
   // use something else that works, such as "service-worker/index.ts".
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
+  // Disable in development to avoid Turbopack compatibility issues
   disable: process.env.NODE_ENV !== "production",
   exclude: [
     /OneSignalSDKWorker\.js$/,
@@ -128,12 +129,27 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
-    domains: [
-      "api.qrserver.com",
-      "lh3.googleusercontent.com", // Google profile images
-      "avatars.githubusercontent.com", // GitHub avatars
-      "platform-lookaside.fbsbx.com", // Facebook profile images
-      "graph.facebook.com", // Facebook profile images alternative
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api.qrserver.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com', // Google profile images
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com', // GitHub avatars
+      },
+      {
+        protocol: 'https',
+        hostname: 'platform-lookaside.fbsbx.com', // Facebook profile images
+      },
+      {
+        protocol: 'https',
+        hostname: 'graph.facebook.com', // Facebook profile images alternative
+      },
     ],
     unoptimized: true,
   },

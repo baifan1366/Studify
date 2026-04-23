@@ -59,6 +59,158 @@ export interface VideoQARequest {
   timeWindow?: number;
   aiMode?: 'fast' | 'normal' | 'thinking'; // AI mode selection: fast, normal, thinking
   clientEmbedding?: number[]; // Client-generated E5 embedding for Fast/Thinking mode (384 dimensions)
+  stream?: boolean; // Enable streaming mode
+}
+
+export interface StreamUpdate {
+  type: 'status' | 'answer' | 'complete' | 'error';
+  step?: string;
+  message?: string;
+  progress?: number;
+  data?: any;
+  answer?: string;
+  thinking?: string;
+  segments?: any[];
+  timeContext?: any;
+  courseInfo?: any;
+  metadata?: any;
+}
+
+// Hook for asking questions with streaming support
+export function useVideoQAStreaming() {
+  const { toast } = useToast();
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamUpdates, setStreamUpdates] = useState<StreamUpdate[]>([]);
+  const [currentStatus, setCurrentStatus] = useState<string>('');
+  const [progress, setProgress] = useState<number>(0);
+  const [finalAnswer, setFinalAnswer] = useState<VideoQAResponse | null>(null);
+
+  const askQuestion = async (request: VideoQARequest) => {
+    setIsStreaming(true);
+    setStreamUpdates([]);
+    setCurrentStatus('Initializing...');
+    setProgress(0);
+    setFinalAnswer(null);
+
+    try {
+      let finalRequest = { ...request, stream: true };
+
+      // Generate client-side embedding for Fast mode
+      if (request.aiMode === 'fast') {
+        try {
+          const { generateClientEmbedding } = await import('@/lib/client-embedding');
+          const result = await generateClientEmbedding(request.question, {
+            enableCache: true,
+          });
+          
+          console.log(`[VideoQA] Generated client embedding in ${result.generationTimeMs}ms`);
+          
+          finalRequest = {
+            ...finalRequest,
+            clientEmbedding: result.embedding,
+          };
+        } catch (error) {
+          console.error('[VideoQA] Failed to generate client embedding:', error);
+          finalRequest.aiMode = 'normal';
+        }
+      }
+
+      // Make streaming request
+      const response = await fetch('/api/video/qa-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(finalRequest),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6)) as StreamUpdate;
+              
+              setStreamUpdates(prev => [...prev, data]);
+
+              if (data.type === 'status') {
+                setCurrentStatus(data.message || '');
+                setProgress(data.progress || 0);
+              } else if (data.type === 'answer') {
+                setFinalAnswer({
+                  success: true,
+                  answer: data.answer || '',
+                  thinking: data.thinking,
+                  segments: data.segments || [],
+                  timeContext: data.timeContext || {
+                    currentTime: request.currentTime,
+                    startTime: 0,
+                    endTime: 0,
+                    windowSize: 0
+                  },
+                  courseInfo: data.courseInfo,
+                  metadata: data.metadata
+                });
+              } else if (data.type === 'complete') {
+                setCurrentStatus(data.message || 'Complete!');
+                setProgress(100);
+              } else if (data.type === 'error') {
+                throw new Error(data.message || 'Unknown error');
+              }
+            } catch (e) {
+              console.error('Failed to parse stream data:', e);
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Streaming error:', error);
+      toast({
+        title: 'Question Failed',
+        description: error instanceof Error ? error.message : 'Unable to get AI answer',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  const reset = () => {
+    setStreamUpdates([]);
+    setCurrentStatus('');
+    setProgress(0);
+    setFinalAnswer(null);
+  };
+
+  return {
+    isStreaming,
+    streamUpdates,
+    currentStatus,
+    progress,
+    finalAnswer,
+    askQuestion,
+    reset,
+  };
 }
 
 // Hook for asking questions about video content

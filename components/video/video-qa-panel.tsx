@@ -12,10 +12,11 @@ import {
   ChevronRight,
   Save,
   Check,
-  Brain
+  Brain,
+  Activity
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useVideoQA, type VideoQAResponse } from '@/hooks/video/use-video-qa';
+import { useVideoQA, useVideoQAStreaming, type VideoQAResponse } from '@/hooks/video/use-video-qa';
 import { useCreateNote } from '@/hooks/course/use-course-notes';
 import { useToast } from '@/hooks/use-toast';
 import { useEmbeddingPreloadSimple } from '@/hooks/video/use-embedding-preload';
@@ -42,9 +43,11 @@ export function VideoQAPanel({
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [aiMode, setAIMode] = useState<'fast' | 'normal' | 'thinking'>('fast'); // AI mode state: fast, normal, thinking
+  const [useStreaming, setUseStreaming] = useState(true); // Enable streaming by default
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const videoQA = useVideoQA();
+  const streamingQA = useVideoQAStreaming();
   const createNote = useCreateNote();
   const { toast } = useToast();
 
@@ -57,22 +60,40 @@ export function VideoQAPanel({
     }
   }, [isOpen]);
 
+  // Use streaming answer if available, otherwise use regular answer
+  const effectiveAnswer = streamingQA.finalAnswer || answer;
+  const isProcessing = useStreaming ? streamingQA.isStreaming : videoQA.isPending;
+
   const handleSubmit = async () => {
-    if (!question.trim() || videoQA.isPending) return;
+    if (!question.trim() || isProcessing) return;
 
     try {
-      // Clear previous answer before fetching new one to prevent flashing
+      // Clear previous answer before fetching new one
       setAnswer(null);
       setNoteSaved(false);
+      streamingQA.reset();
       
-      const result = await videoQA.mutateAsync({
-        lessonId,
-        question: question.trim(),
-        currentTime,
-        timeWindow: 30,
-        aiMode // Pass AI mode to backend
-      });
-      setAnswer(result);
+      if (useStreaming) {
+        // Use streaming mode
+        await streamingQA.askQuestion({
+          lessonId,
+          question: question.trim(),
+          currentTime,
+          timeWindow: 30,
+          aiMode,
+          stream: true
+        });
+      } else {
+        // Use regular mode
+        const result = await videoQA.mutateAsync({
+          lessonId,
+          question: question.trim(),
+          currentTime,
+          timeWindow: 30,
+          aiMode
+        });
+        setAnswer(result);
+      }
     } catch (error) {
       console.error('QA submission failed:', error);
     }
@@ -101,18 +122,19 @@ export function VideoQAPanel({
     setQuestion('');
     setAnswer(null);
     setNoteSaved(false);
+    streamingQA.reset();
   };
 
   const handleSaveAsNote = async () => {
-    if (!answer || !lessonId) return;
+    if (!effectiveAnswer || !lessonId) return;
 
     setIsSavingNote(true);
     try {
       await createNote.mutateAsync({
         lessonId: parseInt(lessonId),
         timestampSec: currentTime,
-        content: `**Q:** ${question}\n\n**A:** ${answer.answer}`,
-        aiSummary: answer.answer,
+        content: `**Q:** ${question}\n\n**A:** ${effectiveAnswer.answer}`,
+        aiSummary: effectiveAnswer.answer,
         tags: ['ai-qa', 'video-note'],
         title: question.length > 50 ? question.substring(0, 50) + '...' : question,
         noteType: 'ai_generated',
@@ -207,28 +229,75 @@ export function VideoQAPanel({
 
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {videoQA.isPending ? (
-          /* Loading State */
+        {isProcessing ? (
+          /* Loading State with Streaming Updates */
           <div className="p-4 space-y-4">
             <div className="bg-slate-700 p-3 rounded-xl border border-slate-600 animate-pulse">
               <div className="h-4 bg-slate-600 rounded w-3/4 mb-2"></div>
               <div className="h-3 bg-slate-600 rounded w-full"></div>
             </div>
+            
+            {/* Streaming Status Display */}
             <div className="bg-green-800 p-3 rounded-xl border border-green-600">
               <div className="flex items-center gap-2 mb-3">
                 <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
                 <div className="text-sm font-medium text-green-300">
-                  AI {aiMode === 'thinking' ? 'is thinking deeply...' : aiMode === 'normal' ? 'is analyzing...' : 'is processing...'}
+                  {streamingQA.currentStatus || (aiMode === 'thinking' ? 'AI is thinking deeply...' : aiMode === 'normal' ? 'AI is analyzing...' : 'AI is processing...')}
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="h-3 bg-green-700 rounded w-full animate-pulse"></div>
-                <div className="h-3 bg-green-700 rounded w-5/6 animate-pulse"></div>
-                <div className="h-3 bg-green-700 rounded w-4/6 animate-pulse"></div>
-              </div>
+              
+              {/* Progress Bar */}
+              {streamingQA.progress > 0 && (
+                <div className="mb-3">
+                  <div className="w-full bg-green-900 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-green-400 transition-all duration-300 ease-out"
+                      style={{ width: `${streamingQA.progress}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-green-300 mt-1 text-right">
+                    {streamingQA.progress}%
+                  </div>
+                </div>
+              )}
+              
+              {/* Streaming Updates Log */}
+              {streamingQA.streamUpdates.length > 0 && (
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {streamingQA.streamUpdates
+                    .filter(update => update.type === 'status')
+                    .slice(-5) // Show last 5 updates
+                    .map((update, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-start gap-2 text-xs text-green-200 bg-green-900/30 p-2 rounded"
+                      >
+                        <Activity className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-medium">{update.message}</div>
+                          {update.data && (
+                            <div className="text-green-300/70 mt-0.5">
+                              {JSON.stringify(update.data).substring(0, 100)}
+                              {JSON.stringify(update.data).length > 100 && '...'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              
+              {/* Fallback animation if no streaming updates */}
+              {streamingQA.streamUpdates.length === 0 && (
+                <div className="space-y-2">
+                  <div className="h-3 bg-green-700 rounded w-full animate-pulse"></div>
+                  <div className="h-3 bg-green-700 rounded w-5/6 animate-pulse"></div>
+                  <div className="h-3 bg-green-700 rounded w-4/6 animate-pulse"></div>
+                </div>
+              )}
             </div>
           </div>
-        ) : !answer ? (
+        ) : !effectiveAnswer ? (
           /* Question Input */
           <div className="p-4 space-y-4">
             <div>
@@ -253,10 +322,10 @@ export function VideoQAPanel({
               </div>
               <button
                 onClick={handleSubmit}
-                disabled={!question.trim() || videoQA.isPending}
+                disabled={!question.trim() || isProcessing}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200"
               >
-                {videoQA.isPending ? (
+                {isProcessing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />
@@ -308,15 +377,15 @@ export function VideoQAPanel({
                 <div className="text-sm font-medium text-green-300">
                   AI {t('answer')}:
                 </div>
-                {answer.metadata?.aiMode && (
+                {effectiveAnswer.metadata?.aiMode && (
                   <span className="text-xs px-2 py-0.5 rounded bg-green-700 text-green-200">
-                    {answer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : answer.metadata.aiMode === 'normal' ? '⚙️ Normal' : '⚡ Fast'}
+                    {effectiveAnswer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : effectiveAnswer.metadata.aiMode === 'normal' ? '⚙️ Normal' : '⚡ Fast'}
                   </span>
                 )}
               </div>
               
               {/* Thinking Process (New) */}
-              {answer.thinking && (
+              {effectiveAnswer.thinking && (
                 <details className="mb-3 bg-purple-900/30 border border-purple-600/50 rounded-lg overflow-hidden">
                   <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-300 hover:bg-purple-900/50 transition-colors flex items-center gap-2">
                     <Brain className="w-3 h-3" />
@@ -324,28 +393,28 @@ export function VideoQAPanel({
                   </summary>
                   <div className="px-3 py-2 text-xs text-gray-300 bg-slate-900/50 border-t border-purple-600/50">
                     <pre className="whitespace-pre-wrap font-mono leading-relaxed">
-                      {answer.thinking}
+                      {effectiveAnswer.thinking}
                     </pre>
                   </div>
                 </details>
               )}
               
               <div className="text-sm text-white whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                {answer.answer}
+                {effectiveAnswer.answer}
               </div>
             </div>
 
             {/* Related Segments */}
-            {answer.segments && answer.segments.length > 0 ? (
+            {effectiveAnswer.segments && effectiveAnswer.segments.length > 0 ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-4 h-4 text-blue-400" />
                   <span className="text-sm font-medium text-gray-200">
-                    {t('related_video_segments')} ({answer.segments.length})
+                    {t('related_video_segments')} ({effectiveAnswer.segments.length})
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {answer.segments.map((segment, index) => (
+                  {effectiveAnswer.segments.map((segment, index) => (
                     <div
                       key={index}
                       className="bg-slate-700 p-3 rounded-xl border border-slate-600 hover:border-blue-500 transition-all duration-200 group"
@@ -387,7 +456,7 @@ export function VideoQAPanel({
                   💡 {t('click_timestamp_to_jump')}
                 </div>
               </div>
-            ) : answer.segments && answer.segments.length === 0 ? (
+            ) : effectiveAnswer.segments && effectiveAnswer.segments.length === 0 ? (
               <div className="bg-yellow-800/30 border border-yellow-600/50 rounded-xl p-3">
                 <div className="flex items-start gap-2">
                   <Clock className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
@@ -402,7 +471,7 @@ export function VideoQAPanel({
             ) : null}
 
             {/* Course Context */}
-            {answer.courseInfo && (
+            {effectiveAnswer.courseInfo && (
               <div className="bg-slate-700 p-3 rounded-xl border border-slate-600">
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen className="w-4 h-4 text-blue-400" />
@@ -411,19 +480,19 @@ export function VideoQAPanel({
                   </span>
                 </div>
                 <div className="space-y-1 text-xs text-gray-300">
-                  {answer.courseInfo.courseName && (
-                    <div>{answer.courseInfo.courseName}</div>
+                  {effectiveAnswer.courseInfo.courseName && (
+                    <div>{effectiveAnswer.courseInfo.courseName}</div>
                   )}
-                  {answer.courseInfo.moduleName && (
+                  {effectiveAnswer.courseInfo.moduleName && (
                     <div className="flex items-center gap-1">
                       <ChevronRight className="w-3 h-3" />
-                      {answer.courseInfo.moduleName}
+                      {effectiveAnswer.courseInfo.moduleName}
                     </div>
                   )}
-                  {answer.courseInfo.lessonName && (
+                  {effectiveAnswer.courseInfo.lessonName && (
                     <div className="flex items-center gap-1">
                       <ChevronRight className="w-3 h-3" />
-                      {answer.courseInfo.lessonName}
+                      {effectiveAnswer.courseInfo.lessonName}
                     </div>
                   )}
                 </div>
@@ -476,10 +545,10 @@ export function VideoQAPanel({
             </div>
 
             {/* AI Content Recommendations */}
-            {answer.answer && answer.answer.length > 50 && (
+            {effectiveAnswer.answer && effectiveAnswer.answer.length > 50 && (
               <div className="mt-4 pt-4 border-t border-slate-600">
                 <AIContentRecommendations
-                  aiResponse={answer.answer}
+                  aiResponse={effectiveAnswer.answer}
                   questionContext={question}
                   className="bg-slate-700/50 rounded-xl p-3"
                 />

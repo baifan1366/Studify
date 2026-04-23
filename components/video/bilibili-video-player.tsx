@@ -1817,13 +1817,13 @@ export default function BilibiliVideoPlayer({
         {/* Video Player Container */}
         <div
           ref={containerRef}
-          className={`relative bg-black group transition-all duration-300 flex-shrink-0 ${
+          className={`relative bg-black group transition-all duration-300 ${
             showNotesSidebar && qaPanel.isOpen
-              ? 'w-[50%] aspect-video'
+              ? 'w-full md:w-[50%]'
               : showNotesSidebar || qaPanel.isOpen
-              ? 'w-[70%] aspect-video' 
-              : 'w-full aspect-video'
-          }`}
+              ? 'w-full md:w-[70%]' 
+              : 'w-full'
+          } aspect-video`}
           onMouseEnter={() => setShowControls(true)}
           onMouseLeave={() => {
             if (isPlaying) {

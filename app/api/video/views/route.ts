@@ -32,17 +32,19 @@ export async function POST(request: NextRequest) {
     
     // Helper function to execute query with timeout
     const withTimeout = async <T>(
-      promise: Promise<T>,
+      promiseOrBuilder: Promise<T> | { then: (resolve: any, reject: any) => any },
       timeoutMs: number = 5000
     ): Promise<T> => {
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Supabase query timeout')), timeoutMs)
       );
-      return Promise.race([promise, timeoutPromise]);
+      // Convert to promise if it's a thenable (like PostgrestBuilder)
+      const promise = Promise.resolve(promiseOrBuilder) as Promise<T>;
+      return Promise.race([promise, timeoutPromise]) as Promise<T>;
     };
 
     // Get lesson to validate it exists (with timeout)
-    const { data: lesson, error: lessonError } = await withTimeout(
+    const lessonResult = await withTimeout(
       supabase
         .from('course_lesson')
         .select('id, title')
@@ -50,6 +52,8 @@ export async function POST(request: NextRequest) {
         .eq('is_deleted', false)
         .single()
     );
+    
+    const { data: lesson, error: lessonError } = lessonResult as { data: any; error: any };
 
     if (lessonError || !lesson) {
       console.error('Lesson lookup error:', lessonError);
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
-    ).catch(() => ({ data: null })); // Ignore errors for optional query
+    ).catch(() => ({ data: null })) as { data: any }; // Ignore errors for optional query
 
     let viewData;
 
@@ -91,7 +95,7 @@ export async function POST(request: NextRequest) {
           .eq('id', existingView.id)
           .select('*')
           .single()
-      );
+      ) as { data: any; error: any };
 
       if (updateError) {
         console.error('Error updating video view:', updateError);
@@ -122,7 +126,7 @@ export async function POST(request: NextRequest) {
           })
           .select('*')
           .single()
-      );
+      ) as { data: any; error: any };
 
       if (insertError) {
         console.error('Error creating video view:', insertError);

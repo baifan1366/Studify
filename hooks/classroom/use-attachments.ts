@@ -134,6 +134,7 @@ export function useUploadFile(classroomSlug: string | undefined) {
       options?.onProgress?.(5);
 
       // Step 1: Upload file to MEGA using client-side upload
+      // Automatically optimizes MP4 videos for streaming
       const megaResult = await uploadToMegaClient(file, {
         onProgress: (progress) => {
           // Map MEGA progress (0-100) to our progress (5-80)
@@ -141,6 +142,14 @@ export function useUploadFile(classroomSlug: string | undefined) {
           options?.onProgress?.(mappedProgress);
         }
       });
+
+      // Show optimization success message for videos
+      if (megaResult.wasOptimized) {
+        toast.success('🎬 Video optimized for instant streaming!', {
+          description: `Processing took ${(megaResult.optimizationTime! / 1000).toFixed(1)}s. Your video will now play instantly without buffering.`,
+          duration: 5000,
+        });
+      }
 
       options?.onProgress?.(85);
 

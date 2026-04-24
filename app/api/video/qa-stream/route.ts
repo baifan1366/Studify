@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
             sendStreamUpdate(encoder, controller, {
               type: 'answer',
               answer: result.answer.trim(),
-              thinking: result.thinking,
+              thinking: result.thinking, // Now includes real thinking from model
               segments: [],
               isExternalVideo: true,
               courseInfo: { courseName: courseTitle, moduleName: moduleTitle, lessonName: lessonTitle },
@@ -298,7 +298,7 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'answer',
             answer: result.answer.trim(),
-            thinking: result.thinking,
+            thinking: result.thinking, // Now includes real thinking from model
             segments: videoSegments,
             timeContext: {
               currentTime,

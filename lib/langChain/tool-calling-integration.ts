@@ -634,6 +634,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     toolsUsed: string[];
     confidence: number;
     timings?: Record<string, number>;
+    thinking?: string; // Reasoning/thinking process from models like deepseek-r1
   }> {
     const startTime = Date.now();
     const timings: Record<string, number> = {};
@@ -697,6 +698,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
 
       // Promise 2: Direct LLM answer (fallback) - starts immediately
       const fallbackStartTime = Date.now();
+      let thinkingProcess = ""; // Store thinking process
+      
       const fallbackPromise = (async () => {
         console.log(`🤖 [${Date.now()}] Step 2: Starting fallback LLM answer...`);
         
@@ -734,6 +737,19 @@ Provide a clear, educational answer even without specific course materials.`;
           timings.fallback_llm = llmTime;
           timings.fallback_total = totalFallbackTime;
           console.log(`✅ [${Date.now()}] Fallback answer completed in ${totalFallbackTime}ms (LLM: ${llmTime}ms)`);
+          
+          // Extract thinking process if available (OpenRouter format)
+          // According to OpenRouter docs, reasoning is in message.reasoning field
+          if (result.reasoning) {
+            thinkingProcess = result.reasoning;
+            console.log(`🧠 [${Date.now()}] Extracted thinking process: ${thinkingProcess.length} chars`);
+          } else if (result.response_metadata?.reasoning) {
+            thinkingProcess = result.response_metadata.reasoning;
+            console.log(`🧠 [${Date.now()}] Extracted thinking from metadata: ${thinkingProcess.length} chars`);
+          } else if (result.additional_kwargs?.reasoning) {
+            thinkingProcess = result.additional_kwargs.reasoning;
+            console.log(`🧠 [${Date.now()}] Extracted thinking from additional_kwargs: ${thinkingProcess.length} chars`);
+          }
           
           return result.content as string;
         } catch (e) {
@@ -826,6 +842,7 @@ Provide the best possible answer combining both sources.`;
               toolsUsed,
               confidence: 0.95,
               timings,
+              thinking: thinkingProcess || undefined, // Include thinking if available
             };
           }
         } catch (e) {
@@ -844,6 +861,7 @@ Provide the best possible answer combining both sources.`;
         toolsUsed: searchCompleted ? [...toolsUsed, "direct_llm"] : ["direct_llm"],
         confidence: searchCompleted && structuredSources.length > 0 ? 0.85 : 0.75,
         timings,
+        thinking: thinkingProcess || undefined, // Include thinking if available
       };
 
     } catch (error) {

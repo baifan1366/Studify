@@ -384,8 +384,8 @@ export function VideoQAPanel({
                 )}
               </div>
               
-              {/* Thinking Process (New) */}
-              {effectiveAnswer.thinking && (
+              {/* Thinking Process - Only show if available */}
+              {effectiveAnswer.thinking && effectiveAnswer.thinking.trim() && (
                 <details className="mb-3 bg-purple-900/30 border border-purple-600/50 rounded-lg overflow-hidden">
                   <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-300 hover:bg-purple-900/50 transition-colors flex items-center gap-2">
                     <Brain className="w-3 h-3" />

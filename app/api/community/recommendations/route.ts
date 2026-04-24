@@ -1795,7 +1795,7 @@ async function calculateAIActivityVector(supabase: any, userId: number): Promise
   ]);
 
   // Get Q&A messages separately (after we have session IDs)
-  let qaMessages = { data: null, error: null };
+  let qaMessages: { data: any[] | null; error: any } = { data: null, error: null };
   if (qaSessions.data && qaSessions.data.length > 0) {
     const sessionIds = qaSessions.data.map((s: any) => s.id);
     qaMessages = await supabase

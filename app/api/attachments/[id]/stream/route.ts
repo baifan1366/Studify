@@ -7,7 +7,7 @@ import { Storage, File } from 'megajs'
 let globalStorage: Storage | null = null
 let storageExpiry: number = 0
 const STORAGE_REUSE_DURATION = 15 * 60 * 1000 // 15 minutes (increased for better connection reuse)
-const MAX_CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunks (increased for better streaming performance)
+const MAX_CHUNK_SIZE = 1 * 1024 * 1024 // 1MB chunks (optimized for mobile networks and seek performance)
 const MEMORY_LIMIT = 50 * 1024 * 1024 // 50MB memory limit (increased for PDFs and large files)
 const PDF_MEMORY_LIMIT = 100 * 1024 * 1024 // 100MB for PDFs specifically
 const STREAMING_TIMEOUT = 60000 // 60 seconds streaming timeout (increased for large files)
@@ -584,7 +584,9 @@ export async function GET(
             'Accept-Ranges': 'bytes',
             'Content-Length': chunkSize.toString(),
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year (video chunks don't change)
+            // Cache for 1 hour (safer than immutable - allows updates if needed)
+            // For truly immutable content, use versioned URLs (e.g., /video/{id}?v=hash)
+            'Cache-Control': 'public, max-age=3600',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length',
           },
@@ -760,7 +762,9 @@ export async function GET(
             'Content-Length': fileSize.toString(),
             'Content-Type': contentType,
             'Accept-Ranges': 'bytes',
-            'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year
+            // Cache for 1 hour (safer than immutable - allows updates if needed)
+            // For truly immutable content, use versioned URLs (e.g., /video/{id}?v=hash)
+            'Cache-Control': 'public, max-age=3600',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length',
           },

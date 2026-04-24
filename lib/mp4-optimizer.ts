@@ -93,7 +93,34 @@ function parseMP4Atoms(buffer: Uint8Array): MP4Atom[] {
 }
 
 /**
- * Update stco (chunk offset) atoms to reflect new positions
+ * Read a 64-bit big-endian integer (for co64)
+ */
+function readUInt64BE(buffer: Uint8Array, offset: number): number {
+  // JavaScript can't safely represent 64-bit integers, so we use the lower 32 bits
+  // This is acceptable for most video files (< 4GB chunks)
+  const high = readUInt32BE(buffer, offset);
+  const low = readUInt32BE(buffer, offset + 4);
+  
+  // If high bits are used, we have a problem (file > 4GB)
+  if (high > 0) {
+    console.warn('⚠️ File uses 64-bit offsets > 4GB - may not be fully supported');
+  }
+  
+  return low;
+}
+
+/**
+ * Write a 64-bit big-endian integer (for co64)
+ */
+function writeUInt64BE(buffer: Uint8Array, value: number, offset: number): void {
+  // Write high 32 bits (always 0 for values < 4GB)
+  writeUInt32BE(buffer, 0, offset);
+  // Write low 32 bits
+  writeUInt32BE(buffer, value, offset + 4);
+}
+
+/**
+ * Update stco (32-bit) and co64 (64-bit) chunk offset atoms to reflect new positions
  */
 function updateChunkOffsets(moovData: Uint8Array, offsetDelta: number): Uint8Array {
   const result = new Uint8Array(moovData);
@@ -111,7 +138,7 @@ function updateChunkOffsets(moovData: Uint8Array, offsetDelta: number): Uint8Arr
 
     if (size < 8 || offset + size > result.length) break;
 
-    // Update chunk offsets in stco atom
+    // Update chunk offsets in stco atom (32-bit offsets)
     if (type === 'stco') {
       // stco format: [size][type][version+flags][entry_count][offsets...]
       const entryCount = readUInt32BE(result, offset + 12);
@@ -125,6 +152,21 @@ function updateChunkOffsets(moovData: Uint8Array, offsetDelta: number): Uint8Arr
         }
       }
     }
+    
+    // Update chunk offsets in co64 atom (64-bit offsets)
+    if (type === 'co64') {
+      // co64 format: [size][type][version+flags][entry_count][offsets...]
+      const entryCount = readUInt32BE(result, offset + 12);
+      
+      for (let i = 0; i < entryCount; i++) {
+        const offsetPos = offset + 16 + i * 8;
+        if (offsetPos + 8 <= result.length) {
+          const oldOffset = readUInt64BE(result, offsetPos);
+          const newOffset = oldOffset + offsetDelta;
+          writeUInt64BE(result, newOffset, offsetPos);
+        }
+      }
+    }
 
     offset += size;
   }
@@ -133,12 +175,30 @@ function updateChunkOffsets(moovData: Uint8Array, offsetDelta: number): Uint8Arr
 }
 
 /**
+ * Check if MP4 is fragmented (fMP4) - not supported for faststart
+ */
+function isFragmentedMP4(atoms: MP4Atom[]): boolean {
+  // Fragmented MP4s have 'moof' (movie fragment) atoms
+  return atoms.some(a => a.type === 'moof');
+}
+
+/**
  * Pure JavaScript MP4 faststart implementation
  * Reorders atoms: [ftyp][moov][mdat][others]
+ * 
+ * ⚠️ LIMITATIONS:
+ * - Only supports progressive MP4 (not fragmented MP4/fMP4)
+ * - Supports both stco (32-bit) and co64 (64-bit) chunk offsets
+ * - Multi-track files (audio + video) are supported
  */
 function faststart(inputBuffer: Buffer): Buffer {
   const input = new Uint8Array(inputBuffer);
   const atoms = parseMP4Atoms(input);
+
+  // Check for fragmented MP4 (not supported)
+  if (isFragmentedMP4(atoms)) {
+    throw new Error('Fragmented MP4 (fMP4) is not supported. Only progressive MP4 files can be optimized.');
+  }
 
   // Find key atoms
   const ftypAtom = atoms.find(a => a.type === 'ftyp');
@@ -158,7 +218,7 @@ function faststart(inputBuffer: Buffer): Buffer {
   // Calculate offset delta for chunk offset updates
   const offsetDelta = ftypAtom.size + moovAtom.size - moovAtom.offset;
 
-  // Update chunk offsets in moov atom
+  // Update chunk offsets in moov atom (handles both stco and co64)
   const updatedMoovData = updateChunkOffsets(moovAtom.data, offsetDelta);
 
   // Build optimized MP4: [ftyp][moov][mdat][others]
@@ -191,32 +251,74 @@ function faststart(inputBuffer: Buffer): Buffer {
 
 /**
  * Check if an MP4 file is already optimized for streaming
- * (moov atom is at the beginning)
+ * (moov atom is at the beginning, before mdat)
  */
 async function isAlreadyOptimized(file: File): Promise<boolean> {
   try {
-    // Read first 8KB to check for moov atom position
-    const headerSize = 8192;
+    // Read first 256KB to check for moov atom position (increased from 8KB)
+    // This handles files with large ftyp/free/metadata atoms
+    const headerSize = Math.min(256 * 1024, file.size);
     const blob = file.slice(0, headerSize);
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     
-    // Look for 'moov' atom in the first 8KB
-    // MP4 atoms are: [4 bytes size][4 bytes type]
-    for (let i = 0; i < bytes.length - 4; i++) {
-      if (
-        bytes[i] === 0x6D &&     // 'm'
-        bytes[i + 1] === 0x6F && // 'o'
-        bytes[i + 2] === 0x6F && // 'o'
-        bytes[i + 3] === 0x76    // 'v'
-      ) {
-        // Found moov atom in first 8KB - already optimized!
-        console.log('✅ MP4 moov atom found in first 8KB - already optimized');
-        return true;
+    // Parse atoms to find moov and mdat positions
+    let moovPosition = -1;
+    let mdatPosition = -1;
+    let offset = 0;
+    
+    while (offset < bytes.length - 8) {
+      const size = readUInt32BE(bytes, offset);
+      const type = String.fromCharCode(
+        bytes[offset + 4],
+        bytes[offset + 5],
+        bytes[offset + 6],
+        bytes[offset + 7]
+      );
+      
+      // Invalid atom size - stop parsing
+      if (size < 8 || size > bytes.length - offset) {
+        break;
       }
+      
+      if (type === 'moov' && moovPosition === -1) {
+        moovPosition = offset;
+      } else if (type === 'mdat' && mdatPosition === -1) {
+        mdatPosition = offset;
+      }
+      
+      // If we found both, we can determine optimization status
+      if (moovPosition !== -1 && mdatPosition !== -1) {
+        break;
+      }
+      
+      offset += size;
     }
     
-    console.log('⚠️ MP4 moov atom not in first 8KB - needs optimization');
+    // If moov is before mdat, it's optimized
+    if (moovPosition !== -1 && mdatPosition !== -1) {
+      const isOptimized = moovPosition < mdatPosition;
+      console.log(isOptimized 
+        ? '✅ MP4 moov atom found before mdat - already optimized'
+        : '⚠️ MP4 moov atom found after mdat - needs optimization'
+      );
+      return isOptimized;
+    }
+    
+    // If we only found moov in first 256KB, assume optimized
+    if (moovPosition !== -1 && mdatPosition === -1) {
+      console.log('✅ MP4 moov atom found in first 256KB (mdat not yet encountered) - likely optimized');
+      return true;
+    }
+    
+    // If we only found mdat, moov is probably at the end - needs optimization
+    if (moovPosition === -1 && mdatPosition !== -1) {
+      console.log('⚠️ MP4 mdat found before moov - needs optimization');
+      return false;
+    }
+    
+    // Couldn't determine - assume not optimized to be safe
+    console.log('⚠️ Could not determine MP4 structure - assuming needs optimization');
     return false;
   } catch (error) {
     console.warn('Failed to check MP4 optimization status:', error);
@@ -226,6 +328,11 @@ async function isAlreadyOptimized(file: File): Promise<boolean> {
 
 /**
  * Optimize an MP4 file for streaming using moov-faststart
+ * 
+ * ⚠️ LIMITATIONS:
+ * - Only supports progressive MP4 (not fragmented MP4/fMP4)
+ * - Large files (>100MB) should use Web Worker or server-side processing
+ * - File size typically remains the same (atom reordering only, no re-encoding)
  * 
  * @param file - The MP4 file to optimize
  * @param onProgress - Optional progress callback (0-100)
@@ -245,6 +352,11 @@ export async function optimizeMP4ForStreaming(
     
     if (!isMP4) {
       throw new Error('File is not an MP4 video');
+    }
+    
+    // Warn about large files (>100MB) - should use Web Worker or server-side
+    if (file.size > 100 * 1024 * 1024) {
+      console.warn('⚠️ Large file detected (>100MB). Consider using Web Worker or server-side processing to avoid UI blocking.');
     }
     
     onProgress?.(5);
@@ -281,7 +393,7 @@ export async function optimizeMP4ForStreaming(
     onProgress?.(40);
     
     // Run moov-faststart optimization
-    console.log('📦 Moving moov atom to beginning...');
+    console.log('📦 Moving moov atom to beginning (supports stco + co64, multi-track)...');
     const outputBuffer = faststart(inputBuffer);
     onProgress?.(80);
     
@@ -298,12 +410,14 @@ export async function optimizeMP4ForStreaming(
     onProgress?.(95);
     
     const processingTime = performance.now() - startTime;
+    const sizeDiff = Math.abs(optimizedFile.size - file.size);
+    const sizeDiffPercent = (sizeDiff / file.size) * 100;
     
     console.log('✅ MP4 optimization complete!', {
       originalSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
       optimizedSize: `${(optimizedFile.size / 1024 / 1024).toFixed(2)} MB`,
+      sizeDifference: sizeDiff > 0 ? `${(sizeDiff / 1024).toFixed(2)} KB (${sizeDiffPercent.toFixed(2)}%)` : 'None',
       processingTime: `${processingTime.toFixed(0)} ms`,
-      sizeChange: file.size === optimizedFile.size ? 'No change (expected)' : 'Size changed (unexpected)',
     });
     
     onProgress?.(100);

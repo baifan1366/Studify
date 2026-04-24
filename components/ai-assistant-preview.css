@@ -154,3 +154,64 @@
   color: inherit;
   font-style: italic;
 }
+
+/* 全屏模式动画 */
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fullscreen-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.fullscreen-content-enter {
+  animation: slideInFromBottom 0.3s ease-out;
+}
+
+/* 全屏模式下的滚动条样式 */
+.fullscreen-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fullscreen-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.fullscreen-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.fullscreen-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark .fullscreen-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark .fullscreen-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark .fullscreen-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

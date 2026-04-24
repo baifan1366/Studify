@@ -76,6 +76,7 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
   const [aiResult, setAIResult] = useState<{type: string; data: any} | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false); // 新增全屏状态
   
   // 所有 hooks 必须在组件顶部调用，在任何条件逻辑之前
   const t = useTranslations('AIAssistant');
@@ -124,8 +125,13 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
     if (!activeFeature) return null;
 
     const commonProps = {
-      onClose: () => setActiveFeature(null),
-      onResult: (data: any) => setAIResult({type: activeFeature, data})
+      onClose: () => {
+        setActiveFeature(null);
+        setIsFullscreen(false);
+      },
+      onResult: (data: any) => setAIResult({type: activeFeature, data}),
+      onFullscreen: () => setIsFullscreen(true), // 传递全屏回调
+      isFullscreen
     };
 
     switch (activeFeature) {
@@ -143,8 +149,33 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
   };
 
   return (
-    <section className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8">
-      <div className="max-w-7xl mx-auto px-6">
+    <>
+      {/* 全屏模式覆盖层 */}
+      <AnimatePresence>
+        {isFullscreen && activeFeature && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 bg-white dark:bg-slate-900"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="h-full w-full"
+            >
+              {renderActiveFeatureCard()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 原有的非全屏内容 */}
+      <section className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8">
+        <div className="max-w-7xl mx-auto px-6">
         {/* Header */}
         <motion.div 
           className="mb-12"
@@ -501,6 +532,7 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
         </motion.div>
       </div>
     </section>
+    </>
   );
 }
 
@@ -651,7 +683,12 @@ function formatRelativeTime(dateString: string): string {
 }
 
 // 聊天室风格的 QuickQA 卡片
-function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (data: any) => void }) {
+function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: { 
+  onClose: () => void; 
+  onResult: (data: any) => void;
+  onFullscreen?: () => void;
+  isFullscreen?: boolean;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -911,10 +948,10 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   };
 
   return (
-    <Card className="w-full h-[500px] border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60 flex flex-row overflow-hidden">
+    <Card className={`${isFullscreen ? 'h-screen rounded-none border-0' : 'w-full h-[500px] border border-slate-200 dark:border-slate-700/30'} bg-white dark:bg-slate-800/60 flex flex-row overflow-hidden`}>
       {/* Sidebar */}
       {showSidebar && (
-        <div className="w-48 border-r border-slate-200 dark:border-slate-700/30 flex flex-col bg-slate-50 dark:bg-slate-800/40">
+        <div className={`${isFullscreen ? 'w-64' : 'w-48'} border-r border-slate-200 dark:border-slate-700/30 flex flex-col bg-slate-50 dark:bg-slate-800/40 transition-all duration-300`}>
           {/* New Chat Button */}
           <div className="p-2 border-b border-slate-200 dark:border-slate-700/30">
             <Button
@@ -1113,6 +1150,12 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
                 value={currentInput}
                 onChange={(e) => setCurrentInput(e.target.value)}
                 onKeyPress={handleKeyPress}
+                onFocus={() => {
+                  // 当用户点击输入框时，触发全屏
+                  if (!isFullscreen && onFullscreen) {
+                    onFullscreen();
+                  }
+                }}
                 placeholder={t('chat.input.placeholder')}
                 className="min-h-[36px] max-h-[120px] resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
                 disabled={isTyping}
@@ -1138,7 +1181,12 @@ function QuickQACard({ onClose, onResult }: { onClose: () => void; onResult: (da
   );
 }
 
-function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult: (data: any) => void }) {
+function SolveProblemCard({ onClose, onResult, onFullscreen, isFullscreen }: { 
+  onClose: () => void; 
+  onResult: (data: any) => void;
+  onFullscreen?: () => void;
+  isFullscreen?: boolean;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -1362,7 +1410,7 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
   };
 
   return (
-    <Card className="w-full border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60">
+    <Card className={`${isFullscreen ? 'h-screen rounded-none border-0' : 'w-full border border-slate-200 dark:border-slate-700/30'} bg-white dark:bg-slate-800/60 transition-all duration-300`}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -1394,7 +1442,13 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            // 当用户点击上传区域时，触发全屏
+            if (!isFullscreen && onFullscreen) {
+              onFullscreen();
+            }
+            fileInputRef.current?.click();
+          }}
         >
           <input
             ref={fileInputRef}
@@ -1511,7 +1565,12 @@ function SolveProblemCard({ onClose, onResult }: { onClose: () => void; onResult
   );
 }
 
-function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: (data: any) => void }) {
+function SmartNotesCard({ onClose, onResult, onFullscreen, isFullscreen }: { 
+  onClose: () => void; 
+  onResult: (data: any) => void;
+  onFullscreen?: () => void;
+  isFullscreen?: boolean;
+}) {
   const [content, setContent] = useState('');
   const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast'); // AI mode state
   const smartNotesMutation = useAISmartNotes();
@@ -1568,7 +1627,7 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
   };
 
   return (
-    <Card className="w-full border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60">
+    <Card className={`${isFullscreen ? 'h-screen rounded-none border-0' : 'w-full border border-slate-200 dark:border-slate-700/30'} bg-white dark:bg-slate-800/60 transition-all duration-300`}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -1591,6 +1650,12 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
           placeholder={t('features.smart_notes.placeholder')}
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onFocus={() => {
+            // 当用户点击输入框时，触发全屏
+            if (!isFullscreen && onFullscreen) {
+              onFullscreen();
+            }
+          }}
           className="min-h-[120px] bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
         />
         <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
@@ -1642,7 +1707,12 @@ function SmartNotesCard({ onClose, onResult }: { onClose: () => void; onResult: 
   );
 }
 
-function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult: (data: any) => void }) {
+function LearningPathCard({ onClose, onResult, onFullscreen, isFullscreen }: { 
+  onClose: () => void; 
+  onResult: (data: any) => void;
+  onFullscreen?: () => void;
+  isFullscreen?: boolean;
+}) {
   const [goal, setGoal] = useState('');
   const [level, setLevel] = useState('');
   const [timeConstraint, setTimeConstraint] = useState('');
@@ -1722,7 +1792,7 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
   };
 
   return (
-    <Card className="w-full border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60">
+    <Card className={`${isFullscreen ? 'h-screen rounded-none border-0' : 'w-full border border-slate-200 dark:border-slate-700/30'} bg-white dark:bg-slate-800/60 transition-all duration-300`}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -1745,6 +1815,12 @@ function LearningPathCard({ onClose, onResult }: { onClose: () => void; onResult
           placeholder={t('features.learning_path.placeholder')}
           value={goal}
           onChange={(e) => setGoal(e.target.value)}
+          onFocus={() => {
+            // 当用户点击输入框时，触发全屏
+            if (!isFullscreen && onFullscreen) {
+              onFullscreen();
+            }
+          }}
           className="bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
         />
         

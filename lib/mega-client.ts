@@ -1,10 +1,13 @@
 import { Storage } from 'megajs'
 import { detectFileType } from '@/utils/attachment/file-type-detector'
+import { optimizeMP4ForStreaming, shouldOptimizeFile } from './mp4-optimizer'
 
 export interface ClientUploadResult {
   url: string
   size: number
   type: string
+  wasOptimized?: boolean
+  optimizationTime?: number
 }
 
 interface MegaError extends Error {
@@ -209,13 +212,45 @@ async function getMegaCredentials(): Promise<{ email: string; password: string }
 /**
  * Client-side upload to MEGA using server-provided credentials
  * Credentials are fetched securely from server environment variables
+ * 
+ * Automatically optimizes MP4 videos for streaming before upload
  */
 export async function uploadToMegaClient(
   file: File, 
   options?: {
     onProgress?: (progress: number) => void
+    skipOptimization?: boolean // Allow skipping optimization if needed
   }
 ): Promise<ClientUploadResult> {
+  let fileToUpload = file;
+  let wasOptimized = false;
+  let optimizationTime = 0;
+  
+  // Auto-optimize MP4 videos for streaming (unless explicitly skipped)
+  if (!options?.skipOptimization && shouldOptimizeFile(file)) {
+    console.log('🎬 Detected MP4 video - optimizing for instant streaming...');
+    
+    try {
+      const optimizationResult = await optimizeMP4ForStreaming(file, (progress) => {
+        // Map optimization progress to 0-10% of total progress
+        options?.onProgress?.(progress * 0.1);
+      });
+      
+      fileToUpload = optimizationResult.optimizedFile;
+      wasOptimized = optimizationResult.wasOptimized;
+      optimizationTime = optimizationResult.processingTime;
+      
+      if (optimizationResult.wasOptimized) {
+        console.log('✅ MP4 optimized for streaming! Upload will enable instant playback.');
+      } else if (optimizationResult.alreadyOptimized) {
+        console.log('✅ MP4 already optimized for streaming.');
+      }
+    } catch (error) {
+      console.warn('⚠️ MP4 optimization failed, uploading original file:', error);
+      // Continue with original file if optimization fails
+    }
+  }
+  
   // Get credentials from secure API endpoint
   let email: string
   let password: string
@@ -236,39 +271,42 @@ export async function uploadToMegaClient(
   }
 
   // Validate file
-  if (!file || file.size === 0) {
+  if (!fileToUpload || fileToUpload.size === 0) {
     throw new Error('Invalid file: File is empty or undefined')
   }
 
   // No file size limit for client-side upload since we bypass Next.js
-  console.log(`Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+  console.log(`Uploading file: ${fileToUpload.name} (${(fileToUpload.size / 1024 / 1024).toFixed(2)} MB)`)
 
   let storage: Storage | null = null
 
   try {    
-    // Report progress
-    options?.onProgress?.(10)
+    // Report progress (start from 10% if we optimized, otherwise 10%)
+    const progressOffset = wasOptimized ? 10 : 0;
+    options?.onProgress?.(progressOffset + 10)
     
     // Create MEGA storage instance with retry logic
     storage = await createMegaStorage(email, password)
-    options?.onProgress?.(30)
+    options?.onProgress?.(progressOffset + 30)
     
     // Upload file with retry logic
-    const uploadedFile = await uploadFileToMega(storage, file)
-    options?.onProgress?.(80)
+    const uploadedFile = await uploadFileToMega(storage, fileToUpload)
+    options?.onProgress?.(progressOffset + 80)
     
     // Get public share link with retry logic
     const shareUrl = await getShareLink(uploadedFile)
-    options?.onProgress?.(95)
+    options?.onProgress?.(progressOffset + 95)
     
     // Detect file type
-    const fileType = detectFileType(file.name, file.type)
+    const fileType = detectFileType(fileToUpload.name, fileToUpload.type)
     options?.onProgress?.(100)
     
     return {
       url: shareUrl,
-      size: file.size,
-      type: fileType
+      size: fileToUpload.size,
+      type: fileType,
+      wasOptimized,
+      optimizationTime: wasOptimized ? optimizationTime : undefined,
     }
   } catch (error) {
     console.error('MEGA client upload process failed:', error)

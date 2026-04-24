@@ -103,20 +103,63 @@ export function useTrackVideoView() {
       isCompleted?: boolean;
       deviceInfo?: any;
     }) => {
-      const response = await fetch("/api/video/views", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
+      // Retry logic for Supabase 502 errors
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch("/api/video/views", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(data),
+          });
 
-      if (!response.ok) {
-        throw new Error("Failed to track video view");
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            
+            try {
+              const errorJson = JSON.parse(errorText);
+              errorMessage += `, message: ${JSON.stringify(errorJson)}`;
+            } catch {
+              errorMessage += `, response: ${errorText.substring(0, 200)}`;
+            }
+            
+            // Check if it's a 502 Bad Gateway (Supabase timeout)
+            if (response.status === 502 && attempt < maxRetries) {
+              console.warn(`[VIDEO_VIEW] Attempt ${attempt}/${maxRetries} failed with 502, retrying...`);
+              // Exponential backoff: 1s, 2s, 4s
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+              lastError = new Error(errorMessage);
+              continue; // Retry
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          return response.json();
+        } catch (error) {
+          lastError = error as Error;
+          
+          // If it's a network error and we have retries left, retry
+          if (attempt < maxRetries && (error as Error).message.includes('fetch')) {
+            console.warn(`[VIDEO_VIEW] Attempt ${attempt}/${maxRetries} failed with network error, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+            continue;
+          }
+          
+          // If it's the last attempt or non-retryable error, throw
+          if (attempt === maxRetries) {
+            throw lastError;
+          }
+        }
       }
-
-      return response.json();
+      
+      throw lastError || new Error("Failed to track video view after retries");
     },
     onSuccess: (data, variables) => {
       // Update the video views cache
@@ -124,9 +167,21 @@ export function useTrackVideoView() {
         queryKey: ["video-views", variables.lessonId],
       });
     },
-    onError: (error) => {
-      console.error("Error tracking video view:", error);
+    onError: (error: Error) => {
+      // Only log to console, don't show toast to avoid annoying users
+      // This is a background operation that shouldn't interrupt viewing
+      console.error("Failed to update video position:", error);
+      
+      // Optional: Send to error tracking service
+      // if (typeof window !== 'undefined' && window.gtag) {
+      //   window.gtag('event', 'exception', {
+      //     description: `Video position update failed: ${error.message}`,
+      //     fatal: false,
+      //   });
+      // }
     },
+    // Don't retry on mutation level (we handle retries in mutationFn)
+    retry: false,
   });
 }
 

@@ -6,12 +6,43 @@ import { Storage, File } from 'megajs'
 // Global MEGA storage instance for connection pooling
 let globalStorage: Storage | null = null
 let storageExpiry: number = 0
-const STORAGE_REUSE_DURATION = 5 * 60 * 1000 // 5 minutes
-const MAX_CHUNK_SIZE = 1024 * 1024 // 1MB chunks
+const STORAGE_REUSE_DURATION = 15 * 60 * 1000 // 15 minutes (increased for better connection reuse)
+const MAX_CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunks (increased for better streaming performance)
 const MEMORY_LIMIT = 50 * 1024 * 1024 // 50MB memory limit (increased for PDFs and large files)
 const PDF_MEMORY_LIMIT = 100 * 1024 * 1024 // 100MB for PDFs specifically
 const STREAMING_TIMEOUT = 60000 // 60 seconds streaming timeout (increased for large files)
 const PDF_STREAMING_TIMEOUT = 120000 // 120 seconds for PDFs specifically
+
+// Preload MEGA storage on server startup to reduce first request latency
+let storagePreloadPromise: Promise<Storage> | null = null
+
+async function preloadMegaStorage(): Promise<Storage> {
+  const email = process.env.MEGA_EMAIL
+  const password = process.env.MEGA_PASSWORD
+  
+  if (!email || !password) {
+    throw new Error('MEGA credentials not configured')
+  }
+  
+  const storage = new Storage({
+    email,
+    password,
+    userAgent: 'Studify/1.0 (+https://studify.app)',
+    keepalive: true,
+    autologin: true
+  })
+  
+  await storage.ready
+  return storage
+}
+
+// Start preloading storage on module load
+if (process.env.MEGA_EMAIL && process.env.MEGA_PASSWORD) {
+  storagePreloadPromise = preloadMegaStorage().catch(err => {
+    console.error('Failed to preload MEGA storage:', err)
+    return null as any
+  })
+}
 
 // Enhanced logging utility
 const logStep = (step: string, data: any = {}) => {
@@ -185,7 +216,7 @@ export async function GET(
     })
     
     try {
-      // Get or create MEGA storage instance with connection pooling
+      // Get or create MEGA storage instance with connection pooling and preloading
       let storage = globalStorage
       const megaStartTime = Date.now()
       
@@ -193,54 +224,87 @@ export async function GET(
         logStep('MEGA_STORAGE_CREATE_START', {
           requestId,
           reason: !storage ? 'no_instance' : 'expired',
-          cacheAge: storage ? Date.now() - (storageExpiry - STORAGE_REUSE_DURATION) : 0
+          cacheAge: storage ? Date.now() - (storageExpiry - STORAGE_REUSE_DURATION) : 0,
+          hasPreloadPromise: !!storagePreloadPromise
         })
         
         const authStartTime = Date.now()
         
-        storage = new Storage({
-          email,
-          password,
-          userAgent: 'Studify/1.0 (+https://studify.app)',
-          keepalive: true,
-          autologin: true
-        })
+        // Try to use preloaded storage first
+        if (storagePreloadPromise) {
+          try {
+            storage = await Promise.race([
+              storagePreloadPromise,
+              new Promise<Storage>((_, reject) => 
+                setTimeout(() => reject(new Error('Preload timeout')), 30000) // Increased to 10s
+              )
+            ])
+            
+            logStep('MEGA_STORAGE_PRELOAD_SUCCESS', {
+              requestId,
+              duration: Date.now() - authStartTime + 'ms'
+            })
+            
+            // Clear preload promise after use
+            storagePreloadPromise = null
+          } catch (preloadError) {
+            // Log as info, not error - this is expected fallback behavior
+            logStep('MEGA_STORAGE_PRELOAD_TIMEOUT', {
+              requestId,
+              message: 'Preload timed out, creating new storage instance',
+              duration: Date.now() - authStartTime + 'ms'
+            })
+            // Fall through to create new storage
+            storage = null
+          }
+        }
         
-        logStep('MEGA_STORAGE_CREATED', {
-          requestId,
-          authStartTime
-        })
-        
-        // Set timeout for authentication with enhanced error handling
-        const authTimeout = new Promise((_, reject) => {
-          setTimeout(() => {
-            const error = new Error('MEGA authentication timeout after 30s')
-            logError('MEGA_AUTH_TIMEOUT', error, {
+        // Create new storage if preload failed or not available
+        if (!storage) {
+          storage = new Storage({
+            email,
+            password,
+            userAgent: 'Studify/1.0 (+https://studify.app)',
+            keepalive: true,
+            autologin: true
+          })
+          
+          logStep('MEGA_STORAGE_CREATED', {
+            requestId,
+            authStartTime
+          })
+          
+          // Set timeout for authentication with enhanced error handling
+          const authTimeout = new Promise((_, reject) => {
+            setTimeout(() => {
+              const error = new Error('MEGA authentication timeout after 30s')
+              logError('MEGA_AUTH_TIMEOUT', error, {
+                requestId,
+                duration: Date.now() - authStartTime
+              })
+              reject(error)
+            }, 30000)
+          })
+          
+          try {
+            await Promise.race([storage.ready, authTimeout])
+            const authDuration = Date.now() - authStartTime
+            
+            logStep('MEGA_AUTH_SUCCESS', {
+              requestId,
+              duration: authDuration + 'ms'
+            })
+          } catch (authError) {
+            logError('MEGA_AUTH_FAILED', authError, {
               requestId,
               duration: Date.now() - authStartTime
             })
-            reject(error)
-          }, 30000)
-        })
-        
-        try {
-          await Promise.race([storage.ready, authTimeout])
-          const authDuration = Date.now() - authStartTime
-          
-          logStep('MEGA_AUTH_SUCCESS', {
-            requestId,
-            duration: authDuration + 'ms'
-          })
-          
-          globalStorage = storage
-          storageExpiry = Date.now() + STORAGE_REUSE_DURATION
-        } catch (authError) {
-          logError('MEGA_AUTH_FAILED', authError, {
-            requestId,
-            duration: Date.now() - authStartTime
-          })
-          throw authError
+            throw authError
+          }
         }
+        
+        globalStorage = storage
+        storageExpiry = Date.now() + STORAGE_REUSE_DURATION
       } else {
         const cacheAge = Date.now() - (storageExpiry - STORAGE_REUSE_DURATION)
         logStep('MEGA_STORAGE_REUSE', {
@@ -256,9 +320,15 @@ export async function GET(
         url: attachmentData.url.substring(0, 50) + '...'
       })
       
-      const file = File.fromURL(attachmentData.url)
+      // OPTIMIZATION: Use File.fromURL with the logged-in API to increase download limits
+      // This reuses the authenticated session instead of creating an anonymous download
+      const file = File.fromURL(attachmentData.url, { 
+        api: storage.api // Pass the authenticated API object
+      })
+      
       logStep('MEGA_FILE_OBJECT_CREATED', {
-        requestId
+        requestId,
+        usingAuthenticatedApi: true
       })
       
       try {
@@ -396,7 +466,22 @@ export async function GET(
                 end: end + 1
               })
               
-              const downloadStream = file.download({ start, end: end + 1 })
+              // mega.js download() only accepts { start, end } options
+              // Other options like maxConnections are NOT supported
+              const downloadStream = file.download({ 
+                start, 
+                end: end + 1
+              })
+              
+              // Listen to progress events for better monitoring
+              downloadStream.on('progress', (info: any) => {
+                logStep('MEGA_DOWNLOAD_PROGRESS', {
+                  requestId,
+                  bytesLoaded: info.bytesLoaded,
+                  bytesTotal: info.bytesTotal,
+                  progress: ((info.bytesLoaded / info.bytesTotal) * 100).toFixed(2) + '%',
+                })
+              })
               let totalReceived = 0
               let chunkCount = 0
               let lastProgressLog = Date.now()
@@ -538,7 +623,18 @@ export async function GET(
                 requestId
               })
               
+              // mega.js download() requires at least an empty options object
               const downloadStream = file.download({})
+              
+              // Listen to progress events for better monitoring
+              downloadStream.on('progress', (info: any) => {
+                logStep('MEGA_DOWNLOAD_PROGRESS_FULL', {
+                  requestId,
+                  bytesLoaded: info.bytesLoaded,
+                  bytesTotal: info.bytesTotal,
+                  progress: ((info.bytesLoaded / info.bytesTotal) * 100).toFixed(2) + '%',
+                })
+              })
               let totalReceived = 0
               let chunkCount = 0
               const streamStartTime = Date.now()

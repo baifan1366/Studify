@@ -331,3 +331,6 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|sw.js|OneSignalSDKWorker.js|.*.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
+
+// Export as 'proxy' for Next.js 16
+export { middleware as proxy };

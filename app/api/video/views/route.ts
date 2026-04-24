@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const supabase = await createAdminClient();
     
     const { 
       lessonId, 
@@ -28,84 +27,111 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get lesson to validate it exists
-    const { data: lesson, error: lessonError } = await supabase
-      .from('course_lesson')
-      .select('id, title')
-      .eq('public_id', lessonId)
-      .eq('is_deleted', false)
-      .single();
+    // Create Supabase client with timeout
+    const supabase = await createAdminClient();
+    
+    // Helper function to execute query with timeout
+    const withTimeout = async <T>(
+      promiseOrBuilder: Promise<T> | { then: (resolve: any, reject: any) => any },
+      timeoutMs: number = 5000
+    ): Promise<T> => {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase query timeout')), timeoutMs)
+      );
+      // Convert to promise if it's a thenable (like PostgrestBuilder)
+      const promise = Promise.resolve(promiseOrBuilder) as Promise<T>;
+      return Promise.race([promise, timeoutPromise]) as Promise<T>;
+    };
+
+    // Get lesson to validate it exists (with timeout)
+    const lessonResult = await withTimeout(
+      supabase
+        .from('course_lesson')
+        .select('id, title')
+        .eq('public_id', lessonId)
+        .eq('is_deleted', false)
+        .single()
+    );
+    
+    const { data: lesson, error: lessonError } = lessonResult as { data: any; error: any };
 
     if (lessonError || !lesson) {
+      console.error('Lesson lookup error:', lessonError);
       return NextResponse.json(
         { error: 'Lesson not found' },
         { status: 404 }
       );
     }
 
-    // Check if there's an active view session for this user/lesson
-    const { data: existingView } = await supabase
-      .from('video_views')
-      .select('id, watch_duration_sec, last_position_sec')
-      .eq('user_id', authResult.user.profile?.id || authResult.user.id)
-      .eq('lesson_id', lesson.id)
-      .is('session_end_time', null) // Active session
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Check if there's an active view session for this user/lesson (with timeout)
+    const { data: existingView } = await withTimeout(
+      supabase
+        .from('video_views')
+        .select('id, watch_duration_sec, last_position_sec')
+        .eq('user_id', authResult.user.profile?.id || authResult.user.id)
+        .eq('lesson_id', lesson.id)
+        .is('session_end_time', null) // Active session
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+    ).catch(() => ({ data: null })) as { data: any }; // Ignore errors for optional query
 
     let viewData;
 
     if (existingView) {
-      // Update existing active session
-      const { data: updatedView, error: updateError } = await supabase
-        .from('video_views')
-        .update({
-          watch_duration_sec: Math.max(existingView.watch_duration_sec, watchDurationSec),
-          total_duration_sec: totalDurationSec,
-          last_position_sec: lastPositionSec,
-          is_completed: isCompleted,
-          completed_at: isCompleted ? new Date().toISOString() : null,
-          session_end_time: isCompleted ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingView.id)
-        .select('*')
-        .single();
+      // Update existing active session (with timeout)
+      const { data: updatedView, error: updateError } = await withTimeout(
+        supabase
+          .from('video_views')
+          .update({
+            watch_duration_sec: Math.max(existingView.watch_duration_sec, watchDurationSec),
+            total_duration_sec: totalDurationSec,
+            last_position_sec: lastPositionSec,
+            is_completed: isCompleted,
+            completed_at: isCompleted ? new Date().toISOString() : null,
+            session_end_time: isCompleted ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingView.id)
+          .select('*')
+          .single()
+      ) as { data: any; error: any };
 
       if (updateError) {
         console.error('Error updating video view:', updateError);
         return NextResponse.json(
-          { error: 'Failed to update view' },
+          { error: 'Failed to update view', details: updateError.message },
           { status: 500 }
         );
       }
       
       viewData = updatedView;
     } else {
-      // Create new view session
-      const { data: newView, error: insertError } = await supabase
-        .from('video_views')
-        .insert({
-          user_id: authResult.user.profile?.id || authResult.user.id,
-          lesson_id: lesson.id,
-          attachment_id: attachmentId,
-          watch_duration_sec: watchDurationSec,
-          total_duration_sec: totalDurationSec,
-          last_position_sec: lastPositionSec,
-          is_completed: isCompleted,
-          completed_at: isCompleted ? new Date().toISOString() : null,
-          session_end_time: isCompleted ? new Date().toISOString() : null,
-          device_info: deviceInfo,
-          ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
-        })
-        .select('*')
-        .single();
+      // Create new view session (with timeout)
+      const { data: newView, error: insertError } = await withTimeout(
+        supabase
+          .from('video_views')
+          .insert({
+            user_id: authResult.user.profile?.id || authResult.user.id,
+            lesson_id: lesson.id,
+            attachment_id: attachmentId,
+            watch_duration_sec: watchDurationSec,
+            total_duration_sec: totalDurationSec,
+            last_position_sec: lastPositionSec,
+            is_completed: isCompleted,
+            completed_at: isCompleted ? new Date().toISOString() : null,
+            session_end_time: isCompleted ? new Date().toISOString() : null,
+            device_info: deviceInfo,
+            ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
+          })
+          .select('*')
+          .single()
+      ) as { data: any; error: any };
 
       if (insertError) {
         console.error('Error creating video view:', insertError);
         return NextResponse.json(
-          { error: 'Failed to create view' },
+          { error: 'Failed to create view', details: insertError.message },
           { status: 500 }
         );
       }
@@ -118,10 +144,19 @@ export async function POST(request: NextRequest) {
       view: viewData
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in video views POST:', error);
+    
+    // Check if it's a timeout error
+    if (error.message?.includes('timeout')) {
+      return NextResponse.json(
+        { error: 'Database timeout - please try again', details: error.message },
+        { status: 504 } // Gateway Timeout
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }

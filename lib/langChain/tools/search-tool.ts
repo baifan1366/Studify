@@ -1,4 +1,4 @@
-// Search Tool - Semantic search tool (supports video embeddings)
+// Search Tool - Semantic search tool (supports video and document embeddings)
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from 'zod';
 import { smartSearch } from '../langchain-integration';
@@ -448,23 +448,25 @@ export async function searchVideoSegments(
 
 export const searchTool = new DynamicStructuredTool({
   name: "search",
-  description: `Search for relevant content in the INTERNAL knowledge base (course content, lessons, video transcripts, and notes).
+  description: `Search for relevant content in the INTERNAL knowledge base (course content, lessons, video transcripts, PDF documents, and notes).
   This tool is ONLY for searching internal course materials and should be your PRIMARY search tool.
-  Use this for: course content, lesson explanations, video segments, student notes, and any course-related queries.
+  Use this for: course content, lesson explanations, video segments, PDF document content, student notes, and any course-related queries.
   DO NOT use this for: latest news, current events, external information, or general web knowledge.
-  Provide a query and optionally specify content types and video context for more targeted results.
-  Returns JSON with: message, results array, result_count, confidence score (0-1), and hasVideoSegments flag.`,
+  Provide a query and optionally specify content types (video_segment, document_segment, lesson, note) and video context for more targeted results.
+  Returns JSON with: message, results array, result_count, confidence score (0-1), hasVideoSegments flag, and hasDocumentSegments flag.`,
   schema: SearchSchema,
   func: async (input) => {
     try {
       const { query, contentTypes = [], videoContext, clientEmbedding, searchMode = 'normal' } = input;
       const searchQuery = query;
       
-      // Check if video content search is needed
+      // Check if video or document content search is needed
       const needsVideoSearch = contentTypes.includes('video_segment');
+      const needsDocumentSearch = contentTypes.includes('document_segment');
       
       let allResults: any[] = [];
       let rawVideoResults: any[] = []; // Store raw video results for structured access
+      let rawDocumentResults: any[] = []; // Store raw document results
       
       // 1. Search video embeddings
       if (needsVideoSearch && videoContext?.lessonId) {
@@ -499,8 +501,39 @@ export const searchTool = new DynamicStructuredTool({
         console.log(`✅ Found ${videoResults.length} video segments`);
       }
       
-      // 2. Search general content
-      const generalContentTypes = contentTypes.filter((t: string) => t !== 'video_segment');
+      // 2. Search document embeddings (PDF content)
+      if (needsDocumentSearch && videoContext?.lessonId) {
+        console.log(`📄 Searching document embeddings for lesson: ${videoContext.lessonId} (mode: ${searchMode})`);
+        
+        const documentResults = await searchDocumentEmbeddings(searchQuery, {
+          lessonId: videoContext.lessonId,
+          attachmentId: videoContext.attachmentId ?? undefined,
+          maxResults: searchMode === 'fast' ? 15 : 5,
+          clientEmbedding,
+          searchMode
+        });
+        
+        rawDocumentResults = documentResults; // Store raw results
+        
+        allResults.push(...documentResults.map((r: any) => ({
+          type: 'document_segment',
+          content_type: 'document_segment',
+          content: r.content_text,
+          content_text: r.content_text,
+          page_number: r.page_number,
+          section_title: r.section_title,
+          title: r.section_title || `Page ${r.page_number}`,
+          similarity: r.similarity,
+          attachment_id: r.attachment_id,
+          chunk_type: r.chunk_type,
+          word_count: r.word_count
+        })));
+        
+        console.log(`✅ Found ${documentResults.length} document segments`);
+      }
+      
+      // 3. Search general content
+      const generalContentTypes = contentTypes.filter((t: string) => t !== 'video_segment' && t !== 'document_segment');
       if (generalContentTypes.length > 0 || contentTypes.length === 0) {
         const generalResults = await smartSearch(searchQuery, {
           maxResults: 5,
@@ -515,7 +548,7 @@ export const searchTool = new DynamicStructuredTool({
         })));
       }
       
-      // 3. Calculate confidence score based on similarity scores
+      // 4. Calculate confidence score based on similarity scores
       // Confidence score helps the agent decide whether to use web search as fallback
       let confidenceScore = 0;
       if (allResults.length > 0) {
@@ -548,7 +581,7 @@ export const searchTool = new DynamicStructuredTool({
       console.log(`📊 Search confidence: ${confidenceScore.toFixed(2)} (${allResults.length} results)`);
       
       
-      // 4. Format results - Return JSON string with structured data
+      // 5. Format results - Return JSON string with structured data
       if (allResults.length === 0) {
         return JSON.stringify({
           message: 'No relevant content found. Try rephrasing your question or ask about general concepts.',
@@ -556,7 +589,8 @@ export const searchTool = new DynamicStructuredTool({
           count: 0,
           result_count: 0,
           confidence: 0,
-          hasVideoSegments: false
+          hasVideoSegments: false,
+          hasDocumentSegments: false
         });
       }
       
@@ -565,6 +599,10 @@ export const searchTool = new DynamicStructuredTool({
         
         if (result.type === 'video_segment' && result.startTime !== undefined) {
           resultText += `\n   Time: ${Math.floor(result.startTime)}s - ${Math.floor(result.endTime)}s`;
+        }
+        
+        if (result.type === 'document_segment' && result.page_number !== undefined) {
+          resultText += `\n   Page: ${result.page_number}`;
         }
         
         if (result.similarity) {
@@ -581,7 +619,8 @@ export const searchTool = new DynamicStructuredTool({
         count: allResults.length,
         result_count: allResults.length, // Add result_count field for agent decision-making
         confidence: confidenceScore, // Add confidence score (0-1) for agent decision-making
-        hasVideoSegments: rawVideoResults.length > 0
+        hasVideoSegments: rawVideoResults.length > 0,
+        hasDocumentSegments: rawDocumentResults.length > 0
       });
       
     } catch (error) {
@@ -597,3 +636,230 @@ export const searchTool = new DynamicStructuredTool({
     }
   }
 });
+
+
+// ============================================================================
+// Document Embeddings Search Functions
+// ============================================================================
+
+/**
+ * Search document embeddings (PDF content)
+ * Similar to video search but for PDF documents
+ */
+async function searchDocumentEmbeddings(
+  query: string,
+  options: {
+    lessonId?: string;
+    attachmentId?: number;
+    maxResults?: number;
+    clientEmbedding?: number[];
+    searchMode?: 'fast' | 'normal' | 'thinking';
+  } = {}
+): Promise<any[]> {
+  const {
+    lessonId,
+    attachmentId,
+    maxResults = 10,
+    clientEmbedding,
+    searchMode = 'normal'
+  } = options;
+  
+  try {
+    let e5Embedding: number[];
+    let bgeEmbedding: number[] | null = null;
+    
+    // Determine embedding generation strategy based on mode
+    if (searchMode === 'fast' && clientEmbedding) {
+      console.log(`⚡ Fast Mode (Document): Using client E5 embedding (${clientEmbedding.length} dims)`);
+      e5Embedding = clientEmbedding;
+    } else if (searchMode === 'thinking' && clientEmbedding) {
+      console.log(`🧠 Thinking Mode (Document): Using client E5 + server BGE`);
+      e5Embedding = clientEmbedding;
+      const bgeResult = await generateEmbedding(query, 'bge');
+      bgeEmbedding = bgeResult.embedding;
+      console.log(`✅ Thinking Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
+    } else {
+      console.log(`⚙️ Normal Mode (Document): Generating both E5 and BGE embeddings on server`);
+      const e5Result = await generateEmbedding(query, 'e5');
+      const bgeResult = await generateEmbedding(query, 'bge');
+      e5Embedding = e5Result.embedding;
+      bgeEmbedding = bgeResult.embedding;
+      console.log(`✅ Normal Mode: Server-side dual embedding complete - E5 (${e5Embedding.length}D), BGE (${bgeEmbedding.length}D)`);
+    }
+    
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    // If lessonId is provided, first get attachmentId
+    let targetAttachmentId = attachmentId;
+    if (!targetAttachmentId && lessonId) {
+      console.log(`🔍 Looking up PDF attachment for lesson: ${lessonId}`);
+      
+      const { data: lesson, error: lessonError } = await supabase
+        .from('course_lesson')
+        .select('id, attachments')
+        .eq('public_id', lessonId)
+        .single();
+      
+      if (lessonError) {
+        console.error('❌ Error fetching lesson:', lessonError);
+      } else if (lesson) {
+        console.log(`📝 Lesson found, attachments:`, lesson.attachments);
+        
+        if (Array.isArray(lesson.attachments) && lesson.attachments.length > 0) {
+          const attachmentIds = lesson.attachments;
+          
+          // Get the first PDF attachment
+          const { data: attachments } = await supabase
+            .from('course_attachments')
+            .select('id, type')
+            .in('id', attachmentIds)
+            .eq('type', 'pdf')
+            .limit(1);
+          
+          if (attachments && attachments.length > 0) {
+            targetAttachmentId = attachments[0].id;
+            console.log(`✅ Found PDF attachment: ${targetAttachmentId}`);
+          }
+        }
+      }
+    }
+    
+    if (!targetAttachmentId) {
+      console.warn('⚠️ No attachment ID found for document search');
+      return [];
+    }
+    
+    console.log(`🎯 Document search mode: ${searchMode}`);
+    
+    // Adjust parameters based on search mode
+    const e5Threshold = searchMode === 'fast' ? 0.45 : 0.5;
+    const e5CandidateCount = searchMode === 'fast' ? Math.max(15, maxResults) : Math.max(30, maxResults * 3);
+    const finalCount = searchMode === 'fast' ? 15 : maxResults;
+    
+    // Fast Mode: E5-only search
+    if (searchMode === 'fast' || !bgeEmbedding) {
+      console.log(`⚡ Fast Mode (Document): E5-only search (threshold: ${e5Threshold}, count: ${finalCount})`);
+      
+      const { data: e5Results, error: e5Error } = await supabase.rpc('search_document_embeddings_e5', {
+        query_embedding: `[${e5Embedding.join(',')}]`,
+        p_attachment_id: targetAttachmentId,
+        match_threshold: e5Threshold,
+        match_count: finalCount
+      });
+      
+      if (e5Error) {
+        console.error('❌ E5 document search error:', e5Error);
+        return [];
+      }
+      
+      if (!e5Results || e5Results.length === 0) {
+        console.log('⚠️ No results from Fast Mode E5 document search');
+        return [];
+      }
+      
+      console.log(`✅ Fast Mode (Document): Found ${e5Results.length} results`);
+      return e5Results.map((r: any) => ({
+        id: r.id,
+        content_text: r.content_text,
+        content_type: 'document_segment',
+        type: 'document_segment',
+        page_number: r.page_number,
+        section_title: r.section_title,
+        attachment_id: r.attachment_id,
+        similarity: r.similarity,
+        chunk_type: r.chunk_type,
+        word_count: r.word_count
+      }));
+    }
+    
+    // Normal/Thinking Mode: Two-stage search with BGE reranking
+    console.log(`🔍 ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode (Document): Two-stage search`);
+    console.log(`  ↳ E5 threshold: ${e5Threshold}, candidates: ${e5CandidateCount}, final: ${finalCount}`);
+    console.log(`  ↳ Weights: E5 (0.3) + BGE (0.7)`);
+    
+    const { data: twoStageResults, error: twoStageError } = await supabase.rpc('search_document_embeddings_two_stage', {
+      query_embedding_e5: `[${e5Embedding.join(',')}]`,
+      query_embedding_bge: `[${bgeEmbedding.join(',')}]`,
+      p_attachment_id: targetAttachmentId,
+      e5_threshold: e5Threshold,
+      e5_candidate_count: e5CandidateCount,
+      final_count: finalCount,
+      weight_e5: 0.3,
+      weight_bge: 0.7
+    });
+    
+    if (!twoStageError && twoStageResults && twoStageResults.length > 0) {
+      console.log(`✅ ${searchMode === 'normal' ? 'Normal' : 'Thinking'} Mode (Document): Two-stage search completed`);
+      console.log(`  ↳ Found ${twoStageResults.length} results after E5 coarse + BGE rerank`);
+      console.log(`  ↳ Score range: ${twoStageResults[0]?.combined_score?.toFixed(3)} - ${twoStageResults[twoStageResults.length - 1]?.combined_score?.toFixed(3)}`);
+      
+      return twoStageResults.map((r: any) => ({
+        id: r.id,
+        content_text: r.content_text,
+        content_type: 'document_segment',
+        type: 'document_segment',
+        page_number: r.page_number,
+        section_title: r.section_title,
+        attachment_id: r.attachment_id,
+        similarity: r.combined_score,
+        e5_similarity: r.e5_similarity,
+        bge_similarity: r.bge_similarity,
+        chunk_type: r.chunk_type,
+        word_count: r.word_count
+      }));
+    }
+    
+    console.log(`⚠️ Two-stage document search failed, falling back to E5-only`);
+    if (twoStageError) {
+      console.log(`  ↳ Error: ${twoStageError.message}`);
+    }
+    
+    // Fallback to E5-only search
+    const { data: e5Results, error: e5Error } = await supabase.rpc('search_document_embeddings_e5', {
+      query_embedding: `[${e5Embedding.join(',')}]`,
+      p_attachment_id: targetAttachmentId,
+      match_threshold: 0.5,
+      match_count: e5CandidateCount
+    });
+    
+    if (e5Error) {
+      console.error('❌ E5 document search error:', e5Error);
+      return [];
+    }
+    
+    if (!e5Results || e5Results.length === 0) {
+      console.log('⚠️ No results from E5 document search');
+      return [];
+    }
+    
+    console.log(`✅ E5 Stage (Document): Found ${e5Results.length} results`);
+    return e5Results.slice(0, maxResults).map((r: any) => ({
+      ...r,
+      content_type: 'document_segment',
+      type: 'document_segment'
+    }));
+    
+  } catch (error) {
+    console.error('❌ Document search failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Export the raw document search function
+ */
+export async function searchDocumentSegments(
+  query: string,
+  options: {
+    lessonId?: string;
+    attachmentId?: number;
+    maxResults?: number;
+    clientEmbedding?: number[];
+    searchMode?: 'fast' | 'normal' | 'thinking';
+  } = {}
+): Promise<any[]> {
+  return searchDocumentEmbeddings(query, options);
+}

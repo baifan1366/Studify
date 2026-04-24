@@ -68,6 +68,7 @@ export function useUploadAttachment() {
       onProgress?: (progress: number) => void
     }) => {
       // Step 1: Upload file to MEGA (client-side, bypasses Next.js limits)
+      // Automatically optimizes MP4 videos for streaming
       onProgress?.(5)
       
       const uploadResult = await uploadToMegaClient(file, {
@@ -77,6 +78,14 @@ export function useUploadAttachment() {
           onProgress?.(mappedProgress)
         }
       })
+
+      // Show optimization success message for videos
+      if (uploadResult.wasOptimized) {
+        toast.success('🎬 Video optimized for instant streaming!', {
+          description: `Processing took ${(uploadResult.optimizationTime! / 1000).toFixed(1)}s. Your video will now play instantly without buffering.`,
+          duration: 5000,
+        })
+      }
 
       onProgress?.(95)
 

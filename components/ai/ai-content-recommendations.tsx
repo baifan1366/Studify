@@ -68,6 +68,12 @@ export default function AIContentRecommendations({
     setError(null);
     
     try {
+      console.log('[AIContentRecommendations] Fetching recommendations for:', {
+        aiResponseLength: aiResponse.length,
+        questionContext,
+        userId
+      });
+
       const response = await fetch('/api/ai/content-recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,13 +86,27 @@ export default function AIContentRecommendations({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch recommendations');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[AIContentRecommendations] API error:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to fetch recommendations');
       }
 
       const data = await response.json();
+      console.log('[AIContentRecommendations] Received data:', {
+        success: data.success,
+        recommendationsCount: data.recommendations?.length || 0,
+        isFallback: data.isFallback,
+        searchQuery: data.searchQuery
+      });
+
       setRecommendations(data.recommendations || []);
+      
+      // Show a subtle message if using fallback content
+      if (data.isFallback && data.recommendations?.length > 0) {
+        console.log('[AIContentRecommendations] Using fallback recommendations');
+      }
     } catch (err) {
-      console.error('Error fetching recommendations:', err);
+      console.error('[AIContentRecommendations] Error fetching recommendations:', err);
       setError(err instanceof Error ? err.message : 'Failed to load recommendations');
     } finally {
       setLoading(false);
@@ -141,7 +161,26 @@ export default function AIContentRecommendations({
     );
   }
 
-  if (error || !recommendations.length) {
+  // Show error state for debugging
+  if (error) {
+    console.error('[AIContentRecommendations] Error state:', error);
+    return (
+      <div className={`mt-6 ${className}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="h-5 w-5 text-orange-500" />
+          <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            {t('recommendations.title')}
+          </h3>
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-3 rounded-lg">
+          Unable to load recommendations at this time.
+        </div>
+      </div>
+    );
+  }
+
+  if (!recommendations.length) {
+    console.log('[AIContentRecommendations] No recommendations to display');
     return null;
   }
 

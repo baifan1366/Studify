@@ -244,9 +244,16 @@ async function findSimilarCourses(supabase: any, searchQuery: string, limit: num
     console.log(`🔍 Searching courses with tsvector query: "${cleanQuery}"`);
 
     // 使用 tsvector 全文搜索
+    // Note: RPC function expects snake_case parameters
     const { data: courses, error } = await supabase.rpc('search_courses', {
       search_query: cleanQuery,
       result_limit: limit
+    });
+
+    console.log(`[search_courses] RPC result:`, { 
+      coursesCount: courses?.length || 0, 
+      error: error?.message,
+      errorDetails: error 
     });
 
     if (error) {
@@ -368,6 +375,12 @@ async function findSimilarPosts(supabase: any, searchQuery: string, limit: numbe
       result_limit: limit
     });
 
+    console.log(`[search_community_posts] RPC result:`, { 
+      postsCount: posts?.length || 0, 
+      error: error?.message,
+      errorDetails: error 
+    });
+
     if (error) {
       console.error('tsvector search error:', error);
       // 降级到 ILIKE 搜索
@@ -484,16 +497,16 @@ async function getFallbackRecommendations(supabase: any, limit: number) {
         title,
         description,
         slug,
-        difficulty_level,
+        level,
         category,
         thumbnail_url,
-        student_count,
+        total_students,
         average_rating
       `)
       .eq('status', 'active')
       .eq('is_deleted', false)
       .eq('visibility', 'public')
-      .order('student_count', { ascending: false })
+      .order('total_students', { ascending: false })
       .order('average_rating', { ascending: false })
       .limit(Math.max(limit, 3)); // 至少获取3个
 
@@ -502,11 +515,11 @@ async function getFallbackRecommendations(supabase: any, limit: number) {
       title: course.title,
       description: course.description?.substring(0, 120) + '...',
       type: 'course' as const,
-      difficulty: course.difficulty_level,
+      difficulty: course.level,
       thumbnail: course.thumbnail_url,
       slug: course.slug,
       stats: {
-        students: course.student_count,
+        students: course.total_students,
         rating: course.average_rating
       },
       isFallback: true
@@ -545,13 +558,13 @@ async function findCoursesForLearningPath(
         title,
         description,
         slug,
-        difficulty_level,
+        level,
         category,
         thumbnail_url,
-        student_count,
+        total_students,
         average_rating,
-        estimated_hours,
-        instructor:profiles!course_instructor_id_fkey(
+        owner_id,
+        owner:profiles!course_owner_id_fkey(
           display_name,
           avatar_url
         )
@@ -568,7 +581,7 @@ async function findCoursesForLearningPath(
     }
 
     const { data: courses } = await query
-      .order('student_count', { ascending: false })
+      .order('total_students', { ascending: false })
       .limit(limit * 2);
 
     if (!courses || courses.length === 0) {
@@ -580,12 +593,11 @@ async function findCoursesForLearningPath(
           title,
           description,
           slug,
-          difficulty_level,
+          level,
           thumbnail_url,
-          student_count,
+          total_students,
           average_rating,
-          estimated_hours,
-          instructor:profiles!course_instructor_id_fkey(
+          owner:profiles!course_owner_id_fkey(
             display_name,
             avatar_url
           )
@@ -593,43 +605,43 @@ async function findCoursesForLearningPath(
         .eq('status', 'active')
         .eq('is_deleted', false)
         .eq('visibility', 'public')
-        .order('student_count', { ascending: false })
+        .order('total_students', { ascending: false })
         .limit(limit);
       
       return popularCourses?.map((course: any) => ({
         id: course.public_id,
         title: course.title,
         description: course.description?.substring(0, 150) + '...' || '',
-        level: course.difficulty_level || 'beginner',
-        duration: course.estimated_hours ? `${course.estimated_hours} hours` : undefined,
+        level: course.level || 'beginner',
+        duration: undefined,
         thumbnail: course.thumbnail_url,
         slug: course.slug,
-        instructor: course.instructor?.display_name,
+        instructor: course.owner?.display_name,
         stats: {
-          students: course.student_count || 0,
+          students: course.total_students || 0,
           rating: course.average_rating || 0
         }
       })) || [];
     }
 
     const sortedCourses = courses.sort((a: any, b: any) => {
-      const aDiffMatch = a.difficulty_level === targetDifficulty ? 1 : 0;
-      const bDiffMatch = b.difficulty_level === targetDifficulty ? 1 : 0;
+      const aDiffMatch = a.level === targetDifficulty ? 1 : 0;
+      const bDiffMatch = b.level === targetDifficulty ? 1 : 0;
       if (aDiffMatch !== bDiffMatch) return bDiffMatch - aDiffMatch;
-      return (b.student_count || 0) - (a.student_count || 0);
+      return (b.total_students || 0) - (a.total_students || 0);
     });
 
     return sortedCourses.slice(0, limit).map((course: any) => ({
       id: course.public_id,
       title: course.title,
       description: course.description?.substring(0, 150) + '...' || '',
-      level: course.difficulty_level || 'beginner',
-      duration: course.estimated_hours ? `${course.estimated_hours} hours` : undefined,
+      level: course.level || 'beginner',
+      duration: undefined,
       thumbnail: course.thumbnail_url,
       slug: course.slug,
-      instructor: course.instructor?.display_name,
+      instructor: course.owner?.display_name,
       stats: {
-        students: course.student_count || 0,
+        students: course.total_students || 0,
         rating: course.average_rating || 0
       }
     }));

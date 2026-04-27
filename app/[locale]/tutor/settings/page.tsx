@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from 'next-intl/server';
-import SettingsContent from '@/components/settings/settings-content';
+import TutorSettingsContent from '@/components/tutor/settings/tutor-settings-content';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('TutorSettingsPage');
@@ -22,7 +22,7 @@ export default async function TutorSettingsPage() {
 
   return (
     <div>
-      <SettingsContent />
+      <TutorSettingsContent />
     </div>
   );
 }

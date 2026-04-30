@@ -160,25 +160,25 @@ export function VideoQAPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-800">
+    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-600 flex-shrink-0">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
         <div className="flex items-center gap-2">
-          <MessageCircle className="w-5 h-5 text-blue-400" />
-          <h3 className="font-medium text-white">
+          <MessageCircle className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+          <h3 className="font-medium text-gray-900 dark:text-white">
             {t('ask_ai_about_video')}
           </h3>
         </div>
         <div className="flex items-center gap-2">
           {/* AI Mode Selector */}
-          <div className="flex items-center gap-1 bg-slate-700 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <button
               onClick={() => setAIMode('fast')}
               disabled={videoQA.isPending}
               className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
                 aiMode === 'fast'
                   ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
               title="Fast Mode - Quick responses using client-side embedding"
             >
@@ -190,7 +190,7 @@ export function VideoQAPanel({
               className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
                 aiMode === 'normal'
                   ? 'bg-green-500 text-white shadow-sm'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
               title="Normal Mode - Balanced quality with dual embedding"
             >
@@ -202,7 +202,7 @@ export function VideoQAPanel({
               className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
                 aiMode === 'thinking'
                   ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
               title="Thinking Mode - Shows AI reasoning process"
             >
@@ -211,17 +211,17 @@ export function VideoQAPanel({
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-700 rounded-full transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
             aria-label="Close AI panel"
           >
-            <X className="w-4 h-4 text-gray-300" />
+            <X className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
       </div>
 
       {/* Current Time Context */}
-      <div className="px-4 py-2 bg-slate-700 border-b border-slate-600 flex-shrink-0">
-        <div className="flex items-center gap-2 text-sm text-blue-300">
+      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ backgroundColor: 'rgba(253, 245, 230, 0.5)' }}>
+        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300">
           <Clock className="w-4 h-4" />
           <span>{t('current_time')}: {formatTime(currentTime)}</span>
         </div>
@@ -232,16 +232,16 @@ export function VideoQAPanel({
         {isProcessing ? (
           /* Loading State with Streaming Updates */
           <div className="p-4 space-y-4">
-            <div className="bg-slate-700 p-3 rounded-xl border border-slate-600 animate-pulse">
-              <div className="h-4 bg-slate-600 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-slate-600 rounded w-full"></div>
+            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
             </div>
             
             {/* Streaming Status Display */}
-            <div className="bg-green-800 p-3 rounded-xl border border-green-600">
+            <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-xl border border-green-200 dark:border-green-700">
               <div className="flex items-center gap-2 mb-3">
-                <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
-                <div className="text-sm font-medium text-green-300">
+                <Loader2 className="w-4 h-4 text-green-600 dark:text-green-400 animate-spin" />
+                <div className="text-sm font-medium text-green-700 dark:text-green-300">
                   {streamingQA.currentStatus || (aiMode === 'thinking' ? 'AI is thinking deeply...' : aiMode === 'normal' ? 'AI is analyzing...' : 'AI is processing...')}
                 </div>
               </div>
@@ -249,13 +249,13 @@ export function VideoQAPanel({
               {/* Progress Bar */}
               {streamingQA.progress > 0 && (
                 <div className="mb-3">
-                  <div className="w-full bg-green-900 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-green-100 dark:bg-green-900 rounded-full h-2 overflow-hidden">
                     <div 
-                      className="h-full bg-green-400 transition-all duration-300 ease-out"
+                      className="h-full bg-green-500 dark:bg-green-400 transition-all duration-300 ease-out"
                       style={{ width: `${streamingQA.progress}%` }}
                     />
                   </div>
-                  <div className="text-xs text-green-300 mt-1 text-right">
+                  <div className="text-xs text-green-600 dark:text-green-300 mt-1 text-right">
                     {streamingQA.progress}%
                   </div>
                 </div>
@@ -270,13 +270,13 @@ export function VideoQAPanel({
                     .map((update, index) => (
                       <div 
                         key={index}
-                        className="flex items-start gap-2 text-xs text-green-200 bg-green-900/30 p-2 rounded"
+                        className="flex items-start gap-2 text-xs text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900/30 p-2 rounded"
                       >
                         <Activity className="w-3 h-3 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <div className="font-medium">{update.message}</div>
                           {update.data && (
-                            <div className="text-green-300/70 mt-0.5">
+                            <div className="text-green-600 dark:text-green-300/70 mt-0.5">
                               {JSON.stringify(update.data).substring(0, 100)}
                               {JSON.stringify(update.data).length > 100 && '...'}
                             </div>
@@ -290,9 +290,9 @@ export function VideoQAPanel({
               {/* Fallback animation if no streaming updates */}
               {streamingQA.streamUpdates.length === 0 && (
                 <div className="space-y-2">
-                  <div className="h-3 bg-green-700 rounded w-full animate-pulse"></div>
-                  <div className="h-3 bg-green-700 rounded w-5/6 animate-pulse"></div>
-                  <div className="h-3 bg-green-700 rounded w-4/6 animate-pulse"></div>
+                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-full animate-pulse"></div>
+                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-5/6 animate-pulse"></div>
+                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-4/6 animate-pulse"></div>
                 </div>
               )}
             </div>
@@ -301,7 +301,7 @@ export function VideoQAPanel({
           /* Question Input */
           <div className="p-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 {t('ask_question_about_current_content')}
               </label>
               <textarea
@@ -310,20 +310,20 @@ export function VideoQAPanel({
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={t('qa_placeholder')}
-                className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl resize-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-white placeholder-gray-400"
+                className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 rows={3}
                 disabled={videoQA.isPending}
               />
             </div>
 
             <div className="flex justify-between items-center">
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
                 {t('qa_time_window_hint')}
               </div>
               <button
                 onClick={handleSubmit}
                 disabled={!question.trim() || isProcessing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200"
               >
                 {isProcessing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -336,7 +336,7 @@ export function VideoQAPanel({
 
             {/* Quick Questions */}
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-200">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
                 {t('quick_questions')}:
               </div>
               <div className="space-y-1">
@@ -349,7 +349,7 @@ export function VideoQAPanel({
                   <button
                     key={index}
                     onClick={() => setQuestion(quickQ)}
-                    className="w-full text-left p-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-all duration-200"
+                    className="w-full text-left p-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg transition-all duration-200"
                   >
                     {quickQ}
                   </button>
@@ -361,24 +361,24 @@ export function VideoQAPanel({
           /* Answer Display */
           <div className="p-4 space-y-4">
             {/* Question */}
-            <div className="bg-slate-700 p-3 rounded-xl border border-slate-600">
-              <div className="text-sm font-medium text-blue-300 mb-1">
+            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-1">
                 {t('your_question')}:
               </div>
-              <div className="text-sm text-white">
+              <div className="text-sm text-gray-900 dark:text-white">
                 {question}
               </div>
             </div>
 
             {/* Answer */}
-            <div className="bg-green-800 p-3 rounded-xl border border-green-600">
+            <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-xl border border-green-200 dark:border-green-700">
               <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-4 h-4 text-green-400" />
-                <div className="text-sm font-medium text-green-300">
+                <Lightbulb className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <div className="text-sm font-medium text-green-700 dark:text-green-300">
                   AI {t('answer')}:
                 </div>
                 {effectiveAnswer.metadata?.aiMode && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-green-700 text-green-200">
+                  <span className="text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-200">
                     {effectiveAnswer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : effectiveAnswer.metadata.aiMode === 'normal' ? '⚙️ Normal' : '⚡ Fast'}
                   </span>
                 )}
@@ -386,12 +386,12 @@ export function VideoQAPanel({
               
               {/* Thinking Process - Only show if available */}
               {effectiveAnswer.thinking && effectiveAnswer.thinking.trim() && (
-                <details className="mb-3 bg-purple-900/30 border border-purple-600/50 rounded-lg overflow-hidden">
-                  <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-300 hover:bg-purple-900/50 transition-colors flex items-center gap-2">
+                <details className="mb-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-600/50 rounded-lg overflow-hidden">
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-2">
                     <Brain className="w-3 h-3" />
                     <span>🧠 Thinking Process</span>
                   </summary>
-                  <div className="px-3 py-2 text-xs text-gray-300 bg-slate-900/50 border-t border-purple-600/50">
+                  <div className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border-t border-purple-200 dark:border-purple-600/50">
                     <pre className="whitespace-pre-wrap font-mono leading-relaxed">
                       {effectiveAnswer.thinking}
                     </pre>
@@ -399,7 +399,7 @@ export function VideoQAPanel({
                 </details>
               )}
               
-              <div className="text-sm text-white whitespace-pre-wrap break-words overflow-wrap-anywhere">
+              <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap break-words overflow-wrap-anywhere">
                 {effectiveAnswer.answer}
               </div>
             </div>
@@ -408,8 +408,8 @@ export function VideoQAPanel({
             {effectiveAnswer.segments && effectiveAnswer.segments.length > 0 ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-medium text-gray-200">
+                  <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                     {t('related_video_segments')} ({effectiveAnswer.segments.length})
                   </span>
                 </div>
@@ -417,12 +417,12 @@ export function VideoQAPanel({
                   {effectiveAnswer.segments.map((segment, index) => (
                     <div
                       key={index}
-                      className="bg-slate-700 p-3 rounded-xl border border-slate-600 hover:border-blue-500 transition-all duration-200 group"
+                      className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200 group"
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-blue-400">
+                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
                               #{index + 1}
                             </span>
                             <button
@@ -444,7 +444,7 @@ export function VideoQAPanel({
                               <ChevronRight className="w-3 h-3 ml-0.5" />
                             </button>
                           </div>
-                          <div className="text-xs text-gray-300 leading-relaxed break-words">
+                          <div className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed break-words">
                             {segment.relevantText || segment.text}
                           </div>
                         </div>
@@ -452,15 +452,15 @@ export function VideoQAPanel({
                     </div>
                   ))}
                 </div>
-                <div className="text-xs text-gray-400 italic mt-2">
+                <div className="text-xs text-gray-500 dark:text-gray-400 italic mt-2">
                   💡 {t('click_timestamp_to_jump')}
                 </div>
               </div>
             ) : effectiveAnswer.segments && effectiveAnswer.segments.length === 0 ? (
-              <div className="bg-yellow-800/30 border border-yellow-600/50 rounded-xl p-3">
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-600/50 rounded-xl p-3">
                 <div className="flex items-start gap-2">
-                  <Clock className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-yellow-200">
+                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-yellow-700 dark:text-yellow-200">
                     <p className="font-medium mb-1">{t('no_video_segments_title')}</p>
                     <p className="opacity-90">
                       {t('no_video_segments_message')}
@@ -472,14 +472,14 @@ export function VideoQAPanel({
 
             {/* Course Context */}
             {effectiveAnswer.courseInfo && (
-              <div className="bg-slate-700 p-3 rounded-xl border border-slate-600">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-2 mb-2">
-                  <BookOpen className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-medium text-gray-200">
+                  <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                     {t('course_context')}
                   </span>
                 </div>
-                <div className="space-y-1 text-xs text-gray-300">
+                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
                   {effectiveAnswer.courseInfo.courseName && (
                     <div>{effectiveAnswer.courseInfo.courseName}</div>
                   )}
@@ -537,7 +537,7 @@ export function VideoQAPanel({
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-gray-200 hover:text-white text-sm rounded-xl transition-all duration-200"
+                  className="px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white text-sm rounded-xl transition-all duration-200"
                 >
                   {t('close')}
                 </button>
@@ -546,11 +546,11 @@ export function VideoQAPanel({
 
             {/* AI Content Recommendations */}
             {effectiveAnswer.answer && effectiveAnswer.answer.length > 50 && (
-              <div className="mt-4 pt-4 border-t border-slate-600">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <AIContentRecommendations
                   aiResponse={effectiveAnswer.answer}
                   questionContext={question}
-                  className="bg-slate-700/50 rounded-xl p-3"
+                  className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3"
                 />
               </div>
             )}

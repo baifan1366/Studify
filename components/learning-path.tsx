@@ -147,8 +147,8 @@ export default function homLearningPath({ onGenerateStudyPlan }: LearningPathPro
           <Target className="text-white" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
-          <p className="text-white/70">{t('subtitle')}</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('title')}</h2>
+          <p className="text-gray-700 dark:text-white/70">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -156,10 +156,10 @@ export default function homLearningPath({ onGenerateStudyPlan }: LearningPathPro
         {/* Progress Overview */}
         <div className="lg:col-span-2 space-y-6">
           {/* Main Progress Bar */}
-          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+          <div className="bg-white/5 dark:bg-white/5 rounded-xl p-6 border border-gray-200 dark:border-white/10">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">{t('overall_progress_title')}</h3>
-              <span className="text-2xl font-bold text-green-400">{progress}%</span>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('overall_progress_title')}</h3>
+              <span className="text-2xl font-bold text-green-600 dark:text-green-400">{progress}%</span>
             </div>
             
             <div className="relative">
@@ -184,15 +184,15 @@ export default function homLearningPath({ onGenerateStudyPlan }: LearningPathPro
                 </motion.div>
               </div>
               
-              <p className="text-sm text-white/70">
+              <p className="text-sm text-gray-700 dark:text-white/70">
                 {t('badge_unlock_hint', { remaining: 100 - progress, badge: 'Advanced Learner' })}
               </p>
             </div>
           </div>
 
           {/* Milestones */}
-          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-            <h3 className="text-lg font-semibold text-white mb-4">{t('milestones_title')}</h3>
+          <div className="bg-white/5 dark:bg-white/5 rounded-xl p-6 border border-gray-200 dark:border-white/10">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('milestones_title')}</h3>
             
             <div className="space-y-4">
               {milestones.map((milestone, index) => (
@@ -220,7 +220,7 @@ export default function homLearningPath({ onGenerateStudyPlan }: LearningPathPro
                       }`}>
                         {milestone.title}
                       </span>
-                      <span className="text-sm text-white/60">
+                      <span className="text-sm text-gray-600 dark:text-white/60">
                         {milestone.progress}%
                       </span>
                     </div>

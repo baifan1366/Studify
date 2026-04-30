@@ -83,7 +83,7 @@ export default function CommunityContent() {
 
   return (
     <>
-      <div className="flex h-full bg-background">
+      <div className="flex h-full" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
         {/* Main Feed */}
         <div className="flex-1 min-w-0 p-6 overflow-y-auto max-w-4xl mx-auto">
           <div className="max-w-full">
@@ -101,7 +101,7 @@ export default function CommunityContent() {
                       ? t('search_results')
                       : t('community_feed_title')}
                   </h1>
-                  <p className="text-muted-foreground">
+                  <p className="text-gray-600 dark:text-gray-400">
                     {debouncedQuery.trim().length > 0
                       ? t('posts_matching_search')
                       : t('discover_popular_posts')}
@@ -117,7 +117,7 @@ export default function CommunityContent() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('search_placeholder')}
-                className="w-full px-4 py-3 rounded-2xl bg-muted text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary border border-border"
+                className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 border border-gray-200 dark:border-gray-700"
               />
             </div>
 
@@ -143,8 +143,8 @@ export default function CommunityContent() {
 
             {isError && (
               <div className="text-center py-12">
-                <p className="text-destructive mb-4">Failed to load posts</p>
-                <p className="text-muted-foreground">{error?.message}</p>
+                <p className="text-red-600 dark:text-red-400 mb-4">Failed to load posts</p>
+                <p className="text-gray-600 dark:text-gray-400">{error?.message}</p>
               </div>
             )}
 
@@ -158,14 +158,14 @@ export default function CommunityContent() {
 
             {!isLoading && !isError && (!posts || posts.length === 0) && (
               <div className="text-center py-12">
-                <div className="bg-muted rounded-xl p-8 border border-border">
-                  <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700">
+                  <TrendingUp className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                     {debouncedQuery.trim().length > 0
                       ? t('no_results_found')
                       : t('no_posts_yet')}
                   </h3>
-                  <p className="text-muted-foreground mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
                     {debouncedQuery.trim().length > 0
                       ? t('try_different_keywords')
                       : t('be_first_to_share')}
@@ -187,7 +187,7 @@ export default function CommunityContent() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-96 flex-shrink-0 p-6 border-l border-border overflow-y-auto bg-background">
+        <div className="w-96 flex-shrink-0 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
           <CommunitySidebar />
         </div>
       </div>

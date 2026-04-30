@@ -204,16 +204,16 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           <BarChart3 className="text-white" size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
-          <p className="text-white/70">{t('subtitle')}</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('title')}</h2>
+          <p className="text-gray-700 dark:text-white/70">{t('subtitle')}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Learning Duration Chart */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+        <div className="bg-white/5 dark:bg-white/5 rounded-xl p-6 border border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">{t('weekly_learning_duration_title')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('weekly_learning_duration_title')}</h3>
             <div className="flex items-center gap-1 text-sm text-green-400">
               <TrendingUp size={16} />
               {t('trend_vs_last_week', { value: 12 })}
@@ -230,7 +230,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <span className="text-sm text-white/70 w-8">{t(`days.${data.day}`)}</span>
+                <span className="text-sm text-gray-700 dark:text-white/70 w-8">{t(`days.${data.day}`)}</span>
                 <div className="flex-1 bg-white/10 rounded-full h-6 relative overflow-hidden">
                   <motion.div
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 h-6 rounded-full flex items-center justify-end pr-2"
@@ -267,9 +267,9 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
         </div>
 
         {/* Mastery Level Radar */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+        <div className="bg-white/5 dark:bg-white/5 rounded-xl p-6 border border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">{t('subject_mastery_levels_title')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('subject_mastery_levels_title')}</h3>
             <div className="flex items-center gap-1 text-sm text-orange-400">
               <Award size={16} />
               {t('top_performer_label')}
@@ -287,7 +287,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
                 transition={{ delay: index * 0.1 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-white">{subject.subject}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{subject.subject}</span>
                   <span className={`text-sm font-bold ${subject.color}`}>
                     {subject.level}%
                   </span>
@@ -328,9 +328,9 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           <div className="mt-6 p-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg border border-purple-400/30">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} className="text-yellow-400" />
-              <span className="text-sm font-semibold text-white">{t('ai_insight_label')}</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('ai_insight_label')}</span>
             </div>
-            <p className="text-sm text-white/80">
+            <p className="text-sm text-gray-700 dark:text-white/80">
               {t('ai_insight_text')}
             </p>
           </div>

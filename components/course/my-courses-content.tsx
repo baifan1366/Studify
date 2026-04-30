@@ -332,10 +332,10 @@ export default function MyCoursesContent() {
   return (
     <>
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-white/90 mb-4 dark:text-white/90">
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
           {t('page_title')}
         </h1>
-        <p className="text-lg text-white/70 mb-8 dark:text-white/70">
+        <p className="text-lg text-gray-700 dark:text-white/70 mb-8">
           {t('page_subtitle')}
         </p>
       </div>

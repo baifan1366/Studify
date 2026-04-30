@@ -120,7 +120,7 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
       {/* 关闭按钮 */}
       <button
         onClick={handleCloseClick}
-        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all duration-200 backdrop-blur-sm"
+        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-gray-900/10 dark:bg-white/10 hover:bg-gray-900/20 dark:hover:bg-white/20 text-gray-900/60 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-all duration-200 backdrop-blur-sm"
         title={t('close_button_title')}
         aria-label={t('close_button_aria')}
       >
@@ -132,7 +132,7 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
         <div className="text-center max-w-4xl mx-auto">
           {/* Main Slogan */}
           <motion.h1
-            className="text-4xl md:text-6xl font-bold text-white mb-6 dark:text-white"
+            className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.8 }}
@@ -141,14 +141,14 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
               {t('main_title_line1')}
             </span>
             <br />
-            <span className="text-white/90 dark:text-white/90">
+            <span className="text-gray-900/90 dark:text-white/90">
               {t('main_title_line2')}
             </span>
           </motion.h1>
 
           {/* Subtitle */}
           <motion.p
-            className="text-xl text-white/70 mb-8 max-w-2xl mx-auto dark:text-white/70"
+            className="text-xl text-gray-700 dark:text-white/70 mb-8 max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
@@ -182,7 +182,7 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
             {/* Secondary CTA */}
             <motion.button
               onClick={onExploreCourses}
-              className="group bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-xl font-semibold text-lg border border-white/20 backdrop-blur-sm transition-all duration-300"
+              className="group bg-gray-900/10 dark:bg-white/10 hover:bg-gray-900/20 dark:hover:bg-white/20 text-gray-900 dark:text-white px-8 py-4 rounded-xl font-semibold text-lg border border-gray-900/20 dark:border-white/20 backdrop-blur-sm transition-all duration-300"
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -196,7 +196,7 @@ export default function HeroSection({ onStartLearning, onExploreCourses }: HeroS
 
           {/* Feature Highlights */}
           <motion.div
-            className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-white/60"
+            className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-gray-600 dark:text-white/60"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.6 }}

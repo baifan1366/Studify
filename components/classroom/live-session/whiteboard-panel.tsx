@@ -84,12 +84,13 @@ export function WhiteboardPanel({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="w-full  bg-slate-800/50 backdrop-blur-sm border-l border-slate-700/50 flex flex-col"
+          className="w-full backdrop-blur-sm border-l border-gray-200 dark:border-gray-700/50 flex flex-col"
           style={{
             minWidth: '200px',
             maxWidth: '600px',
             width: '100%',
-            height: '635px'
+            height: '635px',
+            backgroundColor: 'var(--background-color, #FDF5E6)'
           }}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -97,8 +98,8 @@ export function WhiteboardPanel({
           transition={{ duration: 0.3 }}
         >
           {/* Toolbar Header */}
-          <div className="p-2 sm:p-4 border-b border-slate-700/50">
-            <h3 className="text-lg font-medium text-white flex items-center gap-2 mb-4">
+          <div className="p-2 sm:p-4 border-b border-gray-200 dark:border-gray-700/50">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2 mb-4">
               <PenTool className="w-5 h-5" />
               {t('collaborative_whiteboard')}
             </h3>
@@ -150,15 +151,15 @@ export function WhiteboardPanel({
             {/* Color Selection */}
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
-                <Palette className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-300">{t('color')}</span>
+                <Palette className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('color')}</span>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-1">
                 {COLORS.map((color) => (
                   <button
                     key={color}
                     onClick={() => setCurrentColor(color)}
-                    className={`w-8 h-8 rounded border-2 ${currentColor === color ? 'border-white' : 'border-slate-600'
+                    className={`w-8 h-8 rounded border-2 ${currentColor === color ? 'border-blue-500 dark:border-blue-400' : 'border-gray-300 dark:border-gray-600'
                       }`}
                     style={{ backgroundColor: color }}
                   />
@@ -170,19 +171,19 @@ export function WhiteboardPanel({
             {currentTool !== 'text' && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-slate-300">{t('brush_size')}</span>
-                  <span className="text-xs text-slate-400">({currentBrushSize}px)</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('brush_size')}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">({currentBrushSize}px)</span>
                 </div>
                 <div className="flex gap-1">
                   {BRUSH_SIZES.map((size) => (
                     <button
                       key={size}
                       onClick={() => setCurrentBrushSize(size)}
-                      className={`w-8 h-8 rounded border ${currentBrushSize === size ? 'border-white bg-slate-600' : 'border-slate-600'
+                      className={`w-8 h-8 rounded border ${currentBrushSize === size ? 'border-blue-500 dark:border-blue-400 bg-gray-100 dark:bg-gray-700' : 'border-gray-300 dark:border-gray-600'
                         } flex items-center justify-center`}
                     >
                       <div
-                        className="rounded-full bg-white"
+                        className="rounded-full bg-gray-900 dark:bg-white"
                         style={{ width: `${Math.min(size, 6)}px`, height: `${Math.min(size, 6)}px` }}
                       />
                     </button>
@@ -193,14 +194,14 @@ export function WhiteboardPanel({
 
             {/* Text Tool Options */}
             {currentTool === 'text' && (
-              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg">
-                <h4 className="text-sm font-medium text-white mb-2">{t('text_options')}</h4>
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('text_options')}</h4>
 
                 {/* Font Size */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-300">{t('font_size')}</span>
-                    <span className="text-xs text-slate-400">({currentFontSize}px)</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('font_size')}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({currentFontSize}px)</span>
                   </div>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
                     {FONT_SIZES.map((size) => (
@@ -209,7 +210,7 @@ export function WhiteboardPanel({
                         onClick={() => setCurrentFontSize(size)}
                         className={`px-2 py-1 rounded text-xs ${currentFontSize === size
                             ? 'bg-indigo-500 text-white'
-                            : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                           }`}
                       >
                         {size}px
@@ -221,14 +222,14 @@ export function WhiteboardPanel({
                 {/* Text Alignment */}
                 <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-300">{t('alignment')}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('alignment')}</span>
                   </div>
                   <div className="flex gap-1">
                     <button
                       onClick={() => setCurrentTextAlign('left')}
                       className={`px-3 py-1.5 rounded flex items-center gap-1 ${currentTextAlign === 'left'
                           ? 'bg-indigo-500 text-white'
-                          : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
                       title={t('left_align')}
                     >
@@ -238,7 +239,7 @@ export function WhiteboardPanel({
                       onClick={() => setCurrentTextAlign('center')}
                       className={`px-3 py-1.5 rounded flex items-center gap-1 ${currentTextAlign === 'center'
                           ? 'bg-indigo-500 text-white'
-                          : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
                       title={t('center_align')}
                     >
@@ -248,7 +249,7 @@ export function WhiteboardPanel({
                       onClick={() => setCurrentTextAlign('right')}
                       className={`px-3 py-1.5 rounded flex items-center gap-1 ${currentTextAlign === 'right'
                           ? 'bg-indigo-500 text-white'
-                          : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
                       title={t('right_align')}
                     >
@@ -257,7 +258,7 @@ export function WhiteboardPanel({
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   {t('click_to_create')}<br />
                   {t('edit_instructions')}
                 </div>

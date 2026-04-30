@@ -200,7 +200,7 @@ export default function CompactRecommendations({
                 <CardContent className="p-4 flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                    <p className="text-sm text-muted-foreground">Loading more...</p>
+                    <p className="text-sm text-muted-foreground">{t('loading_more')}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -225,15 +225,6 @@ export default function CompactRecommendations({
 
 function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
   const t = useTranslations('CompactRecommendations');
-
-  // Debug: 打印 post 数据
-  console.log('🔍 [CompactRecommendationCard] Post data:', {
-    id: post.id,
-    title: post.title,
-    has_details: !!post.recommendation_details,
-    details: post.recommendation_details,
-    ai_keywords: post.recommendation_details?.ai_keywords
-  });
 
   return (
     <Card className="bg-card border-border hover:bg-muted/50 transition-all duration-200 group h-full w-full max-w-full overflow-hidden">
@@ -292,24 +283,24 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
           </div>
         )}
 
-        {/* 详细信息按钮 - 始终显示 */}
+        {/* Detailed Information Button - Always Show */}
         <div className="mb-3">
           <details className="group">
             <summary className="text-xs font-medium text-primary cursor-pointer hover:text-primary/80 transition-colors list-none flex items-center gap-1 py-1 px-2 bg-primary/10 rounded-md hover:bg-primary/20">
               <span className="group-open:rotate-90 transition-transform">▶</span>
-              <span>查看详细匹配分数</span>
+              <span>{t('view_detailed_scores')}</span>
             </summary>
             {post.recommendation_details ? (
               <div className="mt-2 p-3 bg-muted/30 rounded-md space-y-2 text-xs">
-                <div className="font-medium text-foreground mb-2">匹配准确度：</div>
+                <div className="font-medium text-foreground mb-2">{t('match_accuracy')}</div>
 
-                {/* AI Keywords Section - 显示在最前面 */}
+                {/* AI Keywords Section - Show at the top */}
                 {post.recommendation_details.ai_keywords && post.recommendation_details.ai_keywords.length > 0 && (
                   <div className="mb-3 p-2 bg-primary/5 rounded border border-primary/20">
                     <div className="flex items-start gap-2">
                       <span className="text-primary font-medium">🤖</span>
                       <div className="flex-1">
-                        <div className="text-muted-foreground mb-1">你曾问过关于：</div>
+                        <div className="text-muted-foreground mb-1">{t('ai_keywords_title')}</div>
                         <div className="flex flex-wrap gap-1">
                           {post.recommendation_details.ai_keywords.map((keyword, idx) => (
                             <Badge key={idx} variant="secondary" className="text-xs bg-primary/20 text-primary border-primary/30">
@@ -324,7 +315,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
                 {post.recommendation_details.ai_similarity !== undefined && post.recommendation_details.ai_similarity > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">AI学习匹配：</span>
+                    <span className="text-muted-foreground">{t('ai_learning_match')}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                         <div
@@ -341,7 +332,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
                 {post.recommendation_details.interest_overlap !== undefined && post.recommendation_details.interest_overlap > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">兴趣匹配：</span>
+                    <span className="text-muted-foreground">{t('interest_match')}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                         <div
@@ -358,7 +349,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
                 {post.recommendation_details.hashtag_relevance !== undefined && post.recommendation_details.hashtag_relevance > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">标签匹配：</span>
+                    <span className="text-muted-foreground">{t('hashtag_match')}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                         <div
@@ -375,7 +366,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
                 {post.recommendation_details.semantic_similarity !== undefined && post.recommendation_details.semantic_similarity > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">内容相似度：</span>
+                    <span className="text-muted-foreground">{t('content_similarity')}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                         <div
@@ -392,7 +383,7 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
                 {post.recommendation_details.freshness !== undefined && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">新鲜度：</span>
+                    <span className="text-muted-foreground">{t('freshness')}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                         <div
@@ -409,14 +400,14 @@ function CompactRecommendationCard({ post }: { post: RecommendedPost }) {
 
                 <div className="pt-2 mt-2 border-t border-border">
                   <div className="flex items-center justify-between font-medium">
-                    <span className="text-foreground">总分：</span>
+                    <span className="text-foreground">{t('total_score')}</span>
                     <span className="text-primary text-sm">{post.recommendation_score}%</span>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="mt-2 p-3 bg-muted/30 rounded-md text-xs text-muted-foreground">
-                暂无详细匹配数据
+                {t('no_detailed_data')}
               </div>
             )}
           </details>

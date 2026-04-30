@@ -8701,7 +8701,18 @@
     "keywords": "Keywords",
     "recommended": "Recommended",
     "read_more": "Read More",
-    "loading": "Loading recommendations..."
+    "loading": "Loading recommendations...",
+    "view_detailed_scores": "View Detailed Match Scores",
+    "match_accuracy": "Match Accuracy:",
+    "ai_keywords_title": "You've asked about:",
+    "ai_learning_match": "AI Learning Match:",
+    "interest_match": "Interest Match:",
+    "hashtag_match": "Hashtag Match:",
+    "content_similarity": "Content Similarity:",
+    "freshness": "Freshness:",
+    "total_score": "Total Score:",
+    "no_detailed_data": "No detailed match data available",
+    "loading_more": "Loading more..."
   },
   "ClassroomChatPanel": {
     "message_placeholder": "Type a message to the class...",

@@ -8690,7 +8690,18 @@
     "keywords": "关键词",
     "recommended": "推荐",
     "read_more": "阅读全文",
-    "loading": "正在加载推荐..."
+    "loading": "正在加载推荐...",
+    "view_detailed_scores": "查看详细匹配分数",
+    "match_accuracy": "匹配准确度：",
+    "ai_keywords_title": "你曾问过关于：",
+    "ai_learning_match": "AI学习匹配：",
+    "interest_match": "兴趣匹配：",
+    "hashtag_match": "标签匹配：",
+    "content_similarity": "内容相似度：",
+    "freshness": "新鲜度：",
+    "total_score": "总分：",
+    "no_detailed_data": "暂无详细匹配数据",
+    "loading_more": "加载更多..."
   },
   "ClassroomChatPanel": {
     "message_placeholder": "给全班发送消息...",

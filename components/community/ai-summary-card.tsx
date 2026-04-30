@@ -358,7 +358,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
+                    className="bg-white/10 hover:bg-white/20 dark:text-white text-grey transition-all duration-200 hover:scale-105"
                     onClick={() => setShowDetails(true)}
                   >
                     <motion.div
@@ -390,7 +390,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {/* Bullets */}
                   {cachedResult.bullets && cachedResult.bullets.length > 0 && (
                     <div>
-                      <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
+                      <h4 className="dark:text-white text-grey font-semibold mb-2 flex items-center gap-2">
                         <List className="w-4 h-4" /> {t('key_points')}
                       </h4>
                       <ul className="list-disc list-inside space-y-1 text-sm text-gray-200">
@@ -405,7 +405,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.themes && cachedResult.themes.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-white font-semibold">{t('themes')}</h4>
+                        <h4 className="dark:text-white text-grey font-semibold">{t('themes')}</h4>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -419,7 +419,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                         <div className="space-y-3">
                           {cachedResult.themes.map((th, idx) => (
                             <div key={idx} className="bg-white/5 rounded-md p-3 border border-white/10">
-                              <div className="text-white font-medium mb-1">{th.title}</div>
+                              <div className="dark:text-white text-grey font-medium mb-1">{th.title}</div>
                               <ul className="list-disc list-inside text-sm text-gray-200 space-y-1">
                                 {th.points.map((p, pi) => (
                                   <li key={pi}>{p}</li>
@@ -436,7 +436,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                   {cachedResult.citations && cachedResult.citations.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-white font-semibold flex items-center gap-2">
+                        <h4 className="dark:text-white text-grey font-semibold flex items-center gap-2">
                           <LinkIcon className="w-4 h-4" /> {t('sources')}
                         </h4>
                         <Button
@@ -459,7 +459,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                             return (
                               <Link key={i} href={`/${effectiveLocale}/community/${fullPath}`} className="block">
                                 <div className="bg-white/5 rounded-md p-3 border border-white/10 hover:bg-white/10 transition">
-                                  <div className="text-sm text-white line-clamp-1">{c.title}</div>
+                                  <div className="text-sm dark:text-white text-grey line-clamp-1">{c.title}</div>
                                   <div className="text-xs text-gray-400 line-clamp-2 mt-1">{c.snippet}</div>
                                 </div>
                               </Link>
@@ -481,7 +481,7 @@ export default function AISummaryCard({ query, resultIds, locale = "en", classNa
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
+                        className="bg-white/10 hover:bg-white/20 dark:text-white text-grey transition-all duration-200 hover:scale-105"
                         onClick={() => setShowDetails(false)}
                       >
                         <motion.div

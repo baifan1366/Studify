@@ -79,23 +79,66 @@ async function generateToken(
   }
 
   // 验证教室权限
-  const { data: classroom, error: classroomError } = await supabase
+  console.log('🔍 [Token API] Checking classroom membership:', {
+    slug,
+    profileId: profile.id,
+    userId
+  });
+
+  // First, get the classroom
+  const { data: classroomData, error: classroomFetchError } = await supabase
     .from('classroom')
-    .select(`
-      id,
-      name,
-      classroom_member!classroom_member_classroom_id_fkey!inner(user_id, role)
-    `)
+    .select('id, name')
     .eq('slug', slug)
-    .eq('classroom_member.user_id', profile.id)
     .single();
 
-  if (classroomError || !classroom) {
+  console.log('🏫 [Token API] Classroom fetch result:', {
+    classroom: classroomData,
+    error: classroomFetchError
+  });
+
+  if (classroomFetchError || !classroomData) {
     return NextResponse.json(
-      { message: 'Classroom not found or access denied' },
+      { message: 'Classroom not found' },
       { status: 404 }
     );
   }
+
+  // Then check membership separately for better debugging
+  const { data: membershipData, error: membershipError } = await supabase
+    .from('classroom_member')
+    .select('user_id, role')
+    .eq('classroom_id', classroomData.id)
+    .eq('user_id', profile.id)
+    .single();
+
+  console.log('👥 [Token API] Membership check result:', {
+    membership: membershipData,
+    error: membershipError,
+    errorCode: membershipError?.code,
+    errorMessage: membershipError?.message,
+    errorDetails: membershipError?.details
+  });
+
+  if (membershipError || !membershipData) {
+    return NextResponse.json(
+      { 
+        message: 'Not a member of this classroom',
+        debug: {
+          code: membershipError?.code,
+          details: membershipError?.details,
+          message: membershipError?.message
+        }
+      },
+      { status: 403 }
+    );
+  }
+
+  // Combine the data
+  const classroom = {
+    ...classroomData,
+    classroom_member: [membershipData]
+  };
 
   // 验证直播会话
   console.log('🔍 [Token API] Looking for session:', {

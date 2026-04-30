@@ -1261,10 +1261,10 @@ function generateRecommendationReasons(
   if (filters.q) {
     const q = filters.q.toLowerCase();
     const hits: string[] = [];
-    if ((post.title || '').toLowerCase().includes(q)) hits.push('标题');
-    if ((post.body || '').toLowerCase().includes(q)) hits.push('正文');
+    if ((post.title || '').toLowerCase().includes(q)) hits.push('Title');
+    if ((post.body || '').toLowerCase().includes(q)) hits.push('Content');
     const postHashtags = (post.post_hashtags || []).map((ph: any) => ph.hashtags?.name).filter(Boolean);
-    if (postHashtags.some((t: string) => t.toLowerCase().includes(q))) hits.push('标签');
+    if (postHashtags.some((t: string) => t.toLowerCase().includes(q))) hits.push('Label');
     if (hits.length > 0) {
       reasons.push(`Keywords match：${hits.join(', ')}`);
     }

@@ -33,18 +33,7 @@ export function HomeHeader() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <Link 
-              href={`/${locale}/about`}
-              className="text-foreground/80 hover:text-primary font-medium transition-colors"
-            >
-              About Us
-            </Link>
-            <Link 
-              href={`/${locale}/courses`}
-              className="text-foreground/80 hover:text-primary font-medium transition-colors"
-            >
-              Courses
-            </Link>
+
             
             <div className="flex items-center gap-3 ml-4">
               <Link 

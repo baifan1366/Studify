@@ -13,7 +13,12 @@ import {
   Save,
   Check,
   Brain,
-  Activity
+  Activity,
+  Zap,
+  Settings,
+  Search,
+  Sparkles,
+  CircleHelp
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideoQA, useVideoQAStreaming, type VideoQAResponse } from '@/hooks/video/use-video-qa';
@@ -39,6 +44,7 @@ export function VideoQAPanel({
 }: VideoQAPanelProps) {
   const t = useTranslations('VideoPlayer');
   const [question, setQuestion] = useState('');
+  const [submittedQuestion, setSubmittedQuestion] = useState('');
   const [answer, setAnswer] = useState<VideoQAResponse | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
@@ -50,6 +56,33 @@ export function VideoQAPanel({
   const streamingQA = useVideoQAStreaming();
   const createNote = useCreateNote();
   const { toast } = useToast();
+
+  const aiModeOptions = [
+    {
+      value: 'fast' as const,
+      title: 'Fast Mode - Quick responses using client-side embedding',
+      icon: Zap,
+      activeClass: 'bg-blue-500 text-white shadow-sm',
+    },
+    {
+      value: 'normal' as const,
+      title: 'Normal Mode - Balanced quality with dual embedding',
+      icon: Settings,
+      activeClass: 'bg-green-500 text-white shadow-sm',
+    },
+    {
+      value: 'thinking' as const,
+      title: 'Thinking Mode - Shows AI reasoning process',
+      icon: Brain,
+      activeClass: 'bg-purple-500 text-white shadow-sm',
+    },
+  ];
+
+  const modeLabels = {
+    fast: 'Fast',
+    normal: 'Normal',
+    thinking: 'Thinking',
+  };
 
   // Preload embedding model in background when component mounts
   useEmbeddingPreloadSimple(true);
@@ -68,6 +101,8 @@ export function VideoQAPanel({
     if (!question.trim() || isProcessing) return;
 
     try {
+      const currentQuestion = question.trim();
+      setSubmittedQuestion(currentQuestion);
       // Clear previous answer before fetching new one
       setAnswer(null);
       setNoteSaved(false);
@@ -77,7 +112,7 @@ export function VideoQAPanel({
         // Use streaming mode
         await streamingQA.askQuestion({
           lessonId,
-          question: question.trim(),
+          question: currentQuestion,
           currentTime,
           timeWindow: 30,
           aiMode,
@@ -87,7 +122,7 @@ export function VideoQAPanel({
         // Use regular mode
         const result = await videoQA.mutateAsync({
           lessonId,
-          question: question.trim(),
+          question: currentQuestion,
           currentTime,
           timeWindow: 30,
           aiMode
@@ -120,6 +155,7 @@ export function VideoQAPanel({
 
   const startNewQuestion = () => {
     setQuestion('');
+    setSubmittedQuestion('');
     setAnswer(null);
     setNoteSaved(false);
     streamingQA.reset();
@@ -130,13 +166,14 @@ export function VideoQAPanel({
 
     setIsSavingNote(true);
     try {
+      const noteQuestion = submittedQuestion || question;
       await createNote.mutateAsync({
         lessonId: parseInt(lessonId),
         timestampSec: currentTime,
-        content: `**Q:** ${question}\n\n**A:** ${effectiveAnswer.answer}`,
+        content: `**Q:** ${noteQuestion}\n\n**A:** ${effectiveAnswer.answer}`,
         aiSummary: effectiveAnswer.answer,
         tags: ['ai-qa', 'video-note'],
-        title: question.length > 50 ? question.substring(0, 50) + '...' : question,
+        title: noteQuestion.length > 50 ? noteQuestion.substring(0, 50) + '...' : noteQuestion,
         noteType: 'ai_generated',
       });
 
@@ -160,9 +197,9 @@ export function VideoQAPanel({
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
+    <div className="h-full flex flex-col bg-background text-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-background flex-shrink-0">
         <div className="flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-blue-500 dark:text-blue-400" />
           <h3 className="font-medium text-gray-900 dark:text-white">
@@ -172,42 +209,25 @@ export function VideoQAPanel({
         <div className="flex items-center gap-2">
           {/* AI Mode Selector */}
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <button
-              onClick={() => setAIMode('fast')}
-              disabled={videoQA.isPending}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'fast'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              title="Fast Mode - Quick responses using client-side embedding"
-            >
-              ⚡
-            </button>
-            <button
-              onClick={() => setAIMode('normal')}
-              disabled={videoQA.isPending}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'normal'
-                  ? 'bg-green-500 text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              title="Normal Mode - Balanced quality with dual embedding"
-            >
-              ⚙️
-            </button>
-            <button
-              onClick={() => setAIMode('thinking')}
-              disabled={videoQA.isPending}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'thinking'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              title="Thinking Mode - Shows AI reasoning process"
-            >
-              🧠
-            </button>
+            {aiModeOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setAIMode(option.value)}
+                  disabled={isProcessing}
+                  className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all duration-200 ${
+                    aiMode === option.value
+                      ? option.activeClass
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                  title={option.title}
+                  aria-label={option.title}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                </button>
+              );
+            })}
           </div>
           <button
             onClick={onClose}
@@ -220,7 +240,7 @@ export function VideoQAPanel({
       </div>
 
       {/* Current Time Context */}
-      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ backgroundColor: 'rgba(253, 245, 230, 0.5)' }}>
+      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-muted/40 flex-shrink-0">
         <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300">
           <Clock className="w-4 h-4" />
           <span>{t('current_time')}: {formatTime(currentTime)}</span>
@@ -232,15 +252,25 @@ export function VideoQAPanel({
         {isProcessing ? (
           /* Loading State with Streaming Updates */
           <div className="p-4 space-y-4">
-            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 animate-pulse">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-1">
+                {t('your_question')}:
+              </div>
+              <div className="text-sm text-gray-900 dark:text-white">
+                {submittedQuestion || question}
+              </div>
             </div>
             
             {/* Streaming Status Display */}
             <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-xl border border-green-200 dark:border-green-700">
               <div className="flex items-center gap-2 mb-3">
-                <Loader2 className="w-4 h-4 text-green-600 dark:text-green-400 animate-spin" />
+                {streamingQA.progress >= 70 ? (
+                  <Sparkles className="w-4 h-4 text-green-600 dark:text-green-400 animate-pulse" />
+                ) : streamingQA.progress >= 35 ? (
+                  <BookOpen className="w-4 h-4 text-green-600 dark:text-green-400 animate-pulse" />
+                ) : (
+                  <Search className="w-4 h-4 text-green-600 dark:text-green-400 animate-pulse" />
+                )}
                 <div className="text-sm font-medium text-green-700 dark:text-green-300">
                   {streamingQA.currentStatus || (aiMode === 'thinking' ? 'AI is thinking deeply...' : aiMode === 'normal' ? 'AI is analyzing...' : 'AI is processing...')}
                 </div>
@@ -290,9 +320,9 @@ export function VideoQAPanel({
               {/* Fallback animation if no streaming updates */}
               {streamingQA.streamUpdates.length === 0 && (
                 <div className="space-y-2">
-                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-full animate-pulse"></div>
-                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-5/6 animate-pulse"></div>
-                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-4/6 animate-pulse"></div>
+                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-full animate-pulse" />
+                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-5/6 animate-pulse" />
+                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-4/6 animate-pulse" />
                 </div>
               )}
             </div>
@@ -349,9 +379,10 @@ export function VideoQAPanel({
                   <button
                     key={index}
                     onClick={() => setQuestion(quickQ)}
-                    className="w-full text-left p-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg transition-all duration-200"
+                    className="w-full flex items-start gap-2 text-left p-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg transition-all duration-200"
                   >
-                    {quickQ}
+                    <CircleHelp className="w-3.5 h-3.5 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                    <span>{quickQ}</span>
                   </button>
                 ))}
               </div>
@@ -366,7 +397,7 @@ export function VideoQAPanel({
                 {t('your_question')}:
               </div>
               <div className="text-sm text-gray-900 dark:text-white">
-                {question}
+                {submittedQuestion || question}
               </div>
             </div>
 
@@ -378,8 +409,23 @@ export function VideoQAPanel({
                   AI {t('answer')}:
                 </div>
                 {effectiveAnswer.metadata?.aiMode && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-200">
-                    {effectiveAnswer.metadata.aiMode === 'thinking' ? '🧠 Thinking' : effectiveAnswer.metadata.aiMode === 'normal' ? '⚙️ Normal' : '⚡ Fast'}
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-200">
+                    {(() => {
+                      const mode =
+                        effectiveAnswer.metadata?.aiMode === 'thinking' ||
+                        effectiveAnswer.metadata?.aiMode === 'normal' ||
+                        effectiveAnswer.metadata?.aiMode === 'fast'
+                          ? effectiveAnswer.metadata.aiMode
+                          : 'fast';
+                      const option = aiModeOptions.find((item) => item.value === mode);
+                      const Icon = option?.icon ?? Zap;
+                      return (
+                        <>
+                          <Icon className="w-3 h-3" />
+                          <span>{modeLabels[mode]}</span>
+                        </>
+                      );
+                    })()}
                   </span>
                 )}
               </div>
@@ -389,7 +435,7 @@ export function VideoQAPanel({
                 <details className="mb-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-600/50 rounded-lg overflow-hidden">
                   <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-2">
                     <Brain className="w-3 h-3" />
-                    <span>🧠 Thinking Process</span>
+                    <span>Thinking Process</span>
                   </summary>
                   <div className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border-t border-purple-200 dark:border-purple-600/50">
                     <pre className="whitespace-pre-wrap font-mono leading-relaxed">
@@ -452,8 +498,9 @@ export function VideoQAPanel({
                     </div>
                   ))}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 italic mt-2">
-                  💡 {t('click_timestamp_to_jump')}
+                <div className="text-xs text-gray-500 dark:text-gray-400 italic mt-2 flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  <span>{t('click_timestamp_to_jump')}</span>
                 </div>
               </div>
             ) : effectiveAnswer.segments && effectiveAnswer.segments.length === 0 ? (

@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     next = '/';
   }
 
+  // Detect locale from Accept-Language or from the referrer
+  const acceptedLocale = request.cookies.get('next-intl-locale')?.value || 'en';
+
   // Extract role from URL parameters
   const requestedRole = searchParams.get("role") as "student" | "tutor" | null;
 
@@ -32,7 +35,7 @@ export async function GET(request: NextRequest) {
   // If no code, return error
   if (!code) {
     console.log("[AUTH CALLBACK] No code provided");
-    return NextResponse.redirect(`${origin}/en/sign-in?error=no_code_provided`);
+    return NextResponse.redirect(`${origin}/${acceptedLocale}/sign-in?error=no_code_provided`);
   }
 
   const supabase = await createClient();
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
     if (error || !data?.session) {
       console.error("[AUTH CALLBACK] Session exchange failed:", error?.message);
       return NextResponse.redirect(
-        `${origin}/en/sign-in?error=session_exchange_failed&details=${encodeURIComponent(
+        `${origin}/${acceptedLocale}/sign-in?error=session_exchange_failed&details=${encodeURIComponent(
           error?.message || "unknown_error"
         )}`
       );
@@ -160,7 +163,7 @@ export async function GET(request: NextRequest) {
 
     if (!profile) {
       console.error("[AUTH CALLBACK] Profile is null");
-      return NextResponse.redirect(`${origin}/en/sign-in?error=profile_not_found`);
+      return NextResponse.redirect(`${origin}/${acceptedLocale}/sign-in?error=profile_not_found`);
     }
 
     // Use the profile's role
@@ -244,7 +247,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("[AUTH CALLBACK] Unexpected error:", error);
     return NextResponse.redirect(
-      `${origin}/en/sign-in?error=unexpected_error&details=${encodeURIComponent(
+      `${origin}/${acceptedLocale}/sign-in?error=unexpected_error&details=${encodeURIComponent(
         error?.message || "unknown_error"
       )}`
     );

@@ -11,6 +11,14 @@ import {
   ExternalLink,
   Lightbulb,
   MessageCircle,
+  Zap,
+  Settings,
+  Search,
+  Sparkles,
+  Play,
+  CircleHelp,
+  Circle,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +90,30 @@ export default function VideoAIAssistant({
 
   const { askStreaming, isLoading, error } = useStreamingVideoAI(videoContext);
 
+  const aiModeOptions = [
+    {
+      value: "fast" as const,
+      label: "Fast",
+      title: "Fast Mode - Quick responses",
+      icon: Zap,
+      activeClass: "bg-blue-500 text-white shadow-sm",
+    },
+    {
+      value: "normal" as const,
+      label: "Normal",
+      title: "Normal Mode - Balanced quality",
+      icon: Settings,
+      activeClass: "bg-green-500 text-white shadow-sm",
+    },
+    {
+      value: "thinking" as const,
+      label: "Thinking",
+      title: "Thinking Mode - Shows reasoning process",
+      icon: Brain,
+      activeClass: "bg-purple-500 text-white shadow-sm",
+    },
+  ];
+
   // Preload embedding model in background when component mounts
   useEmbeddingPreloadSimple(true);
 
@@ -119,21 +151,34 @@ export default function VideoAIAssistant({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleAskQuestion = async () => {
-    if (!question.trim()) return;
+  const getLoadingStageDisplay = (
+    stage: AIMessage["loadingStage"]
+  ): { label: string; Icon: LucideIcon } => {
+    switch (stage) {
+      case "searching":
+        return { label: "Searching content...", Icon: BookOpen };
+      case "synthesizing":
+        return { label: "Generating answer...", Icon: Sparkles };
+      case "analyzing":
+      default:
+        return { label: "Analyzing question...", Icon: Search };
+    }
+  };
+
+  const handleAskQuestion = async (prompt?: string) => {
+    const promptText = (prompt ?? question).trim();
+    if (!promptText) return;
 
     const userMessage: AIMessage = {
       role: "user",
-      content: question,
+      content: promptText,
       timestamp: Date.now(),
     };
 
     setConversation((prev) => [...prev, userMessage]);
-    const currentQuestion = question;
     setQuestion("");
 
     // Create initial assistant message for streaming
-    const assistantMessageIndex = conversation.length + 1;
     const initialMessage: AIMessage = {
       role: "assistant",
       content: "",
@@ -150,7 +195,7 @@ export default function VideoAIAssistant({
       let accumulatedThinking = ""; // New: accumulate thinking content
 
       await askStreaming(
-        currentQuestion,
+        promptText,
         conversation.slice(-4),
         // onToken callback - update message as tokens arrive
         (token: string) => {
@@ -376,7 +421,7 @@ export default function VideoAIAssistant({
   const handlePresetQuestion = (presetQuestion: string) => {
     setQuestion(presetQuestion);
     // 自动发送
-    setTimeout(() => handleAskQuestion(), 100);
+    setTimeout(() => handleAskQuestion(presetQuestion), 100);
   };
 
   return (
@@ -398,42 +443,26 @@ export default function VideoAIAssistant({
         <div className="flex items-center space-x-2">
           {/* AI Mode Selector */}
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <button
-              onClick={() => setAIMode('fast')}
-              disabled={isLoading}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'fast'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              title="Fast Mode - Quick responses"
-            >
-              ⚡ Fast
-            </button>
-            <button
-              onClick={() => setAIMode('normal')}
-              disabled={isLoading}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'normal'
-                  ? 'bg-green-500 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              title="Normal Mode - Balanced quality"
-            >
-              ⚙️ Normal
-            </button>
-            <button
-              onClick={() => setAIMode('thinking')}
-              disabled={isLoading}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                aiMode === 'thinking'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              title="Thinking Mode - Shows reasoning process"
-            >
-              🧠 Thinking
-            </button>
+            {aiModeOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setAIMode(option.value)}
+                  disabled={isLoading}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
+                    aiMode === option.value
+                      ? option.activeClass
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                  title={option.title}
+                  aria-label={option.title}
+                >
+                  <Icon size={13} />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -464,9 +493,10 @@ export default function VideoAIAssistant({
                     className="p-2 text-xs text-left bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-gray-200 dark:border-gray-700 rounded-lg transition-colors duration-200 group"
                   >
                     <div className="flex items-start space-x-2">
-                      <span className="text-blue-500 group-hover:text-blue-600 flex-shrink-0 mt-0.5">
-                        ❓
-                      </span>
+                      <CircleHelp
+                        size={14}
+                        className="text-blue-500 group-hover:text-blue-600 flex-shrink-0 mt-0.5"
+                      />
                       <span className="text-gray-700 dark:text-gray-300 group-hover:text-blue-700 dark:group-hover:text-blue-300">
                         {presetQ}
                       </span>
@@ -526,15 +556,18 @@ export default function VideoAIAssistant({
 
                 {/* Loading Stage Indicator */}
                 {msg.isPartial && msg.loadingStage && (
-                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-                    <span>
-                      {msg.loadingStage === "analyzing" &&
-                        "🔍 Analyzing question..."}
-                      {msg.loadingStage === "searching" &&
-                        "📚 Searching content..."}
-                      {msg.loadingStage === "synthesizing" &&
-                        "✨ Generating answer..."}
-                    </span>
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1.5">
+                    {(() => {
+                      const { label, Icon } = getLoadingStageDisplay(
+                        msg.loadingStage
+                      );
+                      return (
+                        <>
+                          <Icon size={12} className="animate-pulse" />
+                          <span>{label}</span>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -546,7 +579,7 @@ export default function VideoAIAssistant({
                       <details className="mb-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg overflow-hidden">
                         <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors flex items-center gap-2">
                           <Brain size={14} />
-                          <span>🧠 Thinking Process</span>
+                          <span>Thinking Process</span>
                           <span className="text-xs opacity-60">(Click to expand)</span>
                         </summary>
                         <div className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-t border-purple-200 dark:border-purple-700">
@@ -564,7 +597,7 @@ export default function VideoAIAssistant({
                           msg.confidence || 0
                         )}`}
                       >
-                        <span>•</span>
+                        <Circle size={7} fill="currentColor" />
                         <span>{getConfidenceText(msg.confidence || 0)}</span>
                       </span>
                       <span className="text-gray-400">
@@ -641,7 +674,7 @@ export default function VideoAIAssistant({
                                               )}`}
                                           </span>
                                           <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                            ▶
+                                            <Play size={10} fill="currentColor" />
                                           </span>
                                         </button>
                                       )}
@@ -693,7 +726,7 @@ export default function VideoAIAssistant({
                         {/* Hint for video segments */}
                         {msg.sources.some(s => s.type === "video_segment") && (
                           <div className="text-xs text-gray-400 dark:text-gray-500 italic mt-2 flex items-center space-x-1">
-                            <span>💡</span>
+                            <Lightbulb size={12} />
                             <span>{t("sources.click_timestamp_hint")}</span>
                           </div>
                         )}
@@ -714,7 +747,7 @@ export default function VideoAIAssistant({
                                 key={actionIdx}
                                 className="flex items-start space-x-2 text-gray-600 dark:text-gray-300"
                               >
-                                <span className="mt-0.5">•</span>
+                                <Circle size={6} fill="currentColor" className="mt-1.5 flex-shrink-0" />
                                 <span>{action}</span>
                               </div>
                             ))}
@@ -745,7 +778,7 @@ export default function VideoAIAssistant({
             disabled={isLoading}
           />
           <Button
-            onClick={handleAskQuestion}
+            onClick={() => handleAskQuestion()}
             disabled={isLoading || !question.trim()}
             size="sm"
             className="px-3"

@@ -236,7 +236,7 @@ export async function generateEmbeddingWithWakeup(
   // Check cache first
   const { getCachedEmbedding, setCachedEmbedding } = await import('./embedding-cache');
   const cacheKey = `${model}:${purpose}:${processedText}`;
-  const cachedEmbedding = getCachedEmbedding(cacheKey);
+  const cachedEmbedding = await getCachedEmbedding(cacheKey);
   if (cachedEmbedding) {
     return { 
       embedding: cachedEmbedding, 
@@ -319,7 +319,7 @@ export async function generateEmbeddingWithWakeup(
       };
 
       // Cache the successful result
-      setCachedEmbedding(cacheKey, embeddingResult.embedding);
+      await setCachedEmbedding(cacheKey, embeddingResult.embedding);
       
       console.log(`  ✅ ${model.toUpperCase()} success (${data.embedding.length}D)${wasServerSleeping ? ` after ${wakeupAttempts} wake-ups` : ''}`);
       return embeddingResult;

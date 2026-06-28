@@ -559,7 +559,7 @@ export class VectorStore {
       // Check search result cache first
       const { getCachedSearchResults, setCachedSearchResults } = await import('./embedding-cache');
       const cacheKey = `${queryText}:${JSON.stringify(options)}`;
-      const cachedResults = getCachedSearchResults(cacheKey, {});
+      const cachedResults = await getCachedSearchResults(cacheKey, options);
       if (cachedResults) {
         return cachedResults;
       }
@@ -663,7 +663,7 @@ export class VectorStore {
             if (!fallbackError && fallbackData) {
               console.log(`✅ Enhanced search fallback returned ${(fallbackData as any[]).length} results`);
               const fallbackResults = (fallbackData as SearchResult[]) || [];
-              setCachedSearchResults(cacheKey, {}, fallbackResults);
+              await setCachedSearchResults(cacheKey, options, fallbackResults);
               return fallbackResults;
             }
           } catch (fallbackErr) {
@@ -677,7 +677,7 @@ export class VectorStore {
       const results = data || [];
       
       // Cache the search results
-      setCachedSearchResults(cacheKey, {}, results);
+      await setCachedSearchResults(cacheKey, options, results);
       
       return results;
     } catch (error) {

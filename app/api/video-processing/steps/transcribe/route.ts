@@ -638,7 +638,8 @@ async function queueNextStep(
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 3, // Queue timing managed by QStash internally
+        retries: 3,
+        deduplicationId: `video-embed-${queueId}`
       }
     );
 
@@ -696,7 +697,9 @@ async function scheduleRetry(
         timestamp: new Date().toISOString(),
       },
       {
-        retries: 0, // Manual retry scheduling, no additional retries
+        retries: 0,
+        delay: delaySeconds,
+        deduplicationId: `video-transcribe-${queueId}-retry-${retryCount}-${isWarmupRetry ? "warmup" : "standard"}`,
       }
     );
 

@@ -94,7 +94,7 @@ async function handler(request: NextRequest) {
 }
 
 // Export with signature verification
-export const POST = process.env.NODE_ENV === "development" || !process.env.QSTASH_CURRENT_SIGNING_KEY
+export const POST = process.env.NODE_ENV === "development"
   ? handler
   : verifySignatureAppRouter(handler);
 

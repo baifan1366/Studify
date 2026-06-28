@@ -1,4 +1,31 @@
 import { createHash } from 'crypto';
+import redis from '@/utils/redis/redis';
+
+const EMBEDDING_REDIS_TTL_SECONDS = 24 * 60 * 60;
+const SEARCH_REDIS_TTL_SECONDS = 5 * 60;
+const CACHE_NAMESPACE = 'rag:v2';
+
+function stableValue(value: any): any {
+  if (Array.isArray(value)) {
+    return value.map(stableValue);
+  }
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce<Record<string, any>>((result, key) => {
+        if (value[key] !== undefined) result[key] = stableValue(value[key]);
+        return result;
+      }, {});
+  }
+  return value;
+}
+
+function redisKey(kind: 'embedding' | 'search', value: unknown): string {
+  const hash = createHash('sha256')
+    .update(JSON.stringify(stableValue(value)))
+    .digest('hex');
+  return `${CACHE_NAMESPACE}:${kind}:${hash}`;
+}
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -44,11 +71,9 @@ export class EmbeddingCache {
   private generateSearchKey(query: string, options: any): string {
     const searchParams = {
       query: query.trim().toLowerCase(),
-      contentTypes: options.contentTypes?.sort() || [],
-      maxResults: options.maxResults || 10,
-      similarityThreshold: options.similarityThreshold || 0.7
+      options: stableValue(options || {})
     };
-    return createHash('md5').update(JSON.stringify(searchParams)).digest('hex');
+    return createHash('sha256').update(JSON.stringify(searchParams)).digest('hex');
   }
 
   // Clean expired entries
@@ -317,12 +342,31 @@ export function getEmbeddingCache(): EmbeddingCache {
 }
 
 // Utility functions
-export function getCachedEmbedding(text: string): number[] | null {
-  return getEmbeddingCache().getEmbedding(text);
+export async function getCachedEmbedding(text: string): Promise<number[] | null> {
+  const local = getEmbeddingCache().getEmbedding(text);
+  if (local) return local;
+
+  try {
+    const cached = await redis.get<number[]>(redisKey('embedding', text));
+    if (Array.isArray(cached) && cached.every(Number.isFinite)) {
+      getEmbeddingCache().setEmbedding(text, cached);
+      return [...cached];
+    }
+  } catch (error) {
+    console.warn('RAG embedding cache read failed:', error);
+  }
+  return null;
 }
 
-export function setCachedEmbedding(text: string, embedding: number[]): void {
+export async function setCachedEmbedding(text: string, embedding: number[]): Promise<void> {
   getEmbeddingCache().setEmbedding(text, embedding);
+  try {
+    await redis.set(redisKey('embedding', text), embedding, {
+      ex: EMBEDDING_REDIS_TTL_SECONDS,
+    });
+  } catch (error) {
+    console.warn('RAG embedding cache write failed:', error);
+  }
 }
 
 export function getCachedQueryEmbedding(query: string): number[] | null {
@@ -333,12 +377,35 @@ export function setCachedQueryEmbedding(query: string, embedding: number[]): voi
   getEmbeddingCache().setQueryEmbedding(query, embedding);
 }
 
-export function getCachedSearchResults(query: string, options: any): any | null {
-  return getEmbeddingCache().getSearchResults(query, options);
+export async function getCachedSearchResults(query: string, options: any): Promise<any | null> {
+  const local = getEmbeddingCache().getSearchResults(query, options);
+  if (local) return local;
+
+  try {
+    const cached = await redis.get<any>(
+      redisKey('search', { query: query.trim().toLowerCase(), options })
+    );
+    if (cached !== null) {
+      getEmbeddingCache().setSearchResults(query, options, cached);
+      return cached;
+    }
+  } catch (error) {
+    console.warn('RAG search cache read failed:', error);
+  }
+  return null;
 }
 
-export function setCachedSearchResults(query: string, options: any, results: any): void {
+export async function setCachedSearchResults(query: string, options: any, results: any): Promise<void> {
   getEmbeddingCache().setSearchResults(query, options, results);
+  try {
+    await redis.set(
+      redisKey('search', { query: query.trim().toLowerCase(), options }),
+      results,
+      { ex: SEARCH_REDIS_TTL_SECONDS }
+    );
+  } catch (error) {
+    console.warn('RAG search cache write failed:', error);
+  }
 }
 
 export function getEmbeddingCacheStats() {

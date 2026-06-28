@@ -349,15 +349,6 @@ export async function GET(request: NextRequest) {
 
 // QStash signature verification for security
 // In development, signature verification is optional for local testing
-if (
-  !process.env.QSTASH_CURRENT_SIGNING_KEY &&
-  process.env.NODE_ENV === "production"
-) {
-  console.warn(
-    "QSTASH_CURRENT_SIGNING_KEY is missing in production - signature verification disabled"
-  );
-}
-
 // Enhanced handler with better error handling for signature verification
 async function enhancedHandler(request: NextRequest) {
   try {
@@ -385,10 +376,9 @@ async function enhancedHandler(request: NextRequest) {
   }
 }
 
-// For local development or missing signing key, bypass signature verification
+// Only local development may bypass QStash signature verification.
 export const POST =
-  process.env.NODE_ENV === "development" ||
-  !process.env.QSTASH_CURRENT_SIGNING_KEY
+  process.env.NODE_ENV === "development"
     ? enhancedHandler
     : verifySignatureAppRouter(enhancedHandler);
 

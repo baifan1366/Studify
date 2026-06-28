@@ -6,6 +6,7 @@ import { sendVideoProcessingNotification } from "@/lib/video-processing/notifica
 import { generateDualEmbeddingWithWakeup } from "@/lib/langChain/embedding";
 import { segmentTranscription, processSegmentsWithEmbeddings, VideoSegment } from "@/lib/video-processing/segment-processor";
 import { z } from "zod";
+import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 
 // Validation schema for QStash job payload
 const EmbedJobSchema = z.object({
@@ -64,7 +65,9 @@ async function scheduleRetry(
         retry_attempt: retryCount,
       },
       {
-        retries: 0 // Manual retry scheduling, no additional retries
+        retries: 0,
+        delay: delaySeconds,
+        deduplicationId: `video-embed-${queueId}-retry-${retryCount}`,
       }
     );
 
@@ -76,7 +79,7 @@ async function scheduleRetry(
   }
 }
 
-export async function POST(req: Request) {
+async function handler(req: Request) {
   console.log('🎬 Video embedding step started');
   
   try {
@@ -450,3 +453,8 @@ export async function POST(req: Request) {
     }, { status: 500 });
   }
 }
+
+export const POST =
+  process.env.NODE_ENV === "development"
+    ? handler
+    : verifySignatureAppRouter(handler);

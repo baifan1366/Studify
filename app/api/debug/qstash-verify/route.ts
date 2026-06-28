@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     
     // Test 1: List queues
     const queueManager = getQueueManager();
-    let queues = [];
+    let queues: Awaited<ReturnType<typeof queueManager.listQueues>> = [];
     try {
       queues = await queueManager.listQueues();
       console.log('✅ Successfully listed queues:', queues);

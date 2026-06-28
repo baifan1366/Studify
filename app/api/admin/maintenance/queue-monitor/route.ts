@@ -37,17 +37,8 @@ export async function GET(request: NextRequest) {
         lastCheck: new Date().toISOString()
       };
 
-      // Get detailed info for each queue
-      if (qstashQueues && qstashQueues.length > 0) {
-        for (const queue of qstashQueues) {
-          try {
-            const queueInfo = await queueManager.getQueue(queue.name);
-            queue.details = queueInfo;
-          } catch (error) {
-            queue.error = (error as Error).message;
-          }
-        }
-      }
+      // listQueues() from the official SDK already returns the complete
+      // QueueResponse (parallelism, lag, paused, timestamps).
     } catch (error) {
       queueData.qstash = {
         status: 'unhealthy',

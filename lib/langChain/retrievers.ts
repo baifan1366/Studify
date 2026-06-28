@@ -516,14 +516,20 @@ export class EmbeddingsFilter implements DocumentCompressor {
 
     try {
       // Generate query embedding
-      const { embedding: queryEmbedding } = await generateEmbedding(query);
+      const { embedding: queryEmbedding } = await generateEmbedding(
+        query,
+        'e5',
+        'query'
+      );
 
       // Calculate similarities
       const docsWithSimilarity = await Promise.all(
         documents.map(async (doc) => {
           try {
             const { embedding: docEmbedding } = await generateEmbedding(
-              doc.pageContent
+              doc.pageContent,
+              'e5',
+              'passage'
             );
             const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
 

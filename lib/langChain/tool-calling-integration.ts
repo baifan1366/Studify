@@ -24,6 +24,14 @@ import {
 export { TOOL_CATEGORIES };
 import { getLLM, getReasoningLLM, getVisionLLM } from "./client";
 import { aiWorkflowExecutor } from "./ai-workflow";
+import {
+  buildGroundedQuestion,
+  calculateGroundedConfidence,
+  createEducationalSystemMessage,
+  EDUCATIONAL_SYSTEM_PROMPT,
+  parseSearchEvidence,
+  shouldSupplementWithWeb,
+} from "./educational-ai-policy";
 
 // === TOOL CALLING CONFIGURATION ===
 
@@ -39,50 +47,16 @@ interface ToolCallingConfig {
   userId?: number;
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant for Studify, an educational platform. You have access to various tools to help users with:
+const DEFAULT_SYSTEM_PROMPT = `${EDUCATIONAL_SYSTEM_PROMPT}
 
-- Searching educational content (courses, lessons, posts)
-- Answering questions using the knowledge base
-- Analyzing course content and generating insights
-- Providing personalized content recommendations
-- Accessing user profiles and learning progress
-- Performing calculations and utility functions
-- Searching the web for latest information and external knowledge
+Tool policy:
+- Use search first for course content, lessons, video segments, documents, notes, progress, and course-specific information.
+- Use web_search at most once when the user requests web information, current information is required, or internal search confidence is below 0.60.
+- Do not use web_search as a substitute for available course evidence.
+- Use multiple non-search tools only when they materially improve the answer.
+- Access only user data authorized for the current request.
 
-Guidelines:
-1. Always try to use tools when available, but if tools don't return results, use your general knowledge to help
-2. Be helpful, accurate, and educational in your responses
-3. When answering questions, cite sources when available
-4. If no specific course content is found, provide helpful general educational guidance
-5. Never say "I can't find information" - always provide some helpful response
-6. For course analysis, provide actionable insights
-7. Respect user privacy and only access authorized data
-8. Use multiple tools when needed to provide comprehensive answers
-
-Search Strategy (IMPORTANT):
-1. ALWAYS prioritize the 'search' tool for queries about:
-   - Course content, lessons, and video segments
-   - Internal knowledge base and learning materials
-   - Student progress and course-specific information
-   
-2. Use the 'web_search' tool ONLY when:
-   - User asks about latest news, trends, or current events (2024 onwards)
-   - User explicitly requests information from the internet
-   - The 'search' tool returns insufficient results (fewer than 2 results or low confidence score below 0.6)
-   - The query requires up-to-date information not available in the course materials
-   
-3. Web Search Limitations:
-   - LIMIT 'web_search' to a MAXIMUM of ONE call per user query
-   - DO NOT use 'web_search' for course-specific content that should be in the internal knowledge base
-   - DO NOT make redundant web searches for the same information
-   
-4. Source Attribution:
-   - CLEARLY distinguish between internal course content and external web sources in your answers
-   - When using web search results, explicitly mention "According to web sources..." or "Based on online information..."
-   - When using internal search, mention "Based on course materials..." or "According to the lesson content..."
-   - Always provide URLs when citing web sources
-
-Remember: You're helping students and educators learn more effectively! Prioritize internal course content first, and use web search as a supplement for latest information or when internal results are insufficient.`;
+Never claim that a tool ran unless its result is present in the conversation.`;
 
 // === TOOL CALLING AGENT ===
 
@@ -715,20 +689,22 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
           const llmStartTime = Date.now();
           console.log(`📡 [${Date.now()}] LLM instance created, invoking...`);
           
-          const fallbackPrompt = `You are an educational AI assistant. Answer this question clearly and helpfully:
-
-Question: ${question}
-
-${videoContext ? `Context: This is from a video lesson at ${videoContext.currentTime}s` : ''}
-
-Provide a clear, educational answer even without specific course materials.`;
+          const fallbackPrompt = buildGroundedQuestion({
+            question,
+            internalEvidence: videoContext
+              ? `The learner is viewing a lesson at ${videoContext.currentTime ?? 0} seconds. No retrieved transcript evidence is available yet.`
+              : undefined,
+          });
 
           const fallbackTimeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Fallback LLM timeout after 90s')), 90000)
           );
           
           const result: any = await Promise.race([
-            llm.invoke(fallbackPrompt),
+            llm.invoke([
+              createEducationalSystemMessage(),
+              new HumanMessage(fallbackPrompt),
+            ]),
             fallbackTimeout
           ]);
           
@@ -776,6 +752,37 @@ Provide a clear, educational answer even without specific course materials.`;
       );
       
       searchResults = await Promise.race([searchPromise, quickSearchTimeout]);
+
+      const internalEvidence = parseSearchEvidence(searchResults);
+      let webSearchResults = "";
+      let webSources: any[] = [];
+
+      if (shouldSupplementWithWeb(internalEvidence, question)) {
+        const webSearchTool = getToolByName("web_search");
+        if (webSearchTool) {
+          const webStartTime = Date.now();
+          webSearchResults = await (webSearchTool as any).call({
+            query: question,
+            searchDepth: "advanced",
+            maxResults: 5,
+          });
+          timings.web_search = Date.now() - webStartTime;
+          toolsUsed.push("web_search");
+
+          try {
+            const parsedWeb = JSON.parse(webSearchResults);
+            webSources = Array.isArray(parsedWeb.results)
+              ? parsedWeb.results.map((source: any) => ({
+                  ...source,
+                  type: "web",
+                  provider: "tavily",
+                }))
+              : [];
+          } catch {
+            webSources = [];
+          }
+        }
+      }
       
       const totalTime = Date.now() - startTime;
       timings.total = totalTime;
@@ -796,35 +803,47 @@ Provide a clear, educational answer even without specific course materials.`;
         console.warn(`⚠️ [${Date.now()}] Failed to parse search results as JSON:`, e);
       }
 
-      // If we have search results, enhance the answer
-      if (searchResults && !searchResults.includes("No relevant content found")) {
+      structuredSources.push(...webSources);
+      const groundedConfidence = calculateGroundedConfidence({
+        internal: internalEvidence,
+        webResultCount: webSources.length,
+        webTopScore:
+          typeof webSources[0]?.score === "number"
+            ? webSources[0].score
+            : undefined,
+      });
+
+      // If we have evidence, synthesize one grounded final answer.
+      if (internalEvidence.count > 0 || webSources.length > 0) {
         console.log(`🔄 [${Date.now()}] Enhancing answer with search results...`);
         const enhanceStartTime = Date.now();
         
         try {
-          const qaTool = getToolByName("answer_question");
-          if (qaTool) {
-            const enhancedPrompt = `Based on these search results, provide a comprehensive answer to: "${question}"
-
-Search Results:
-${searchResults}
-
-Fallback Answer (for reference):
-${fallbackAnswer}
-
-Provide the best possible answer combining both sources.`;
+          const synthesisLlm = await getLLM({
+            model:
+              options.model ||
+              process.env.OPEN_ROUTER_MODEL ||
+              "z-ai/glm-4.5-air:free",
+            temperature: 0.3,
+          });
+          {
+            const enhancedPrompt = buildGroundedQuestion({
+              question,
+              internalEvidence:
+                internalEvidence.count > 0 ? searchResults : undefined,
+              webEvidence:
+                webSources.length > 0 ? webSearchResults : undefined,
+            });
 
             const enhanceTimeout = new Promise ((_, reject) => 
               setTimeout(() => reject(new Error('Enhancement timeout')), 120000) // Increased to 120 seconds (2 minutes)
             );
             
             const enhanced = await Promise.race([
-              (qaTool as any).call({
-                question: enhancedPrompt,
-                contentTypes: options.contentTypes,
-                includeSourceReferences: true,
-                model: options.model // Pass the model parameter
-              }),
+              synthesisLlm.invoke([
+                createEducationalSystemMessage(),
+                new HumanMessage(enhancedPrompt),
+              ]),
               enhanceTimeout
             ]);
             
@@ -832,15 +851,18 @@ Provide the best possible answer combining both sources.`;
             timings.enhancement = enhanceTime;
             console.log(`✅ [${Date.now()}] Enhanced answer in ${enhanceTime}ms`);
             
-            toolsUsed.push("answer_question");
-            const enhancedAnswer = typeof enhanced === "string" ? enhanced : JSON.stringify(enhanced);
+            toolsUsed.push("grounded_synthesis");
+            const enhancedAnswer =
+              typeof (enhanced as any).content === "string"
+                ? (enhanced as any).content
+                : JSON.stringify((enhanced as any).content);
             
             return {
               answer: enhancedAnswer,
               sources: structuredSources, // Return structured sources
               analysis: options.includeAnalysis ? enhancedAnswer : undefined,
               toolsUsed,
-              confidence: 0.95,
+              confidence: groundedConfidence,
               timings,
               thinking: thinkingProcess || undefined, // Include thinking if available
             };
@@ -859,7 +881,7 @@ Provide the best possible answer combining both sources.`;
         sources: structuredSources, // Return structured sources even with fallback
         analysis: options.includeAnalysis ? fallbackAnswer : undefined,
         toolsUsed: searchCompleted ? [...toolsUsed, "direct_llm"] : ["direct_llm"],
-        confidence: searchCompleted && structuredSources.length > 0 ? 0.85 : 0.75,
+        confidence: groundedConfidence,
         timings,
         thinking: thinkingProcess || undefined, // Include thinking if available
       };
@@ -1043,6 +1065,44 @@ Provide the best possible answer combining both sources.`;
       ]);
       
       searchResults = await quickSearchPromise;
+      const internalEvidence = parseSearchEvidence(searchResults);
+      let webSearchResults = "";
+      let webSources: any[] = [];
+
+      if (shouldSupplementWithWeb(internalEvidence, question)) {
+        const webSearchTool = getToolByName("web_search");
+        if (webSearchTool) {
+          yield {
+            type: "search_start",
+            content: "Checking external sources...",
+          };
+          const webStartTime = Date.now();
+          webSearchResults = await (webSearchTool as any).call({
+            query: question,
+            searchDepth: "advanced",
+            maxResults: 5,
+          });
+          timings.web_search = Date.now() - webStartTime;
+          toolsUsed.push("web_search");
+
+          try {
+            const parsedWeb = JSON.parse(webSearchResults);
+            webSources = Array.isArray(parsedWeb.results)
+              ? parsedWeb.results
+              : [];
+          } catch {
+            webSources = [];
+          }
+
+          yield {
+            type: "search_complete",
+            content:
+              webSources.length > 0
+                ? `Found ${webSources.length} external sources`
+                : "No external sources found",
+          };
+        }
+      }
       const quickWaitTime = Date.now() - quickWaitStartTime;
       timings.quick_wait = quickWaitTime;
       
@@ -1074,38 +1134,27 @@ Provide the best possible answer combining both sources.`;
       timings.llm_create = llmCreateTime;
       console.log(`✅ [${Date.now()}] LLM instance created in ${llmCreateTime}ms`);
 
-      let finalQ = question;
-      if (
-        searchResults &&
-        !searchResults.includes("No relevant content found")
-      ) {
-        console.log(`🔄 [${Date.now()}] Enhancing prompt with search results`);
-        finalQ = `Based on these search results, answer the question concisely and accurately.
-
-Question: "${question}"
-
-Search Results:
-${searchResults}
-
-Instructions:
-- Provide a clear, direct answer
-- Reference specific information from the search results
-- If the results mention timestamps, include them in your answer
-- Keep the answer focused and relevant to the question`;
-        console.log(`📝 [${Date.now()}] Enhanced prompt length: ${finalQ.length} chars`);
-      } else {
-        console.log(`📝 [${Date.now()}] Using basic prompt (no search results)`);
-        finalQ = `Answer this educational question: "${question}"
-
-Provide a clear, helpful answer using your knowledge.`;
-      }
+      const finalQ = buildGroundedQuestion({
+        question,
+        internalEvidence:
+          internalEvidence.count > 0 ? searchResults : undefined,
+        webEvidence: webSources.length > 0 ? webSearchResults : undefined,
+      });
+      const groundedConfidence = calculateGroundedConfidence({
+        internal: internalEvidence,
+        webResultCount: webSources.length,
+        webTopScore:
+          typeof webSources[0]?.score === "number"
+            ? webSources[0].score
+            : undefined,
+      });
 
       // Build conversation context
-      const messages: any[] = [];
+      const messages: any[] = [createEducationalSystemMessage()];
       
       if (options.conversationContext && options.conversationContext.length > 0) {
         console.log(`💬 [${Date.now()}] Adding ${options.conversationContext.length} conversation messages`);
-        for (const msg of options.conversationContext.slice(-4)) {
+        for (const msg of options.conversationContext.slice(-8)) {
           if (msg.role === 'user') {
             messages.push(new HumanMessage(msg.content));
           } else {
@@ -1146,10 +1195,18 @@ Provide a clear, helpful answer using your knowledge.`;
           const stream = await openrouter.chat.send({
             chatRequest: {
               model: modelName,
-              messages: messages.map((msg: any) => ({
-                role: msg._getType() === 'human' ? 'user' : 'assistant',
-                content: msg.content,
-              })),
+              messages: messages.map((msg: any) => {
+                const messageType = msg._getType();
+                return {
+                  role:
+                    messageType === "system"
+                      ? "system"
+                      : messageType === "human"
+                        ? "user"
+                        : "assistant",
+                  content: msg.content,
+                };
+              }),
               stream: true,
               temperature: 0.3,
             },
@@ -1259,8 +1316,8 @@ Provide a clear, helpful answer using your knowledge.`;
         content: 'Answer complete',
         metadata: {
           toolsUsed,
-          confidence: searchResults ? 0.9 : 0.75,
-          sources: [],
+          confidence: groundedConfidence,
+          sources: [...internalEvidence.results, ...webSources],
           timings
         }
       };

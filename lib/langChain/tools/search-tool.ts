@@ -45,14 +45,14 @@ async function searchVideoEmbeddings(
       // Thinking Mode: Use client E5 + server BGE
       console.log(`🧠 Thinking Mode: Using client E5 + server BGE`);
       e5Embedding = clientEmbedding;
-      const bgeResult = await generateEmbedding(query, 'bge');
+      const bgeResult = await generateEmbedding(query, 'bge', 'query');
       bgeEmbedding = bgeResult.embedding;
       console.log(`✅ Thinking Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
     } else {
       // Normal Mode: Generate both embeddings on server
       console.log(`⚙️ Normal Mode: Generating both E5 and BGE embeddings on server`);
-      const e5Result = await generateEmbedding(query, 'e5');
-      const bgeResult = await generateEmbedding(query, 'bge');
+      const e5Result = await generateEmbedding(query, 'e5', 'query');
+      const bgeResult = await generateEmbedding(query, 'bge', 'query');
       e5Embedding = e5Result.embedding;
       bgeEmbedding = bgeResult.embedding;
       console.log(`✅ Normal Mode: Server-side dual embedding complete - E5 (${e5Embedding.length}D), BGE (${bgeEmbedding.length}D)`);
@@ -507,7 +507,9 @@ export const searchTool = new DynamicStructuredTool({
         
         const documentResults = await searchDocumentEmbeddings(searchQuery, {
           lessonId: videoContext.lessonId,
-          attachmentId: videoContext.attachmentId ?? undefined,
+          // videoContext.attachmentId points to the video asset. Resolve the
+          // lesson's PDF attachment independently inside document search.
+          attachmentId: undefined,
           maxResults: searchMode === 'fast' ? 15 : 5,
           clientEmbedding,
           searchMode
@@ -548,6 +550,20 @@ export const searchTool = new DynamicStructuredTool({
         })));
       }
       
+      // Remove duplicate overlap chunks before they consume retrieval and
+      // prompt budget. Keep the highest-ranked occurrence.
+      const seenContent = new Set<string>();
+      allResults = allResults.filter((result) => {
+        const normalized = String(result.content_text ?? result.content ?? '')
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 500);
+        if (!normalized || seenContent.has(normalized)) return false;
+        seenContent.add(normalized);
+        return true;
+      });
+
       // 4. Calculate confidence score based on similarity scores
       // Confidence score helps the agent decide whether to use web search as fallback
       let confidenceScore = 0;
@@ -675,13 +691,13 @@ async function searchDocumentEmbeddings(
     } else if (searchMode === 'thinking' && clientEmbedding) {
       console.log(`🧠 Thinking Mode (Document): Using client E5 + server BGE`);
       e5Embedding = clientEmbedding;
-      const bgeResult = await generateEmbedding(query, 'bge');
+      const bgeResult = await generateEmbedding(query, 'bge', 'query');
       bgeEmbedding = bgeResult.embedding;
       console.log(`✅ Thinking Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
     } else {
       console.log(`⚙️ Normal Mode (Document): Generating both E5 and BGE embeddings on server`);
-      const e5Result = await generateEmbedding(query, 'e5');
-      const bgeResult = await generateEmbedding(query, 'bge');
+      const e5Result = await generateEmbedding(query, 'e5', 'query');
+      const bgeResult = await generateEmbedding(query, 'bge', 'query');
       e5Embedding = e5Result.embedding;
       bgeEmbedding = bgeResult.embedding;
       console.log(`✅ Normal Mode: Server-side dual embedding complete - E5 (${e5Embedding.length}D), BGE (${bgeEmbedding.length}D)`);
@@ -780,15 +796,14 @@ async function searchDocumentEmbeddings(
     console.log(`  ↳ E5 threshold: ${e5Threshold}, candidates: ${e5CandidateCount}, final: ${finalCount}`);
     console.log(`  ↳ Weights: E5 (0.3) + BGE (0.7)`);
     
-    const { data: twoStageResults, error: twoStageError } = await supabase.rpc('search_document_embeddings_two_stage', {
+    const { data: twoStageResults, error: twoStageError } = await supabase.rpc('search_document_embeddings_hybrid', {
+      query_text: query,
       query_embedding_e5: `[${e5Embedding.join(',')}]`,
       query_embedding_bge: `[${bgeEmbedding.join(',')}]`,
       p_attachment_id: targetAttachmentId,
-      e5_threshold: e5Threshold,
-      e5_candidate_count: e5CandidateCount,
-      final_count: finalCount,
-      weight_e5: 0.3,
-      weight_bge: 0.7
+      dense_candidate_count: Math.max(40, e5CandidateCount),
+      lexical_candidate_count: Math.max(40, e5CandidateCount),
+      final_count: Math.max(20, finalCount)
     });
     
     if (!twoStageError && twoStageResults && twoStageResults.length > 0) {
@@ -796,7 +811,7 @@ async function searchDocumentEmbeddings(
       console.log(`  ↳ Found ${twoStageResults.length} results after E5 coarse + BGE rerank`);
       console.log(`  ↳ Score range: ${twoStageResults[0]?.combined_score?.toFixed(3)} - ${twoStageResults[twoStageResults.length - 1]?.combined_score?.toFixed(3)}`);
       
-      return twoStageResults.map((r: any) => ({
+      const mappedResults = twoStageResults.map((r: any) => ({
         id: r.id,
         content_text: r.content_text,
         content_type: 'document_segment',
@@ -804,12 +819,16 @@ async function searchDocumentEmbeddings(
         page_number: r.page_number,
         section_title: r.section_title,
         attachment_id: r.attachment_id,
-        similarity: r.combined_score,
+        // RRF scores are useful for ordering but are not calibrated cosine
+        // confidence values. Keep both instead of treating ~0.03 RRF as 3%.
+        similarity: Math.max(r.e5_similarity ?? 0, r.bge_similarity ?? 0),
+        retrieval_score: r.combined_score,
         e5_similarity: r.e5_similarity,
         bge_similarity: r.bge_similarity,
         chunk_type: r.chunk_type,
         word_count: r.word_count
       }));
+      return mappedResults.slice(0, finalCount);
     }
     
     console.log(`⚠️ Two-stage document search failed, falling back to E5-only`);

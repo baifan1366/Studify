@@ -4,6 +4,7 @@ import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { EDUCATIONAL_SYSTEM_PROMPT } from '@/lib/langChain/educational-ai-policy';
 
 // Create Supabase client for server-side operations
 const supabase = createClient(
@@ -121,12 +122,10 @@ async function handleStreamingResponse(
   // Build messages
   const messages: any[] = [];
 
-  if (aiMode === 'thinking') {
-    messages.push({
-      role: 'system',
-      content: 'You are a helpful AI assistant. Think through your reasoning step-by-step before providing the final answer.'
-    });
-  }
+  messages.push({
+    role: 'system',
+    content: EDUCATIONAL_SYSTEM_PROMPT
+  });
 
   if (context && context.length > 0) {
     messages.push(...context.map(msg => ({

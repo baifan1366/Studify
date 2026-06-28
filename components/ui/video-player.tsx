@@ -88,7 +88,14 @@ export default function VideoPlayer({
   }
 
   // Handle seek
-  const handleSeek = (value: number[]) => {
+  const handleSeekPreview = (value: number[]) => {
+    setCurrentTime(value[0])
+  }
+
+  // Only seek once the drag finishes. Seeking on every pointer movement causes
+  // a burst of cancelled HTTP Range requests, which is especially expensive
+  // when the origin is MEGA.
+  const handleSeekCommit = (value: number[]) => {
     const newTime = value[0]
     if (!videoRef.current) return
     
@@ -238,6 +245,8 @@ export default function VideoPlayer({
         ref={videoRef}
         src={videoSrc}
         className="w-full h-full object-contain"
+        preload="metadata"
+        playsInline
         autoPlay={autoPlay}
         onLoadStart={handleLoadStart}
         onCanPlay={handleCanPlay}
@@ -294,7 +303,8 @@ export default function VideoPlayer({
               value={[currentTime]}
               max={duration}
               step={0.1}
-              onValueChange={handleSeek}
+              onValueChange={handleSeekPreview}
+              onValueCommit={handleSeekCommit}
               className="w-full"
             />
           </div>

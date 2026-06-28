@@ -1,25 +1,24 @@
 // Tool Index - Unified export of all tools
-import { searchTool } from './search-tool';
-import { courseDataTool } from './course-data-tool';
-import { qaTool } from './qa-tool';
-import { userProfileTool } from './user-profile-tool';
-import { classroomTool } from './classroom-tool';
-import { contentAnalysisTool } from './content-analysis-tool';
-import { recommendationTool } from './recommendation-tool';
-import { courseRecommendationTool } from './course-recommendation-tool';
-import { quizGenerationTool } from './quiz-generation-tool';
-import { calculatorTool, dateTimeTool, textProcessingTool } from './utility-tools';
-import { webSearchTool } from './web-search-tool';
+import { searchTool } from "./search-tool";
+import { courseDataTool } from "./course-data-tool";
+import { qaTool } from "./qa-tool";
+import { userProfileTool } from "./user-profile-tool";
+import { classroomTool } from "./classroom-tool";
+import { contentAnalysisTool } from "./content-analysis-tool";
+import { recommendationTool } from "./recommendation-tool";
+import { courseRecommendationTool } from "./course-recommendation-tool";
+import { quizGenerationTool } from "./quiz-generation-tool";
+import {
+  calculatorTool,
+  dateTimeTool,
+  textProcessingTool,
+} from "./utility-tools";
+import { webSearchTool } from "./tavily-search-tool";
 
-// === TOOL REGISTRY ===
-// Helper function to check if web search is configured
-function isWebSearchConfigured(): boolean {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const cx = process.env.GOOGLE_CX;
-  return !!(apiKey && apiKey.trim() !== '' && cx && cx.trim() !== '');
+function isWebSearchConfigured() {
+  return Boolean(process.env.TAVILY_API_KEY?.trim());
 }
 
-// Build available tools with conditional web search registration
 function buildAvailableTools() {
   const tools: Record<string, any> = {
     search: searchTool,
@@ -33,15 +32,14 @@ function buildAvailableTools() {
     generate_quiz: quizGenerationTool,
     calculate: calculatorTool,
     get_datetime: dateTimeTool,
-    process_text: textProcessingTool
+    process_text: textProcessingTool,
   };
 
-  // Conditionally add web_search tool if API keys are configured
   if (isWebSearchConfigured()) {
     tools.web_search = webSearchTool;
-    console.log('✅ Web Search Tool registered (API keys configured)');
+    console.log("Web Search Tool registered (Tavily configured)");
   } else {
-    console.warn('⚠️ Web Search Tool not registered (GOOGLE_API_KEY or GOOGLE_CX not configured)');
+    console.warn("Web Search Tool not registered (TAVILY_API_KEY not configured)");
   }
 
   return tools;
@@ -49,23 +47,20 @@ function buildAvailableTools() {
 
 export const AVAILABLE_TOOLS = buildAvailableTools();
 
-// Tool categories for better organization
 export const TOOL_CATEGORIES = {
-  SEARCH_AND_QA: ['search', 'answer_question'],
-  WEB_SEARCH: ['web_search'],
-  CONTENT_ANALYSIS: ['analyze_content'],
-  CONTENT_GENERATION: ['generate_quiz'],
-  DATA_ACCESS: ['get_course_data', 'get_user_profile', 'get_classroom_data'],
-  RECOMMENDATIONS: ['recommend_content', 'course_recommendations'],
-  UTILITIES: ['calculate', 'get_datetime', 'process_text']
+  SEARCH_AND_QA: ["search", "answer_question", "web_search"],
+  WEB_SEARCH: ["web_search"],
+  CONTENT_ANALYSIS: ["analyze_content"],
+  CONTENT_GENERATION: ["generate_quiz"],
+  DATA_ACCESS: ["get_course_data", "get_user_profile", "get_classroom_data"],
+  RECOMMENDATIONS: ["recommend_content", "course_recommendations"],
+  UTILITIES: ["calculate", "get_datetime", "process_text"],
 };
 
-// Tool selection helpers
 export function getToolsByCategory(category: keyof typeof TOOL_CATEGORIES) {
-  const toolNames = TOOL_CATEGORIES[category];
-  return toolNames
-    .map(name => AVAILABLE_TOOLS[name as keyof typeof AVAILABLE_TOOLS])
-    .filter(tool => tool !== undefined); // Filter out undefined tools (e.g., web_search if not configured)
+  return TOOL_CATEGORIES[category]
+    .map((name) => AVAILABLE_TOOLS[name])
+    .filter(Boolean);
 }
 
 export function getAllTools() {
@@ -73,10 +68,9 @@ export function getAllTools() {
 }
 
 export function getToolByName(name: string) {
-  return AVAILABLE_TOOLS[name as keyof typeof AVAILABLE_TOOLS];
+  return AVAILABLE_TOOLS[name];
 }
 
-// Individual tool exports
 export {
   searchTool,
   courseDataTool,
@@ -90,17 +84,15 @@ export {
   calculatorTool,
   dateTimeTool,
   textProcessingTool,
-  webSearchTool
+  webSearchTool,
 };
 
-// Tool information export
 export function getToolInfo() {
   return Object.entries(AVAILABLE_TOOLS).map(([name, tool]) => {
-    // Find category for this tool
-    let category = 'UTILITIES';
-    for (const [cat, toolNames] of Object.entries(TOOL_CATEGORIES)) {
-      if (toolNames.includes(name)) {
-        category = cat;
+    let category = "UTILITIES";
+    for (const [candidate, toolNames] of Object.entries(TOOL_CATEGORIES)) {
+      if ((toolNames as readonly string[]).includes(name)) {
+        category = candidate;
         break;
       }
     }
@@ -109,21 +101,21 @@ export function getToolInfo() {
       name: tool.name,
       description: tool.description,
       category,
-      internalName: name
+      internalName: name,
     };
   });
 }
 
-// Validation helper
-export function validateToolExists(toolName: string): boolean {
+export function validateToolExists(toolName: string) {
   return toolName in AVAILABLE_TOOLS;
 }
 
-// Get tools by multiple categories
-export function getToolsByMultipleCategories(categories: (keyof typeof TOOL_CATEGORIES)[]) {
-  const tools = new Set();
-  categories.forEach(category => {
-    getToolsByCategory(category).forEach(tool => tools.add(tool));
+export function getToolsByMultipleCategories(
+  categories: (keyof typeof TOOL_CATEGORIES)[],
+) {
+  const tools = new Set<any>();
+  categories.forEach((category) => {
+    getToolsByCategory(category).forEach((tool) => tools.add(tool));
   });
   return Array.from(tools);
 }

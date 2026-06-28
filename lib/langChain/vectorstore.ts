@@ -571,7 +571,7 @@ export class VectorStore {
       // Generate embeddings based on search type
       if ((searchType === 'e5_only' || searchType === 'hybrid') && embeddingWeights.e5 > 0) {
         try {
-          const e5Result = await generateEmbedding(processedQuery, 'e5');
+          const e5Result = await generateEmbedding(processedQuery, 'e5', 'query');
           if (validateEmbedding(e5Result.embedding, 384, 'e5')) {
             queryEmbeddingE5 = e5Result.embedding;
           }
@@ -582,7 +582,7 @@ export class VectorStore {
 
       if ((searchType === 'bge_only' || searchType === 'hybrid') && embeddingWeights.bge > 0) {
         try {
-          const bgeResult = await generateEmbedding(processedQuery, 'bge');
+          const bgeResult = await generateEmbedding(processedQuery, 'bge', 'query');
           if (validateEmbedding(bgeResult.embedding, 1024, 'bge')) {
             queryEmbeddingBGE = bgeResult.embedding;
           }

@@ -161,12 +161,13 @@ export async function generateClientEmbedding(
   config: EmbeddingServiceConfig = {}
 ): Promise<EmbeddingResult> {
   const startTime = Date.now();
+  const queryText = `query: ${text.trim()}`;
 
   try {
     // Check cache first if enabled
     if (config.enableCache !== false) {
       const { getCachedEmbedding } = await import('./embedding-cache');
-      const cachedEmbedding = await getCachedEmbedding(text);
+      const cachedEmbedding = await getCachedEmbedding(queryText);
       
       if (cachedEmbedding) {
         const generationTimeMs = Date.now() - startTime;
@@ -191,7 +192,7 @@ export async function generateClientEmbedding(
     }
 
     // Generate embedding
-    const output = await modelInstance(text, {
+    const output = await modelInstance(queryText, {
       pooling: 'mean',
       normalize: true,
     });
@@ -209,7 +210,7 @@ export async function generateClientEmbedding(
     // Cache the result if enabled
     if (config.enableCache !== false) {
       const { setCachedEmbedding } = await import('./embedding-cache');
-      setCachedEmbedding(text, embedding).catch((error) => {
+      setCachedEmbedding(queryText, embedding).catch((error) => {
         console.warn('[EmbeddingService] Failed to cache embedding:', error);
       });
     }
@@ -253,10 +254,13 @@ export async function generateClientEmbeddingBatch(
     }
 
     // Generate embeddings for all texts
-    const output = await modelInstance(texts, {
+    const output = await modelInstance(
+      texts.map(text => `query: ${text.trim()}`),
+      {
       pooling: 'mean',
       normalize: true,
-    });
+      }
+    );
 
     // Extract embeddings
     const embeddings: number[][] = [];

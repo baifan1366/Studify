@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS document_embeddings (
   section_title TEXT,
   
   -- Embeddings (dual model)
-  embedding_e5 vector(768),
+  embedding_e5 vector(384),
   embedding_bge_m3 vector(1024),
   has_e5_embedding BOOLEAN DEFAULT false,
   has_bge_embedding BOOLEAN DEFAULT false,
@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_document_embeddings_page ON document_embeddings(p
 
 -- 3. Create E5 search function
 CREATE OR REPLACE FUNCTION search_document_embeddings_e5(
-  query_embedding vector(768),
+  query_embedding vector(384),
   p_attachment_id BIGINT DEFAULT NULL,
   match_threshold FLOAT DEFAULT 0.5,
   match_count INT DEFAULT 10
@@ -87,7 +87,7 @@ $$;
 
 -- 4. Create two-stage search function (E5 coarse + BGE rerank)
 CREATE OR REPLACE FUNCTION search_document_embeddings_two_stage(
-  query_embedding_e5 vector(768),
+  query_embedding_e5 vector(384),
   query_embedding_bge vector(1024),
   p_attachment_id BIGINT DEFAULT NULL,
   e5_threshold FLOAT DEFAULT 0.5,
@@ -201,7 +201,7 @@ CREATE TRIGGER trigger_update_document_embeddings_updated_at
 
 -- 7. Add comments
 COMMENT ON TABLE document_embeddings IS 'Stores text chunks and embeddings extracted from PDF documents for AI search';
-COMMENT ON COLUMN document_embeddings.embedding_e5 IS 'E5 embedding vector (768 dimensions) for coarse search';
+COMMENT ON COLUMN document_embeddings.embedding_e5 IS 'E5-small embedding vector (384 dimensions) for coarse search';
 COMMENT ON COLUMN document_embeddings.embedding_bge_m3 IS 'BGE-M3 embedding vector (1024 dimensions) for reranking';
 COMMENT ON COLUMN document_embeddings.chunk_type IS 'Type of text chunk: paragraph, section, or page';
 COMMENT ON COLUMN document_embeddings.page_number IS 'Page number in the original PDF document';

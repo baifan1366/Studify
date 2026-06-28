@@ -2048,3 +2048,9 @@ curl https://openrouter.ai/api/v1/chat/completions \
 - 结构化输出确保数据一致性和可靠性
 
 整个系统设计注重性能、准确度和用户体验的平衡，通过 Google Gemma 4 的强大能力，为用户提供更智能、更透明的学习助手体验。
+# Archived Architecture Note
+
+> This document describes the retired `VideoLearningAIAssistant` and Google
+> Custom Search design. The active UI paths now use
+> `EnhancedAIWorkflowExecutor` through `/api/ai/video-assistant` and
+> `/api/video/qa-stream`, with Tavily as the low-confidence web fallback.

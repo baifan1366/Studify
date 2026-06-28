@@ -289,7 +289,7 @@ ${question}
 Please use the search tool to find relevant content. Use the following parameters when searching:
 {
   "query": "${question.replace(/"/g, '\\"')}",
-  "contentTypes": ["video_segment", "lesson", "note"],
+  "contentTypes": ["video_segment", "document_segment", "lesson", "note"],
   "videoContext": {
     "lessonId": "${lessonId}",
     "attachmentId": ${attachmentId || 'null'},
@@ -317,7 +317,7 @@ Please provide a detailed answer based on the search results (especially video s
       enhancedAIExecutor.educationalQA(enhancedQuestion, {
         userId,
         includeAnalysis: true,
-        contentTypes: ['video_segment', 'lesson', 'note'], // Prioritize video segments
+        contentTypes: ['video_segment', 'document_segment', 'lesson', 'note'],
         model: selectedModel,
         videoContext: {
           lessonId,

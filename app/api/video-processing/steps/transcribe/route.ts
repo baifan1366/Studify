@@ -4,6 +4,7 @@ import { qstashClient } from "@/utils/qstash/qstash";
 import { getQueueManager } from "@/utils/qstash/queue-manager";
 import { sendVideoProcessingNotification } from "@/lib/video-processing/notification-service";
 import { z } from "zod";
+import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 
 // Validation schema for QStash job payload
 const TranscribeJobSchema = z.object({
@@ -1167,6 +1168,9 @@ async function handler(req: Request) {
         // Fire-and-forget: trigger the request but don't wait for response
         fetchPromise = fetch(urlWithParam, {
           method: "POST",
+          headers: process.env.WHISPER_API_TOKEN
+            ? { Authorization: `Bearer ${process.env.WHISPER_API_TOKEN}` }
+            : undefined,
           signal: AbortSignal.timeout(600000), // 10 minute timeout
         });
       } else {
@@ -1207,21 +1211,21 @@ async function handler(req: Request) {
         fetchPromise = fetch(transcribeEndpoint, {
           method: "POST",
           body: formData,
+          headers: process.env.WHISPER_API_TOKEN
+            ? { Authorization: `Bearer ${process.env.WHISPER_API_TOKEN}` }
+            : undefined,
           signal: AbortSignal.timeout(600000), // 10 minute timeout
         });
       }
       
       // Trigger the request in the background (don't await)
-      fetchPromise
-        .then((response) => {
-          console.log(`[${requestId}] ✅ WHISPER: Request accepted by server (status: ${response.status})`);
-          if (!response.ok) {
-            console.error(`[${requestId}] ⚠️  WHISPER: Server returned error status: ${response.status}`);
-          }
-        })
-        .catch((error) => {
-          console.error(`[${requestId}] ❌ WHISPER: Request failed:`, error.message);
-        });
+      const whisperResponse = await fetchPromise;
+      if (!whisperResponse.ok) {
+        const responseBody = await whisperResponse.text();
+        throw new Error(
+          `Whisper rejected job (${whisperResponse.status}): ${responseBody.slice(0, 500)}`
+        );
+      }
       
       console.log(`[${requestId}] ✅ WHISPER: Request sent successfully`);
       console.log(`[${requestId}] 💡 Whisper will handle transcription, embedding, and database save`);
@@ -1482,5 +1486,9 @@ async function handler(req: Request) {
   }
 }
 
-// Export the handler directly (QStash signature verification handled in utils)
-export const POST = handler;
+// Local development calls this endpoint directly. Every deployed invocation
+// must carry a valid QStash signature.
+export const POST =
+  process.env.NODE_ENV === "development"
+    ? handler
+    : verifySignatureAppRouter(handler);

@@ -7,11 +7,32 @@ import { Storage, File } from 'megajs'
 let globalStorage: Storage | null = null
 let storageExpiry: number = 0
 const STORAGE_REUSE_DURATION = 15 * 60 * 1000 // 15 minutes (increased for better connection reuse)
-const MAX_CHUNK_SIZE = 1 * 1024 * 1024 // 1MB chunks (optimized for mobile networks and seek performance)
+const MAX_CHUNK_SIZE = 4 * 1024 * 1024 // Fewer MEGA round trips while retaining responsive seeking
 const MEMORY_LIMIT = 50 * 1024 * 1024 // 50MB memory limit (increased for PDFs and large files)
 const PDF_MEMORY_LIMIT = 100 * 1024 * 1024 // 100MB for PDFs specifically
 const STREAMING_TIMEOUT = 60000 // 60 seconds streaming timeout (increased for large files)
 const PDF_STREAMING_TIMEOUT = 120000 // 120 seconds for PDFs specifically
+
+function parseRangeHeader(range: string, fileSize: number): { start: number; end: number } | null {
+  if (!/^bytes=\d*-\d*$/.test(range) || range.includes(',')) return null
+  const [rawStart, rawEnd] = range.slice(6).split('-')
+
+  if (!rawStart) {
+    const suffixLength = Number(rawEnd)
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null
+    const start = Math.max(0, fileSize - suffixLength)
+    return { start, end: fileSize - 1 }
+  }
+
+  const start = Number(rawStart)
+  if (!Number.isSafeInteger(start) || start < 0 || start >= fileSize) return null
+  const requestedEnd = rawEnd ? Number(rawEnd) : start + MAX_CHUNK_SIZE - 1
+  if (!Number.isSafeInteger(requestedEnd) || requestedEnd < start) return null
+  return {
+    start,
+    end: Math.min(requestedEnd, start + MAX_CHUNK_SIZE - 1, fileSize - 1),
+  }
+}
 
 // Preload MEGA storage on server startup to reduce first request latency
 let storagePreloadPromise: Promise<Storage> | null = null
@@ -404,9 +425,17 @@ export async function GET(
           range
         })
         
-        const parts = range.replace(/bytes=/, "").split("-")
-        const start = parseInt(parts[0], 10)
-        const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + MAX_CHUNK_SIZE - 1, fileSize - 1)
+        const parsedRange = parseRangeHeader(range, fileSize)
+        if (!parsedRange) {
+          return new NextResponse(null, {
+            status: 416,
+            headers: {
+              'Content-Range': `bytes */${fileSize}`,
+              'Accept-Ranges': 'bytes',
+            },
+          })
+        }
+        const { start, end } = parsedRange
         const chunkSize = (end - start) + 1
         
         logStep('RANGE_DETAILS_PARSED', {
@@ -455,6 +484,7 @@ export async function GET(
           strategy: 'true_streaming'
         })
         
+        let activeRangeDownload: any = null
         const stream = new ReadableStream({
           async start(controller) {
             let isControllerActive = true
@@ -472,6 +502,7 @@ export async function GET(
                 start, 
                 end: end + 1
               })
+              activeRangeDownload = downloadStream
               
               // Listen to progress events for better monitoring
               downloadStream.on('progress', (info: any) => {
@@ -514,6 +545,7 @@ export async function GET(
                     isPdf
                   })
                   isControllerActive = false
+                  downloadStream.destroy()
                   controller.error(new Error('Memory limit exceeded'))
                   return
                 }
@@ -521,6 +553,7 @@ export async function GET(
                 // Enqueue chunk immediately (true streaming) - only if controller is active
                 if (isControllerActive) {
                   try {
+                    if (!activeRangeDownload) return
                     controller.enqueue(buffer)
                   } catch (enqueueError) {
                     logError('ENQUEUE_ERROR', enqueueError, {
@@ -528,6 +561,7 @@ export async function GET(
                       message: 'Controller may be closed'
                     })
                     isControllerActive = false
+                    downloadStream.destroy()
                     return // Exit the loop if controller is closed
                   }
                 } else {
@@ -538,6 +572,7 @@ export async function GET(
                   return
                 }
               }
+              activeRangeDownload = null
               
               logStep('STREAMING_COMPLETE', {
                 requestId,
@@ -560,12 +595,18 @@ export async function GET(
                 }
               }
             } catch (error) {
+              activeRangeDownload?.destroy()
+              activeRangeDownload = null
               logError('STREAMING_ERROR', error, {
                 requestId,
                 duration: Date.now() - downloadStartTime + 'ms'
               })
               controller.error(error)
             }
+          },
+          cancel() {
+            activeRangeDownload?.destroy()
+            activeRangeDownload = null
           }
         })
 
@@ -618,6 +659,7 @@ export async function GET(
         }
 
         // Stream entire file with memory protection and timeout
+        let activeFullDownload: any = null
         const stream = new ReadableStream({
           async start(controller) {
             try {
@@ -627,6 +669,7 @@ export async function GET(
               
               // mega.js download() requires at least an empty options object
               const downloadStream = file.download({})
+              activeFullDownload = downloadStream
               
               // Listen to progress events for better monitoring
               downloadStream.on('progress', (info: any) => {
@@ -655,6 +698,7 @@ export async function GET(
                     effectiveTimeout
                   })
                   isControllerActive = false
+                  downloadStream.destroy()
                   controller.error(new Error('Streaming timeout'))
                 }
               }, effectiveTimeout)
@@ -691,6 +735,7 @@ export async function GET(
                       isPdf
                     })
                     isControllerActive = false
+                    downloadStream.destroy()
                     controller.error(new Error('File too large for streaming'))
                     return
                   }
@@ -698,6 +743,7 @@ export async function GET(
                   // Only enqueue if controller is still active
                   if (isControllerActive) {
                     try {
+                      if (!activeFullDownload) return
                       controller.enqueue(buffer)
                     } catch (enqueueError) {
                       logError('ENQUEUE_ERROR_FULL_FILE', enqueueError, {
@@ -705,6 +751,7 @@ export async function GET(
                         message: 'Controller may be closed during full file streaming'
                       })
                       isControllerActive = false
+                      downloadStream.destroy()
                       return // Exit if controller is closed
                     }
                   } else {
@@ -715,6 +762,7 @@ export async function GET(
                     return // Exit if controller is inactive
                   }
                 }
+                activeFullDownload = null
                 
                 clearTimeout(timeoutId)
                 logStep('FULL_FILE_STREAMING_COMPLETE', {
@@ -741,11 +789,17 @@ export async function GET(
                 throw streamError
               }
             } catch (error) {
+              activeFullDownload?.destroy()
+              activeFullDownload = null
               logError('FULL_FILE_STREAMING_ERROR', error, {
                 requestId
               })
               controller.error(error)
             }
+          },
+          cancel() {
+            activeFullDownload?.destroy()
+            activeFullDownload = null
           }
         })
 

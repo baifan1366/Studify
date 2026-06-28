@@ -301,7 +301,8 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         },
         {
-          retries: 3 // Maximum retries allowed by QStash quota
+          retries: 3,
+          deduplicationId: `video-transcribe-${newQueue.id}`
         }
       );
 

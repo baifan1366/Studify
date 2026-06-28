@@ -1,6 +1,7 @@
 // Dual Embedding server URLs
 const E5_EMBEDDING_SERVER_URL = process.env.E5_HG_EMBEDDING_SERVER_API_URL || "https://edusocial-e5-small-embedding-server.hf.space";
 const BGE_EMBEDDING_SERVER_URL = process.env.BGE_HG_EMBEDDING_SERVER_API_URL || "https://edusocial-bge-m3-embedding-server.hf.space";
+const EMBEDDING_API_TOKEN = process.env.EMBEDDING_API_TOKEN;
 
 // Legacy fallback (keeping for backwards compatibility)
 const EMBEDDING_SERVER_URL = E5_EMBEDDING_SERVER_URL;
@@ -28,10 +29,12 @@ const WARMUP_RETRY_DELAYS = [30000, 60000, 120000]; // 30s, 1min, 2min
 // Types for dual embedding API
 interface EmbeddingRequest {
   input: string;
+  task?: EmbeddingPurpose;
 }
 
 interface BatchRequest {
   inputs: string[];
+  task?: EmbeddingPurpose;
 }
 
 interface EmbeddingResponse {
@@ -60,6 +63,15 @@ interface EmbeddingError {
   details?: string;
 }
 
+function embeddingHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    ...(EMBEDDING_API_TOKEN
+      ? { Authorization: `Bearer ${EMBEDDING_API_TOKEN}` }
+      : {}),
+  };
+}
+
 interface ServerHealthStatus {
   isHealthy: boolean;
   isSleeping: boolean;
@@ -69,6 +81,7 @@ interface ServerHealthStatus {
 
 // Embedding model types
 export type EmbeddingModel = 'e5' | 'bge';
+export type EmbeddingPurpose = 'query' | 'passage';
 export type EmbeddingDimension = 384 | 1024;
 
 // Model configuration
@@ -169,7 +182,7 @@ async function wakeUpServer(serverUrl: string, model: EmbeddingModel): Promise<b
       `${serverUrl}/embed`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: embeddingHeaders(),
         body: JSON.stringify({ input: 'test' })
       },
       15000
@@ -199,7 +212,8 @@ async function wakeUpServer(serverUrl: string, model: EmbeddingModel): Promise<b
 export async function generateEmbeddingWithWakeup(
   text: string, 
   model: EmbeddingModel = 'e5',
-  maxRetries: number = MAX_WARMUP_RETRIES
+  maxRetries: number = MAX_WARMUP_RETRIES,
+  purpose: EmbeddingPurpose = 'passage'
 ): Promise<{
   embedding: number[];
   tokenCount?: number;
@@ -221,7 +235,7 @@ export async function generateEmbeddingWithWakeup(
 
   // Check cache first
   const { getCachedEmbedding, setCachedEmbedding } = await import('./embedding-cache');
-  const cacheKey = `${model}:${processedText}`;
+  const cacheKey = `${model}:${purpose}:${processedText}`;
   const cachedEmbedding = getCachedEmbedding(cacheKey);
   if (cachedEmbedding) {
     return { 
@@ -239,7 +253,8 @@ export async function generateEmbeddingWithWakeup(
       console.log(`  ↳ ${model.toUpperCase()} attempt ${attempt}/${maxRetries}`);
       
       const requestBody: EmbeddingRequest = {
-        input: processedText
+        input: processedText,
+        ...(model === 'e5' ? { task: purpose } : {})
       };
 
       const timeout = attempt === 1 ? DEFAULT_API_TIMEOUT : SERVER_WARMUP_TIMEOUT;
@@ -247,9 +262,7 @@ export async function generateEmbeddingWithWakeup(
         `${modelConfig.url}/embed`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: embeddingHeaders(),
           body: JSON.stringify(requestBody),
         },
         timeout
@@ -340,14 +353,15 @@ export async function generateEmbeddingWithWakeup(
 // Legacy function that uses the new wake-up logic
 export async function generateEmbedding(
   text: string, 
-  model: EmbeddingModel = 'e5'
+  model: EmbeddingModel = 'e5',
+  purpose: EmbeddingPurpose = 'passage'
 ): Promise<{
   embedding: number[];
   tokenCount?: number;
   dimensions: number;
   model: string;
 }> {
-  const result = await generateEmbeddingWithWakeup(text, model);
+  const result = await generateEmbeddingWithWakeup(text, model, MAX_WARMUP_RETRIES, purpose);
   return {
     embedding: result.embedding,
     tokenCount: result.tokenCount,
@@ -467,7 +481,8 @@ export async function generateDualEmbedding(text: string): Promise<DualEmbedding
 export async function generateBatchEmbeddings(
   texts: string[],
   model: EmbeddingModel = 'e5',
-  timeout: number = BACKGROUND_API_TIMEOUT
+  timeout: number = BACKGROUND_API_TIMEOUT,
+  purpose: EmbeddingPurpose = 'passage'
 ): Promise<{ embeddings: number[][]; tokenCounts?: number[]; model: string; dimensions: number }> {
   if (!texts || texts.length === 0) {
     throw new Error('Texts array cannot be empty');
@@ -478,50 +493,54 @@ export async function generateBatchEmbeddings(
     throw new Error(`Unknown embedding model: ${model}`);
   }
 
-  // Filter out empty texts
-  const validTexts = texts.filter(text => text && text.trim().length > 0);
-  if (validTexts.length === 0) {
-    throw new Error('No valid texts provided');
+  // Preserve input-to-vector positional mapping. Silently filtering one empty
+  // entry would shift every subsequent embedding onto the wrong document.
+  const validTexts = texts.map(text => text?.trim() || '');
+  if (validTexts.some(text => !text)) {
+    throw new Error('Batch texts cannot contain empty entries');
   }
 
-  const requestBody: BatchRequest = {
-    inputs: validTexts.map(text => text.trim())
-  };
-
   try {
-    const response = await fetchWithTimeout(
-      `${modelConfig.url}/embed/batch`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    const batchSize = model === 'bge' ? 16 : 32;
+    const embeddings: number[][] = [];
+    const tokenCounts: number[] = [];
+    for (let offset = 0; offset < validTexts.length; offset += batchSize) {
+      const batchTexts = validTexts.slice(offset, offset + batchSize);
+      const requestBody: BatchRequest = {
+        inputs: batchTexts,
+        ...(model === 'e5' ? { task: purpose } : {})
+      };
+      const response = await fetchWithTimeout(
+        `${modelConfig.url}/embed/batch`,
+        {
+          method: 'POST',
+          headers: embeddingHeaders(),
+          body: JSON.stringify(requestBody),
         },
-        body: JSON.stringify(requestBody),
-      },
-      timeout
-    );
+        timeout
+      );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(`${model.toUpperCase()} Batch embedding API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
-    }
-
-    const data: BatchEmbeddingResponse = await response.json();
-    
-    if (!data.embeddings || !Array.isArray(data.embeddings)) {
-      throw new Error(`Invalid ${model} batch embedding response format`);
-    }
-
-    // Validate all embedding dimensions
-    for (let i = 0; i < data.embeddings.length; i++) {
-      if (data.embeddings[i].length !== modelConfig.dimensions) {
-        throw new Error(`${model} batch embedding dimension mismatch at index ${i}: expected ${modelConfig.dimensions}, got ${data.embeddings[i].length}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(`${model.toUpperCase()} Batch embedding API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
+
+      const data: BatchEmbeddingResponse = await response.json();
+      if (!Array.isArray(data.embeddings) || data.embeddings.length !== batchTexts.length) {
+        throw new Error(`${model} batch response count mismatch at offset ${offset}`);
+      }
+      for (let i = 0; i < data.embeddings.length; i++) {
+        if (data.embeddings[i].length !== modelConfig.dimensions) {
+          throw new Error(`${model} batch embedding dimension mismatch at index ${offset + i}: expected ${modelConfig.dimensions}, got ${data.embeddings[i].length}`);
+        }
+      }
+      embeddings.push(...data.embeddings);
+      if (data.token_counts) tokenCounts.push(...data.token_counts);
     }
 
     return {
-      embeddings: data.embeddings,
-      tokenCounts: data.token_counts,
+      embeddings,
+      tokenCounts: tokenCounts.length === embeddings.length ? tokenCounts : undefined,
       model: modelConfig.model_name,
       dimensions: modelConfig.dimensions
     };

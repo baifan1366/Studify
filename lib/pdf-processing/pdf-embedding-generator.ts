@@ -163,8 +163,8 @@ async function processChunk(
       console.log(`🔮 Generating E5 embedding for chunk ${chunk.chunkIndex}...`);
       const e5Result = await generateEmbedding(chunk.content, 'e5');
       
-      if (!e5Result.embedding || e5Result.embedding.length !== 768) {
-        throw new Error(`Invalid E5 embedding: expected 768 dimensions, got ${e5Result.embedding?.length || 0}`);
+      if (!e5Result.embedding || e5Result.embedding.length !== 384) {
+        throw new Error(`Invalid E5 embedding: expected 384 dimensions, got ${e5Result.embedding?.length || 0}`);
       }
       
       // Generate BGE embedding

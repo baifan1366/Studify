@@ -1129,48 +1129,46 @@ export default function BilibiliVideoPlayer({
       });
       setIsLoading(true);
       
-      // Create HLS instance with ULTRA-FAST startup configuration
+      // Keep enough media buffered to absorb normal CDN/network jitter.
       const hls = new Hls({
-        // Performance optimizations - MAXIMUM SPEED
-        enableWorker: true, // Use Web Worker for better performance
-        lowLatencyMode: false, // Set to true for live streams
+        enableWorker: true,
+        lowLatencyMode: false,
         
-        // Buffer management (AGGRESSIVE for instant startup)
-        backBufferLength: 30, // Reduced from 90s - less memory, faster startup
-        maxBufferLength: 10, // REDUCED from 20s - start playing ASAP
-        maxMaxBufferLength: 300, // Reduced from 600s
-        maxBufferSize: 15 * 1000 * 1000, // 15MB (reduced from 30MB for faster startup)
-        maxBufferHole: 0.5, // Max gap in buffer to skip
-        maxFragLookUpTolerance: 0.25, // Fragment lookup tolerance
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 120,
+        maxBufferSize: 60 * 1000 * 1000,
+        maxBufferHole: 0.5,
+        maxFragLookUpTolerance: 0.25,
         
-        // ABR (Adaptive Bitrate) configuration - START WITH LOWER QUALITY
-        startLevel: 0, // Start with LOWEST quality for instant playback
-        abrEwmaDefaultEstimate: 500000, // Initial bandwidth estimate (500 kbps)
-        abrEwmaFastLive: 3.0, // Fast ABR for live
-        abrEwmaSlowLive: 9.0, // Slow ABR for live
-        abrEwmaFastVoD: 3.0, // Fast ABR for VOD
-        abrEwmaSlowVoD: 9.0, // Slow ABR for VOD
-        abrBandWidthFactor: 0.95, // Use 95% of estimated bandwidth
-        abrBandWidthUpFactor: 0.7, // Be conservative when upgrading quality
+        // Let hls.js choose the initial rendition and avoid decoding video much
+        // larger than the player viewport.
+        startLevel: -1,
+        capLevelToPlayerSize: true,
+        abrEwmaDefaultEstimate: 2_000_000,
+        abrEwmaFastLive: 3.0,
+        abrEwmaSlowLive: 9.0,
+        abrEwmaFastVoD: 3.0,
+        abrEwmaSlowVoD: 9.0,
+        abrBandWidthFactor: 0.9,
+        abrBandWidthUpFactor: 0.7,
         
-        // Fragment loading - ULTRA AGGRESSIVE
-        maxLoadingDelay: 1, // REDUCED from 2s - load next fragment immediately
+        maxLoadingDelay: 4,
         
-        // Retry configuration - FASTER TIMEOUTS
-        manifestLoadingTimeOut: 5000, // REDUCED from 10s - fail fast
-        manifestLoadingMaxRetry: 2, // REDUCED from 3 - fail faster
-        manifestLoadingRetryDelay: 300, // REDUCED from 500ms
-        levelLoadingTimeOut: 5000, // REDUCED from 10s
-        levelLoadingMaxRetry: 2, // REDUCED from 4
-        fragLoadingTimeOut: 10000, // REDUCED from 20s - fail fast
-        fragLoadingMaxRetry: 3, // REDUCED from 6 - fail faster
+        // Cold CDN edges and mobile networks regularly exceed five seconds.
+        manifestLoadingTimeOut: 15_000,
+        manifestLoadingMaxRetry: 4,
+        manifestLoadingRetryDelay: 500,
+        levelLoadingTimeOut: 15_000,
+        levelLoadingMaxRetry: 4,
+        fragLoadingTimeOut: 20_000,
+        fragLoadingMaxRetry: 6,
         
         // Debugging (disable in production)
         debug: process.env.NODE_ENV === 'development',
         
         // Capability detection
-        testBandwidth: true, // Test bandwidth on startup
-        progressive: true, // Enable progressive streaming
+        testBandwidth: true,
         
         // Stall detection
         highBufferWatchdogPeriod: 2, // Check for stalls every 2s
@@ -1182,9 +1180,9 @@ export default function BilibiliVideoPlayer({
 
       hlsRef.current = hls;
 
-      // Load source
-      hls.loadSource(src);
+      // Attach first so MediaSource is ready before playlist loading starts.
       hls.attachMedia(video);
+      hls.loadSource(src);
 
       // Handle manifest parsed
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
@@ -1853,10 +1851,10 @@ export default function BilibiliVideoPlayer({
         ) : videoSourceInfo.canPlay && videoSourceInfo.src ? (
           <video
             ref={videoRef}
-            {...(!videoSourceInfo.src.includes('.m3u8') && { src: videoSourceInfo.src })}
+            {...(!videoSourceInfo.isHLS && !videoSourceInfo.src.includes('.m3u8') && { src: videoSourceInfo.src })}
             poster={poster}
             className="w-full h-full object-contain"
-            preload="auto" // Changed to "auto" for better streaming - browser will preload video
+            preload="metadata"
             crossOrigin="anonymous"
             playsInline // Important for mobile devices
             onPlay={handlePlay}

@@ -79,9 +79,13 @@ export async function extractPDFText(
     if (opts.extractByPage) {
       // Extract by page using page-wise text
       chunks = extractByPageFromTextResult(textResult, opts);
+    } else if (textResult.pages && Array.isArray(textResult.pages)) {
+      // Preserve real PDF page provenance while creating paragraph-sized chunks.
+      chunks = extractParagraphChunksFromPages(textResult.pages, opts);
     } else {
-      // Extract by semantic chunks (paragraphs)
-      chunks = extractByParagraphs(textResult.text, textResult.total, opts);
+      // Older pdf-parse responses may not expose pages. Page 1 is more honest
+      // than inventing page numbers from the number of chunks produced so far.
+      chunks = extractByParagraphs(textResult.text, 1, opts);
     }
     
     console.log(`✅ Extracted ${chunks.length} chunks from PDF`);
@@ -142,7 +146,7 @@ function extractByPageFromTextResult(
  */
 function extractByParagraphs(
   fullText: string,
-  totalPages: number,
+  pageNumber: number,
   options: Required<PDFExtractionOptions>
 ): PDFChunk[] {
   const chunks: PDFChunk[] = [];
@@ -177,7 +181,7 @@ function extractByParagraphs(
       if (currentWordCount >= options.minChunkSize) {
         chunks.push({
           content: currentChunk.trim(),
-          pageNumber: estimatePageNumber(chunkIndex, chunks.length, totalPages),
+          pageNumber,
           chunkIndex: chunkIndex++,
           chunkType: 'paragraph',
           wordCount: currentWordCount,
@@ -199,15 +203,22 @@ function extractByParagraphs(
     }
   }
   
-  // Add final chunk
-  if (currentChunk.trim().length > 0 && currentWordCount >= options.minChunkSize) {
-    chunks.push({
-      content: currentChunk.trim(),
-      pageNumber: estimatePageNumber(chunkIndex, chunks.length, totalPages),
-      chunkIndex: chunkIndex++,
-      chunkType: 'paragraph',
-      wordCount: currentWordCount,
-    });
+  // Never silently discard a short document tail. Merge it into the preceding
+  // chunk when possible, otherwise retain it as the only chunk.
+  if (currentChunk.trim().length > 0) {
+    if (currentWordCount < options.minChunkSize && chunks.length > 0) {
+      const previous = chunks[chunks.length - 1];
+      previous.content = `${previous.content}\n\n${currentChunk.trim()}`;
+      previous.wordCount = countWords(previous.content);
+    } else {
+      chunks.push({
+        content: currentChunk.trim(),
+        pageNumber,
+        chunkIndex: chunkIndex++,
+        chunkType: 'paragraph',
+        wordCount: currentWordCount,
+      });
+    }
   }
   
   return chunks;
@@ -217,25 +228,46 @@ function extractByParagraphs(
  * Count words in text
  */
 function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const cjkCharacters = (text.match(/[\u3400-\u9fff]/g) || []).length;
+  const nonCjkWords = text
+    .replace(/[\u3400-\u9fff]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  // This is a language-aware size unit, not a linguistic word count. It keeps
+  // Chinese text from being treated as a single word.
+  return cjkCharacters + nonCjkWords;
 }
 
 /**
  * Get last N words from text
  */
 function getLastWords(text: string, wordCount: number): string {
-  const words = text.trim().split(/\s+/);
-  if (words.length <= wordCount) return text;
-  return words.slice(-wordCount).join(' ');
+  const units = text.match(/[\u3400-\u9fff]|[^\s\u3400-\u9fff]+/g) || [];
+  if (units.length <= wordCount) return text;
+  return units.slice(-wordCount).join(' ');
 }
 
 /**
- * Estimate page number for a chunk
+ * Create paragraph chunks independently inside each real PDF page.
  */
-function estimatePageNumber(chunkIndex: number, totalChunks: number, totalPages: number): number {
-  if (totalChunks === 0) return 1;
-  const estimatedPage = Math.ceil((chunkIndex / totalChunks) * totalPages);
-  return Math.max(1, Math.min(estimatedPage, totalPages));
+function extractParagraphChunksFromPages(
+  pages: Array<{ num: number; text: string }>,
+  options: Required<PDFExtractionOptions>
+): PDFChunk[] {
+  const chunks: PDFChunk[] = [];
+
+  for (const page of pages) {
+    const pageChunks = extractByParagraphs(page.text, page.num, options);
+    for (const chunk of pageChunks) {
+      chunks.push({
+        ...chunk,
+        chunkIndex: chunks.length,
+      });
+    }
+  }
+
+  return chunks;
 }
 
 /**

@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { extractPDFFromURL, extractPDFText } from './pdf-extractor';
 import { generatePDFEmbeddings, getProcessingStatus } from './pdf-embedding-generator';
+import { downloadMegaFile } from '@/lib/mega';
 
 export interface PDFProcessingJob {
   id: string;
@@ -44,7 +45,7 @@ export async function startPDFProcessing(
     // Get attachment details
     const { data: attachment, error: attachmentError } = await supabase
       .from('course_attachments')
-      .select('id, title, url, type, file_size')
+      .select('id, title, url, type, size')
       .eq('id', attachmentId)
       .single();
     
@@ -117,11 +118,17 @@ async function processPDFInBackground(
     });
     
     console.log(`📄 Extracting text from PDF: ${pdfUrl}`);
-    const extractionResult = await extractPDFFromURL(pdfUrl, {
+    const extractionOptions = {
       chunkSize: options.chunkSize,
       chunkOverlap: options.chunkOverlap,
       extractByPage: options.extractByPage,
-    });
+    };
+    const extractionResult = pdfUrl.includes('mega.nz/')
+      ? await extractPDFText(
+          await downloadMegaFile(pdfUrl, 50 * 1024 * 1024),
+          extractionOptions
+        )
+      : await extractPDFFromURL(pdfUrl, extractionOptions);
     
     if (!extractionResult.success || extractionResult.chunks.length === 0) {
       throw new Error(extractionResult.error || 'Failed to extract text from PDF');

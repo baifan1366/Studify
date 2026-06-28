@@ -102,17 +102,30 @@ export function segmentTranscription(
     }
   }
 
-  // Handle final segment if any content remains
-  if (currentSegment.length >= config.minSegmentLength) {
-    const segment = createSegment({
-      index: segments.length,
-      startTime: currentStartTime,
-      endTime: totalDurationSeconds,
-      content: currentSegment,
-      totalDuration: totalDurationSeconds,
-      config
-    });
-    segments.push(segment);
+  // Never discard a short transcript tail. Attach it to the preceding segment,
+  // or keep it as the only segment for short videos.
+  if (currentSegment.trim().length > 0) {
+    if (currentSegment.length < config.minSegmentLength && segments.length > 0) {
+      const previous = segments[segments.length - 1];
+      segments[segments.length - 1] = createSegment({
+        index: previous.index,
+        startTime: previous.startTime,
+        endTime: totalDurationSeconds,
+        content: `${previous.content} ${currentSegment}`.trim(),
+        totalDuration: totalDurationSeconds,
+        config
+      });
+    } else {
+      const segment = createSegment({
+        index: segments.length,
+        startTime: currentStartTime,
+        endTime: totalDurationSeconds,
+        content: currentSegment,
+        totalDuration: totalDurationSeconds,
+        config
+      });
+      segments.push(segment);
+    }
   }
 
   // Post-process segments for relationships and quality
@@ -460,7 +473,12 @@ async function processSegmentsWithEmbeddingsIndividual(
       
       results.push({
         ...segment,
-        embedding: embeddingResult
+        embedding: {
+          e5_embedding: embeddingResult.e5_embedding,
+          bge_embedding: embeddingResult.bge_embedding,
+          has_e5: embeddingResult.e5_success,
+          has_bge: embeddingResult.bge_success
+        }
       });
       
       // Small delay to prevent overwhelming the embedding service

@@ -1,4 +1,4 @@
-import { cosineSimilarity } from './embedding';
+import { cosineSimilarity, generateBatchEmbeddings } from './embedding';
 
 // 语义分块配置
 export interface SemanticChunkingConfig {
@@ -85,7 +85,7 @@ export class SemanticChunker {
     const structure = this.analyzeDocumentStructure(preprocessed, documentTitle);
     
     // 3. 执行语义分块
-    const rawChunks = this.performSemanticChunking(preprocessed, structure);
+    const rawChunks = await this.performSemanticChunking(preprocessed, structure);
     
     // 4. 生成增强元数据
     const chunksWithMetadata = rawChunks.map((chunk, index) => 
@@ -163,7 +163,66 @@ export class SemanticChunker {
   }
 
   // 执行语义分块
-  private performSemanticChunking(content: string, structure: DocumentStructure): string[] {
+  private async performSemanticChunking(content: string, structure: DocumentStructure): Promise<string[]> {
+    const semanticUnits = this.splitIntoSemanticUnits(content);
+
+    if (semanticUnits.length > 1) {
+      try {
+        const { embeddings } = await generateBatchEmbeddings(semanticUnits, 'e5');
+        if (embeddings.length === semanticUnits.length) {
+          const semanticChunks: string[] = [];
+          let current = semanticUnits[0];
+
+          for (let i = 1; i < semanticUnits.length; i++) {
+            const unit = semanticUnits[i];
+            const similarity = cosineSimilarity(embeddings[i - 1], embeddings[i]);
+            const exceedsTarget = current.length + unit.length + 2 > this.config.maxChunkSize;
+            const semanticBreak =
+              similarity < this.config.similarityThreshold &&
+              current.length >= this.config.minChunkSize;
+
+            if (exceedsTarget || semanticBreak) {
+              semanticChunks.push(current.trim());
+              current = unit;
+            } else {
+              current += `\n\n${unit}`;
+            }
+          }
+
+          if (current.trim()) semanticChunks.push(current.trim());
+          return this.addOverlap(semanticChunks);
+        }
+      } catch (error) {
+        console.warn('Semantic breakpoint embedding failed; using structural fallback:', error);
+      }
+    }
+
+    return this.performStructuralChunking(content);
+  }
+
+  private splitIntoSemanticUnits(content: string): string[] {
+    const paragraphs = content
+      .split(/\n{2,}/)
+      .map(part => part.trim())
+      .filter(Boolean);
+
+    const units: string[] = [];
+    for (const paragraph of paragraphs) {
+      if (paragraph.length <= this.config.maxChunkSize) {
+        units.push(paragraph);
+        continue;
+      }
+
+      const sentences = paragraph
+        .split(/(?<=[.!?。！？])\s*/)
+        .map(sentence => sentence.trim())
+        .filter(Boolean);
+      units.push(...sentences);
+    }
+    return units;
+  }
+
+  private performStructuralChunking(content: string): string[] {
     const chunks: string[] = [];
     
     // 使用递归分隔符进行初步分割
@@ -228,7 +287,17 @@ export class SemanticChunker {
       // 添加前一个块的结尾作为重叠
       if (i > 0) {
         const prevChunk = chunks[i - 1];
-        const overlapText = prevChunk.slice(-this.config.overlapSize);
+        const sentences = prevChunk
+          .split(/(?<=[.!?。！？])\s*/)
+          .map(sentence => sentence.trim())
+          .filter(Boolean);
+        let overlapText = '';
+        for (let j = sentences.length - 1; j >= 0; j--) {
+          const candidate = `${sentences[j]} ${overlapText}`.trim();
+          if (candidate.length > this.config.overlapSize && overlapText) break;
+          overlapText = candidate;
+        }
+        if (!overlapText) overlapText = prevChunk.slice(-this.config.overlapSize);
         chunk = overlapText + ' ' + chunk;
       }
       

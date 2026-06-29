@@ -740,7 +740,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       console.log(`⏳ [${Date.now()}] Waiting for search or fallback...`);
       
       // Race: Get fallback answer first, then optionally enhance with search
-      const fallbackAnswer = await fallbackPromise;
+      let fallbackAnswer = "";
       console.log(`✅ [${Date.now()}] Got fallback answer: ${fallbackAnswer.length} chars`);
       
       // Try to get search results (with short timeout since we already have an answer)
@@ -754,6 +754,13 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       searchResults = await Promise.race([searchPromise, quickSearchTimeout]);
 
       const internalEvidence = parseSearchEvidence(searchResults);
+      if (internalEvidence.count === 0) {
+        fallbackAnswer = await fallbackPromise;
+      } else {
+        void fallbackPromise.catch((error) =>
+          console.warn("Speculative fallback failed:", error),
+        );
+      }
       let webSearchResults = "";
       let webSources: any[] = [];
 

@@ -16,10 +16,16 @@ SUPABASE_SERVICE_ROLE_KEY=...
 E5_HG_EMBEDDING_SERVER_API_URL=...
 BGE_HG_EMBEDDING_SERVER_API_URL=...
 EMBEDDING_API_TOKEN=<same secret configured on both embedding servers>
+FASTSTART_ENABLED=true
+MEGA_EMAIL=<server-side MEGA account>
+MEGA_PASSWORD=<server-side MEGA password>
 ```
 
 The `/transcribe` endpoint accepts one uploaded file or one HTTPS MEGA URL and
 returns HTTP 202. When `queue_id` and `attachment_id` are present, the service
+detects MP4/MOV files whose `moov` atom is after `mdat`, performs an FFmpeg
+stream-copy Fast Start remux, uploads the optimized MP4 back to MEGA, and
+updates the attachment URL before transcription. It then
 generates dual embeddings, replaces that attachment's segment index
 idempotently, and completes the Supabase processing records.
 

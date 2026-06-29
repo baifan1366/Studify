@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import { Check, Copy, MessageCircle, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,9 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
   };
 
   const askTerm = (term: string) => onAsk?.(`What does "${term}" mean in this video?`);
+  const normalizedContent = content
+    .replace(/\|\|\s*(?=\|?\s*:?-{3,})/g, "|\n|")
+    .replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2");
 
   return (
     <div ref={rootRef} className={cn("relative", className)} onMouseUp={captureSelection}>
@@ -47,9 +51,10 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
           {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div className="prose prose-sm max-w-none dark:prose-invert prose-pre:overflow-x-auto prose-a:text-blue-500" style={{ fontSize: `${scale}rem` }}>
+      <div className="max-w-none origin-top-left" style={{ fontSize: `${scale}rem` }}>
+        <div className="prose max-w-none text-[1em] dark:prose-invert prose-p:text-[1em] prose-li:text-[1em] prose-td:text-[.92em] prose-th:text-[.92em] prose-pre:overflow-x-auto prose-a:text-blue-500">
         <ReactMarkdown
-          remarkPlugins={[remarkMath as any]}
+          remarkPlugins={[remarkGfm as any, remarkMath as any]}
           rehypePlugins={[rehypeKatex as any]}
           components={{
             a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
@@ -61,8 +66,9 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
             },
           }}
         >
-          {content}
+          {normalizedContent}
         </ReactMarkdown>
+        </div>
       </div>
       {selection && onAsk && (
         <button

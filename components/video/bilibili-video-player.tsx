@@ -69,6 +69,7 @@ import { setGlobalVideoPlayer, clearGlobalVideoPlayer } from "@/hooks/video/use-
 import type { VideoPlayerAPI } from "@/interfaces/video-player-api";
 import Hls from "hls.js";
 import ReactMarkdown from "react-markdown";
+import { useTranslateTranscript, useVideoTranscript } from "@/hooks/video/use-video-learning-data";
 
 interface DanmakuMessage {
   id: string;
@@ -261,6 +262,8 @@ export default function BilibiliVideoPlayer({
   const [danmakuEnabled, setDanmakuEnabled] = useState(true);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(false);
+  const [translationLanguage, setTranslationLanguage] = useState("Chinese");
+  const [showTranslationMenu, setShowTranslationMenu] = useState(false);
   const [showStats, setShowStats] = useState(false); // Advanced stats panel
   const [showChapters, setShowChapters] = useState(false); // Chapters panel
 
@@ -286,6 +289,8 @@ export default function BilibiliVideoPlayer({
   const { data: courseNotes = [] } = useCourseNotes(
     lessonId || undefined
   );
+  const { data: transcriptData } = useVideoTranscript(lessonId);
+  const translateTranscript = useTranslateTranscript();
 
   // Get notes near current time (within 30 seconds)
   const nearbyNotes = useMemo(() => {
@@ -315,9 +320,23 @@ export default function BilibiliVideoPlayer({
 
   // Parse transcript into subtitle segments
   useEffect(() => {
-    if (!transcript || !subtitlesEnabled) {
+    if (!subtitlesEnabled) {
       setParsedSubtitles([]);
       setCurrentSubtitle("");
+      return;
+    }
+
+    const structuredSegments = translateTranscript.data?.segments ?? transcriptData?.segments;
+    if (structuredSegments?.length) {
+      setParsedSubtitles(structuredSegments.map((segment) => ({
+        start: segment.startTime,
+        end: segment.endTime,
+        text: segment.text,
+      })));
+      return;
+    }
+    if (!transcript) {
+      setParsedSubtitles([]);
       return;
     }
 
@@ -363,7 +382,7 @@ export default function BilibiliVideoPlayer({
     });
     
     setParsedSubtitles(subtitles);
-  }, [transcript, subtitlesEnabled]);
+  }, [transcript, subtitlesEnabled, transcriptData?.segments, translateTranscript.data?.segments]);
 
   // Update current subtitle based on video time
   useEffect(() => {
@@ -947,15 +966,6 @@ export default function BilibiliVideoPlayer({
     if (videoRef.current && duration > 0) {
       const newTime = videoRef.current.currentTime;
       
-      // Prevent time jumps - only update if the difference is reasonable (< 2 seconds or forward progress)
-      const timeDiff = Math.abs(newTime - currentTime);
-      if (timeDiff > 2 && newTime < currentTime) {
-        // Unexpected backward jump detected - this might be a bug, log it
-        console.warn('[VideoPlayer] Unexpected time jump detected:', { from: currentTime, to: newTime, diff: timeDiff });
-        // Don't update state to prevent UI flicker
-        return;
-      }
-      
       setCurrentTime(newTime);
 
       // Call parent onTimeUpdate if provided (parent handles all progress saving)
@@ -977,7 +987,7 @@ export default function BilibiliVideoPlayer({
         hasTrackedViewStart.current = true;
       }
     }
-  }, [duration, currentTime, onTimeUpdate, lessonId, attachmentId, trackViewMutation]);
+  }, [duration, onTimeUpdate, lessonId, attachmentId, trackViewMutation]);
 
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
@@ -2162,7 +2172,13 @@ export default function BilibiliVideoPlayer({
                 <MessageCircle size={20} />
               </button>
               <button
-                onClick={() => setSubtitlesEnabled(!subtitlesEnabled)}
+                onClick={() => {
+                  if (!transcriptData?.segments?.length && !transcript) {
+                    toast({ title: "No transcript", description: "Sorry, there is no video transcript available." });
+                    return;
+                  }
+                  setSubtitlesEnabled(!subtitlesEnabled);
+                }}
                 className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
                   subtitlesEnabled
                     ? "bg-blue-600 text-white shadow-lg"
@@ -2173,7 +2189,7 @@ export default function BilibiliVideoPlayer({
                 <Subtitles size={20} />
               </button>
               <button
-                onClick={() => setAutoTranslate(!autoTranslate)}
+                onClick={() => setShowTranslationMenu((open) => !open)}
                 className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
                   autoTranslate
                     ? "bg-blue-600 text-white shadow-lg"
@@ -2184,6 +2200,30 @@ export default function BilibiliVideoPlayer({
                 <Languages size={20} />
               </button>
             </div>
+            {showTranslationMenu && (
+              <div className="pointer-events-auto absolute right-4 top-14 w-72 rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-xl backdrop-blur">
+                <p className="mb-2 text-xs text-white/70">AI subtitle translation</p>
+                <div className="flex gap-2">
+                  <input value={translationLanguage} onChange={(e) => setTranslationLanguage(e.target.value)} placeholder="Any language" className="h-9 min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-sm outline-none" />
+                  <button
+                    onClick={async () => {
+                      if (!transcriptData?.segments?.length) {
+                        toast({ title: "No transcript", description: "Sorry, there is no video transcript available." });
+                        return;
+                      }
+                      await translateTranscript.mutateAsync({ segments: transcriptData.segments, targetLanguage: translationLanguage });
+                      setAutoTranslate(true);
+                      setSubtitlesEnabled(true);
+                      setShowTranslationMenu(false);
+                    }}
+                    disabled={!translationLanguage.trim() || translateTranscript.isPending}
+                    className="rounded-lg bg-blue-600 px-3 text-xs font-medium disabled:opacity-50"
+                  >
+                    {translateTranscript.isPending ? "…" : "Translate"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3047,6 +3087,8 @@ export default function BilibiliVideoPlayer({
                 onSeekTo={(time) => {
                   if (videoRef.current) {
                     videoRef.current.currentTime = time;
+                    setCurrentTime(time);
+                    onTimeUpdate?.(time, duration);
                   }
                 }}
               />
@@ -3611,6 +3653,7 @@ export default function BilibiliVideoPlayer({
           onSeekTo={(time) => {
             if (videoRef.current) {
               videoRef.current.currentTime = time;
+              setCurrentTime(time);
             }
           }}
           position="top-right"

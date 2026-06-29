@@ -119,7 +119,11 @@ export function buildGroundedQuestion(options: {
   }
 
   sections.push(
-    "Answer using the system policy. State important evidence limitations explicitly.",
+    `Answer using the system policy and valid GitHub-Flavored Markdown.
+Start with a direct answer, then use short sections and bullets when useful.
+Do not print raw evidence JSON, source IDs, or an evidence table.
+Cite video evidence inline as [Video mm:ss] and web evidence with descriptive Markdown links.
+State important evidence limitations explicitly.`,
   );
   return sections.join("\n\n---\n\n");
 }

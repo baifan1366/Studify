@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import { Bold, Code2, Eye, Heading2, Italic, Link2, List, Loader2, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,7 +72,7 @@ export function MarkdownNoteEditor({ noteId, initialTitle = "", initialContent, 
         </TabsContent>
         <TabsContent value="preview">
           <div className="prose prose-sm min-h-[300px] max-w-none rounded-xl border bg-card p-5 dark:prose-invert">
-            <ReactMarkdown remarkPlugins={[remarkMath as any]} rehypePlugins={[rehypeKatex as any]} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> }}>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm as any, remarkMath as any]} rehypePlugins={[rehypeKatex as any]} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> }}>{content}</ReactMarkdown>
           </div>
         </TabsContent>
       </Tabs>

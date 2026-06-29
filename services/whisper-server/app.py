@@ -55,6 +55,9 @@ SEMANTIC_SIMILARITY_THRESHOLD = float(
 MIN_CHUNK_CHARS = int(os.getenv("MIN_CHUNK_CHARS", "300"))
 MAX_CHUNK_CHARS = int(os.getenv("MAX_CHUNK_CHARS", "900"))
 MAX_SEGMENT_GAP_SECONDS = float(os.getenv("MAX_SEGMENT_GAP_SECONDS", "8"))
+FASTSTART_ENABLED = os.getenv("FASTSTART_ENABLED", "true").lower() == "true"
+MEGA_EMAIL = os.getenv("MEGA_EMAIL")
+MEGA_PASSWORD = os.getenv("MEGA_PASSWORD")
 
 model: WhisperModel | None = None
 semaphore: asyncio.Semaphore | None = None
@@ -193,6 +196,147 @@ def _validate_media(path: Path) -> None:
     if result.returncode != 0:
         error = result.stderr.decode("utf-8", errors="replace")[-1000:]
         raise ValueError(f"invalid media: {error}")
+
+
+def _read_mp4_atom_positions(path: Path) -> dict[str, int]:
+    positions: dict[str, int] = {}
+    file_size = path.stat().st_size
+    with path.open("rb") as source:
+        offset = 0
+        while offset + 8 <= file_size:
+            source.seek(offset)
+            header = source.read(16)
+            if len(header) < 8:
+                break
+            atom_size = int.from_bytes(header[0:4], "big")
+            atom_type = header[4:8].decode("latin-1")
+            header_size = 8
+            if atom_size == 1:
+                if len(header) < 16:
+                    break
+                atom_size = int.from_bytes(header[8:16], "big")
+                header_size = 16
+            elif atom_size == 0:
+                atom_size = file_size - offset
+            if atom_size < header_size or offset + atom_size > file_size:
+                break
+            positions.setdefault(atom_type, offset)
+            offset += atom_size
+    return positions
+
+
+def _is_faststart_compatible(path: Path) -> bool:
+    return path.suffix.lower() in {".mp4", ".m4v", ".mov"}
+
+
+def _has_faststart(path: Path) -> bool:
+    atoms = _read_mp4_atom_positions(path)
+    moov = atoms.get("moov")
+    mdat = atoms.get("mdat")
+    if moov is None or mdat is None:
+        raise ValueError("media is missing top-level moov or mdat atom")
+    return moov < mdat
+
+
+def _optimize_faststart(source: Path) -> tuple[Path, dict]:
+    if not FASTSTART_ENABLED:
+        return source, {"status": "disabled", "was_optimized": False}
+    if not _is_faststart_compatible(source):
+        return source, {"status": "not_applicable", "was_optimized": False}
+    if _has_faststart(source):
+        return source, {"status": "already_optimized", "was_optimized": False}
+
+    fd, name = tempfile.mkstemp(
+        prefix="studify-faststart-",
+        suffix=".mp4",
+        dir=TEMP_DIR,
+    )
+    os.close(fd)
+    output = Path(name)
+    started = time.monotonic()
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-y",
+                "-i",
+                str(source),
+                "-map",
+                "0",
+                "-c",
+                "copy",
+                "-movflags",
+                "+faststart",
+                str(output),
+            ],
+            capture_output=True,
+            timeout=FFMPEG_TIMEOUT_SECONDS,
+            check=False,
+        )
+        if result.returncode != 0:
+            error = result.stderr.decode("utf-8", errors="replace")[-2000:]
+            raise RuntimeError(f"faststart ffmpeg failed: {error}")
+        _validate_media(output)
+        if not _has_faststart(output):
+            raise RuntimeError("ffmpeg output still has moov after mdat")
+        return output, {
+            "status": "optimized",
+            "was_optimized": True,
+            "processing_ms": round((time.monotonic() - started) * 1000),
+            "original_size": source.stat().st_size,
+            "optimized_size": output.stat().st_size,
+        }
+    except Exception:
+        output.unlink(missing_ok=True)
+        raise
+
+
+def _upload_optimized_to_mega(path: Path, attachment_id: int) -> str:
+    if not MEGA_EMAIL or not MEGA_PASSWORD:
+        raise RuntimeError("MEGA_EMAIL and MEGA_PASSWORD are required for Fast Start upload")
+    upload_name = f"studify-video-{attachment_id}-faststart.mp4"
+    upload_path = path.with_name(upload_name)
+    shutil.copyfile(path, upload_path)
+    try:
+        account = Mega().login(MEGA_EMAIL, MEGA_PASSWORD)
+        uploaded = account.upload(str(upload_path))
+        return str(account.get_upload_link(uploaded))
+    finally:
+        upload_path.unlink(missing_ok=True)
+
+
+def _persist_faststart_result(
+    attachment_id: int,
+    queue_id: int | None,
+    result: dict,
+    optimized_url: str | None = None,
+) -> None:
+    if supabase is None:
+        raise RuntimeError("Supabase client is not ready")
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    attachment_update = {
+        "faststart_status": result["status"],
+        "faststart_processed_at": now,
+        "faststart_error": result.get("error"),
+        "updated_at": now,
+    }
+    if optimized_url:
+        attachment_update["url"] = optimized_url
+        if result.get("optimized_size"):
+            attachment_update["size"] = result["optimized_size"]
+    supabase.table("course_attachments").update(attachment_update).eq(
+        "id", attachment_id
+    ).execute()
+    if queue_id is not None:
+        queue = supabase.table("video_processing_queue").select(
+            "processing_metadata"
+        ).eq("id", queue_id).single().execute()
+        metadata = (queue.data or {}).get("processing_metadata") or {}
+        metadata["faststart"] = result
+        supabase.table("video_processing_queue").update(
+            {"processing_metadata": metadata}
+        ).eq("id", queue_id).execute()
 
 
 def _convert_to_wav(source: Path) -> Path:
@@ -495,6 +639,7 @@ def _persist_completed_job(
     result: TranscriptResult,
     e5_embeddings: list[list[float]],
     bge_embeddings: list[list[float]],
+    faststart_result: dict | None = None,
 ) -> None:
     if supabase is None:
         raise RuntimeError("Supabase client is not ready")
@@ -593,6 +738,7 @@ def _persist_completed_job(
                 "duration": result.duration,
                 "segment_count": len(rows),
                 "timestamp_source": "faster-whisper",
+                "faststart": faststart_result,
             },
         }
     ).eq("id", queue_id).eq("attachment_id", attachment_id).execute()
@@ -666,11 +812,58 @@ async def _run_job(
     queue_id: int | None,
     attachment_id: int | None,
 ) -> None:
+    original_source: Path | None = source
+    optimized_source: Path | None = None
+    faststart_result: dict | None = None
     try:
         if source is None:
             if not source_url:
                 raise RuntimeError("job has no media source")
             source = await asyncio.to_thread(_download_mega, source_url)
+            original_source = source
+        if attachment_id is not None:
+            try:
+                optimized_source, faststart_result = await asyncio.to_thread(
+                    _optimize_faststart,
+                    source,
+                )
+                if faststart_result.get("was_optimized"):
+                    optimized_url = await asyncio.to_thread(
+                        _upload_optimized_to_mega,
+                        optimized_source,
+                        attachment_id,
+                    )
+                    await asyncio.to_thread(
+                        _persist_faststart_result,
+                        attachment_id,
+                        queue_id,
+                        faststart_result,
+                        optimized_url,
+                    )
+                    source = optimized_source
+                else:
+                    await asyncio.to_thread(
+                        _persist_faststart_result,
+                        attachment_id,
+                        queue_id,
+                        faststart_result,
+                    )
+            except Exception as faststart_error:
+                logging.exception(
+                    "Fast Start processing failed for attachment %s; continuing ASR",
+                    attachment_id,
+                )
+                faststart_result = {
+                    "status": "failed",
+                    "was_optimized": False,
+                    "error": str(faststart_error)[:1000],
+                }
+                await asyncio.to_thread(
+                    _persist_faststart_result,
+                    attachment_id,
+                    queue_id,
+                    faststart_result,
+                )
         assert semaphore is not None
         async with semaphore:
             with jobs_lock:
@@ -692,6 +885,7 @@ async def _run_job(
                 result,
                 e5_embeddings,
                 bge_embeddings,
+                faststart_result,
             )
 
         with jobs_lock:
@@ -722,6 +916,14 @@ async def _run_job(
     finally:
         if source is not None:
             _cleanup_source(source)
+        if original_source is not None and original_source != source:
+            _cleanup_source(original_source)
+        if (
+            optimized_source is not None
+            and optimized_source != source
+            and optimized_source != original_source
+        ):
+            _cleanup_source(optimized_source)
         tasks.pop(job_id, None)
         _cleanup_stale_jobs()
 
@@ -819,7 +1021,7 @@ async def delete_job(
     job_id: str,
     authorization: str | None = Header(default=None),
 ):
-    if CALLBACK_TOKEN and authorization != f"Bearer {CALLBACK_TOKEN}":
+    if not WHISPER_API_TOKEN or authorization != f"Bearer {WHISPER_API_TOKEN}":
         raise HTTPException(401, "unauthorized")
     task = tasks.get(job_id)
     if task and not task.done():

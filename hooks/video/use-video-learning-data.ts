@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 export interface VideoHistoryItem {
   public_id: string;
@@ -48,5 +49,22 @@ export function useVideoTranscript(lessonId?: string) {
     queryFn: () => getJson<{ segments: TranscriptSegment[] }>(`/api/video/transcript?lessonId=${lessonId}`),
     enabled: Boolean(lessonId),
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useTranslateTranscript() {
+  return useMutation<{ segments: TranscriptSegment[]; language: string }, Error, {
+    segments: TranscriptSegment[];
+    targetLanguage: string;
+  }>({
+    mutationFn: async (body) => {
+      const response = await fetch("/api/video/transcript/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error("Unable to translate transcript");
+      return response.json();
+    },
   });
 }

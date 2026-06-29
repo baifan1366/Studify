@@ -28,8 +28,13 @@ export async function GET(request: NextRequest) {
       .not("segment_index", "is", null)
       .order("segment_index", { ascending: true });
     if (data?.length) {
+      const unique = new Map<string, (typeof data)[number]>();
+      for (const row of data) {
+        const key = `${Number(row.segment_start_time ?? 0).toFixed(3)}:${String(row.content_text).trim()}`;
+        unique.set(key, row);
+      }
       return NextResponse.json({
-        segments: data.map((row) => ({
+        segments: [...unique.values()].map((row) => ({
           id: String(row.id),
           startTime: Number(row.segment_start_time ?? 0),
           endTime: Number(row.segment_end_time ?? row.segment_start_time ?? 0),

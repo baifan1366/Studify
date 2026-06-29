@@ -30,6 +30,7 @@ import {
   ,History
   ,ListVideo
   ,ExternalLink
+  ,Globe2
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideoQA, useVideoQAStreaming, type VideoQAResponse } from '@/hooks/video/use-video-qa';
@@ -42,6 +43,7 @@ import { VideoTranscriptList } from '@/components/video/video-transcript-list';
 import { VideoQAHistoryDialog } from '@/components/video/video-qa-history-dialog';
 import { MarkdownNoteEditor } from '@/components/course/markdown-note-editor';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUpdateNote, type CourseNote } from '@/hooks/course/use-course-notes';
 
 interface VideoQAPanelProps {
@@ -71,6 +73,8 @@ export function VideoQAPanel({
   const [view, setView] = useState<'chat' | 'transcript'>('chat');
   const [savedNote, setSavedNote] = useState<CourseNote | null>(null);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [queuedQuestions, setQueuedQuestions] = useState<string[]>([]);
+  const wasProcessingRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const videoQA = useVideoQA();
@@ -132,12 +136,10 @@ export function VideoQAPanel({
   const effectiveAnswer = streamingQA.finalAnswer || answer;
   const isProcessing = useStreaming ? streamingQA.isStreaming : videoQA.isPending;
 
-  const handleSubmit = async () => {
-    if (!question.trim() || isProcessing) return;
-
+  const runQuestion = async (currentQuestion: string) => {
     try {
-      const currentQuestion = question.trim();
       setSubmittedQuestion(currentQuestion);
+      setQuestion('');
       // Clear previous answer before fetching new one
       setAnswer(null);
       setNoteSaved(false);
@@ -168,6 +170,26 @@ export function VideoQAPanel({
       console.error('QA submission failed:', error);
     }
   };
+
+  const handleSubmit = async () => {
+    const currentQuestion = question.trim();
+    if (!currentQuestion) return;
+    if (isProcessing) {
+      setQueuedQuestions((items) => [...items, currentQuestion]);
+      setQuestion('');
+      return;
+    }
+    await runQuestion(currentQuestion);
+  };
+
+  useEffect(() => {
+    if (wasProcessingRef.current && !isProcessing && queuedQuestions.length > 0) {
+      const [next, ...rest] = queuedQuestions;
+      setQueuedQuestions(rest);
+      void runQuestion(next);
+    }
+    wasProcessingRef.current = isProcessing;
+  }, [isProcessing, queuedQuestions]);
 
   const askFromAnswer = (prompt: string) => {
     setView('chat');
@@ -269,12 +291,8 @@ export function VideoQAPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setView(view === 'chat' ? 'transcript' : 'chat')} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Toggle transcript">
-            <ListVideo className="h-4 w-4" />
-          </button>
-          <button onClick={() => setHistoryOpen(true)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Open chat history">
-            <History className="h-4 w-4" />
-          </button>
+          <Tooltip><TooltipTrigger asChild><button onClick={() => setView(view === 'chat' ? 'transcript' : 'chat')} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Toggle transcript"><ListVideo className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="bottom">Video transcript · search, translate and jump to a segment</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button onClick={() => setHistoryOpen(true)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Open chat history"><History className="h-4 w-4" /></button></TooltipTrigger><TooltipContent side="bottom">Chat history · reopen an earlier answer</TooltipContent></Tooltip>
           {/* AI Mode Selector */}
           <div className="flex items-center gap-0.5 bg-muted/70 rounded-xl p-1 ring-1 ring-border/60">
             {aiModeOptions.map((option) => {
@@ -403,6 +421,14 @@ export function VideoQAPanel({
                   <div className="h-2.5 bg-muted rounded w-4/6 animate-pulse" />
                 </div>
               )}
+            </div>
+            <div className="rounded-2xl border bg-card p-3">
+              <div className="flex gap-2">
+                <textarea ref={inputRef} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={handleKeyPress} rows={2} placeholder="Send now to queue another question…" className="min-w-0 flex-1 resize-none rounded-xl border bg-background p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+                <button onClick={handleSubmit} disabled={!question.trim()} className="self-end rounded-xl bg-blue-600 p-2.5 text-white disabled:opacity-40" aria-label="Queue question"><Send className="h-4 w-4" /></button>
+                <button onClick={streamingQA.cancel} className="self-end rounded-xl border border-red-500/30 p-2.5 text-red-500 hover:bg-red-500/10" aria-label="Stop response"><X className="h-4 w-4" /></button>
+              </div>
+              {queuedQuestions.length > 0 && <p className="mt-2 text-xs text-muted-foreground">{queuedQuestions.length} message{queuedQuestions.length > 1 ? 's' : ''} queued</p>}
             </div>
           </div>
         ) : !effectiveAnswer ? (
@@ -598,10 +624,18 @@ export function VideoQAPanel({
                 <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Search className="h-4 w-4 text-blue-500" />Sources</div>
                 <div className="space-y-2">
                   {effectiveAnswer.sources.map((source, index) => (
-                    <a key={`${source.url || source.title}-${index}`} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between gap-3 rounded-lg bg-muted/50 p-2.5 hover:bg-muted">
-                      <div className="min-w-0"><p className="truncate text-xs font-medium">{source.title || 'Reference'}</p>{source.contentPreview && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{source.contentPreview}</p>}</div>
-                      {source.url && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                    </a>
+                    source.type === 'video_segment' ? (
+                      <button key={`${source.title}-${index}`} onClick={() => handleSeekToSegment(source.startTime ?? source.timestamp ?? 0)} className="flex w-full items-start gap-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-2.5 text-left hover:bg-violet-500/10">
+                        <Video className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+                        <div className="min-w-0"><p className="truncate text-xs font-medium">{source.title || 'Video segment'} · {formatTime(source.startTime ?? source.timestamp ?? 0)}</p>{source.contentPreview && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{source.contentPreview}</p>}</div>
+                      </button>
+                    ) : (
+                      <a key={`${source.url || source.title}-${index}`} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-2.5 hover:bg-blue-500/10">
+                        <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                        <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{source.title || 'Web source'}</p>{source.contentPreview && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{source.contentPreview}</p>}</div>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                      </a>
+                    )
                   ))}
                 </div>
               </div>

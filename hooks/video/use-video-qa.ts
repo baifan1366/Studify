@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
@@ -95,6 +95,7 @@ export function useVideoQAStreaming() {
   const [currentStatus, setCurrentStatus] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
   const [finalAnswer, setFinalAnswer] = useState<VideoQAResponse | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const askQuestion = async (request: VideoQARequest) => {
     setIsStreaming(true);
@@ -104,6 +105,8 @@ export function useVideoQAStreaming() {
     setFinalAnswer(null);
 
     try {
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       let finalRequest = { ...request, stream: true };
 
       // Generate client-side embedding for Fast mode
@@ -133,6 +136,7 @@ export function useVideoQAStreaming() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(finalRequest),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -197,6 +201,10 @@ export function useVideoQAStreaming() {
       }
 
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setCurrentStatus('Stopped');
+        return;
+      }
       console.error('Streaming error:', error);
       toast({
         title: 'Question Failed',
@@ -204,6 +212,7 @@ export function useVideoQAStreaming() {
         variant: 'destructive',
       });
     } finally {
+      abortControllerRef.current = null;
       setIsStreaming(false);
     }
   };
@@ -215,6 +224,8 @@ export function useVideoQAStreaming() {
     setFinalAnswer(null);
   };
 
+  const cancel = () => abortControllerRef.current?.abort();
+
   return {
     isStreaming,
     streamUpdates,
@@ -222,6 +233,7 @@ export function useVideoQAStreaming() {
     progress,
     finalAnswer,
     askQuestion,
+    cancel,
     reset,
   };
 }

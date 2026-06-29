@@ -12,4 +12,7 @@ export interface CourseAttachment {
   updated_at: string
   deleted_at: string | null
   cloudinary_mp3?: string | null
+  faststart_status?: 'disabled' | 'not_applicable' | 'already_optimized' | 'optimized' | 'failed' | null
+  faststart_processed_at?: string | null
+  faststart_error?: string | null
 }

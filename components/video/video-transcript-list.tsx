@@ -1,21 +1,30 @@
 "use client";
 
-import { Search, Play, Loader2 } from "lucide-react";
+import { Search, Play, Loader2, Languages } from "lucide-react";
 import { useState } from "react";
-import { useVideoTranscript } from "@/hooks/video/use-video-learning-data";
+import { useTranslateTranscript, useVideoTranscript } from "@/hooks/video/use-video-learning-data";
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
 
 export function VideoTranscriptList({ lessonId, currentTime, onSeekTo }: { lessonId: string; currentTime: number; onSeekTo?: (time: number) => void }) {
   const { data, isLoading } = useVideoTranscript(lessonId);
   const [query, setQuery] = useState("");
-  const segments = (data?.segments ?? []).filter((item) => item.text.toLowerCase().includes(query.toLowerCase()));
+  const [language, setLanguage] = useState("");
+  const translate = useTranslateTranscript();
+  const sourceSegments = translate.data?.segments ?? data?.segments ?? [];
+  const segments = sourceSegments.filter((item) => item.text.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <div className="space-y-3 p-3">
       <div className="relative">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search transcript" className="h-9 w-full rounded-xl border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+      </div>
+      <div className="flex gap-2">
+        <input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="Translate to any language…" className="h-9 min-w-0 flex-1 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+        <button onClick={() => data?.segments?.length && translate.mutate({ segments: data.segments, targetLanguage: language })} disabled={!language.trim() || !data?.segments?.length || translate.isPending} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3 text-xs font-medium text-white disabled:opacity-50">
+          {translate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}Translate
+        </button>
       </div>
       {isLoading ? <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin" /></div> : segments.length ? (
         <div className="space-y-1">
@@ -29,7 +38,7 @@ export function VideoTranscriptList({ lessonId, currentTime, onSeekTo }: { lesso
             );
           })}
         </div>
-      ) : <p className="p-8 text-center text-sm text-muted-foreground">No transcript segments found.</p>}
+      ) : <p className="p-8 text-center text-sm text-muted-foreground">Sorry, there is no video transcript available.</p>}
     </div>
   );
 }

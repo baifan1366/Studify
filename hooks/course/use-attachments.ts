@@ -72,6 +72,8 @@ export function useUploadAttachment() {
       onProgress?.(5)
       
       const uploadResult = await uploadToMegaClient(file, {
+        // The Whisper worker performs and validates FFmpeg Fast Start.
+        skipOptimization: true,
         onProgress: (megaProgress) => {
           // Map MEGA progress to 5-90% of total progress
           const mappedProgress = 5 + (megaProgress * 0.85)

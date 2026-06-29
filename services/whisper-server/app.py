@@ -305,13 +305,28 @@ async def _embed_batch(
     ) as client:
         for offset in range(0, len(texts), EMBEDDING_BATCH_SIZE):
             batch = texts[offset : offset + EMBEDDING_BATCH_SIZE]
-            response = await client.post(
-                f"{base_url.rstrip('/')}/embed/batch",
-                json={
-                    "inputs": batch,
-                    **({"task": task} if task is not None else {}),
-                },
-            )
+            response: httpx.Response | None = None
+            for attempt in range(3):
+                response = await client.post(
+                    f"{base_url.rstrip('/')}/embed/batch",
+                    json={
+                        "inputs": batch,
+                        **({"task": task} if task is not None else {}),
+                    },
+                )
+                if response.status_code < 400:
+                    break
+                if response.status_code not in {429, 500, 502, 503, 504}:
+                    response.raise_for_status()
+                if attempt < 2:
+                    delay = 2 ** attempt
+                    logging.warning(
+                        "Embedding batch returned %s; retrying in %ss",
+                        response.status_code,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+            assert response is not None
             response.raise_for_status()
             payload = response.json()
             batch_embeddings = payload.get("embeddings")

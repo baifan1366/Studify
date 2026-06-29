@@ -19,6 +19,8 @@ import {
   CircleHelp,
   Circle,
   type LucideIcon,
+  History,
+  ListVideo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +28,10 @@ import { useTranslations } from "next-intl";
 import { useStreamingVideoAI } from "@/hooks/course/use-video-ai";
 import { getGlobalVideoPlayer } from "@/hooks/video/use-video-player";
 import { useEmbeddingPreloadSimple } from "@/hooks/video/use-embedding-preload";
+import { useQueryClient } from "@tanstack/react-query";
+import { AIMarkdownMessage } from "@/components/video/ai-markdown-message";
+import { VideoQAHistoryDialog } from "@/components/video/video-qa-history-dialog";
+import { VideoTranscriptList } from "@/components/video/video-transcript-list";
 
 interface AIMessage {
   role: "user" | "assistant";
@@ -77,9 +83,12 @@ export default function VideoAIAssistant({
   const [conversation, setConversation] = useState<AIMessage[]>([]);
   const [contextInfo, setContextInfo] = useState<string>("");
   const [aiMode, setAIMode] = useState<'fast' | 'normal' | 'thinking'>('fast'); // AI mode state: fast, normal, thinking
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [view, setView] = useState<"chat" | "transcript">("chat");
   const { toast } = useToast();
   const t = useTranslations("VideoAIAssistant");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const videoContext = {
     courseSlug,
@@ -243,6 +252,9 @@ export default function VideoAIAssistant({
               description: t("notifications.low_confidence.description"),
               duration: 3000,
             });
+          }
+          if (currentLessonId) {
+            queryClient.invalidateQueries({ queryKey: ["video-qa-history", currentLessonId] });
           }
         },
         // onStatus callback - update loading stage based on status
@@ -441,6 +453,8 @@ export default function VideoAIAssistant({
           )}
         </div>
         <div className="flex items-center space-x-2">
+          <button onClick={() => setView((value) => value === "chat" ? "transcript" : "chat")} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Toggle transcript"><ListVideo size={16} /></button>
+          <button onClick={() => setHistoryOpen(true)} disabled={!currentLessonId} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800" aria-label="Open chat history"><History size={16} /></button>
           {/* AI Mode Selector */}
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {aiModeOptions.map((option) => {
@@ -469,7 +483,9 @@ export default function VideoAIAssistant({
 
       {/* Conversation Display */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-        {conversation.length === 0 ? (
+        {view === "transcript" && currentLessonId ? (
+          <VideoTranscriptList lessonId={currentLessonId} currentTime={currentTimestamp} onSeekTo={(time) => handleJumpToTimestamp(time)} />
+        ) : conversation.length === 0 ? (
           <div className="text-center py-6">
             <MessageCircle size={48} className="text-gray-400 mx-auto mb-4" />
             <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -507,9 +523,9 @@ export default function VideoAIAssistant({
             </div>
           </div>
         ) : (
-          conversation.map((msg, idx) => (
+          conversation.map((msg) => (
             <motion.div
-              key={idx}
+              key={`${msg.role}-${msg.timestamp}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -530,7 +546,9 @@ export default function VideoAIAssistant({
               >
                 <div className="flex items-center space-x-2">
                   <div className="text-sm leading-relaxed flex-1">
-                    {msg.content}
+                    {msg.role === "assistant" && msg.content ? (
+                      <AIMarkdownMessage content={msg.content} onAsk={(prompt) => handleAskQuestion(prompt)} />
+                    ) : msg.content}
                   </div>
 
                   {/* Progressive Loading Indicator */}
@@ -618,7 +636,7 @@ export default function VideoAIAssistant({
                         </div>
                         <div className="space-y-2">
                           {msg.sources.map((source, sourceIdx) => (
-                            <div key={sourceIdx} className="group">
+                            <div key={`${source.url || source.title}-${sourceIdx}`} className="group">
                               <div className="flex items-start justify-between bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all duration-200 border border-transparent hover:border-blue-500/30">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center space-x-2 mb-1 flex-wrap">
@@ -744,7 +762,7 @@ export default function VideoAIAssistant({
                           <div className="space-y-1">
                             {msg.suggestedActions.map((action, actionIdx) => (
                               <div
-                                key={actionIdx}
+                                key={action}
                                 className="flex items-start space-x-2 text-gray-600 dark:text-gray-300"
                               >
                                 <Circle size={6} fill="currentColor" className="mt-1.5 flex-shrink-0" />
@@ -762,6 +780,21 @@ export default function VideoAIAssistant({
         )}
         <div ref={messagesEndRef} />
       </div>
+      {currentLessonId && (
+        <VideoQAHistoryDialog
+          lessonId={currentLessonId}
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          onSelect={(item) => {
+            const sources = !Array.isArray(item.context_segments) ? item.context_segments?.sources as AISource[] | undefined : undefined;
+            setView("chat");
+            setConversation([
+              { role: "user", content: item.question, timestamp: new Date(item.created_at).getTime() },
+              { role: "assistant", content: item.answer, timestamp: new Date(item.created_at).getTime() + 1, sources, confidence: .85 },
+            ]);
+          }}
+        />
+      )}
 
       {/* Input Area */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-3">
@@ -772,7 +805,7 @@ export default function VideoAIAssistant({
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={t("input.placeholder")}
             className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            onKeyPress={(e) =>
+            onKeyDown={(e) =>
               e.key === "Enter" && !e.shiftKey && handleAskQuestion()
             }
             disabled={isLoading}

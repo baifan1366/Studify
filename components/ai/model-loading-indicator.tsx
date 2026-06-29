@@ -20,7 +20,7 @@ interface ModelLoadingIndicatorProps {
 
 export function ModelLoadingIndicator({
   progress,
-  modelName = 'Xenova/multilingual-e5-small',
+  modelName = 'Xenova/e5-small',
   onCancel,
 }: ModelLoadingIndicatorProps) {
   const t = useTranslations('ai');

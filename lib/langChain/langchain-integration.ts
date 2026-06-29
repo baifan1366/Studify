@@ -346,6 +346,7 @@ Format your response in clear markdown with proper headings and formatting.`;
       maxResults?: number;
       enhanceResults?: boolean;
       searchType?: 'vector' | 'hybrid' | 'multi_query';
+      queryEmbeddingE5?: number[];
     } = {}
   ): Promise<{
     results: Document[];
@@ -356,7 +357,8 @@ Format your response in clear markdown with proper headings and formatting.`;
       contentTypes, 
       maxResults = 10, 
       enhanceResults = true, 
-      searchType = 'hybrid' 
+      searchType = 'hybrid',
+      queryEmbeddingE5,
     } = options;
 
     // Perform semantic search
@@ -368,7 +370,8 @@ Format your response in clear markdown with proper headings and formatting.`;
         const multiQueryRetriever = createMultiQueryRetriever(baseRetriever, 3);
         results = await multiQueryRetriever.getRelevantDocuments(query, { 
           k: maxResults,
-          contentTypes 
+          contentTypes,
+          queryEmbeddingE5,
         });
         break;
       
@@ -377,7 +380,8 @@ Format your response in clear markdown with proper headings and formatting.`;
       default:
         results = await retrieveRelevantDocuments(query, 'vector_store', {
           k: maxResults,
-          contentTypes
+          contentTypes,
+          queryEmbeddingE5,
         });
     }
 
@@ -696,6 +700,8 @@ export async function smartSearch(query: string, options?: {
   contentTypes?: string[];
   maxResults?: number;
   enhanceResults?: boolean;
+  searchType?: 'vector' | 'hybrid' | 'multi_query';
+  queryEmbeddingE5?: number[];
 }) {
   return langchain.smartSearch(query, options);
 }

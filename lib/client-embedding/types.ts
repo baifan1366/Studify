@@ -64,7 +64,7 @@ export interface BatchEmbeddingResult {
  * Client embedding service configuration
  */
 export interface EmbeddingServiceConfig {
-  /** Model name (default: Xenova/multilingual-e5-small) */
+  /** Model name (default: Xenova/e5-small) */
   modelName?: string;
   /** Preferred backend (default: auto-detect) */
   backend?: EmbeddingBackend;

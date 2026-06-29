@@ -30,6 +30,7 @@ export class VectorStoreRetriever implements BaseRetriever {
       scoreThreshold?: number;
       filter?: Record<string, any>;
       contentTypes?: ContentType[];
+      queryEmbeddingE5?: number[];
     } = { k: 5 }
   ) {}
 
@@ -40,6 +41,7 @@ export class VectorStoreRetriever implements BaseRetriever {
       scoreThreshold?: number;
       filter?: Record<string, any>;
       contentTypes?: ContentType[];
+      queryEmbeddingE5?: number[];
     }
   ): Promise<Document[]> {
     const config = { ...this.searchConfig, ...options };
@@ -50,6 +52,7 @@ export class VectorStoreRetriever implements BaseRetriever {
       maxResults: config.k || 5,
       searchType: "hybrid", // Using hybrid with E5-only (BGE has dimension mismatch)
       embeddingWeights: { e5: 1.0, bge: 0.0 }, // BGE produces 1024 dims but DB expects 384
+      queryEmbeddingE5: config.queryEmbeddingE5,
     });
 
     return searchResults.map((result) => ({

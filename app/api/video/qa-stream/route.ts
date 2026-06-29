@@ -4,6 +4,8 @@ import { createAdminClient } from '@/utils/supabase/server';
 import { getLLM } from '@/lib/langChain/client';
 import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
+import { resolveVideoAttachmentId } from '@/lib/video-processing/attachment-resolver';
+import { normalizeVideoSources } from '@/lib/video-qa/source-normalizer';
 
 // Set max duration to 5 minutes (300 seconds)
 export const maxDuration = 300;
@@ -119,6 +121,7 @@ export async function POST(request: NextRequest) {
               title,
               transcript,
               content_url,
+              attachments,
               course_module:module_id(title),
               course:course_id(title, description)
             `)
@@ -141,7 +144,7 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'lesson_loaded',
-            message: `✅ Loaded: ${lessonTitle}`,
+            message: `Loaded: ${lessonTitle}`,
             progress: 25,
             data: { courseTitle, moduleTitle, lessonTitle }
           });
@@ -157,14 +160,14 @@ export async function POST(request: NextRequest) {
             sendStreamUpdate(encoder, controller, {
               type: 'status',
               step: 'external_video',
-              message: '🎬 Detected external video (YouTube/Vimeo)',
+              message: 'Detected external video (YouTube/Vimeo)',
               progress: 35
             });
 
             sendStreamUpdate(encoder, controller, {
               type: 'status',
               step: 'ai_processing',
-              message: '🤖 AI is analyzing your question...',
+              message: 'AI is analyzing your question...',
               progress: 50
             });
 
@@ -176,12 +179,14 @@ export async function POST(request: NextRequest) {
               includeAnalysis: true,
               model: selectedModel
             });
+            const normalizedSources = normalizeVideoSources(result.sources);
 
             sendStreamUpdate(encoder, controller, {
               type: 'answer',
               answer: result.answer.trim(),
               thinking: result.thinking, // Now includes real thinking from model
               segments: [],
+              sources: normalizedSources,
               isExternalVideo: true,
               courseInfo: { courseName: courseTitle, moduleName: moduleTitle, lessonName: lessonTitle },
               metadata: { model: selectedModel, aiMode }
@@ -194,12 +199,12 @@ export async function POST(request: NextRequest) {
               question,
               answer: result.answer,
               video_time: currentTime,
-              context_segments: null
+              context_segments: { segments: [], sources: normalizedSources }
             });
 
             sendStreamUpdate(encoder, controller, {
               type: 'complete',
-              message: '✅ Analysis complete!',
+              message: 'Analysis complete',
               progress: 100
             });
 
@@ -211,23 +216,19 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'fetch_attachment',
-            message: '🎥 Loading video data...',
+            message: 'Loading video data...',
             progress: 30
           });
 
-          const { data: lessonWithAttachment } = await supabase
-            .from('course_lesson')
-            .select(`id, course_attachments!inner(id, file_type)`)
-            .eq('id', lesson.id)
-            .eq('course_attachments.file_type', 'video')
-            .single();
-          
-          const attachmentId = lessonWithAttachment?.course_attachments?.[0]?.id;
+          const attachmentId = await resolveVideoAttachmentId(
+            supabase,
+            lesson.attachments
+          );
 
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'attachment_loaded',
-            message: attachmentId ? '✅ Video data loaded' : '⚠️ No video attachment found',
+            message: attachmentId ? 'Video data loaded' : 'No video attachment found',
             progress: 40,
             data: { attachmentId }
           });
@@ -236,7 +237,7 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'searching',
-            message: '🔍 Searching for relevant video segments...',
+            message: 'Searching for relevant video segments...',
             progress: 50
           });
 
@@ -247,7 +248,7 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'ai_processing',
-            message: aiMode === 'thinking' ? '🧠 AI is thinking deeply...' : '🤖 AI is analyzing...',
+            message: aiMode === 'thinking' ? 'AI is thinking deeply...' : 'AI is analyzing...',
             progress: 60
           });
 
@@ -265,11 +266,12 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'processing_results',
-            message: '📊 Processing search results...',
+            message: 'Processing search results...',
             progress: 80
           });
 
           const sources = result.sources || [];
+          const normalizedSources = normalizeVideoSources(sources);
           const videoSegments = sources
             .filter((source: any) => source.type === 'video_segment' || source.content_type === 'video_segment')
             .map((source: any) => {
@@ -289,7 +291,7 @@ export async function POST(request: NextRequest) {
           sendStreamUpdate(encoder, controller, {
             type: 'status',
             step: 'segments_found',
-            message: `✅ Found ${videoSegments.length} relevant segments`,
+            message: `Found ${videoSegments.length} relevant segments`,
             progress: 90,
             data: { segmentsCount: videoSegments.length }
           });
@@ -300,6 +302,7 @@ export async function POST(request: NextRequest) {
             answer: result.answer.trim(),
             thinking: result.thinking, // Now includes real thinking from model
             segments: videoSegments,
+            sources: normalizedSources,
             timeContext: {
               currentTime,
               startTime: Math.max(0, currentTime - timeWindow),
@@ -328,17 +331,20 @@ export async function POST(request: NextRequest) {
             question,
             answer: result.answer,
             video_time: currentTime,
-            context_segments: videoSegments.map((s: any) => ({
-              start_time: s.startTime,
-              end_time: s.endTime,
-              text: s.text.substring(0, 200)
-            }))
+            context_segments: {
+              segments: videoSegments.map((s: any) => ({
+                start_time: s.startTime,
+                end_time: s.endTime,
+                text: s.text.substring(0, 200)
+              })),
+              sources: normalizedSources
+            }
           });
 
           // Step 8: Complete
           sendStreamUpdate(encoder, controller, {
             type: 'complete',
-            message: '✅ Analysis complete!',
+            message: 'Analysis complete',
             progress: 100
           });
 

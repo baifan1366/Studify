@@ -4,6 +4,7 @@ import { createAdminClient } from '@/utils/supabase/server';
 import { getLLM } from '@/lib/langChain/client';
 import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
+import { resolveVideoAttachmentId } from '@/lib/video-processing/attachment-resolver';
 
 // Set max duration to 5 minutes (300 seconds) - Vercel's maximum
 export const maxDuration = 300;
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
         title,
         transcript,
         content_url,
+        attachments,
         course_module:module_id(
           title
         ),
@@ -255,17 +257,10 @@ Please provide:
     const dbStartTime = Date.now();
     
     // 2. Get attachment ID for video search
-    const { data: lessonWithAttachment } = await supabase
-      .from('course_lesson')
-      .select(`
-        id,
-        course_attachments!inner(id, file_type)
-      `)
-      .eq('id', lesson.id)
-      .eq('course_attachments.file_type', 'video')
-      .single();
-    
-    const attachmentId = lessonWithAttachment?.course_attachments?.[0]?.id;
+    const attachmentId = await resolveVideoAttachmentId(
+      supabase,
+      lesson.attachments
+    );
     const dbTime = Date.now() - dbStartTime;
     
     debugLog(`✅ Attachment query completed`, { 

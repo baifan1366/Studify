@@ -60,6 +60,8 @@ import { Button } from "@/components/ui/button";
 import UniversalSearch from "@/components/search/universal-search";
 import DailyCoachCard from "@/components/ai-coach/daily-coach-card";
 import EveningReflectionModal from "@/components/ai-coach/evening-reflection-modal";
+import { MarkdownNoteEditor } from "@/components/course/markdown-note-editor";
+import { useUpdateNote } from "@/hooks/course/use-course-notes";
 
 /* ─── tiny helpers ─────────────────────────────────────── */
 const fadeUp = (delay = 0) => ({
@@ -150,6 +152,7 @@ export default function DashboardContent() {
   const { data: userPreferences, isLoading: preferencesLoading } = useUserPreferences();
   const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
   const { data: aiNotes, isLoading: aiNotesLoading } = useAINotes({ limit: 5 });
+  const updateNote = useUpdateNote();
 
   // Modal states
   const [showReflectionModal, setShowReflectionModal] = React.useState(false);
@@ -540,7 +543,7 @@ export default function DashboardContent() {
                             <h4 className="font-medium text-foreground text-sm truncate">{note.title}</h4>
                             <Maximize2 size={12} className="text-muted-foreground/40 group-hover:text-muted-foreground/80 transition-colors flex-shrink-0 ml-2" />
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{note.ai_summary || note.content}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{note.content}</p>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {note.tags && note.tags.slice(0, 3).map((tag, idx) => (
                               <Badge key={idx} className="text-[10px] px-1.5 py-0.5 bg-violet-500/15 text-violet-300 border-violet-500/25">{tag}</Badge>
@@ -791,20 +794,21 @@ export default function DashboardContent() {
                 </div>
               )}
 
-              {selectedAINote.ai_summary && (
-                <div className="p-4 rounded-xl bg-blue-500/8 border border-blue-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MessageSquare className="w-4 h-4 text-blue-400" />
-                    <h4 className="text-sm font-medium text-blue-300">{t("ai_summary")}</h4>
-                  </div>
-                  <p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedAINote.ai_summary}</p>
-                </div>
-              )}
-
-              <div className="p-5 rounded-xl border border-white/10 bg-white/5">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">{t("full_content")}</h4>
-                <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{selectedAINote.content}</p>
-              </div>
+              <MarkdownNoteEditor
+                noteId={selectedAINote.id}
+                initialTitle={selectedAINote.title}
+                initialContent={selectedAINote.content}
+                saving={updateNote.isPending}
+                onSave={async (value) => {
+                  const result = await updateNote.mutateAsync({ noteId: selectedAINote.id, ...value });
+                  setSelectedAINote((current: any) => current ? {
+                    ...current,
+                    title: result.note.title,
+                    content: result.note.content,
+                    updated_at: result.note.updatedAt,
+                  } : current);
+                }}
+              />
 
               {(selectedAINote.course_id || selectedAINote.lesson_id) && (
                 <div className="p-4 rounded-xl bg-purple-500/8 border border-purple-500/20">
@@ -819,12 +823,7 @@ export default function DashboardContent() {
                 </div>
               )}
 
-              <div className="flex gap-3 pt-4 border-t border-white/10">
-                <Link href={`/student/notes/${selectedAINote?.id || selectedAINote?.public_id}`} className="flex-1">
-                  <Button variant="outline" className="w-full bg-violet-500/15 border-violet-500/25 text-violet-300 hover:bg-violet-500/25" onClick={() => setShowAINoteModal(false)}>
-                    <MessageSquare className="w-4 h-4 mr-2" />{t("edit_note")}
-                  </Button>
-                </Link>
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
                 <Button variant="outline" className="bg-white/5 border-white/15 text-foreground hover:bg-white/10" onClick={() => setShowAINoteModal(false)}>
                   <X className="w-4 h-4 mr-2" />{t("close")}
                 </Button>

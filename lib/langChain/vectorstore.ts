@@ -115,6 +115,7 @@ interface DualSearchOptions {
   userId?: number;
   searchType?: 'e5_only' | 'bge_only' | 'hybrid';
   embeddingWeights?: { e5: number; bge: number };
+  queryEmbeddingE5?: number[];
   videoContext?: {
     lessonId?: string;
     attachmentId?: number;
@@ -570,13 +571,20 @@ export class VectorStore {
 
       // Generate embeddings based on search type
       if ((searchType === 'e5_only' || searchType === 'hybrid') && embeddingWeights.e5 > 0) {
-        try {
-          const e5Result = await generateEmbedding(processedQuery, 'e5', 'query');
+        if (options.queryEmbeddingE5) {
+          if (!validateEmbedding(options.queryEmbeddingE5, 384, 'e5')) {
+            throw new Error('Invalid precomputed E5 query embedding');
+          }
+          queryEmbeddingE5 = options.queryEmbeddingE5;
+        } else {
+          try {
+            const e5Result = await generateEmbedding(processedQuery, 'e5', 'query');
           if (validateEmbedding(e5Result.embedding, 384, 'e5')) {
             queryEmbeddingE5 = e5Result.embedding;
           }
         } catch (e5Error) {
           console.warn('⚠️ E5 embedding generation failed, continuing with BGE only:', e5Error instanceof Error ? e5Error.message : e5Error);
+          }
         }
       }
 

@@ -3,6 +3,7 @@ import { authorize } from "@/utils/auth/server-guard";
 import { enhancedAIExecutor } from "@/lib/langChain/tool-calling-integration";
 import { createRateLimitCheck, rateLimitResponse } from "@/lib/ratelimit";
 import { z } from "zod";
+import { normalizeVideoSources } from "@/lib/video-qa/source-normalizer";
 
 // Get model based on AI mode
 function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
@@ -54,8 +55,10 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const user = authResult.user;
-    const userId = parseInt(authResult.payload.sub);
+    const userId = authResult.user.profile?.id;
+    if (!userId) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
 
     // Rate limiting check
     const checkLimit = createRateLimitCheck("videoQA");
@@ -92,21 +95,25 @@ export async function POST(request: NextRequest) {
     let lessonKind: string | null = null;
     let useDocumentModel = false;
     let attachmentId: number | null = null;
+    let lessonInternalId: number | null = null;
+    let historyClient: any = null;
 
     if (videoContext.currentLessonId) {
       const { createAdminClient } = await import("@/utils/supabase/server");
       const supabase = await createAdminClient();
+      historyClient = supabase;
 
       // First get the lesson with its attachments array
       const { data: lesson, error: lessonError } = await supabase
         .from("course_lesson")
-        .select("content_url, kind, attachments")
+        .select("id, content_url, kind, attachments")
         .eq("public_id", videoContext.currentLessonId)
         .single();
 
       if (lessonError) {
         console.error("❌ Error fetching lesson:", lessonError);
       } else if (lesson) {
+        lessonInternalId = lesson.id;
         lessonKind = lesson.kind;
 
         // Get attachment ID for video lessons
@@ -205,10 +212,12 @@ export async function POST(request: NextRequest) {
             });
 
             let finalMetadata: any = null;
+            let completeAnswer = "";
 
             // Stream tokens as they arrive
             for await (const chunk of streamGenerator) {
               if (chunk.type === 'token' && chunk.content) {
+                completeAnswer += chunk.content;
                 // Send token immediately
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({
@@ -274,11 +283,22 @@ export async function POST(request: NextRequest) {
             const totalProcessingTime = Date.now() - startTime;
             const finalData = {
               type: "final",
-              sources: finalMetadata?.sources || [],
+              sources: normalizeVideoSources(finalMetadata?.sources),
               confidence: finalMetadata?.confidence || 0.85,
               toolsUsed: finalMetadata?.toolsUsed || [],
               processingTimeMs: totalProcessingTime,
             };
+            if (historyClient && lessonInternalId && completeAnswer.trim()) {
+              const { error: historyError } = await historyClient.from("video_qa_history").insert({
+                user_id: userId,
+                lesson_id: lessonInternalId,
+                question,
+                answer: completeAnswer,
+                video_time: videoContext.currentTimestamp || 0,
+                context_segments: { segments: [], sources: finalData.sources },
+              });
+              if (historyError) console.error("Failed to save video assistant history:", historyError);
+            }
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`)
             );
@@ -333,14 +353,19 @@ export async function POST(request: NextRequest) {
     const totalProcessingTime = Date.now() - startTime;
 
     // Format sources for compatibility
-    const formattedSources = (result.sources || []).map((source: any) => ({
-      type: source.type || "course_content",
-      title: source.title || "Course Content",
-      timestamp: source.timestamp,
-      url: source.url,
-      contentPreview:
-        source.contentPreview || source.content?.substring(0, 100),
-    }));
+    const formattedSources = normalizeVideoSources(result.sources);
+
+    if (historyClient && lessonInternalId) {
+      const { error: historyError } = await historyClient.from("video_qa_history").insert({
+        user_id: userId,
+        lesson_id: lessonInternalId,
+        question,
+        answer: result.answer,
+        video_time: videoContext.currentTimestamp || 0,
+        context_segments: { segments: [], sources: formattedSources },
+      });
+      if (historyError) console.error("Failed to save video assistant history:", historyError);
+    }
 
     return NextResponse.json(
       {
@@ -349,7 +374,7 @@ export async function POST(request: NextRequest) {
         answer: result.answer,
         sources: formattedSources,
         confidence: result.confidence || 0.85,
-        webSearchUsed: result.toolsUsed?.includes("search") || false,
+        webSearchUsed: result.toolsUsed?.includes("web_search") || false,
         suggestedActions: [
           "Review related course materials",
           "Take notes on key points",

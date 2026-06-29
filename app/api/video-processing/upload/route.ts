@@ -94,17 +94,67 @@ export async function POST(req: Request) {
       .from("video_processing_queue")
       .select("*")
       .eq("attachment_id", attachment_id)
-      .eq("status", "processing")
-      .single();
+      .in("status", ["pending", "processing", "retrying"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (existingQueue) {
-      return NextResponse.json({ 
-        message: "Video is already being processed",
-        queue_id: existingQueue.public_id,
-        status: existingQueue.status,
-        current_step: existingQueue.current_step,
-        progress: existingQueue.progress_percentage
-      }, { status: 200 });
+      const staleAfterMs =
+        Number(process.env.VIDEO_PROCESSING_STALE_MINUTES || 30) * 60 * 1000;
+      const lastUpdatedAt = new Date(
+        existingQueue.updated_at || existingQueue.created_at
+      ).getTime();
+      const isStale =
+        !Number.isFinite(lastUpdatedAt) ||
+        Date.now() - lastUpdatedAt > staleAfterMs;
+
+      if (!isStale) {
+        return NextResponse.json({
+          message: "Video is already being processed",
+          queue_id: existingQueue.public_id,
+          status: existingQueue.status,
+          current_step: existingQueue.current_step,
+          progress: existingQueue.progress_percentage
+        }, { status: 200 });
+      }
+
+      const staleMessage =
+        "Previous video processing attempt expired before completion";
+      const staleTimestamp = new Date().toISOString();
+      const [{ error: staleQueueError }, { error: staleStepsError }] =
+        await Promise.all([
+          client
+            .from("video_processing_queue")
+            .update({
+              status: "failed",
+              error_message: staleMessage,
+              last_error_at: staleTimestamp,
+              completed_at: staleTimestamp,
+            })
+            .eq("id", existingQueue.id),
+          client
+            .from("video_processing_steps")
+            .update({
+              status: "failed",
+              error_message: staleMessage,
+              completed_at: staleTimestamp,
+            })
+            .eq("queue_id", existingQueue.id)
+            .in("status", ["pending", "processing", "retrying"]),
+        ]);
+
+      if (staleQueueError || staleStepsError) {
+        console.error("Failed to expire stale video job", {
+          queueId: existingQueue.id,
+          staleQueueError,
+          staleStepsError,
+        });
+        return NextResponse.json(
+          { error: "Failed to recover stale video processing job" },
+          { status: 500 }
+        );
+      }
     }
 
     // 5. Create new processing queue entry

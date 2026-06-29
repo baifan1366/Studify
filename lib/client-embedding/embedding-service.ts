@@ -2,8 +2,8 @@
  * Client-side embedding generation service using Transformers.js
  * 
  * This service generates embeddings in the browser using WebGPU or WASM backend.
- * It uses the Xenova/multilingual-e5-small model which is compatible with the
- * server-side intfloat/multilingual-e5-small model (both produce 384-dim embeddings).
+ * It uses the ONNX conversion of the same intfloat/e5-small model used by the
+ * server-side indexing pipeline, so query and passage vectors share one space.
  */
 
 import type {
@@ -15,7 +15,7 @@ import type {
 } from './types';
 
 // Model configuration
-const DEFAULT_MODEL = 'Xenova/multilingual-e5-small';
+const DEFAULT_MODEL = 'Xenova/e5-small';
 const DEFAULT_QUANTIZATION = 'q8';
 const EMBEDDING_DIMENSION = 384;
 
@@ -162,12 +162,13 @@ export async function generateClientEmbedding(
 ): Promise<EmbeddingResult> {
   const startTime = Date.now();
   const queryText = `query: ${text.trim()}`;
+  const cacheKey = `${config.modelName || DEFAULT_MODEL}:${queryText}`;
 
   try {
     // Check cache first if enabled
     if (config.enableCache !== false) {
       const { getCachedEmbedding } = await import('./embedding-cache');
-      const cachedEmbedding = await getCachedEmbedding(queryText);
+      const cachedEmbedding = await getCachedEmbedding(cacheKey);
       
       if (cachedEmbedding) {
         const generationTimeMs = Date.now() - startTime;
@@ -210,7 +211,7 @@ export async function generateClientEmbedding(
     // Cache the result if enabled
     if (config.enableCache !== false) {
       const { setCachedEmbedding } = await import('./embedding-cache');
-      setCachedEmbedding(queryText, embedding).catch((error) => {
+      setCachedEmbedding(cacheKey, embedding).catch((error) => {
         console.warn('[EmbeddingService] Failed to cache embedding:', error);
       });
     }

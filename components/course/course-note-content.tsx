@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCourseNotes, useCreateNote, useUpdateNote, useDeleteNote } from '@/hooks/course/use-course-notes';
 import { useToast } from '@/hooks/use-toast';
+import ReactMarkdown from 'react-markdown';
+import { MarkdownNoteEditor } from '@/components/course/markdown-note-editor';
 
 interface CourseNote {
   id: string;
@@ -278,38 +280,22 @@ export default function CourseNoteContent({
                     </div>
                   )}
                   
-                  {/* Edit Content */}
-                  <textarea
-                    value={editingContent}
-                    onChange={(e) => setEditingContent(e.target.value)}
-                    className="w-full h-16 border border-gray-300 dark:border-gray-600 rounded p-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:border-orange-500"
+                  <MarkdownNoteEditor
+                    noteId={note.id}
+                    initialTitle={note.title}
+                    initialContent={editingContent}
+                    saving={updateNote.isPending}
+                    onSave={async ({ title, content }) => {
+                      await updateNote.mutateAsync({ noteId: note.id, title, content, timestampSec: editingTimestamp });
+                      handleCancelEdit();
+                    }}
                   />
-                  
-                  {/* Edit Actions */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSaveEdit}
-                      disabled={updateNote.isPending}
-                      className="h-8 text-xs"
-                    >
-                      <Save size={12} className="mr-1" />
-                      {updateNote.isPending ? 'Saving...' : 'Save'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelEdit}
-                      className="h-8 text-xs"
-                    >
-                      <X size={12} className="mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={handleCancelEdit}><X size={12} className="mr-1" />Cancel</Button>
                 </div>
               ) : (
-                <p className="text-gray-800 dark:text-gray-200 text-sm">{note.content}</p>
+                <div className="prose prose-sm max-w-none text-gray-800 dark:prose-invert dark:text-gray-200">
+                  <ReactMarkdown>{note.content}</ReactMarkdown>
+                </div>
               )}
             </div>
           ))

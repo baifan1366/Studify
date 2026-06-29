@@ -540,7 +540,8 @@ export const searchTool = new DynamicStructuredTool({
         const generalResults = await smartSearch(searchQuery, {
           maxResults: 5,
           enhanceResults: false,
-          contentTypes: generalContentTypes.length > 0 ? generalContentTypes : undefined
+          contentTypes: generalContentTypes.length > 0 ? generalContentTypes : undefined,
+          queryEmbeddingE5: clientEmbedding,
         });
         
         allResults.push(...generalResults.results.map((doc: any) => ({

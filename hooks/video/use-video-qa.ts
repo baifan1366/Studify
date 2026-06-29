@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 
@@ -28,6 +28,15 @@ export interface VideoQAResponse {
     model?: string;
     aiMode?: string;
   };
+  sources?: Array<{
+    type?: string;
+    title?: string;
+    url?: string;
+    contentPreview?: string;
+    startTime?: number;
+    endTime?: number;
+    timestamp?: number;
+  }>;
 }
 
 export interface VideoTerm {
@@ -74,10 +83,12 @@ export interface StreamUpdate {
   timeContext?: any;
   courseInfo?: any;
   metadata?: any;
+  sources?: any[];
 }
 
 // Hook for asking questions with streaming support
 export function useVideoQAStreaming() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamUpdates, setStreamUpdates] = useState<StreamUpdate[]>([]);
@@ -169,10 +180,12 @@ export function useVideoQAStreaming() {
                   },
                   courseInfo: data.courseInfo,
                   metadata: data.metadata
+                  ,sources: data.sources || []
                 });
               } else if (data.type === 'complete') {
                 setCurrentStatus(data.message || 'Complete!');
                 setProgress(100);
+                queryClient.invalidateQueries({ queryKey: ['video-qa-history', request.lessonId] });
               } else if (data.type === 'error') {
                 throw new Error(data.message || 'Unknown error');
               }

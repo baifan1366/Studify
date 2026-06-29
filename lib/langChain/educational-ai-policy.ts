@@ -77,9 +77,9 @@ export function shouldSupplementWithWeb(
     /(课程|课件|课堂|老师|视频|字幕|讲义|这一课|本节)/u.test(question);
 
   // External pages cannot verify what a specific teacher or lesson said.
-  // For course-specific questions, expose the evidence gap instead of silently
-  // replacing course evidence with plausible general web knowledge.
-  if (courseSpecific && !currentInformation) return false;
+  // Keep internal evidence authoritative when it exists, but if retrieval
+  // returned nothing we still need clearly-labelled external fallback sources.
+  if (courseSpecific && !currentInformation && evidence.count > 0) return false;
 
   return currentInformation ||
     evidence.count === 0 ||

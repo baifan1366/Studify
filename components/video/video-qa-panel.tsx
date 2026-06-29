@@ -18,7 +18,18 @@ import {
   Settings,
   Search,
   Sparkles,
-  CircleHelp
+  CircleHelp,
+  CheckCircle2,
+  AlertTriangle,
+  Video,
+  Database,
+  Cpu,
+  Layers3,
+  Timer,
+  Bot
+  ,History
+  ,ListVideo
+  ,ExternalLink
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideoQA, useVideoQAStreaming, type VideoQAResponse } from '@/hooks/video/use-video-qa';
@@ -26,6 +37,12 @@ import { useCreateNote } from '@/hooks/course/use-course-notes';
 import { useToast } from '@/hooks/use-toast';
 import { useEmbeddingPreloadSimple } from '@/hooks/video/use-embedding-preload';
 import AIContentRecommendations from '@/components/ai/ai-content-recommendations';
+import { AIMarkdownMessage } from '@/components/video/ai-markdown-message';
+import { VideoTranscriptList } from '@/components/video/video-transcript-list';
+import { VideoQAHistoryDialog } from '@/components/video/video-qa-history-dialog';
+import { MarkdownNoteEditor } from '@/components/course/markdown-note-editor';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useUpdateNote, type CourseNote } from '@/hooks/course/use-course-notes';
 
 interface VideoQAPanelProps {
   lessonId: string;
@@ -50,11 +67,16 @@ export function VideoQAPanel({
   const [noteSaved, setNoteSaved] = useState(false);
   const [aiMode, setAIMode] = useState<'fast' | 'normal' | 'thinking'>('fast'); // AI mode state: fast, normal, thinking
   const [useStreaming, setUseStreaming] = useState(true); // Enable streaming by default
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [view, setView] = useState<'chat' | 'transcript'>('chat');
+  const [savedNote, setSavedNote] = useState<CourseNote | null>(null);
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const videoQA = useVideoQA();
   const streamingQA = useVideoQAStreaming();
   const createNote = useCreateNote();
+  const updateNote = useUpdateNote();
   const { toast } = useToast();
 
   const aiModeOptions = [
@@ -83,6 +105,19 @@ export function VideoQAPanel({
     normal: 'Normal',
     thinking: 'Thinking',
   };
+
+  const getStatusIcon = (step?: string, message?: string) => {
+    if (message?.toLowerCase().includes('not found')) return AlertTriangle;
+    if (step?.includes('loaded')) return CheckCircle2;
+    if (step === 'fetch_attachment' || step === 'external_video') return Video;
+    if (step === 'searching') return Database;
+    if (step === 'processing_results') return Layers3;
+    if (step === 'ai_processing') return Brain;
+    return Activity;
+  };
+
+  const cleanStatusMessage = (message?: string) =>
+    (message || '').replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u, '');
 
   // Preload embedding model in background when component mounts
   useEmbeddingPreloadSimple(true);
@@ -134,6 +169,12 @@ export function VideoQAPanel({
     }
   };
 
+  const askFromAnswer = (prompt: string) => {
+    setView('chat');
+    setQuestion(prompt);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -167,10 +208,24 @@ export function VideoQAPanel({
     setIsSavingNote(true);
     try {
       const noteQuestion = submittedQuestion || question;
-      await createNote.mutateAsync({
-        lessonId: parseInt(lessonId),
+      const sourceMarkdown = (effectiveAnswer.sources || [])
+        .map((source, index) => `${index + 1}. [${source.title || 'Source'}](${source.url || '#'})${source.contentPreview ? ` — ${source.contentPreview}` : ''}`)
+        .join('\n');
+      const segmentMarkdown = (effectiveAnswer.segments || [])
+        .map((segment) => `- **[${formatTime(segment.startTime)}]** ${segment.relevantText || segment.text}`)
+        .join('\n');
+      const completeContent = [
+        `# ${noteQuestion}`,
+        `> Video timestamp: **${formatTime(currentTime)}**`,
+        '',
+        effectiveAnswer.answer,
+        segmentMarkdown ? `\n## Relevant transcript\n${segmentMarkdown}` : '',
+        sourceMarkdown ? `\n## Sources\n${sourceMarkdown}` : '',
+      ].filter(Boolean).join('\n\n');
+      const result = await createNote.mutateAsync({
+        lessonId,
         timestampSec: currentTime,
-        content: `**Q:** ${noteQuestion}\n\n**A:** ${effectiveAnswer.answer}`,
+        content: completeContent,
         aiSummary: effectiveAnswer.answer,
         tags: ['ai-qa', 'video-note'],
         title: noteQuestion.length > 50 ? noteQuestion.substring(0, 50) + '...' : noteQuestion,
@@ -178,6 +233,8 @@ export function VideoQAPanel({
       });
 
       setNoteSaved(true);
+      setSavedNote(result.note);
+      setNoteEditorOpen(true);
       toast({
         title: t('note_saved'),
         description: t('note_saved_description'),
@@ -197,18 +254,29 @@ export function VideoQAPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-background text-foreground">
+    <div className="h-full flex flex-col bg-background/95 text-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-background flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-          <h3 className="font-medium text-gray-900 dark:text-white">
-            {t('ask_ai_about_video')}
-          </h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-background/80 backdrop-blur-xl flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20">
+            <MessageCircle className="w-[18px] h-[18px] text-blue-500 dark:text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              {t('ask_ai_about_video')}
+            </h3>
+            <p className="text-[11px] text-muted-foreground">Context-aware video assistant</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setView(view === 'chat' ? 'transcript' : 'chat')} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Toggle transcript">
+            <ListVideo className="h-4 w-4" />
+          </button>
+          <button onClick={() => setHistoryOpen(true)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Open chat history">
+            <History className="h-4 w-4" />
+          </button>
           {/* AI Mode Selector */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          <div className="flex items-center gap-0.5 bg-muted/70 rounded-xl p-1 ring-1 ring-border/60">
             {aiModeOptions.map((option) => {
               const Icon = option.icon;
               return (
@@ -216,10 +284,10 @@ export function VideoQAPanel({
                   key={option.value}
                   onClick={() => setAIMode(option.value)}
                   disabled={isProcessing}
-                  className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all duration-200 ${
+                  className={`inline-flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
                     aiMode === option.value
                       ? option.activeClass
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      : 'text-muted-foreground hover:bg-background hover:text-foreground'
                   }`}
                   title={option.title}
                   aria-label={option.title}
@@ -231,98 +299,108 @@ export function VideoQAPanel({
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close AI panel"
           >
-            <X className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* Current Time Context */}
-      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-muted/40 flex-shrink-0">
-        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300">
-          <Clock className="w-4 h-4" />
-          <span>{t('current_time')}: {formatTime(currentTime)}</span>
+      <div className="px-4 py-2.5 border-b border-border/60 bg-muted/20 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Timer className="w-3.5 h-3.5 text-blue-500" />
+            <span>{t('current_time')}</span>
+          </div>
+          <span className="rounded-md bg-blue-500/10 px-2 py-0.5 font-mono text-xs font-semibold text-blue-600 dark:text-blue-300">
+            {formatTime(currentTime)}
+          </span>
         </div>
       </div>
 
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {isProcessing ? (
+        {view === 'transcript' ? (
+          <VideoTranscriptList lessonId={lessonId} currentTime={currentTime} onSeekTo={onSeekTo} />
+        ) : isProcessing ? (
           /* Loading State with Streaming Updates */
           <div className="p-4 space-y-4">
-            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-              <div className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-1">
+            <div className="relative overflow-hidden rounded-2xl border border-blue-500/15 bg-gradient-to-br from-blue-500/[0.10] to-violet-500/[0.04] p-4">
+              <div className="absolute inset-y-0 left-0 w-0.5 bg-blue-500" />
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-600 dark:text-blue-300 mb-1.5">
                 {t('your_question')}:
               </div>
-              <div className="text-sm text-gray-900 dark:text-white">
+              <div className="text-sm leading-relaxed text-foreground">
                 {submittedQuestion || question}
               </div>
             </div>
             
             {/* Streaming Status Display */}
-            <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-xl border border-green-200 dark:border-green-700">
-              <div className="flex items-center gap-2 mb-3">
-                {streamingQA.progress >= 70 ? (
-                  <Sparkles className="w-4 h-4 text-green-600 dark:text-green-400 animate-pulse" />
-                ) : streamingQA.progress >= 35 ? (
-                  <BookOpen className="w-4 h-4 text-green-600 dark:text-green-400 animate-pulse" />
-                ) : (
-                  <Search className="w-4 h-4 text-green-600 dark:text-green-400 animate-pulse" />
-                )}
-                <div className="text-sm font-medium text-green-700 dark:text-green-300">
-                  {streamingQA.currentStatus || (aiMode === 'thinking' ? 'AI is thinking deeply...' : aiMode === 'normal' ? 'AI is analyzing...' : 'AI is processing...')}
+            <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+              <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="relative grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/10">
+                    <Bot className="w-4 h-4 text-emerald-500" />
+                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-card" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {cleanStatusMessage(streamingQA.currentStatus) || (aiMode === 'thinking' ? 'Thinking deeply...' : aiMode === 'normal' ? 'Analyzing context...' : 'Processing question...')}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">Retrieving evidence from this lesson</div>
+                  </div>
                 </div>
+                <span className="font-mono text-xs font-semibold text-emerald-500">{streamingQA.progress}%</span>
               </div>
               
               {/* Progress Bar */}
               {streamingQA.progress > 0 && (
-                <div className="mb-3">
-                  <div className="w-full bg-green-100 dark:bg-green-900 rounded-full h-2 overflow-hidden">
+                <div className="px-4 pt-3">
+                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                     <div 
-                      className="h-full bg-green-500 dark:bg-green-400 transition-all duration-300 ease-out"
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 transition-all duration-500 ease-out"
                       style={{ width: `${streamingQA.progress}%` }}
                     />
-                  </div>
-                  <div className="text-xs text-green-600 dark:text-green-300 mt-1 text-right">
-                    {streamingQA.progress}%
                   </div>
                 </div>
               )}
               
               {/* Streaming Updates Log */}
               {streamingQA.streamUpdates.length > 0 && (
-                <div className="space-y-1 max-h-40 overflow-y-auto">
+                <div className="mx-2 mb-2 mt-3 max-h-44 space-y-1 overflow-y-auto rounded-xl bg-muted/30 p-1.5">
                   {streamingQA.streamUpdates
                     .filter(update => update.type === 'status')
                     .slice(-5) // Show last 5 updates
-                    .map((update, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-start gap-2 text-xs text-green-700 dark:text-green-200 bg-green-100 dark:bg-green-900/30 p-2 rounded"
+                    .map((update, index) => {
+                      const StatusIcon = getStatusIcon(update.step, update.message);
+                      const isWarning = update.message?.toLowerCase().includes('not found');
+                      return (
+                      <div
+                        key={`${update.step || 'status'}-${index}`}
+                        className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-xs transition-colors hover:bg-background/70"
                       >
-                        <Activity className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <div className="font-medium">{update.message}</div>
+                        <StatusIcon className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isWarning ? 'text-amber-500' : 'text-emerald-500'}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-foreground/90">{cleanStatusMessage(update.message)}</div>
                           {update.data && (
-                            <div className="text-green-600 dark:text-green-300/70 mt-0.5">
-                              {JSON.stringify(update.data).substring(0, 100)}
-                              {JSON.stringify(update.data).length > 100 && '...'}
+                            <div className="mt-1 truncate text-[11px] text-muted-foreground">
+                              {Object.values(update.data).filter(Boolean).join(' · ')}
                             </div>
                           )}
                         </div>
                       </div>
-                    ))}
+                    )})}
                 </div>
               )}
               
               {/* Fallback animation if no streaming updates */}
               {streamingQA.streamUpdates.length === 0 && (
-                <div className="space-y-2">
-                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-full animate-pulse" />
-                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-5/6 animate-pulse" />
-                  <div className="h-3 bg-green-200 dark:bg-green-700 rounded w-4/6 animate-pulse" />
+                <div className="space-y-2.5 p-4">
+                  <div className="h-2.5 bg-muted rounded w-full animate-pulse" />
+                  <div className="h-2.5 bg-muted rounded w-5/6 animate-pulse" />
+                  <div className="h-2.5 bg-muted rounded w-4/6 animate-pulse" />
                 </div>
               )}
             </div>
@@ -445,9 +523,7 @@ export function VideoQAPanel({
                 </details>
               )}
               
-              <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                {effectiveAnswer.answer}
-              </div>
+              <AIMarkdownMessage content={effectiveAnswer.answer} onAsk={askFromAnswer} className="text-sm text-gray-900 dark:text-white break-words overflow-wrap-anywhere" />
             </div>
 
             {/* Related Segments */}
@@ -516,6 +592,20 @@ export function VideoQAPanel({
                 </div>
               </div>
             ) : null}
+
+            {effectiveAnswer.sources && effectiveAnswer.sources.length > 0 && (
+              <div className="rounded-xl border bg-card p-3">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Search className="h-4 w-4 text-blue-500" />Sources</div>
+                <div className="space-y-2">
+                  {effectiveAnswer.sources.map((source, index) => (
+                    <a key={`${source.url || source.title}-${index}`} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between gap-3 rounded-lg bg-muted/50 p-2.5 hover:bg-muted">
+                      <div className="min-w-0"><p className="truncate text-xs font-medium">{source.title || 'Reference'}</p>{source.contentPreview && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{source.contentPreview}</p>}</div>
+                      {source.url && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Course Context */}
             {effectiveAnswer.courseInfo && (
@@ -604,6 +694,44 @@ export function VideoQAPanel({
           </div>
         )}
       </div>
+      <VideoQAHistoryDialog
+        lessonId={lessonId}
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        onSelect={(item) => {
+          setView('chat');
+          setSubmittedQuestion(item.question);
+          setAnswer({
+            success: true,
+            answer: item.answer,
+            segments: [],
+            sources: !Array.isArray(item.context_segments) ? item.context_segments?.sources : [],
+            timeContext: { currentTime: item.video_time, startTime: 0, endTime: 0, windowSize: 0 },
+          });
+          streamingQA.reset();
+        }}
+      />
+      <Dialog open={noteEditorOpen} onOpenChange={setNoteEditorOpen}>
+        <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit saved note</DialogTitle>
+            <DialogDescription>Your complete answer, transcript evidence and sources are saved as Markdown.</DialogDescription>
+          </DialogHeader>
+          {savedNote && (
+            <MarkdownNoteEditor
+              noteId={savedNote.id}
+              initialTitle={savedNote.title}
+              initialContent={savedNote.content}
+              saving={updateNote.isPending}
+              onSave={async (value) => {
+                const result = await updateNote.mutateAsync({ noteId: savedNote.id, ...value });
+                setSavedNote(result.note);
+                toast({ title: 'Note updated', description: 'Your Markdown note is synced everywhere.' });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

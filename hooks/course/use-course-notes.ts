@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiSend, apiGet } from '@/lib/api-config';
 
-interface CourseNote {
+export interface CourseNote {
   id: string;
   lessonId: string;
   lessonTitle: string;
@@ -18,8 +18,8 @@ interface CourseNote {
 }
 
 interface CreateNoteData {
-  lessonId: number;
-  courseId?: number;
+  lessonId: string | number;
+  courseId?: string | number;
   timestampSec?: number;
   content: string;
   aiSummary?: string;
@@ -33,6 +33,7 @@ interface UpdateNoteData {
   content?: string;
   tags?: string[];
   timestampSec?: number;
+  title?: string;
 }
 
 interface NotesResponse {
@@ -45,7 +46,7 @@ interface NoteResponse {
   note: CourseNote;
 }
 
-export function useCourseNotes(lessonId?: number, courseId?: number) {
+export function useCourseNotes(lessonId?: string | number, courseId?: string | number) {
   return useQuery<CourseNote[]>({
     queryKey: ['course-notes', courseId, lessonId],
     queryFn: async () => {
@@ -81,6 +82,7 @@ export function useCreateNote() {
       queryClient.invalidateQueries({ 
         queryKey: ['course-notes'] 
       });
+      queryClient.invalidateQueries({ queryKey: ['ai-notes'] });
     },
     onError: (error) => {
       console.error('Note creation failed:', error);
@@ -104,6 +106,7 @@ export function useUpdateNote() {
       queryClient.invalidateQueries({ 
         queryKey: ['course-notes'] 
       });
+      queryClient.invalidateQueries({ queryKey: ['ai-notes'] });
     },
     onError: (error) => {
       console.error('Note update failed:', error);
@@ -126,9 +129,24 @@ export function useDeleteNote() {
       queryClient.invalidateQueries({ 
         queryKey: ['course-notes'] 
       });
+      queryClient.invalidateQueries({ queryKey: ['ai-notes'] });
     },
     onError: (error) => {
       console.error('Note deletion failed:', error);
     },
+  });
+}
+
+export function useAIEditNote() {
+  return useMutation<{ success: boolean; content: string }, Error, {
+    instruction: string;
+    content: string;
+    noteId?: string;
+  }>({
+    mutationFn: (data) => apiSend({
+      url: '/api/course/notes/ai-edit',
+      method: 'POST',
+      body: data,
+    }),
   });
 }

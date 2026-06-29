@@ -68,6 +68,7 @@ import MegaImage from "@/components/attachment/mega-blob-image";
 import { setGlobalVideoPlayer, clearGlobalVideoPlayer } from "@/hooks/video/use-video-player";
 import type { VideoPlayerAPI } from "@/interfaces/video-player-api";
 import Hls from "hls.js";
+import ReactMarkdown from "react-markdown";
 
 interface DanmakuMessage {
   id: string;
@@ -283,7 +284,7 @@ export default function BilibiliVideoPlayer({
 
   // Fetch course notes for this lesson
   const { data: courseNotes = [] } = useCourseNotes(
-    lessonId ? parseInt(lessonId) : undefined
+    lessonId || undefined
   );
 
   // Get notes near current time (within 30 seconds)
@@ -2503,8 +2504,8 @@ export default function BilibiliVideoPlayer({
                                             </div>
 
                                             {/* Note Content */}
-                                            <div className="text-sm text-gray-300 leading-relaxed">
-                                              {note.aiSummary || note.content}
+                                            <div className="prose prose-sm max-w-none text-gray-300 dark:prose-invert">
+                                              <ReactMarkdown>{note.content}</ReactMarkdown>
                                             </div>
                                           </div>
                                         ))}
@@ -2974,8 +2975,8 @@ export default function BilibiliVideoPlayer({
                           </div>
 
                           {/* Note Content */}
-                          <div className="text-sm text-gray-300 leading-relaxed">
-                            {note.aiSummary || note.content}
+                          <div className="prose prose-sm max-w-none text-gray-300 dark:prose-invert">
+                            <ReactMarkdown>{note.content}</ReactMarkdown>
                           </div>
 
                           {/* Note Footer */}

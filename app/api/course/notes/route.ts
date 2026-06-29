@@ -45,10 +45,11 @@ export async function GET(request: NextRequest) {
 
     if (lessonId) {
       // Get lesson internal ID from public_id
+      const lessonColumn = /^\d+$/.test(lessonId) ? 'id' : 'public_id';
       const { data: lesson } = await supabase
         .from('course_lesson')
         .select('id')
-        .eq('public_id', lessonId)
+        .eq(lessonColumn, lessonId)
         .single();
 
       if (lesson) {
@@ -58,10 +59,11 @@ export async function GET(request: NextRequest) {
 
     if (courseId) {
       // Get course internal ID from public_id
+      const courseColumn = /^\d+$/.test(courseId) ? 'id' : 'public_id';
       const { data: course } = await supabase
         .from('course')
         .select('id')
-        .eq('public_id', courseId)
+        .eq(courseColumn, courseId)
         .single();
 
       if (course) {
@@ -149,10 +151,11 @@ export async function POST(request: NextRequest) {
     // Get lesson internal ID if provided
     let lessonInternalId = null;
     if (lessonId) {
+      const lessonColumn = /^\d+$/.test(String(lessonId)) ? 'id' : 'public_id';
       const { data: lesson } = await supabase
         .from('course_lesson')
         .select('id, module_id')
-        .eq('public_id', lessonId)
+        .eq(lessonColumn, lessonId)
         .single();
 
       if (lesson) {
@@ -176,10 +179,11 @@ export async function POST(request: NextRequest) {
     // Get course internal ID if provided
     let courseInternalId = null;
     if (courseId) {
+      const courseColumn = /^\d+$/.test(String(courseId)) ? 'id' : 'public_id';
       const { data: course } = await supabase
         .from('course')
         .select('id')
-        .eq('public_id', courseId)
+        .eq(courseColumn, courseId)
         .single();
 
       if (course) {
@@ -288,7 +292,10 @@ export async function PATCH(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    if (content !== undefined) updates.content = content;
+    if (content !== undefined) {
+      updates.content = content;
+      updates.ai_summary = null;
+    }
     if (tags !== undefined) updates.tags = tags;
     if (timestampSec !== undefined) updates.timestamp_sec = timestampSec;
     if (title !== undefined) updates.title = title;

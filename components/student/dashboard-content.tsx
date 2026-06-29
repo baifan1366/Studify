@@ -62,6 +62,7 @@ import DailyCoachCard from "@/components/ai-coach/daily-coach-card";
 import EveningReflectionModal from "@/components/ai-coach/evening-reflection-modal";
 import { MarkdownNoteEditor } from "@/components/course/markdown-note-editor";
 import { useUpdateNote } from "@/hooks/course/use-course-notes";
+import { VideoLearningArtifacts } from "@/components/video/video-learning-artifacts";
 
 /* ─── tiny helpers ─────────────────────────────────────── */
 const fadeUp = (delay = 0) => ({
@@ -292,6 +293,21 @@ export default function DashboardContent() {
               </div>
             </div>
             <UniversalSearch placeholder={t("search_placeholder")} className="w-full" />
+          </GlassCard>
+        </motion.div>
+
+        <motion.div {...fadeUp(0.15)}>
+          <GlassCard gradient="from-violet-500/10 via-purple-500/5 to-white/[0.02]" glowColor="rgba(139,92,246,0.2)">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-lg border border-violet-500/20 bg-violet-500/15 p-2">
+                <Sparkles className="h-4 w-4 text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Video study studio</h2>
+                <p className="text-xs text-muted-foreground">Open and edit your generated notes, mind maps, and quizzes.</p>
+              </div>
+            </div>
+            <VideoLearningArtifacts library />
           </GlassCard>
         </motion.div>
 

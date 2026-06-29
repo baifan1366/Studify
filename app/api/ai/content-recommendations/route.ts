@@ -85,11 +85,10 @@ export async function POST(request: NextRequest) {
     ]);
 
     // 3. 合并推荐结果
-    let recommendations = [
-      ...courseRecommendations,
-      ...postRecommendations,
-      ...communityRecommendations
-    ].slice(0, maxRecommendations);
+    let recommendations = mergeDiversifiedRecommendations(
+      [courseRecommendations, postRecommendations, communityRecommendations],
+      maxRecommendations
+    );
 
     // 4. 降级策略：如果没有找到推荐，返回热门内容
     if (recommendations.length === 0) {
@@ -447,7 +446,14 @@ async function findSimilarPosts(supabase: any, searchQuery: string, limit: numbe
 // 查找相似社区
 async function findSimilarCommunities(supabase: any, searchQuery: string, limit: number) {
   try {
-    const { data: communities } = await supabase
+    const keywords = searchQuery
+      .replace(/[^\w\s\u4e00-\u9fa5]/g, ' ')
+      .split(/\s+/)
+      .map((keyword) => keyword.trim())
+      .filter((keyword) => keyword.length > 1)
+      .slice(0, 6);
+
+    let query = supabase
       .from('community_group')
       .select(`
         id,
@@ -455,27 +461,71 @@ async function findSimilarCommunities(supabase: any, searchQuery: string, limit:
         name,
         description,
         slug,
-        tags,
-        member_count,
-        post_count,
-        thumbnail_url
+        created_at
       `)
-      .or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,tags.cs.{${searchQuery.split(' ').join(',')}}`)
-      .eq('status', 'active')
-      .order('member_count', { ascending: false })
+      .eq('visibility', 'public')
+      .eq('is_deleted', false);
+
+    if (keywords.length > 0) {
+      query = query.or(
+        keywords
+          .flatMap((keyword) => [
+            `name.ilike.%${keyword}%`,
+            `description.ilike.%${keyword}%`
+          ])
+          .join(',')
+      );
+    }
+
+    let { data: communities, error } = await query
+      .order('created_at', { ascending: false })
       .limit(limit);
+
+    if (!error && (!communities || communities.length === 0)) {
+      const fallback = await supabase
+        .from('community_group')
+        .select('id, public_id, name, description, slug, created_at')
+        .eq('visibility', 'public')
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      communities = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error) {
+      console.error('Community recommendation query failed:', error);
+      return [];
+    }
+
+    const groupIds = (communities || []).map((community: any) => community.id);
+    const [{ data: memberships }, { data: posts }] = groupIds.length > 0
+      ? await Promise.all([
+          supabase.from('community_group_member').select('group_id').in('group_id', groupIds).eq('is_deleted', false),
+          supabase.from('community_post').select('group_id').in('group_id', groupIds).eq('is_deleted', false)
+        ])
+      : [{ data: [] }, { data: [] }];
+
+    const memberCounts = new Map<number, number>();
+    const postCounts = new Map<number, number>();
+    (memberships || []).forEach((membership: any) =>
+      memberCounts.set(membership.group_id, (memberCounts.get(membership.group_id) || 0) + 1)
+    );
+    (posts || []).forEach((post: any) =>
+      postCounts.set(post.group_id, (postCounts.get(post.group_id) || 0) + 1)
+    );
 
     return communities?.map((community: any) => ({
       id: community.public_id,
       title: community.name,
       description: community.description?.substring(0, 120) + '...',
       type: 'community' as const,
-      thumbnail: community.thumbnail_url,
       slug: community.slug,
       stats: {
-        members: community.member_count
+        members: memberCounts.get(community.id) || 0,
+        posts: postCounts.get(community.id) || 0
       },
-      tags: community.tags
+      tags: keywords.slice(0, 2)
     })) || [];
   } catch (error) {
     console.error('Error finding similar communities:', error);
@@ -508,9 +558,9 @@ async function getFallbackRecommendations(supabase: any, limit: number) {
       .eq('visibility', 'public')
       .order('total_students', { ascending: false })
       .order('average_rating', { ascending: false })
-      .limit(Math.max(limit, 3)); // 至少获取3个
+      .limit(Math.max(Math.ceil(limit / 3), 2));
 
-    const recommendations = popularCourses?.map((course: any) => ({
+    const courseRecommendations = popularCourses?.map((course: any) => ({
       id: course.public_id,
       title: course.title,
       description: course.description?.substring(0, 120) + '...',
@@ -525,6 +575,15 @@ async function getFallbackRecommendations(supabase: any, limit: number) {
       isFallback: true
     })) || [];
 
+    const [postRecommendations, communityRecommendations] = await Promise.all([
+      findSimilarPosts(supabase, '', Math.max(Math.ceil(limit / 3), 2)),
+      findSimilarCommunities(supabase, '', Math.max(Math.ceil(limit / 3), 2))
+    ]);
+    const recommendations = mergeDiversifiedRecommendations(
+      [courseRecommendations, postRecommendations, communityRecommendations],
+      limit
+    );
+
     console.log(`✅ Found ${recommendations.length} fallback recommendations`);
     return recommendations;
   } catch (error) {
@@ -532,6 +591,21 @@ async function getFallbackRecommendations(supabase: any, limit: number) {
     // 如果连降级都失败了，返回一个空数组而不是崩溃
     return [];
   }
+}
+
+function mergeDiversifiedRecommendations(groups: any[][], limit: number) {
+  const result: any[] = [];
+  const queues = groups.map((group) => [...group]);
+
+  while (result.length < limit && queues.some((queue) => queue.length > 0)) {
+    for (const queue of queues) {
+      const item = queue.shift();
+      if (item) result.push(item);
+      if (result.length >= limit) break;
+    }
+  }
+
+  return result;
 }
 
 // Find courses for learning path with difficulty matching

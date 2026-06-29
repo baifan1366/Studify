@@ -45,6 +45,7 @@ import { MarkdownNoteEditor } from '@/components/course/markdown-note-editor';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUpdateNote, type CourseNote } from '@/hooks/course/use-course-notes';
+import { VideoLearningArtifacts } from '@/components/video/video-learning-artifacts';
 
 interface VideoQAPanelProps {
   lessonId: string;
@@ -324,6 +325,8 @@ export function VideoQAPanel({
           </button>
         </div>
       </div>
+
+      <VideoLearningArtifacts lessonId={lessonId} timestampSec={currentTime} />
 
       {/* Current Time Context */}
       <div className="px-4 py-2.5 border-b border-border/60 bg-muted/20 flex-shrink-0">

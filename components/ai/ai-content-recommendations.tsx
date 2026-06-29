@@ -133,9 +133,9 @@ export default function AIContentRecommendations({
 
   const handleItemClick = (item: RecommendationItem) => {
     const baseUrl = {
-      course: '/course',
-      post: '/community/post',
-      community: '/community/group'
+      course: '/courses',
+      post: '/community',
+      community: '/community'
     }[item.type];
     
     if (item.slug && baseUrl) {

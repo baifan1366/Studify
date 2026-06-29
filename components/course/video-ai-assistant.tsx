@@ -32,6 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AIMarkdownMessage } from "@/components/video/ai-markdown-message";
 import { VideoQAHistoryDialog } from "@/components/video/video-qa-history-dialog";
 import { VideoTranscriptList } from "@/components/video/video-transcript-list";
+import { VideoLearningArtifacts } from "@/components/video/video-learning-artifacts";
 
 interface AIMessage {
   role: "user" | "assistant";
@@ -85,6 +86,8 @@ export default function VideoAIAssistant({
   const [aiMode, setAIMode] = useState<'fast' | 'normal' | 'thinking'>('fast'); // AI mode state: fast, normal, thinking
   const [historyOpen, setHistoryOpen] = useState(false);
   const [view, setView] = useState<"chat" | "transcript">("chat");
+  const [queuedQuestions, setQueuedQuestions] = useState<string[]>([]);
+  const wasLoadingRef = useRef(false);
   const { toast } = useToast();
   const t = useTranslations("VideoAIAssistant");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -177,6 +180,11 @@ export default function VideoAIAssistant({
   const handleAskQuestion = async (prompt?: string) => {
     const promptText = (prompt ?? question).trim();
     if (!promptText) return;
+    if (isLoading) {
+      setQueuedQuestions((items) => [...items, promptText]);
+      setQuestion("");
+      return;
+    }
 
     const userMessage: AIMessage = {
       role: "user",
@@ -436,6 +444,15 @@ export default function VideoAIAssistant({
     setTimeout(() => handleAskQuestion(presetQuestion), 100);
   };
 
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading && queuedQuestions.length > 0) {
+      const [next, ...rest] = queuedQuestions;
+      setQueuedQuestions(rest);
+      void handleAskQuestion(next);
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading, queuedQuestions]);
+
   return (
     <div className="flex flex-col h-full max-h-96">
       {/* Header */}
@@ -480,6 +497,10 @@ export default function VideoAIAssistant({
           </div>
         </div>
       </div>
+
+      {currentLessonId && (
+        <VideoLearningArtifacts lessonId={currentLessonId} timestampSec={currentTimestamp} />
+      )}
 
       {/* Conversation Display */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
@@ -808,11 +829,10 @@ export default function VideoAIAssistant({
             onKeyDown={(e) =>
               e.key === "Enter" && !e.shiftKey && handleAskQuestion()
             }
-            disabled={isLoading}
           />
           <Button
             onClick={() => handleAskQuestion()}
-            disabled={isLoading || !question.trim()}
+            disabled={!question.trim()}
             size="sm"
             className="px-3"
           >
@@ -823,6 +843,11 @@ export default function VideoAIAssistant({
             )}
           </Button>
         </div>
+        {queuedQuestions.length > 0 && (
+          <div className="mt-2 text-xs text-muted-foreground">
+            {queuedQuestions.length} message{queuedQuestions.length > 1 ? "s" : ""} queued
+          </div>
+        )}
 
         {/* Context Info */}
         <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 truncate">

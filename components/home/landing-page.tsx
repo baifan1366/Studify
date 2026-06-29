@@ -146,7 +146,10 @@ export default function LandingPage() {
   const coursesHref = `/${locale}/courses`;
 
   return (
-    <div ref={scope} className="min-h-screen bg-background text-foreground">
+    <div
+      ref={scope}
+      className="min-h-screen bg-transparent text-slate-950 transition-colors dark:text-slate-50"
+    >
       <OAuthCallbackRedirect />
       <motion.div
         className="fixed left-0 top-0 z-[60] h-1 origin-left bg-primary"

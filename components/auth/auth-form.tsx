@@ -349,10 +349,10 @@ export function AuthForm({
   }
 
   return (
-    <div className="min-h-screen w-full flex lg:grid lg:grid-cols-12 bg-[#FDF5E6] dark:bg-[#0D1F1A] transition-colors duration-300 overflow-hidden">
+    <div className="min-h-screen w-full flex overflow-hidden bg-[#fffaf2] text-slate-950 transition-colors duration-300 dark:bg-[#0D1F1A] dark:text-slate-50 lg:grid lg:grid-cols-12">
       
       {/* Left Column: Visual Carousel (Desktop Only, takes 5 cols) */}
-      <div className="hidden lg:flex lg:col-span-5 relative flex-col justify-between p-12 bg-gradient-to-b from-[#051410] via-[#081B16] to-[#051410] border-r border-border/10 overflow-hidden">
+      <div className="relative hidden overflow-hidden border-r border-orange-200/70 bg-gradient-to-b from-[#fffdf8] via-[#fff4df] to-[#f4f8ef] p-12 text-slate-950 shadow-[inset_-1px_0_0_rgba(255,107,0,0.04)] dark:border-white/5 dark:from-[#051410] dark:via-[#081B16] dark:to-[#051410] dark:text-slate-50 lg:col-span-5 lg:flex lg:flex-col lg:justify-between">
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 opacity-[0.04] bg-[linear-gradient(to_right,currentColor_1px,transparent_1px),linear-gradient(to_bottom,currentColor_1px,transparent_1px)] bg-[size:32px_32px] text-primary pointer-events-none" />
         
@@ -373,7 +373,7 @@ export function AuthForm({
             className="object-contain"
             priority
           />
-          <span className="text-xl font-black tracking-wider text-foreground">
+          <span className="text-xl font-black tracking-wider text-current">
             STUDIFY
           </span>
         </Link>
@@ -382,7 +382,7 @@ export function AuthForm({
         <AuthVisualCarousel />
 
         {/* Left Side Footer */}
-        <div className="relative z-10 text-[10px] text-muted-foreground/40 font-mono">
+        <div className="relative z-10 font-mono text-[10px] text-slate-500 dark:text-slate-500">
           © {new Date().getFullYear()} Studify Inc. All rights reserved.
         </div>
       </div>
@@ -678,7 +678,7 @@ function AuthVisualCarousel() {
   return (
     <div className="relative z-10 flex-1 flex flex-col justify-center max-w-sm mt-12 mb-12">
       {/* Visual Mockup Display */}
-      <div className="h-[180px] w-full rounded-2xl border border-border/10 bg-slate-950/80 shadow-2xl p-4 flex items-center justify-center overflow-hidden mb-10 relative">
+      <div className="relative mb-10 flex h-[180px] w-full items-center justify-center overflow-hidden rounded-2xl border border-orange-200/70 bg-white/80 p-4 shadow-xl shadow-orange-950/5 dark:border-white/5 dark:bg-slate-950/80 dark:shadow-2xl">
         <AnimatePresence mode="wait">
           <motion.div
             key={slide.previewType}
@@ -696,7 +696,7 @@ function AuthVisualCarousel() {
                   </div>
                 </div>
                 <div className="flex justify-start">
-                  <div className="bg-white/10 text-muted-foreground rounded-lg rounded-tl-none px-2 py-1 max-w-[90%] border border-white/5">
+                  <div className="max-w-[90%] rounded-lg rounded-tl-none border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-white/5 dark:bg-white/10 dark:text-muted-foreground">
                     Gradients point in the direction of steepest ascent...
                   </div>
                 </div>
@@ -704,11 +704,11 @@ function AuthVisualCarousel() {
             )}
 
             {slide.previewType === "video" && (
-              <div className="w-full max-w-[200px] bg-slate-900 border border-blue-500/20 rounded-lg p-2 flex flex-col gap-2">
-                <div className="h-10 bg-black/40 rounded flex items-center justify-center text-blue-400">
+              <div className="flex w-full max-w-[200px] flex-col gap-2 rounded-lg border border-blue-500/20 bg-blue-50 p-2 dark:bg-slate-900">
+                <div className="flex h-10 items-center justify-center rounded bg-blue-100 text-blue-600 dark:bg-black/40 dark:text-blue-400">
                   <Play className="h-4 w-4 fill-current" />
                 </div>
-                <div className="relative h-1 bg-slate-800 rounded">
+                <div className="relative h-1 rounded bg-blue-200 dark:bg-slate-800">
                   <div className="absolute top-0 left-0 h-full w-[45%] bg-blue-500 rounded" />
                   <div className="absolute top-1/2 left-[45%] -translate-y-1/2 h-2 w-2 rounded-full bg-white" />
                 </div>
@@ -716,7 +716,7 @@ function AuthVisualCarousel() {
             )}
 
             {slide.previewType === "class" && (
-              <div className="w-full max-w-[200px] border border-emerald-500/20 rounded-lg p-2 bg-[#09100E] flex flex-col gap-1.5">
+              <div className="flex w-full max-w-[200px] flex-col gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-50 p-2 dark:bg-[#09100E]">
                 <div className="flex justify-between text-[7px] text-muted-foreground">
                   <span>WHITEBOARD</span>
                   <span className="text-emerald-400">● Live</span>
@@ -766,12 +766,12 @@ function AuthVisualCarousel() {
               <div className={`h-8 w-8 rounded-lg ${slide.bgColor} ${slide.color} flex items-center justify-center`}>
                 <Icon className="h-4.5 w-4.5" />
               </div>
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 {slide.title}
               </h3>
             </div>
             
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs leading-relaxed text-slate-600 dark:text-muted-foreground">
               {slide.desc}
             </p>
           </motion.div>

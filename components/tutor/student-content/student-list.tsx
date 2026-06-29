@@ -46,6 +46,11 @@ interface EnhancedEnrollment extends Enrollment {
   student_profile?: Profile;
   course?: Course;
   progress?: number;
+  progress_details?: {
+    progress_pct: number;
+    completed_lessons: number;
+    last_accessed_at: string | null;
+  };
 }
 
 interface CourseWithStudentCount {
@@ -77,14 +82,23 @@ export default function StudentList() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  // Process enrollment data with progress simulation
+  // Normalize the progress object returned by the tutor students API.
   const enhancedStudents: EnhancedEnrollment[] = useMemo(() => {
     if (!tutorData?.enrollments || !Array.isArray(tutorData.enrollments)) return [];
     
-    return tutorData.enrollments.map((enrollment: Enrollment) => ({
-      ...enrollment,
-      progress: Math.floor(Math.random() * 100) // TODO: Replace with actual progress calculation
-    } as EnhancedEnrollment));
+    return tutorData.enrollments.map((enrollment: Enrollment & {
+      progress?: number | EnhancedEnrollment['progress_details'];
+    }) => {
+      const progressDetails = typeof enrollment.progress === 'object'
+        ? enrollment.progress
+        : undefined;
+
+      return {
+        ...enrollment,
+        progress: progressDetails?.progress_pct ?? enrollment.progress ?? 0,
+        progress_details: progressDetails,
+      } as EnhancedEnrollment;
+    });
   }, [tutorData?.enrollments]);
 
   // Process courses with student counts from API data

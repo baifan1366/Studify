@@ -5,9 +5,10 @@ import { NextResponse } from "next/server";
 
 async function warmupWhisperServer(): Promise<boolean> {
   const whisperUrl = process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL;
+  const whisperToken = process.env.WHISPER_API_TOKEN;
   
-  if (!whisperUrl) {
-    console.warn('WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL not configured');
+  if (!whisperUrl || !whisperToken) {
+    console.warn('Whisper URL or API token is not configured');
     return false;
   }
 
@@ -25,6 +26,9 @@ async function warmupWhisperServer(): Promise<boolean> {
     const response = await fetch(`${whisperUrl}/transcribe?task=transcribe&beam_size=1`, {
       method: 'POST',
       body: formData,
+      headers: {
+        Authorization: `Bearer ${whisperToken}`,
+      },
       signal: AbortSignal.timeout(30000), // 30秒超时
     });
     

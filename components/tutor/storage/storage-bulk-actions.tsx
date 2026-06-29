@@ -72,7 +72,7 @@ export function StorageBulkActions({
 
   const deleteMutation = useDeleteAttachment()
   const startVideoProcessingMutation = useStartVideoProcessing()
-  const { startVideoProcessingTask, startEmbeddingTask } = useBackgroundTasks()
+  const { startVideoProcessingTask } = useBackgroundTasks()
 
   // Get selected attachment objects
   const selectedAttachments = useMemo(() => {
@@ -211,10 +211,6 @@ export function StorageBulkActions({
           processingResult.queue_id
         )
         
-        // Start embedding task after 5 seconds
-        setTimeout(() => {
-          startEmbeddingTask(attachment.id, attachment.title)
-        }, 5000)
         
         processedCount++
       } catch (error) {

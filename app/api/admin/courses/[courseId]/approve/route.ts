@@ -40,6 +40,7 @@ export async function POST(
       .from('course')
       .update({
         status: 'active',
+        rejected_message: null,
         updated_at: new Date().toISOString()
       })
       .eq('public_id', courseId)

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useDeleteQuizByLessonQuizId } from '@/hooks/course/use-quiz';
 
 type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
 
@@ -50,29 +51,22 @@ interface RemoveQuizProps {
 
 export function RemoveQuiz({ quiz, open, onOpenChange, onSuccess }: RemoveQuizProps) {
   const t = useTranslations('RemoveQuiz');
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string>('');
+  const { deleteQuiz, isDeleting } = useDeleteQuizByLessonQuizId({
+    lessonId: quiz.lesson_id,
+    quizId: quiz.public_id,
+  });
 
   const handleDelete = async () => {
-    setIsDeleting(true);
     setError('');
     
     try {
-      // TODO: Implement actual API call using hooks
-      // const { deleteQuizByLessonQuizId } = useDeleteQuizByLessonQuizId({ 
-      //   lessonId: quiz.lesson_id, 
-      //   quizId: quiz.public_id 
-      // });
-      
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await deleteQuiz();
       
       onSuccess?.();
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       setError(t('delete_error'));
-    } finally {
-      setIsDeleting(false);
     }
   };
 

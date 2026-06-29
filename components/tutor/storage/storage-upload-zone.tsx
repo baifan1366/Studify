@@ -52,7 +52,7 @@ export function StorageUploadZone({ ownerId, onUploadSuccess, onClose }: Storage
   
   const uploadMutation = useUploadAttachment()
   const startVideoProcessingMutation = useStartVideoProcessing()
-  const { startVideoProcessingTask, startEmbeddingTask } = useBackgroundTasks()
+  const { startVideoProcessingTask } = useBackgroundTasks()
 
   const getFileIcon = (file: File) => {
     const type = file.type
@@ -180,9 +180,6 @@ export function StorageUploadZone({ ownerId, onUploadSuccess, onClose }: Storage
             processingResult.queue_id
           )
           
-          setTimeout(() => {
-            startEmbeddingTask(result.id, result.title || item.title.trim())
-          }, 5000)
         } catch (processError: any) {
           console.error('Video processing error:', processError)
           

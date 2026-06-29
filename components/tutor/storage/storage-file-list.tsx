@@ -108,7 +108,7 @@ export function StorageFileList({
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
   const startVideoProcessingMutation = useStartVideoProcessing()
-  const { startVideoProcessingTask, startEmbeddingTask } = useBackgroundTasks()
+  const { startVideoProcessingTask } = useBackgroundTasks()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return t('unknown_size')
@@ -226,9 +226,6 @@ export function StorageFileList({
         processingResult.queue_id
       )
       
-      setTimeout(() => {
-        startEmbeddingTask(attachment.id, attachment.title)
-      }, 5000)
       
     } catch (error) {
       console.error('Video processing error:', error)

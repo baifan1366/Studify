@@ -177,9 +177,10 @@ function generateSimpleHash(text: string): string {
 // Helper: Extract transcript from video using Whisper API
 async function extractTranscriptFromVideo(videoUrl: string): Promise<string> {
   const whisperApiUrl = process.env.WHISPER_HG_VOICE_TO_TEXT_SERVER_API_URL;
+  const whisperApiToken = process.env.WHISPER_API_TOKEN;
   
-  if (!whisperApiUrl) {
-    throw new Error('Whisper API URL not configured');
+  if (!whisperApiUrl || !whisperApiToken) {
+    throw new Error('Whisper API URL or token not configured');
   }
 
   console.log(`🎙️ Calling Whisper API: ${whisperApiUrl}`);
@@ -209,6 +210,9 @@ async function extractTranscriptFromVideo(videoUrl: string): Promise<string> {
     const whisperResponse = await fetch(`${whisperApiUrl}/transcribe?task=${whisperTask}&beam_size=${whisperBeamSize}`, {
       method: 'POST',
       body: formData,
+      headers: {
+        Authorization: `Bearer ${whisperApiToken}`,
+      },
     });
 
     if (!whisperResponse.ok) {

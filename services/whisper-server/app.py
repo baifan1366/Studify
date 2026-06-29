@@ -726,10 +726,21 @@ def _persist_completed_job(
             },
         }
     ).eq("queue_id", queue_id).eq("step_name", "embed").execute()
+    supabase.table("video_processing_steps").update(
+        {
+            "status": "skipped",
+            "completed_at": now,
+            "output_data": {
+                "reason": "Direct URL transcription does not require this step",
+            },
+        }
+    ).eq("queue_id", queue_id).in_(
+        "step_name", ["compress", "audio_convert"]
+    ).eq("status", "pending").execute()
     supabase.table("video_processing_queue").update(
         {
             "status": "completed",
-            "current_step": "embed",
+            "current_step": "completed",
             "progress_percentage": 100,
             "completed_at": now,
             "error_message": None,
@@ -742,6 +753,94 @@ def _persist_completed_job(
             },
         }
     ).eq("id", queue_id).eq("attachment_id", attachment_id).execute()
+    _create_embedding_ready_notification(queue_id, attachment_id, len(rows))
+
+
+def _create_embedding_ready_notification(
+    queue_id: int,
+    attachment_id: int,
+    embedding_count: int,
+) -> None:
+    """Notify the owner only after both embeddings are committed."""
+    if supabase is None:
+        return
+    try:
+        queue = supabase.table("video_processing_queue").select(
+            "user_id"
+        ).eq("id", queue_id).single().execute()
+        attachment = supabase.table("course_attachments").select(
+            "title"
+        ).eq("id", attachment_id).single().execute()
+        auth_user_id = (queue.data or {}).get("user_id")
+        if not auth_user_id:
+            logging.warning(
+                "Skipping completion notification: queue %s has no user",
+                queue_id,
+            )
+            return
+        profile = supabase.table("profiles").select("id").eq(
+            "user_id", auth_user_id
+        ).single().execute()
+        profile_id = (profile.data or {}).get("id")
+        if not profile_id:
+            logging.warning(
+                "Skipping completion notification: profile not found for %s",
+                auth_user_id,
+            )
+            return
+        existing = (
+            supabase.table("notifications")
+            .select("id")
+            .eq("user_id", profile_id)
+            .eq("kind", "system")
+            .contains(
+                "payload",
+                {
+                    "action": "video_processing",
+                    "queue_id": queue_id,
+                    "status": "completed",
+                },
+            )
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            logging.info(
+                "Embedding-ready notification already exists for queue=%s",
+                queue_id,
+            )
+            return
+
+        attachment_title = (attachment.data or {}).get("title") or (
+            f"Video {attachment_id}"
+        )
+        supabase.table("notifications").insert(
+            {
+                "user_id": profile_id,
+                "kind": "system",
+                "payload": {
+                    "title": "AI embeddings are ready",
+                    "message": (
+                        f'"{attachment_title}" is ready for AI search '
+                        f"with {embedding_count} indexed segments."
+                    ),
+                    "deep_link": "/tutor/storage",
+                    "action": "video_processing",
+                    "status": "completed",
+                    "queue_id": queue_id,
+                    "attachment_id": attachment_id,
+                    "embeddings_saved": embedding_count,
+                },
+                "is_read": False,
+                "is_deleted": False,
+            }
+        ).execute()
+    except Exception:
+        # Notification failure must not turn a completed job into a failure.
+        logging.exception(
+            "Failed to create embedding-ready notification for queue=%s",
+            queue_id,
+        )
 
 
 def _claim_queue(queue_id: int, attachment_id: int) -> None:
@@ -756,7 +855,7 @@ def _claim_queue(queue_id: int, attachment_id: int) -> None:
         {
             "status": "processing",
             "current_step": "transcribe",
-            "progress_percentage": 60,
+            "progress_percentage": 65,
             "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "error_message": None,
         }

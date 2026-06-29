@@ -121,6 +121,7 @@ export function useCreateQuizByLessonId({ lessonId }: UseQuizProps) {
       correct_answer: any;
       points: number;
       difficulty: number;
+      position?: number;
       explanation?: string;
     }) => {
       return await api.post(quizApi.createTutorQuizByLessonId(lessonId), quizData);
@@ -191,9 +192,10 @@ export function useUpdateQuizByLessonQuizId({ lessonId, quizId }: UseQuizByLesso
       correct_answer: any;
       points: number;
       difficulty: number;
+      position?: number;
       explanation?: string;
     }) => {
-      return await api.put(quizApi.updateTutorQuizByQuizId(lessonId, quizId), quizData);
+      return await api.patch(quizApi.updateTutorQuizByQuizId(lessonId, quizId), quizData);
     },
     onSuccess: () => {
       // Invalidate related queries

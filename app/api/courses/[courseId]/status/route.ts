@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { authorize } from "@/utils/auth/server-guard";
+import { canChangeStatus, CourseStatus } from "@/utils/course-status";
 
 // PATCH /api/courses/[courseId]/status - update course status
 export async function PATCH(
@@ -7,6 +9,11 @@ export async function PATCH(
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const authResult = await authorize('tutor');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const body = await req.json();
     const client = await createServerClient();
     // Parse courseId from URL parameter (Next.js params are always strings)
@@ -38,6 +45,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
+    if (currentCourse.owner_id !== authResult.user.profile?.id) {
+      return NextResponse.json(
+        { error: "You can only update your own courses." },
+        { status: 403 }
+      );
+    }
+
+    if (!canChangeStatus(currentCourse.status as CourseStatus, status as CourseStatus)) {
+      return NextResponse.json({
+        error: `Course status cannot be changed from ${currentCourse.status} to ${status}`
+      }, { status: 400 });
+    }
+
+    /*
     // Business logic validation based on corrected requirements
     // Tutors can only:
     // 1. Submit inactive courses for approval (inactive → pending)
@@ -70,14 +91,27 @@ export async function PATCH(
       }, { status: 403 });
     }
 
+    */
+
+    const updates: {
+      status: CourseStatus;
+      updated_at: string;
+      rejected_message?: null;
+    } = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (status === 'pending') {
+      updates.rejected_message = null;
+    }
+
     // Update the course status
     const { data, error } = await client
       .from("course")
-      .update({ 
-        status,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq("id", courseId)
+      .eq("owner_id", authResult.user.profile?.id)
       .eq("is_deleted", false)
       .select("*")
       .single();

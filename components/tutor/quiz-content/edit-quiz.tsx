@@ -27,6 +27,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useUpdateQuizByLessonQuizId } from '@/hooks/course/use-quiz';
 
 type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'fill_blank';
 
@@ -58,7 +59,10 @@ export function EditQuiz({ quiz, open, onOpenChange, onSuccess }: EditQuizProps)
   const t = useTranslations('EditQuiz');
   const [editedQuiz, setEditedQuiz] = useState<QuizQuestion>(quiz);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { updateQuiz: saveQuiz, isUpdating } = useUpdateQuizByLessonQuizId({
+    lessonId: quiz.lesson_id,
+    quizId: quiz.public_id,
+  });
 
   // Update local state when quiz prop changes
   useEffect(() => {
@@ -142,23 +146,24 @@ export function EditQuiz({ quiz, open, onOpenChange, onSuccess }: EditQuizProps)
   const handleSubmit = async () => {
     if (!validateQuiz()) return;
 
-    setIsSubmitting(true);
     try {
-      // TODO: Implement actual API call using hooks
-      // const { updateQuizByLessonQuizId } = useUpdateQuizByLessonQuizId({ 
-      //   lessonId: editedQuiz.lesson_id, 
-      //   quizId: editedQuiz.public_id 
-      // });
-      
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await saveQuiz({
+        question_text: editedQuiz.question_text.trim(),
+        question_type: editedQuiz.question_type,
+        options: editedQuiz.question_type === 'multiple_choice'
+          ? editedQuiz.options?.map(option => option.trim()).filter(Boolean)
+          : [],
+        correct_answer: editedQuiz.correct_answer,
+        explanation: editedQuiz.explanation?.trim() || undefined,
+        points: editedQuiz.points,
+        difficulty: editedQuiz.difficulty,
+        position: editedQuiz.position,
+      });
       
       onSuccess?.();
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       setErrors({ general: t('submit_error') });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -550,7 +555,7 @@ export function EditQuiz({ quiz, open, onOpenChange, onSuccess }: EditQuizProps)
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting}
+              disabled={isUpdating}
             >
               <X className="h-4 w-4 mr-2" />
               {t('cancel')}
@@ -558,9 +563,9 @@ export function EditQuiz({ quiz, open, onOpenChange, onSuccess }: EditQuizProps)
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isUpdating}
             >
-              {isSubmitting ? (
+              {isUpdating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   {t('saving')}

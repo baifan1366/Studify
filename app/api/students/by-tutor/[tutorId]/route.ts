@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { authorize } from "@/utils/auth/server-guard";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tutorId: string }> }
 ) {
   try {
+    const authResult = await authorize('tutor');
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const { tutorId: tutorIdParam } = await params;
     const tutorId = parseInt(tutorIdParam);
     
@@ -13,6 +19,13 @@ export async function GET(
       return NextResponse.json(
         { error: "Invalid tutor ID. Must be a number." }, 
         { status: 400 }
+      );
+    }
+
+    if (authResult.user.profile?.id !== tutorId) {
+      return NextResponse.json(
+        { error: "You can only view students enrolled in your own courses." },
+        { status: 403 }
       );
     }
 
@@ -32,9 +45,15 @@ export async function GET(
     }
 
     if (!courses || courses.length === 0) {
-      return NextResponse.json({ 
-        data: [], 
-        message: "No courses found for this tutor" 
+      return NextResponse.json({
+        data: {
+          tutor_id: tutorId,
+          total_courses: 0,
+          total_students: 0,
+          courses: [],
+          enrollments: []
+        },
+        message: "No courses found for this tutor"
       });
     }
 
@@ -72,11 +91,6 @@ export async function GET(
 
     // Step 4: Get progress data for all enrollments
     if (enrollments && enrollments.length > 0) {
-      const userCourseMap = enrollments.map(e => ({
-        user_id: e.user_id,
-        course_id: e.course_id
-      }));
-
       // Fetch progress for all user-course combinations
       const { data: progressData, error: progressError } = await client
         .from("course_progress")

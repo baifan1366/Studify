@@ -157,7 +157,7 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
   const updateMutation = useUpdateAttachment()
   const deleteMutation = useDeleteAttachment()
   const startVideoProcessingMutation = useStartVideoProcessing()
-  const { startVideoProcessingTask, startEmbeddingTask } = useBackgroundTasks()
+  const { startVideoProcessingTask } = useBackgroundTasks()
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes || bytes === 0) return 'Unknown size'
@@ -219,19 +219,11 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
           const processingResult = await startVideoProcessingMutation.mutateAsync(uploadResult.id)
           
           // Start background monitoring
-          const taskId = startVideoProcessingTask(
+          startVideoProcessingTask(
             uploadResult.id,
             uploadResult.title || title.trim(),
             processingResult.queue_id
           )
-          
-          // Start embedding generation monitoring
-          setTimeout(() => {
-            startEmbeddingTask(
-              uploadResult.id,
-              uploadResult.title || title.trim()
-            )
-          }, 5000) // Start after 5 seconds
           
         } catch (processError) {
           console.error('Video processing error:', processError)
@@ -331,19 +323,11 @@ export function StorageDialog({ ownerId, children }: StorageDialogProps) {
       const processingResult = await startVideoProcessingMutation.mutateAsync(attachment.id)
       
       // Start background monitoring (non-blocking)
-      const taskId = startVideoProcessingTask(
+      startVideoProcessingTask(
         attachment.id,
         attachment.title,
         processingResult.queue_id
       )
-      
-      // Start embedding generation monitoring
-      setTimeout(() => {
-        startEmbeddingTask(
-          attachment.id,
-          attachment.title
-        )
-      }, 5000) // Start after 5 seconds
       
     } catch (error) {
       console.error('Video processing error:', error)

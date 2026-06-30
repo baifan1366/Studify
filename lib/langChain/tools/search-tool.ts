@@ -4,6 +4,114 @@ import { z } from 'zod';
 import { smartSearch } from '../langchain-integration';
 import { createClient } from '@supabase/supabase-js';
 import { generateEmbedding } from '../embedding';
+import { extractPDFFromURL, extractPDFText, type PDFChunk } from '@/lib/pdf-processing/pdf-extractor';
+import { downloadMegaFile } from '@/lib/mega';
+
+function documentQueryTerms(query: string): string[] {
+  return Array.from(new Set(
+    query.toLocaleLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? []
+  )).filter(term => ![
+    'what', 'which', 'where', 'when', 'lesson', 'document', 'explain',
+    'core', 'concept', 'concepts', 'about', 'this', 'that', 'the', 'and',
+  ].includes(term));
+}
+
+function rankDocumentChunks(query: string, chunks: PDFChunk[], limit: number): PDFChunk[] {
+  const terms = documentQueryTerms(query);
+  const scored = chunks.map((chunk, index) => {
+    const text = `${chunk.sectionTitle ?? ''} ${chunk.content}`.toLocaleLowerCase();
+    const lexicalScore = terms.reduce((score, term) => {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return score + (text.match(new RegExp(escaped, 'gu'))?.length ?? 0);
+    }, 0);
+    const coverageScore = chunks.length > 1
+      ? 1 - Math.abs((index / (chunks.length - 1)) - 0.5) * 0.05
+      : 1;
+    return { chunk, index, score: lexicalScore * 10 + coverageScore };
+  });
+
+  if (terms.length > 0 && scored.some(item => item.score >= 10)) {
+    return scored.sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, limit)
+      .sort((a, b) => a.index - b.index)
+      .map(item => item.chunk);
+  }
+
+  const sampleCount = Math.min(limit, chunks.length);
+  const indexes = new Set(Array.from({ length: sampleCount }, (_, index) =>
+    Math.round(index * (chunks.length - 1) / Math.max(1, sampleCount - 1))
+  ));
+  return chunks.filter((_, index) => indexes.has(index));
+}
+
+async function getDocumentTextFallback(
+  supabase: any,
+  attachmentId: number,
+  attachmentUrl: string | null,
+  query: string,
+  limit: number
+): Promise<any[]> {
+  const { data: storedChunks, error: storedError } = await supabase
+    .from('document_embeddings')
+    .select('content_text, page_number, section_title, chunk_index, chunk_type, word_count')
+    .eq('attachment_id', attachmentId)
+    .order('chunk_index')
+    .limit(500);
+
+  if (storedError) console.error('Failed to read stored PDF text:', storedError);
+
+  let chunks: PDFChunk[] = (storedChunks ?? []).map((row: any) => ({
+    content: row.content_text,
+    pageNumber: row.page_number ?? 1,
+    sectionTitle: row.section_title ?? undefined,
+    chunkIndex: row.chunk_index,
+    chunkType: row.chunk_type ?? 'paragraph',
+    wordCount: row.word_count ?? 0,
+  }));
+
+  if (chunks.length === 0 && attachmentUrl) {
+    console.log(`Document ${attachmentId} has no chunks; extracting PDF on demand`);
+    const extraction = attachmentUrl.includes('mega.nz/')
+      ? await extractPDFText(await downloadMegaFile(attachmentUrl, 50 * 1024 * 1024))
+      : await extractPDFFromURL(attachmentUrl);
+    if (!extraction.success || extraction.chunks.length === 0) {
+      console.error('On-demand PDF extraction failed:', extraction.error);
+      return [];
+    }
+
+    chunks = extraction.chunks;
+    const { error: persistError } = await supabase
+      .from('document_embeddings')
+      .upsert(chunks.map(chunk => ({
+        attachment_id: attachmentId,
+        content_text: chunk.content,
+        page_number: chunk.pageNumber,
+        section_title: chunk.sectionTitle ?? null,
+        chunk_index: chunk.chunkIndex,
+        chunk_type: chunk.chunkType,
+        word_count: chunk.wordCount,
+        status: 'pending',
+      })), { onConflict: 'attachment_id,chunk_index', ignoreDuplicates: true });
+    if (persistError) console.error('Failed to persist extracted PDF chunks:', persistError);
+    else console.log(`Persisted ${chunks.length} raw chunks for document ${attachmentId}`);
+  }
+
+  return rankDocumentChunks(query, chunks, limit).map(chunk => ({
+    content_text: chunk.content,
+    content_type: 'document_segment',
+    type: 'document_segment',
+    page_number: chunk.pageNumber,
+    section_title: chunk.sectionTitle,
+    attachment_id: attachmentId,
+    // This is first-party lesson text, so its source confidence is high even
+    // while semantic vectors are unavailable.
+    similarity: 0.75,
+    retrieval_score: 0.75,
+    chunk_type: chunk.chunkType,
+    word_count: chunk.wordCount,
+    retrieval_method: 'document_text_fallback',
+  }));
+}
 
 // Search video embeddings - supports three modes
 // Fast Mode: Uses client E5 embedding, E5 search only (no BGE reranking)
@@ -774,6 +882,7 @@ async function searchDocumentEmbeddings(
     
     // If lessonId is provided, first get attachmentId
     let targetAttachmentId = attachmentId;
+    let targetAttachmentUrl: string | null = null;
     if (!targetAttachmentId && lessonId) {
       console.log(`🔍 Looking up PDF attachment for lesson: ${lessonId}`);
       
@@ -794,13 +903,14 @@ async function searchDocumentEmbeddings(
           // Get the first PDF attachment
           const { data: attachments } = await supabase
             .from('course_attachments')
-            .select('id, type')
+            .select('id, type, url')
             .in('id', attachmentIds)
             .eq('type', 'pdf')
             .limit(1);
           
           if (attachments && attachments.length > 0) {
             targetAttachmentId = attachments[0].id;
+            targetAttachmentUrl = attachments[0].url ?? null;
             console.log(`✅ Found PDF attachment: ${targetAttachmentId}`);
           }
         }
@@ -832,12 +942,16 @@ async function searchDocumentEmbeddings(
       
       if (e5Error) {
         console.error('❌ E5 document search error:', e5Error);
-        return [];
+        return getDocumentTextFallback(
+          supabase, targetAttachmentId, targetAttachmentUrl, query, finalCount
+        );
       }
       
       if (!e5Results || e5Results.length === 0) {
-        console.log('⚠️ No results from Fast Mode E5 document search');
-        return [];
+        console.log('No E5 results; using raw PDF text fallback');
+        return getDocumentTextFallback(
+          supabase, targetAttachmentId, targetAttachmentUrl, query, finalCount
+        );
       }
       
       console.log(`✅ Fast Mode (Document): Found ${e5Results.length} results`);
@@ -910,12 +1024,16 @@ async function searchDocumentEmbeddings(
     
     if (e5Error) {
       console.error('❌ E5 document search error:', e5Error);
-      return [];
+      return getDocumentTextFallback(
+        supabase, targetAttachmentId, targetAttachmentUrl, query, maxResults
+      );
     }
     
     if (!e5Results || e5Results.length === 0) {
-      console.log('⚠️ No results from E5 document search');
-      return [];
+      console.log('No E5 results; using raw PDF text fallback');
+      return getDocumentTextFallback(
+        supabase, targetAttachmentId, targetAttachmentUrl, query, maxResults
+      );
     }
     
     console.log(`✅ E5 Stage (Document): Found ${e5Results.length} results`);

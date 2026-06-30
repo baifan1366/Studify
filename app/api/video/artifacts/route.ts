@@ -9,8 +9,8 @@ type ArtifactType = "note" | "mind_map" | "quiz";
 const artifactInstructions: Record<ArtifactType, string> = {
   note: `Create concise but complete study notes in Markdown. Use headings, bullets, key terms, and a short recap.
 Return JSON only: {"title":"...","markdown":"..."}`,
-  mind_map: `Create a useful concept map grounded only in the transcript. The mermaid must use flowchart TD syntax, short node labels, and valid node ids.
-Return JSON only: {"title":"...","mermaid":"flowchart TD\\n  A[Main idea] --> B[Concept]"}`,
+  mind_map: `Create a rich concept map grounded only in the transcript. Return 10-24 concise concept nodes and meaningful directed relationships. Use stable alphanumeric ids, one root concept, 2-4 hierarchy levels, short labels, and useful one-sentence descriptions. Do not return Mermaid.
+Return JSON only: {"title":"...","graph":{"nodes":[{"id":"root","label":"Main idea","description":"...","level":0}],"edges":[{"source":"root","target":"concept_1","label":"leads to"}]}}`,
   quiz: `Create 5 mixed-difficulty multiple-choice questions grounded only in the transcript. Each question must have exactly 4 options and a zero-based correctIndex.
 Return JSON only: {"title":"...","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}]}`,
 };
@@ -125,7 +125,9 @@ export async function POST(request: NextRequest) {
   if (!transcript) return NextResponse.json({ error: "Transcript is not ready yet" }, { status: 409 });
 
   const model = await getLLM({ streaming: false, temperature: 0.2, maxTokens: 5000 });
-  const response = await model.invoke(`${artifactInstructions[type]}
+  let response;
+  try {
+    response = await model.invoke(`${artifactInstructions[type]}
 
 Lesson: ${lesson.title}
 The learner is currently at ${Math.floor(Number(body.timestampSec || 0))} seconds.
@@ -133,6 +135,15 @@ ${body.instruction ? `Learner request: ${String(body.instruction).slice(0, 500)}
 
 TRANSCRIPT:
 ${transcript}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "AI generation failed";
+    const modelUnavailable = /MODEL_NOT_FOUND|model is unavailable|404/i.test(message);
+    console.error("Video artifact generation failed:", message);
+    return NextResponse.json(
+      { error: modelUnavailable ? "The AI model is temporarily unavailable. Please try again shortly." : "Could not generate this study item." },
+      { status: modelUnavailable ? 503 : 502 }
+    );
+  }
   const raw = typeof response.content === "string"
     ? response.content
     : response.content.map((part: any) => part.text || "").join("");

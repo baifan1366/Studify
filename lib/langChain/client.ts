@@ -1,6 +1,7 @@
 // lib/langChain/client.ts - Optimized OpenRouter + Grok-4 Configuration with Multi-Key Support + Caching
 import { ChatOpenAI } from "@langchain/openai";
 import { apiKeyManager } from "./api-key-manager";
+import { DEFAULT_TEXT_MODEL, resolveAIModel } from "@/lib/ai/model-policy";
 
 // Simple in-memory cache for LLM responses
 class SimpleCache {
@@ -86,7 +87,7 @@ export interface GrokConfig {
 
 // 默认配置
 const DEFAULT_GROK_CONFIG: GrokConfig = {
-  model: process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha",
+  model: DEFAULT_TEXT_MODEL,
   temperature: 0.3,
   maxTokens: 8000, // Reduced to fit within 16K context limit (leaving room for input tokens)
   topP: 1.0,
@@ -127,7 +128,11 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
   // Set dummy OPENAI_API_KEY to prevent LangChain internal checks
   // This is safe because we override the baseURL to OpenRouter
 
-  const finalConfig = { ...DEFAULT_GROK_CONFIG, ...config };
+  const finalConfig = {
+    ...DEFAULT_GROK_CONFIG,
+    ...config,
+    model: resolveAIModel(config.model),
+  };
   const { siteUrl, siteName } = getSiteInfo();
 
   // 从key manager获取可用的API key

@@ -55,6 +55,7 @@
     "@types/nodemailer": "^7.0.1",
     "@upstash/qstash": "^2.8.2",
     "@upstash/redis": "^1.35.3",
+    "@xyflow/react": "^12.11.1",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.7.0",
     "clsx": "^2.1.1",

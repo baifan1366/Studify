@@ -3,12 +3,11 @@ import { authorize } from '@/utils/auth/server-guard';
 import { StudifyToolCallingAgent } from '@/lib/langChain/tool-calling-integration';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 import { z } from 'zod';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
 
 // Get model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return mode === 'thinking'
-    ? (process.env.OPEN_ROUTER_MODEL_THINKING || 'deepseek/deepseek-r1')
-    : (process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free');
+  return DEFAULT_TEXT_MODEL;
 }
 
 export interface GenerateQuizRequest {

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../styles/font-sizes.css";
+@import "@xyflow/react/dist/style.css";
 
 /* ========================= */
 /* 1. Geist Font Integration */

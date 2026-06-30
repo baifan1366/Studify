@@ -3,6 +3,7 @@ import { authorize } from '@/utils/auth/server-guard';
 import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { z } from 'zod';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
 
 // Force Node.js runtime for streaming support (not Edge)
 export const runtime = 'nodejs';
@@ -10,9 +11,7 @@ export const dynamic = 'force-dynamic';
 
 // Get model based on user preference (fast or thinking mode)
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
-  return mode === 'thinking' 
-    ? process.env.OPEN_ROUTER_MODEL_THINKING || 'nvidia/nemotron-3-super-120b-a12b:free'
-    : process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
+  return DEFAULT_TEXT_MODEL;
 }
 
 // Request validation schema for content analysis
@@ -87,7 +86,9 @@ export async function POST(request: NextRequest) {
 
     const { content, analysisType, includeRecommendations, aiMode, stream, imageUrl, learningGoal, currentLevel, timeConstraint } = validatedData;
 
-    const selectedModel = getModel(aiMode);
+    const selectedModel = analysisType === 'problem_solving' && content.startsWith('data:image/')
+      ? process.env.OPEN_ROUTER_IMAGE_MODEL || 'moonshotai/kimi-vl-a3b-thinking:free'
+      : getModel(aiMode);
     console.log(`📊 Content analysis request from user ${authResult.payload.sub}: ${analysisType} analysis using ${selectedModel} (${aiMode} mode) [stream: ${stream}]`);
 
     // If streaming is requested, use OpenRouter API directly

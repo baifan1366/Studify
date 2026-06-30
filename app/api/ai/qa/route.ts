@@ -5,6 +5,7 @@ import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { EDUCATIONAL_SYSTEM_PROMPT } from '@/lib/langChain/educational-ai-policy';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
 
 // Create Supabase client for server-side operations
 const supabase = createClient(
@@ -50,9 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Select model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
-    const selectedModel = aiMode === 'thinking'
-      ? (process.env.OPEN_ROUTER_MODEL_THINKING || 'deepseek/deepseek-r1')
-      : (process.env.OPEN_ROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free');
+    const selectedModel = DEFAULT_TEXT_MODEL;
 
     console.log(`❓ Q&A request: "${question.substring(0, 100)}..." [${aiMode} mode] [stream: ${stream}]`);
 

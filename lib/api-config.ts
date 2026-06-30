@@ -332,10 +332,10 @@ export const VideoAIConfig = {
    * AI Models Configuration
    */
   models: {
-    default: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha',
+    default: 'openrouter/owl-alpha',
     document: process.env.OPEN_ROUTER_DOCUMENT_MODEL || 'nvidia/nemotron-nano-12b-v2-vl:free',
     image: process.env.OPEN_ROUTER_IMAGE_MODEL || 'nvidia/nemotron-nano-12b-v2-vl:free',
-    toolCalling: process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || 'openrouter/owl-alpha',
+    toolCalling: 'openrouter/owl-alpha',
   },
 
   /**

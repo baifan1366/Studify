@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import Mermaid from "@/components/ui/mermaid";
+import { ReactFlowMindMap } from "@/components/ai/react-flow-mind-map";
 import { AIMarkdownMessage } from "@/components/video/ai-markdown-message";
 import { useToast } from "@/hooks/use-toast";
 
@@ -65,7 +65,7 @@ export function VideoLearningArtifacts({
     setDraft(artifact.artifact_type === "note"
       ? artifact.content.markdown || ""
       : artifact.artifact_type === "mind_map"
-        ? artifact.content.mermaid || ""
+        ? JSON.stringify(artifact.content.graph || { nodes: [], edges: [] }, null, 2)
         : JSON.stringify(artifact.content.questions || [], null, 2));
     setEditing(false);
   };
@@ -96,7 +96,7 @@ export function VideoLearningArtifacts({
       const content = active.artifact_type === "note"
         ? { ...active.content, markdown: draft }
         : active.artifact_type === "mind_map"
-          ? { ...active.content, mermaid: draft }
+          ? { ...active.content, graph: JSON.parse(draft) }
           : { ...active.content, questions: JSON.parse(draft) };
       const response = await fetch("/api/video/artifacts", {
         method: "PATCH",
@@ -160,7 +160,9 @@ export function VideoLearningArtifacts({
           ) : active ? (
             <div className="space-y-4">
               {active.artifact_type === "note" && <AIMarkdownMessage content={active.content.markdown || ""} />}
-              {active.artifact_type === "mind_map" && <Mermaid chart={active.content.mermaid || "flowchart TD\nA[No content]"} />}
+              {active.artifact_type === "mind_map" && (
+                <ReactFlowMindMap graph={active.content.graph || { nodes: [], edges: [] }} />
+              )}
               {active.artifact_type === "quiz" && (
                 <div className="space-y-4">
                   {(active.content.questions || []).map((question: any, index: number) => (

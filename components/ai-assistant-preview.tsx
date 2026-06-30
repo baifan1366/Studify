@@ -32,7 +32,8 @@ import {
   Clock,
   Maximize2,
   Trash2,
-  Plus
+  Plus,
+  Zap
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,9 +62,10 @@ import { useSaveMistake } from '@/hooks/dashboard/use-mistake-book';
 import ReactMarkdown from 'react-markdown';
 import AIContentRecommendations from './ai/ai-content-recommendations';
 import { useUser } from '@/hooks/profile/use-user';
+import { ReactFlowMindMap } from '@/components/ai/react-flow-mind-map';
+import { AIMarkdownMessage } from '@/components/video/ai-markdown-message';
 
 // 导入真正的Mermaid渲染器
-import Mermaid from '@/components/ui/mermaid';
 
 interface AIAssistantPreviewProps {
   onExperienceAI?: () => void;
@@ -565,7 +567,7 @@ function TypingIndicator() {
 }
 
 // Markdown渲染组件
-function MarkdownContent({ content, isStreaming }: { content: string; isStreaming?: boolean }) {
+function LegacyMarkdownContent({ content, isStreaming }: { content: string; isStreaming?: boolean }) {
   return (
     <ReactMarkdown
       className="markdown-chat-content"
@@ -666,6 +668,10 @@ function MarkdownContent({ content, isStreaming }: { content: string; isStreamin
       {content}
     </ReactMarkdown>
   );
+}
+
+function MarkdownContent({ content }: { content: string; isStreaming?: boolean }) {
+  return <AIMarkdownMessage content={content} />;
 }
 
 // Helper function to format relative time
@@ -1126,7 +1132,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                ⚡ Fast
+                <><Zap className="mr-1 inline h-3 w-3" />Fast</>
               </button>
               <button
                 onClick={() => setAIMode('thinking')}
@@ -1137,7 +1143,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                🧠 Thinking
+                <><Brain className="mr-1 inline h-3 w-3" />Thinking</>
               </button>
             </div>
           </div>
@@ -1529,7 +1535,7 @@ function SolveProblemCard({ onClose, onResult, onFullscreen, isFullscreen }: {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              ⚡ Fast
+              <><Zap className="mr-1 inline h-4 w-4" />Fast</>
             </button>
             <button
               onClick={() => setAIMode('thinking')}
@@ -1540,7 +1546,7 @@ function SolveProblemCard({ onClose, onResult, onFullscreen, isFullscreen }: {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              🧠 Thinking
+              <><Brain className="mr-1 inline h-4 w-4" />Thinking</>
             </button>
           </div>
         </div>
@@ -1674,7 +1680,7 @@ function SmartNotesCard({ onClose, onResult, onFullscreen, isFullscreen }: {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              ⚡ Fast
+              <><Zap className="mr-1 inline h-4 w-4" />Fast</>
             </button>
             <button
               onClick={() => setAIMode('thinking')}
@@ -1685,7 +1691,7 @@ function SmartNotesCard({ onClose, onResult, onFullscreen, isFullscreen }: {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              🧠 Thinking
+              <><Brain className="mr-1 inline h-4 w-4" />Thinking</>
             </button>
           </div>
         </div>
@@ -1861,7 +1867,7 @@ function LearningPathCard({ onClose, onResult, onFullscreen, isFullscreen }: {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              ⚡ Fast
+              <><Zap className="mr-1 inline h-4 w-4" />Fast</>
             </button>
             <button
               onClick={() => setAIMode('thinking')}
@@ -1872,7 +1878,7 @@ function LearningPathCard({ onClose, onResult, onFullscreen, isFullscreen }: {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              🧠 Thinking
+              <><Brain className="mr-1 inline h-4 w-4" />Thinking</>
             </button>
           </div>
         </div>
@@ -2045,7 +2051,7 @@ function LearningPathVisualization({ learningPath, learningGoal, currentLevel }:
   if (!learningPath) return null;
 
   const { 
-    mermaidDiagram, 
+    mindMap,
     roadmap, 
     recommendedCourses = [], 
     quizSuggestions = [], 
@@ -2059,15 +2065,13 @@ function LearningPathVisualization({ learningPath, learningGoal, currentLevel }:
   return (
     <div className="space-y-6">
       {/* Mermaid学习路线图 */}
-      {mermaidDiagram && (
+      {mindMap?.nodes?.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <Route className="h-5 w-5 text-orange-500" />
             {t('learning_path.roadmap')}
           </h3>
-          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 overflow-x-auto">
-            <Mermaid chart={mermaidDiagram} className="w-full" />
-          </div>
+          <ReactFlowMindMap graph={mindMap} className="h-[560px]" />
         </div>
       )}
 
@@ -2435,7 +2439,7 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
       )}
 
       {/* Q&A类型，推荐社区帖子和群组 */}
-      {!isStreaming && getUserId() && fullText.length > 10 && (
+      {!isStreaming && type === 'quick_qa' && getUserId() && fullText.length > 10 && (
         <div className="mt-6">
           {/* 推荐相关内容（课程视频和社区帖子） */}
           <AIContentRecommendations 

@@ -6,6 +6,7 @@ import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 import { resolveVideoAttachmentId } from '@/lib/video-processing/attachment-resolver';
 import { normalizeVideoSources } from '@/lib/video-qa/source-normalizer';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
 
 // Set max duration to 5 minutes (300 seconds)
 export const maxDuration = 300;
@@ -24,13 +25,7 @@ const debugLog = (message: string, data?: any) => {
 
 // Get model based on AI mode
 function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
-  if (mode === 'thinking') {
-    return process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
-  } else if (mode === 'fast') {
-    return process.env.OPENROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
-  } else {
-    return process.env.OPENROUTER_MODEL_NORMAL || process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
-  }
+  return DEFAULT_TEXT_MODEL;
 }
 
 // Helper function to send streaming updates

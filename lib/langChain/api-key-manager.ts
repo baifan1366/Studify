@@ -1,4 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { DEFAULT_TEXT_MODEL, resolveAIModel } from "@/lib/ai/model-policy";
 import { createClient } from '@supabase/supabase-js';
 
 // API Key 配置接口
@@ -354,11 +355,11 @@ export class ApiKeyManager {
   /**
    * 创建LLM实例with自动key轮换
    */
-  async createLLM(model = process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha", maxRetries = 3): Promise<ChatOpenAI> {
+  async createLLM(model = DEFAULT_TEXT_MODEL, maxRetries = 3): Promise<ChatOpenAI> {
     const { key: apiKey, name: keyName } = await this.getAvailableKey();
     
     return new ChatOpenAI({
-      model,
+      model: resolveAIModel(model),
       temperature: 0.3,
       maxRetries,
       openAIApiKey: apiKey, // LangChain still needs this parameter

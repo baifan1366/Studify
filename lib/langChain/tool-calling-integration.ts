@@ -1,5 +1,6 @@
 // Tool Calling Integration for Studify AI System
 import { ChatOpenAI } from "@langchain/openai";
+import { resolveAIModel } from "@/lib/ai/model-policy";
 import {
   HumanMessage,
   AIMessage,
@@ -1128,7 +1129,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       
       // Use reasoning model for thinking mode
       const isThinkingMode = options.aiMode === 'thinking';
-      const modelName = options.model || process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha";
+      const modelName = resolveAIModel(options.model);
       console.log(`🤖 [${Date.now()}] Creating LLM instance with model: ${modelName}${isThinkingMode ? ' (thinking mode)' : ''}`);
       
       const llm = await getLLM({
@@ -1385,12 +1386,10 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       analysisType === "problem_solving" && content.startsWith("data:image/");
 
     // Use custom model if provided, otherwise use default logic
-    const selectedModel = options.model || (
-      isImageAnalysis
-        ? process.env.OPEN_ROUTER_IMAGE_MODEL ||
-          "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-        : process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha"
-    );
+    const selectedModel = isImageAnalysis
+      ? process.env.OPEN_ROUTER_IMAGE_MODEL ||
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+      : resolveAIModel(options.model);
 
     const config: ToolCallingConfig = {
       toolCategories: ["CONTENT_ANALYSIS", "RECOMMENDATIONS"],
@@ -1468,22 +1467,14 @@ STEP 1: First, use the analyze_content tool with this JSON input:
     options.learningGoal || "the specified learning goal"
   }. Current level: ${options.currentLevel || "Beginner"}. Time constraint: ${
           options.timeConstraint || "Flexible"
-        }. Include: 1) Learning Summary, 2) Mermaid flowchart diagram, 3) Step-by-step roadmap with duration and difficulty, 4) Recommended courses, 5) Practice quizzes, 6) Study tips. Focus on practical, actionable steps that help the user quickly know what to learn and where to start."
+        }. Include: 1) Learning Summary, 2) structured React Flow mindMap nodes and edges, 3) 6-12 detailed stages with prerequisites, outcomes, practice, checkpoints and mastery criteria, 4) portfolio milestones, 5) database-matchable course recommendations, 6) practice quizzes and review weeks. Do not output Mermaid."
 }
 
 STEP 2: Based on the tool results, format a comprehensive learning path with:
 
 1. **Learning Summary**: Brief overview of the learning journey and expected outcomes
 
-2. **Mermaid Flowchart**: Create a Mermaid diagram showing the learning progression:
-\`\`\`mermaid
-graph TD
-    A[Start: ${options.learningGoal || "Learning Goal"}] --> B[Foundation]
-    B --> C[Intermediate Concepts]
-    C --> D[Advanced Topics]
-    D --> E[Practical Application]
-    E --> F[Mastery & Beyond]
-\`\`\`
+2. **Interactive Graph**: Return structured mindMap nodes and prerequisite edges for React Flow; never return Mermaid.
 
 3. **Detailed Roadmap**: Step-by-step breakdown with duration, difficulty, resources
 4. **Recommended Courses**: Specific courses with descriptions and difficulty levels

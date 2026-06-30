@@ -1,8 +1,6 @@
 // PDF Text Extraction Service
 // Extracts text content from PDF files and splits into chunks
 
-import { PDFParse } from 'pdf-parse';
-
 export interface PDFChunk {
   content: string;
   pageNumber: number;
@@ -51,24 +49,36 @@ export async function extractPDFText(
     
     console.log('📄 Starting PDF text extraction...');
     
-    // Parse PDF using PDFParse class with buffer data
-    const pdfParse = new PDFParse({ data: pdfBuffer });
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const document = await pdfjs.getDocument({
+      data: Uint8Array.from(pdfBuffer),
+    }).promise;
+    const pages: Array<{ num: number; text: string }> = [];
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
+      const page = await document.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const text = textContent.items
+        .map(item => ('str' in item ? item.str : ''))
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      pages.push({ num: pageNumber, text });
+      page.cleanup();
+    }
+    const fullText = pages.map(page => page.text).join('\n\n');
+    const rawMetadata = await document.getMetadata().catch(() => null);
+    const info = (rawMetadata?.info ?? {}) as Record<string, unknown>;
     
-    // Get text and info
-    const [textResult, infoResult] = await Promise.all([
-      pdfParse.getText(),
-      pdfParse.getInfo()
-    ]);
-    
-    console.log(`📊 PDF parsed: ${textResult.total} pages, ${textResult.text.length} characters`);
+    console.log(`📊 PDF parsed: ${document.numPages} pages, ${fullText.length} characters`);
     
     // Extract metadata
     const metadata = {
-      totalPages: textResult.total,
-      totalWords: countWords(textResult.text),
-      title: infoResult.info?.title,
-      author: infoResult.info?.author,
-      creationDate: infoResult.info?.creationDate ? new Date(infoResult.info.creationDate) : undefined,
+      totalPages: document.numPages,
+      totalWords: countWords(fullText),
+      title: typeof info.Title === 'string' ? info.Title : undefined,
+      author: typeof info.Author === 'string' ? info.Author : undefined,
+      creationDate: undefined,
     };
     
     console.log(`📝 Metadata: ${metadata.totalWords} words, ${metadata.totalPages} pages`);
@@ -78,20 +88,15 @@ export async function extractPDFText(
     
     if (opts.extractByPage) {
       // Extract by page using page-wise text
-      chunks = extractByPageFromTextResult(textResult, opts);
-    } else if (textResult.pages && Array.isArray(textResult.pages)) {
-      // Preserve real PDF page provenance while creating paragraph-sized chunks.
-      chunks = extractParagraphChunksFromPages(textResult.pages, opts);
+      chunks = extractByPageFromTextResult({ pages }, opts);
     } else {
-      // Older pdf-parse responses may not expose pages. Page 1 is more honest
-      // than inventing page numbers from the number of chunks produced so far.
-      chunks = extractByParagraphs(textResult.text, 1, opts);
+      chunks = extractParagraphChunksFromPages(pages, opts);
     }
     
     console.log(`✅ Extracted ${chunks.length} chunks from PDF`);
     
     // Clean up
-    await pdfParse.destroy();
+    await document.destroy();
     
     return {
       chunks,

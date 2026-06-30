@@ -65,6 +65,9 @@ export async function GET(_request: NextRequest) {
     const lastWeekPoints = (points || []).filter((item) => new Date(item.created_at) < thisWeekStart)
       .reduce((sum, item) => sum + item.points, 0);
     const studyHourChange = (thisWeekMinutes - lastWeekMinutes) / 60;
+    const studyTimePercentChange = lastWeekMinutes > 0
+      ? ((thisWeekMinutes - lastWeekMinutes) / lastWeekMinutes) * 100
+      : null;
     const pointChange = thisWeekPoints - lastWeekPoints;
     const completionChange = thisWeekCompleted - lastWeekCompleted;
     const currentStreak = calculateStudyStreak([
@@ -83,7 +86,9 @@ export async function GET(_request: NextRequest) {
         },
         studyTime: {
           thisWeek: thisWeekMinutes / 60,
+          lastWeek: lastWeekMinutes / 60,
           change: studyHourChange,
+          percentChange: studyTimePercentChange,
           trend: studyHourChange > 0 ? `+${studyHourChange.toFixed(1)}h this week` :
             studyHourChange < 0 ? `${studyHourChange.toFixed(1)}h this week` : 'Same as last week',
         },

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Create tool calling agent
     const agent = new StudifyToolCallingAgent({
-      model: model || process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || "openrouter/owl-alpha",
+      model: model || process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
       temperature: temperature || 0.3,
       enabledTools: enabledTools || 'all',
       toolCategories: toolCategories,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       intermediateSteps: includeSteps ? result.intermediateSteps : undefined,
       metadata: {
         processingTimeMs: processingTime,
-        model: model || process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || "openrouter/owl-alpha",
+        model: model || process.env.OPEN_ROUTER_TOOL_CALLING_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
         toolsEnabled: true,
         timestamp: new Date().toISOString(),
         userId: authResult.payload.sub

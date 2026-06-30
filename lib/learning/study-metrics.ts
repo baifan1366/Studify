@@ -78,6 +78,24 @@ export function calculateStudyStreak(activityDates: Array<string | Date>, timeZo
   return streak;
 }
 
+export function calculateDateKeyStreak(dateKeys: string[], todayKey: string): number {
+  const activeDays = new Set(dateKeys);
+  const cursor = new Date(`${todayKey}T12:00:00Z`);
+  const key = () => cursor.toISOString().slice(0, 10);
+
+  if (!activeDays.has(key())) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    if (!activeDays.has(key())) return 0;
+  }
+
+  let streak = 0;
+  while (activeDays.has(key())) {
+    streak += 1;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return streak;
+}
+
 export function buildDailyStudyMinutes(
   sessions: StudySessionRow[],
   timeZone: string,

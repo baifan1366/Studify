@@ -70,7 +70,7 @@ export default function HomeContent() {
   const quickStatItems = [
     {
       icon: Flame,
-      label: "Day Streak",
+      label: "Study Streak",
       value: quickStats.streak,
       suffix: "",
       color: "#FF6B00",

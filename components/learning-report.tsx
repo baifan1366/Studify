@@ -16,6 +16,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useLearningStats } from '@/hooks/profile/use-learning-stats';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDashboardTrends } from '@/hooks/dashboard/use-dashboard-trends';
 
 interface LearningReportProps {
   onViewProgress?: () => void;
@@ -26,6 +27,7 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
   
   // 获取真实的学习统计数据
   const { data: learningStats, isLoading } = useLearningStats('week');
+  const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
 
   // 处理每日学习时长数据
   const weeklyData = React.useMemo(() => {
@@ -47,20 +49,29 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
     }
 
     const breakdown = learningStats.charts.activityBreakdown;
+    const totalMinutes = Object.values(breakdown).reduce((sum, minutes) => sum + Number(minutes || 0), 0);
+    if (totalMinutes <= 0) return [];
     const subjects = [
-      { subject: 'Video Watching', level: Math.min((breakdown.video_watching || 0) / 10, 100), color: 'text-blue-400' },
-      { subject: 'Quiz Taking', level: Math.min((breakdown.quiz_taking || 0) / 5, 100), color: 'text-green-400' },
-      { subject: 'Reading', level: Math.min((breakdown.reading || 0) / 8, 100), color: 'text-purple-400' },
-      { subject: 'Practice', level: Math.min((breakdown.practice || 0) / 6, 100), color: 'text-orange-400' },
-    ].filter(subject => subject.level > 0);
+      { subject: 'Video Watching', minutes: breakdown.video_watching || 0, color: 'text-blue-400' },
+      { subject: 'Quiz Taking', minutes: breakdown.quiz_taking || 0, color: 'text-green-400' },
+      { subject: 'Reading', minutes: breakdown.reading || 0, color: 'text-purple-400' },
+      { subject: 'Practice', minutes: breakdown.practice || 0, color: 'text-orange-400' },
+    ].filter(subject => subject.minutes > 0)
+      .map(subject => ({ ...subject, level: Math.round((subject.minutes / totalMinutes) * 100) }));
 
     return subjects;
   }, [learningStats]);
 
   const maxHours = weeklyData.length > 0 ? Math.max(...weeklyData.map(d => d.hours)) : 1;
+  const studyTrend = trendsData?.studyTime;
+  const hasStudyTrend = Number(studyTrend?.lastWeek || 0) > 0
+    && typeof studyTrend?.percentChange === 'number';
+  const topMastery = masteryLevels.length > 0
+    ? masteryLevels.reduce((best, subject) => subject.level > best.level ? subject : best)
+    : null;
 
   // 加载状态
-  if (isLoading) {
+  if (isLoading || trendsLoading) {
     return (
       <motion.section
         className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8"
@@ -214,10 +225,14 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
         <div className="bg-white/5 dark:bg-white/5 rounded-xl p-6 border border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('weekly_learning_duration_title')}</h3>
-            <div className="flex items-center gap-1 text-sm text-green-400">
-              <TrendingUp size={16} />
-              {t('trend_vs_last_week', { value: 12 })}
-            </div>
+            {hasStudyTrend && (
+              <div className={`flex items-center gap-1 text-sm ${studyTrend!.percentChange! >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <TrendingUp size={16} />
+                {t('trend_vs_last_week', {
+                  value: `${studyTrend!.percentChange! > 0 ? '+' : ''}${Math.round(studyTrend!.percentChange!)}`,
+                })}
+              </div>
+            )}
           </div>
 
           {/* Bar Chart */}
@@ -270,10 +285,12 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
         <div className="bg-white/5 dark:bg-white/5 rounded-xl p-6 border border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('subject_mastery_levels_title')}</h3>
-            <div className="flex items-center gap-1 text-sm text-orange-400">
-              <Award size={16} />
-              {t('top_performer_label')}
-            </div>
+            {topMastery && (
+              <div className="flex items-center gap-1 text-sm text-orange-400">
+                <Award size={16} />
+                {t('top_performer_label')}: {topMastery.subject}
+              </div>
+            )}
           </div>
 
           {/* Mastery Bars */}
@@ -325,15 +342,17 @@ export default function LearningReport({ onViewProgress }: LearningReportProps) 
           </div>
 
           {/* AI Insights */}
+          {topMastery && (
           <div className="mt-6 p-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg border border-purple-400/30">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} className="text-yellow-400" />
               <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('ai_insight_label')}</span>
             </div>
             <p className="text-sm text-gray-700 dark:text-white/80">
-              {t('ai_insight_text')}
+              {t('ai_insight_dynamic', { activity: topMastery.subject })}
             </p>
           </div>
+          )}
         </div>
       </div>
 

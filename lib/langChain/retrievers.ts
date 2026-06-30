@@ -363,7 +363,7 @@ Response: {
     try {
       const llm = await getLLM({
         temperature: 0.1,
-        model: process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha",
+        model: process.env.OPEN_ROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
       });
 
       const response = await llm.invoke([new HumanMessage(parsePrompt)]);
@@ -477,7 +477,7 @@ Relevant parts:
 
         const llm = await getLLM({
           temperature: 0.1,
-          model: process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha",
+          model: process.env.OPEN_ROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
         });
 
         const response = await llm.invoke([new HumanMessage(prompt)]);
@@ -631,7 +631,7 @@ Generate ${this.numQueries} alternative questions:
     try {
       const llm = await getLLM({
         temperature: 0.7,
-        model: process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha",
+        model: process.env.OPEN_ROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
       });
 
       const response = await llm.invoke([new HumanMessage(prompt)]);

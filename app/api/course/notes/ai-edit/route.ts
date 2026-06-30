@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const llm = await getLLM({
-      model: process.env.OPENROUTER_MODEL_FAST || "openrouter/owl-alpha",
+      model: process.env.OPENROUTER_MODEL_FAST || "nvidia/nemotron-3-super-120b-a12b:free",
       temperature: 0.2,
     });
     const result = await llm.invoke([

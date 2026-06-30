@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { calculateDateKeyStreak, localDateKey } from "@/lib/learning/study-metrics";
 
 export async function GET() {
   try {
@@ -18,7 +19,7 @@ export async function GET() {
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, timezone")
       .eq("user_id", user.id)
       .single();
 
@@ -27,9 +28,8 @@ export async function GET() {
     }
 
     const userId = profile.id;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
+    const timeZone = profile.timezone || "Asia/Kuala_Lumpur";
+    const todayStr = localDateKey(new Date(), timeZone);
 
     // Check if already checked in today
     const { data: existingCheckin } = await supabase
@@ -40,8 +40,8 @@ export async function GET() {
       .single();
 
     const hasCheckedInToday = !!existingCheckin;
-    const currentStreak = await calculateStreak(supabase, userId);
-    const weeklyCheckins = await getWeeklyCheckins(supabase, userId);
+    const currentStreak = await calculateStreak(supabase, userId, todayStr);
+    const weeklyCheckins = await getWeeklyCheckins(supabase, userId, todayStr);
 
     return NextResponse.json({
       success: true,
@@ -77,7 +77,7 @@ export async function POST() {
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, timezone")
       .eq("user_id", user.id)
       .single();
 
@@ -86,9 +86,8 @@ export async function POST() {
     }
 
     const userId = profile.id;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
+    const timeZone = profile.timezone || "Asia/Kuala_Lumpur";
+    const todayStr = localDateKey(new Date(), timeZone);
 
     // Check if already checked in today
     const { data: existingCheckin } = await supabase
@@ -100,8 +99,8 @@ export async function POST() {
 
     if (existingCheckin) {
       // Already checked in today
-      const currentStreak = await calculateStreak(supabase, userId);
-      const weeklyCheckins = await getWeeklyCheckins(supabase, userId);
+      const currentStreak = await calculateStreak(supabase, userId, todayStr);
+      const weeklyCheckins = await getWeeklyCheckins(supabase, userId, todayStr);
       return NextResponse.json({
         success: true,
         data: {
@@ -132,7 +131,7 @@ export async function POST() {
     }
 
     // Calculate current streak
-    const currentStreak = await calculateStreak(supabase, userId);
+    const currentStreak = await calculateStreak(supabase, userId, todayStr);
 
     // Calculate points based on streak
     const basePoints = 10;
@@ -198,7 +197,7 @@ export async function POST() {
     const message = getMotivationalMessage(currentStreak, isNewRecord);
 
     // Get weekly checkins
-    const weeklyCheckins = await getWeeklyCheckins(supabase, userId);
+    const weeklyCheckins = await getWeeklyCheckins(supabase, userId, todayStr);
 
     return NextResponse.json({
       success: true,
@@ -223,16 +222,15 @@ export async function POST() {
 // Get weekly checkins for visualization
 async function getWeeklyCheckins(
   supabase: any,
-  userId: number
+  userId: number,
+  todayStr: string
 ): Promise<boolean[]> {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date(`${todayStr}T12:00:00Z`);
     const weekStart = new Date(today);
-    weekStart.setDate(weekStart.getDate() - 6); // 6 days ago + today = 7 days
+    weekStart.setUTCDate(weekStart.getUTCDate() - 6);
 
-    const todayStr = today.toISOString().split("T")[0];
-    const weekStartStr = weekStart.toISOString().split("T")[0];
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
 
     const { data: weekCheckins } = await supabase
       .from("community_checkin")
@@ -246,8 +244,8 @@ async function getWeeklyCheckins(
       .fill(false)
       .map((_, index) => {
         const date = new Date(weekStart);
-        date.setDate(date.getDate() + index);
-        const dateStr = date.toISOString().split("T")[0];
+        date.setUTCDate(date.getUTCDate() + index);
+        const dateStr = date.toISOString().slice(0, 10);
         return (
           weekCheckins?.some((c: any) => c.checkin_date === dateStr) || false
         );
@@ -259,7 +257,11 @@ async function getWeeklyCheckins(
 }
 
 // Calculate user's current streak
-async function calculateStreak(supabase: any, userId: number): Promise<number> {
+async function calculateStreak(
+  supabase: any,
+  userId: number,
+  todayStr: string
+): Promise<number> {
   try {
     const { data: checkins } = await supabase
       .from("community_checkin")
@@ -268,37 +270,13 @@ async function calculateStreak(supabase: any, userId: number): Promise<number> {
       .order("checkin_date", { ascending: false })
       .limit(365); // Check last year
 
-    if (!checkins || checkins.length === 0) {
-      return 1; // First check-in
-    }
-
-    let streak = 1;
-    let currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-
-    const checkinDates = new Set(checkins.map((c: any) => c.checkin_date));
-
-    // Check today
-    const todayStr = currentDate.toISOString().split("T")[0];
-    if (!checkinDates.has(todayStr)) {
-      // If not checked in today, start from yesterday
-      currentDate.setDate(currentDate.getDate() - 1);
-    }
-
-    // Count consecutive days backwards
-    while (true) {
-      const dateStr = currentDate.toISOString().split("T")[0];
-      if (!checkinDates.has(dateStr)) {
-        break;
-      }
-      streak++;
-      currentDate.setDate(currentDate.getDate() - 1);
-    }
-
-    return streak;
+    return calculateDateKeyStreak(
+      (checkins || []).map((checkin: any) => checkin.checkin_date),
+      todayStr
+    );
   } catch (error) {
     console.error("Error calculating streak:", error);
-    return 1;
+    return 0;
   }
 }
 

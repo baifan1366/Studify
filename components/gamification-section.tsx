@@ -136,17 +136,17 @@ export default function GamificationSection({
   // Get check-in status from API or checkinResult
   const checkinStatus = checkinStatusData?.data;
   const hasCheckedInToday =
-    checkinResult?.alreadyCheckedIn ||
-    checkinStatus?.hasCheckedInToday ||
+    checkinResult?.alreadyCheckedIn ??
+    checkinStatus?.hasCheckedInToday ??
     false;
   const currentStreak =
-    checkinResult?.currentStreak ||
-    checkinStatus?.currentStreak ||
-    learningStats?.summary.studyStreak ||
+    checkinResult?.currentStreak ??
+    checkinStatus?.currentStreak ??
+    learningStats?.summary.studyStreak ??
     0;
   const weeklyCheckins =
-    checkinResult?.weeklyCheckins ||
-    checkinStatus?.weeklyCheckins ||
+    checkinResult?.weeklyCheckins ??
+    checkinStatus?.weeklyCheckins ??
     Array(7).fill(false);
 
   // 获取成就图标

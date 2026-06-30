@@ -135,7 +135,7 @@ const searchPromise = (async () => {
 
 const fallbackPromise = (async () => {
   // 直接LLM调用，90s超时
-  const llm = await getLLM({ model: "openrouter/owl-alpha" });
+  const llm = await getLLM({ model: "nvidia/nemotron-3-super-120b-a12b:free" });
   return await llm.invoke(fallbackPrompt);
 })();
 ```
@@ -171,7 +171,7 @@ try {
   // 主要逻辑
 } catch (error) {
   // 最后手段: 简单直接答案
-  const llm = await getLLM({ model: "openrouter/owl-alpha" });
+  const llm = await getLLM({ model: "nvidia/nemotron-3-super-120b-a12b:free" });
   const emergencyAnswer = await llm.invoke(`Answer briefly: ${question}`);
   return { answer: emergencyAnswer.content, confidence: 0.6 };
 }

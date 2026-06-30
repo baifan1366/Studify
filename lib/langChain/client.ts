@@ -204,7 +204,7 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_REASONING_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "openrouter/owl-alpha",
+      "nvidia/nemotron-3-super-120b-a12b:free",
   });
 }
 
@@ -217,7 +217,7 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_CREATIVE_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "openrouter/owl-alpha",
+      "nvidia/nemotron-3-super-120b-a12b:free",
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -234,7 +234,7 @@ export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_ANALYTICAL_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "openrouter/owl-alpha",
+      "nvidia/nemotron-3-super-120b-a12b:free",
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
     enableReasoning: false, // DeepSeek doesn't support reasoning mode
@@ -250,7 +250,7 @@ export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_LONG_CONTEXT_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "openrouter/owl-alpha",
+      "nvidia/nemotron-3-super-120b-a12b:free",
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
   });

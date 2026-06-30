@@ -5,6 +5,8 @@ export interface TrendData {
   thisWeek: number;
   change: number;
   trend: string;
+  lastWeek?: number;
+  percentChange?: number | null;
 }
 
 export interface StreakData {

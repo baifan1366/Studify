@@ -379,7 +379,7 @@ async function generateRetroAnalysisWithToolCalling(context: any) {
     const agent = new StudifyToolCallingAgent({
       enabledTools: [],
       temperature: 0.7,
-      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
+      model: process.env.OPEN_ROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free'
     });
 
     await agent.initialize();

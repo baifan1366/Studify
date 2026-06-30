@@ -120,7 +120,7 @@ export class AISummarySystem {
         meta: {
           itemCount: posts.length,
           processingTimeMs: processingTime,
-          model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha',
+          model: process.env.OPEN_ROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free',
           locale: opts.locale
         }
       };
@@ -197,7 +197,7 @@ export class AISummarySystem {
         meta: {
           itemCount: 1,
           processingTimeMs: processingTime,
-          model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha',
+          model: process.env.OPEN_ROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free',
           locale: opts.locale
         }
       };
@@ -224,7 +224,7 @@ export class AISummarySystem {
   }>> {
     const llm = await getAnalyticalLLM({
       temperature: 0.1,
-      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
+      model: process.env.OPEN_ROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free'
     });
 
     const mapPrompt = this.getMapPrompt(query, options.locale);
@@ -298,7 +298,7 @@ export class AISummarySystem {
   }> {
     const llm = await getLongContextLLM({
       temperature: 0.2,
-      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
+      model: process.env.OPEN_ROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free'
     });
 
     // Combine all key points
@@ -333,7 +333,7 @@ export class AISummarySystem {
   }> {
     const llm = await getAnalyticalLLM({
       temperature: 0.1,
-      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
+      model: process.env.OPEN_ROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free'
     });
 
     const singlePostPrompt = this.getSinglePostPrompt(content, options);

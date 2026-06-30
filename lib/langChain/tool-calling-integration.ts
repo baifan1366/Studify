@@ -71,7 +71,7 @@ export class StudifyToolCallingAgent {
     const selectedModel =
       process.env.OPEN_ROUTER_TOOL_CALLING_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "openrouter/owl-alpha";
+      "nvidia/nemotron-3-super-120b-a12b:free";
     console.log("🔧 Tool Calling Model Config:", {
       OPEN_ROUTER_TOOL_CALLING_MODEL:
         process.env.OPEN_ROUTER_TOOL_CALLING_MODEL,
@@ -679,7 +679,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         console.log(`🤖 [${Date.now()}] Step 2: Starting fallback LLM answer...`);
         
         try {
-          const selectedModel = options.model || process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha";
+          const selectedModel = options.model || process.env.OPEN_ROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free";
           console.log(`🎯 [${Date.now()}] Using model for fallback: ${selectedModel}`);
           
           const llm = await getLLM({
@@ -831,7 +831,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
             model:
               options.model ||
               process.env.OPEN_ROUTER_MODEL ||
-              "openrouter/owl-alpha",
+              "nvidia/nemotron-3-super-120b-a12b:free",
             temperature: 0.3,
           });
           {
@@ -908,7 +908,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         const emergencyStartTime = Date.now();
         
         const llm = await getLLM({
-          model: "openrouter/owl-alpha", // Use fastest free model
+          model: "nvidia/nemotron-3-super-120b-a12b:free", // Use fastest free model
           temperature: 0.3,
         });
         

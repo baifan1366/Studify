@@ -1,4 +1,4 @@
-export const DEFAULT_TEXT_MODEL = "openrouter/owl-alpha";
+export const DEFAULT_TEXT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 
 export function isVisionModel(model?: string): boolean {
   if (!model) return false;
